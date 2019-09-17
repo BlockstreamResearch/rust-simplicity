@@ -1,0 +1,17 @@
+[package]
+name = "rust-simplicity"
+version = "0.1.0"
+authors = ["Andrew Poelstra <apoelstra@wpsoftware.net>"]
+edition = "2015"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "simplicity"
+path = "src/lib.rs"
+
+[[bin]]
+name = "main"
+path = "src/main.rs"
+
+[dependencies]
