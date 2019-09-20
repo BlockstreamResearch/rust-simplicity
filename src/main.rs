@@ -1,8 +1,6 @@
 
 extern crate simplicity;
 
-use std::fmt;
-
 /* A length-prefixed encoding of the following Simplicity program:
  *       ((false &&& scribe (toWord256 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798)) &&& zero word256) &&&
  *       witness (toWord512 0x787A848E71043D280C50470E8E1532B2DD5D20EE912A45DBDD2BD1DFBF187EF67031A98831859DC34DFFEEDDA86831842CCD0079E1F92AF177F7F22CC1DCED05) >>>
@@ -1513,132 +1511,57 @@ impl<I: Iterator<Item = u8>> Iterator for BitIter<I> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-enum Object {
-    Unit,
-    SumL(Box<Object>),
-    SumR(Box<Object>),
-    Prod(Box<Object>, Box<Object>),
-}
-
-impl fmt::Display for Object {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Object::Unit => f.write_str("ε"),
-            Object::SumL(ref sub) => {
-                f.write_str("0")?;
-                if **sub != Object::Unit {
-                    write!(f, "{}", sub)
-                } else {
-                    Ok(())
-                }
-            },
-            Object::SumR(ref sub) => {
-                f.write_str("1")?;
-                if **sub != Object::Unit {
-                    write!(f, "{}", sub)
-                } else {
-                    Ok(())
-                }
-            },
-            Object::Prod(ref l, ref r) => {
-                write!(f, "({},", l)?;
-                write!(f, "{})", r)
-            },
-        }
-    }
-}
-
-impl Object {
-    fn from_bit(n: bool) -> Object {
-        if n {
-            Object::SumR(Box::new(Object::Unit))
-        } else {
-            Object::SumL(Box::new(Object::Unit))
-        }
-    }
-
-    fn from_byte(n: u8) -> Object {
-        Object::Prod(
-            Box::new(Object::Prod(
-                Box::new(Object::Prod(
-                    Box::new(Object::from_bit(n & 0x80 != 0)),
-                    Box::new(Object::from_bit(n & 0x40 != 0)),
-                )),
-                Box::new(Object::Prod(
-                    Box::new(Object::from_bit(n & 0x20 != 0)),
-                    Box::new(Object::from_bit(n & 0x10 != 0)),
-                )),
-            )),
-            Box::new(Object::Prod(
-                Box::new(Object::Prod(
-                    Box::new(Object::from_bit(n & 0x08!= 0)),
-                    Box::new(Object::from_bit(n & 0x04 != 0)),
-                )),
-                Box::new(Object::Prod(
-                    Box::new(Object::from_bit(n & 0x02 != 0)),
-                    Box::new(Object::from_bit(n & 0x01 != 0)),
-                )),
-            )),
-        )
-    }
-}
-
 fn exec(
-    program: &[simplicity::Node],
-    idx: usize,
-    input: Box<Object>,
-    depth: usize,
-) -> Box<Object> {
-    if depth < 30 {
-        for _ in 0..depth {
-            print!("  ");
-        }
-        println!("exec {}: {:?}", idx, program[idx]);
-    }
-    match program[idx] {
+    program: &simplicity::types::TypedNode,
+    input: Box<simplicity::Value>,
+    iters: &mut usize,
+) -> Box<simplicity::Value> {
+    *iters += 1;
+
+    let ret = match program.node {
         simplicity::Node::Iden => input,
-        simplicity::Node::Unit => Box::new(Object::Unit),
-        simplicity::Node::InjL(n) => {
-            let v = exec(program, idx - n, input, depth + 1);
-            Box::new(Object::SumL(v))
+        simplicity::Node::Unit => Box::new(simplicity::Value::Unit),
+        simplicity::Node::InjL(ref t) => {
+            let v = exec(t, input, iters);
+            Box::new(simplicity::Value::SumL(v))
         },
-        simplicity::Node::InjR(n) => {
-            let v = exec(program, idx - n, input, depth + 1);
-            Box::new(Object::SumR(v))
+        simplicity::Node::InjR(ref t) => {
+            let v = exec(t, input, iters);
+            Box::new(simplicity::Value::SumR(v))
         },
-        simplicity::Node::Pair(i, j) => {
-            let in_l = exec(program, idx - i, input.clone(), depth + 1);
-            let in_r = exec(program, idx - j, input, depth + 1);
-            Box::new(Object::Prod(in_l, in_r))
+        simplicity::Node::Pair(ref t, ref s) => {
+            let in_l = exec(t, input.clone(), iters);
+            let in_r = exec(s, input, iters);
+            Box::new(simplicity::Value::Prod(in_l, in_r))
         },
-        simplicity::Node::Comp(i, j) => {
-            let in1 = exec(program, idx - i, input, depth + 1);
-            exec(program, idx - j, in1, depth + 1)
+        simplicity::Node::Comp(ref t, ref s) => {
+            let in1 = exec(t, input, iters);
+            exec(s, in1, iters)
         },
-        simplicity::Node::Take(n) => {
+        simplicity::Node::Take(ref t) => {
             match *input {
-                Object::Prod(l, _) => exec(program, idx - n, l, depth + 1),
+                simplicity::Value::Prod(l, _) => exec(t, l, iters),
                 x => panic!("Expected product, got {}", x),
             }
         },
-        simplicity::Node::Drop(n) => {
+        simplicity::Node::Drop(ref t) => {
             match *input {
-                Object::Prod(_, r) => exec(program, idx - n, r, depth + 1),
+                simplicity::Value::Prod(_, r) => exec(t, r, iters),
                 x => panic!("Expected product, got {}", x),
             }
         },
-        simplicity::Node::Case(s, t) => {
-            match *input {
-                Object::Prod(sw, r) => {
+        simplicity::Node::Case(ref s, ref t) => {
+            let input = *input; // explicit unboxing needed in rustc 1.22
+            match input {
+                simplicity::Value::Prod(sw, r) => {
                     match *sw {
-                        Object::SumL(left) => {
-                            let inp = Box::new(Object::Prod(left, r));
-                            exec(program, idx - s, inp, depth + 1)
+                        simplicity::Value::SumL(left) => {
+                            let inp = Box::new(simplicity::Value::Prod(left, r));
+                            exec(s, inp, iters)
                         },
-                        Object::SumR(right) => {
-                            let inp = Box::new(Object::Prod(right, r));
-                            exec(program, idx - t, inp, depth + 1)
+                        simplicity::Value::SumR(right) => {
+                            let inp = Box::new(simplicity::Value::Prod(right, r));
+                            exec(t, inp, iters)
                         },
                         x => panic!("Expected sum, got {}", x),
                     }
@@ -1646,234 +1569,42 @@ fn exec(
                 x => panic!("Expected product, got {}", x),
             }
         },
-        simplicity::Node::Witness(_) => {
-            Box::new(Object::Prod(
-                Box::new(Object::Prod(
-                    Box::new(Object::Prod(
-                        Box::new(Object::Prod(
-                            Box::new(Object::Prod(
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0x78)),
-                                    Box::new(Object::from_byte(0x7a)),
-                                )),
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0x84)),
-                                    Box::new(Object::from_byte(0x8e)),
-                                )),
-                            )),
-                            Box::new(Object::Prod(
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0x71)),
-                                    Box::new(Object::from_byte(0x04)),
-                                )),
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0x3d)),
-                                    Box::new(Object::from_byte(0x28)),
-                                )),
-                            )),
-                        )),
-                        Box::new(Object::Prod(
-                            Box::new(Object::Prod(
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0x0c)),
-                                    Box::new(Object::from_byte(0x50)),
-                                )),
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0x47)),
-                                    Box::new(Object::from_byte(0x0e)),
-                                )),
-                            )),
-                            Box::new(Object::Prod(
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0x8e)),
-                                    Box::new(Object::from_byte(0x15)),
-                                )),
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0x32)),
-                                    Box::new(Object::from_byte(0xb2)),
-                                )),
-                            )),
-                        )),
-                    )),
-                    Box::new(Object::Prod(
-                        Box::new(Object::Prod(
-                            Box::new(Object::Prod(
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0xdd)),
-                                    Box::new(Object::from_byte(0x5d)),
-                                )),
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0x20)),
-                                    Box::new(Object::from_byte(0xee)),
-                                )),
-                            )),
-                            Box::new(Object::Prod(
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0x91)),
-                                    Box::new(Object::from_byte(0x2a)),
-                                )),
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0x45)),
-                                    Box::new(Object::from_byte(0xdb)),
-                                )),
-                            )),
-                        )),
-                        Box::new(Object::Prod(
-                            Box::new(Object::Prod(
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0xdd)),
-                                    Box::new(Object::from_byte(0x2b)),
-                                )),
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0xd1)),
-                                    Box::new(Object::from_byte(0xdf)),
-                                )),
-                            )),
-                            Box::new(Object::Prod(
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0xbf)),
-                                    Box::new(Object::from_byte(0x18)),
-                                )),
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0x7e)),
-                                    Box::new(Object::from_byte(0xf6)),
-                                )),
-                            )),
-                        )),
-                    )),
-                )),
-                Box::new(Object::Prod(
-                    Box::new(Object::Prod(
-                        Box::new(Object::Prod(
-                            Box::new(Object::Prod(
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0x70)),
-                                    Box::new(Object::from_byte(0x31)),
-                                )),
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0xa9)),
-                                    Box::new(Object::from_byte(0x88)),
-                                )),
-                            )),
-                            Box::new(Object::Prod(
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0x31)),
-                                    Box::new(Object::from_byte(0x85)),
-                                )),
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0x9d)),
-                                    Box::new(Object::from_byte(0xc3)),
-                                )),
-                            )),
-                        )),
-                        Box::new(Object::Prod(
-                            Box::new(Object::Prod(
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0x4d)),
-                                    Box::new(Object::from_byte(0xff)),
-                                )),
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0xee)),
-                                    Box::new(Object::from_byte(0xdd)),
-                                )),
-                            )),
-                            Box::new(Object::Prod(
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0xa8)),
-                                    Box::new(Object::from_byte(0x68)),
-                                )),
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0x31)),
-                                    Box::new(Object::from_byte(0x84)),
-                                )),
-                            )),
-                        )),
-                    )),
-                    Box::new(Object::Prod(
-                        Box::new(Object::Prod(
-                            Box::new(Object::Prod(
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0x2c)),
-                                    Box::new(Object::from_byte(0xcd)),
-                                )),
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0x00)),
-                                    Box::new(Object::from_byte(0x79)),
-                                )),
-                            )),
-                            Box::new(Object::Prod(
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0xe1)),
-                                    Box::new(Object::from_byte(0xf9)),
-                                )),
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0x2a)),
-                                    Box::new(Object::from_byte(0xf1)),
-                                )),
-                            )),
-                        )),
-                        Box::new(Object::Prod(
-                            Box::new(Object::Prod(
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0x77)),
-                                    Box::new(Object::from_byte(0xf7)),
-                                )),
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0xf2)),
-                                    Box::new(Object::from_byte(0x2c)),
-                                )),
-                            )),
-                            Box::new(Object::Prod(
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0xc1)),
-                                    Box::new(Object::from_byte(0xdc)),
-                                )),
-                                Box::new(Object::Prod(
-                                    Box::new(Object::from_byte(0xed)),
-                                    Box::new(Object::from_byte(0x05)),
-                                )),
-                            )),
-                        )),
-                    )),
-                )),
-            ))
+        simplicity::Node::Witness(ref value) => {
+            match *value {
+                Some(ref val) => Box::new(val.clone()),
+                None => panic!("encountered unpopulated witness node"),
+            }
         },
         ref x => panic!("Don't know how to handle {:?} (input {})", x, input),
+    };
+
+    if *iters % 10_000_000 == 0 {
+        println!("({:5} M) exec {}: {}", *iters / 1_000_000, program, ret);
     }
+
+    ret
 }
 
 fn main() {
     let mut bits: BitIter<_> = SCHNORR_1.iter().cloned().into();
 
-    let prog_len = simplicity::natural::decode(&mut bits)
-        .expect("decoding length");
-    let mut program = Vec::with_capacity(prog_len);
-    for _ in 0..prog_len {
-        program.push(
-            simplicity::decode_node_no_witness(&mut bits)
-                .expect("decode node")
-        );
-    }
+    let program = simplicity::encode::decode_program_no_witness(&mut bits)
+        .expect("decoding program");
+
     let wit_len = match bits.next() {
         Some(false) => 0,
-        Some(true) => simplicity::natural::decode(&mut bits)
+        Some(true) => simplicity::encode::decode_natural(&mut bits)
             .expect("decoding witness length"),
         None => panic!("No witness data"),
     };
-    let wit_str = bits.by_ref().take(wit_len).collect::<Vec<_>>();
-    for i in 0..64 {
-        let byte = if wit_str[8 * i + 0] { 1 << 7 } else { 0 }
-            + if wit_str[8 * i + 1] { 1 << 6 } else { 0 }
-            + if wit_str[8 * i + 2] { 1 << 5 } else { 0 }
-            + if wit_str[8 * i + 3] { 1 << 4 } else { 0 }
-            + if wit_str[8 * i + 4] { 1 << 3 } else { 0 }
-            + if wit_str[8 * i + 5] { 1 << 2 } else { 0 }
-            + if wit_str[8 * i + 6] { 1 << 1 } else { 0 }
-        + if wit_str[8 * i + 7] { 1 << 0 } else { 0 };
-        print!("0x{:02x} ", byte);
-    }
-    println!("witness [len {}]: {:?}", wit_len, wit_str);
+    let typeck = simplicity::types::type_check(
+        &program,
+        Some(bits.by_ref().take(wit_len))
+    );
 
-    let output = exec(&program, program.len() - 1, Box::new(Object::Unit), 0);
+    println!("{}", typeck);
+
+    println!("Running program ... warning, this will take several hours even in release mode");
+    let output = exec(&typeck, Box::new(simplicity::Value::Unit), &mut 0);
     println!("output {}", output);
 }
