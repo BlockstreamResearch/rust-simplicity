@@ -32,7 +32,7 @@ impl fmt::Display for FinalType {
 }
 
 impl FinalType {
-    fn bit_width(&self) -> usize {
+    pub fn bit_width(&self) -> usize {
         match *self {
             FinalType::Unit => 0,
             FinalType::Sum(ref s, ref t) => 1 + s.bit_width() + t.bit_width(),

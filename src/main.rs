@@ -1,6 +1,8 @@
 
 extern crate simplicity;
 
+use std::cmp;
+
 /* A length-prefixed encoding of the following Simplicity program:
  *       ((false &&& scribe (toWord256 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798)) &&& zero word256) &&&
  *       witness (toWord512 0x787A848E71043D280C50470E8E1532B2DD5D20EE912A45DBDD2BD1DFBF187EF67031A98831859DC34DFFEEDDA86831842CCD0079E1F92AF177F7F22CC1DCED05) >>>
@@ -1511,12 +1513,218 @@ impl<I: Iterator<Item = u8>> Iterator for BitIter<I> {
     }
 }
 
+struct Frame {
+    data: [u8; 2_000],
+    pos: usize,
+}
+
+impl Frame {
+    fn new() -> Frame {
+        Frame {
+            data: [0; 2_000],
+            pos: 0,
+        }
+    }
+
+    fn read(&self) -> bool {
+        self.data[self.pos / 8] & (1 << (self.pos % 8)) != 0
+    }
+
+    fn write(&mut self, b: bool) {
+        if b {
+            self.data[self.pos / 8] |= 1 << (self.pos % 8);
+        } else {
+            self.data[self.pos / 8] &= !(1 << (self.pos % 8));
+        }
+        self.pos += 1;
+    }
+
+    fn fwd(&mut self, n: usize) {
+        self.pos += n;
+    }
+
+    fn back(&mut self, n: usize) {
+        self.pos -= n;
+    }
+}
+
+struct BitMachine {
+    read: Vec<Frame>,
+    write: Vec<Frame>,
+}
+
+impl BitMachine {
+    fn write(&mut self, bit: bool) {
+        let idx = self.write.len() - 1;
+        self.write[idx].write(bit);
+    }
+
+    fn skip(&mut self, n: usize) {
+        let idx = self.write.len() - 1;
+        self.write[idx].fwd(n);
+    }
+
+    fn copy(&mut self, n: usize) {
+        for _ in 0..n % 8 {
+            let ridx = self.read.len() - 1;
+            let bit = self.read[ridx].read();
+            self.write(bit);
+        }
+    }
+
+    fn fwd(&mut self, n: usize) {
+        let idx = self.read.len() - 1;
+        self.read[idx].fwd(n);
+    }
+
+    fn back(&mut self, n: usize) {
+        let idx = self.read.len() - 1;
+        self.read[idx].back(n);
+    }
+
+    fn write_value(&mut self, val: &simplicity::Value) {
+        match *val {
+            simplicity::Value::Unit => {},
+            simplicity::Value::SumL(ref a) => {
+                self.write(false);
+                self.write_value(a);
+            },
+            simplicity::Value::SumR(ref a) => {
+                self.write(false);
+                self.write_value(a);
+            },
+            simplicity::Value::Prod(ref a, ref b) => {
+                self.write_value(a);
+                self.write_value(b);
+            },
+        }
+    }
+
+    fn new() -> BitMachine {
+        let mut ret = BitMachine {
+            read: Vec::with_capacity(10_000),
+            write: Vec::with_capacity(10_000),
+        };
+        ret.read.push(Frame::new());
+        ret
+    }
+
+    fn exec(
+        &mut self,
+        program: &simplicity::types::TypedNode,
+        iters: &mut usize,
+    ) {
+        *iters += 1;
+
+        if *iters % 10_000_000 == 0 {
+            println!("({:5} M) exec {}", *iters / 1_000_000, program);
+        }
+
+        if *iters > 100_000_000 {
+            panic!("stopping early after {} iters", iters);
+        }
+
+        let w = program.target_ty.bit_width();
+        if w > 6000 {
+            println!("{}", w);
+        }
+
+        match program.node {
+            simplicity::Node::Iden => self.copy(program.source_ty.bit_width()),
+            simplicity::Node::Unit => {},
+            simplicity::Node::InjL(ref t) => {
+                self.write(false);
+                if let simplicity::types::FinalType::Sum(ref a, ref b) = *program.target_ty {
+                    let aw = a.bit_width();
+                    let bw = b.bit_width();
+                    self.skip(cmp::max(aw, bw) - aw);
+                    self.exec(t, iters);
+                } else {
+                    panic!("type error")
+                }
+            },
+            simplicity::Node::InjR(ref t) => {
+                self.write(true);
+                if let simplicity::types::FinalType::Sum(ref a, ref b) = *program.target_ty {
+                    let aw = a.bit_width();
+                    let bw = b.bit_width();
+                    self.skip(cmp::max(aw, bw) - bw);
+                    self.exec(t, iters);
+                } else {
+                    panic!("type error")
+                }
+            },
+            simplicity::Node::Pair(ref t, ref s) => {
+                self.exec(t, iters);
+                self.exec(s, iters);
+            },
+            simplicity::Node::Comp(ref t, ref s) => {
+                self.write.push(Frame::new());
+                self.exec(t, iters);
+                self.read.push(self.write.pop().unwrap());
+                self.exec(s, iters);
+                self.read.pop();
+            },
+            simplicity::Node::Take(ref t) => {
+                self.exec(t, iters);
+            },
+            simplicity::Node::Drop(ref t) => {
+                if let simplicity::types::FinalType::Product(ref a, _) = *program.source_ty {
+                    let aw = a.bit_width();
+                    self.fwd(aw);
+                    self.exec(t, iters);
+                    self.back(aw);
+                } else {
+                    panic!("type error")
+                }
+            },
+            simplicity::Node::Case(ref s, ref t) => {
+                let sw = self.read[self.read.len() - 1].read();
+                let aw;
+                let bw;
+                if let simplicity::types::FinalType::Product(ref a, _) = *program.source_ty {
+                    if let simplicity::types::FinalType::Sum(ref a, ref b) = **a {
+                        aw = a.bit_width();
+                        bw = b.bit_width();
+                    } else {
+                        panic!("type error");
+                    }
+                } else {
+                    panic!("type error");
+                }
+
+                if sw {
+                    self.fwd(cmp::max(aw, bw) - bw);
+                    self.exec(s, iters);
+                    self.back(cmp::max(aw, bw) - bw);
+                } else {
+                    self.fwd(cmp::max(aw, bw) - aw);
+                    self.exec(t, iters);
+                    self.back(cmp::max(aw, bw) - aw);
+                }
+            },
+            simplicity::Node::Witness(ref value) => {
+                self.write_value(value.as_ref().unwrap())
+            },
+            ref x => panic!("Don't know how to handle {:?}", x),
+        }
+    }
+}
+
 fn exec(
     program: &simplicity::types::TypedNode,
     input: Box<simplicity::Value>,
     iters: &mut usize,
 ) -> Box<simplicity::Value> {
     *iters += 1;
+
+    if *iters > 100_000_000 {
+        panic!("stopping early after {} iters", iters);
+    }
+
+    if *iters % 10_000_000 == 0 {
+        println!("({:5} M) exec {}", *iters / 1_000_000, program);
+    }
 
     let ret = match program.node {
         simplicity::Node::Iden => input,
@@ -1578,10 +1786,6 @@ fn exec(
         ref x => panic!("Don't know how to handle {:?} (input {})", x, input),
     };
 
-    if *iters % 10_000_000 == 0 {
-        println!("({:5} M) exec {}: {}", *iters / 1_000_000, program, ret);
-    }
-
     ret
 }
 
@@ -1605,6 +1809,8 @@ fn main() {
     println!("{}", typeck);
 
     println!("Running program ... warning, this will take several hours even in release mode");
+    let mut mac = BitMachine::new();
+    mac.exec(&typeck, &mut 0);
     let output = exec(&typeck, Box::new(simplicity::Value::Unit), &mut 0);
     println!("output {}", output);
 }
