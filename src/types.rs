@@ -1,9 +1,8 @@
-
+use std::cell::RefCell;
+use std::collections::HashSet;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::cell::RefCell;
-use std::{fmt, mem};
-use std::collections::HashSet;
+use std::{cmp, fmt, mem};
 
 use {Node, Value};
 
@@ -15,29 +14,31 @@ enum Type {
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub enum FinalType {
+pub enum FinalTypeInner {
     Unit,
     Sum(Arc<FinalType>, Arc<FinalType>),
     Product(Arc<FinalType>, Arc<FinalType>),
 }
 
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct FinalType {
+    pub ty: FinalTypeInner,
+    pub bit_width: usize,
+}
+
 impl fmt::Display for FinalType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            FinalType::Unit => f.write_str("ε"),
-            FinalType::Sum(ref a, ref b) => write!(f, "({} + {})", a, b),
-            FinalType::Product(ref a, ref b) => write!(f, "({} × {})", a, b),
+        match self.ty {
+            FinalTypeInner::Unit => f.write_str("ε"),
+            FinalTypeInner::Sum(ref a, ref b) => write!(f, "({} + {})", a, b),
+            FinalTypeInner::Product(ref a, ref b) => write!(f, "({} × {})", a, b),
         }
     }
 }
 
 impl FinalType {
     pub fn bit_width(&self) -> usize {
-        match *self {
-            FinalType::Unit => 0,
-            FinalType::Sum(ref s, ref t) => 1 + s.bit_width() + t.bit_width(),
-            FinalType::Product(ref s, ref t) => s.bit_width() + t.bit_width(),
-        }
+        self.bit_width
     }
 
     fn from_var(var: RcVar) -> Arc<FinalType> {
@@ -50,19 +51,20 @@ impl FinalType {
                 assert!(!*occurs_check); // TODO set an error here
                 *occurs_check = true;
                 ty.clone()
-            },
-            Variable::EqualTo(..) => unreachable!(),
-            Variable::Finalized(ref done) => {
-                return done.clone()
             }
+            Variable::EqualTo(..) => unreachable!(),
+            Variable::Finalized(ref done) => return done.clone(),
         };
 
         let (sub1, sub2) = match existing_type {
             Type::Unit => {
-                let ret = Arc::new(FinalType::Unit);
+                let ret = Arc::new(FinalType {
+                    ty: FinalTypeInner::Unit,
+                    bit_width: 0,
+                });
                 var_borr.var = Variable::Finalized(ret.clone());
                 return ret;
-            },
+            }
             Type::Sum(ref sub1, ref sub2) => (sub1.clone(), sub2.clone()),
             Type::Product(ref sub1, ref sub2) => (sub1.clone(), sub2.clone()),
         };
@@ -72,11 +74,14 @@ impl FinalType {
 
         let sub1_borr = sub1.borrow_mut();
         let final1 = match sub1_borr.var {
-            Variable::Free => Arc::new(FinalType::Unit),
+            Variable::Free => Arc::new(FinalType {
+                ty: FinalTypeInner::Unit,
+                bit_width: 0,
+            }),
             Variable::Bound(..) => {
                 drop(sub1_borr);
                 FinalType::from_var(sub1.clone())
-            },
+            }
             Variable::EqualTo(..) => unreachable!(),
             Variable::Finalized(ref f1) => {
                 let ret = f1.clone();
@@ -87,11 +92,14 @@ impl FinalType {
 
         let sub2_borr = sub2.borrow_mut();
         let final2 = match sub2_borr.var {
-            Variable::Free => Arc::new(FinalType::Unit),
+            Variable::Free => Arc::new(FinalType {
+                ty: FinalTypeInner::Unit,
+                bit_width: 0,
+            }),
             Variable::Bound(..) => {
                 drop(sub2_borr);
                 FinalType::from_var(sub2)
-            },
+            }
             Variable::EqualTo(..) => unreachable!(),
             Variable::Finalized(ref f2) => {
                 let ret = f2.clone();
@@ -102,8 +110,14 @@ impl FinalType {
 
         let ret = match existing_type {
             Type::Unit => unreachable!(),
-            Type::Sum(..) => Arc::new(FinalType::Sum(final1, final2)),
-            Type::Product(..) => Arc::new(FinalType::Product(final1, final2)),
+            Type::Sum(..) => Arc::new(FinalType {
+                bit_width: 1 + cmp::max(final1.bit_width, final2.bit_width),
+                ty: FinalTypeInner::Sum(final1, final2),
+            }),
+            Type::Product(..) => Arc::new(FinalType {
+                bit_width: final1.bit_width + final2.bit_width,
+                ty: FinalTypeInner::Product(final1, final2),
+            }),
         };
         var_borr.var = Variable::Finalized(ret.clone());
         ret
@@ -151,28 +165,25 @@ impl UnificationVar {
                  the representative of its equivalence class"
             ),
             Variable::Finalized(..) => unreachable!(),
-            Variable::Bound(self_ty, _) => {
-                match (self_ty, ty) {
-                    (Type::Unit, Type::Unit) => {},
-                    (Type::Sum(al1, al2), Type::Sum(be1, be2))
-                        | (Type::Product(al1, al2), Type::Product(be1, be2))
-                        => {
-                            unify(al1, be1);
-                            unify(al2, be2);
-                        },
-                    (a, b) => {
-                        let self_s = match a {
-                            Type::Unit => "unit",
-                            Type::Sum(..) => "sum",
-                            Type::Product(..) => "prod",
-                        };
-                        let b_s = match b {
-                            Type::Unit => "unit",
-                            Type::Sum(..) => "sum",
-                            Type::Product(..) => "prod",
-                        };
-                        panic!("unification failure {} vs {}", self_s, b_s)
-                    }
+            Variable::Bound(self_ty, _) => match (self_ty, ty) {
+                (Type::Unit, Type::Unit) => {}
+                (Type::Sum(al1, al2), Type::Sum(be1, be2))
+                | (Type::Product(al1, al2), Type::Product(be1, be2)) => {
+                    unify(al1, be1);
+                    unify(al2, be2);
+                }
+                (a, b) => {
+                    let self_s = match a {
+                        Type::Unit => "unit",
+                        Type::Sum(..) => "sum",
+                        Type::Product(..) => "prod",
+                    };
+                    let b_s = match b {
+                        Type::Unit => "unit",
+                        Type::Sum(..) => "sum",
+                        Type::Product(..) => "prod",
+                    };
+                    panic!("unification failure {} vs {}", self_s, b_s)
                 }
             },
         }
@@ -248,6 +259,8 @@ pub struct TypedNode {
     pub index: usize,
     pub source_ty: Arc<FinalType>,
     pub target_ty: Arc<FinalType>,
+    pub extra_cells_bound: usize,
+    pub frame_count_bound: usize,
 }
 
 impl TypedNode {
@@ -276,14 +289,12 @@ impl TypedNode {
                 self.target_ty,
             );
             match self.node {
-                Node::Iden | Node::Unit | Node::Witness(..) | Node::Hidden(..) | Node::Fail(..) => {},
-                Node::InjL(ref i)
-                    | Node::InjR(ref i)
-                    | Node::Take(ref i)
-                    | Node::Drop(ref i) => {
-                        println!("  {} -> {};", self.index, i.index);
-                        i.graph_print_internal(drawn);
-                    }
+                Node::Iden | Node::Unit | Node::Witness(..) | Node::Hidden(..) | Node::Fail(..) => {
+                }
+                Node::InjL(ref i) | Node::InjR(ref i) | Node::Take(ref i) | Node::Drop(ref i) => {
+                    println!("  {} -> {};", self.index, i.index);
+                    i.graph_print_internal(drawn);
+                }
                 Node::Comp(ref i, ref j)
                 | Node::Case(ref i, ref j)
                 | Node::Pair(ref i, ref j)
@@ -314,28 +325,19 @@ impl fmt::Display for TypedNode {
             Node::InjR(ref i) => write!(f, "injr({})", i.index)?,
             Node::Take(ref i) => write!(f, "take({})", i.index)?,
             Node::Drop(ref i) => write!(f, "drop({})", i.index)?,
-            Node::Comp(ref i, ref j)
-                => write!(f, "comp({}, {})", i.index, j.index)?,
-            Node::Case(ref i, ref j)
-                => write!(f, "case({}, {})", i.index, j.index)?,
-            Node::Pair(ref i, ref j)
-                => write!(f, "pair({}, {})", i.index, j.index)?,
-            Node::Disconnect(ref i, ref j)
-                => write!(f, "disconnect({}, {})", i.index, j.index)?,
+            Node::Comp(ref i, ref j) => write!(f, "comp({}, {})", i.index, j.index)?,
+            Node::Case(ref i, ref j) => write!(f, "case({}, {})", i.index, j.index)?,
+            Node::Pair(ref i, ref j) => write!(f, "pair({}, {})", i.index, j.index)?,
+            Node::Disconnect(ref i, ref j) => write!(f, "disconnect({}, {})", i.index, j.index)?,
             Node::Witness(..) => f.write_str("witness")?,
             Node::Hidden(..) => f.write_str("hidden")?,
             Node::Fail(..) => f.write_str("fail")?,
         }
-        write!(
-            f,
-            ": {} → {}",
-            self.source_ty,
-            self.target_ty,
-        )
+        write!(f, ": {} → {}", self.source_ty, self.target_ty,)
     }
 }
 
-pub struct FullPrint<'a>(&'a TypedNode);
+pub struct FullPrint<'a>(pub &'a TypedNode);
 impl<'a> fmt::Display for FullPrint<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{}]", self.0.index)?;
@@ -346,24 +348,17 @@ impl<'a> fmt::Display for FullPrint<'a> {
             Node::InjR(ref i) => write!(f, "injr({})", FullPrint(i)),
             Node::Take(ref i) => write!(f, "take({})", FullPrint(i)),
             Node::Drop(ref i) => write!(f, "drop({})", FullPrint(i)),
-            Node::Comp(ref i, ref j)
-                => write!(f, "comp({}, {})", FullPrint(i), FullPrint(j)),
-            Node::Case(ref i, ref j)
-                => write!(f, "case({}, {})", FullPrint(i), FullPrint(j)),
-            Node::Pair(ref i, ref j)
-                => write!(f, "pair({}, {})", FullPrint(i), FullPrint(j)),
-            Node::Disconnect(ref i, ref j)
-                => write!(f, "disconnect({}, {})", FullPrint(i), FullPrint(j)),
+            Node::Comp(ref i, ref j) => write!(f, "comp({}, {})", FullPrint(i), FullPrint(j)),
+            Node::Case(ref i, ref j) => write!(f, "case({}, {})", FullPrint(i), FullPrint(j)),
+            Node::Pair(ref i, ref j) => write!(f, "pair({}, {})", FullPrint(i), FullPrint(j)),
+            Node::Disconnect(ref i, ref j) => {
+                write!(f, "disconnect({}, {})", FullPrint(i), FullPrint(j))
+            }
             Node::Witness(..) => f.write_str("witness"),
             Node::Hidden(..) => f.write_str("hidden"),
             Node::Fail(..) => f.write_str("fail"),
         }?;
-        write!(
-            f,
-            ": {} → {}",
-            self.0.source_ty,
-            self.0.target_ty,
-        )
+        write!(f, ": {} → {}", self.0.source_ty, self.0.target_ty,)
     }
 }
 
@@ -385,7 +380,7 @@ pub fn type_check<BitStream: Iterator<Item = bool>>(
             target: Rc::new(RefCell::new(UnificationVar::free())),
         };
 
-        match program[k]{
+        match program[k] {
             Node::Iden => unify(node.source.clone(), node.target.clone()),
             Node::Unit => node.target.borrow_mut().bind(Type::Unit),
             Node::InjL(i) => {
@@ -395,7 +390,7 @@ pub fn type_check<BitStream: Iterator<Item = bool>>(
                     Rc::new(RefCell::new(UnificationVar::free())),
                 );
                 node.target.borrow_mut().bind(target_type);
-            },
+            }
             Node::InjR(i) => {
                 unify(node.source.clone(), rcs[k - i].source.clone());
                 let target_type = Type::Sum(
@@ -403,7 +398,7 @@ pub fn type_check<BitStream: Iterator<Item = bool>>(
                     rcs[k - i].target.clone(),
                 );
                 node.target.borrow_mut().bind(target_type);
-            },
+            }
             Node::Take(i) => {
                 unify(node.target.clone(), rcs[k - i].target.clone());
                 let target_type = Type::Product(
@@ -411,7 +406,7 @@ pub fn type_check<BitStream: Iterator<Item = bool>>(
                     Rc::new(RefCell::new(UnificationVar::free())),
                 );
                 node.source.borrow_mut().bind(target_type);
-            },
+            }
             Node::Drop(i) => {
                 unify(node.target.clone(), rcs[k - i].target.clone());
                 let target_type = Type::Product(
@@ -419,12 +414,12 @@ pub fn type_check<BitStream: Iterator<Item = bool>>(
                     rcs[k - i].source.clone(),
                 );
                 node.source.borrow_mut().bind(target_type);
-            },
+            }
             Node::Comp(i, j) => {
                 unify(node.source.clone(), rcs[k - i].source.clone());
                 unify(rcs[k - i].target.clone(), rcs[k - j].source.clone());
                 unify(node.target.clone(), rcs[k - j].target.clone());
-            },
+            }
             Node::Case(i, j) => {
                 let var1 = Rc::new(RefCell::new(UnificationVar::free()));
                 let var2 = Rc::new(RefCell::new(UnificationVar::free()));
@@ -451,7 +446,7 @@ pub fn type_check<BitStream: Iterator<Item = bool>>(
                         .bind(Type::Product(var2.clone(), var3.clone()));
                     unify(node.target.clone(), rcs[k - j].target.clone());
                 }
-            },
+            }
             Node::Pair(i, j) => {
                 unify(node.source.clone(), rcs[k - i].source.clone());
                 unify(node.source.clone(), rcs[k - j].source.clone());
@@ -459,13 +454,13 @@ pub fn type_check<BitStream: Iterator<Item = bool>>(
                     rcs[k - i].target.clone(),
                     rcs[k - j].target.clone(),
                 ));
-            },
+            }
             Node::Witness(..) => {
                 // No type constraints
-            },
+            }
             Node::Hidden(..) => {
                 // No type constraints
-            },
+            }
             ref x => unimplemented!("haven't implemented {:?}", x),
         };
 
@@ -485,36 +480,75 @@ pub fn type_check<BitStream: Iterator<Item = bool>>(
                 Node::InjR(i) => Node::InjR(finals[k - i].clone()),
                 Node::Take(i) => Node::Take(finals[k - i].clone()),
                 Node::Drop(i) => Node::Drop(finals[k - i].clone()),
-                Node::Comp(i, j) => Node::Comp(
-                    finals[k - i].clone(),
-                    finals[k - j].clone(),
-                ),
-                Node::Case(i, j) => Node::Case(
-                    finals[k - i].clone(),
-                    finals[k - j].clone(),
-                ),
-                Node::Pair(i, j) => Node::Pair(
-                    finals[k - i].clone(),
-                    finals[k - j].clone(),
-                ),
-                Node::Disconnect(i, j) => Node::Disconnect(
-                    finals[k - i].clone(),
-                    finals[k - j].clone(),
-                ),
+                Node::Comp(i, j) => Node::Comp(finals[k - i].clone(), finals[k - j].clone()),
+                Node::Case(i, j) => Node::Case(finals[k - i].clone(), finals[k - j].clone()),
+                Node::Pair(i, j) => Node::Pair(finals[k - i].clone(), finals[k - j].clone()),
+                Node::Disconnect(i, j) => {
+                    Node::Disconnect(finals[k - i].clone(), finals[k - j].clone())
+                }
                 Node::Witness(..) => {
                     if let Some(ref mut iter) = witness_iter {
                         Node::Witness(Some(
-                            Value::from_witness(iter, &target_ty)
-                                .expect("decoding witness")
+                            Value::from_witness(iter, &target_ty).expect("decoding witness"),
                         ))
                     } else {
                         Node::Witness(None)
                     }
-                },
+                }
                 Node::Hidden(hash) => Node::Hidden(hash),
                 ref x => unreachable!("{:?}", x),
             },
             index: k,
+            extra_cells_bound: match program[k] {
+                Node::Iden => 0,
+                Node::Unit => 0,
+                Node::InjL(i) => finals[k - i].extra_cells_bound,
+                Node::InjR(i) => finals[k - i].extra_cells_bound,
+                Node::Take(i) => finals[k - i].extra_cells_bound,
+                Node::Drop(i) => finals[k - i].extra_cells_bound,
+                Node::Comp(i, j) => finals[k - i].target_ty.bit_width()
+                    + cmp::max(
+                        finals[k - i].extra_cells_bound,
+                        finals[k - j].extra_cells_bound,
+                    ),
+                Node::Case(i, j) => cmp::max(
+                    finals[k - i].extra_cells_bound,
+                    finals[k - j].extra_cells_bound,
+                ),
+                Node::Pair(i, j) => cmp::max(
+                    finals[k - i].extra_cells_bound,
+                    finals[k - j].extra_cells_bound,
+                ),
+                Node::Disconnect(..) => unimplemented!(),
+                Node::Witness(..) => target_ty.bit_width(),
+                Node::Fail(..) => unimplemented!(),
+                Node::Hidden(..) => 0,
+            },
+            frame_count_bound: match program[k] {
+                Node::Iden => 0,
+                Node::Unit => 0,
+                Node::InjL(i) => finals[k - i].frame_count_bound,
+                Node::InjR(i) => finals[k - i].frame_count_bound,
+                Node::Take(i) => finals[k - i].frame_count_bound,
+                Node::Drop(i) => finals[k - i].frame_count_bound,
+                Node::Comp(i, j) => 1
+                    + cmp::max(
+                        finals[k - i].frame_count_bound,
+                        finals[k - j].frame_count_bound,
+                    ),
+                Node::Case(i, j) => cmp::max(
+                    finals[k - i].frame_count_bound,
+                    finals[k - j].frame_count_bound,
+                ),
+                Node::Pair(i, j) => cmp::max(
+                    finals[k - i].frame_count_bound,
+                    finals[k - j].frame_count_bound,
+                ),
+                Node::Disconnect(..) => unimplemented!(),
+                Node::Witness(..) => 0,
+                Node::Fail(..) => unimplemented!(),
+                Node::Hidden(..) => 0,
+            },
             source_ty: source_ty,
             target_ty: target_ty,
         };
