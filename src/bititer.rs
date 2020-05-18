@@ -1,0 +1,150 @@
+// Rust Simplicity Library
+// Written in 2020 by
+//   Andrew Poelstra <apoelstra@blockstream.com>
+//
+// To the extent possible under law, the author(s) have dedicated all
+// copyright and related and neighboring rights to this software to
+// the public domain worldwide. This software is distributed without
+// any warranty.
+//
+// You should have received a copy of the CC0 Public Domain Dedication
+// along with this software.
+// If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+//
+
+//! Bit Iterator functionality
+//!
+//! Simplicity programs are encoded bitwise rather than bytewise. This
+//! module provides some helper functionality to make efficient parsing
+//! easier. In particular, the `BitIter` type takes a byte iterator and
+//! wraps it with some additional functionality (including implementing
+//! `Iterator<Item=bool>`.
+//!
+
+/// Bitwise iterator formed from a wrapped bytewise iterator. Bytes are
+/// interpreted big-endian, i.e. MSB is returned first
+pub struct BitIter<I: Iterator<Item = u8>> {
+    iter: I,
+    cached_byte: u8,
+    read_bits: usize, 
+}
+
+impl<I: Iterator<Item = u8>> From<I> for BitIter<I> {
+    fn from(iter: I) -> Self {
+        BitIter {
+            iter: iter,
+            cached_byte: 0,
+            read_bits: 8,
+        }        
+    }        
+}
+
+impl<I: Iterator<Item = u8>> Iterator for BitIter<I> {
+    type Item = bool;
+
+    fn next(&mut self) -> Option<bool> {
+        if self.read_bits < 8 {
+            self.read_bits += 1; 
+            Some(self.cached_byte & (1 << (8 - self.read_bits as u8)) != 0)
+        } else { 
+            self.cached_byte = self.iter.next()?;
+            self.read_bits = 0;
+            self.next()
+        }        
+    }        
+}
+
+impl<I: Iterator<Item = u8>> BitIter<I> {
+    /// Creates a new bitwise iterator from a bytewise one. Equivalent
+    /// to using `From`
+    pub fn new(iter: I) -> Self {
+        Self::from(iter)
+    }
+
+    /// Reads up to 64 bits as a big-endian number
+    ///
+    /// `n` must be between 0 and 63 inclusive; the function will panic
+    /// otherwise.
+    ///
+    /// Returns `None` if the underlying byte iterator runs out
+    pub fn read_bits_be(&mut self, mut n: usize) -> Option<u64> {
+        assert!(n < 64);
+        if n == 0 {
+            return Some(0)
+        }
+
+        let avail_bits = 8 - self.read_bits;
+        if avail_bits < n {
+            n -= avail_bits;
+            let pre_result = ((self.cached_byte & ((1 << avail_bits) - 1)) as u64) << n;
+            self.cached_byte = self.iter.next()?;
+            self.read_bits = 0;
+            Some(pre_result + self.read_bits_be(n)?)
+        } else {
+            self.read_bits += n;
+            Some(((self.cached_byte >> (avail_bits - n)) & ((1 << n) - 1)) as u64)
+        }
+    }
+
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_iter() {
+        let mut iter = BitIter::from([].iter().cloned());
+        assert!(iter.next().is_none());
+        assert_eq!(iter.read_bits_be(0), Some(0));
+        assert_eq!(iter.read_bits_be(1), None);
+        assert_eq!(iter.read_bits_be(63), None);
+    }
+
+    #[test]
+    fn one_bit_iter() {
+        let mut iter = BitIter::from([0x80].iter().cloned());
+        assert_eq!(iter.read_bits_be(0), Some(0));
+        assert_eq!(iter.read_bits_be(1), Some(1));
+        assert_eq!(iter.read_bits_be(7), Some(0));
+        assert_eq!(iter.read_bits_be(1), None);
+    }
+
+    #[test]
+    fn bit_by_bit() {
+        let mut iter = BitIter::from([0x0f, 0xaa].iter().cloned());
+        for _ in 0..4 {
+            assert_eq!(iter.next(), Some(false));
+        }
+        for _ in 0..4 {
+            assert_eq!(iter.next(), Some(true));
+        }
+        for _ in 0..4 {
+            assert_eq!(iter.next(), Some(true));
+            assert_eq!(iter.next(), Some(false));
+        }
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn six_by_six() {
+        let mut iter = BitIter::from([0x0f, 0xaa, 0x00].iter().cloned());
+        assert_eq!(iter.read_bits_be(6), Some(0x03)); // 00 0011
+        assert_eq!(iter.read_bits_be(6), Some(0x3a)); // 11 1010
+        assert_eq!(iter.read_bits_be(6), Some(0x28)); // 10 1000
+        assert_eq!(iter.read_bits_be(6), Some(0x00)); // 00 0000
+        assert_eq!(iter.next(), None);
+    }
+
+    #[test]
+    fn regression_1() {
+        let mut iter = BitIter::from([0x34, 0x90].iter().cloned());
+        assert_eq!(iter.read_bits_be(4), Some(0x03)); // 0011
+        assert_eq!(iter.next(), Some(false));         // 0
+        assert_eq!(iter.read_bits_be(2), Some(0x02)); // 10
+        assert_eq!(iter.read_bits_be(2), Some(0x01)); // 01
+    }
+}
+
+
+

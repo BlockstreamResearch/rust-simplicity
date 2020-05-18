@@ -1,92 +1,67 @@
 use std::mem;
 
-// Generic node
-use Node as GenNode;
-
-/// De/serialization error
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
-pub enum Error {
-    /// Number exceeded 32 bits
-    NaturalOverflow,
-    /// Non-'case' nodes may not have hidden children
-    NonCaseHiddenChild,
-    /// 'case' nodes may have at most one hidden child
-    CaseMultipleHiddenChildren,
-    /// Bitstream ended early
-    EndOfStream,
-    /// Unrecognized node
-    ParseError,
-}
-
-/// A node with no witness data which refers to other nodes by
-/// relative index
-pub type Node = GenNode<usize, ()>;
+use bititer::BitIter;
+use extension::bitcoin;
+use {Error, Node};
 
 /// Decode a natural number according to section 7.2.1
 /// of the Simplicity whitepaper.
-pub fn decode_node_no_witness<BitStream: Iterator<Item = bool>>(
-    mut iter: BitStream,
-) -> Result<Node, Error> {
-    let b1 = match iter.next() {
-        Some(bit) => bit,
-        None => return Err(Error::EndOfStream),
-    };
-    let b2 = match iter.next() {
-        Some(bit) => bit,
-        None => return Err(Error::EndOfStream),
-    };
-    let b3 = match iter.next() {
-        Some(bit) => bit,
-        None => return Err(Error::EndOfStream),
-    };
-    let b4 = match iter.next() {
-        Some(bit) => bit,
-        None => return Err(Error::EndOfStream),
-    };
-    match (b1, b2, b3, b4) {
-        (false, true, true, false) => {
-            let mut h = [0; 32];
-            for i in 0..32 {
-                for b in 0..8 {
-                    match iter.next() {
-                        Some(true) => h[i] |= 1 << (7 - b),
-                        Some(false) => {}
-                        None => return Err(Error::EndOfStream),
-                    };
-                }
+pub fn decode_node_no_witness<I: Iterator<Item = u8>>(
+    idx: usize,
+    iter: &mut BitIter<I>,
+) -> Result<Node<()>, Error> {
+    match iter.next() {
+        None => Err(Error::EndOfStream),
+        Some(true) => {
+            match iter.next() {
+                None => Err(Error::EndOfStream),
+                Some(false) => Ok(Node::Bitcoin(bitcoin::decode_node_no_witness(iter)?)),
+                Some(true) => Err(Error::ParseError("invalid parse 11")),
             }
-            Ok(GenNode::Hidden(h))
-        }
-        (false, true, true, true) => Ok(GenNode::Witness(())),
-        _ => {
-            let b5 = match iter.next() {
-                Some(bit) => bit,
+        },
+        Some(false) => {
+            let code = match iter.read_bits_be(2) {
+                Some(n) => n,
                 None => return Err(Error::EndOfStream),
             };
-            match (b1, b2, b3, b4, b5) {
-                (false, false, false, false, false) => Ok(GenNode::Comp(
-                    decode_natural(&mut iter)?,
-                    decode_natural(&mut iter)?,
+            let subcode = match iter.read_bits_be(if code < 3 { 2 } else { 1 }) {
+                Some(n) => n,
+                None => return Err(Error::EndOfStream),
+            };
+            match (code, subcode) {
+                (0, 0) => Ok(Node::Comp(
+                    idx.checked_sub(decode_natural(&mut *iter)?).ok_or(Error::BadIndex)?,
+                    idx.checked_sub(decode_natural(iter)?).ok_or(Error::BadIndex)?,
                 )),
-                (false, false, false, false, true) => Ok(GenNode::Case(
-                    decode_natural(&mut iter)?,
-                    decode_natural(&mut iter)?,
+                // FIXME `Case` should check for asserts and reject if both children are hidden
+                (0, 1) => Ok(Node::Case(
+                    idx.checked_sub(decode_natural(&mut *iter)?).ok_or(Error::BadIndex)?,
+                    idx.checked_sub(decode_natural(iter)?).ok_or(Error::BadIndex)?,
                 )),
-                (false, false, false, true, false) => Ok(GenNode::Pair(
-                    decode_natural(&mut iter)?,
-                    decode_natural(&mut iter)?,
+                (0, 2) => Ok(Node::Pair(
+                    idx.checked_sub(decode_natural(&mut *iter)?).ok_or(Error::BadIndex)?,
+                    idx.checked_sub(decode_natural(iter)?).ok_or(Error::BadIndex)?,
                 )),
-                (false, false, false, true, true) => Ok(GenNode::Disconnect(
-                    decode_natural(&mut iter)?,
-                    decode_natural(&mut iter)?,
+                (0, 3) => Ok(Node::Disconnect(
+                    idx.checked_sub(decode_natural(&mut *iter)?).ok_or(Error::BadIndex)?,
+                    idx.checked_sub(decode_natural(iter)?).ok_or(Error::BadIndex)?,
                 )),
-                (false, false, true, false, false) => Ok(GenNode::InjL(decode_natural(&mut iter)?)),
-                (false, false, true, false, true) => Ok(GenNode::InjR(decode_natural(&mut iter)?)),
-                (false, false, true, true, false) => Ok(GenNode::Take(decode_natural(&mut iter)?)),
-                (false, false, true, true, true) => Ok(GenNode::Drop(decode_natural(&mut iter)?)),
-                (false, true, false, false, false) => Ok(GenNode::Iden),
-                (false, true, false, false, true) => Ok(GenNode::Unit),
-                (false, true, false, true, false) => {
+                (1, 0) => Ok(Node::InjL(
+                    idx.checked_sub(decode_natural(iter)?).ok_or(Error::BadIndex)?,
+                )),
+                (1, 1) => Ok(Node::InjR(
+                    idx.checked_sub(decode_natural(iter)?).ok_or(Error::BadIndex)?,
+                )),
+                (1, 2) => Ok(Node::Take(
+                    idx.checked_sub(decode_natural(iter)?).ok_or(Error::BadIndex)?,
+                )),
+                (1, 3) => Ok(Node::Drop(
+                    idx.checked_sub(decode_natural(iter)?).ok_or(Error::BadIndex)?,
+                )),
+                (2, 0) => Ok(Node::Iden),
+                (2, 1) => Ok(Node::Unit),
+                // FIXME Russell's code just rejects `Fail`
+                (2, 2) => {
                     let mut h1 = [0; 32];
                     let mut h2 = [0; 32];
                     for i in 0..32 {
@@ -107,24 +82,37 @@ pub fn decode_node_no_witness<BitStream: Iterator<Item = bool>>(
                             };
                         }
                     }
-                    Ok(GenNode::Fail(h1, h2))
-                }
-                (false, true, false, true, true) => Err(Error::ParseError),
-                (true, _, _, _, _) => Err(Error::ParseError),
-                (false, true, true, _, _) => unreachable!(),
+                    Ok(Node::Fail(h1, h2))
+                },
+                (2, 3) => Err(Error::ParseError("01011 (stop code)")),
+                (3, 0) => {
+                    let mut h = [0; 32];
+                    for i in 0..32 {
+                        for b in 0..8 {
+                            match iter.next() {
+                                Some(true) => h[i] |= 1 << (7 - b),
+                                Some(false) => {}
+                                None => return Err(Error::EndOfStream),
+                            };
+                        }
+                    }
+                    Ok(Node::Hidden(h))
+                },
+                (3, 1) => Ok(Node::Witness(())),
+                (_, _) => unreachable!("we read only so many bits"),
             }
         }
     }
 }
 
-pub fn decode_program_no_witness<BitStream: Iterator<Item = bool>>(
-    mut iter: BitStream,
-) -> Result<Vec<Node>, Error> {
-    let prog_len = decode_natural(&mut iter)?;
+pub fn decode_program_no_witness<I: Iterator<Item = u8>>(
+    iter: &mut BitIter<I>,
+) -> Result<Vec<Node<()>>, Error> {
+    let prog_len = decode_natural(&mut *iter)?;
 
     let mut program = Vec::with_capacity(prog_len);
-    for _ in 0..prog_len {
-        program.push(decode_node_no_witness(&mut iter)?);
+    for i in 0..prog_len {
+        program.push(decode_node_no_witness(i, iter)?);
     }
 
     Ok(program)

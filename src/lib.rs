@@ -1,23 +1,72 @@
+// Rust Simplicity Library
+// Written in 2020 by
+//   Andrew Poelstra <apoelstra@blockstream.com>
+//
+// To the extent possible under law, the author(s) have dedicated all
+// copyright and related and neighboring rights to this software to
+// the public domain worldwide. This software is distributed without
+// any warranty.
+//
+// You should have received a copy of the CC0 Public Domain Dedication
+// along with this software.
+// If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+//
+
+extern crate bitcoin_hashes;
+
+pub mod bititer;
+pub mod cmr;
 pub mod encode;
+pub mod extension;
+pub mod program;
 pub mod types;
 
 use std::fmt;
 
+/// De/serialization error
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub enum Error {
+    /// Node made a back-reference past the beginning of the program
+    BadIndex,
+    /// Number exceeded 32 bits
+    NaturalOverflow,
+    /// Non-'case' nodes may not have hidden children
+    NonCaseHiddenChild,
+    /// 'case' nodes may have at most one hidden child
+    CaseMultipleHiddenChildren,
+    /// Bitstream ended early
+    EndOfStream,
+    /// Unrecognized node
+    ParseError(&'static str),
+}
+
+/// Simplicity expression node, including Bitcoin/Elements extensions
+///
+/// If Bitcoin/Elements support is not compiled (see `bitcoin` and
+/// `elements` features) programs using these extensions will fail to
+/// parse.
+///
+/// While programs are *serialized* with all references being relative
+/// indices, they are represented in this type as having absolute
+/// indices starting from 0. This means that this type only really makes
+/// sense in the context of a complete program. Expressions/partial
+/// programs will need a different type.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub enum Node<Ref, Witness> {
+pub enum Node<Witness> {
     Iden,
     Unit,
-    InjL(Ref),
-    InjR(Ref),
-    Take(Ref),
-    Drop(Ref),
-    Comp(Ref, Ref),
-    Case(Ref, Ref),
-    Pair(Ref, Ref),
-    Disconnect(Ref, Ref),
+    InjL(usize),
+    InjR(usize),
+    Take(usize),
+    Drop(usize),
+    Comp(usize, usize),
+    Case(usize, usize),
+    Pair(usize, usize),
+    Disconnect(usize, usize),
     Witness(Witness),
     Fail([u8; 32], [u8; 32]),
     Hidden([u8; 32]),
+    Bitcoin(extension::bitcoin::Node),
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -71,13 +120,13 @@ impl Value {
     pub fn from_witness<Bits: Iterator<Item = bool>>(
         bits: &mut Bits,
         ty: &types::FinalType,
-    ) -> Result<Value, encode::Error> {
+    ) -> Result<Value, Error> {
         match ty.ty {
             types::FinalTypeInner::Unit => Ok(Value::Unit),
             types::FinalTypeInner::Sum(ref l, ref r) => match bits.next() {
                 Some(false) => Ok(Value::SumL(Box::new(Value::from_witness(bits, &*l)?))),
                 Some(true) => Ok(Value::SumR(Box::new(Value::from_witness(bits, &*r)?))),
-                None => Err(encode::Error::EndOfStream),
+                None => Err(Error::EndOfStream),
             },
             types::FinalTypeInner::Product(ref l, ref r) => Ok(Value::Prod(
                 Box::new(Value::from_witness(&mut *bits, &*l)?),
@@ -86,3 +135,4 @@ impl Value {
         }
     }
 }
+

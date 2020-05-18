@@ -1,10 +1,10 @@
 use std::cell::RefCell;
-use std::collections::HashSet;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::{cmp, fmt, mem};
 
-use {Node, Value};
+use extension;
+use Node;
 
 #[derive(Clone)]
 enum Type {
@@ -154,39 +154,46 @@ impl UnificationVar {
         }
     }
 
-    fn bind(&mut self, ty: Type) {
-        // Cloning a `Variable` is cheap, as the nontrivial variants merely
-        // hold `Rc`s
-        let self_var = self.var.clone();
-        match self_var {
-            Variable::Free => self.var = Variable::Bound(ty, false),
-            Variable::EqualTo(..) => unreachable!(
-                "Tried to bind unification variable which was not \
-                 the representative of its equivalence class"
-            ),
-            Variable::Finalized(..) => unreachable!(),
-            Variable::Bound(self_ty, _) => match (self_ty, ty) {
-                (Type::Unit, Type::Unit) => {}
-                (Type::Sum(al1, al2), Type::Sum(be1, be2))
-                | (Type::Product(al1, al2), Type::Product(be1, be2)) => {
-                    unify(al1, be1);
-                    unify(al2, be2);
-                }
-                (a, b) => {
-                    let self_s = match a {
-                        Type::Unit => "unit",
-                        Type::Sum(..) => "sum",
-                        Type::Product(..) => "prod",
-                    };
-                    let b_s = match b {
-                        Type::Unit => "unit",
-                        Type::Sum(..) => "sum",
-                        Type::Product(..) => "prod",
-                    };
-                    panic!("unification failure {} vs {}", self_s, b_s)
-                }
-            },
+    fn concrete(ty: Type) -> UnificationVar {
+        UnificationVar {
+            var: Variable::Bound(ty, false),
+            rank: 0,
         }
+    }
+}
+
+fn bind(rcvar: &RcVar, ty: Type) {
+    // Cloning a `Variable` is cheap, as the nontrivial variants merely
+    // hold `Rc`s
+    let self_var = rcvar.borrow().var.clone();
+    match self_var {
+        Variable::Free => rcvar.borrow_mut().var = Variable::Bound(ty, false),
+        Variable::EqualTo(..) => unreachable!(
+            "Tried to bind unification variable which was not \
+             the representative of its equivalence class"
+        ),
+        Variable::Finalized(..) => unreachable!(),
+        Variable::Bound(self_ty, _) => match (self_ty, ty) {
+            (Type::Unit, Type::Unit) => {}
+            (Type::Sum(al1, al2), Type::Sum(be1, be2))
+            | (Type::Product(al1, al2), Type::Product(be1, be2)) => {
+                unify(al1, be1);
+                unify(al2, be2);
+            }
+            (a, b) => {
+                let self_s = match a {
+                    Type::Unit => "unit",
+                    Type::Sum(..) => "sum",
+                    Type::Product(..) => "prod",
+                };
+                let b_s = match b {
+                    Type::Unit => "unit",
+                    Type::Sum(..) => "sum",
+                    Type::Product(..) => "prod",
+                };
+                panic!("unification failure {} vs {}", self_s, b_s)
+            }
+        },
     }
 }
 
@@ -231,17 +238,13 @@ fn unify(mut alpha: RcVar, mut beta: RcVar) {
     }
 
     // Do the unification
-    let mut be_borr = beta.borrow_mut();
-    let be_var = mem::replace(&mut be_borr.var, Variable::EqualTo(alpha));
-
-    let mut al_borr = match be_borr.var {
-        Variable::EqualTo(ref mut alpha) => alpha.borrow_mut(),
-        _ => unreachable!(),
+    let be_var = {
+        let mut be_borr = beta.borrow_mut();
+        mem::replace(&mut be_borr.var, Variable::EqualTo(alpha.clone()))
     };
-
     match be_var {
         Variable::Free => {} // nothing to do
-        Variable::Bound(be_type, _) => al_borr.bind(be_type),
+        Variable::Bound(be_type, _) => bind(&alpha, be_type),
         Variable::EqualTo(..) => unreachable!(),
         Variable::Finalized(..) => unreachable!(),
     }
@@ -254,206 +257,171 @@ struct UnificationArrow {
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub struct TypedNode {
-    pub node: Node<Arc<TypedNode>, Option<Value>>,
-    pub index: usize,
+pub struct TypedNode<Witness> {
+    pub node: Node<Witness>,
     pub source_ty: Arc<FinalType>,
     pub target_ty: Arc<FinalType>,
-    pub extra_cells_bound: usize,
-    pub frame_count_bound: usize,
 }
 
-impl TypedNode {
-    fn graph_print_internal(&self, drawn: &mut HashSet<usize>) {
-        if drawn.insert(self.index) {
-            println!(
-                "{} [label=\"{}\\n{}\\n{}→{}\"];",
-                self.index,
-                match self.node {
-                    Node::Iden => "iden",
-                    Node::Unit => "unit",
-                    Node::InjL(..) => "injl",
-                    Node::InjR(..) => "injr",
-                    Node::Take(..) => "take",
-                    Node::Drop(..) => "drop",
-                    Node::Comp(..) => "comp",
-                    Node::Case(..) => "case",
-                    Node::Pair(..) => "pair",
-                    Node::Disconnect(..) => "disconnect",
-                    Node::Witness(..) => "witness",
-                    Node::Hidden(..) => "hidden",
-                    Node::Fail(..) => "fail",
-                },
-                self.index,
-                self.source_ty,
-                self.target_ty,
-            );
-            match self.node {
-                Node::Iden | Node::Unit | Node::Witness(..) | Node::Hidden(..) | Node::Fail(..) => {
-                }
-                Node::InjL(ref i) | Node::InjR(ref i) | Node::Take(ref i) | Node::Drop(ref i) => {
-                    println!("  {} -> {};", self.index, i.index);
-                    i.graph_print_internal(drawn);
-                }
-                Node::Comp(ref i, ref j)
-                | Node::Case(ref i, ref j)
-                | Node::Pair(ref i, ref j)
-                | Node::Disconnect(ref i, ref j) => {
-                    println!("  {} -> {} [color=red];", self.index, i.index);
-                    println!("  {} -> {} [color=blue];", self.index, j.index);
-                    i.graph_print_internal(drawn);
-                    j.graph_print_internal(drawn);
-                }
-            }
-        }
-    }
-
-    pub fn graph_print(&self) {
-        println!("digraph {{");
-        self.graph_print_internal(&mut HashSet::new());
-        println!("}}");
-    }
-}
-
-impl fmt::Display for TypedNode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[{}] ", self.index)?;
-        match self.node {
-            Node::Iden => f.write_str("iden")?,
-            Node::Unit => f.write_str("unit")?,
-            Node::InjL(ref i) => write!(f, "injl({})", i.index)?,
-            Node::InjR(ref i) => write!(f, "injr({})", i.index)?,
-            Node::Take(ref i) => write!(f, "take({})", i.index)?,
-            Node::Drop(ref i) => write!(f, "drop({})", i.index)?,
-            Node::Comp(ref i, ref j) => write!(f, "comp({}, {})", i.index, j.index)?,
-            Node::Case(ref i, ref j) => write!(f, "case({}, {})", i.index, j.index)?,
-            Node::Pair(ref i, ref j) => write!(f, "pair({}, {})", i.index, j.index)?,
-            Node::Disconnect(ref i, ref j) => write!(f, "disconnect({}, {})", i.index, j.index)?,
-            Node::Witness(..) => f.write_str("witness")?,
-            Node::Hidden(..) => f.write_str("hidden")?,
-            Node::Fail(..) => f.write_str("fail")?,
-        }
-        write!(f, ": {} → {}", self.source_ty, self.target_ty,)
-    }
-}
-
-pub struct FullPrint<'a>(pub &'a TypedNode);
-impl<'a> fmt::Display for FullPrint<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[{}]", self.0.index)?;
-        match self.0.node {
-            Node::Iden => f.write_str("iden"),
-            Node::Unit => f.write_str("unit"),
-            Node::InjL(ref i) => write!(f, "injl({})", FullPrint(i)),
-            Node::InjR(ref i) => write!(f, "injr({})", FullPrint(i)),
-            Node::Take(ref i) => write!(f, "take({})", FullPrint(i)),
-            Node::Drop(ref i) => write!(f, "drop({})", FullPrint(i)),
-            Node::Comp(ref i, ref j) => write!(f, "comp({}, {})", FullPrint(i), FullPrint(j)),
-            Node::Case(ref i, ref j) => write!(f, "case({}, {})", FullPrint(i), FullPrint(j)),
-            Node::Pair(ref i, ref j) => write!(f, "pair({}, {})", FullPrint(i), FullPrint(j)),
-            Node::Disconnect(ref i, ref j) => {
-                write!(f, "disconnect({}, {})", FullPrint(i), FullPrint(j))
-            }
-            Node::Witness(..) => f.write_str("witness"),
-            Node::Hidden(..) => f.write_str("hidden"),
-            Node::Fail(..) => f.write_str("fail"),
-        }?;
-        write!(f, ": {} → {}", self.0.source_ty, self.0.target_ty,)
-    }
-}
-
-pub fn type_check<BitStream: Iterator<Item = bool>>(
-    program: &[Node<usize, ()>],
-    mut witness_iter: Option<BitStream>,
-) -> Arc<TypedNode> {
+/// Attach types to all nodes in a program
+pub fn type_check<Witness: ::std::fmt::Debug>(
+    program: Vec<Node<Witness>>,
+) -> Vec<TypedNode<Witness>> {
     if program.is_empty() {
-        panic!("cannot deal with empty program")
+        return vec![];
     }
+
+    // Produce all powers of two as types
+    let two_0 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Unit)));
+    let two_1 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Sum(
+        two_0.clone(),
+        two_0.clone(),
+    ))));
+    let two_2 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Product(
+        two_1.clone(),
+        two_1.clone(),
+    ))));
+    let two_4 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Product(
+        two_2.clone(),
+        two_2.clone(),
+    ))));
+    let two_8 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Product(
+        two_4.clone(),
+        two_4.clone(),
+    ))));
+    let two_16 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Product(
+        two_8.clone(),
+        two_8.clone(),
+    ))));
+    let two_32 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Product(
+        two_16.clone(),
+        two_16.clone(),
+    ))));
+    let two_64 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Product(
+        two_32.clone(),
+        two_32.clone(),
+    ))));
+    let two_128 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Product(
+        two_64.clone(),
+        two_64.clone(),
+    ))));
+    let two_256 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Product(
+        two_128.clone(),
+        two_128.clone(),
+    ))));
+    let two_256_32 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Product(
+        two_256.clone(),
+        two_32.clone(),
+    ))));
+
+    // Convenience closure for getting types for extensions
+    let type_from_name = &|name: extension::TypeName| {
+        match name {
+            extension::TypeName::One => Type::Unit,
+            extension::TypeName::Word32
+                => Type::Product(two_16.clone(), two_16.clone()),
+            extension::TypeName::SWord32
+                => Type::Sum(two_0.clone(), two_32.clone()),
+            extension::TypeName::Word64
+                => Type::Product(two_32.clone(), two_32.clone()),
+            extension::TypeName::SWord64
+                => Type::Sum(two_0.clone(), two_64.clone()),
+            extension::TypeName::Word256
+                => Type::Product(two_128.clone(), two_128.clone()),
+            extension::TypeName::SWord256
+                => Type::Sum(two_0.clone(), two_256.clone()),
+            extension::TypeName::Word256Word32
+                => Type::Product(two_256.clone(), two_32.clone()),
+            extension::TypeName::SWord256Word32
+                => Type::Sum(two_0.clone(), two_256_32.clone()),
+        }
+    };
 
     let mut rcs = Vec::<Rc<UnificationArrow>>::with_capacity(program.len());
-    let mut finals = Vec::<Arc<TypedNode>>::with_capacity(program.len());
+    let mut finals = Vec::<TypedNode<Witness>>::with_capacity(program.len());
 
     // Compute most general unifier for all types in the DAG
-    for k in 0..program.len() {
+    for program_node in &program {
         let node = UnificationArrow {
             source: Rc::new(RefCell::new(UnificationVar::free())),
             target: Rc::new(RefCell::new(UnificationVar::free())),
         };
 
-        match program[k] {
+        match *program_node {
             Node::Iden => unify(node.source.clone(), node.target.clone()),
-            Node::Unit => node.target.borrow_mut().bind(Type::Unit),
+            Node::Unit => bind(&node.target, Type::Unit),
             Node::InjL(i) => {
-                unify(node.source.clone(), rcs[k - i].source.clone());
+                unify(node.source.clone(), rcs[i].source.clone());
                 let target_type = Type::Sum(
-                    rcs[k - i].target.clone(),
+                    rcs[i].target.clone(),
                     Rc::new(RefCell::new(UnificationVar::free())),
                 );
-                node.target.borrow_mut().bind(target_type);
+                bind(&node.target, target_type);
             }
             Node::InjR(i) => {
-                unify(node.source.clone(), rcs[k - i].source.clone());
+                unify(node.source.clone(), rcs[i].source.clone());
                 let target_type = Type::Sum(
                     Rc::new(RefCell::new(UnificationVar::free())),
-                    rcs[k - i].target.clone(),
+                    rcs[i].target.clone(),
                 );
-                node.target.borrow_mut().bind(target_type);
+                bind(&node.target, target_type);
             }
             Node::Take(i) => {
-                unify(node.target.clone(), rcs[k - i].target.clone());
+                unify(node.target.clone(), rcs[i].target.clone());
                 let target_type = Type::Product(
-                    rcs[k - i].source.clone(),
+                    rcs[i].source.clone(),
                     Rc::new(RefCell::new(UnificationVar::free())),
                 );
-                node.source.borrow_mut().bind(target_type);
+                bind(&node.source, target_type);
             }
             Node::Drop(i) => {
-                unify(node.target.clone(), rcs[k - i].target.clone());
+                unify(node.target.clone(), rcs[i].target.clone());
                 let target_type = Type::Product(
                     Rc::new(RefCell::new(UnificationVar::free())),
-                    rcs[k - i].source.clone(),
+                    rcs[i].source.clone(),
                 );
-                node.source.borrow_mut().bind(target_type);
+                bind(&node.source, target_type);
             }
             Node::Comp(i, j) => {
-                unify(node.source.clone(), rcs[k - i].source.clone());
-                unify(rcs[k - i].target.clone(), rcs[k - j].source.clone());
-                unify(node.target.clone(), rcs[k - j].target.clone());
+                unify(node.source.clone(), rcs[i].source.clone());
+                unify(rcs[i].target.clone(), rcs[j].source.clone());
+                unify(node.target.clone(), rcs[j].target.clone());
             }
             Node::Case(i, j) => {
                 let var1 = Rc::new(RefCell::new(UnificationVar::free()));
                 let var2 = Rc::new(RefCell::new(UnificationVar::free()));
                 let var3 = Rc::new(RefCell::new(UnificationVar::free()));
 
-                let sum_12_ty = Type::Sum(var1.clone(), var2.clone());
-                let mut sum12_var = UnificationVar::free();
-                sum12_var.bind(sum_12_ty);
-                let sum12_var = Rc::new(RefCell::new(sum12_var));
+                let sum12_ty = Type::Sum(var1.clone(), var2.clone());
+                let sum12_var = Rc::new(RefCell::new(UnificationVar::free()));
+                bind(&sum12_var, sum12_ty);
 
                 let source_ty = Type::Product(sum12_var, var3.clone());
-                node.source.borrow_mut().bind(source_ty);
-                if let Node::Hidden(..) = program[k - i] {
+                bind(&node.source, source_ty);
+                if let Node::Hidden(..) = program[i] {
                 } else {
-                    find_root(rcs[k - i].source.clone())
-                        .borrow_mut()
-                        .bind(Type::Product(var1.clone(), var3.clone()));
-                    unify(node.target.clone(), rcs[k - i].target.clone());
+                    bind(
+                        &find_root(rcs[i].source.clone()),
+                        Type::Product(var1.clone(), var3.clone()),
+                    );
+                    unify(node.target.clone(), rcs[i].target.clone());
                 }
-                if let Node::Hidden(..) = program[k - j] {
+                if let Node::Hidden(..) = program[j] {
                 } else {
-                    find_root(rcs[k - j].source.clone())
-                        .borrow_mut()
-                        .bind(Type::Product(var2.clone(), var3.clone()));
-                    unify(node.target.clone(), rcs[k - j].target.clone());
+                    bind(
+                        &find_root(rcs[j].source.clone()),
+                        Type::Product(var2.clone(), var3.clone()),
+                    );
+                    unify(node.target.clone(), rcs[j].target.clone());
                 }
             }
             Node::Pair(i, j) => {
-                unify(node.source.clone(), rcs[k - i].source.clone());
-                unify(node.source.clone(), rcs[k - j].source.clone());
-                node.target.borrow_mut().bind(Type::Product(
-                    rcs[k - i].target.clone(),
-                    rcs[k - j].target.clone(),
-                ));
+                unify(node.source.clone(), rcs[i].source.clone());
+                unify(node.source.clone(), rcs[j].source.clone());
+                bind(
+                    &node.target,
+                    Type::Product(rcs[i].target.clone(), rcs[j].target.clone()),
+                );
             }
             Node::Witness(..) => {
                 // No type constraints
@@ -461,6 +429,10 @@ pub fn type_check<BitStream: Iterator<Item = bool>>(
             Node::Hidden(..) => {
                 // No type constraints
             }
+            Node::Bitcoin(ref bn) => {
+                bind(&node.source, type_from_name(bn.source_type()));
+                bind(&node.target, type_from_name(bn.target_type()));
+            },
             ref x => unimplemented!("haven't implemented {:?}", x),
         };
 
@@ -468,93 +440,14 @@ pub fn type_check<BitStream: Iterator<Item = bool>>(
     }
 
     // Finalize, setting all unconstrained types to `Unit` and doing the
-    // occurs check
-    for k in 0..program.len() {
-        let source_ty = FinalType::from_var(rcs[k].source.clone());
-        let target_ty = FinalType::from_var(rcs[k].target.clone());
-        let final_node = TypedNode {
-            node: match program[k] {
-                Node::Iden => Node::Iden,
-                Node::Unit => Node::Unit,
-                Node::InjL(i) => Node::InjL(finals[k - i].clone()),
-                Node::InjR(i) => Node::InjR(finals[k - i].clone()),
-                Node::Take(i) => Node::Take(finals[k - i].clone()),
-                Node::Drop(i) => Node::Drop(finals[k - i].clone()),
-                Node::Comp(i, j) => Node::Comp(finals[k - i].clone(), finals[k - j].clone()),
-                Node::Case(i, j) => Node::Case(finals[k - i].clone(), finals[k - j].clone()),
-                Node::Pair(i, j) => Node::Pair(finals[k - i].clone(), finals[k - j].clone()),
-                Node::Disconnect(i, j) => {
-                    Node::Disconnect(finals[k - i].clone(), finals[k - j].clone())
-                }
-                Node::Witness(..) => {
-                    if let Some(ref mut iter) = witness_iter {
-                        Node::Witness(Some(
-                            Value::from_witness(iter, &target_ty).expect("decoding witness"),
-                        ))
-                    } else {
-                        Node::Witness(None)
-                    }
-                }
-                Node::Hidden(hash) => Node::Hidden(hash),
-                ref x => unreachable!("{:?}", x),
-            },
-            index: k,
-            extra_cells_bound: match program[k] {
-                Node::Iden => 0,
-                Node::Unit => 0,
-                Node::InjL(i) => finals[k - i].extra_cells_bound,
-                Node::InjR(i) => finals[k - i].extra_cells_bound,
-                Node::Take(i) => finals[k - i].extra_cells_bound,
-                Node::Drop(i) => finals[k - i].extra_cells_bound,
-                Node::Comp(i, j) => finals[k - i].target_ty.bit_width()
-                    + cmp::max(
-                        finals[k - i].extra_cells_bound,
-                        finals[k - j].extra_cells_bound,
-                    ),
-                Node::Case(i, j) => cmp::max(
-                    finals[k - i].extra_cells_bound,
-                    finals[k - j].extra_cells_bound,
-                ),
-                Node::Pair(i, j) => cmp::max(
-                    finals[k - i].extra_cells_bound,
-                    finals[k - j].extra_cells_bound,
-                ),
-                Node::Disconnect(..) => unimplemented!(),
-                Node::Witness(..) => target_ty.bit_width(),
-                Node::Fail(..) => unimplemented!(),
-                Node::Hidden(..) => 0,
-            },
-            frame_count_bound: match program[k] {
-                Node::Iden => 0,
-                Node::Unit => 0,
-                Node::InjL(i) => finals[k - i].frame_count_bound,
-                Node::InjR(i) => finals[k - i].frame_count_bound,
-                Node::Take(i) => finals[k - i].frame_count_bound,
-                Node::Drop(i) => finals[k - i].frame_count_bound,
-                Node::Comp(i, j) => 1
-                    + cmp::max(
-                        finals[k - i].frame_count_bound,
-                        finals[k - j].frame_count_bound,
-                    ),
-                Node::Case(i, j) => cmp::max(
-                    finals[k - i].frame_count_bound,
-                    finals[k - j].frame_count_bound,
-                ),
-                Node::Pair(i, j) => cmp::max(
-                    finals[k - i].frame_count_bound,
-                    finals[k - j].frame_count_bound,
-                ),
-                Node::Disconnect(..) => unimplemented!(),
-                Node::Witness(..) => 0,
-                Node::Fail(..) => unimplemented!(),
-                Node::Hidden(..) => 0,
-            },
-            source_ty: source_ty,
-            target_ty: target_ty,
-        };
-
-        finals.push(Arc::new(final_node));
+    // occurs check. (All the magic happens inside `FinalType::from_var`.)
+    for (idx, node) in program.into_iter().enumerate() {
+        finals.push(TypedNode {
+            node: node,
+            source_ty: FinalType::from_var(rcs[idx].source.clone()),
+            target_ty: FinalType::from_var(rcs[idx].target.clone()),
+        });
     }
 
-    finals.pop().expect("nonempty program")
+    finals
 }
