@@ -65,7 +65,7 @@ pub enum Node<Witness> {
     Disconnect(usize, usize),
     Witness(Witness),
     Fail([u8; 32], [u8; 32]),
-    Hidden([u8; 32]),
+    Hidden(cmr::Cmr),
     Bitcoin(extension::bitcoin::Node),
 }
 

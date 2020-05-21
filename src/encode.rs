@@ -1,8 +1,31 @@
+// Rust Simplicity Library
+// Written in 2020 by
+//   Andrew Poelstra <apoelstra@blockstream.com>
+//
+// To the extent possible under law, the author(s) have dedicated all
+// copyright and related and neighboring rights to this software to
+// the public domain worldwide. This software is distributed without
+// any warranty.
+//
+// You should have received a copy of the CC0 Public Domain Dedication
+// along with this software.
+// If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+//
+
+//! # Encoding/Decoding
+//!
+//! Functionality to encode or decode Simplicity programs. These programs
+//! are encoded bitwise rather than bytewise, so given a hex dump of a
+//! program it is not generally possible to read it visually the way you
+//! can with Bitcoin Script.
+//!
+
 use std::mem;
 
 use bititer::BitIter;
 use extension::bitcoin;
 use {Error, Node};
+use cmr;
 
 /// Decode a natural number according to section 7.2.1
 /// of the Simplicity whitepaper.
@@ -96,7 +119,7 @@ pub fn decode_node_no_witness<I: Iterator<Item = u8>>(
                             };
                         }
                     }
-                    Ok(Node::Hidden(h))
+                    Ok(Node::Hidden(cmr::Cmr::from(h)))
                 },
                 (3, 1) => Ok(Node::Witness(())),
                 (_, _) => unreachable!("we read only so many bits"),

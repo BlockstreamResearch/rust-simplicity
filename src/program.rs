@@ -19,23 +19,24 @@
 //! data.
 //!
 
-use bitcoin_hashes::{Hash, sha256};
 use std::{cmp, fmt};
 use std::sync::Arc;
 
 use {Error, Node, Value};
 use bititer::BitIter;
+use cmr::{self, Cmr};
 use encode;
 use types;
 
 /// A node in a complete program, with associated metadata
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct ProgramNode {
     /// The underlying node
     pub node: Node<Value>,
     /// Its index within the total program
     pub index: usize,
     /// Its Commitment Merkle Root
-    pub cmr: sha256::Hash,
+    pub cmr: Cmr,
     /// Source type for this node
     pub source_ty: Arc<types::FinalType>,
     /// Target type for this node
@@ -78,6 +79,11 @@ pub struct Program {
 }
 
 impl Program {
+    /// Obtain the node representing the root of the program DAG
+    pub fn root_node(&self) -> &ProgramNode {
+        &self.nodes[self.nodes.len() - 1]
+    }
+
     /// Decode a program from a stream of bits
     pub fn decode<I: Iterator<Item = u8>>(
         iter: &mut BitIter<I>,
@@ -129,59 +135,13 @@ impl Program {
         for (index, node) in typed_nodes.into_iter().enumerate() {
             let final_node = ProgramNode {
                 index: index,
-                cmr: sha256::Hash::hash(b"compute me FIXME FIXME"),
-                extra_cells_bound: match node.node {
-                    Node::Iden => 0,
-                    Node::Unit => 0,
-                    Node::InjL(i) => ret[i].extra_cells_bound,
-                    Node::InjR(i) => ret[i].extra_cells_bound,
-                    Node::Take(i) => ret[i].extra_cells_bound,
-                    Node::Drop(i) => ret[i].extra_cells_bound,
-                    Node::Comp(i, j) => ret[i].target_ty.bit_width()
-                        + cmp::max(
-                            ret[i].extra_cells_bound,
-                            ret[j].extra_cells_bound,
-                        ),
-                    Node::Case(i, j) => cmp::max(
-                        ret[i].extra_cells_bound,
-                        ret[j].extra_cells_bound,
-                    ),
-                    Node::Pair(i, j) => cmp::max(
-                        ret[i].extra_cells_bound,
-                        ret[j].extra_cells_bound,
-                    ),
-                    Node::Disconnect(..) => unimplemented!(),
-                    Node::Witness(..) => node.target_ty.bit_width(),
-                    Node::Fail(..) => unimplemented!(),
-                    Node::Hidden(..) => 0,
-                    Node::Bitcoin(..) => 0,
-                },
-                frame_count_bound: match node.node {
-                    Node::Iden => 0,
-                    Node::Unit => 0,
-                    Node::InjL(i) => ret[i].frame_count_bound,
-                    Node::InjR(i) => ret[i].frame_count_bound,
-                    Node::Take(i) => ret[i].frame_count_bound,
-                    Node::Drop(i) => ret[i].frame_count_bound,
-                    Node::Comp(i, j) => 1
-                        + cmp::max(
-                            ret[i].frame_count_bound,
-                            ret[j].frame_count_bound,
-                        ),
-                    Node::Case(i, j) => cmp::max(
-                        ret[i].frame_count_bound,
-                        ret[j].frame_count_bound,
-                    ),
-                    Node::Pair(i, j) => cmp::max(
-                        ret[i].frame_count_bound,
-                        ret[j].frame_count_bound,
-                    ),
-                    Node::Disconnect(..) => unimplemented!(),
-                    Node::Witness(..) => 0,
-                    Node::Fail(..) => unimplemented!(),
-                    Node::Hidden(..) => 0,
-                    Node::Bitcoin(..) => 0,
-                },
+                cmr: compute_cmr(&ret, &node.node),
+                extra_cells_bound: compute_extra_cells_bound(
+                    &ret,
+                    &node.node,
+                    node.target_ty.bit_width(),
+                ),
+                frame_count_bound: compute_frame_count_bound(&ret, &node.node),
                 node: node.node,
                 source_ty: node.source_ty,
                 target_ty: node.target_ty,
@@ -238,6 +198,140 @@ impl Program {
     }
 }
 
+fn compute_cmr(
+    program: &[ProgramNode],
+    node: &Node<Value>,
+) -> Cmr {
+    match *node {
+        Node::Iden => cmr::tag::iden(),
+        Node::Unit => cmr::tag::unit(),
+        Node::InjL(i) => cmr::tag::injl().update_1(program[i].cmr),
+        Node::InjR(i) => cmr::tag::injr().update_1(program[i].cmr),
+        Node::Take(i) => cmr::tag::take().update_1(program[i].cmr),
+        Node::Drop(i) => cmr::tag::drop().update_1(program[i].cmr),
+        Node::Comp(i, j) => cmr::tag::comp().update(program[i].cmr, program[j].cmr),
+        Node::Case(i, j) => cmr::tag::case().update(program[i].cmr, program[j].cmr),
+        Node::Pair(i, j) => cmr::tag::pair().update(program[i].cmr, program[j].cmr),
+        Node::Disconnect(..) => unimplemented!(),
+        Node::Witness(..) => cmr::tag::witness(),
+        Node::Fail(..) => unimplemented!(),
+        Node::Hidden(cmr) => cmr,
+        Node::Bitcoin(ref b) => b.cmr(),
+    }
+}
 
+fn compute_extra_cells_bound(
+    program: &[ProgramNode],
+    node: &Node<Value>,
+    witness_target_width: usize,
+) -> usize {
+    match *node {
+        Node::Iden => 0,
+        Node::Unit => 0,
+        Node::InjL(i) => program[i].extra_cells_bound,
+        Node::InjR(i) => program[i].extra_cells_bound,
+        Node::Take(i) => program[i].extra_cells_bound,
+        Node::Drop(i) => program[i].extra_cells_bound,
+        Node::Comp(i, j) => program[i].target_ty.bit_width()
+            + cmp::max(
+                program[i].extra_cells_bound,
+                program[j].extra_cells_bound,
+            ),
+        Node::Case(i, j) => cmp::max(
+            program[i].extra_cells_bound,
+            program[j].extra_cells_bound,
+        ),
+        Node::Pair(i, j) => cmp::max(
+            program[i].extra_cells_bound,
+            program[j].extra_cells_bound,
+        ),
+        Node::Disconnect(..) => unimplemented!(),
+        Node::Witness(..) => witness_target_width,
+        Node::Fail(..) => unimplemented!(),
+        Node::Hidden(..) => 0,
+        Node::Bitcoin(..) => 0,
+    }
+}
 
+fn compute_frame_count_bound(
+    program: &[ProgramNode],
+    node: &Node<Value>,
+) -> usize {
+    match *node {
+        Node::Iden => 0,
+        Node::Unit => 0,
+        Node::InjL(i) => program[i].frame_count_bound,
+        Node::InjR(i) => program[i].frame_count_bound,
+        Node::Take(i) => program[i].frame_count_bound,
+        Node::Drop(i) => program[i].frame_count_bound,
+        Node::Comp(i, j) => 1
+            + cmp::max(
+                program[i].frame_count_bound,
+                program[j].frame_count_bound,
+            ),
+        Node::Case(i, j) => cmp::max(
+            program[i].frame_count_bound,
+            program[j].frame_count_bound,
+        ),
+        Node::Pair(i, j) => cmp::max(
+            program[i].frame_count_bound,
+            program[j].frame_count_bound,
+        ),
+        Node::Disconnect(..) => unimplemented!(),
+        Node::Witness(..) => 0,
+        Node::Fail(..) => unimplemented!(),
+        Node::Hidden(..) => 0,
+        Node::Bitcoin(..) => 0,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use bititer::BitIter;
+    use encode;
+    use Node;
+
+    #[test]
+    fn unit_prog() {
+        println!("{:?}", encode::encode_natural(1));
+        let prog = vec![0x24];
+        let prog = Program::decode(&mut BitIter::from(prog.into_iter()))
+            .expect("decoding program");
+
+        assert_eq!(prog.nodes.len(), 1);
+        assert_eq!(prog.nodes[0].node, Node::Unit);
+        // Checked against C implementation
+        assert_eq!(
+            prog.nodes[0].cmr.to_string(),
+            "d723083cff3c75e29f296707ecf2750338f100591c86e0c71717f807ff3cf69d",
+        );
+    }
+
+    #[test]
+    fn injl_unit_prog() {
+        println!("{:?}", encode::encode_natural(2));
+        // 100 01001 00100 0
+        // 1000 1001 0010 0000
+        let prog = vec![0x89, 0x20];
+        let prog = Program::decode(&mut BitIter::from(prog.into_iter()))
+            .expect("decoding program");
+
+        assert_eq!(prog.nodes.len(), 2);
+        assert_eq!(prog.nodes[0].node, Node::Unit);
+        assert_eq!(prog.nodes[1].node, Node::InjL(0));
+
+        // Checked against C implementation
+        assert_eq!(
+            prog.nodes[0].cmr.to_string(),
+            "d723083cff3c75e29f296707ecf2750338f100591c86e0c71717f807ff3cf69d",
+        );
+        // Checked against C implementation
+        assert_eq!(
+            prog.nodes[1].cmr.to_string(),
+            "7a4ebcbd3be89bb9dfd901fdbeff16cfa80aa36363785b14615cbdd3f0ae1f0a"
+        );
+    }
+}
 

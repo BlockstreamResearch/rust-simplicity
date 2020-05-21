@@ -932,13 +932,16 @@ const SCHNORR_1: [u8; 14583] = [
 ];
 
 /* The commitment Merkle root of the above schnorr1 Simplicity expression. */
+/*
 const SCHNORR_1_CMR: [u32; 8] = [
     0xc64df1cb, 0xdd50bd2c, 0x979ad948, 0x742d253c, 0xd2c0ea83, 0xe635ea96, 0xb8ba8c8e, 0xb61a2181,
 ];
-
-/* The witness Merkle root of the above schnorr1 Simplicity expression. */
-const SCHNORR_1_WMR: [u32; 8] = [
-    0xdebfd1b6, 0x7e14c364, 0x9ab5fc33, 0x432af0b0, 0x4568ab5d, 0x2eb15c8c, 0xa53701ab, 0x86524eab,
+*/
+const SCHNORR_1_CMR: [u8; 32] = [
+    0xc6, 0x4d, 0xf1, 0xcb, 0xdd, 0x50, 0xbd, 0x2c,
+    0x97, 0x9a, 0xd9, 0x48, 0x74, 0x2d, 0x25, 0x3c,
+    0xd2, 0xc0, 0xea, 0x83, 0xe6, 0x35, 0xea, 0x96,
+    0xb8, 0xba, 0x8c, 0x8e, 0xb6, 0x1a, 0x21, 0x81,
 ];
 
 const BITCOIN_PROG: [u8; 14635] = [
@@ -2227,6 +2230,16 @@ struct CacheVals {
 }
 
 fn main() {
+    // Check CMR/CMR computations
+    let mut bits: simplicity::bititer::BitIter<_> = SCHNORR_1.iter().cloned().into();
+    let program = simplicity::program::Program::decode(&mut bits)
+        .expect("decoding program");
+    assert_eq!(
+        program.root_node().cmr.into_inner(),
+        SCHNORR_1_CMR,
+    );
+
+    // Run Bitcoin program
     let mut bits: simplicity::bititer::BitIter<_> = BITCOIN_PROG.iter().cloned().into();
 
     let tx = bitcoin::Transaction {
@@ -2273,7 +2286,7 @@ fn main() {
 
     let program = simplicity::program::Program::decode(&mut bits)
         .expect("decoding program");
-    let exec_node = &program.nodes[program.nodes.len() - 1];
+    let exec_node = program.root_node();
 
     println!("{}", exec_node);
     println!("extra cells: {}", exec_node.extra_cells_bound);
@@ -2283,6 +2296,6 @@ fn main() {
     let mut mac = BitMachine::new(exec_node.frame_count_bound);
     let mut iters = 0;
     let mut run_stats = vec![CacheVals { cache: vec![None; 1 << IN_SIZE] }; 7251];
-    mac.exec(&program, program.nodes.len() - 1, &mut iters, &mut run_stats[..], &txenv);
+    mac.exec(&program, exec_node.index, &mut iters, &mut run_stats[..], &txenv);
     println!("{} iterations", iters);
 }

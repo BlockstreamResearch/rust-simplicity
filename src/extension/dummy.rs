@@ -20,6 +20,7 @@
 use bititer::BitIter;
 use super::TypeName;
 use Error;
+use cmr;
 
 /// Dummy extension provides no combinators and cannot be constructed
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -41,6 +42,11 @@ impl Node {
 
     /// Name of the target type for this node
     pub fn target_type(&self) -> TypeName {
+        match *self {}
+    }
+
+    /// CMR for this node
+    pub fn cmr(&self) -> cmr::Cmr {
         match *self {}
     }
 }

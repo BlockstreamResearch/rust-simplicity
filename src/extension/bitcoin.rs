@@ -21,6 +21,7 @@
 use bititer::BitIter;
 use super::TypeName;
 use Error;
+use cmr::Cmr;
 
 /// Set of new Simplicity nodes enabled by the Bitcoin extension
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -129,6 +130,30 @@ impl Node {
             Node::OutputValue => TypeName::SWord64,
             Node::OutputScriptHash => TypeName::SWord256,
             Node::ScriptCMR => TypeName::Word256,
+        }
+    }
+
+    /// CMR for this node
+    pub fn cmr(&self) -> Cmr {
+        match *self {
+            Node::Version => Cmr::new(b"SimplicityPrimitiveBitcoin\x1fversion"),
+            Node::LockTime => Cmr::new(b"SimplicityPrimitiveBitcoin\x1flockTime"),
+            Node::InputsHash => Cmr::new(b"SimplicityPrimitiveBitcoin\x1finputsHash"),
+            Node::OutputsHash => Cmr::new(b"SimplicityPrimitiveBitcoinx1foutputsHash"),
+            Node::NumInputs => Cmr::new(b"SimplicityPrimitiveBitcoinx1fnumInputs"),
+            Node::TotalInputValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1ftotalInputValue"),
+            Node::CurrentPrevOutpoint => Cmr::new(b"SimplicityPrimitiveBitcoinx1fcurrentPrevOutpoint"),
+            Node::CurrentValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1fcurrentValue"),
+            Node::CurrentSequence => Cmr::new(b"SimplicityPrimitiveBitcoinx1fcurrentSequence"),
+            Node::CurrentIndex => Cmr::new(b"SimplicityPrimitiveBitcoinx1fcurrentIndex"),
+            Node::InputPrevOutpoint => Cmr::new(b"SimplicityPrimitiveBitcoinx1finputPrevOutpoint"),
+            Node::InputValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1finputValue"),
+            Node::InputSequence => Cmr::new(b"SimplicityPrimitiveBitcoinx1finputSequence"),
+            Node::NumOutputs => Cmr::new(b"SimplicityPrimitiveBitcoinx1fnumOutputs"),
+            Node::TotalOutputValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1ftotalOutputValue"),
+            Node::OutputValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1foutputValue"),
+            Node::OutputScriptHash => Cmr::new(b"SimplicityPrimitiveBitcoinx1foutputScriptHash"),
+            Node::ScriptCMR => Cmr::new(b"SimplicityPrimitiveBitcoinx1fscriptCMR"),
         }
     }
 }
