@@ -17,6 +17,8 @@
 //! If some extension is compiled out, it is replaced with this
 //!
 
+use std::fmt;
+
 use bititer::BitIter;
 use super::TypeName;
 use Error;
@@ -51,4 +53,9 @@ impl Node {
     }
 }
 
+impl fmt::Display for Node {
+    fn fmt(&self, _: &mut fmt::Formatter) -> fmt::Result {
+        match *self {}
+    }
+}
 

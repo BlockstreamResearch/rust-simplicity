@@ -18,10 +18,10 @@
 //!
 
 use bitcoin_hashes::{sha256, Hash, HashEngine};
-use std::fmt;
+use std::{fmt, ops};
 
 /// Commitment Merkle Root
-#[derive(Copy, Clone, PartialEq, Eq, Debug, PartialOrd, Ord)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Cmr(sha256::Midstate);
 
 impl From<[u8; 32]> for Cmr {
@@ -33,6 +33,14 @@ impl From<[u8; 32]> for Cmr {
 impl Into<[u8; 32]> for Cmr {
     fn into(self) -> [u8; 32] {
         self.0.into_inner()
+    }
+}
+
+impl ops::Deref for Cmr {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -74,6 +82,15 @@ impl Cmr {
     /// Helper function to convert a `Cmr` to a byte array
     pub fn into_inner(self) -> [u8; 32] {
         self.into()
+    }
+}
+
+impl fmt::Debug for Cmr {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for byte in self.0.into_inner().iter() {
+            write!(f, "{:02x}", byte)?;
+        }
+        Ok(())
     }
 }
 
@@ -138,6 +155,11 @@ pub mod tag {
     /// Tagged hash used by `witness`
     pub fn witness() -> Cmr {
         Cmr::new(b"Simplicity\x1fCommitment\x1fwitness")
+    }
+
+    /// Tagged hash used by `disconnect`
+    pub fn disconnect() -> Cmr {
+        Cmr::new(b"Simplicity\x1fCommitment\x1fdisconnect")
     }
 }
 

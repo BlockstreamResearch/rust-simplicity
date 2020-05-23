@@ -18,6 +18,8 @@
 //! blockchain
 //!
 
+use std::fmt;
+
 use bititer::BitIter;
 use super::TypeName;
 use Error;
@@ -44,6 +46,31 @@ pub enum Node {
     OutputValue,
     OutputScriptHash,
     ScriptCMR,
+}
+
+impl fmt::Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str(match *self {
+            Node::Version => "version",
+            Node::LockTime => "locktime",
+            Node::InputsHash => "inputshash",
+            Node::OutputsHash => "outputshash",
+            Node::NumInputs => "numinputs",
+            Node::TotalInputValue =>  "totalinputvalue",
+            Node::CurrentPrevOutpoint => "currentprevoutpoint",
+            Node::CurrentValue => "currentvalue",
+            Node::CurrentSequence => "currentsequence",
+            Node::CurrentIndex => "currentindex",
+            Node::InputPrevOutpoint => "inputprevoutpoint",
+            Node::InputValue => "inputvalue",
+            Node::InputSequence => "inputsequence",
+            Node::NumOutputs => "numoutputs",
+            Node::TotalOutputValue => "totaloutputvalue",
+            Node::OutputValue => "outputvalue",
+            Node::OutputScriptHash => "outputscripthash",
+            Node::ScriptCMR => "scriptcmr",
+        })
+    }
 }
 
 /// Decode a natural number according to section 7.2.1

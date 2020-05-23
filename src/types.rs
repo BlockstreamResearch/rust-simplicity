@@ -13,6 +13,12 @@ enum Type {
     Product(RcVar, RcVar),
 }
 
+impl Type {
+    fn into_rcvar(self) -> RcVar {
+        Rc::new(RefCell::new(UnificationVar::concrete(self)))
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum FinalTypeInner {
     Unit,
@@ -29,9 +35,33 @@ pub struct FinalType {
 impl fmt::Display for FinalType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.ty {
-            FinalTypeInner::Unit => f.write_str("ε"),
-            FinalTypeInner::Sum(ref a, ref b) => write!(f, "({} + {})", a, b),
-            FinalTypeInner::Product(ref a, ref b) => write!(f, "({} × {})", a, b),
+            FinalTypeInner::Unit => f.write_str("1"),
+            FinalTypeInner::Sum(ref a, ref b) => {
+                if a.ty == FinalTypeInner::Unit && b.ty == FinalTypeInner::Unit {
+                    write!(f, "2")
+                } else {
+                    write!(f, "({} + {})", a, b)
+                }
+            },
+            FinalTypeInner::Product(ref a, ref b) => {
+                let a_str = format!("{}", a);
+                let b_str = format!("{}", b);
+                if a_str == b_str {
+                    match &a_str[..] {
+                        "2" => write!(f, "2^2"),
+                        "2^2" => write!(f, "2^4"),
+                        "2^4" => write!(f, "2^8"),
+                        "2^8" => write!(f, "2^16"),
+                        "2^16" => write!(f, "2^32"),
+                        "2^32" => write!(f, "2^64"),
+                        "2^64" => write!(f, "2^128"),
+                        "2^128" => write!(f, "2^256"),
+                        _ => write!(f, "({} × {})", a, b),
+                    }
+                } else {
+                    write!(f, "({} × {})", a, b)
+                }
+            }
         }
     }
 }
@@ -174,12 +204,12 @@ fn bind(rcvar: &RcVar, ty: Type) {
         ),
         Variable::Finalized(..) => unreachable!(),
         Variable::Bound(self_ty, _) => match (self_ty, ty) {
-            (Type::Unit, Type::Unit) => {}
+            (Type::Unit, Type::Unit) => {},
             (Type::Sum(al1, al2), Type::Sum(be1, be2))
-            | (Type::Product(al1, al2), Type::Product(be1, be2)) => {
+                | (Type::Product(al1, al2), Type::Product(be1, be2)) => {
                 unify(al1, be1);
                 unify(al2, be2);
-            }
+            },
             (a, b) => {
                 let self_s = match a {
                     Type::Unit => "unit",
@@ -423,17 +453,37 @@ pub fn type_check<Witness: ::std::fmt::Debug>(
                     Type::Product(rcs[i].target.clone(), rcs[j].target.clone()),
                 );
             }
+            Node::Disconnect(i, j) => {
+                // See chapter 6 (Delegation) of TR
+                // Be careful, this order changed! https://github.com/ElementsProject/simplicity/pull/46
+                let var_a = Rc::new(RefCell::new(UnificationVar::free()));
+                let var_b = Rc::new(RefCell::new(UnificationVar::free()));
+                let var_c = Rc::new(RefCell::new(UnificationVar::free()));
+                let var_d = Rc::new(RefCell::new(UnificationVar::free()));
+
+                let s_source = Type::Product(two_256.clone(), var_a.clone()).into_rcvar();
+                let s_target = Type::Product(var_b.clone(), var_c.clone()).into_rcvar();
+                unify(rcs[i].source.clone(), s_source);
+                unify(rcs[i].target.clone(), s_target);
+
+                let node_target = Type::Product(var_b, var_d.clone()).into_rcvar();
+                unify(node.source.clone(), var_a);
+                unify(node.target.clone(), node_target);
+
+                unify(rcs[j].source.clone(), var_c);
+                unify(rcs[j].target.clone(), var_d);
+            },
             Node::Witness(..) => {
                 // No type constraints
-            }
+            },
             Node::Hidden(..) => {
                 // No type constraints
-            }
+            },
             Node::Bitcoin(ref bn) => {
                 bind(&node.source, type_from_name(bn.source_type()));
                 bind(&node.target, type_from_name(bn.target_type()));
             },
-            ref x => unimplemented!("haven't implemented {:?}", x),
+            Node::Fail(..) => unimplemented!("Cannot typecheck a program with `Fail` in it"),
         };
 
         rcs.push(Rc::new(node));

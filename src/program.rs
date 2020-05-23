@@ -66,7 +66,7 @@ impl fmt::Display for ProgramNode {
             Node::Witness(..) => f.write_str("witness")?,
             Node::Hidden(..) => f.write_str("hidden")?,
             Node::Fail(..) => f.write_str("fail")?,
-            Node::Bitcoin(..) => unimplemented!(),
+            Node::Bitcoin(ref b) => write!(f, "[bitcoin]{}", b)?,
         }
         write!(f, ": {} → {}", self.source_ty, self.target_ty,)
     }
@@ -212,7 +212,7 @@ fn compute_cmr(
         Node::Comp(i, j) => cmr::tag::comp().update(program[i].cmr, program[j].cmr),
         Node::Case(i, j) => cmr::tag::case().update(program[i].cmr, program[j].cmr),
         Node::Pair(i, j) => cmr::tag::pair().update(program[i].cmr, program[j].cmr),
-        Node::Disconnect(..) => unimplemented!(),
+        Node::Disconnect(i, _) => cmr::tag::disconnect().update_1(program[i].cmr),
         Node::Witness(..) => cmr::tag::witness(),
         Node::Fail(..) => unimplemented!(),
         Node::Hidden(cmr) => cmr,
@@ -245,7 +245,12 @@ fn compute_extra_cells_bound(
             program[i].extra_cells_bound,
             program[j].extra_cells_bound,
         ),
-        Node::Disconnect(..) => unimplemented!(),
+        // FIXME just copied from Comp, is this right?
+        Node::Disconnect(i, j) => program[i].target_ty.bit_width()
+            + cmp::max(
+                program[i].extra_cells_bound,
+                program[j].extra_cells_bound,
+            ),
         Node::Witness(..) => witness_target_width,
         Node::Fail(..) => unimplemented!(),
         Node::Hidden(..) => 0,
@@ -277,7 +282,11 @@ fn compute_frame_count_bound(
             program[i].frame_count_bound,
             program[j].frame_count_bound,
         ),
-        Node::Disconnect(..) => unimplemented!(),
+        Node::Disconnect(i, j) => 2
+            + cmp::max(
+                program[i].frame_count_bound,
+                program[j].frame_count_bound,
+            ),
         Node::Witness(..) => 0,
         Node::Fail(..) => unimplemented!(),
         Node::Hidden(..) => 0,
@@ -295,7 +304,6 @@ mod tests {
 
     #[test]
     fn unit_prog() {
-        println!("{:?}", encode::encode_natural(1));
         let prog = vec![0x24];
         let prog = Program::decode(&mut BitIter::from(prog.into_iter()))
             .expect("decoding program");
@@ -311,7 +319,6 @@ mod tests {
 
     #[test]
     fn injl_unit_prog() {
-        println!("{:?}", encode::encode_natural(2));
         // 100 01001 00100 0
         // 1000 1001 0010 0000
         let prog = vec![0x89, 0x20];
