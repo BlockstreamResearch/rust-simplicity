@@ -245,8 +245,8 @@ fn compute_extra_cells_bound(
             program[i].extra_cells_bound,
             program[j].extra_cells_bound,
         ),
-        // FIXME just copied from Comp, is this right?
-        Node::Disconnect(i, j) => program[i].target_ty.bit_width()
+        Node::Disconnect(i, j) => program[i].source_ty.bit_width()
+            + program[i].target_ty.bit_width()
             + cmp::max(
                 program[i].extra_cells_bound,
                 program[j].extra_cells_bound,
