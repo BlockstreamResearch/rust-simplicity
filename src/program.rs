@@ -299,7 +299,6 @@ mod tests {
     use super::*;
 
     use bititer::BitIter;
-    use encode;
     use Node;
 
     #[test]

@@ -20,12 +20,130 @@
 //! can with Bitcoin Script.
 //!
 
-use std::mem;
+use std::{mem, io};
 
 use bititer::BitIter;
 use extension::bitcoin;
 use {Error, Node};
 use cmr;
+
+/// Trait for writing individual bits to some sink
+pub trait BitWrite {
+    /// Write a single bit to the writer
+    fn write_bit(&mut self, b: bool) -> io::Result<()>;
+
+    /// Write out all cached bits, including those written since the last
+    /// byte boundary. (0s will be written after the actual data to pad out
+    /// to the next byte boundary). Then flushes the underlying `io::Write`
+    /// if one exists.
+    fn flush_all(&mut self) -> io::Result<()>;
+
+    /// Total number of bits written to this object (not necessarily the number
+    /// of bits written to the underlying byte-oriented sink, which in general
+    /// will be less)
+    fn n_written(&self) -> usize;
+}
+
+/// Wrapper around `io::Write` to enable writing individual bits to a bytestream
+pub struct BitWriter<W: io::Write> {
+    w: W,
+    cache: u8,
+    cache_len: usize,
+    total_written: usize,
+}
+
+impl<W: io::Write> BitWriter<W> {
+    /// Create a new `BitWriter` from an underlying `Write`
+    pub fn new(w: W) -> BitWriter<W> {
+        BitWriter {
+            w: w,
+            cache: 0,
+            cache_len: 0,
+            total_written: 0,
+        }
+    }
+
+    /// Recover the underlying `Write`
+    pub fn into_inner(self) -> W {
+        self.w
+    }
+}
+
+impl<W: io::Write> io::Write for BitWriter<W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        self.w.write(buf)
+    }
+
+    /// Flush the underlying `io::Write` -- does **not** write out cached
+    /// bits (i.e. bits written since the last byte boundary). To do this
+    /// you must call `flush_all`.
+    fn flush(&mut self) -> io::Result<()> {
+        self.w.flush()
+    }
+}
+
+impl<W: io::Write> BitWrite for BitWriter<W> {
+    fn write_bit(&mut self, b: bool) -> io::Result<()> {
+        if self.cache_len < 8 {
+            self.cache_len += 1;
+            self.total_written += 1;
+            if b {
+                self.cache |= 1 << (8 - self.cache_len);
+            }
+            Ok(())
+        } else {
+            self.w.write(&[self.cache])?;
+            self.cache_len = 0;
+            self.cache = 0;
+            self.write_bit(b)
+        }
+    }
+
+    /// Write out all cached bits, including those written since the last
+    /// byte boundary. (0s will be written after the actual data to pad out
+    /// to the next byte boundary). Then flushes the underlying `io::Write`.
+    fn flush_all(&mut self) -> io::Result<()> {
+        self.w.write(&[self.cache])?;
+        self.cache_len = 0;
+
+        io::Write::flush(&mut self.w)
+    }
+
+    /// Total number of bits written to this iterator (not necessarily the number
+    /// of bits written to the underlying iterator, which in general will be less)
+    fn n_written(&self) -> usize {
+        self.total_written
+    }
+}
+
+impl BitWrite for Vec<bool> {
+    fn write_bit(&mut self, b: bool) -> io::Result<()> {
+        self.push(b);
+        Ok(())
+    }
+
+    fn flush_all(&mut self) -> io::Result<()> {
+        Ok(())
+    }
+
+    fn n_written(&self) -> usize {
+        self.len()
+    }
+}
+
+impl<'a, B: BitWrite> BitWrite for &'a mut B {
+    fn write_bit(&mut self, b: bool) -> io::Result<()> {
+        (**self).write_bit(b)
+    }
+
+    fn flush_all(&mut self) -> io::Result<()> {
+        (**self).flush_all()
+    }
+
+    fn n_written(&self) -> usize {
+        (**self).n_written()
+    }
+}
 
 /// Decode a natural number according to section 7.2.1
 /// of the Simplicity whitepaper.
@@ -141,25 +259,27 @@ pub fn decode_program_no_witness<I: Iterator<Item = u8>>(
     Ok(program)
 }
 
-/// Encode a natural number according to section 7.2.1
-/// of the Simplicity tech report
-pub fn encode_natural(n: usize) -> Vec<bool> {
+/// Encode a natural number according to section 7.2.1 of the Simplicity tech
+/// report. Returns the length of the written number, in bits
+pub fn encode_natural<W: BitWrite>(
+    n: usize,
+    writer: &mut W,
+) -> io::Result<usize> {
     assert_ne!(n, 0); // Cannot encode zero
     let len = 8 * mem::size_of::<usize>() - n.leading_zeros() as usize - 1;
 
     if len == 0 {
-        vec![false]
+        writer.write_bit(false)?;
+        Ok(1)
     } else {
-        let mut ret = vec![true];
-        ret.extend(encode_natural(len));
-        let idx = ret.len();
-        let mut n = n - (1 << len as u32);
-        for _ in 0..len {
-            ret.push(n % 2 == 1);
-            n /= 2;
+        writer.write_bit(true)?;
+        encode_natural(len, &mut *writer)?;
+
+        for i in 0..len {
+            writer.write_bit(n & (1 << (len - i - 1)) != 0)?;
         }
-        ret[idx..].reverse();
-        ret
+
+        Ok(writer.n_written())
     }
 }
 
@@ -286,9 +406,26 @@ mod tests {
                 decode_natural(truncated.into_iter()),
                 Err(Error::EndOfStream),
             );
-            let encode = encode_natural(target);
+
+            let len = vec.len();
+
+            // Encode/decode bitwise
+            let mut encode = Vec::<bool>::new();
+            encode_natural(target, &mut encode)
+                .expect("encoding to a Vec");
             assert_eq!(encode, vec);
             let decode = decode_natural(vec.into_iter()).unwrap();
+            assert_eq!(target, decode);
+
+            // Encode/decode bytewise
+            let mut w = BitWriter::new(Vec::<u8>::new());
+            encode_natural(target, &mut w)
+                .expect("encoding to a Vec");
+            w.flush_all().expect("flushing");
+            assert_eq!(w.n_written(), len);
+            let r = BitIter::new(w.into_inner().into_iter());
+            let decode = decode_natural(r).unwrap();
+
             assert_eq!(target, decode);
         }
     }

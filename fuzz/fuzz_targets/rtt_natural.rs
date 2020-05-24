@@ -15,7 +15,7 @@
 extern crate simplicity;
 
 use simplicity::bititer::BitIter;
-use simplicity::encode;
+use simplicity::encode::{self, BitWrite};
 
 fn do_test(data: &[u8]) {
     let mut read_iter = BitIter::new(data.iter().cloned());
@@ -23,8 +23,22 @@ fn do_test(data: &[u8]) {
         let len = read_iter.n_total_read();
 
         let bit_vec: Vec<bool> = BitIter::new(data.iter().cloned()).take(len).collect();
-        let enc_vec: Vec<bool> = encode::encode_natural(nat);
+        let mut enc_vec = Vec::<bool>::new();
+        encode::encode_natural(nat, &mut enc_vec)
+            .expect("encoding natural");
         assert_eq!(bit_vec, enc_vec);
+
+        let mut w = encode::BitWriter::new(Vec::<u8>::new());
+        let write_len = encode::encode_natural(nat, &mut w)
+            .expect("encoding natural");
+        w.flush_all().expect("flushing");
+        let mut output = w.into_inner();
+        if write_len % 8 != 0 {
+            let mask = !(1u8 << (8 - (write_len % 8)));
+            let idx = output.len() - 1;
+            output[idx] |= data[idx] & mask;
+        }
+        assert_eq!(output, &data[0..output.len()]);
     }
 }
 
