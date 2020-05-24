@@ -36,6 +36,8 @@ pub enum Error {
     CaseMultipleHiddenChildren,
     /// Bitstream ended early
     EndOfStream,
+    /// Tried to allocate too many nodes in a program
+    TooManyNodes(usize),
     /// Unrecognized node
     ParseError(&'static str),
 }

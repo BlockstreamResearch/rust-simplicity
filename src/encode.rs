@@ -42,6 +42,16 @@ pub trait BitWrite {
     /// of bits written to the underlying byte-oriented sink, which in general
     /// will be less)
     fn n_written(&self) -> usize;
+
+    /// Write several bytes at once, up to 8. If `len` is less than 8, the
+    /// data is read in big-endian order from the least significant bits.
+    /// On success, returns `len`.
+    fn write_u8(&mut self, n: u8, len: usize) -> io::Result<usize> {
+        for i in 0..len {
+            self.write_bit(n & (1 << len - i - 1) != 0)?;
+        }
+        Ok(len)
+    }
 }
 
 /// Wrapper around `io::Write` to enable writing individual bits to a bytestream
@@ -201,30 +211,7 @@ pub fn decode_node_no_witness<I: Iterator<Item = u8>>(
                 )),
                 (2, 0) => Ok(Node::Iden),
                 (2, 1) => Ok(Node::Unit),
-                // FIXME Russell's code just rejects `Fail`
-                (2, 2) => {
-                    let mut h1 = [0; 32];
-                    let mut h2 = [0; 32];
-                    for i in 0..32 {
-                        for b in 0..8 {
-                            match iter.next() {
-                                Some(true) => h1[i] |= 1 << (7 - b),
-                                Some(false) => {}
-                                None => return Err(Error::EndOfStream),
-                            };
-                        }
-                    }
-                    for i in 0..32 {
-                        for b in 0..8 {
-                            match iter.next() {
-                                Some(true) => h2[i] |= 1 << (7 - b),
-                                Some(false) => {}
-                                None => return Err(Error::EndOfStream),
-                            };
-                        }
-                    }
-                    Ok(Node::Fail(h1, h2))
-                },
+                (2, 2) => Err(Error::ParseError("01010 (fail node)")),
                 (2, 3) => Err(Error::ParseError("01011 (stop code)")),
                 (3, 0) => {
                     let mut h = [0; 32];
@@ -246,10 +233,64 @@ pub fn decode_node_no_witness<I: Iterator<Item = u8>>(
     }
 }
 
+pub fn encode_node_no_witness<T, W: BitWrite>(
+    node: &Node<T>,
+    index: usize,
+    writer: &mut W,
+) -> io::Result<usize> {
+    match *node {
+        Node::Comp(i, j) => {
+            let ret = writer.write_u8(0, 5)?
+                + encode_natural(index - i, &mut *writer)?
+                + encode_natural(index - j, &mut *writer)?;
+            Ok(ret)
+        },
+        Node::Case(i, j) => {
+            let ret = writer.write_u8(1, 5)?
+                + encode_natural(index - i, &mut *writer)?
+                + encode_natural(index - j, &mut *writer)?;
+            Ok(ret)
+        },
+        Node::Pair(i, j) => {
+            let ret = writer.write_u8(2, 5)?
+                + encode_natural(index - i, &mut *writer)?
+                + encode_natural(index - j, &mut *writer)?;
+            Ok(ret)
+        },
+        Node::Disconnect(i, j) => {
+            let ret = writer.write_u8(3, 5)?
+                + encode_natural(index - i, &mut *writer)?
+                + encode_natural(index - j, &mut *writer)?;
+            Ok(ret)
+        },
+        Node::InjL(i) => Ok(writer.write_u8(4, 5)? + encode_natural(index - i, &mut *writer)?),
+        Node::InjR(i) => Ok(writer.write_u8(5, 5)? + encode_natural(index - i, &mut *writer)?),
+        Node::Take(i) => Ok(writer.write_u8(6, 5)? + encode_natural(index - i, &mut *writer)?),
+        Node::Drop(i) => Ok(writer.write_u8(7, 5)? + encode_natural(index - i, &mut *writer)?),
+        Node::Iden => writer.write_u8(8, 5),
+        Node::Unit => writer.write_u8(9, 5),
+        Node::Fail(..) => unimplemented!(),
+        Node::Hidden(cmr) => {
+            let mut len = writer.write_u8(6, 4)?;
+            for byte in &cmr[..] {
+                len += writer.write_u8(*byte, 8)?;
+            }
+            Ok(len)
+        },
+        Node::Witness(..) => writer.write_u8(7, 4),
+        Node::Bitcoin(ref b) => b.encode_node(writer),
+    }
+}
+
 pub fn decode_program_no_witness<I: Iterator<Item = u8>>(
     iter: &mut BitIter<I>,
 ) -> Result<Vec<Node<()>>, Error> {
     let prog_len = decode_natural(&mut *iter)?;
+
+    // FIXME make this a reasonable limit
+    if prog_len > 1_000_000 {
+        return Err(Error::TooManyNodes(prog_len));
+    }
 
     let mut program = Vec::with_capacity(prog_len);
     for i in 0..prog_len {
@@ -266,6 +307,7 @@ pub fn encode_natural<W: BitWrite>(
     writer: &mut W,
 ) -> io::Result<usize> {
     assert_ne!(n, 0); // Cannot encode zero
+    let n_start = writer.n_written();
     let len = 8 * mem::size_of::<usize>() - n.leading_zeros() as usize - 1;
 
     if len == 0 {
@@ -279,7 +321,7 @@ pub fn encode_natural<W: BitWrite>(
             writer.write_bit(n & (1 << (len - i - 1)) != 0)?;
         }
 
-        Ok(writer.n_written())
+        Ok(writer.n_written() - n_start)
     }
 }
 

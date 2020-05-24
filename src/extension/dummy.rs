@@ -17,12 +17,12 @@
 //! If some extension is compiled out, it is replaced with this
 //!
 
-use std::fmt;
+use std::{fmt, io};
 
 use bititer::BitIter;
 use super::TypeName;
 use Error;
-use cmr;
+use {cmr, encode};
 
 /// Dummy extension provides no combinators and cannot be constructed
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -49,6 +49,11 @@ impl Node {
 
     /// CMR for this node
     pub fn cmr(&self) -> cmr::Cmr {
+        match *self {}
+    }
+
+    /// Encode the node into a bitstream
+    pub fn encode_node<W: encode::BitWrite>(&self, _: &mut W) -> io::Result<usize> {
         match *self {}
     }
 }

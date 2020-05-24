@@ -18,12 +18,13 @@
 //! blockchain
 //!
 
-use std::fmt;
+use std::{fmt, io};
 
 use bititer::BitIter;
 use super::TypeName;
 use Error;
 use cmr::Cmr;
+use encode;
 
 /// Set of new Simplicity nodes enabled by the Bitcoin extension
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -181,6 +182,30 @@ impl Node {
             Node::OutputValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1foutputValue"),
             Node::OutputScriptHash => Cmr::new(b"SimplicityPrimitiveBitcoinx1foutputScriptHash"),
             Node::ScriptCMR => Cmr::new(b"SimplicityPrimitiveBitcoinx1fscriptCMR"),
+        }
+    }
+
+    /// Encode the node into a bitstream
+    pub fn encode_node<W: encode::BitWrite>(&self, w: &mut W) -> io::Result<usize> {
+        match *self {
+            Node::Version => w.write_u8(64 + 0, 7),
+            Node::LockTime => w.write_u8(64 + 1, 7),
+            Node::InputsHash => w.write_u8(32 + 1, 6),
+            Node::OutputsHash => w.write_u8(32 + 2, 6),
+            Node::NumInputs => w.write_u8(32 + 3, 6),
+            Node::TotalInputValue => w.write_u8(32 + 4, 6),
+            Node::CurrentPrevOutpoint => w.write_u8(32 + 5, 6),
+            Node::CurrentValue => w.write_u8(32 + 6, 6),
+            Node::CurrentSequence => w.write_u8(32 + 7, 6),
+            Node::CurrentIndex => w.write_u8(64 + 16, 7),
+            Node::InputPrevOutpoint => w.write_u8(64 + 17, 7),
+            Node::InputValue => w.write_u8(32 + 9, 6),
+            Node::InputSequence => w.write_u8(32 + 10, 6),
+            Node::NumOutputs => w.write_u8(32 + 11, 6),
+            Node::TotalOutputValue => w.write_u8(32 + 12, 6),
+            Node::OutputValue => w.write_u8(32 + 13, 6),
+            Node::OutputScriptHash => w.write_u8(32 + 14, 6),
+            Node::ScriptCMR => w.write_u8(32 + 15, 6),
         }
     }
 }
