@@ -27,6 +27,7 @@ pub struct BitIter<I: Iterator<Item = u8>> {
     iter: I,
     cached_byte: u8,
     read_bits: usize, 
+    total_read: usize,
 }
 
 impl<I: Iterator<Item = u8>> From<I> for BitIter<I> {
@@ -35,6 +36,7 @@ impl<I: Iterator<Item = u8>> From<I> for BitIter<I> {
             iter: iter,
             cached_byte: 0,
             read_bits: 8,
+            total_read: 0,
         }        
     }        
 }
@@ -45,6 +47,7 @@ impl<I: Iterator<Item = u8>> Iterator for BitIter<I> {
     fn next(&mut self) -> Option<bool> {
         if self.read_bits < 8 {
             self.read_bits += 1; 
+            self.total_read += 1;
             Some(self.cached_byte & (1 << (8 - self.read_bits as u8)) != 0)
         } else { 
             self.cached_byte = self.iter.next()?;
@@ -79,13 +82,25 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
             let pre_result = ((self.cached_byte & ((1 << avail_bits) - 1)) as u64) << n;
             self.cached_byte = self.iter.next()?;
             self.read_bits = 0;
-            Some(pre_result + self.read_bits_be(n)?)
+
+            if let Some(read) = self.read_bits_be(n) {
+                self.total_read += avail_bits;
+                Some(pre_result + read)
+            } else {
+                None
+            }
         } else {
             self.read_bits += n;
+            self.total_read += n;
             Some(((self.cached_byte >> (avail_bits - n)) & ((1 << n) - 1)) as u64)
         }
     }
 
+    /// Accessor for the number of bits which have been read,
+    /// in total, from this iterator
+    pub fn n_total_read(&self) -> usize {
+        self.total_read
+    }
 }
 
 #[cfg(test)]
@@ -99,6 +114,7 @@ mod tests {
         assert_eq!(iter.read_bits_be(0), Some(0));
         assert_eq!(iter.read_bits_be(1), None);
         assert_eq!(iter.read_bits_be(63), None);
+        assert_eq!(iter.n_total_read(), 0);
     }
 
     #[test]
@@ -108,6 +124,7 @@ mod tests {
         assert_eq!(iter.read_bits_be(1), Some(1));
         assert_eq!(iter.read_bits_be(7), Some(0));
         assert_eq!(iter.read_bits_be(1), None);
+        assert_eq!(iter.n_total_read(), 8);
     }
 
     #[test]
@@ -133,7 +150,9 @@ mod tests {
         assert_eq!(iter.read_bits_be(6), Some(0x3a)); // 11 1010
         assert_eq!(iter.read_bits_be(6), Some(0x28)); // 10 1000
         assert_eq!(iter.read_bits_be(6), Some(0x00)); // 00 0000
+        assert_eq!(iter.n_total_read(), 24);
         assert_eq!(iter.next(), None);
+        assert_eq!(iter.n_total_read(), 24);
     }
 
     #[test]
@@ -143,6 +162,7 @@ mod tests {
         assert_eq!(iter.next(), Some(false));         // 0
         assert_eq!(iter.read_bits_be(2), Some(0x02)); // 10
         assert_eq!(iter.read_bits_be(2), Some(0x01)); // 01
+        assert_eq!(iter.n_total_read(), 9);
     }
 }
 

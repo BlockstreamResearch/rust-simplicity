@@ -1,0 +1,24 @@
+[package]
+name = "simplicity-fuzz"
+version = "0.0.1"
+authors = ["Automatically generated"]
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[features]
+honggfuzz_fuzz = ["honggfuzz"]
+
+[dependencies]
+honggfuzz = { version = "0.5", optional = true }
+simplicity = { path = ".." }
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "rtt_natural"
+path = "fuzz_targets/rtt_natural.rs"
+

@@ -1,5 +1,5 @@
 [package]
-name = "rust-simplicity"
+name = "simplicity"
 version = "0.1.0"
 authors = ["Andrew Poelstra <apoelstra@wpsoftware.net>"]
 edition = "2015"
