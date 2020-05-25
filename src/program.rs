@@ -92,15 +92,14 @@ impl Program {
         let nodes = encode::decode_program_no_witness(&mut *iter)?;
 
         // Do type-checking
-        let typed_nodes = types::type_check(nodes);
+        let typed_nodes = types::type_check(nodes)?;
 
         // Parse witnesses, if available
         // FIXME actually only read as much as wit_len
         let wit_len = match iter.next() {
             Some(false) => 0,
-            Some(true) => encode::decode_natural(&mut *iter)
-                .expect("decoding witness length"),
-            None => panic!("No witness data"),
+            Some(true) => encode::decode_natural(&mut *iter)?,
+            None => return Err(Error::EndOfStream),
         };
 
         let typed_nodes = typed_nodes

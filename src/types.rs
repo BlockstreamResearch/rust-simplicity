@@ -5,6 +5,7 @@ use std::{cmp, fmt, mem};
 
 use extension;
 use Node;
+use Error;
 
 #[derive(Clone)]
 enum Type {
@@ -71,19 +72,21 @@ impl FinalType {
         self.bit_width
     }
 
-    fn from_var(var: RcVar) -> Arc<FinalType> {
+    fn from_var(var: RcVar) -> Result<Arc<FinalType>, Error> {
         let var = find_root(var);
         let mut var_borr = var.borrow_mut();
 
         let existing_type = match var_borr.var {
             Variable::Free => Type::Unit,
             Variable::Bound(ref ty, ref mut occurs_check) => {
-                assert!(!*occurs_check); // TODO set an error here
+                if *occurs_check {
+                    return Err(Error::OccursCheck);
+                }
                 *occurs_check = true;
                 ty.clone()
             }
             Variable::EqualTo(..) => unreachable!(),
-            Variable::Finalized(ref done) => return done.clone(),
+            Variable::Finalized(ref done) => return Ok(done.clone()),
         };
 
         let (sub1, sub2) = match existing_type {
@@ -93,24 +96,28 @@ impl FinalType {
                     bit_width: 0,
                 });
                 var_borr.var = Variable::Finalized(ret.clone());
-                return ret;
+                return Ok(ret);
             }
             Type::Sum(ref sub1, ref sub2) => (sub1.clone(), sub2.clone()),
             Type::Product(ref sub1, ref sub2) => (sub1.clone(), sub2.clone()),
         };
+        drop(var_borr);
 
         let sub1 = find_root(sub1.clone());
         let sub2 = find_root(sub2.clone());
 
         let sub1_borr = sub1.borrow_mut();
         let final1 = match sub1_borr.var {
-            Variable::Free => Arc::new(FinalType {
-                ty: FinalTypeInner::Unit,
-                bit_width: 0,
-            }),
+            Variable::Free => {
+                drop(sub1_borr);
+                Arc::new(FinalType {
+                    ty: FinalTypeInner::Unit,
+                    bit_width: 0,
+                })
+            },
             Variable::Bound(..) => {
                 drop(sub1_borr);
-                FinalType::from_var(sub1.clone())
+                FinalType::from_var(sub1.clone())?
             }
             Variable::EqualTo(..) => unreachable!(),
             Variable::Finalized(ref f1) => {
@@ -128,7 +135,7 @@ impl FinalType {
             }),
             Variable::Bound(..) => {
                 drop(sub2_borr);
-                FinalType::from_var(sub2)
+                FinalType::from_var(sub2)?
             }
             Variable::EqualTo(..) => unreachable!(),
             Variable::Finalized(ref f2) => {
@@ -149,8 +156,8 @@ impl FinalType {
                 ty: FinalTypeInner::Product(final1, final2),
             }),
         };
-        var_borr.var = Variable::Finalized(ret.clone());
-        ret
+        var.borrow_mut().var = Variable::Finalized(ret.clone());
+        Ok(ret)
     }
 }
 
@@ -192,25 +199,31 @@ impl UnificationVar {
     }
 }
 
-fn bind(rcvar: &RcVar, ty: Type) {
+fn bind(rcvar: &RcVar, ty: Type) -> Result<(), Error> {
     // Cloning a `Variable` is cheap, as the nontrivial variants merely
     // hold `Rc`s
     let self_var = rcvar.borrow().var.clone();
     match self_var {
-        Variable::Free => rcvar.borrow_mut().var = Variable::Bound(ty, false),
+        Variable::Free => {
+            rcvar.borrow_mut().var = Variable::Bound(ty, false);
+            Ok(())
+        },
         Variable::EqualTo(..) => unreachable!(
             "Tried to bind unification variable which was not \
              the representative of its equivalence class"
         ),
         Variable::Finalized(..) => unreachable!(),
         Variable::Bound(self_ty, _) => match (self_ty, ty) {
-            (Type::Unit, Type::Unit) => {},
+            (Type::Unit, Type::Unit) => Ok(()),
             (Type::Sum(al1, al2), Type::Sum(be1, be2))
                 | (Type::Product(al1, al2), Type::Product(be1, be2)) => {
-                unify(al1, be1);
-                unify(al2, be2);
+                unify(al1, be1)?;
+                unify(al2, be2)
             },
-            (a, b) => {
+            // FIXME output a sane error
+            _ => {
+//            (a, b) => {
+                /*
                 let self_s = match a {
                     Type::Unit => "unit",
                     Type::Sum(..) => "sum",
@@ -221,7 +234,8 @@ fn bind(rcvar: &RcVar, ty: Type) {
                     Type::Sum(..) => "sum",
                     Type::Product(..) => "prod",
                 };
-                panic!("unification failure {} vs {}", self_s, b_s)
+                */
+                Err(Error::TypeCheck)
             }
         },
     }
@@ -251,13 +265,13 @@ fn find_root(mut node: RcVar) -> RcVar {
     }
 }
 
-fn unify(mut alpha: RcVar, mut beta: RcVar) {
+fn unify(mut alpha: RcVar, mut beta: RcVar) -> Result<(), Error> {
     alpha = find_root(alpha);
     beta = find_root(beta);
 
     // Already unified, done
     if Rc::ptr_eq(&alpha, &beta) {
-        return;
+        return Ok(());
     }
 
     // Adjust ranks for union-find path halving
@@ -274,10 +288,12 @@ fn unify(mut alpha: RcVar, mut beta: RcVar) {
     };
     match be_var {
         Variable::Free => {} // nothing to do
-        Variable::Bound(be_type, _) => bind(&alpha, be_type),
+        Variable::Bound(be_type, _) => bind(&alpha, be_type)?,
         Variable::EqualTo(..) => unreachable!(),
         Variable::Finalized(..) => unreachable!(),
     }
+
+    Ok(())
 }
 
 #[derive(Clone)]
@@ -296,9 +312,9 @@ pub struct TypedNode<Witness> {
 /// Attach types to all nodes in a program
 pub fn type_check<Witness: ::std::fmt::Debug>(
     program: Vec<Node<Witness>>,
-) -> Vec<TypedNode<Witness>> {
+) -> Result<Vec<TypedNode<Witness>>, Error> {
     if program.is_empty() {
-        return vec![];
+        return Ok(vec![]);
     }
 
     // Produce all powers of two as types
@@ -378,44 +394,44 @@ pub fn type_check<Witness: ::std::fmt::Debug>(
         };
 
         match *program_node {
-            Node::Iden => unify(node.source.clone(), node.target.clone()),
-            Node::Unit => bind(&node.target, Type::Unit),
+            Node::Iden => unify(node.source.clone(), node.target.clone())?,
+            Node::Unit => bind(&node.target, Type::Unit)?,
             Node::InjL(i) => {
-                unify(node.source.clone(), rcs[i].source.clone());
+                unify(node.source.clone(), rcs[i].source.clone())?;
                 let target_type = Type::Sum(
                     rcs[i].target.clone(),
                     Rc::new(RefCell::new(UnificationVar::free())),
                 );
-                bind(&node.target, target_type);
+                bind(&node.target, target_type)?;
             }
             Node::InjR(i) => {
-                unify(node.source.clone(), rcs[i].source.clone());
+                unify(node.source.clone(), rcs[i].source.clone())?;
                 let target_type = Type::Sum(
                     Rc::new(RefCell::new(UnificationVar::free())),
                     rcs[i].target.clone(),
                 );
-                bind(&node.target, target_type);
+                bind(&node.target, target_type)?;
             }
             Node::Take(i) => {
-                unify(node.target.clone(), rcs[i].target.clone());
+                unify(node.target.clone(), rcs[i].target.clone())?;
                 let target_type = Type::Product(
                     rcs[i].source.clone(),
                     Rc::new(RefCell::new(UnificationVar::free())),
                 );
-                bind(&node.source, target_type);
+                bind(&node.source, target_type)?;
             }
             Node::Drop(i) => {
-                unify(node.target.clone(), rcs[i].target.clone());
+                unify(node.target.clone(), rcs[i].target.clone())?;
                 let target_type = Type::Product(
                     Rc::new(RefCell::new(UnificationVar::free())),
                     rcs[i].source.clone(),
                 );
-                bind(&node.source, target_type);
+                bind(&node.source, target_type)?;
             }
             Node::Comp(i, j) => {
-                unify(node.source.clone(), rcs[i].source.clone());
-                unify(rcs[i].target.clone(), rcs[j].source.clone());
-                unify(node.target.clone(), rcs[j].target.clone());
+                unify(node.source.clone(), rcs[i].source.clone())?;
+                unify(rcs[i].target.clone(), rcs[j].source.clone())?;
+                unify(node.target.clone(), rcs[j].target.clone())?;
             }
             Node::Case(i, j) => {
                 let var1 = Rc::new(RefCell::new(UnificationVar::free()));
@@ -424,34 +440,34 @@ pub fn type_check<Witness: ::std::fmt::Debug>(
 
                 let sum12_ty = Type::Sum(var1.clone(), var2.clone());
                 let sum12_var = Rc::new(RefCell::new(UnificationVar::free()));
-                bind(&sum12_var, sum12_ty);
+                bind(&sum12_var, sum12_ty)?;
 
                 let source_ty = Type::Product(sum12_var, var3.clone());
-                bind(&node.source, source_ty);
+                bind(&node.source, source_ty)?;
                 if let Node::Hidden(..) = program[i] {
                 } else {
                     bind(
                         &find_root(rcs[i].source.clone()),
                         Type::Product(var1.clone(), var3.clone()),
-                    );
-                    unify(node.target.clone(), rcs[i].target.clone());
+                    )?;
+                    unify(node.target.clone(), rcs[i].target.clone())?;
                 }
                 if let Node::Hidden(..) = program[j] {
                 } else {
                     bind(
                         &find_root(rcs[j].source.clone()),
                         Type::Product(var2.clone(), var3.clone()),
-                    );
-                    unify(node.target.clone(), rcs[j].target.clone());
+                    )?;
+                    unify(node.target.clone(), rcs[j].target.clone())?;
                 }
             }
             Node::Pair(i, j) => {
-                unify(node.source.clone(), rcs[i].source.clone());
-                unify(node.source.clone(), rcs[j].source.clone());
+                unify(node.source.clone(), rcs[i].source.clone())?;
+                unify(node.source.clone(), rcs[j].source.clone())?;
                 bind(
                     &node.target,
                     Type::Product(rcs[i].target.clone(), rcs[j].target.clone()),
-                );
+                )?;
             }
             Node::Disconnect(i, j) => {
                 // See chapter 6 (Delegation) of TR
@@ -463,15 +479,15 @@ pub fn type_check<Witness: ::std::fmt::Debug>(
 
                 let s_source = Type::Product(two_256.clone(), var_a.clone()).into_rcvar();
                 let s_target = Type::Product(var_b.clone(), var_c.clone()).into_rcvar();
-                unify(rcs[i].source.clone(), s_source);
-                unify(rcs[i].target.clone(), s_target);
+                unify(rcs[i].source.clone(), s_source)?;
+                unify(rcs[i].target.clone(), s_target)?;
 
                 let node_target = Type::Product(var_b, var_d.clone()).into_rcvar();
-                unify(node.source.clone(), var_a);
-                unify(node.target.clone(), node_target);
+                unify(node.source.clone(), var_a)?;
+                unify(node.target.clone(), node_target)?;
 
-                unify(rcs[j].source.clone(), var_c);
-                unify(rcs[j].target.clone(), var_d);
+                unify(rcs[j].source.clone(), var_c)?;
+                unify(rcs[j].target.clone(), var_d)?;
             },
             Node::Witness(..) => {
                 // No type constraints
@@ -480,8 +496,8 @@ pub fn type_check<Witness: ::std::fmt::Debug>(
                 // No type constraints
             },
             Node::Bitcoin(ref bn) => {
-                bind(&node.source, type_from_name(bn.source_type()));
-                bind(&node.target, type_from_name(bn.target_type()));
+                bind(&node.source, type_from_name(bn.source_type()))?;
+                bind(&node.target, type_from_name(bn.target_type()))?;
             },
             Node::Fail(..) => unimplemented!("Cannot typecheck a program with `Fail` in it"),
         };
@@ -494,10 +510,10 @@ pub fn type_check<Witness: ::std::fmt::Debug>(
     for (idx, node) in program.into_iter().enumerate() {
         finals.push(TypedNode {
             node: node,
-            source_ty: FinalType::from_var(rcs[idx].source.clone()),
-            target_ty: FinalType::from_var(rcs[idx].target.clone()),
+            source_ty: FinalType::from_var(rcs[idx].source.clone())?,
+            target_ty: FinalType::from_var(rcs[idx].target.clone())?,
         });
     }
 
-    finals
+    Ok(finals)
 }

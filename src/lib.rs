@@ -26,6 +26,11 @@ use std::fmt;
 /// De/serialization error
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum Error {
+    /// Unable to unify types in a DAG
+    TypeCheck,
+    /// A recursive type was inferred, violating the "occurs check" of the
+    /// type inference engine
+    OccursCheck,
     /// Node made a back-reference past the beginning of the program
     BadIndex,
     /// Number exceeded 32 bits
