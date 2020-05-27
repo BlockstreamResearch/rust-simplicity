@@ -67,6 +67,7 @@ impl fmt::Display for ProgramNode {
             Node::Hidden(..) => f.write_str("hidden")?,
             Node::Fail(..) => f.write_str("fail")?,
             Node::Bitcoin(ref b) => write!(f, "[bitcoin]{}", b)?,
+            Node::Jet(ref j) => write!(f, "[jet]{}", j)?,
         }
         write!(f, ": {} → {}", self.source_ty, self.target_ty,)
     }
@@ -123,6 +124,7 @@ impl Program {
                     Node::Fail(x, y) => Node::Fail(x, y),
                     Node::Hidden(x) => Node::Hidden(x),
                     Node::Bitcoin(b) => Node::Bitcoin(b),
+                    Node::Jet(j) => Node::Jet(j),
                 },
                 source_ty: node.source_ty,
                 target_ty: node.target_ty,
@@ -174,13 +176,14 @@ impl Program {
                     Node::Hidden(..) => "hidden",
                     Node::Fail(..) => "fail",
                     Node::Bitcoin(..) => "[bitcoin]",
+                    Node::Jet(..) => "[jet]",
                 },
                 node.index,
                 node.source_ty,
                 node.target_ty,
             );
             match node.node {
-                Node::Iden | Node::Unit | Node::Witness(..) | Node::Hidden(..) | Node::Fail(..) | Node::Bitcoin(..) => {
+                Node::Iden | Node::Unit | Node::Witness(..) | Node::Hidden(..) | Node::Fail(..) | Node::Bitcoin(..) | Node::Jet(..) => {
                 }
                 Node::InjL(i) | Node::InjR(i) | Node::Take(i) | Node::Drop(i) => {
                     println!("  {} -> {};", node.index, i);
@@ -216,6 +219,7 @@ fn compute_cmr(
         Node::Fail(..) => unimplemented!(),
         Node::Hidden(cmr) => cmr,
         Node::Bitcoin(ref b) => b.cmr(),
+        Node::Jet(ref j) => j.cmr(),
     }
 }
 
@@ -254,6 +258,7 @@ fn compute_extra_cells_bound(
         Node::Fail(..) => unimplemented!(),
         Node::Hidden(..) => 0,
         Node::Bitcoin(..) => 0,
+        Node::Jet(..) => 0,
     }
 }
 
@@ -290,6 +295,7 @@ fn compute_frame_count_bound(
         Node::Fail(..) => unimplemented!(),
         Node::Hidden(..) => 0,
         Node::Bitcoin(..) => 0,
+        Node::Jet(..) => 0,
     }
 }
 

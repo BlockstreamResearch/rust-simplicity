@@ -359,6 +359,10 @@ pub fn type_check<Witness: ::std::fmt::Debug>(
         two_256.clone(),
         two_32.clone(),
     ))));
+    let two_512 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Product(
+        two_256.clone(),
+        two_256.clone(),
+    ))));
 
     // Convenience closure for getting types for extensions
     let type_from_name = &|name: extension::TypeName| {
@@ -368,10 +372,16 @@ pub fn type_check<Witness: ::std::fmt::Debug>(
                 => Type::Product(two_16.clone(), two_16.clone()),
             extension::TypeName::SWord32
                 => Type::Sum(two_0.clone(), two_32.clone()),
+            extension::TypeName::TwoTimesWord32
+                => Type::Product(two_1.clone(), two_32.clone()),
             extension::TypeName::Word64
                 => Type::Product(two_32.clone(), two_32.clone()),
             extension::TypeName::SWord64
                 => Type::Sum(two_0.clone(), two_64.clone()),
+            extension::TypeName::Word64TimesTwo
+                => Type::Product(two_64.clone(), two_1.clone()),
+            extension::TypeName::Word128
+                => Type::Product(two_64.clone(), two_64.clone()),
             extension::TypeName::Word256
                 => Type::Product(two_128.clone(), two_128.clone()),
             extension::TypeName::SWord256
@@ -380,6 +390,8 @@ pub fn type_check<Witness: ::std::fmt::Debug>(
                 => Type::Product(two_256.clone(), two_32.clone()),
             extension::TypeName::SWord256Word32
                 => Type::Sum(two_0.clone(), two_256_32.clone()),
+            extension::TypeName::Word256Word512
+                => Type::Product(two_256.clone(), two_512.clone()),
         }
     };
 
@@ -498,6 +510,10 @@ pub fn type_check<Witness: ::std::fmt::Debug>(
             Node::Bitcoin(ref bn) => {
                 bind(&node.source, type_from_name(bn.source_type()))?;
                 bind(&node.target, type_from_name(bn.target_type()))?;
+            },
+            Node::Jet(ref jt) => {
+                bind(&node.source, type_from_name(jt.source_type()))?;
+                bind(&node.target, type_from_name(jt.target_type()))?;
             },
             Node::Fail(..) => unimplemented!("Cannot typecheck a program with `Fail` in it"),
         };

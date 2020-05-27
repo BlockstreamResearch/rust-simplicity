@@ -23,7 +23,7 @@
 use std::{mem, io};
 
 use bititer::BitIter;
-use extension::bitcoin;
+use extension::{bitcoin, jets};
 use {Error, Node};
 use cmr;
 
@@ -166,8 +166,8 @@ pub fn decode_node_no_witness<I: Iterator<Item = u8>>(
         Some(true) => {
             match iter.next() {
                 None => Err(Error::EndOfStream),
-                Some(false) => Ok(Node::Bitcoin(bitcoin::decode_node_no_witness(iter)?)),
-                Some(true) => Err(Error::ParseError("invalid parse 11")),
+                Some(false) => Ok(Node::Bitcoin(bitcoin::decode_node(iter)?)),
+                Some(true) =>  Ok(Node::Jet(jets::decode_node(iter)?)),
             }
         },
         Some(false) => {
@@ -279,6 +279,7 @@ pub fn encode_node_no_witness<T, W: BitWrite>(
         },
         Node::Witness(..) => writer.write_u8(7, 4),
         Node::Bitcoin(ref b) => b.encode_node(writer),
+        Node::Jet(ref j) => j.encode_node(writer),
     }
 }
 
@@ -295,6 +296,7 @@ pub fn decode_program_no_witness<I: Iterator<Item = u8>>(
     let mut program = Vec::with_capacity(prog_len);
     for i in 0..prog_len {
         program.push(decode_node_no_witness(i, iter)?);
+        println!("{:?}", program.last());
     }
 
     Ok(program)

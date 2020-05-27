@@ -20,6 +20,7 @@
 pub mod dummy;
 #[cfg(feature = "bitcoin")]
 pub mod bitcoin;
+pub mod jets;
 
 #[cfg(not(feature = "bitcoin"))]
 pub use self::dummy as bitcoin;
@@ -37,11 +38,15 @@ pub enum TypeName {
     One,
     Word32,
     SWord32,
+    TwoTimesWord32,
     Word64,
     SWord64,
+    Word64TimesTwo,
+    Word128,
     Word256,
     SWord256,
     Word256Word32,
     SWord256Word32,
+    Word256Word512,
 }
 

@@ -74,6 +74,7 @@ pub enum Node<Witness> {
     Fail([u8; 32], [u8; 32]),
     Hidden(cmr::Cmr),
     Bitcoin(extension::bitcoin::Node),
+    Jet(extension::jets::Node),
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]

@@ -75,8 +75,9 @@ impl fmt::Display for Node {
 }
 
 /// Decode a natural number according to section 7.2.1
-/// of the Simplicity whitepaper.
-pub fn decode_node_no_witness<I: Iterator<Item = u8>>(
+/// of the Simplicity whitepaper. Assumes that a 10 prefix
+/// has already been read
+pub fn decode_node<I: Iterator<Item = u8>>(
     iter: &mut BitIter<I>,
 ) -> Result<Node, Error> {
     let code = match iter.read_bits_be(4) {
