@@ -13,15 +13,19 @@
 //
 
 extern crate bitcoin_hashes;
+extern crate byteorder;
 
 pub mod bititer;
 pub mod cmr;
 pub mod encode;
+pub mod exec;
 pub mod extension;
 pub mod program;
 pub mod types;
 
 use std::fmt;
+
+pub use program::Program;
 
 /// De/serialization error
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -86,6 +90,7 @@ pub enum Value {
 }
 
 impl Value {
+    /// The length, in bits, of the value when encoded in the Bit Machine
     pub fn len(&self) -> usize {
         match *self {
             Value::Unit => 0,
@@ -93,6 +98,78 @@ impl Value {
             Value::SumR(ref s) => 1 + s.len(),
             Value::Prod(ref s, ref t) => s.len() + t.len(),
         }
+    }
+
+    /// Encode a single bit as a value. Will panic if the input is out of range
+    pub fn u1(n: u8) -> Value {
+        match n {
+            0 => Value::SumL(Box::new(Value::Unit)),
+            1 => Value::SumR(Box::new(Value::Unit)),
+            x => panic!("{} out of range for Value::u1", x),
+        }
+    }
+
+    /// Encode a two-bit number as a value. Will panic if the input is out of range
+    pub fn u2(n: u8) -> Value {
+        let b0 = (n & 2) / 2;
+        let b1 = n & 1;
+        if n > 3 {
+            panic!("{} out of range for Value::u2", n);
+        }
+        Value::Prod(Box::new(Value::u1(b0)), Box::new(Value::u1(b1)))
+    }
+
+    /// Encode a four-bit number as a value. Will panic if the input is out of range
+    pub fn u4(n: u8) -> Value {
+        let w0 = (n & 12) / 4;
+        let w1 = n & 3;
+        if n > 7 {
+            panic!("{} out of range for Value::u2", n);
+        }
+        Value::Prod(Box::new(Value::u2(w0)), Box::new(Value::u2(w1)))
+    }
+
+    /// Encode an eight-bit number as a value
+    pub fn u8(n: u8) -> Value {
+        let w0 = n >> 4;
+        let w1 = n & 0xf;
+        Value::Prod(Box::new(Value::u4(w0)), Box::new(Value::u4(w1)))
+    }
+
+    /// Encode a 16-bit number as a value
+    pub fn u16(n: u16) -> Value {
+        let w0 = (n >> 8) as u8;
+        let w1 = (n & 0xff) as u8;
+        Value::Prod(Box::new(Value::u8(w0)), Box::new(Value::u8(w1)))
+    }
+
+    /// Encode a 32-bit number as a value
+    pub fn u32(n: u32) -> Value {
+        let w0 = (n >> 16) as u16;
+        let w1 = (n & 0xffff) as u16;
+        Value::Prod(Box::new(Value::u16(w0)), Box::new(Value::u16(w1)))
+    }
+
+    /// Encode a 32-bit number as a value
+    pub fn u64(n: u64) -> Value {
+        let w0 = (n >> 32) as u32;
+        let w1 = (n & 0xffffffff) as u32;
+        Value::Prod(Box::new(Value::u32(w0)), Box::new(Value::u32(w1)))
+    }
+
+    /// Convenience constructor for a left sum of a value
+    pub fn sum_l(a: Value) -> Value {
+        Value::SumL(Box::new(a))
+    }
+
+    /// Convenience constructor for a right sum of a value
+    pub fn sum_r(a: Value) -> Value {
+        Value::SumR(Box::new(a))
+    }
+
+    /// Convenience constructor for product of two values
+    pub fn prod(a: Value, b: Value) -> Value {
+        Value::Prod(Box::new(a), Box::new(b))
     }
 }
 

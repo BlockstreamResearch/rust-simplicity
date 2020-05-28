@@ -296,7 +296,6 @@ pub fn decode_program_no_witness<I: Iterator<Item = u8>>(
     let mut program = Vec::with_capacity(prog_len);
     for i in 0..prog_len {
         program.push(decode_node_no_witness(i, iter)?);
-        println!("{:?}", program.last());
     }
 
     Ok(program)

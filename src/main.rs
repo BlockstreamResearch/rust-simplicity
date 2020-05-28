@@ -1,14 +1,10 @@
 
 #[cfg(feature = "bitcoin")]
 extern crate bitcoin;
-extern crate byteorder;
 extern crate simplicity;
 
-use bitcoin::hashes::Hash;
 use bitcoin::hashes::hex::FromHex;
-use byteorder::{LittleEndian, WriteBytesExt};
-use std::{cmp, fmt, ptr};
-use std::io::Write;
+use simplicity::Value;
 
 const SIGHASH_ALL: [u8; 12368] = [
     0xec, 0x8f, 0x84, 0x90, 0x20, 0x40, 0x81, 0x02, 0x04, 0x17, 0x40, 0x81, 0x68, 0x0a, 0xea, 0x12, 0x8a, 0x85, 0xa8, 0x2d,
@@ -715,7 +711,6 @@ const FIB_CMR: [u8; 32] = [
     0x8a, 0x7c, 0xe9, 0x32, 0xbc, 0x60, 0x47, 0x17, 0x66, 0x75, 0x20, 0xf7, 0xb2, 0xcb, 0xf0, 0xa7,
 ];
 
-const IN_SIZE: usize = 8;
 /* A length-prefixed encoding of the following Simplicity program:
  *       ((false &&& scribe (toWord256 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798)) &&& zero word256) &&&
  *       witness (toWord512 0x787A848E71043D280C50470E8E1532B2DD5D20EE912A45DBDD2BD1DFBF187EF67031A98831859DC34DFFEEDDA86831842CCD0079E1F92AF177F7F22CC1DCED05) >>>
@@ -2567,413 +2562,6 @@ const BITCOIN_PROG: [u8; 14635] = [
     0x00, 0xd7, 0x8d, 0x58, 0x5f, 0x74, 0x70, 0x95, 0x9d, 0x37, 0x40,
 ];
 
-struct TxEnv {
-    tx: bitcoin::Transaction,
-}
-
-impl Default for TxEnv {
-    fn default() -> TxEnv {
-        TxEnv {
-            tx: bitcoin::Transaction {
-                version: 0,
-                lock_time: 0,
-                input: vec![],
-                output: vec![],
-            }
-        }
-    }
-}
-
-struct Frame {
-    data: *mut u8,
-    abs_pos: isize,
-    start: isize,
-    len: isize,
-}
-
-impl fmt::Debug for Frame {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        unsafe {
-            for i in 0..self.len {
-                if i == self.abs_pos - self.start {
-                    f.write_str("^")?;
-                }
-
-                let p = self.data.offset((self.start + i) / 8);
-                if *p & (1 << ((self.start + i) % 8)) != 0 {
-                    f.write_str("1")?;
-                } else {
-                    f.write_str("0")?;
-                }
-            }
-        }
-        Ok(())
-    }
-}
-
-impl Frame {
-    fn read_at_rel(&self, n: isize) -> bool {
-        unsafe {
-            let p = self.data.offset((self.abs_pos + n) / 8);
-            *p & (1 << ((self.abs_pos + n) % 8)) != 0
-        }
-    }
-
-    fn read(&self) -> bool {
-        unsafe {
-            let p = self.data.offset(self.abs_pos / 8);
-            *p & (1 << (self.abs_pos % 8)) != 0
-        }
-    }
-
-    fn write(&mut self, b: bool) {
-        let mask = 1 << (self.abs_pos % 8);
-        unsafe {
-            let p = self.data.offset(self.abs_pos / 8);
-            if b {
-                *p |= mask;
-            } else {
-                *p &= !mask;
-            }
-        }
-        self.abs_pos += 1;
-    }
-
-    fn fwd(&mut self, n: usize) {
-        self.abs_pos += n as isize;
-    }
-
-    fn back(&mut self, n: usize) {
-        self.abs_pos -= n as isize;
-    }
-
-    fn copy_from(&mut self, other: &Frame, n: usize) {
-        if self.abs_pos % 8 == 0 && other.abs_pos % 8 == 0 {
-            unsafe {
-                ptr::copy_nonoverlapping(
-                    other.data.offset(other.abs_pos / 8),
-                    self.data.offset(self.abs_pos / 8),
-                    (n + 7) / 8,
-                );
-                self.abs_pos += n as isize;
-            }
-        } else {
-            for i in 0..n as isize {
-                let bit = unsafe {
-                    let p = other.data.offset((other.abs_pos + i) / 8);
-                    *p & (1 << ((other.abs_pos + i) % 8)) != 0
-                };
-                self.write(bit);
-            }
-        }
-    }
-}
-
-struct BitMachine {
-    data: [u8; 29_082],
-    next_pos: isize,
-    read: Vec<Frame>,
-    write: Vec<Frame>,
-}
-
-impl BitMachine {
-    fn new_frame(&mut self, len: usize) {
-        assert!(self.next_pos as usize + len < self.data.len() * 8);
-        assert!(self.write.len() + self.read.len() < self.read.capacity());
-
-        self.write.push(Frame {
-            data: self.data.as_mut_ptr(),
-            abs_pos: self.next_pos,
-            start: self.next_pos,
-            len: len as isize,
-        });
-        self.next_pos += len as isize;
-    }
-
-    fn move_frame(&mut self) {
-        let mut pop = self.write.pop().unwrap();
-        pop.abs_pos = pop.start;
-        self.read.push(pop);
-    }
-
-    fn drop_frame(&mut self) {
-        let d = self.read.pop().unwrap();
-        self.next_pos -= d.len;
-        assert_eq!(self.next_pos, d.start);
-    }
-
-    fn write(&mut self, bit: bool) {
-        let idx = self.write.len() - 1;
-        self.write[idx].write(bit);
-    }
-
-    fn skip(&mut self, n: usize) {
-        let idx = self.write.len() - 1;
-        self.write[idx].fwd(n);
-    }
-
-    fn copy(&mut self, n: usize) {
-        let widx = self.write.len() - 1;
-        let ridx = self.read.len() - 1;
-        self.write[widx].copy_from(&self.read[ridx], n);
-    }
-
-    fn fwd(&mut self, n: usize) {
-        let idx = self.read.len() - 1;
-        self.read[idx].fwd(n);
-    }
-
-    fn back(&mut self, n: usize) {
-        let idx = self.read.len() - 1;
-        self.read[idx].back(n);
-    }
-
-    fn write_u64(&mut self, data: u64) {
-        for idx in 0..64 {
-            self.write(data & (1 << (63 - idx)) != 0);
-        }
-    }
-
-    fn write_u32(&mut self, data: u32) {
-        for idx in 0..32 {
-            self.write(data & (1 << (31 - idx)) != 0);
-        }
-    }
-
-    fn write_bytes(&mut self, data: &[u8]) {
-        for bit in simplicity::bititer::BitIter::new(data.iter().cloned()) {
-            self.write(bit);
-        }
-    }
-
-    fn write_value(&mut self, val: &simplicity::Value) {
-        match *val {
-            simplicity::Value::Unit => {}
-            simplicity::Value::SumL(ref a) => {
-                self.write(false);
-                self.write_value(a);
-            }
-            simplicity::Value::SumR(ref a) => {
-                self.write(true);
-                self.write_value(a);
-            }
-            simplicity::Value::Prod(ref a, ref b) => {
-                self.write_value(a);
-                self.write_value(b);
-            }
-        }
-    }
-
-    fn new(frame_count: usize) -> BitMachine {
-        let mut ret = BitMachine {
-            data: [0; 29_082],
-            next_pos: 0,
-            read: Vec::with_capacity(frame_count),
-            write: Vec::with_capacity(frame_count),
-        };
-        ret.new_frame(0);
-        ret.move_frame();
-        ret
-    }
-
-    fn exec(
-        &mut self,
-        program: &simplicity::program::Program,
-        index: usize,
-        iters: &mut usize,
-        data: &mut [CacheVals],
-        txenv: &TxEnv,
-    ) {
-        *iters += 1;
-
-        let exec_node = &program.nodes[index];
-
-        let in_size = exec_node.source_ty.bit_width();
-        let out_size = exec_node.target_ty.bit_width();
-        let mut input = 0;
-        if in_size <= IN_SIZE && out_size <= 64 {
-            for i in 0..in_size {
-                input += if self.read[self.read.len() - 1].read_at_rel(i as isize) {
-                    1 << (in_size - i - 1)
-                } else {
-                    0
-                };
-            }
-            if let Some(mut val) = data[exec_node.index].cache[input] {
-                for _ in 0..out_size {
-                    self.write(val % 2 == 1);
-                    val /= 2;
-                }
-                return;
-            }
-        }
-        if *iters % 100_000_000 == 0 {
-            println!("({:5} M) exec {}", *iters / 1_000_000, exec_node);
-            //println!("     {}", simplicity::types::FullPrint(&exec_node));
-        }
-
-        match exec_node.node {
-            simplicity::Node::Iden => {
-                self.copy(exec_node.source_ty.bit_width());
-            }
-            simplicity::Node::Unit => {}
-            simplicity::Node::InjL(t) => {
-                self.write(false);
-                if let simplicity::types::FinalTypeInner::Sum(ref a, _) = exec_node.target_ty.ty {
-                    let aw = a.bit_width();
-                    self.skip(exec_node.target_ty.bit_width() - aw - 1);
-                    self.exec(program, t, iters, data, txenv);
-                } else {
-                    panic!("type error")
-                }
-            }
-            simplicity::Node::InjR(t) => {
-                self.write(true);
-                if let simplicity::types::FinalTypeInner::Sum(_, ref b) = exec_node.target_ty.ty {
-                    let bw = b.bit_width();
-                    self.skip(exec_node.target_ty.bit_width() - bw - 1);
-                    self.exec(program, t, iters, data, txenv);
-                } else {
-                    panic!("type error")
-                }
-            }
-            simplicity::Node::Pair(s, t) => {
-                self.exec(program, s, iters, data, txenv);
-                self.exec(program, t, iters, data, txenv);
-            }
-            simplicity::Node::Disconnect(s, t) => {
-                // Write `t`'s CMR followed by `s` input to a new read frame
-                let size = program.nodes[s].source_ty.bit_width();
-                assert!(size >= 256);
-                self.new_frame(size);
-                self.write_bytes(&program.nodes[t].cmr);
-                self.copy(size - 256);
-                self.move_frame();
-
-                // Execute `s` then move the write frame to the read frame for `t`
-                let s_target_size = program.nodes[s].target_ty.bit_width();
-                self.new_frame(s_target_size);
-                self.exec(program, s, iters, data, txenv);
-                self.move_frame();
-
-                // Copy the first half of `s`s output directly then execute `t` on the second half
-                let b_size = s_target_size - program.nodes[t].source_ty.bit_width();
-                self.copy(b_size);
-                self.fwd(b_size);
-                self.exec(program, t, iters, data, txenv);
-
-                // Delete the two frames we created, which have both moved to the read stack
-                self.drop_frame();
-                self.drop_frame();
-            }
-            simplicity::Node::Comp(s, t) => {
-                let size = program.nodes[s].target_ty.bit_width();
-                self.new_frame(size);
-                self.exec(program, s, iters, data, txenv);
-                self.move_frame();
-                self.exec(program, t, iters, data, txenv);
-                self.drop_frame();
-            }
-            simplicity::Node::Take(t) => {
-                self.exec(program, t, iters, data, txenv);
-            }
-            simplicity::Node::Drop(t) => {
-                if let simplicity::types::FinalTypeInner::Product(ref a, _) = exec_node.source_ty.ty {
-                    let aw = a.bit_width();
-                    self.fwd(aw);
-                    self.exec(program, t, iters, data, txenv);
-                    self.back(aw);
-                } else {
-                    panic!("type error")
-                }
-            }
-            simplicity::Node::Case(s, t) => {
-                let sw = self.read[self.read.len() - 1].read();
-                let aw;
-                let bw;
-                if let simplicity::types::FinalTypeInner::Product(ref a, _) = exec_node.source_ty.ty {
-                    if let simplicity::types::FinalTypeInner::Sum(ref a, ref b) = a.ty {
-                        aw = a.bit_width();
-                        bw = b.bit_width();
-                    } else {
-                        panic!("type error");
-                    }
-                } else {
-                    panic!("type error");
-                }
-
-                if sw {
-                    self.fwd(1 + cmp::max(aw, bw) - bw);
-                    self.exec(program, t, iters, data, txenv);
-                    self.back(1 + cmp::max(aw, bw) - bw);
-                } else {
-                    self.fwd(1 + cmp::max(aw, bw) - aw);
-                    self.exec(program, s, iters, data, txenv);
-                    self.back(1 + cmp::max(aw, bw) - aw);
-                }
-            },
-            simplicity::Node::Witness(ref value) => {
-                self.write_value(value);
-            },
-            simplicity::Node::Hidden(ref h) => {
-                panic!("Hit hidden node {} at iter {}: {}", exec_node, iters, h);
-            },
-            simplicity::Node::Bitcoin(simplicity::extension::bitcoin::Node::InputsHash) => {
-                let mut eng = bitcoin::hashes::sha256::Hash::engine();
-                for input in &txenv.tx.input {
-                    eng.write(&input.previous_output.txid[..]).unwrap();
-                    eng.write_u32::<LittleEndian>(input.previous_output.vout).unwrap();
-                    eng.write_u64::<LittleEndian>(99998000).unwrap(); // value FIXME
-                    eng.write_u32::<LittleEndian>(input.sequence).unwrap();
-                }
-                self.write_bytes(&bitcoin::hashes::sha256::Hash::from_engine(eng)[..]);
-            },
-            simplicity::Node::Bitcoin(simplicity::extension::bitcoin::Node::OutputsHash) => {
-                let mut eng = bitcoin::hashes::sha256::Hash::engine();
-                for output in &txenv.tx.output {
-                    eng.write_u64::<LittleEndian>(output.value).unwrap();
-                    eng.write(&bitcoin::hashes::sha256::Hash::hash(&output.script_pubkey[..])).unwrap();
-                }
-                self.write_bytes(&bitcoin::hashes::sha256::Hash::from_engine(eng)[..]);
-            },
-            // FIXME don't hardcode this
-            simplicity::Node::Bitcoin(simplicity::extension::bitcoin::Node::CurrentValue) => {
-                self.write_u64(99998000);
-            },
-            simplicity::Node::Bitcoin(simplicity::extension::bitcoin::Node::CurrentIndex) => {
-                self.write_u32(0);
-            },
-            simplicity::Node::Bitcoin(simplicity::extension::bitcoin::Node::LockTime) => {
-                self.write_u32(txenv.tx.lock_time);
-            },
-            simplicity::Node::Bitcoin(simplicity::extension::bitcoin::Node::Version) => {
-                self.write_u32(txenv.tx.version);
-            },
-            simplicity::Node::Bitcoin(ref b) => unimplemented!("bitcoin {}", b),
-            simplicity::Node::Jet(ref j) => unimplemented!("jet {}", j),
-            simplicity::Node::Fail(..) => panic!("encountered fail node while executing"),
-        }
-
-        if in_size <= IN_SIZE && out_size <= 64 {
-            let mut output = 0;
-            for i in 0..out_size {
-                output += if self.write[self.write.len() - 1].read_at_rel(-(1 + i as isize)) {
-                    1 << (out_size - i - 1)
-                } else {
-                    0
-                };
-            }
-
-            data[exec_node.index].cache[input] = Some(output);
-        }
-    }
-}
-
-#[derive(Clone)]
-struct CacheVals {
-    cache: Vec<Option<u64>>,
-}
-
 fn main() {
     for i in 1..1836 {
         use std::fs;
@@ -2997,6 +2585,7 @@ fn main() {
         SCHNORR_1_CMR,
     );
 
+/*
     // Run SighashALL program
     let mut bits: simplicity::bititer::BitIter<_> = SIGHASH_ALL.iter().cloned().into();
     let program = simplicity::program::Program::decode(&mut bits)
@@ -3005,6 +2594,7 @@ fn main() {
         program.root_node().cmr.into_inner(),
         SIGHASH_ALL_CMR,
     );
+    */
 
     // Run disconnect program
     let mut bits: simplicity::bititer::BitIter<_> = FIB_DISCONNECT.iter().cloned().into();
@@ -3021,24 +2611,11 @@ fn main() {
     println!("extra cells: {}", exec_node.extra_cells_bound);
     println!("frame count: {}", exec_node.frame_count_bound);
 
-    let mut mac = BitMachine::new(exec_node.frame_count_bound);
-    let mut iters = 0;
-    let mut run_stats = vec![CacheVals { cache: vec![None; 1 << IN_SIZE] }; 7251];
-    mac.new_frame(34); // input
-    mac.write(true);
-    mac.write(true); // 3
-    for _ in 0..15 {
-        mac.write(false);
-    }
-    mac.write(true); // 1
-    for _ in 0..16 {
-        mac.write(false); // 0
-    }
-    mac.move_frame();
-    mac.new_frame(16); // output
-    mac.exec(&program, exec_node.index, &mut iters, &mut run_stats[..], &TxEnv::default());
-    println!("{} iterations", iters);
-    println!(" output: {:?}", mac.write);
+    let mut mac = simplicity::exec::BitMachine::for_program(&program);
+    mac.input(&Value::prod(Value::u2(3), Value::prod(Value::u16(1), Value::u16(0))));
+    println!(" input: {}", Value::prod(Value::prod(Value::u2(3), Value::u16(1)), Value::u16(0)));
+    let output = mac.exec(&program, &simplicity::exec::TxEnv::default());
+    println!(" output: {}", output);
     println!("");
     println!("");
     println!("");
@@ -3084,7 +2661,7 @@ fn main() {
         bitcoin::Wtxid::from_hex("a70c989a271c49e26f7019500948c95c6a4a210f2b11be078761e01320a4cb0b").unwrap(),
     );
 
-    let txenv = TxEnv {
+    let txenv = simplicity::exec::TxEnv {
         tx: tx,
     };
 
@@ -3097,9 +2674,6 @@ fn main() {
     println!("frame count: {}", exec_node.frame_count_bound);
 
     println!("Running program ... warning, this will take several hours even in release mode");
-    let mut mac = BitMachine::new(exec_node.frame_count_bound);
-    let mut iters = 0;
-    let mut run_stats = vec![CacheVals { cache: vec![None; 1 << IN_SIZE] }; 7251];
-    mac.exec(&program, exec_node.index, &mut iters, &mut run_stats[..], &txenv);
-    println!("{} iterations", iters);
+    let mut mac = simplicity::exec::BitMachine::for_program(&program);
+    mac.exec(&program, &txenv);
 }
