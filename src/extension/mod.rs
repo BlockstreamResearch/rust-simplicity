@@ -20,6 +20,8 @@
 pub mod dummy;
 #[cfg(feature = "bitcoin")]
 pub mod bitcoin;
+#[cfg(feature = "elements")]
+pub mod elements;
 pub mod jets;
 
 use std::{fmt, io};
@@ -48,9 +50,23 @@ pub use self::dummy as bitcoin;
 /// | `1`  | unit         |
 /// | `2`  | single bit   |
 /// | `i`  | 32-bit word  |
+/// | `l`  | 64-bit word  |
 /// | `h`  | 256-bit word |
 ///
 pub struct TypeName(pub &'static [u8]);
+
+impl Iterator for TypeName {
+    type Item = u8;
+    fn next(&mut self) -> Option<u8> {
+        if self.0.is_empty() {
+            None
+        } else {
+            let ret = Some(self.0[0]);
+            self.0 = &self.0[1..];
+            ret
+        }
+    }
+}
 
 /// Trait representing an extension (Bitcoin or Elements) to Simplicity
 pub trait Node: Sized + fmt::Display {

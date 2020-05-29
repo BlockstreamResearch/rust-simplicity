@@ -26,7 +26,7 @@
 pub struct BitIter<I: Iterator<Item = u8>> {
     iter: I,
     cached_byte: u8,
-    read_bits: usize, 
+    read_bits: usize,
     total_read: usize,
 }
 
@@ -37,8 +37,8 @@ impl<I: Iterator<Item = u8>> From<I> for BitIter<I> {
             cached_byte: 0,
             read_bits: 8,
             total_read: 0,
-        }        
-    }        
+        }
+    }
 }
 
 impl<I: Iterator<Item = u8>> Iterator for BitIter<I> {
@@ -46,15 +46,15 @@ impl<I: Iterator<Item = u8>> Iterator for BitIter<I> {
 
     fn next(&mut self) -> Option<bool> {
         if self.read_bits < 8 {
-            self.read_bits += 1; 
+            self.read_bits += 1;
             self.total_read += 1;
             Some(self.cached_byte & (1 << (8 - self.read_bits as u8)) != 0)
-        } else { 
+        } else {
             self.cached_byte = self.iter.next()?;
             self.read_bits = 0;
             self.next()
-        }        
-    }        
+        }
+    }
 }
 
 impl<I: Iterator<Item = u8>> BitIter<I> {
@@ -165,6 +165,4 @@ mod tests {
         assert_eq!(iter.n_total_read(), 9);
     }
 }
-
-
 

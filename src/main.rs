@@ -2563,7 +2563,7 @@ const BITCOIN_PROG: [u8; 14635] = [
 ];
 
 fn main() {
-    for i in 1..1836 {
+    for i in 1..1 {//1836 {
         use std::fs;
 
         let bytes = fs::read(&format!("fuzz/simplicityC_test_inputs/test_{}", i))
@@ -2585,16 +2585,15 @@ fn main() {
         SCHNORR_1_CMR,
     );
 
-/*
     // Run SighashALL program
+    println!("*** START");
     let mut bits: simplicity::bititer::BitIter<_> = SIGHASH_ALL.iter().cloned().into();
-    let program = simplicity::program::Program::decode(&mut bits)
+    let program = simplicity::program::Program::<simplicity::extension::elements::Node>::decode(&mut bits)
         .expect("decoding program");
     assert_eq!(
         program.root_node().cmr.into_inner(),
         SIGHASH_ALL_CMR,
     );
-    */
 
     // Run disconnect program
     let mut bits: simplicity::bititer::BitIter<_> = FIB_DISCONNECT.iter().cloned().into();

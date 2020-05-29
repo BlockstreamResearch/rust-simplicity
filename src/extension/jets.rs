@@ -95,12 +95,12 @@ impl Node {
     /// Name of the source type for this node
     pub fn source_type(&self) -> TypeName {
         match *self {
-            Node::Adder32 => TypeName(b"*ii"),
-            Node::FullAdder32 => TypeName(b"**ii2"),
-            Node::Subtractor32 => TypeName(b"*ii"),
-            Node::FullSubtractor32 => TypeName(b"**ii2"),
-            Node::Multiplier32 => TypeName(b"*ii"),
-            Node::FullMultiplier32 => TypeName(b"**ii*ii"),
+            Node::Adder32 => TypeName(b"l"),
+            Node::FullAdder32 => TypeName(b"*l2"),
+            Node::Subtractor32 => TypeName(b"l"),
+            Node::FullSubtractor32 => TypeName(b"*l2"),
+            Node::Multiplier32 => TypeName(b"l"),
+            Node::FullMultiplier32 => TypeName(b"*ll"),
             Node::Sha256HashBlock => TypeName(b"*h*hh"),
         }
     }
@@ -112,14 +112,15 @@ impl Node {
             Node::FullAdder32 => TypeName(b"*2i"),
             Node::Subtractor32 => TypeName(b"*2i"),
             Node::FullSubtractor32 => TypeName(b"*2i"),
-            Node::Multiplier32 => TypeName(b"*ii"),
-            Node::FullMultiplier32 => TypeName(b"*ii"),
+            Node::Multiplier32 => TypeName(b"l"),
+            Node::FullMultiplier32 => TypeName(b"l"),
             Node::Sha256HashBlock => TypeName(b"h"),
         }
     }
 
     /// CMR for this node
     pub fn cmr(&self) -> Cmr {
+        println!("call jet cmr {}", self);
         match *self {
             Node::Adder32 => Cmr::from([
                 0x8e, 0x38, 0x9a, 0x7d, 0x75, 0x42, 0x9a, 0x8a, 0x6f, 0x5b, 0x44, 0x8e, 0xc8, 0xe8, 0x45, 0x85,
