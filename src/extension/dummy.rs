@@ -22,38 +22,41 @@ use std::{fmt, io};
 use bititer::BitIter;
 use super::TypeName;
 use Error;
-use {cmr, encode};
+use {cmr, encode, exec, extension};
+
+/// Dummy transaction environment
+pub struct TxEnv;
 
 /// Dummy extension provides no combinators and cannot be constructed
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Node { }
 
-/// Decode a natural number according to section 7.2.1
-/// of the Simplicity whitepaper.
-pub fn decode_node_no_witness<I: Iterator<Item = u8>>(
-    _: &mut BitIter<I>,
-) -> Result<Node, Error> {
-    Err(Error::ParseError("[unavailable extension]"))
-}
+impl extension::Node for Node {
+    type TxEnv = TxEnv;
 
-impl Node {
-    /// Name of the source type for this node
-    pub fn source_type(&self) -> TypeName {
+    fn decode<I: Iterator<Item = u8>>(
+        _: &mut BitIter<I>,
+    ) -> Result<Node, Error> {
+        Err(Error::ParseError("[unavailable extension]"))
+    }
+
+    fn source_type(&self) -> TypeName {
         match *self {}  // lol rust
     }
 
-    /// Name of the target type for this node
-    pub fn target_type(&self) -> TypeName {
+    fn target_type(&self) -> TypeName {
         match *self {}
     }
 
-    /// CMR for this node
-    pub fn cmr(&self) -> cmr::Cmr {
+    fn cmr(&self) -> cmr::Cmr {
         match *self {}
     }
 
-    /// Encode the node into a bitstream
-    pub fn encode_node<W: encode::BitWrite>(&self, _: &mut W) -> io::Result<usize> {
+    fn encode<W: encode::BitWrite>(&self, _: &mut W) -> io::Result<usize> {
+        match *self {}
+    }
+
+    fn exec(&self, _: &mut exec::BitMachine, _: &Self::TxEnv) {
         match *self {}
     }
 }

@@ -25,14 +25,13 @@ use std::sync::Arc;
 use {Error, Node, Value};
 use bititer::BitIter;
 use cmr::{self, Cmr};
-use encode;
-use types;
+use {encode, extension, types};
 
 /// A node in a complete program, with associated metadata
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub struct ProgramNode {
+pub struct ProgramNode<Ext> {
     /// The underlying node
-    pub node: Node<Value>,
+    pub node: Node<Value, Ext>,
     /// Its index within the total program
     pub index: usize,
     /// Its Commitment Merkle Root
@@ -49,7 +48,7 @@ pub struct ProgramNode {
     pub frame_count_bound: usize,
 }
 
-impl fmt::Display for ProgramNode {
+impl<Ext: fmt::Display> fmt::Display for ProgramNode<Ext> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{}] ", self.index)?;
         match self.node {
@@ -66,7 +65,7 @@ impl fmt::Display for ProgramNode {
             Node::Witness(..) => f.write_str("witness")?,
             Node::Hidden(..) => f.write_str("hidden")?,
             Node::Fail(..) => f.write_str("fail")?,
-            Node::Bitcoin(ref b) => write!(f, "[bitcoin]{}", b)?,
+            Node::Ext(ref b) => write!(f, "[ext]{}", b)?,
             Node::Jet(ref j) => write!(f, "[jet]{}", j)?,
         }
         write!(f, ": {} → {}", self.source_ty, self.target_ty,)
@@ -74,21 +73,21 @@ impl fmt::Display for ProgramNode {
 }
 
 /// A fully parsed, witnesses-included Simplicity program
-pub struct Program {
+pub struct Program<Ext> {
     /// The list of nodes in the program
-    pub nodes: Vec<ProgramNode>,
+    pub nodes: Vec<ProgramNode<Ext>>,
 }
 
-impl Program {
+impl<Ext: extension::Node> Program<Ext> {
     /// Obtain the node representing the root of the program DAG
-    pub fn root_node(&self) -> &ProgramNode {
+    pub fn root_node(&self) -> &ProgramNode<Ext> {
         &self.nodes[self.nodes.len() - 1]
     }
 
     /// Decode a program from a stream of bits
     pub fn decode<I: Iterator<Item = u8>>(
         iter: &mut BitIter<I>,
-    ) -> Result<Program, Error> {
+    ) -> Result<Program<Ext>, Error> {
         // Decode a bunch of untyped, witness-less nodes
         let nodes = encode::decode_program_no_witness(&mut *iter)?;
 
@@ -123,7 +122,7 @@ impl Program {
                     ),
                     Node::Fail(x, y) => Node::Fail(x, y),
                     Node::Hidden(x) => Node::Hidden(x),
-                    Node::Bitcoin(b) => Node::Bitcoin(b),
+                    Node::Ext(e) => Node::Ext(e),
                     Node::Jet(j) => Node::Jet(j),
                 },
                 source_ty: node.source_ty,
@@ -132,7 +131,7 @@ impl Program {
             .collect::<Result<Vec<_>, _>>()?;
 
         // Compute cached data and return
-        let mut ret = Vec::<ProgramNode>::with_capacity(typed_nodes.len());
+        let mut ret = Vec::<ProgramNode<Ext>>::with_capacity(typed_nodes.len());
         for (index, node) in typed_nodes.into_iter().enumerate() {
             let final_node = ProgramNode {
                 index: index,
@@ -175,7 +174,7 @@ impl Program {
                     Node::Witness(..) => "witness",
                     Node::Hidden(..) => "hidden",
                     Node::Fail(..) => "fail",
-                    Node::Bitcoin(..) => "[bitcoin]",
+                    Node::Ext(..) => "[ext]", // FIXME `ext` and `jet` should passthrough
                     Node::Jet(..) => "[jet]",
                 },
                 node.index,
@@ -183,7 +182,7 @@ impl Program {
                 node.target_ty,
             );
             match node.node {
-                Node::Iden | Node::Unit | Node::Witness(..) | Node::Hidden(..) | Node::Fail(..) | Node::Bitcoin(..) | Node::Jet(..) => {
+                Node::Iden | Node::Unit | Node::Witness(..) | Node::Hidden(..) | Node::Fail(..) | Node::Ext(..) | Node::Jet(..) => {
                 }
                 Node::InjL(i) | Node::InjR(i) | Node::Take(i) | Node::Drop(i) => {
                     println!("  {} -> {};", node.index, i);
@@ -200,9 +199,9 @@ impl Program {
     }
 }
 
-fn compute_cmr(
-    program: &[ProgramNode],
-    node: &Node<Value>,
+fn compute_cmr<Ext: extension::Node>(
+    program: &[ProgramNode<Ext>],
+    node: &Node<Value, Ext>,
 ) -> Cmr {
     match *node {
         Node::Iden => cmr::tag::iden(),
@@ -218,14 +217,14 @@ fn compute_cmr(
         Node::Witness(..) => cmr::tag::witness(),
         Node::Fail(..) => unimplemented!(),
         Node::Hidden(cmr) => cmr,
-        Node::Bitcoin(ref b) => b.cmr(),
+        Node::Ext(ref b) => b.cmr(),
         Node::Jet(ref j) => j.cmr(),
     }
 }
 
-fn compute_extra_cells_bound(
-    program: &[ProgramNode],
-    node: &Node<Value>,
+fn compute_extra_cells_bound<Ext: extension::Node>(
+    program: &[ProgramNode<Ext>],
+    node: &Node<Value, Ext>,
     witness_target_width: usize,
 ) -> usize {
     match *node {
@@ -257,14 +256,14 @@ fn compute_extra_cells_bound(
         Node::Witness(..) => witness_target_width,
         Node::Fail(..) => unimplemented!(),
         Node::Hidden(..) => 0,
-        Node::Bitcoin(..) => 0,
+        Node::Ext(..) => 0, // FIXME should fallthrough
         Node::Jet(..) => 0,
     }
 }
 
-fn compute_frame_count_bound(
-    program: &[ProgramNode],
-    node: &Node<Value>,
+fn compute_frame_count_bound<Ext: extension::Node>(
+    program: &[ProgramNode<Ext>],
+    node: &Node<Value, Ext>,
 ) -> usize {
     match *node {
         Node::Iden => 0,
@@ -294,7 +293,7 @@ fn compute_frame_count_bound(
         Node::Witness(..) => 0,
         Node::Fail(..) => unimplemented!(),
         Node::Hidden(..) => 0,
-        Node::Bitcoin(..) => 0,
+        Node::Ext(..) => 0, // FIXME should fallthrough
         Node::Jet(..) => 0,
     }
 }
@@ -305,11 +304,12 @@ mod tests {
 
     use bititer::BitIter;
     use Node;
+    use extension::dummy::Node as DummyNode;
 
     #[test]
     fn unit_prog() {
         let prog = vec![0x24];
-        let prog = Program::decode(&mut BitIter::from(prog.into_iter()))
+        let prog = Program::<DummyNode>::decode(&mut BitIter::from(prog.into_iter()))
             .expect("decoding program");
 
         assert_eq!(prog.nodes.len(), 1);
@@ -326,7 +326,7 @@ mod tests {
         // 100 01001 00100 0
         // 1000 1001 0010 0000
         let prog = vec![0x89, 0x20];
-        let prog = Program::decode(&mut BitIter::from(prog.into_iter()))
+        let prog = Program::<DummyNode>::decode(&mut BitIter::from(prog.into_iter()))
             .expect("decoding program");
 
         assert_eq!(prog.nodes.len(), 2);

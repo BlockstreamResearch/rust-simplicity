@@ -23,7 +23,7 @@
 use std::{mem, io};
 
 use bititer::BitIter;
-use extension::{bitcoin, jets};
+use extension::{self, jets};
 use {Error, Node};
 use cmr;
 
@@ -157,16 +157,16 @@ impl<'a, B: BitWrite> BitWrite for &'a mut B {
 
 /// Decode a natural number according to section 7.2.1
 /// of the Simplicity whitepaper.
-pub fn decode_node_no_witness<I: Iterator<Item = u8>>(
+pub fn decode_node_no_witness<I: Iterator<Item = u8>, Ext: extension::Node>(
     idx: usize,
     iter: &mut BitIter<I>,
-) -> Result<Node<()>, Error> {
+) -> Result<Node<(), Ext>, Error> {
     match iter.next() {
         None => Err(Error::EndOfStream),
         Some(true) => {
             match iter.next() {
                 None => Err(Error::EndOfStream),
-                Some(false) => Ok(Node::Bitcoin(bitcoin::decode_node(iter)?)),
+                Some(false) => Ok(Node::Ext(extension::Node::decode(iter)?)),
                 Some(true) =>  Ok(Node::Jet(jets::decode_node(iter)?)),
             }
         },
@@ -233,8 +233,8 @@ pub fn decode_node_no_witness<I: Iterator<Item = u8>>(
     }
 }
 
-pub fn encode_node_no_witness<T, W: BitWrite>(
-    node: &Node<T>,
+pub fn encode_node_no_witness<T, W: BitWrite, Ext: extension::Node>(
+    node: &Node<T, Ext>,
     index: usize,
     writer: &mut W,
 ) -> io::Result<usize> {
@@ -278,14 +278,14 @@ pub fn encode_node_no_witness<T, W: BitWrite>(
             Ok(len)
         },
         Node::Witness(..) => writer.write_u8(7, 4),
-        Node::Bitcoin(ref b) => b.encode_node(writer),
+        Node::Ext(ref b) => extension::Node::encode(b, writer),
         Node::Jet(ref j) => j.encode_node(writer),
     }
 }
 
-pub fn decode_program_no_witness<I: Iterator<Item = u8>>(
+pub fn decode_program_no_witness<I: Iterator<Item = u8>, Ext: extension::Node>(
     iter: &mut BitIter<I>,
-) -> Result<Vec<Node<()>>, Error> {
+) -> Result<Vec<Node<(), Ext>>, Error> {
     let prog_len = decode_natural(&mut *iter)?;
 
     // FIXME make this a reasonable limit

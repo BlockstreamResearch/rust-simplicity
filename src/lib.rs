@@ -63,7 +63,7 @@ pub enum Error {
 /// sense in the context of a complete program. Expressions/partial
 /// programs will need a different type.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub enum Node<Witness> {
+pub enum Node<Witness, Extension> {
     Iden,
     Unit,
     InjL(usize),
@@ -77,7 +77,7 @@ pub enum Node<Witness> {
     Witness(Witness),
     Fail([u8; 32], [u8; 32]),
     Hidden(cmr::Cmr),
-    Bitcoin(extension::bitcoin::Node),
+    Ext(Extension),
     Jet(extension::jets::Node),
 }
 

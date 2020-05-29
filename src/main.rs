@@ -2569,7 +2569,7 @@ fn main() {
         let bytes = fs::read(&format!("fuzz/simplicityC_test_inputs/test_{}", i))
             .expect("opening file");
         let mut bits: simplicity::bititer::BitIter<_> = bytes.into_iter().into();
-        match simplicity::program::Program::decode(&mut bits) {
+        match simplicity::program::Program::<simplicity::extension::dummy::Node>::decode(&mut bits) {
             Ok(_) => println!("decoded {}", i),
             Err(e) => println!("{}: error {:?}", i, e),
         }
@@ -2578,7 +2578,7 @@ fn main() {
 
     // Check CMR/CMR computations
     let mut bits: simplicity::bititer::BitIter<_> = SCHNORR_1.iter().cloned().into();
-    let program = simplicity::program::Program::decode(&mut bits)
+    let program = simplicity::program::Program::<simplicity::extension::bitcoin::Node>::decode(&mut bits)
         .expect("decoding program");
     assert_eq!(
         program.root_node().cmr.into_inner(),
@@ -2598,7 +2598,7 @@ fn main() {
 
     // Run disconnect program
     let mut bits: simplicity::bititer::BitIter<_> = FIB_DISCONNECT.iter().cloned().into();
-    let program = simplicity::program::Program::decode(&mut bits)
+    let program = simplicity::program::Program::<simplicity::extension::dummy::Node>::decode(&mut bits)
         .expect("decoding program");
     assert_eq!(
         program.root_node().cmr.into_inner(),
@@ -2614,7 +2614,7 @@ fn main() {
     let mut mac = simplicity::exec::BitMachine::for_program(&program);
     mac.input(&Value::prod(Value::u2(3), Value::prod(Value::u16(1), Value::u16(0))));
     println!(" input: {}", Value::prod(Value::prod(Value::u2(3), Value::u16(1)), Value::u16(0)));
-    let output = mac.exec(&program, &simplicity::exec::TxEnv::default());
+    let output = mac.exec(&program, &simplicity::extension::dummy::TxEnv);
     println!(" output: {}", output);
     println!("");
     println!("");
@@ -2661,11 +2661,8 @@ fn main() {
         bitcoin::Wtxid::from_hex("a70c989a271c49e26f7019500948c95c6a4a210f2b11be078761e01320a4cb0b").unwrap(),
     );
 
-    let txenv = simplicity::exec::TxEnv {
-        tx: tx,
-    };
-
-    let program = simplicity::program::Program::decode(&mut bits)
+    let txenv = simplicity::extension::bitcoin::TxEnv::from_tx(tx);
+    let program = simplicity::program::Program::<simplicity::extension::bitcoin::Node>::decode(&mut bits)
         .expect("decoding program");
     let exec_node = program.root_node();
 

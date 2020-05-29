@@ -303,16 +303,16 @@ struct UnificationArrow {
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub struct TypedNode<Witness> {
-    pub node: Node<Witness>,
+pub struct TypedNode<Witness, Ext> {
+    pub node: Node<Witness, Ext>,
     pub source_ty: Arc<FinalType>,
     pub target_ty: Arc<FinalType>,
 }
 
 /// Attach types to all nodes in a program
-pub fn type_check<Witness: ::std::fmt::Debug>(
-    program: Vec<Node<Witness>>,
-) -> Result<Vec<TypedNode<Witness>>, Error> {
+pub fn type_check<Witness, Ext: extension::Node>(
+    program: Vec<Node<Witness, Ext>>,
+) -> Result<Vec<TypedNode<Witness, Ext>>, Error> {
     if program.is_empty() {
         return Ok(vec![]);
     }
@@ -396,7 +396,7 @@ pub fn type_check<Witness: ::std::fmt::Debug>(
     };
 
     let mut rcs = Vec::<Rc<UnificationArrow>>::with_capacity(program.len());
-    let mut finals = Vec::<TypedNode<Witness>>::with_capacity(program.len());
+    let mut finals = Vec::<TypedNode<Witness, Ext>>::with_capacity(program.len());
 
     // Compute most general unifier for all types in the DAG
     for program_node in &program {
@@ -507,7 +507,7 @@ pub fn type_check<Witness: ::std::fmt::Debug>(
             Node::Hidden(..) => {
                 // No type constraints
             },
-            Node::Bitcoin(ref bn) => {
+            Node::Ext(ref bn) => {
                 bind(&node.source, type_from_name(bn.source_type()))?;
                 bind(&node.target, type_from_name(bn.target_type()))?;
             },

@@ -18,13 +18,29 @@
 //! blockchain
 //!
 
+use bitcoin_hashes::{Hash, HashEngine, sha256};
+use byteorder::{WriteBytesExt, LittleEndian};
 use std::{fmt, io};
 
 use bititer::BitIter;
 use super::TypeName;
 use Error;
 use cmr::Cmr;
-use encode;
+use {encode, exec, extension};
+
+/// Transaction environment for Bitcoin Simplicity programs
+pub struct TxEnv {
+    tx: bitcoin::Transaction,
+}
+
+impl TxEnv {
+    /// Constructor from a transaction
+    pub fn from_tx(tx: bitcoin::Transaction) -> TxEnv {
+        TxEnv {
+            tx: tx,
+        }
+    }
+}
 
 /// Set of new Simplicity nodes enabled by the Bitcoin extension
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -74,48 +90,46 @@ impl fmt::Display for Node {
     }
 }
 
-/// Decode a natural number according to section 7.2.1
-/// of the Simplicity whitepaper. Assumes that a 10 prefix
-/// has already been read
-pub fn decode_node<I: Iterator<Item = u8>>(
-    iter: &mut BitIter<I>,
-) -> Result<Node, Error> {
-    let code = match iter.read_bits_be(4) {
-        Some(code) => code,
-        None => return Err(Error::EndOfStream),
-    };
-    match code {
-        0 => match iter.next() {
-            Some(false) => Ok(Node::Version),
-            Some(true) => Ok(Node::LockTime),
-            None => Err(Error::EndOfStream),
-        },
-        1 => Ok(Node::InputsHash),
-        2 => Ok(Node::OutputsHash),
-        3 => Ok(Node::NumInputs),
-        4 => Ok(Node::TotalInputValue),
-        5 => Ok(Node::CurrentPrevOutpoint),
-        6 => Ok(Node::CurrentValue),
-        7 => Ok(Node::CurrentSequence),
-        8 => match iter.next() {
-            Some(false) => Ok(Node::CurrentIndex),
-            Some(true) => Ok(Node::InputPrevOutpoint),
-            None => Err(Error::EndOfStream),
-        },
-        9 => Ok(Node::InputValue),
-        10 => Ok(Node::InputSequence),
-        11 => Ok(Node::NumOutputs),
-        12 => Ok(Node::TotalOutputValue),
-        13 => Ok(Node::OutputValue),
-        14 => Ok(Node::OutputScriptHash),
-        15 => Ok(Node::ScriptCMR),
-        _ => unreachable!(),
-    }
-}
+impl extension::Node for Node {
+    type TxEnv = TxEnv;
 
-impl Node {
-    /// Name of the source type for this node
-    pub fn source_type(&self) -> TypeName {
+    fn decode<I: Iterator<Item = u8>>(
+        iter: &mut BitIter<I>,
+    ) -> Result<Node, Error> {
+        let code = match iter.read_bits_be(4) {
+            Some(code) => code,
+            None => return Err(Error::EndOfStream),
+        };
+        match code {
+            0 => match iter.next() {
+                Some(false) => Ok(Node::Version),
+                Some(true) => Ok(Node::LockTime),
+                None => Err(Error::EndOfStream),
+            },
+            1 => Ok(Node::InputsHash),
+            2 => Ok(Node::OutputsHash),
+            3 => Ok(Node::NumInputs),
+            4 => Ok(Node::TotalInputValue),
+            5 => Ok(Node::CurrentPrevOutpoint),
+            6 => Ok(Node::CurrentValue),
+            7 => Ok(Node::CurrentSequence),
+            8 => match iter.next() {
+                Some(false) => Ok(Node::CurrentIndex),
+                Some(true) => Ok(Node::InputPrevOutpoint),
+                None => Err(Error::EndOfStream),
+            },
+            9 => Ok(Node::InputValue),
+            10 => Ok(Node::InputSequence),
+            11 => Ok(Node::NumOutputs),
+            12 => Ok(Node::TotalOutputValue),
+            13 => Ok(Node::OutputValue),
+            14 => Ok(Node::OutputScriptHash),
+            15 => Ok(Node::ScriptCMR),
+            _ => unreachable!(),
+        }
+    }
+
+    fn source_type(&self) -> TypeName {
         match *self {
             Node::Version
                 | Node::LockTime
@@ -139,7 +153,7 @@ impl Node {
     }
 
     /// Name of the target type for this node
-    pub fn target_type(&self) -> TypeName {
+    fn target_type(&self) -> TypeName {
         match *self {
             Node::Version => TypeName::Word32,
             Node::LockTime => TypeName::Word32,
@@ -162,8 +176,7 @@ impl Node {
         }
     }
 
-    /// CMR for this node
-    pub fn cmr(&self) -> Cmr {
+    fn cmr(&self) -> Cmr {
         match *self {
             Node::Version => Cmr::new(b"SimplicityPrimitiveBitcoin\x1fversion"),
             Node::LockTime => Cmr::new(b"SimplicityPrimitiveBitcoin\x1flockTime"),
@@ -186,8 +199,7 @@ impl Node {
         }
     }
 
-    /// Encode the node into a bitstream
-    pub fn encode_node<W: encode::BitWrite>(&self, w: &mut W) -> io::Result<usize> {
+    fn encode<W: encode::BitWrite>(&self, w: &mut W) -> io::Result<usize> {
         match *self {
             Node::Version => w.write_u8(64 + 0, 7),
             Node::LockTime => w.write_u8(64 + 1, 7),
@@ -207,6 +219,44 @@ impl Node {
             Node::OutputValue => w.write_u8(32 + 13, 6),
             Node::OutputScriptHash => w.write_u8(32 + 14, 6),
             Node::ScriptCMR => w.write_u8(32 + 15, 6),
+        }
+    }
+
+    fn exec(&self, mac: &mut exec::BitMachine, txenv: &Self::TxEnv) {
+        // FIXME finish this
+        match *self {
+            Node::InputsHash => {
+                let mut eng = sha256::Hash::engine();
+                for input in &txenv.tx.input {
+                    eng.input(&input.previous_output.txid[..]);
+                    eng.write_u32::<LittleEndian>(input.previous_output.vout).unwrap();
+                    eng.write_u64::<LittleEndian>(99998000).unwrap(); // value FIXME
+                    eng.write_u32::<LittleEndian>(input.sequence).unwrap();
+                }
+                mac.write_bytes(&sha256::Hash::from_engine(eng)[..]);
+            },
+            Node::OutputsHash => {
+                let mut eng = sha256::Hash::engine();
+                for output in &txenv.tx.output {
+                    eng.write_u64::<LittleEndian>(output.value).unwrap();
+                    eng.input(&sha256::Hash::hash(&output.script_pubkey[..]));
+                }
+                mac.write_bytes(&sha256::Hash::from_engine(eng)[..]);
+            },
+            // FIXME don't hardcode this
+            Node::CurrentValue => {
+                mac.write_u64(99998000);
+            },
+            Node::CurrentIndex => {
+                mac.write_u32(0);
+            },
+            Node::LockTime => {
+                mac.write_u32(txenv.tx.lock_time);
+            },
+            Node::Version => {
+                mac.write_u32(txenv.tx.version);
+            },
+            ref b => unimplemented!("bitcoin {}", b),
         }
     }
 }

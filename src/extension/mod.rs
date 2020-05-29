@@ -22,6 +22,13 @@ pub mod dummy;
 pub mod bitcoin;
 pub mod jets;
 
+use std::{fmt, io};
+
+use {encode, exec};
+use bititer::BitIter;
+use cmr::Cmr;
+use Error;
+
 #[cfg(not(feature = "bitcoin"))]
 pub use self::dummy as bitcoin;
 
@@ -48,5 +55,32 @@ pub enum TypeName {
     Word256Word32,
     SWord256Word32,
     Word256Word512,
+}
+
+/// Trait representing an extension (Bitcoin or Elements) to Simplicity
+pub trait Node: Sized + fmt::Display {
+    /// Transaction environment
+    type TxEnv;
+
+    /// Decode a node from a bit iterator
+    fn decode<I: Iterator<Item = u8>>(
+        iter: &mut BitIter<I>,
+    ) -> Result<Self, Error>;
+
+    /// Encode a node into a bit writer
+    fn encode<W: encode::BitWrite>(&self, w: &mut W) -> io::Result<usize>;
+
+    /// Execute the node in a Bit Machine; assuming the surrounding
+    /// program has typechecked, this cannot fail
+    fn exec(&self, &mut exec::BitMachine, txenv: &Self::TxEnv);
+
+    /// Return the CMR of the node
+    fn cmr(&self) -> Cmr;
+
+    /// The name of the source type of this node
+    fn source_type(&self) -> TypeName;
+
+    /// The name of the target type of this node
+    fn target_type(&self) -> TypeName;
 }
 

@@ -18,32 +18,12 @@
 //! frame management optimizations which can be used to great benefit.
 //!
 
-use bitcoin_hashes::{Hash, HashEngine, sha256};
-use byteorder::{WriteBytesExt, LittleEndian};
 use std::{cmp, fmt, ptr};
 
 use {Node, Program, Value};
 use bititer::BitIter;
 use types::FinalTypeInner;
 use extension;
-
-/// Transaction environment FIXME needs to be abstracted into extension
-pub struct TxEnv {
-    pub tx: bitcoin::Transaction,
-}
-
-impl Default for TxEnv {
-    fn default() -> TxEnv {
-        TxEnv {
-            tx: bitcoin::Transaction {
-                version: 0,
-                lock_time: 0,
-                input: vec![],
-                output: vec![],
-            }
-        }
-    }
-}
 
 /// A frame used internally by the Bit Machine to keep track of
 /// where we are reading or writing to
@@ -156,7 +136,7 @@ pub struct BitMachine {
 impl BitMachine {
     /// Construct a Bit Machine with enough space to execute
     /// the given program
-    pub fn for_program(program: &Program) -> BitMachine {
+    pub fn for_program<Ext: extension::Node>(program: &Program<Ext>) -> BitMachine {
         let prog = program.root_node();
         let io_width = prog.source_ty.bit_width() + prog.target_ty.bit_width();
         BitMachine {
@@ -230,21 +210,21 @@ impl BitMachine {
     }
 
     /// Write a big-endian u64 value to the current write frame
-    fn write_u64(&mut self, data: u64) {
+    pub(crate) fn write_u64(&mut self, data: u64) {
         for idx in 0..64 {
             self.write(data & (1 << (63 - idx)) != 0);
         }
     }
 
     /// Write a big-endian u32 value to the current write frame
-    fn write_u32(&mut self, data: u32) {
+    pub(crate) fn write_u32(&mut self, data: u32) {
         for idx in 0..32 {
             self.write(data & (1 << (31 - idx)) != 0);
         }
     }
 
     /// Write a buch of bytes to the current write frame
-    fn write_bytes(&mut self, data: &[u8]) {
+    pub(crate) fn write_bytes(&mut self, data: &[u8]) {
         for bit in BitIter::new(data.iter().cloned()) {
             self.write(bit);
         }
@@ -281,7 +261,7 @@ impl BitMachine {
     }
 
     /// Execute a program in the Bit Machine
-    pub fn exec(&mut self, program: &Program, txenv: &TxEnv) -> Value {
+    pub fn exec<Ext: extension::Node>(&mut self, program: &Program<Ext>, txenv: &Ext::TxEnv) -> Value {
         enum CallStack {
             Goto(usize),
             MoveFrame,
@@ -408,38 +388,9 @@ impl BitMachine {
                 },
                 Node::Witness(ref value) => self.write_value(value),
                 Node::Hidden(ref h) => panic!("Hit hidden node {} at iter {}: {}", ip, iters, h),
-                Node::Bitcoin(extension::bitcoin::Node::InputsHash) => {
-                    let mut eng = sha256::Hash::engine();
-                    for input in &txenv.tx.input {
-                        eng.input(&input.previous_output.txid[..]);
-                        eng.write_u32::<LittleEndian>(input.previous_output.vout).unwrap();
-                        eng.write_u64::<LittleEndian>(99998000).unwrap(); // value FIXME
-                        eng.write_u32::<LittleEndian>(input.sequence).unwrap();
-                    }
-                    self.write_bytes(&sha256::Hash::from_engine(eng)[..]);
-                },
-                Node::Bitcoin(extension::bitcoin::Node::OutputsHash) => {
-                    let mut eng = sha256::Hash::engine();
-                    for output in &txenv.tx.output {
-                        eng.write_u64::<LittleEndian>(output.value).unwrap();
-                        eng.input(&sha256::Hash::hash(&output.script_pubkey[..]));
-                    }
-                    self.write_bytes(&sha256::Hash::from_engine(eng)[..]);
-                },
-                // FIXME don't hardcode this
-                Node::Bitcoin(extension::bitcoin::Node::CurrentValue) => {
-                    self.write_u64(99998000);
-                },
-                Node::Bitcoin(extension::bitcoin::Node::CurrentIndex) => {
-                    self.write_u32(0);
-                },
-                Node::Bitcoin(extension::bitcoin::Node::LockTime) => {
-                    self.write_u32(txenv.tx.lock_time);
-                },
-                Node::Bitcoin(extension::bitcoin::Node::Version) => {
-                    self.write_u32(txenv.tx.version);
-                },
-                Node::Bitcoin(ref b) => unimplemented!("bitcoin {}", b),
+                Node::Ext(ref e) => e.exec(self, txenv),
+    /*
+    */
                 Node::Jet(ref j) => unimplemented!("jet {}", j),
                 Node::Fail(..) => panic!("encountered fail node while executing"),
             }
