@@ -7,7 +7,7 @@ use extension;
 use Node;
 use Error;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum Type {
     Unit,
     Sum(RcVar, RcVar),
@@ -27,7 +27,7 @@ pub enum FinalTypeInner {
     Product(Arc<FinalType>, Arc<FinalType>),
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+ #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct FinalType {
     pub ty: FinalTypeInner,
     pub bit_width: usize,
@@ -161,7 +161,7 @@ impl FinalType {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 enum Variable {
     /// Free variable
     Free,
@@ -176,6 +176,7 @@ enum Variable {
     Finalized(Arc<FinalType>),
 }
 
+#[derive(Debug)]
 struct UnificationVar {
     var: Variable,
     rank: usize,
@@ -309,6 +310,26 @@ pub struct TypedNode<Witness, Ext> {
     pub target_ty: Arc<FinalType>,
 }
 
+/// Convenience method for converting a type for an extension
+/// field from a name to an actual `Type`
+fn type_from_name(name: &[u8], pow2s: &[RcVar]) -> Type {
+    match name[0] {
+        b'1' => Type::Unit,
+        b'2' => Type::Sum(pow2s[0].clone(), pow2s[0].clone()),
+        b'i' => Type::Product(pow2s[4].clone(), pow2s[4].clone()),
+        b'h' => Type::Product(pow2s[7].clone(), pow2s[7].clone()),
+        b'+' => Type::Sum(
+            type_from_name(&name[1..], pow2s).into_rcvar(),
+            type_from_name(&name[1..], pow2s).into_rcvar(),
+        ),
+        b'*' => Type::Product(
+            type_from_name(&name[1..], pow2s).into_rcvar(),
+            type_from_name(&name[1..], pow2s).into_rcvar(),
+        ),
+        x => panic!("Do not understand byte {} in type name", x as char)
+    }
+}
+
 /// Attach types to all nodes in a program
 pub fn type_check<Witness, Ext: extension::Node>(
     program: Vec<Node<Witness, Ext>>,
@@ -317,83 +338,22 @@ pub fn type_check<Witness, Ext: extension::Node>(
         return Ok(vec![]);
     }
 
-    // Produce all powers of two as types
-    let two_0 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Unit)));
-    let two_1 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Sum(
-        two_0.clone(),
-        two_0.clone(),
-    ))));
-    let two_2 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Product(
-        two_1.clone(),
-        two_1.clone(),
-    ))));
-    let two_4 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Product(
-        two_2.clone(),
-        two_2.clone(),
-    ))));
-    let two_8 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Product(
-        two_4.clone(),
-        two_4.clone(),
-    ))));
-    let two_16 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Product(
-        two_8.clone(),
-        two_8.clone(),
-    ))));
-    let two_32 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Product(
-        two_16.clone(),
-        two_16.clone(),
-    ))));
-    let two_64 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Product(
-        two_32.clone(),
-        two_32.clone(),
-    ))));
-    let two_128 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Product(
-        two_64.clone(),
-        two_64.clone(),
-    ))));
-    let two_256 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Product(
-        two_128.clone(),
-        two_128.clone(),
-    ))));
-    let two_256_32 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Product(
-        two_256.clone(),
-        two_32.clone(),
-    ))));
-    let two_512 = Rc::new(RefCell::new(UnificationVar::concrete(Type::Product(
-        two_256.clone(),
-        two_256.clone(),
-    ))));
-
-    // Convenience closure for getting types for extensions
-    let type_from_name = &|name: extension::TypeName| {
-        match name {
-            extension::TypeName::One => Type::Unit,
-            extension::TypeName::Word32
-                => Type::Product(two_16.clone(), two_16.clone()),
-            extension::TypeName::SWord32
-                => Type::Sum(two_0.clone(), two_32.clone()),
-            extension::TypeName::TwoTimesWord32
-                => Type::Product(two_1.clone(), two_32.clone()),
-            extension::TypeName::Word64
-                => Type::Product(two_32.clone(), two_32.clone()),
-            extension::TypeName::SWord64
-                => Type::Sum(two_0.clone(), two_64.clone()),
-            extension::TypeName::Word64TimesTwo
-                => Type::Product(two_64.clone(), two_1.clone()),
-            extension::TypeName::Word128
-                => Type::Product(two_64.clone(), two_64.clone()),
-            extension::TypeName::Word256
-                => Type::Product(two_128.clone(), two_128.clone()),
-            extension::TypeName::SWord256
-                => Type::Sum(two_0.clone(), two_256.clone()),
-            extension::TypeName::Word256Word32
-                => Type::Product(two_256.clone(), two_32.clone()),
-            extension::TypeName::SWord256Word32
-                => Type::Sum(two_0.clone(), two_256_32.clone()),
-            extension::TypeName::Word256Word512
-                => Type::Product(two_256.clone(), two_512.clone()),
-        }
-    };
+    // FIXME cache these somehow
+    let two_0 = Type::Unit.into_rcvar();
+    let two_1 = Type::Sum(two_0.clone(), two_0.clone()).into_rcvar();
+    let two_2 = Type::Product(two_1.clone(), two_1.clone()).into_rcvar();
+    let two_4 = Type::Product(two_2.clone(), two_2.clone()).into_rcvar();
+    let two_8 = Type::Product(two_4.clone(), two_4.clone()).into_rcvar();
+    let two_16 = Type::Product(two_8.clone(), two_8.clone()).into_rcvar();
+    let two_32 = Type::Product(two_16.clone(), two_16.clone()).into_rcvar();
+    let two_64 = Type::Product(two_32.clone(), two_32.clone()).into_rcvar();
+    let two_128 = Type::Product(two_64.clone(), two_64.clone()).into_rcvar();
+    let two_256 = Type::Product(two_128.clone(), two_128.clone()).into_rcvar();
+    // pow2s[i] = 2^(2^i)
+    let pow2s = [
+        two_1, two_2, two_4, two_8,
+        two_16, two_32, two_64, two_128, two_256,
+    ];
 
     let mut rcs = Vec::<Rc<UnificationArrow>>::with_capacity(program.len());
     let mut finals = Vec::<TypedNode<Witness, Ext>>::with_capacity(program.len());
@@ -489,7 +449,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
                 let var_c = Rc::new(RefCell::new(UnificationVar::free()));
                 let var_d = Rc::new(RefCell::new(UnificationVar::free()));
 
-                let s_source = Type::Product(two_256.clone(), var_a.clone()).into_rcvar();
+                let s_source = Type::Product(pow2s[8].clone(), var_a.clone()).into_rcvar();
                 let s_target = Type::Product(var_b.clone(), var_c.clone()).into_rcvar();
                 unify(rcs[i].source.clone(), s_source)?;
                 unify(rcs[i].target.clone(), s_target)?;
@@ -508,12 +468,16 @@ pub fn type_check<Witness, Ext: extension::Node>(
                 // No type constraints
             },
             Node::Ext(ref bn) => {
-                bind(&node.source, type_from_name(bn.source_type()))?;
-                bind(&node.target, type_from_name(bn.target_type()))?;
+                println!("type {:?} from name {}",
+                         type_from_name(bn.source_type().0, &pow2s[..]),
+                         ::std::str::from_utf8(bn.source_type().0).unwrap(),
+                         );
+                bind(&node.source, type_from_name(bn.source_type().0, &pow2s[..]))?;
+                bind(&node.target, type_from_name(bn.target_type().0, &pow2s[..]))?;
             },
             Node::Jet(ref jt) => {
-                bind(&node.source, type_from_name(jt.source_type()))?;
-                bind(&node.target, type_from_name(jt.target_type()))?;
+                bind(&node.source, type_from_name(jt.source_type().0, &pow2s[..]))?;
+                bind(&node.target, type_from_name(jt.target_type().0, &pow2s[..]))?;
             },
             Node::Fail(..) => unimplemented!("Cannot typecheck a program with `Fail` in it"),
         };

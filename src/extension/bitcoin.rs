@@ -140,39 +140,39 @@ impl extension::Node for Node {
                 | Node::CurrentPrevOutpoint
                 | Node::CurrentValue
                 | Node::CurrentSequence
-                | Node::CurrentIndex => TypeName::One,
+                | Node::CurrentIndex => TypeName(b"1"),
             Node::InputPrevOutpoint
                 | Node::InputValue
-                | Node::InputSequence => TypeName::Word32,
+                | Node::InputSequence => TypeName(b"i"),
             Node::NumOutputs
-                | Node::TotalOutputValue => TypeName::One,
+                | Node::TotalOutputValue => TypeName(b"1"),
             Node::OutputValue
-                | Node::OutputScriptHash => TypeName::Word32,
-            Node::ScriptCMR => TypeName::One,
+                | Node::OutputScriptHash => TypeName(b"i"),
+            Node::ScriptCMR => TypeName(b"1"),
         }
     }
 
     /// Name of the target type for this node
     fn target_type(&self) -> TypeName {
         match *self {
-            Node::Version => TypeName::Word32,
-            Node::LockTime => TypeName::Word32,
-            Node::InputsHash => TypeName::Word256,
-            Node::OutputsHash => TypeName::Word256,
-            Node::NumInputs => TypeName::Word32,
-            Node::TotalInputValue => TypeName::Word64,
-            Node::CurrentPrevOutpoint => TypeName::Word256Word32,
-            Node::CurrentValue => TypeName::Word64,
-            Node::CurrentSequence => TypeName::Word32,
-            Node::CurrentIndex => TypeName::Word32,
-            Node::InputPrevOutpoint => TypeName::SWord256Word32,
-            Node::InputValue => TypeName::SWord64,
-            Node::InputSequence => TypeName::SWord32,
-            Node::NumOutputs => TypeName::Word32,
-            Node::TotalOutputValue => TypeName::Word64,
-            Node::OutputValue => TypeName::SWord64,
-            Node::OutputScriptHash => TypeName::SWord256,
-            Node::ScriptCMR => TypeName::Word256,
+            Node::Version => TypeName(b"i"),
+            Node::LockTime => TypeName(b"i"),
+            Node::InputsHash => TypeName(b"h"),
+            Node::OutputsHash => TypeName(b"h"),
+            Node::NumInputs => TypeName(b"i"),
+            Node::TotalInputValue => TypeName(b"*ii"),
+            Node::CurrentPrevOutpoint => TypeName(b"*hi"),
+            Node::CurrentValue => TypeName(b"*ii"),
+            Node::CurrentSequence => TypeName(b"i"),
+            Node::CurrentIndex => TypeName(b"i"),
+            Node::InputPrevOutpoint => TypeName(b"+1*hi"),
+            Node::InputValue => TypeName(b"+1*ii"),
+            Node::InputSequence => TypeName(b"+1i"),
+            Node::NumOutputs => TypeName(b"i"),
+            Node::TotalOutputValue => TypeName(b"*ii"),
+            Node::OutputValue => TypeName(b"+1*ii"),
+            Node::OutputScriptHash => TypeName(b"+1h"),
+            Node::ScriptCMR => TypeName(b"h"),
         }
     }
 

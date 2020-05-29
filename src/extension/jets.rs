@@ -95,26 +95,26 @@ impl Node {
     /// Name of the source type for this node
     pub fn source_type(&self) -> TypeName {
         match *self {
-            Node::Adder32 => TypeName::Word64,
-            Node::FullAdder32 => TypeName::Word64TimesTwo,
-            Node::Subtractor32 => TypeName::Word64,
-            Node::FullSubtractor32 => TypeName::Word64TimesTwo,
-            Node::Multiplier32 => TypeName::Word64,
-            Node::FullMultiplier32 => TypeName::Word128,
-            Node::Sha256HashBlock => TypeName::Word256Word512,
+            Node::Adder32 => TypeName(b"*ii"),
+            Node::FullAdder32 => TypeName(b"**ii2"),
+            Node::Subtractor32 => TypeName(b"*ii"),
+            Node::FullSubtractor32 => TypeName(b"**ii2"),
+            Node::Multiplier32 => TypeName(b"*ii"),
+            Node::FullMultiplier32 => TypeName(b"**ii*ii"),
+            Node::Sha256HashBlock => TypeName(b"*h*hh"),
         }
     }
 
     /// Name of the target type for this node
     pub fn target_type(&self) -> TypeName {
         match *self {
-            Node::Adder32 => TypeName::TwoTimesWord32,
-            Node::FullAdder32 => TypeName::TwoTimesWord32,
-            Node::Subtractor32 => TypeName::TwoTimesWord32,
-            Node::FullSubtractor32 => TypeName::TwoTimesWord32,
-            Node::Multiplier32 => TypeName::Word64,
-            Node::FullMultiplier32 => TypeName::Word64,
-            Node::Sha256HashBlock => TypeName::Word256,
+            Node::Adder32 => TypeName(b"*2i"),
+            Node::FullAdder32 => TypeName(b"*2i"),
+            Node::Subtractor32 => TypeName(b"*2i"),
+            Node::FullSubtractor32 => TypeName(b"*2i"),
+            Node::Multiplier32 => TypeName(b"*ii"),
+            Node::FullMultiplier32 => TypeName(b"*ii"),
+            Node::Sha256HashBlock => TypeName(b"h"),
         }
     }
 
