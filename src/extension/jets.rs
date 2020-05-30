@@ -120,7 +120,6 @@ impl Node {
 
     /// CMR for this node
     pub fn cmr(&self) -> Cmr {
-        println!("call jet cmr {}", self);
         let cmr = Cmr::new(b"Simplicity\x1fJet");
         match *self {
             Node::Adder32 => cmr.update_1(Cmr::from([

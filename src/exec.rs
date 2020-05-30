@@ -254,7 +254,6 @@ impl BitMachine {
     /// program
     pub fn input(&mut self, input: &Value) {
         // FIXME typecheck this
-        println!("create frame len {}", input.len());
         self.new_frame(input.len());
         self.write_value(input);
         self.move_frame();

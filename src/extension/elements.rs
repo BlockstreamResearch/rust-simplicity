@@ -271,7 +271,6 @@ impl extension::Node for Node {
     }
 
     fn cmr(&self) -> Cmr {
-        println!("call elemetns cmr {}", self);
         match *self {
             Node::Version => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fversion"),
             Node::LockTime => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1flockTime"),
