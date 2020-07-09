@@ -18,14 +18,14 @@
 //! blockchain
 //!
 
-use bitcoin_hashes::{Hash, HashEngine, sha256};
-use byteorder::{WriteBytesExt, LittleEndian};
+use bitcoin_hashes::{sha256, Hash, HashEngine};
+use byteorder::{LittleEndian, WriteBytesExt};
 use std::{fmt, io};
 
-use bititer::BitIter;
 use super::TypeName;
-use Error;
+use bititer::BitIter;
 use cmr::Cmr;
+use Error;
 use {encode, exec, extension};
 
 /// Transaction environment for Bitcoin Simplicity programs
@@ -36,9 +36,7 @@ pub struct TxEnv {
 impl TxEnv {
     /// Constructor from a transaction
     pub fn from_tx(tx: bitcoin::Transaction) -> TxEnv {
-        TxEnv {
-            tx: tx,
-        }
+        TxEnv { tx: tx }
     }
 }
 
@@ -73,7 +71,7 @@ impl fmt::Display for Node {
             Node::InputsHash => "inputshash",
             Node::OutputsHash => "outputshash",
             Node::NumInputs => "numinputs",
-            Node::TotalInputValue =>  "totalinputvalue",
+            Node::TotalInputValue => "totalinputvalue",
             Node::CurrentPrevOutpoint => "currentprevoutpoint",
             Node::CurrentValue => "currentvalue",
             Node::CurrentSequence => "currentsequence",
@@ -93,9 +91,7 @@ impl fmt::Display for Node {
 impl extension::Node for Node {
     type TxEnv = TxEnv;
 
-    fn decode<I: Iterator<Item = u8>>(
-        iter: &mut BitIter<I>,
-    ) -> Result<Node, Error> {
+    fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Node, Error> {
         let code = match iter.read_bits_be(4) {
             Some(code) => code,
             None => return Err(Error::EndOfStream),
@@ -132,22 +128,18 @@ impl extension::Node for Node {
     fn source_type(&self) -> TypeName {
         match *self {
             Node::Version
-                | Node::LockTime
-                | Node::InputsHash
-                | Node::OutputsHash
-                | Node::NumInputs
-                | Node::TotalInputValue
-                | Node::CurrentPrevOutpoint
-                | Node::CurrentValue
-                | Node::CurrentSequence
-                | Node::CurrentIndex => TypeName(b"1"),
-            Node::InputPrevOutpoint
-                | Node::InputValue
-                | Node::InputSequence => TypeName(b"i"),
-            Node::NumOutputs
-                | Node::TotalOutputValue => TypeName(b"1"),
-            Node::OutputValue
-                | Node::OutputScriptHash => TypeName(b"i"),
+            | Node::LockTime
+            | Node::InputsHash
+            | Node::OutputsHash
+            | Node::NumInputs
+            | Node::TotalInputValue
+            | Node::CurrentPrevOutpoint
+            | Node::CurrentValue
+            | Node::CurrentSequence
+            | Node::CurrentIndex => TypeName(b"1"),
+            Node::InputPrevOutpoint | Node::InputValue | Node::InputSequence => TypeName(b"i"),
+            Node::NumOutputs | Node::TotalOutputValue => TypeName(b"1"),
+            Node::OutputValue | Node::OutputScriptHash => TypeName(b"i"),
             Node::ScriptCMR => TypeName(b"1"),
         }
     }
@@ -184,7 +176,9 @@ impl extension::Node for Node {
             Node::OutputsHash => Cmr::new(b"SimplicityPrimitiveBitcoinx1foutputsHash"),
             Node::NumInputs => Cmr::new(b"SimplicityPrimitiveBitcoinx1fnumInputs"),
             Node::TotalInputValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1ftotalInputValue"),
-            Node::CurrentPrevOutpoint => Cmr::new(b"SimplicityPrimitiveBitcoinx1fcurrentPrevOutpoint"),
+            Node::CurrentPrevOutpoint => {
+                Cmr::new(b"SimplicityPrimitiveBitcoinx1fcurrentPrevOutpoint")
+            }
             Node::CurrentValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1fcurrentValue"),
             Node::CurrentSequence => Cmr::new(b"SimplicityPrimitiveBitcoinx1fcurrentSequence"),
             Node::CurrentIndex => Cmr::new(b"SimplicityPrimitiveBitcoinx1fcurrentIndex"),
@@ -229,12 +223,13 @@ impl extension::Node for Node {
                 let mut eng = sha256::Hash::engine();
                 for input in &txenv.tx.input {
                     eng.input(&input.previous_output.txid[..]);
-                    eng.write_u32::<LittleEndian>(input.previous_output.vout).unwrap();
+                    eng.write_u32::<LittleEndian>(input.previous_output.vout)
+                        .unwrap();
                     eng.write_u64::<LittleEndian>(99998000).unwrap(); // value FIXME
                     eng.write_u32::<LittleEndian>(input.sequence).unwrap();
                 }
                 mac.write_bytes(&sha256::Hash::from_engine(eng)[..]);
-            },
+            }
             Node::OutputsHash => {
                 let mut eng = sha256::Hash::engine();
                 for output in &txenv.tx.output {
@@ -242,22 +237,21 @@ impl extension::Node for Node {
                     eng.input(&sha256::Hash::hash(&output.script_pubkey[..]));
                 }
                 mac.write_bytes(&sha256::Hash::from_engine(eng)[..]);
-            },
+            }
             // FIXME don't hardcode this
             Node::CurrentValue => {
                 mac.write_u64(99998000);
-            },
+            }
             Node::CurrentIndex => {
                 mac.write_u32(0);
-            },
+            }
             Node::LockTime => {
                 mac.write_u32(txenv.tx.lock_time);
-            },
+            }
             Node::Version => {
                 mac.write_u32(txenv.tx.version);
-            },
+            }
             ref b => unimplemented!("bitcoin {}", b),
         }
     }
 }
-

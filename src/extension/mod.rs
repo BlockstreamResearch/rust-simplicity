@@ -17,19 +17,19 @@
 //! Extensions to the Simplicity language needed for blockchain support
 //!
 
-pub mod dummy;
 #[cfg(feature = "bitcoin")]
 pub mod bitcoin;
+pub mod dummy;
 #[cfg(feature = "elements")]
 pub mod elements;
 pub mod jets;
 
 use std::{fmt, io};
 
-use {encode, exec};
 use bititer::BitIter;
 use cmr::Cmr;
 use Error;
+use {encode, exec};
 
 #[cfg(not(feature = "bitcoin"))]
 pub use self::dummy as bitcoin;
@@ -74,16 +74,14 @@ pub trait Node: Sized + fmt::Display {
     type TxEnv;
 
     /// Decode a node from a bit iterator
-    fn decode<I: Iterator<Item = u8>>(
-        iter: &mut BitIter<I>,
-    ) -> Result<Self, Error>;
+    fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Self, Error>;
 
     /// Encode a node into a bit writer
     fn encode<W: encode::BitWrite>(&self, w: &mut W) -> io::Result<usize>;
 
     /// Execute the node in a Bit Machine; assuming the surrounding
     /// program has typechecked, this cannot fail
-    fn exec(&self, &mut exec::BitMachine, txenv: &Self::TxEnv);
+    fn exec(&self, mac: &mut exec::BitMachine, txenv: &Self::TxEnv);
 
     /// Return the CMR of the node
     fn cmr(&self) -> Cmr;
@@ -94,4 +92,3 @@ pub trait Node: Sized + fmt::Display {
     /// The name of the target type of this node
     fn target_type(&self) -> TypeName;
 }
-

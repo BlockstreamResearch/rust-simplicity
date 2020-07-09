@@ -19,13 +19,13 @@
 //! data.
 //!
 
-use std::{cmp, fmt};
 use std::sync::Arc;
+use std::{cmp, fmt};
 
-use {Error, Node, Value};
 use bititer::BitIter;
 use cmr::{self, Cmr};
 use {encode, extension, types};
+use {Error, Node, Value};
 
 /// A node in a complete program, with associated metadata
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -73,6 +73,7 @@ impl<Ext: fmt::Display> fmt::Display for ProgramNode<Ext> {
 }
 
 /// A fully parsed, witnesses-included Simplicity program
+#[derive(Debug)]
 pub struct Program<Ext> {
     /// The list of nodes in the program
     pub nodes: Vec<ProgramNode<Ext>>,
@@ -85,10 +86,9 @@ impl<Ext: extension::Node> Program<Ext> {
     }
 
     /// Decode a program from a stream of bits
-    pub fn decode<I: Iterator<Item = u8>>(
-        iter: &mut BitIter<I>,
-    ) -> Result<Program<Ext>, Error> {
+    pub fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Program<Ext>, Error> {
         // Decode a bunch of untyped, witness-less nodes
+        // dbg!(iter.cloned().collect::<Vec<bool>>());
         let nodes = encode::decode_program_no_witness(&mut *iter)?;
 
         // Do type-checking
@@ -104,30 +104,33 @@ impl<Ext: extension::Node> Program<Ext> {
 
         let typed_nodes = typed_nodes
             .into_iter()
-            .map(|node| Ok(types::TypedNode {
-                node: match node.node {
-                    // really, Rust???
-                    Node::Iden => Node::Iden,
-                    Node::Unit => Node::Unit,
-                    Node::InjL(i) => Node::InjL(i),
-                    Node::InjR(i) => Node::InjR(i),
-                    Node::Take(i) => Node::Take(i),
-                    Node::Drop(i) => Node::Drop(i),
-                    Node::Comp(i, j) => Node::Comp(i, j),
-                    Node::Case(i, j) => Node::Case(i, j),
-                    Node::Pair(i, j) => Node::Pair(i, j),
-                    Node::Disconnect(i, j) => Node::Disconnect(i, j),
-                    Node::Witness(()) => Node::Witness(
-                        Value::from_witness(&mut iter.by_ref().take(wit_len), &node.target_ty)?
-                    ),
-                    Node::Fail(x, y) => Node::Fail(x, y),
-                    Node::Hidden(x) => Node::Hidden(x),
-                    Node::Ext(e) => Node::Ext(e),
-                    Node::Jet(j) => Node::Jet(j),
-                },
-                source_ty: node.source_ty,
-                target_ty: node.target_ty,
-            }))
+            .map(|node| {
+                Ok(types::TypedNode {
+                    node: match node.node {
+                        // really, Rust???
+                        Node::Iden => Node::Iden,
+                        Node::Unit => Node::Unit,
+                        Node::InjL(i) => Node::InjL(i),
+                        Node::InjR(i) => Node::InjR(i),
+                        Node::Take(i) => Node::Take(i),
+                        Node::Drop(i) => Node::Drop(i),
+                        Node::Comp(i, j) => Node::Comp(i, j),
+                        Node::Case(i, j) => Node::Case(i, j),
+                        Node::Pair(i, j) => Node::Pair(i, j),
+                        Node::Disconnect(i, j) => Node::Disconnect(i, j),
+                        Node::Witness(()) => Node::Witness(Value::from_witness(
+                            &mut iter.by_ref().take(wit_len),
+                            &node.target_ty,
+                        )?),
+                        Node::Fail(x, y) => Node::Fail(x, y),
+                        Node::Hidden(x) => Node::Hidden(x),
+                        Node::Ext(e) => Node::Ext(e),
+                        Node::Jet(j) => Node::Jet(j),
+                    },
+                    source_ty: node.source_ty,
+                    target_ty: node.target_ty,
+                })
+            })
             .collect::<Result<Vec<_>, _>>()?;
 
         // Compute cached data and return
@@ -149,16 +152,83 @@ impl<Ext: extension::Node> Program<Ext> {
             ret.push(final_node);
         }
 
-        Ok(Program {
-            nodes: ret,
-        })
+        Ok(Program { nodes: ret })
+    }
+
+    /// Decode a program from a stream of bits
+    pub fn from_untyped_nodes<I: Iterator<Item = u8>>(
+        nodes: Vec<Node<(), Ext>>,
+        iter: &mut BitIter<I>,
+    ) -> Result<Program<Ext>, Error> {
+        // Do type-checking
+        let typed_nodes = types::type_check(nodes)?;
+
+        // Parse witnesses, if available
+        // FIXME actually only read as much as wit_len
+        let wit_len = match iter.next() {
+            Some(false) => 0,
+            Some(true) => encode::decode_natural(&mut *iter)?,
+            None => return Err(Error::EndOfStream),
+        };
+
+        let typed_nodes = typed_nodes
+            .into_iter()
+            .map(|node| {
+                Ok(types::TypedNode {
+                    node: match node.node {
+                        // really, Rust???
+                        Node::Iden => Node::Iden,
+                        Node::Unit => Node::Unit,
+                        Node::InjL(i) => Node::InjL(i),
+                        Node::InjR(i) => Node::InjR(i),
+                        Node::Take(i) => Node::Take(i),
+                        Node::Drop(i) => Node::Drop(i),
+                        Node::Comp(i, j) => Node::Comp(i, j),
+                        Node::Case(i, j) => Node::Case(i, j),
+                        Node::Pair(i, j) => Node::Pair(i, j),
+                        Node::Disconnect(i, j) => Node::Disconnect(i, j),
+                        Node::Witness(()) => Node::Witness(Value::from_witness(
+                            &mut iter.by_ref().take(wit_len),
+                            &node.target_ty,
+                        )?),
+                        Node::Fail(x, y) => Node::Fail(x, y),
+                        Node::Hidden(x) => Node::Hidden(x),
+                        Node::Ext(e) => Node::Ext(e),
+                        Node::Jet(j) => Node::Jet(j),
+                    },
+                    source_ty: node.source_ty,
+                    target_ty: node.target_ty,
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        // Compute cached data and return
+        let mut ret = Vec::<ProgramNode<Ext>>::with_capacity(typed_nodes.len());
+        for (index, node) in typed_nodes.into_iter().enumerate() {
+            let final_node = ProgramNode {
+                index: index,
+                cmr: compute_cmr(&ret, &node.node),
+                extra_cells_bound: compute_extra_cells_bound(
+                    &ret,
+                    &node.node,
+                    node.target_ty.bit_width(),
+                ),
+                frame_count_bound: compute_frame_count_bound(&ret, &node.node),
+                node: node.node,
+                source_ty: node.source_ty,
+                target_ty: node.target_ty,
+            };
+            ret.push(final_node);
+        }
+
+        Ok(Program { nodes: ret })
     }
 
     /// Print out the program in a graphviz-parseable format
     pub fn graph_print(&self) {
         for node in &self.nodes {
             println!(
-                "{} [label=\"{}\\n{}\\n{}→{}\"];",
+                "{} [label=\"{}\\n{}\\n{} → {}\"];",
                 node.index,
                 match node.node {
                     Node::Iden => "iden",
@@ -182,15 +252,17 @@ impl<Ext: extension::Node> Program<Ext> {
                 node.target_ty,
             );
             match node.node {
-                Node::Iden | Node::Unit | Node::Witness(..) | Node::Hidden(..) | Node::Fail(..) | Node::Ext(..) | Node::Jet(..) => {
-                }
+                Node::Iden
+                | Node::Unit
+                | Node::Witness(..)
+                | Node::Hidden(..)
+                | Node::Fail(..)
+                | Node::Ext(..)
+                | Node::Jet(..) => {}
                 Node::InjL(i) | Node::InjR(i) | Node::Take(i) | Node::Drop(i) => {
                     println!("  {} -> {};", node.index, i);
                 }
-                Node::Comp(i, j)
-                | Node::Case(i, j)
-                | Node::Pair(i, j)
-                | Node::Disconnect(i, j) => {
+                Node::Comp(i, j) | Node::Case(i, j) | Node::Pair(i, j) | Node::Disconnect(i, j) => {
                     println!("  {} -> {} [color=red];", node.index, i);
                     println!("  {} -> {} [color=blue];", node.index, j);
                 }
@@ -199,10 +271,7 @@ impl<Ext: extension::Node> Program<Ext> {
     }
 }
 
-fn compute_cmr<Ext: extension::Node>(
-    program: &[ProgramNode<Ext>],
-    node: &Node<Value, Ext>,
-) -> Cmr {
+fn compute_cmr<Ext: extension::Node>(program: &[ProgramNode<Ext>], node: &Node<Value, Ext>) -> Cmr {
     match *node {
         Node::Iden => cmr::tag::iden(),
         Node::Unit => cmr::tag::unit(),
@@ -234,25 +303,17 @@ fn compute_extra_cells_bound<Ext: extension::Node>(
         Node::InjR(i) => program[i].extra_cells_bound,
         Node::Take(i) => program[i].extra_cells_bound,
         Node::Drop(i) => program[i].extra_cells_bound,
-        Node::Comp(i, j) => program[i].target_ty.bit_width()
-            + cmp::max(
-                program[i].extra_cells_bound,
-                program[j].extra_cells_bound,
-            ),
-        Node::Case(i, j) => cmp::max(
-            program[i].extra_cells_bound,
-            program[j].extra_cells_bound,
-        ),
-        Node::Pair(i, j) => cmp::max(
-            program[i].extra_cells_bound,
-            program[j].extra_cells_bound,
-        ),
-        Node::Disconnect(i, j) => program[i].source_ty.bit_width()
-            + program[i].target_ty.bit_width()
-            + cmp::max(
-                program[i].extra_cells_bound,
-                program[j].extra_cells_bound,
-            ),
+        Node::Comp(i, j) => {
+            program[i].target_ty.bit_width()
+                + cmp::max(program[i].extra_cells_bound, program[j].extra_cells_bound)
+        }
+        Node::Case(i, j) => cmp::max(program[i].extra_cells_bound, program[j].extra_cells_bound),
+        Node::Pair(i, j) => cmp::max(program[i].extra_cells_bound, program[j].extra_cells_bound),
+        Node::Disconnect(i, j) => {
+            program[i].source_ty.bit_width()
+                + program[i].target_ty.bit_width()
+                + cmp::max(program[i].extra_cells_bound, program[j].extra_cells_bound)
+        }
         Node::Witness(..) => witness_target_width,
         Node::Fail(..) => unimplemented!(),
         Node::Hidden(..) => 0,
@@ -272,24 +333,14 @@ fn compute_frame_count_bound<Ext: extension::Node>(
         Node::InjR(i) => program[i].frame_count_bound,
         Node::Take(i) => program[i].frame_count_bound,
         Node::Drop(i) => program[i].frame_count_bound,
-        Node::Comp(i, j) => 1
-            + cmp::max(
-                program[i].frame_count_bound,
-                program[j].frame_count_bound,
-            ),
-        Node::Case(i, j) => cmp::max(
-            program[i].frame_count_bound,
-            program[j].frame_count_bound,
-        ),
-        Node::Pair(i, j) => cmp::max(
-            program[i].frame_count_bound,
-            program[j].frame_count_bound,
-        ),
-        Node::Disconnect(i, j) => 2
-            + cmp::max(
-                program[i].frame_count_bound,
-                program[j].frame_count_bound,
-            ),
+        Node::Comp(i, j) => {
+            1 + cmp::max(program[i].frame_count_bound, program[j].frame_count_bound)
+        }
+        Node::Case(i, j) => cmp::max(program[i].frame_count_bound, program[j].frame_count_bound),
+        Node::Pair(i, j) => cmp::max(program[i].frame_count_bound, program[j].frame_count_bound),
+        Node::Disconnect(i, j) => {
+            2 + cmp::max(program[i].frame_count_bound, program[j].frame_count_bound)
+        }
         Node::Witness(..) => 0,
         Node::Fail(..) => unimplemented!(),
         Node::Hidden(..) => 0,
@@ -301,17 +352,27 @@ fn compute_frame_count_bound<Ext: extension::Node>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use exec;
 
     use bititer::BitIter;
-    use Node;
     use extension::dummy::Node as DummyNode;
+    use extension::jets::Node as JetsNode;
+    use Node;
+    use extension::dummy::TxEnv;
 
     #[test]
-    fn unit_prog() {
+    fn simple_unit_prog() {
+        // vec![0 0 1 0 0 1 0 0] = vec![0x24]
+        // prog_len = 1 :vec![0 1 0 0 1 0 0]
+        // non a extension or jets node : vec![1 0 0 1 0 0]
+        // code = 2 [1 0 ] : vec![0 1 0 0]
+        // subcode = 1 [0 1]:  vec![0 0] => Parsed unit node.
+        // witness len = 0 vec![0]
         let prog = vec![0x24];
         let prog = Program::<DummyNode>::decode(&mut BitIter::from(prog.into_iter()))
             .expect("decoding program");
 
+        // dbg!(&prog);
         assert_eq!(prog.nodes.len(), 1);
         assert_eq!(prog.nodes[0].node, Node::Unit);
         // Checked against C implementation
@@ -329,6 +390,8 @@ mod tests {
         let prog = Program::<DummyNode>::decode(&mut BitIter::from(prog.into_iter()))
             .expect("decoding program");
 
+        dbg!(&prog);
+        prog.graph_print();
         assert_eq!(prog.nodes.len(), 2);
         assert_eq!(prog.nodes[0].node, Node::Unit);
         assert_eq!(prog.nodes[1].node, Node::InjL(0));
@@ -344,5 +407,39 @@ mod tests {
             "7a4ebcbd3be89bb9dfd901fdbeff16cfa80aa36363785b14615cbdd3f0ae1f0a"
         );
     }
-}
 
+    #[test]
+    fn encode_prog() {
+        let mut prog: Vec<Node<(), DummyNode>> = vec![];
+
+        prog.push(Node::Jet(JetsNode::Adder32));
+        // prog.push(Node::Case(0, 1));
+
+        let prog = Program::from_untyped_nodes(prog, &mut BitIter::from(vec![0x00].into_iter())).unwrap();
+        // dbg!(&prog);
+        prog.graph_print();
+    }
+    
+    #[test]
+    fn witness_and() {
+        let mut prog: Vec<Node<(), DummyNode>> = vec![];
+
+        prog.push(Node::Unit);
+        prog.push(Node::InjR(0));
+        prog.push(Node::Witness(()));
+        prog.push(Node::Case(1, 2));
+        prog.push(Node::Witness(()));
+        prog.push(Node::Comp(4, 3));
+
+        let prog = Program::from_untyped_nodes(prog, &mut BitIter::from(vec![0x80].into_iter())).unwrap();
+        dbg!(&prog);
+        prog.graph_print();
+
+        let mut mac = exec::BitMachine::for_program(&prog);
+        // mac.input(&Value::prod(Value::u1(0), Value::Unit));
+        let output = mac.exec(&prog, &TxEnv);
+
+        println!("{}", output);
+
+    }
+}

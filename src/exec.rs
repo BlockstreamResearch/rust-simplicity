@@ -20,10 +20,10 @@
 
 use std::{cmp, fmt, ptr};
 
-use {Node, Program, Value};
 use bititer::BitIter;
-use types::FinalTypeInner;
 use extension;
+use types::FinalTypeInner;
+use {Node, Program, Value};
 
 /// A frame used internally by the Bit Machine to keep track of
 /// where we are reading or writing to
@@ -151,7 +151,7 @@ impl BitMachine {
     /// Push a new frame of given size onto the write stack
     fn new_frame(&mut self, len: usize) {
         assert!(self.next_pos as usize + len < self.data.len() * 8);
-        assert!(self.write.len() + self.read.len() < self.read.capacity());
+        // assert!(self.write.len() + self.read.len() < self.read.capacity());
 
         self.write.push(Frame {
             data: self.data.as_mut_ptr(),
@@ -260,7 +260,11 @@ impl BitMachine {
     }
 
     /// Execute a program in the Bit Machine
-    pub fn exec<Ext: extension::Node>(&mut self, program: &Program<Ext>, txenv: &Ext::TxEnv) -> Value {
+    pub fn exec<Ext: extension::Node>(
+        &mut self,
+        program: &Program<Ext>,
+        txenv: &Ext::TxEnv,
+    ) -> Value {
         enum CallStack {
             Goto(usize),
             MoveFrame,
@@ -273,9 +277,12 @@ impl BitMachine {
         let mut call_stack = vec![];
         let mut iters = 0u64;
 
-        let input_width = ip.target_ty.bit_width();
+        let input_width = ip.source_ty.bit_width();
         if input_width > 0 && self.read.is_empty() {
-            panic!("Pleas call `Program::input` to add an input value for this program {}", ip);
+            panic!(
+                "Pleas call `Program::input` to add an input value for this program {}",
+                ip
+            );
         }
         let output_width = ip.target_ty.bit_width();
         if output_width > 0 {
@@ -289,7 +296,7 @@ impl BitMachine {
             }
 
             match ip.node {
-                Node::Unit => {},
+                Node::Unit => {}
                 Node::Iden => self.copy(ip.source_ty.bit_width()),
                 Node::InjL(t) => {
                     self.write(false);
@@ -300,7 +307,7 @@ impl BitMachine {
                     } else {
                         panic!("type error")
                     }
-                },
+                }
                 Node::InjR(t) => {
                     self.write(true);
                     if let FinalTypeInner::Sum(_, ref b) = ip.target_ty.ty {
@@ -310,11 +317,11 @@ impl BitMachine {
                     } else {
                         panic!("type error")
                     }
-                },
+                }
                 Node::Pair(s, t) => {
                     call_stack.push(CallStack::Goto(t));
                     call_stack.push(CallStack::Goto(s));
-                },
+                }
                 Node::Comp(s, t) => {
                     let size = program.nodes[s].target_ty.bit_width();
                     self.new_frame(size);
@@ -323,7 +330,7 @@ impl BitMachine {
                     call_stack.push(CallStack::Goto(t));
                     call_stack.push(CallStack::MoveFrame);
                     call_stack.push(CallStack::Goto(s));
-                },
+                }
                 Node::Disconnect(s, t) => {
                     // Write `t`'s CMR followed by `s` input to a new read frame
                     let size = program.nodes[s].source_ty.bit_width();
@@ -348,7 +355,7 @@ impl BitMachine {
                     // 1. Execute `s` then move the write frame to the read frame for `t`
                     call_stack.push(CallStack::MoveFrame);
                     call_stack.push(CallStack::Goto(s));
-                },
+                }
                 Node::Take(t) => call_stack.push(CallStack::Goto(t)),
                 Node::Drop(t) => {
                     if let FinalTypeInner::Product(ref a, _) = ip.source_ty.ty {
@@ -359,7 +366,7 @@ impl BitMachine {
                     } else {
                         panic!("type error")
                     }
-                },
+                }
                 Node::Case(s, t) => {
                     let sw = self.read[self.read.len() - 1].read();
                     let aw;
@@ -384,12 +391,12 @@ impl BitMachine {
                         call_stack.push(CallStack::Back(1 + cmp::max(aw, bw) - aw));
                         call_stack.push(CallStack::Goto(s));
                     }
-                },
+                }
                 Node::Witness(ref value) => self.write_value(value),
                 Node::Hidden(ref h) => panic!("Hit hidden node {} at iter {}: {}", ip, iters, h),
                 Node::Ext(ref e) => e.exec(self, txenv),
-    /*
-    */
+                /*
+                 */
                 Node::Jet(ref j) => unimplemented!("jet {}", j),
                 Node::Fail(..) => panic!("encountered fail node while executing"),
             }
@@ -402,7 +409,7 @@ impl BitMachine {
                     Some(CallStack::CopyFwd(n)) => {
                         self.copy(n);
                         self.fwd(n);
-                    },
+                    }
                     Some(CallStack::Back(n)) => self.back(n),
                     None => break 'main_loop,
                 };
@@ -419,4 +426,3 @@ impl BitMachine {
         }
     }
 }
-

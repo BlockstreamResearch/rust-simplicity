@@ -162,4 +162,3 @@ pub mod tag {
         Cmr::new(b"Simplicity\x1fCommitment\x1fdisconnect")
     }
 }
-

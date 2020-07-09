@@ -48,6 +48,8 @@ impl<I: Iterator<Item = u8>> Iterator for BitIter<I> {
         if self.read_bits < 8 {
             self.read_bits += 1;
             self.total_read += 1;
+            // dbg!(self.read_bits);
+            // dbg!(self.cached_byte & (1 << (8 - self.read_bits as u8)) != 0);
             Some(self.cached_byte & (1 << (8 - self.read_bits as u8)) != 0)
         } else {
             self.cached_byte = self.iter.next()?;
@@ -73,7 +75,7 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
     pub fn read_bits_be(&mut self, mut n: usize) -> Option<u64> {
         assert!(n < 64);
         if n == 0 {
-            return Some(0)
+            return Some(0);
         }
 
         let avail_bits = 8 - self.read_bits;
@@ -159,10 +161,9 @@ mod tests {
     fn regression_1() {
         let mut iter = BitIter::from([0x34, 0x90].iter().cloned());
         assert_eq!(iter.read_bits_be(4), Some(0x03)); // 0011
-        assert_eq!(iter.next(), Some(false));         // 0
+        assert_eq!(iter.next(), Some(false)); // 0
         assert_eq!(iter.read_bits_be(2), Some(0x02)); // 10
         assert_eq!(iter.read_bits_be(2), Some(0x01)); // 01
         assert_eq!(iter.n_total_read(), 9);
     }
 }
-
