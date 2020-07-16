@@ -14,21 +14,27 @@
 
 extern crate bitcoin_hashes;
 extern crate byteorder;
+extern crate miniscript;
 
+pub mod bit_machine;
 pub mod bititer;
 pub mod cmr;
 pub mod encode;
-pub mod exec;
 pub mod extension;
+pub mod policy;
 pub mod program;
 pub mod types;
 
 use std::fmt;
 
+pub use bit_machine::exec;
 pub use program::Program;
 
+use miniscript::{DummyKey, MiniscriptKey};
+
 /// De/serialization error
-#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+// FIXME: Miniscript implemnent clone
+#[derive(Debug)]
 pub enum Error {
     /// Unable to unify types in a DAG
     TypeCheck,
@@ -49,6 +55,55 @@ pub enum Error {
     TooManyNodes(usize),
     /// Unrecognized node
     ParseError(&'static str),
+    /// Miniscript Error
+    MiniscriptError(miniscript::Error),
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Error::TypeCheck => f.write_str("Unable to unify types in a DAG"),
+            Error::OccursCheck => f.write_str(
+                "A recursive type was inferred, violating the of the type inference engine",
+            ),
+            Error::BadIndex => {
+                f.write_str("Node made a back-reference past the beginning of the program")
+            }
+            Error::NaturalOverflow => f.write_str("Number exceeded 32 bits"),
+            Error::NonCaseHiddenChild => {
+                f.write_str("Non-'case' nodes may not have hidden children")
+            }
+            Error::CaseMultipleHiddenChildren => {
+                f.write_str("'case' nodes may have at most one hidden child")
+            }
+            Error::EndOfStream => f.write_str("Bitstream ended early"),
+            Error::TooManyNodes(k) => {
+                write!(f, "Tried to allocate too many nodes in a program: {}", k)
+            }
+            Error::ParseError(s) => write!(f, "Unrecognized node {}", s),
+            Error::MiniscriptError(ref e) => fmt::Display::fmt(e, f),
+        }
+    }
+}
+
+#[doc(hidden)]
+impl From<miniscript::Error> for Error {
+    fn from(e: miniscript::Error) -> Error {
+        Error::MiniscriptError(e)
+    }
+}
+
+/// Trait describing public key types which can be converted to bitcoin pubkeys
+pub trait To32BytePubKey: MiniscriptKey {
+    /// Converts an object to a public key
+    fn to_32_byte_pubkey(&self) -> [u8; 32];
+}
+
+impl To32BytePubKey for DummyKey {
+    // Dummy value which returns a 32 byte public.
+    fn to_32_byte_pubkey(&self) -> [u8; 32] {
+        [0xab; 32]
+    }
 }
 
 /// Simplicity expression node, including Bitcoin/Elements extensions
@@ -57,11 +112,9 @@ pub enum Error {
 /// `elements` features) programs using these extensions will fail to
 /// parse.
 ///
-/// While programs are *serialized* with all references being relative
-/// indices, they are represented in this type as having absolute
-/// indices starting from 0. This means that this type only really makes
-/// sense in the context of a complete program. Expressions/partial
-/// programs will need a different type.
+/// All references being relative indices in the context of a program.
+/// For ex: InjL(2) at index 7, represents InjL(x) where x is a node
+/// at index 5.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Node<Witness, Extension> {
     Iden,
@@ -202,20 +255,20 @@ impl fmt::Display for Value {
 }
 
 impl Value {
-    pub fn from_witness<Bits: Iterator<Item = bool>>(
+    pub fn from_bits_and_type<Bits: Iterator<Item = bool>>(
         bits: &mut Bits,
         ty: &types::FinalType,
     ) -> Result<Value, Error> {
         match ty.ty {
             types::FinalTypeInner::Unit => Ok(Value::Unit),
             types::FinalTypeInner::Sum(ref l, ref r) => match bits.next() {
-                Some(false) => Ok(Value::SumL(Box::new(Value::from_witness(bits, &*l)?))),
-                Some(true) => Ok(Value::SumR(Box::new(Value::from_witness(bits, &*r)?))),
+                Some(false) => Ok(Value::SumL(Box::new(Value::from_bits_and_type(bits, &*l)?))),
+                Some(true) => Ok(Value::SumR(Box::new(Value::from_bits_and_type(bits, &*r)?))),
                 None => Err(Error::EndOfStream),
             },
             types::FinalTypeInner::Product(ref l, ref r) => Ok(Value::Prod(
-                Box::new(Value::from_witness(&mut *bits, &*l)?),
-                Box::new(Value::from_witness(bits, &*r)?),
+                Box::new(Value::from_bits_and_type(&mut *bits, &*l)?),
+                Box::new(Value::from_bits_and_type(bits, &*r)?),
             )),
         }
     }

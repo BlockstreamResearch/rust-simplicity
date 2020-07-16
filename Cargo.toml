@@ -28,4 +28,5 @@ optional = true
 [dependencies]
 bitcoin_hashes = "0.7"
 byteorder = "1.3"
+miniscript = "1.0.0"
 

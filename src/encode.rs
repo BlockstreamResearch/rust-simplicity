@@ -24,8 +24,9 @@ use std::{io, mem};
 
 use bititer::BitIter;
 use cmr;
-use extension::{self, jets};
-use {Error, Node};
+use extension::{self, jets, Node as ExtNode};
+use Error;
+use Node;
 
 /// Trait for writing individual bits to some sink
 pub trait BitWrite {
@@ -166,7 +167,7 @@ pub fn decode_node_no_witness<I: Iterator<Item = u8>, Ext: extension::Node>(
         Some(true) => match iter.next() {
             None => Err(Error::EndOfStream),
             Some(false) => Ok(Node::Ext(extension::Node::decode(iter)?)),
-            Some(true) => Ok(Node::Jet(jets::decode_node(iter)?)),
+            Some(true) => Ok(Node::Jet(jets::Node::decode(iter)?)),
         },
         Some(false) => {
             let code = match iter.read_bits_be(2) {
@@ -179,46 +180,26 @@ pub fn decode_node_no_witness<I: Iterator<Item = u8>, Ext: extension::Node>(
             };
             match (code, subcode) {
                 (0, 0) => Ok(Node::Comp(
-                    idx.checked_sub(decode_natural(&mut *iter)?)
-                        .ok_or(Error::BadIndex)?,
-                    idx.checked_sub(decode_natural(iter)?)
-                        .ok_or(Error::BadIndex)?,
+                    decode_natural(&mut *iter, Some(idx))?,
+                    decode_natural(iter, Some(idx))?,
                 )),
                 // FIXME `Case` should check for asserts and reject if both children are hidden
                 (0, 1) => Ok(Node::Case(
-                    idx.checked_sub(decode_natural(&mut *iter)?)
-                        .ok_or(Error::BadIndex)?,
-                    idx.checked_sub(decode_natural(iter)?)
-                        .ok_or(Error::BadIndex)?,
+                    decode_natural(&mut *iter, Some(idx))?,
+                    decode_natural(iter, Some(idx))?,
                 )),
                 (0, 2) => Ok(Node::Pair(
-                    idx.checked_sub(decode_natural(&mut *iter)?)
-                        .ok_or(Error::BadIndex)?,
-                    idx.checked_sub(decode_natural(iter)?)
-                        .ok_or(Error::BadIndex)?,
+                    decode_natural(&mut *iter, Some(idx))?,
+                    decode_natural(iter, Some(idx))?,
                 )),
                 (0, 3) => Ok(Node::Disconnect(
-                    idx.checked_sub(decode_natural(&mut *iter)?)
-                        .ok_or(Error::BadIndex)?,
-                    idx.checked_sub(decode_natural(iter)?)
-                        .ok_or(Error::BadIndex)?,
+                    decode_natural(&mut *iter, Some(idx))?,
+                    decode_natural(iter, Some(idx))?,
                 )),
-                (1, 0) => Ok(Node::InjL(
-                    idx.checked_sub(decode_natural(iter)?)
-                        .ok_or(Error::BadIndex)?,
-                )),
-                (1, 1) => Ok(Node::InjR(
-                    idx.checked_sub(decode_natural(iter)?)
-                        .ok_or(Error::BadIndex)?,
-                )),
-                (1, 2) => Ok(Node::Take(
-                    idx.checked_sub(decode_natural(iter)?)
-                        .ok_or(Error::BadIndex)?,
-                )),
-                (1, 3) => Ok(Node::Drop(
-                    idx.checked_sub(decode_natural(iter)?)
-                        .ok_or(Error::BadIndex)?,
-                )),
+                (1, 0) => Ok(Node::InjL(decode_natural(iter, Some(idx))?)),
+                (1, 1) => Ok(Node::InjR(decode_natural(iter, Some(idx))?)),
+                (1, 2) => Ok(Node::Take(decode_natural(iter, Some(idx))?)),
+                (1, 3) => Ok(Node::Drop(decode_natural(iter, Some(idx))?)),
                 (2, 0) => Ok(Node::Iden),
                 (2, 1) => Ok(Node::Unit),
                 (2, 2) => Err(Error::ParseError("01010 (fail node)")),
@@ -251,32 +232,32 @@ pub fn encode_node_no_witness<T, W: BitWrite, Ext: extension::Node>(
     match *node {
         Node::Comp(i, j) => {
             let ret = writer.write_u8(0, 5)?
-                + encode_natural(index - i, &mut *writer)?
-                + encode_natural(index - j, &mut *writer)?;
+                + encode_natural(i, &mut *writer)?
+                + encode_natural(j, &mut *writer)?;
             Ok(ret)
         }
         Node::Case(i, j) => {
             let ret = writer.write_u8(1, 5)?
-                + encode_natural(index - i, &mut *writer)?
-                + encode_natural(index - j, &mut *writer)?;
+                + encode_natural(i, &mut *writer)?
+                + encode_natural(j, &mut *writer)?;
             Ok(ret)
         }
         Node::Pair(i, j) => {
             let ret = writer.write_u8(2, 5)?
-                + encode_natural(index - i, &mut *writer)?
-                + encode_natural(index - j, &mut *writer)?;
+                + encode_natural(i, &mut *writer)?
+                + encode_natural(j, &mut *writer)?;
             Ok(ret)
         }
         Node::Disconnect(i, j) => {
             let ret = writer.write_u8(3, 5)?
-                + encode_natural(index - i, &mut *writer)?
-                + encode_natural(index - j, &mut *writer)?;
+                + encode_natural(i, &mut *writer)?
+                + encode_natural(j, &mut *writer)?;
             Ok(ret)
         }
-        Node::InjL(i) => Ok(writer.write_u8(4, 5)? + encode_natural(index - i, &mut *writer)?),
-        Node::InjR(i) => Ok(writer.write_u8(5, 5)? + encode_natural(index - i, &mut *writer)?),
-        Node::Take(i) => Ok(writer.write_u8(6, 5)? + encode_natural(index - i, &mut *writer)?),
-        Node::Drop(i) => Ok(writer.write_u8(7, 5)? + encode_natural(index - i, &mut *writer)?),
+        Node::InjL(i) => Ok(writer.write_u8(4, 5)? + encode_natural(i, &mut *writer)?),
+        Node::InjR(i) => Ok(writer.write_u8(5, 5)? + encode_natural(i, &mut *writer)?),
+        Node::Take(i) => Ok(writer.write_u8(6, 5)? + encode_natural(i, &mut *writer)?),
+        Node::Drop(i) => Ok(writer.write_u8(7, 5)? + encode_natural(i, &mut *writer)?),
         Node::Iden => writer.write_u8(8, 5),
         Node::Unit => writer.write_u8(9, 5),
         Node::Fail(..) => unimplemented!(),
@@ -289,14 +270,14 @@ pub fn encode_node_no_witness<T, W: BitWrite, Ext: extension::Node>(
         }
         Node::Witness(..) => writer.write_u8(7, 4),
         Node::Ext(ref b) => extension::Node::encode(b, writer),
-        Node::Jet(ref j) => j.encode_node(writer),
+        Node::Jet(ref j) => j.encode(writer),
     }
 }
 
 pub fn decode_program_no_witness<I: Iterator<Item = u8>, Ext: extension::Node>(
     iter: &mut BitIter<I>,
 ) -> Result<Vec<Node<(), Ext>>, Error> {
-    let prog_len = decode_natural(&mut *iter)?;
+    let prog_len = decode_natural(&mut *iter, None)?;
     dbg!(prog_len);
 
     // FIXME make this a reasonable limit
@@ -336,8 +317,12 @@ pub fn encode_natural<W: BitWrite>(n: usize, writer: &mut W) -> io::Result<usize
 
 /// Decode a natural number according to section 7.2.1
 /// of the Simplicity whitepaper.
+/// Optionally provide a bound for the value being decoded.
+/// If the value is strictly greater than bound, this function
+/// returns an error
 pub fn decode_natural<BitStream: Iterator<Item = bool>>(
     mut iter: BitStream,
+    bound: Option<usize>,
 ) -> Result<usize, Error> {
     let mut recurse_depth = 0;
     loop {
@@ -361,6 +346,11 @@ pub fn decode_natural<BitStream: Iterator<Item = bool>>(
         }
 
         if recurse_depth == 0 {
+            if let Some(bound) = bound {
+                if n > bound {
+                    return Err(Error::BadIndex);
+                }
+            }
             return Ok(n);
         } else {
             len = n;
@@ -453,18 +443,17 @@ mod tests {
 
         for (target, vec) in tries {
             let truncated = vec[0..vec.len() - 1].to_vec();
-            assert_eq!(
-                decode_natural(truncated.into_iter()),
-                Err(Error::EndOfStream),
-            );
-
+            assert!(matches!(
+                decode_natural(truncated.into_iter(), None),
+                Err(Error::EndOfStream)
+            ));
             let len = vec.len();
 
             // Encode/decode bitwise
             let mut encode = Vec::<bool>::new();
             encode_natural(target, &mut encode).expect("encoding to a Vec");
             assert_eq!(encode, vec);
-            let decode = decode_natural(vec.into_iter()).unwrap();
+            let decode = decode_natural(vec.into_iter(), None).unwrap();
             assert_eq!(target, decode);
 
             // Encode/decode bytewise
@@ -473,7 +462,7 @@ mod tests {
             w.flush_all().expect("flushing");
             assert_eq!(w.n_written(), len);
             let r = BitIter::new(w.into_inner().into_iter());
-            let decode = decode_natural(r).unwrap();
+            let decode = decode_natural(r, None).unwrap();
 
             assert_eq!(target, decode);
         }

@@ -2733,19 +2733,17 @@ fn main() {
     let program =
         simplicity::program::Program::<simplicity::extension::bitcoin::Node>::decode(&mut bits)
             .expect("decoding program");
-    // dbg!(&program.nodes.len());
+    dbg!(&program.nodes.len());
     // program.graph_print();
     assert_eq!(program.root_node().cmr.into_inner(), SCHNORR_1_CMR,);
 
-    // // Run SighashALL program
-    // println!("*** START");
-    // let mut bits: simplicity::bititer::BitIter<_> = SIGHASH_ALL.iter().cloned().into();
-    // let program = simplicity::program::Program::<simplicity::extension::elements::Node>::decode(&mut bits)
-    //     .expect("decoding program");
-    // assert_eq!(
-    //     program.root_node().cmr.into_inner(),
-    //     SIGHASH_ALL_CMR,
-    // );
+    // Run SighashALL program
+    println!("*** START");
+    let mut bits: simplicity::bititer::BitIter<_> = SIGHASH_ALL.iter().cloned().into();
+    let program =
+        simplicity::program::Program::<simplicity::extension::elements::Node>::decode(&mut bits)
+            .expect("decoding program");
+    assert_eq!(program.root_node().cmr.into_inner(), SIGHASH_ALL_CMR,);
 
     // Run disconnect program
     let mut bits: simplicity::bititer::BitIter<_> = FIB_DISCONNECT.iter().cloned().into();
@@ -2753,7 +2751,7 @@ fn main() {
         simplicity::program::Program::<simplicity::extension::dummy::Node>::decode(&mut bits)
             .expect("decoding program");
 
-    program.graph_print();
+    // program.graph_print();
     assert_eq!(program.root_node().cmr.into_inner(), FIB_CMR,);
 
     let exec_node = program.root_node();
@@ -2777,57 +2775,62 @@ fn main() {
     println!("");
     println!("");
 
-    // // Run Bitcoin program
-    // let mut bits: simplicity::bititer::BitIter<_> = BITCOIN_PROG.iter().cloned().into();
+    // Run Bitcoin program
+    let mut bits: simplicity::bititer::BitIter<_> = BITCOIN_PROG.iter().cloned().into();
 
-    // let tx = bitcoin::Transaction {
-    //     version: 2,
-    //     lock_time: 0,
-    //     input: vec![
-    //         bitcoin::TxIn {
-    //             previous_output: bitcoin::OutPoint {
-    //                 txid: bitcoin::Txid::from_hex(
-    //                     "8aec570c62c400914c069c9149148ffaa67b4c1b9b390becfbc0a840d1d08be9",
-    //                 ).unwrap(),
-    //                 vout: 0,
-    //             },
-    //             sequence: 4294967294,
-    //             script_sig: bitcoin::Script::new(),
-    //             witness: vec![
-    //                 Vec::from_hex(
-    //                     "e71124081020408105d0205a02ba84a2a16a0b505bf409a059f00140b5f0216cd428160168d02d3b8502e05c085c082a16617000b8485c1b808b8005c238409c422a170de0c2e041708e261680a85905c55c304c45c0f830a05b768b8bf8984e20150b10b505c0f800b8d3808a05c238805c13884502c02e2ce182e26e23140b87f160b8a38dc502c02d017000b898e284189862144d4208a058200b907c9213924272485804e490b30b929c94172678d04e39172642e4c85c990b20b405c149289050290502c71150a857216180a05805ab316ad62816ede26b102c02d01701e022e0190a05c1740b810542d5c105c0b58a05805ac2e13c0c5c2348a05c0f8805c13880502e20e2217060a85985c133170ecc502e29e1a27128b8685805a02e061711f1189c385c57c5c28171371489c522a1716f188b8d3898502e27e36170be28140b00b405c53c662e3ee32171ff1b8a05805c63c462e22e33140b89b90a26e150b30b685c3483055c083e228030072640e5905cb41f58a3c100e5dbd20000000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c6327f30952610a8c2a39933a20a415153c4a6236882ce4035e35617dd1c25674dd",
-    //                 ).unwrap(),
-    //             ],
-    //         },
-    //     ],
-    //     output: vec![
-    //         bitcoin::TxOut {
-    //             value: 99997000,
-    //             script_pubkey: bitcoin::Script::from(
-    //                 Vec::from_hex("a914d08bc678885b67bdb8a47978e21ec78561c6ba5e87").unwrap(),
-    //             ),
-    //         }
-    //     ],
-    // };
-    // assert_eq!(
-    //     tx.txid(),
-    //     bitcoin::Txid::from_hex("f6e9efb5e734c4e407a211da6b4fca1890e1c294322331ae0f131538a978b04a").unwrap(),
-    // );
-    // assert_eq!(
-    //     tx.wtxid(),
-    //     bitcoin::Wtxid::from_hex("a70c989a271c49e26f7019500948c95c6a4a210f2b11be078761e01320a4cb0b").unwrap(),
-    // );
+    let tx = bitcoin::Transaction {
+        version: 2,
+        lock_time: 0,
+        input: vec![
+            bitcoin::TxIn {
+                previous_output: bitcoin::OutPoint {
+                    txid: bitcoin::Txid::from_hex(
+                        "8aec570c62c400914c069c9149148ffaa67b4c1b9b390becfbc0a840d1d08be9",
+                    ).unwrap(),
+                    vout: 0,
+                },
+                sequence: 4294967294,
+                script_sig: bitcoin::Script::new(),
+                witness: vec![
+                    Vec::from_hex(
+                        "e71124081020408105d0205a02ba84a2a16a0b505bf409a059f00140b5f0216cd428160168d02d3b8502e05c085c082a16617000b8485c1b808b8005c238409c422a170de0c2e041708e261680a85905c55c304c45c0f830a05b768b8bf8984e20150b10b505c0f800b8d3808a05c238805c13884502c02e2ce182e26e23140b87f160b8a38dc502c02d017000b898e284189862144d4208a058200b907c9213924272485804e490b30b929c94172678d04e39172642e4c85c990b20b405c149289050290502c71150a857216180a05805ab316ad62816ede26b102c02d01701e022e0190a05c1740b810542d5c105c0b58a05805ac2e13c0c5c2348a05c0f8805c13880502e20e2217060a85985c133170ecc502e29e1a27128b8685805a02e061711f1189c385c57c5c28171371489c522a1716f188b8d3898502e27e36170be28140b00b405c53c662e3ee32171ff1b8a05805c63c462e22e33140b89b90a26e150b30b685c3483055c083e228030072640e5905cb41f58a3c100e5dbd20000000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c6327f30952610a8c2a39933a20a415153c4a6236882ce4035e35617dd1c25674dd",
+                    ).unwrap(),
+                ],
+            },
+        ],
+        output: vec![
+            bitcoin::TxOut {
+                value: 99997000,
+                script_pubkey: bitcoin::Script::from(
+                    Vec::from_hex("a914d08bc678885b67bdb8a47978e21ec78561c6ba5e87").unwrap(),
+                ),
+            }
+        ],
+    };
+    assert_eq!(
+        tx.txid(),
+        bitcoin::Txid::from_hex("f6e9efb5e734c4e407a211da6b4fca1890e1c294322331ae0f131538a978b04a")
+            .unwrap(),
+    );
+    assert_eq!(
+        tx.wtxid(),
+        bitcoin::Wtxid::from_hex(
+            "a70c989a271c49e26f7019500948c95c6a4a210f2b11be078761e01320a4cb0b"
+        )
+        .unwrap(),
+    );
 
-    // let txenv = simplicity::extension::bitcoin::TxEnv::from_tx(tx);
-    // let program = simplicity::program::Program::<simplicity::extension::bitcoin::Node>::decode(&mut bits)
-    //     .expect("decoding program");
-    // let exec_node = program.root_node();
+    let txenv = simplicity::extension::bitcoin::TxEnv::from_tx(tx);
+    let program =
+        simplicity::program::Program::<simplicity::extension::bitcoin::Node>::decode(&mut bits)
+            .expect("decoding program");
+    let exec_node = program.root_node();
 
-    // println!("{}", exec_node);
-    // println!("extra cells: {}", exec_node.extra_cells_bound);
-    // println!("frame count: {}", exec_node.frame_count_bound);
+    println!("{}", exec_node);
+    println!("extra cells: {}", exec_node.extra_cells_bound);
+    println!("frame count: {}", exec_node.frame_count_bound);
 
-    // println!("Running program ... warning, this will take several hours even in release mode");
-    // let mut mac = simplicity::exec::BitMachine::for_program(&program);
-    // mac.exec(&program, &txenv);
+    println!("Running program ... warning, this will take several hours even in release mode");
+    let mut mac = simplicity::exec::BitMachine::for_program(&program);
+    mac.exec(&program, &txenv);
 }

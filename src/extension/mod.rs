@@ -28,8 +28,9 @@ use std::{fmt, io};
 
 use bititer::BitIter;
 use cmr::Cmr;
+use encode;
+use exec;
 use Error;
-use {encode, exec};
 
 #[cfg(not(feature = "bitcoin"))]
 pub use self::dummy as bitcoin;

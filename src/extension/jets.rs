@@ -21,9 +21,12 @@
 use std::{fmt, io};
 
 use super::TypeName;
+use bitcoin_hashes::{sha256, Hash, HashEngine};
 use bititer::BitIter;
 use cmr::Cmr;
 use encode;
+use exec;
+use extension;
 use Error;
 
 /// Set of new Simplicity nodes enabled by the Bitcoin extension
@@ -36,6 +39,7 @@ pub enum Node {
     Multiplier32,
     FullMultiplier32,
     Sha256HashBlock,
+    SchnorrAssert,
 }
 
 impl fmt::Display for Node {
@@ -48,48 +52,15 @@ impl fmt::Display for Node {
             Node::Multiplier32 => "multiplier32",
             Node::FullMultiplier32 => "fullmultiplier32",
             Node::Sha256HashBlock => "sha256hashblock",
+            Node::SchnorrAssert => "schnorrassert",
         })
     }
 }
 
-/// Decode a natural number according to section 7.2.1
-/// of the Simplicity whitepaper. Assumes that a 11 has
-/// already been read from the stream
-pub fn decode_node<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Node, Error> {
-    match iter.next() {
-        Some(false) => {
-            let code = match iter.read_bits_be(2) {
-                Some(code) => code,
-                None => return Err(Error::EndOfStream),
-            };
-            match code {
-                0 => match iter.next() {
-                    Some(false) => Ok(Node::Adder32),
-                    Some(true) => Ok(Node::Subtractor32),
-                    None => Err(Error::EndOfStream),
-                },
-                1 => Ok(Node::Multiplier32),
-                2 => match iter.next() {
-                    Some(false) => Ok(Node::FullAdder32),
-                    Some(true) => Ok(Node::FullSubtractor32),
-                    None => Err(Error::EndOfStream),
-                },
-                3 => Ok(Node::FullMultiplier32),
-                _ => unreachable!(),
-            }
-        }
-        Some(true) => match iter.next() {
-            Some(false) => Ok(Node::Sha256HashBlock),
-            Some(true) => Err(Error::ParseError("invalid parse 1111")),
-            None => Err(Error::EndOfStream),
-        },
-        None => Err(Error::EndOfStream),
-    }
-}
-
-impl Node {
+impl extension::Node for Node {
+    type TxEnv = ();
     /// Name of the source type for this node
-    pub fn source_type(&self) -> TypeName {
+    fn source_type(&self) -> TypeName {
         match *self {
             Node::Adder32 => TypeName(b"l"),
             Node::FullAdder32 => TypeName(b"*l2"),
@@ -98,11 +69,12 @@ impl Node {
             Node::Multiplier32 => TypeName(b"l"),
             Node::FullMultiplier32 => TypeName(b"*ll"),
             Node::Sha256HashBlock => TypeName(b"*h*hh"),
+            Node::SchnorrAssert => TypeName(b"*h*hh"),
         }
     }
 
     /// Name of the target type for this node
-    pub fn target_type(&self) -> TypeName {
+    fn target_type(&self) -> TypeName {
         match *self {
             Node::Adder32 => TypeName(b"*2i"),
             Node::FullAdder32 => TypeName(b"*2i"),
@@ -111,11 +83,12 @@ impl Node {
             Node::Multiplier32 => TypeName(b"l"),
             Node::FullMultiplier32 => TypeName(b"l"),
             Node::Sha256HashBlock => TypeName(b"h"),
+            Node::SchnorrAssert => TypeName(b"1"),
         }
     }
 
     /// CMR for this node
-    pub fn cmr(&self) -> Cmr {
+    fn cmr(&self) -> Cmr {
         let cmr = Cmr::new(b"Simplicity\x1fJet");
         match *self {
             Node::Adder32 => cmr.update_1(Cmr::from([
@@ -153,11 +126,16 @@ impl Node {
                 0xb0, 0x89, 0xfd, 0xea, 0xdf, 0x1b, 0x9b, 0xb3, 0x82, 0xec, 0x6e, 0x69, 0x71, 0x9d,
                 0x31, 0xba, 0xec, 0x9a,
             ])),
+            Node::SchnorrAssert => cmr.update_1(Cmr::from([
+                0xee, 0xae, 0x47, 0xe2, 0xf7, 0x87, 0x6c, 0x3b, 0x9c, 0xbc, 0xd4, 0x04, 0xa3, 0x38,
+                0xb0, 0x89, 0xfd, 0xea, 0xdf, 0x1b, 0x9b, 0xb3, 0x82, 0xec, 0x6e, 0x69, 0x71, 0x9d,
+                0x31, 0xba, 0xec, 0x9b, //only last `a` changed to `b` from sha2 cmr
+            ])),
         }
     }
 
     /// Encode the node into a bitstream
-    pub fn encode_node<W: encode::BitWrite>(&self, w: &mut W) -> io::Result<usize> {
+    fn encode<W: encode::BitWrite>(&self, w: &mut W) -> io::Result<usize> {
         match *self {
             Node::Adder32 => w.write_u8(48 + 0, 6),
             Node::Subtractor32 => w.write_u8(48 + 1, 6),
@@ -166,6 +144,105 @@ impl Node {
             Node::FullSubtractor32 => w.write_u8(48 + 3, 6),
             Node::FullMultiplier32 => w.write_u8(24 + 3, 5),
             Node::Sha256HashBlock => w.write_u8(14, 4),
+            Node::SchnorrAssert => w.write_u8(14, 4),
+        }
+    }
+
+    /// Decode a natural number according to section 7.2.1
+    /// of the Simplicity whitepaper. Assumes that a 11 has
+    /// already been read from the stream
+    fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Self, Error> {
+        match iter.next() {
+            Some(false) => {
+                let code = match iter.read_bits_be(2) {
+                    Some(code) => code,
+                    None => return Err(Error::EndOfStream),
+                };
+                match code {
+                    0 => match iter.next() {
+                        Some(false) => Ok(Node::Adder32),
+                        Some(true) => Ok(Node::Subtractor32),
+                        None => Err(Error::EndOfStream),
+                    },
+                    1 => Ok(Node::Multiplier32),
+                    2 => match iter.next() {
+                        Some(false) => Ok(Node::FullAdder32),
+                        Some(true) => Ok(Node::FullSubtractor32),
+                        None => Err(Error::EndOfStream),
+                    },
+                    3 => Ok(Node::FullMultiplier32),
+                    _ => unreachable!(),
+                }
+            }
+            Some(true) => match iter.next() {
+                Some(false) => Ok(Node::Sha256HashBlock),
+                Some(true) => Ok(Node::SchnorrAssert),
+                None => Err(Error::EndOfStream),
+            },
+            None => Err(Error::EndOfStream),
+        }
+    }
+
+    fn exec(&self, mac: &mut exec::BitMachine, _tx_env: &Self::TxEnv) {
+        match *self {
+            Node::Adder32 => {
+                let a = mac.read_u32();
+                let b = mac.read_u32();
+                let (res, overflow) = a.overflowing_add(b);
+                mac.write_bit(overflow);
+                mac.write_u32(res);
+            }
+            Node::FullAdder32 => {
+                let a = mac.read_u32();
+                let b = mac.read_u32();
+                let carry = mac.read_bit();
+                let (res, overflow_1) = a.overflowing_add(b);
+                let (res, overflow_2) = res.overflowing_add(carry as u32);
+                mac.write_bit(overflow_1 || overflow_2);
+                mac.write_u32(res);
+            }
+            Node::Subtractor32 => {
+                let a = mac.read_u32();
+                let b = mac.read_u32();
+                let (res, overflow) = a.overflowing_sub(b);
+                mac.write_bit(overflow);
+                mac.write_u32(res);
+            }
+            Node::FullSubtractor32 => {
+                let a = mac.read_u32();
+                let b = mac.read_u32();
+                let carry = mac.read_bit();
+                let (res, overflow_1) = a.overflowing_sub(b);
+                let (res, overflow_2) = res.overflowing_sub(carry as u32);
+                mac.write_bit(overflow_1 || overflow_2);
+                mac.write_u32(res);
+            }
+            Node::Multiplier32 => {
+                let a = mac.read_u32() as u64;
+                let b = mac.read_u32() as u64;
+                mac.write_u64(a * b);
+            }
+            Node::FullMultiplier32 => {
+                let a = mac.read_u32() as u64;
+                let b = mac.read_u32() as u64;
+                let c = mac.read_u32() as u64;
+                let d = mac.read_u32() as u64;
+                mac.write_u64(a * b + c + d);
+            }
+            Node::Sha256HashBlock => {
+                let hash = mac.read_32bytes();
+                let block = mac.read_bytes(64);
+                let sha2_midstate = sha256::Midstate::from_inner(hash);
+                let mut engine = sha256::HashEngine::from_midstate(sha2_midstate, 0);
+                engine.input(&block);
+                let h = sha256::Hash::from_engine(engine).into_inner();
+                mac.write_bytes(&h);
+            }
+            Node::SchnorrAssert => {
+                let _pubkey = mac.read_32bytes();
+                let _sig = mac.read_bytes(64);
+                //Check the signature here later
+            }
         }
     }
 }

@@ -48,8 +48,6 @@ impl<I: Iterator<Item = u8>> Iterator for BitIter<I> {
         if self.read_bits < 8 {
             self.read_bits += 1;
             self.total_read += 1;
-            // dbg!(self.read_bits);
-            // dbg!(self.cached_byte & (1 << (8 - self.read_bits as u8)) != 0);
             Some(self.cached_byte & (1 << (8 - self.read_bits as u8)) != 0)
         } else {
             self.cached_byte = self.iter.next()?;

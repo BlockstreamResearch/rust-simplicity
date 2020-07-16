@@ -25,8 +25,10 @@ use std::{fmt, io};
 use super::TypeName;
 use bititer::BitIter;
 use cmr::Cmr;
+use encode;
+use exec;
+use extension;
 use Error;
-use {encode, exec, extension};
 
 /// Transaction environment for Bitcoin Simplicity programs
 pub struct TxEnv {

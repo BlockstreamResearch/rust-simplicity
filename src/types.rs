@@ -1,9 +1,6 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::sync::Arc;
-use std::{cmp, fmt, mem};
+use std::{cell::RefCell, cmp, fmt, mem, rc::Rc, sync::Arc};
 
-use extension;
+use extension::{self, Node as ExtNode};
 use Error;
 use Node;
 
@@ -31,6 +28,46 @@ pub enum FinalTypeInner {
 pub struct FinalType {
     pub ty: FinalTypeInner,
     pub bit_width: usize,
+}
+
+impl FinalType {
+    pub const fn unit() -> Self {
+        Self {
+            ty: FinalTypeInner::Unit,
+            bit_width: 0,
+        }
+    }
+
+    pub fn sum(a: Arc<Self>, b: Arc<Self>) -> Self {
+        Self {
+            ty: FinalTypeInner::Sum(a.clone(), b.clone()),
+            bit_width: 1 + cmp::max(a.bit_width, b.bit_width),
+        }
+    }
+
+    pub fn prod(a: Arc<Self>, b: Arc<Self>) -> Self {
+        Self {
+            ty: FinalTypeInner::Product(a.clone(), b.clone()),
+            bit_width: a.bit_width + b.bit_width,
+        }
+    }
+}
+
+pub(crate) fn pow2_types() -> [Arc<FinalType>; 10] {
+    let word1 = Arc::new(FinalType::unit());
+    let word2 = Arc::new(FinalType::sum(Arc::clone(&word1), Arc::clone(&word1)));
+    let word4 = Arc::new(FinalType::prod(Arc::clone(&word2), Arc::clone(&word2)));
+    let word8 = Arc::new(FinalType::prod(Arc::clone(&word4), Arc::clone(&word4)));
+    let word16 = Arc::new(FinalType::prod(Arc::clone(&word8), Arc::clone(&word8)));
+    let word32 = Arc::new(FinalType::prod(Arc::clone(&word16), Arc::clone(&word16)));
+    let word64 = Arc::new(FinalType::prod(Arc::clone(&word32), Arc::clone(&word32)));
+    let word128 = Arc::new(FinalType::prod(Arc::clone(&word64), Arc::clone(&word64)));
+    let word256 = Arc::new(FinalType::prod(Arc::clone(&word128), Arc::clone(&word128)));
+    let word512 = Arc::new(FinalType::prod(Arc::clone(&word256), Arc::clone(&word256)));
+
+    [
+        word1, word2, word4, word8, word16, word32, word64, word128, word256, word512,
+    ]
 }
 
 impl fmt::Display for FinalType {
@@ -277,9 +314,6 @@ fn find_root(mut node: RcVar) -> RcVar {
                 node.borrow_mut().var = Variable::EqualTo(grandparent.clone());
             }
         }
-
-        // dbg!(&node);
-        // dbg!(&parent);
         node = parent;
     }
 }
@@ -380,16 +414,17 @@ pub fn type_check<Witness, Ext: extension::Node>(
     let mut finals = Vec::<TypedNode<Witness, Ext>>::with_capacity(program.len());
 
     // Compute most general unifier for all types in the DAG
-    for program_node in &program {
+    for (idx, program_node) in program.iter().enumerate() {
         let node = UnificationArrow {
             source: Rc::new(RefCell::new(UnificationVar::free())),
             target: Rc::new(RefCell::new(UnificationVar::free())),
         };
 
-        match *program_node {
+        match program_node {
             Node::Iden => unify(node.source.clone(), node.target.clone())?,
             Node::Unit => bind(&node.target, Type::Unit)?,
             Node::InjL(i) => {
+                let i = idx - i;
                 unify(node.source.clone(), rcs[i].source.clone())?;
                 let target_type = Type::Sum(
                     rcs[i].target.clone(),
@@ -398,6 +433,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
                 bind(&node.target, target_type)?;
             }
             Node::InjR(i) => {
+                let i = idx - i;
                 unify(node.source.clone(), rcs[i].source.clone())?;
                 let target_type = Type::Sum(
                     Rc::new(RefCell::new(UnificationVar::free())),
@@ -406,6 +442,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
                 bind(&node.target, target_type)?;
             }
             Node::Take(i) => {
+                let i = idx - i;
                 unify(node.target.clone(), rcs[i].target.clone())?;
                 let target_type = Type::Product(
                     rcs[i].source.clone(),
@@ -414,6 +451,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
                 bind(&node.source, target_type)?;
             }
             Node::Drop(i) => {
+                let i = idx - i;
                 unify(node.target.clone(), rcs[i].target.clone())?;
                 let target_type = Type::Product(
                     Rc::new(RefCell::new(UnificationVar::free())),
@@ -422,11 +460,13 @@ pub fn type_check<Witness, Ext: extension::Node>(
                 bind(&node.source, target_type)?;
             }
             Node::Comp(i, j) => {
+                let (i, j) = (idx - i, idx - j);
                 unify(node.source.clone(), rcs[i].source.clone())?;
                 unify(rcs[i].target.clone(), rcs[j].source.clone())?;
                 unify(node.target.clone(), rcs[j].target.clone())?;
             }
             Node::Case(i, j) => {
+                let (i, j) = (idx - i, idx - j);
                 let var1 = Rc::new(RefCell::new(UnificationVar::free()));
                 let var2 = Rc::new(RefCell::new(UnificationVar::free()));
                 let var3 = Rc::new(RefCell::new(UnificationVar::free()));
@@ -455,6 +495,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
                 }
             }
             Node::Pair(i, j) => {
+                let (i, j) = (idx - i, idx - j);
                 unify(node.source.clone(), rcs[i].source.clone())?;
                 unify(node.source.clone(), rcs[j].source.clone())?;
                 bind(
@@ -463,6 +504,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
                 )?;
             }
             Node::Disconnect(i, j) => {
+                let (i, j) = (idx - i, idx - j);
                 // See chapter 6 (Delegation) of TR
                 // Be careful, this order changed! https://github.com/ElementsProject/simplicity/pull/46
                 let var_a = Rc::new(RefCell::new(UnificationVar::free()));
