@@ -4,8 +4,8 @@ use std::sync::Arc;
 use std::{cmp, fmt, mem};
 
 use extension;
-use Node;
 use Error;
+use Node;
 
 #[derive(Clone, Debug)]
 enum Type {
@@ -27,7 +27,7 @@ pub enum FinalTypeInner {
     Product(Arc<FinalType>, Arc<FinalType>),
 }
 
- #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct FinalType {
     pub ty: FinalTypeInner,
     pub bit_width: usize,
@@ -43,7 +43,7 @@ impl fmt::Display for FinalType {
                 } else {
                     write!(f, "({} + {})", a, b)
                 }
-            },
+            }
             FinalTypeInner::Product(ref a, ref b) => {
                 let a_str = format!("{}", a);
                 let b_str = format!("{}", b);
@@ -114,7 +114,7 @@ impl FinalType {
                     ty: FinalTypeInner::Unit,
                     bit_width: 0,
                 })
-            },
+            }
             Variable::Bound(..) => {
                 drop(sub1_borr);
                 FinalType::from_var(sub1.clone())?
@@ -224,7 +224,7 @@ fn bind(rcvar: &RcVar, ty: Type) -> Result<(), Error> {
         Variable::Free => {
             rcvar.borrow_mut().var = Variable::Bound(ty, false);
             Ok(())
-        },
+        }
         Variable::EqualTo(..) => unreachable!(
             "Tried to bind unification variable which was not \
              the representative of its equivalence class"
@@ -233,13 +233,13 @@ fn bind(rcvar: &RcVar, ty: Type) -> Result<(), Error> {
         Variable::Bound(self_ty, _) => match (self_ty, ty) {
             (Type::Unit, Type::Unit) => Ok(()),
             (Type::Sum(al1, al2), Type::Sum(be1, be2))
-                | (Type::Product(al1, al2), Type::Product(be1, be2)) => {
+            | (Type::Product(al1, al2), Type::Product(be1, be2)) => {
                 unify(al1, be1)?;
                 unify(al2, be2)
-            },
+            }
             // FIXME output a sane error
             _ => {
-//            (a, b) => {
+                //            (a, b) => {
                 /*
                 let self_s = match a {
                     Type::Unit => "unit",
@@ -334,7 +334,7 @@ fn type_from_name<I: Iterator<Item = u8>>(n: &mut I, pow2s: &[RcVar]) -> Type {
         Some(b'2') => {
             let unit = Type::Unit.into_rcvar();
             Type::Sum(unit.clone(), unit)
-        },
+        }
         Some(b'i') => Type::Product(pow2s[4].clone(), pow2s[4].clone()),
         Some(b'l') => Type::Product(pow2s[5].clone(), pow2s[5].clone()),
         Some(b'h') => Type::Product(pow2s[7].clone(), pow2s[7].clone()),
@@ -371,8 +371,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
     let two_256 = Type::Product(two_128.clone(), two_128.clone()).into_rcvar();
     // pow2s[i] = 2^(2^i)
     let pow2s = [
-        two_1, two_2, two_4, two_8,
-        two_16, two_32, two_64, two_128, two_256,
+        two_1, two_2, two_4, two_8, two_16, two_32, two_64, two_128, two_256,
     ];
 
     let mut rcs = Vec::<Rc<UnificationArrow>>::with_capacity(program.len());
@@ -480,21 +479,33 @@ pub fn type_check<Witness, Ext: extension::Node>(
 
                 unify(rcs[j].source.clone(), var_c)?;
                 unify(rcs[j].target.clone(), var_d)?;
-            },
+            }
             Node::Witness(..) => {
                 // No type constraints
-            },
+            }
             Node::Hidden(..) => {
                 // No type constraints
-            },
+            }
             Node::Ext(ref bn) => {
-                bind(&node.source, type_from_name(&mut bn.source_type(), &pow2s[..]))?;
-                bind(&node.target, type_from_name(&mut bn.target_type(), &pow2s[..]))?;
-            },
+                bind(
+                    &node.source,
+                    type_from_name(&mut bn.source_type(), &pow2s[..]),
+                )?;
+                bind(
+                    &node.target,
+                    type_from_name(&mut bn.target_type(), &pow2s[..]),
+                )?;
+            }
             Node::Jet(ref jt) => {
-                bind(&node.source, type_from_name(&mut jt.source_type(), &pow2s[..]))?;
-                bind(&node.target, type_from_name(&mut jt.target_type() , &pow2s[..]))?;
-            },
+                bind(
+                    &node.source,
+                    type_from_name(&mut jt.source_type(), &pow2s[..]),
+                )?;
+                bind(
+                    &node.target,
+                    type_from_name(&mut jt.target_type(), &pow2s[..]),
+                )?;
+            }
             Node::Fail(..) => unimplemented!("Cannot typecheck a program with `Fail` in it"),
         };
 
