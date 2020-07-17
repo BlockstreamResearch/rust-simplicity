@@ -19,8 +19,8 @@
 
 use std::{fmt, io};
 
-use bititer::BitIter;
 use super::TypeName;
+use bititer::BitIter;
 use Error;
 use {cmr, encode, exec, extension};
 
@@ -29,19 +29,17 @@ pub struct TxEnv;
 
 /// Dummy extension provides no combinators and cannot be constructed
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub enum Node { }
+pub enum Node {}
 
 impl extension::Node for Node {
     type TxEnv = TxEnv;
 
-    fn decode<I: Iterator<Item = u8>>(
-        _: &mut BitIter<I>,
-    ) -> Result<Node, Error> {
+    fn decode<I: Iterator<Item = u8>>(_: &mut BitIter<I>) -> Result<Node, Error> {
         Err(Error::ParseError("[unavailable extension]"))
     }
 
     fn source_type(&self) -> TypeName {
-        match *self {}  // lol rust
+        match *self {} // lol rust
     }
 
     fn target_type(&self) -> TypeName {
@@ -66,4 +64,3 @@ impl fmt::Display for Node {
         match *self {}
     }
 }
-

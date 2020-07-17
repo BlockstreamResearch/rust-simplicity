@@ -20,12 +20,12 @@
 //! can with Bitcoin Script.
 //!
 
-use std::{mem, io};
+use std::{io, mem};
 
 use bititer::BitIter;
+use cmr;
 use extension::{self, jets};
 use {Error, Node};
-use cmr;
 
 /// Trait for writing individual bits to some sink
 pub trait BitWrite {
@@ -163,12 +163,10 @@ pub fn decode_node_no_witness<I: Iterator<Item = u8>, Ext: extension::Node>(
 ) -> Result<Node<(), Ext>, Error> {
     match iter.next() {
         None => Err(Error::EndOfStream),
-        Some(true) => {
-            match iter.next() {
-                None => Err(Error::EndOfStream),
-                Some(false) => Ok(Node::Ext(extension::Node::decode(iter)?)),
-                Some(true) =>  Ok(Node::Jet(jets::decode_node(iter)?)),
-            }
+        Some(true) => match iter.next() {
+            None => Err(Error::EndOfStream),
+            Some(false) => Ok(Node::Ext(extension::Node::decode(iter)?)),
+            Some(true) => Ok(Node::Jet(jets::decode_node(iter)?)),
         },
         Some(false) => {
             let code = match iter.read_bits_be(2) {
@@ -181,33 +179,45 @@ pub fn decode_node_no_witness<I: Iterator<Item = u8>, Ext: extension::Node>(
             };
             match (code, subcode) {
                 (0, 0) => Ok(Node::Comp(
-                    idx.checked_sub(decode_natural(&mut *iter)?).ok_or(Error::BadIndex)?,
-                    idx.checked_sub(decode_natural(iter)?).ok_or(Error::BadIndex)?,
+                    idx.checked_sub(decode_natural(&mut *iter)?)
+                        .ok_or(Error::BadIndex)?,
+                    idx.checked_sub(decode_natural(iter)?)
+                        .ok_or(Error::BadIndex)?,
                 )),
                 // FIXME `Case` should check for asserts and reject if both children are hidden
                 (0, 1) => Ok(Node::Case(
-                    idx.checked_sub(decode_natural(&mut *iter)?).ok_or(Error::BadIndex)?,
-                    idx.checked_sub(decode_natural(iter)?).ok_or(Error::BadIndex)?,
+                    idx.checked_sub(decode_natural(&mut *iter)?)
+                        .ok_or(Error::BadIndex)?,
+                    idx.checked_sub(decode_natural(iter)?)
+                        .ok_or(Error::BadIndex)?,
                 )),
                 (0, 2) => Ok(Node::Pair(
-                    idx.checked_sub(decode_natural(&mut *iter)?).ok_or(Error::BadIndex)?,
-                    idx.checked_sub(decode_natural(iter)?).ok_or(Error::BadIndex)?,
+                    idx.checked_sub(decode_natural(&mut *iter)?)
+                        .ok_or(Error::BadIndex)?,
+                    idx.checked_sub(decode_natural(iter)?)
+                        .ok_or(Error::BadIndex)?,
                 )),
                 (0, 3) => Ok(Node::Disconnect(
-                    idx.checked_sub(decode_natural(&mut *iter)?).ok_or(Error::BadIndex)?,
-                    idx.checked_sub(decode_natural(iter)?).ok_or(Error::BadIndex)?,
+                    idx.checked_sub(decode_natural(&mut *iter)?)
+                        .ok_or(Error::BadIndex)?,
+                    idx.checked_sub(decode_natural(iter)?)
+                        .ok_or(Error::BadIndex)?,
                 )),
                 (1, 0) => Ok(Node::InjL(
-                    idx.checked_sub(decode_natural(iter)?).ok_or(Error::BadIndex)?,
+                    idx.checked_sub(decode_natural(iter)?)
+                        .ok_or(Error::BadIndex)?,
                 )),
                 (1, 1) => Ok(Node::InjR(
-                    idx.checked_sub(decode_natural(iter)?).ok_or(Error::BadIndex)?,
+                    idx.checked_sub(decode_natural(iter)?)
+                        .ok_or(Error::BadIndex)?,
                 )),
                 (1, 2) => Ok(Node::Take(
-                    idx.checked_sub(decode_natural(iter)?).ok_or(Error::BadIndex)?,
+                    idx.checked_sub(decode_natural(iter)?)
+                        .ok_or(Error::BadIndex)?,
                 )),
                 (1, 3) => Ok(Node::Drop(
-                    idx.checked_sub(decode_natural(iter)?).ok_or(Error::BadIndex)?,
+                    idx.checked_sub(decode_natural(iter)?)
+                        .ok_or(Error::BadIndex)?,
                 )),
                 (2, 0) => Ok(Node::Iden),
                 (2, 1) => Ok(Node::Unit),
@@ -225,7 +235,7 @@ pub fn decode_node_no_witness<I: Iterator<Item = u8>, Ext: extension::Node>(
                         }
                     }
                     Ok(Node::Hidden(cmr::Cmr::from(h)))
-                },
+                }
                 (3, 1) => Ok(Node::Witness(())),
                 (_, _) => unreachable!("we read only so many bits"),
             }
@@ -244,25 +254,25 @@ pub fn encode_node_no_witness<T, W: BitWrite, Ext: extension::Node>(
                 + encode_natural(index - i, &mut *writer)?
                 + encode_natural(index - j, &mut *writer)?;
             Ok(ret)
-        },
+        }
         Node::Case(i, j) => {
             let ret = writer.write_u8(1, 5)?
                 + encode_natural(index - i, &mut *writer)?
                 + encode_natural(index - j, &mut *writer)?;
             Ok(ret)
-        },
+        }
         Node::Pair(i, j) => {
             let ret = writer.write_u8(2, 5)?
                 + encode_natural(index - i, &mut *writer)?
                 + encode_natural(index - j, &mut *writer)?;
             Ok(ret)
-        },
+        }
         Node::Disconnect(i, j) => {
             let ret = writer.write_u8(3, 5)?
                 + encode_natural(index - i, &mut *writer)?
                 + encode_natural(index - j, &mut *writer)?;
             Ok(ret)
-        },
+        }
         Node::InjL(i) => Ok(writer.write_u8(4, 5)? + encode_natural(index - i, &mut *writer)?),
         Node::InjR(i) => Ok(writer.write_u8(5, 5)? + encode_natural(index - i, &mut *writer)?),
         Node::Take(i) => Ok(writer.write_u8(6, 5)? + encode_natural(index - i, &mut *writer)?),
@@ -276,7 +286,7 @@ pub fn encode_node_no_witness<T, W: BitWrite, Ext: extension::Node>(
                 len += writer.write_u8(*byte, 8)?;
             }
             Ok(len)
-        },
+        }
         Node::Witness(..) => writer.write_u8(7, 4),
         Node::Ext(ref b) => extension::Node::encode(b, writer),
         Node::Jet(ref j) => j.encode_node(writer),
@@ -303,10 +313,7 @@ pub fn decode_program_no_witness<I: Iterator<Item = u8>, Ext: extension::Node>(
 
 /// Encode a natural number according to section 7.2.1 of the Simplicity tech
 /// report. Returns the length of the written number, in bits
-pub fn encode_natural<W: BitWrite>(
-    n: usize,
-    writer: &mut W,
-) -> io::Result<usize> {
+pub fn encode_natural<W: BitWrite>(n: usize, writer: &mut W) -> io::Result<usize> {
     assert_ne!(n, 0); // Cannot encode zero
     let n_start = writer.n_written();
     let len = 8 * mem::size_of::<usize>() - n.leading_zeros() as usize - 1;
@@ -454,16 +461,14 @@ mod tests {
 
             // Encode/decode bitwise
             let mut encode = Vec::<bool>::new();
-            encode_natural(target, &mut encode)
-                .expect("encoding to a Vec");
+            encode_natural(target, &mut encode).expect("encoding to a Vec");
             assert_eq!(encode, vec);
             let decode = decode_natural(vec.into_iter()).unwrap();
             assert_eq!(target, decode);
 
             // Encode/decode bytewise
             let mut w = BitWriter::new(Vec::<u8>::new());
-            encode_natural(target, &mut w)
-                .expect("encoding to a Vec");
+            encode_natural(target, &mut w).expect("encoding to a Vec");
             w.flush_all().expect("flushing");
             assert_eq!(w.n_written(), len);
             let r = BitIter::new(w.into_inner().into_iter());
@@ -473,4 +478,3 @@ mod tests {
         }
     }
 }
-

@@ -19,13 +19,13 @@
 //! data.
 //!
 
-use std::{cmp, fmt};
 use std::sync::Arc;
+use std::{cmp, fmt};
 
-use {Error, Node, Value};
 use bititer::BitIter;
 use cmr::{self, Cmr};
 use {encode, extension, types};
+use {Error, Node, Value};
 
 /// A node in a complete program, with associated metadata
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -85,9 +85,7 @@ impl<Ext: extension::Node> Program<Ext> {
     }
 
     /// Decode a program from a stream of bits
-    pub fn decode<I: Iterator<Item = u8>>(
-        iter: &mut BitIter<I>,
-    ) -> Result<Program<Ext>, Error> {
+    pub fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Program<Ext>, Error> {
         // Decode a bunch of untyped, witness-less nodes
         let nodes = encode::decode_program_no_witness(&mut *iter)?;
 
@@ -104,30 +102,33 @@ impl<Ext: extension::Node> Program<Ext> {
 
         let typed_nodes = typed_nodes
             .into_iter()
-            .map(|node| Ok(types::TypedNode {
-                node: match node.node {
-                    // really, Rust???
-                    Node::Iden => Node::Iden,
-                    Node::Unit => Node::Unit,
-                    Node::InjL(i) => Node::InjL(i),
-                    Node::InjR(i) => Node::InjR(i),
-                    Node::Take(i) => Node::Take(i),
-                    Node::Drop(i) => Node::Drop(i),
-                    Node::Comp(i, j) => Node::Comp(i, j),
-                    Node::Case(i, j) => Node::Case(i, j),
-                    Node::Pair(i, j) => Node::Pair(i, j),
-                    Node::Disconnect(i, j) => Node::Disconnect(i, j),
-                    Node::Witness(()) => Node::Witness(
-                        Value::from_witness(&mut iter.by_ref().take(wit_len), &node.target_ty)?
-                    ),
-                    Node::Fail(x, y) => Node::Fail(x, y),
-                    Node::Hidden(x) => Node::Hidden(x),
-                    Node::Ext(e) => Node::Ext(e),
-                    Node::Jet(j) => Node::Jet(j),
-                },
-                source_ty: node.source_ty,
-                target_ty: node.target_ty,
-            }))
+            .map(|node| {
+                Ok(types::TypedNode {
+                    node: match node.node {
+                        // really, Rust???
+                        Node::Iden => Node::Iden,
+                        Node::Unit => Node::Unit,
+                        Node::InjL(i) => Node::InjL(i),
+                        Node::InjR(i) => Node::InjR(i),
+                        Node::Take(i) => Node::Take(i),
+                        Node::Drop(i) => Node::Drop(i),
+                        Node::Comp(i, j) => Node::Comp(i, j),
+                        Node::Case(i, j) => Node::Case(i, j),
+                        Node::Pair(i, j) => Node::Pair(i, j),
+                        Node::Disconnect(i, j) => Node::Disconnect(i, j),
+                        Node::Witness(()) => Node::Witness(Value::from_witness(
+                            &mut iter.by_ref().take(wit_len),
+                            &node.target_ty,
+                        )?),
+                        Node::Fail(x, y) => Node::Fail(x, y),
+                        Node::Hidden(x) => Node::Hidden(x),
+                        Node::Ext(e) => Node::Ext(e),
+                        Node::Jet(j) => Node::Jet(j),
+                    },
+                    source_ty: node.source_ty,
+                    target_ty: node.target_ty,
+                })
+            })
             .collect::<Result<Vec<_>, _>>()?;
 
         // Compute cached data and return
@@ -149,9 +150,7 @@ impl<Ext: extension::Node> Program<Ext> {
             ret.push(final_node);
         }
 
-        Ok(Program {
-            nodes: ret,
-        })
+        Ok(Program { nodes: ret })
     }
 
     /// Print out the program in a graphviz-parseable format
@@ -182,15 +181,17 @@ impl<Ext: extension::Node> Program<Ext> {
                 node.target_ty,
             );
             match node.node {
-                Node::Iden | Node::Unit | Node::Witness(..) | Node::Hidden(..) | Node::Fail(..) | Node::Ext(..) | Node::Jet(..) => {
-                }
+                Node::Iden
+                | Node::Unit
+                | Node::Witness(..)
+                | Node::Hidden(..)
+                | Node::Fail(..)
+                | Node::Ext(..)
+                | Node::Jet(..) => {}
                 Node::InjL(i) | Node::InjR(i) | Node::Take(i) | Node::Drop(i) => {
                     println!("  {} -> {};", node.index, i);
                 }
-                Node::Comp(i, j)
-                | Node::Case(i, j)
-                | Node::Pair(i, j)
-                | Node::Disconnect(i, j) => {
+                Node::Comp(i, j) | Node::Case(i, j) | Node::Pair(i, j) | Node::Disconnect(i, j) => {
                     println!("  {} -> {} [color=red];", node.index, i);
                     println!("  {} -> {} [color=blue];", node.index, j);
                 }
@@ -199,10 +200,7 @@ impl<Ext: extension::Node> Program<Ext> {
     }
 }
 
-fn compute_cmr<Ext: extension::Node>(
-    program: &[ProgramNode<Ext>],
-    node: &Node<Value, Ext>,
-) -> Cmr {
+fn compute_cmr<Ext: extension::Node>(program: &[ProgramNode<Ext>], node: &Node<Value, Ext>) -> Cmr {
     match *node {
         Node::Iden => cmr::tag::iden(),
         Node::Unit => cmr::tag::unit(),
@@ -234,25 +232,17 @@ fn compute_extra_cells_bound<Ext: extension::Node>(
         Node::InjR(i) => program[i].extra_cells_bound,
         Node::Take(i) => program[i].extra_cells_bound,
         Node::Drop(i) => program[i].extra_cells_bound,
-        Node::Comp(i, j) => program[i].target_ty.bit_width()
-            + cmp::max(
-                program[i].extra_cells_bound,
-                program[j].extra_cells_bound,
-            ),
-        Node::Case(i, j) => cmp::max(
-            program[i].extra_cells_bound,
-            program[j].extra_cells_bound,
-        ),
-        Node::Pair(i, j) => cmp::max(
-            program[i].extra_cells_bound,
-            program[j].extra_cells_bound,
-        ),
-        Node::Disconnect(i, j) => program[i].source_ty.bit_width()
-            + program[i].target_ty.bit_width()
-            + cmp::max(
-                program[i].extra_cells_bound,
-                program[j].extra_cells_bound,
-            ),
+        Node::Comp(i, j) => {
+            program[i].target_ty.bit_width()
+                + cmp::max(program[i].extra_cells_bound, program[j].extra_cells_bound)
+        }
+        Node::Case(i, j) => cmp::max(program[i].extra_cells_bound, program[j].extra_cells_bound),
+        Node::Pair(i, j) => cmp::max(program[i].extra_cells_bound, program[j].extra_cells_bound),
+        Node::Disconnect(i, j) => {
+            program[i].source_ty.bit_width()
+                + program[i].target_ty.bit_width()
+                + cmp::max(program[i].extra_cells_bound, program[j].extra_cells_bound)
+        }
         Node::Witness(..) => witness_target_width,
         Node::Fail(..) => unimplemented!(),
         Node::Hidden(..) => 0,
@@ -272,24 +262,14 @@ fn compute_frame_count_bound<Ext: extension::Node>(
         Node::InjR(i) => program[i].frame_count_bound,
         Node::Take(i) => program[i].frame_count_bound,
         Node::Drop(i) => program[i].frame_count_bound,
-        Node::Comp(i, j) => 1
-            + cmp::max(
-                program[i].frame_count_bound,
-                program[j].frame_count_bound,
-            ),
-        Node::Case(i, j) => cmp::max(
-            program[i].frame_count_bound,
-            program[j].frame_count_bound,
-        ),
-        Node::Pair(i, j) => cmp::max(
-            program[i].frame_count_bound,
-            program[j].frame_count_bound,
-        ),
-        Node::Disconnect(i, j) => 2
-            + cmp::max(
-                program[i].frame_count_bound,
-                program[j].frame_count_bound,
-            ),
+        Node::Comp(i, j) => {
+            1 + cmp::max(program[i].frame_count_bound, program[j].frame_count_bound)
+        }
+        Node::Case(i, j) => cmp::max(program[i].frame_count_bound, program[j].frame_count_bound),
+        Node::Pair(i, j) => cmp::max(program[i].frame_count_bound, program[j].frame_count_bound),
+        Node::Disconnect(i, j) => {
+            2 + cmp::max(program[i].frame_count_bound, program[j].frame_count_bound)
+        }
         Node::Witness(..) => 0,
         Node::Fail(..) => unimplemented!(),
         Node::Hidden(..) => 0,
@@ -303,8 +283,8 @@ mod tests {
     use super::*;
 
     use bititer::BitIter;
-    use Node;
     use extension::dummy::Node as DummyNode;
+    use Node;
 
     #[test]
     fn unit_prog() {
@@ -345,4 +325,3 @@ mod tests {
         );
     }
 }
-
