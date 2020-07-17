@@ -53,9 +53,10 @@ impl FinalType {
     }
 }
 
-pub(crate) fn pow2_types() -> [Arc<FinalType>; 10] {
-    let word1 = Arc::new(FinalType::unit());
-    let word2 = Arc::new(FinalType::sum(Arc::clone(&word1), Arc::clone(&word1)));
+pub(crate) fn pow2_types() -> [Arc<FinalType>; 11] {
+    let word0 = Arc::new(FinalType::unit());
+    let word1 = Arc::new(FinalType::sum(Arc::clone(&word0), Arc::clone(&word0)));
+    let word2 = Arc::new(FinalType::prod(Arc::clone(&word1), Arc::clone(&word1)));
     let word4 = Arc::new(FinalType::prod(Arc::clone(&word2), Arc::clone(&word2)));
     let word8 = Arc::new(FinalType::prod(Arc::clone(&word4), Arc::clone(&word4)));
     let word16 = Arc::new(FinalType::prod(Arc::clone(&word8), Arc::clone(&word8)));
@@ -66,7 +67,7 @@ pub(crate) fn pow2_types() -> [Arc<FinalType>; 10] {
     let word512 = Arc::new(FinalType::prod(Arc::clone(&word256), Arc::clone(&word256)));
 
     [
-        word1, word2, word4, word8, word16, word32, word64, word128, word256, word512,
+        word0, word1, word2, word4, word8, word16, word32, word64, word128, word256, word512,
     ]
 }
 
@@ -322,6 +323,9 @@ fn unify(mut alpha: RcVar, mut beta: RcVar) -> Result<(), Error> {
     alpha = find_root(alpha);
     beta = find_root(beta);
 
+    // println!("{} alpha",FinalType::from_var(alpha.clone())?);
+    // println!("{} beta",FinalType::from_var(beta.clone())?);
+
     // Already unified, done
     if Rc::ptr_eq(&alpha, &beta) {
         return Ok(());
@@ -339,6 +343,7 @@ fn unify(mut alpha: RcVar, mut beta: RcVar) -> Result<(), Error> {
         let mut be_borr = beta.borrow_mut();
         mem::replace(&mut be_borr.var, Variable::EqualTo(alpha.clone()))
     };
+    // dbg!(&be_var);
     match be_var {
         Variable::Free => {} // nothing to do
         Variable::Bound(be_type, _) => bind(&alpha, be_type)?,
@@ -415,6 +420,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
 
     // Compute most general unifier for all types in the DAG
     for (idx, program_node) in program.iter().enumerate() {
+        dbg!((idx, program.len()));
         let node = UnificationArrow {
             source: Rc::new(RefCell::new(UnificationVar::free())),
             target: Rc::new(RefCell::new(UnificationVar::free())),
@@ -462,8 +468,20 @@ pub fn type_check<Witness, Ext: extension::Node>(
             Node::Comp(i, j) => {
                 let (i, j) = (idx - i, idx - j);
                 unify(node.source.clone(), rcs[i].source.clone())?;
+                // println!("{} comp i src",FinalType::from_var(rcs[i].source.clone())?);
+                // println!("{} comp i tar",FinalType::from_var(rcs[i].target.clone())?);
+                // println!("{} comp j src",FinalType::from_var(rcs[j].source.clone())?);
+                // println!("{} comp j tar",FinalType::from_var(rcs[j].target.clone())?);
+
                 unify(rcs[i].target.clone(), rcs[j].source.clone())?;
+
+                // println!("{} comp",FinalType::from_var(node.source.clone())?);
+                // println!("{} comp",FinalType::from_var(node.target.clone())?);
+
                 unify(node.target.clone(), rcs[j].target.clone())?;
+
+                // println!("{} comp",FinalType::from_var(node.source.clone())?);
+                // println!("{} comp",FinalType::from_var(node.target.clone())?);
             }
             Node::Case(i, j) => {
                 let (i, j) = (idx - i, idx - j);
@@ -502,6 +520,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
                     &node.target,
                     Type::Product(rcs[i].target.clone(), rcs[j].target.clone()),
                 )?;
+                // println!("{} pair",FinalType::from_var(Type::Product(rcs[i].target.clone(), rcs[j].target.clone()).into_rcvar())?);
             }
             Node::Disconnect(i, j) => {
                 let (i, j) = (idx - i, idx - j);
@@ -541,10 +560,12 @@ pub fn type_check<Witness, Ext: extension::Node>(
                 )?;
             }
             Node::Jet(ref jt) => {
+                // println!("{}",FinalType::from_var(type_from_name(&mut jt.source_type().clone(), &pow2s).into_rcvar())?);
                 bind(
                     &node.source,
                     type_from_name(&mut jt.source_type(), &pow2s[..]),
                 )?;
+
                 bind(
                     &node.target,
                     type_from_name(&mut jt.target_type(), &pow2s[..]),

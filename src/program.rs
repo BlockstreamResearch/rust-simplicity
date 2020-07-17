@@ -220,7 +220,7 @@ impl<Ext: extension::Node> Program<Ext> {
                         Node::Pair(i, j) => Node::Pair(i, j),
                         Node::Disconnect(i, j) => Node::Disconnect(i, j),
                         Node::Witness(()) => Node::Witness(Value::from_bits_and_type(
-                            &mut iter.by_ref().take(wit_len),
+                            &mut iter.by_ref(),
                             &node.target_ty,
                         )?),
                         Node::Fail(x, y) => Node::Fail(x, y),

@@ -61,12 +61,14 @@ pub enum Policy<Pk: MiniscriptKey> {
     /// A set of sub-policies, satisfactions must be provided for `k` of them
     Threshold(usize, Vec<Policy<Pk>>),
 }
-
 impl<Pk: MiniscriptKey + To32BytePubKey> Policy<Pk> {
     /// Compile a policy into a simplicity frgament
     pub fn compile<Ext: ExtNode>(&self) -> Result<Vec<Node<(), Ext>>, Error> {
         compiler::compile(&self)
     }
+}
+
+impl<Pk: MiniscriptKey> Policy<Pk> {
 
     /// Convert a policy using one kind of public key to another
     /// type of public key
@@ -340,19 +342,56 @@ impl<Pk: MiniscriptKey> Policy<Pk> {
     }
 }
 
-// #[cfg(test)]
-// mod tests{
-//     use super::*;
-//     use DummyKey;
-//     use std::str::FromStr;
-//     use extension::{
-//         dummy::{Node as DummyNode, TxEnv},
-//         jets::Node as JetsNode,
-//     };
+#[cfg(test)]
+mod tests{
+    use super::*;
+    use DummyKey;
+    use std::str::FromStr;
+    use Value;
+    use program::Program;
+    use bititer::BitIter;
+    use extension::{
+        dummy::{Node as DummyNode, TxEnv}
+    };
+    use exec;
 
-//     #[test]
-//     fn basic_compile(){
-//         let pol = Policy::<DummyKey>::from_str("pk()").unwrap();
-//         compiler::compile::<DummyKey, DummyNode>(&pol);
-//     }
-// }
+    fn compile_and_exec(pol: &str, witness: Vec<u8>){
+
+        // A single pk compilation
+        let pol = Policy::<DummyKey>::from_str(pol).unwrap();
+        let prog : Vec<Node<_ , DummyNode>> = pol.compile().unwrap();
+
+        let prog = Program::from_untyped_nodes(prog, &mut BitIter::from(witness.into_iter())).unwrap();
+        // prog.graph_print();
+
+        let mut mac = exec::BitMachine::for_program(&prog);
+        let output = mac.exec(&prog, &TxEnv);
+
+        assert!(output == Value::Unit);        
+    }
+
+    #[test]
+    fn basic_compile(){
+
+        // A single pk compilation
+        let mut witness = vec![0x80];
+        // Partial witness is consumed as sig. Since all sigs verify as of now
+        // we don't worry about the exact parsing of witness
+        witness.extend(vec![0x34;64]);
+        compile_and_exec("pk()", witness);
+
+        // and compilation. We need to set the witness len here, but since it is not
+        // used in the current code, we are temparorily abusing it.
+        let mut witness = vec![0x80];
+        witness.extend(vec![0x34;128]);
+        compile_and_exec("and(pk(),pk())", witness);
+
+        let mut witness = vec![0x80];
+        witness.extend(vec![0x34;128]);
+        compile_and_exec("or(pk(),pk())", witness);
+
+        // let mut witness = vec![0x80];
+        // witness.extend(vec![0x34;64]);
+        // compile_and_exec("or(pk(),pk())", witness);
+    }
+}

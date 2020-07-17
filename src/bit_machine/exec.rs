@@ -59,7 +59,7 @@ impl BitMachine {
 
     /// Push a new frame of given size onto the write stack
     fn new_frame(&mut self, len: usize) {
-        assert!(self.next_pos as usize + len < self.data.len() * 8);
+        // assert!(self.next_pos as usize + len < self.data.len() * 8);
         // assert!(self.write.len() + self.read.len() < self.read.capacity());
 
         self.write.push(Frame {
@@ -189,8 +189,8 @@ impl BitMachine {
     /// Read bytes n `u8` bytes to the current read frame
     pub(crate) fn read_bytes(&mut self, n: usize) -> Vec<u8> {
         let mut ret = Vec::with_capacity(n);
-        for i in 0..n {
-            ret[i] = self.read.last_mut().expect("Empty read frame").read_u8();
+        for _i in 0..n {
+            ret.push(self.read.last_mut().expect("Empty read frame").read_u8());
         }
         ret
     }
@@ -295,7 +295,7 @@ impl BitMachine {
                     call_stack.push(CallStack::Goto(ip.index - s));
                 }
                 Node::Comp(s, t) => {
-                    let size = program.nodes[s].target_ty.bit_width();
+                    let size = program.nodes[ip.index- s].target_ty.bit_width();
                     self.new_frame(size);
 
                     call_stack.push(CallStack::DropFrame);

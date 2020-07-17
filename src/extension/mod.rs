@@ -54,6 +54,7 @@ pub use self::dummy as bitcoin;
 /// | `l`  | 64-bit word  |
 /// | `h`  | 256-bit word |
 ///
+#[derive(Clone)]
 pub struct TypeName(pub &'static [u8]);
 
 impl Iterator for TypeName {

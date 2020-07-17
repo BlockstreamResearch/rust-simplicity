@@ -32,7 +32,7 @@ use types::pow2_types;
 pub fn compile<Pk: MiniscriptKey + To32BytePubKey, Ext: extension::Node>(
     pol: &Policy<Pk>,
 ) -> Result<Vec<Node<(), Ext>>, Error> {
-    let pk_ty = pow2_types()[8].clone();
+    let pk_ty = pow2_types()[9].clone();
     let frag = match pol {
         Policy::Unsatisfiable => todo!(),
         Policy::Trivial => todo!(),
@@ -62,7 +62,17 @@ pub fn compile<Pk: MiniscriptKey + To32BytePubKey, Ext: extension::Node>(
             nodes.push(Node::Comp(li, 1));
             nodes
         }
-        Policy::Or(ref subs) => todo!(),
+        Policy::Or(ref subs) => {
+            assert!(subs.len() == 2);
+            let mut nodes = compile(&subs[0])?;
+            let r_nodes = compile(&subs[1])?;
+            let li = r_nodes.len() + 1;
+            nodes.extend(r_nodes);
+            nodes.push(Node::Case(li, 1));
+            nodes.push(Node::Witness(()));
+            nodes.push(Node::Comp(1,2));
+            nodes
+        },
     };
     Ok(frag)
 }
