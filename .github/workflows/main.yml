@@ -3,40 +3,72 @@ on: [push, pull_request]
 name: Continuous integration
 
 jobs:
-  ci:
+  fmt:
+    name: Rustfmt
     runs-on: ubuntu-latest
     strategy:
       matrix:
         rust:
           - stable
-          - beta
-          - nightly
-          - 1.31.0  # MSRV
-
     steps:
-      - uses: actions/checkout@v2
-
-      - uses: actions-rs/toolchain@v1
+      - name: Checkout Crate 
+        uses: actions/checkout@v2
+      - name: Checkout Toolchain
+        uses: actions-rs/toolchain@v1
         with:
           profile: minimal
           toolchain: ${{ matrix.rust }}
           override: true
-          components: rustfmt, clippy
-
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-
-      - uses: actions-rs/cargo@v1
+          components: rustfmt
+      - name: Running cargo fmt
+        uses: actions-rs/cargo@v1
         with:
           command: fmt
           args: --all -- --check
+ 
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - stable
+          - 1.31.0
+          - beta
+          - nightly
+    steps:
+      - name: Checkout Crate 
+        uses: actions/checkout@v2
+      - name: Checkout Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+      - name: Running cargo test
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
 
-      - uses: actions-rs/cargo@v1
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - stable
+    steps:      
+      - name: Checkout Crate 
+        uses: actions/checkout@v2
+      - name: Checkout Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+          components: clippy
+      - name: Running cargo clippy
+        uses: actions-rs/cargo@v1
         with:
           command: clippy
           args: -- -D warnings
