@@ -390,7 +390,7 @@ impl BitMachine {
         if output_width > 0 {
             let out_frame = self.write.last_mut().unwrap();
             out_frame.abs_pos -= out_frame.len;
-            Value::from_witness(out_frame, &program.root_node().target_ty)
+            Value::from_bits_and_type(out_frame, &program.root_node().target_ty)
                 .expect("unwrapping output value")
         } else {
             Value::Unit
