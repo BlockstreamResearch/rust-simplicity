@@ -68,6 +68,7 @@ impl Iterator for Frame {
 }
 
 impl Frame {
+    #[allow(dead_code)]
     fn read_at_rel(&self, n: isize) -> bool {
         unsafe {
             let p = self.data.offset((self.abs_pos + n) / 8);

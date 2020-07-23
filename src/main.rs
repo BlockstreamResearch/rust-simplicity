@@ -2714,7 +2714,7 @@ const BITCOIN_PROG: [u8; 14635] = [
 ];
 
 fn main() {
-    for i in 1..1 {
+    for i in 1..2 {
         //1836 {
         use std::fs;
 
@@ -2767,9 +2767,9 @@ fn main() {
     );
     let output = mac.exec(&program, &simplicity::extension::dummy::TxEnv);
     println!(" output: {}", output);
-    println!("");
-    println!("");
-    println!("");
+    println!();
+    println!();
+    println!();
 
     // Run Bitcoin program
     let mut bits: simplicity::bititer::BitIter<_> = BITCOIN_PROG.iter().cloned().into();

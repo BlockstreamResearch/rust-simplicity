@@ -48,7 +48,7 @@ pub trait BitWrite {
     /// On success, returns `len`.
     fn write_u8(&mut self, n: u8, len: usize) -> io::Result<usize> {
         for i in 0..len {
-            self.write_bit(n & (1 << len - i - 1) != 0)?;
+            self.write_bit(n & (1 << (len - i - 1)) != 0)?;
         }
         Ok(len)
     }
@@ -102,7 +102,7 @@ impl<W: io::Write> BitWrite for BitWriter<W> {
             }
             Ok(())
         } else {
-            self.w.write(&[self.cache])?;
+            self.w.write_all(&[self.cache])?;
             self.cache_len = 0;
             self.cache = 0;
             self.write_bit(b)
@@ -113,7 +113,7 @@ impl<W: io::Write> BitWrite for BitWriter<W> {
     /// byte boundary. (0s will be written after the actual data to pad out
     /// to the next byte boundary). Then flushes the underlying `io::Write`.
     fn flush_all(&mut self) -> io::Result<()> {
-        self.w.write(&[self.cache])?;
+        self.w.write_all(&[self.cache])?;
         self.cache_len = 0;
 
         io::Write::flush(&mut self.w)
@@ -225,10 +225,10 @@ pub fn decode_node_no_witness<I: Iterator<Item = u8>, Ext: extension::Node>(
                 (2, 3) => Err(Error::ParseError("01011 (stop code)")),
                 (3, 0) => {
                     let mut h = [0; 32];
-                    for i in 0..32 {
+                    for byte in &mut h {
                         for b in 0..8 {
                             match iter.next() {
-                                Some(true) => h[i] |= 1 << (7 - b),
+                                Some(true) => *byte |= 1 << (7 - b),
                                 Some(false) => {}
                                 None => return Err(Error::EndOfStream),
                             };

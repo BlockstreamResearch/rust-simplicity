@@ -103,47 +103,31 @@ impl FinalType {
         };
         drop(var_borr);
 
-        let sub1 = find_root(sub1.clone());
-        let sub2 = find_root(sub2.clone());
+        let sub1 = find_root(sub1);
+        let sub2 = find_root(sub2);
 
         let sub1_borr = sub1.borrow_mut();
         let final1 = match sub1_borr.var {
-            Variable::Free => {
-                drop(sub1_borr);
-                Arc::new(FinalType {
-                    ty: FinalTypeInner::Unit,
-                    bit_width: 0,
-                })
-            }
-            Variable::Bound(..) => {
-                drop(sub1_borr);
-                FinalType::from_var(sub1.clone())?
-            }
+            Variable::Free => Arc::new(FinalType {
+                ty: FinalTypeInner::Unit,
+                bit_width: 0,
+            }),
+            Variable::Bound(..) => FinalType::from_var(sub1.clone())?,
             Variable::EqualTo(..) => unreachable!(),
-            Variable::Finalized(ref f1) => {
-                let ret = f1.clone();
-                drop(sub1_borr);
-                ret
-            }
+            Variable::Finalized(ref f1) => f1.clone(),
         };
-
+        drop(sub1_borr);
         let sub2_borr = sub2.borrow_mut();
         let final2 = match sub2_borr.var {
             Variable::Free => Arc::new(FinalType {
                 ty: FinalTypeInner::Unit,
                 bit_width: 0,
             }),
-            Variable::Bound(..) => {
-                drop(sub2_borr);
-                FinalType::from_var(sub2)?
-            }
+            Variable::Bound(..) => FinalType::from_var(sub2.clone())?,
             Variable::EqualTo(..) => unreachable!(),
-            Variable::Finalized(ref f2) => {
-                let ret = f2.clone();
-                drop(sub2_borr);
-                ret
-            }
+            Variable::Finalized(ref f2) => f2.clone(),
         };
+        drop(sub2_borr);
 
         let ret = match existing_type {
             Type::Unit => unreachable!(),
@@ -292,10 +276,11 @@ fn unify(mut alpha: RcVar, mut beta: RcVar) -> Result<(), Error> {
     }
 
     // Adjust ranks for union-find path halving
-    if alpha.borrow().rank < beta.borrow().rank {
-        mem::swap(&mut alpha, &mut beta);
-    } else if alpha.borrow().rank == beta.borrow().rank {
-        alpha.borrow_mut().rank += 1;
+    let rank_ord = { alpha.borrow().rank.cmp(&beta.borrow().rank) };
+    match rank_ord {
+        cmp::Ordering::Less => mem::swap(&mut alpha, &mut beta),
+        cmp::Ordering::Equal => alpha.borrow_mut().rank += 1,
+        _ => {}
     }
 
     // Do the unification
@@ -360,7 +345,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
     }
 
     let two_0 = Type::Unit.into_rcvar();
-    let two_1 = Type::Sum(two_0.clone(), two_0.clone()).into_rcvar();
+    let two_1 = Type::Sum(two_0.clone(), two_0).into_rcvar();
     let two_2 = Type::Product(two_1.clone(), two_1.clone()).into_rcvar();
     let two_4 = Type::Product(two_2.clone(), two_2.clone()).into_rcvar();
     let two_8 = Type::Product(two_4.clone(), two_4.clone()).into_rcvar();

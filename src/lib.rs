@@ -12,6 +12,8 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
+#![allow(clippy::redundant_field_names, clippy::identity_op)]
+
 extern crate bitcoin_hashes;
 extern crate byteorder;
 
@@ -90,6 +92,7 @@ pub enum Value {
 }
 
 impl Value {
+    #![allow(clippy::len_without_is_empty)]
     /// The length, in bits, of the value when encoded in the Bit Machine
     pub fn len(&self) -> usize {
         match *self {
@@ -153,7 +156,7 @@ impl Value {
     /// Encode a 32-bit number as a value
     pub fn u64(n: u64) -> Value {
         let w0 = (n >> 32) as u32;
-        let w1 = (n & 0xffffffff) as u32;
+        let w1 = (n & 0xffff_ffff) as u32;
         Value::Prod(Box::new(Value::u32(w0)), Box::new(Value::u32(w1)))
     }
 

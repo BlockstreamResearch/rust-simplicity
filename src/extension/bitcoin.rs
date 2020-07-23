@@ -225,7 +225,7 @@ impl extension::Node for Node {
                     eng.input(&input.previous_output.txid[..]);
                     eng.write_u32::<LittleEndian>(input.previous_output.vout)
                         .unwrap();
-                    eng.write_u64::<LittleEndian>(99998000).unwrap(); // value FIXME
+                    eng.write_u64::<LittleEndian>(99_998_000).unwrap(); // value FIXME
                     eng.write_u32::<LittleEndian>(input.sequence).unwrap();
                 }
                 mac.write_bytes(&sha256::Hash::from_engine(eng)[..]);
@@ -240,7 +240,7 @@ impl extension::Node for Node {
             }
             // FIXME don't hardcode this
             Node::CurrentValue => {
-                mac.write_u64(99998000);
+                mac.write_u64(99_998_000);
             }
             Node::CurrentIndex => {
                 mac.write_u32(0);
