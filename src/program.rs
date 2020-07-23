@@ -24,6 +24,7 @@ use std::{cmp, fmt};
 
 use bititer::BitIter;
 use cmr::{self, Cmr};
+use extension::Node as ExtNode;
 use {encode, extension, types};
 use {Error, Node, Value};
 
