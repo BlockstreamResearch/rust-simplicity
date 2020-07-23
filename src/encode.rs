@@ -24,7 +24,9 @@ use std::{io, mem};
 
 use bititer::BitIter;
 use cmr;
-use extension::{self, jets};
+
+use extension;
+use extension::Node as ExtNode;
 use {Error, Node};
 
 /// Trait for writing individual bits to some sink
@@ -166,7 +168,7 @@ pub fn decode_node_no_witness<I: Iterator<Item = u8>, Ext: extension::Node>(
         Some(true) => match iter.next() {
             None => Err(Error::EndOfStream),
             Some(false) => Ok(Node::Ext(extension::Node::decode(iter)?)),
-            Some(true) => Ok(Node::Jet(jets::decode_node(iter)?)),
+            Some(true) => Ok(Node::Jet(extension::Node::decode(iter)?)),
         },
         Some(false) => {
             let code = match iter.read_bits_be(2) {
@@ -289,7 +291,7 @@ pub fn encode_node_no_witness<T, W: BitWrite, Ext: extension::Node>(
         }
         Node::Witness(..) => writer.write_u8(7, 4),
         Node::Ext(ref b) => extension::Node::encode(b, writer),
-        Node::Jet(ref j) => j.encode_node(writer),
+        Node::Jet(ref j) => j.encode(writer),
     }
 }
 

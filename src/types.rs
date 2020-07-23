@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::{cmp, fmt, mem};
 
 use extension;
+use extension::Node as ExtNode;
 use Error;
 use Node;
 
