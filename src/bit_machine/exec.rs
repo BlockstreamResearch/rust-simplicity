@@ -18,120 +18,27 @@
 //! frame management optimizations which can be used to great benefit.
 //!
 
-use std::{cmp, fmt, ptr};
+use std::cmp;
 
 use bititer::BitIter;
 use extension;
 use types::FinalTypeInner;
-use {Node, Program, Value};
+use Node;
+use Program;
+use Value;
 
-/// A frame used internally by the Bit Machine to keep track of
-/// where we are reading or writing to
-struct Frame {
-    data: *mut u8,
-    abs_pos: isize,
-    start: isize,
-    len: isize,
-}
-
-impl fmt::Debug for Frame {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        unsafe {
-            for i in 0..self.len {
-                if i == self.abs_pos - self.start {
-                    f.write_str("^")?;
-                }
-
-                let p = self.data.offset((self.start + i) / 8);
-                if *p & (1 << ((self.start + i) % 8)) != 0 {
-                    f.write_str("1")?;
-                } else {
-                    f.write_str("0")?;
-                }
-            }
-        }
-        Ok(())
-    }
-}
-
-impl Iterator for Frame {
-    type Item = bool;
-    fn next(&mut self) -> Option<bool> {
-        if self.abs_pos < self.start + self.len {
-            let bit = self.read();
-            self.abs_pos += 1;
-            Some(bit)
-        } else {
-            None
-        }
-    }
-}
-
-impl Frame {
-    #[allow(dead_code)]
-    fn read_at_rel(&self, n: isize) -> bool {
-        unsafe {
-            let p = self.data.offset((self.abs_pos + n) / 8);
-            *p & (1 << ((self.abs_pos + n) % 8)) != 0
-        }
-    }
-
-    fn read(&self) -> bool {
-        unsafe {
-            let p = self.data.offset(self.abs_pos / 8);
-            *p & (1 << (self.abs_pos % 8)) != 0
-        }
-    }
-
-    fn write(&mut self, b: bool) {
-        let mask = 1 << (self.abs_pos % 8);
-        unsafe {
-            let p = self.data.offset(self.abs_pos / 8);
-            if b {
-                *p |= mask;
-            } else {
-                *p &= !mask;
-            }
-        }
-        self.abs_pos += 1;
-    }
-
-    fn fwd(&mut self, n: usize) {
-        self.abs_pos += n as isize;
-    }
-
-    fn back(&mut self, n: usize) {
-        self.abs_pos -= n as isize;
-    }
-
-    fn copy_from(&mut self, other: &Frame, n: usize) {
-        if self.abs_pos % 8 == 0 && other.abs_pos % 8 == 0 {
-            unsafe {
-                ptr::copy_nonoverlapping(
-                    other.data.offset(other.abs_pos / 8),
-                    self.data.offset(self.abs_pos / 8),
-                    (n + 7) / 8,
-                );
-                self.abs_pos += n as isize;
-            }
-        } else {
-            for i in 0..n as isize {
-                let bit = unsafe {
-                    let p = other.data.offset((other.abs_pos + i) / 8);
-                    *p & (1 << ((other.abs_pos + i) % 8)) != 0
-                };
-                self.write(bit);
-            }
-        }
-    }
-}
+use super::frame::Frame;
 
 /// An execution context for a Simplicity program
 pub struct BitMachine {
-    data: Vec<u8>,
-    next_pos: isize,
-    read: Vec<Frame>,
-    write: Vec<Frame>,
+    /// Data corresponding to bitMachine
+    pub(crate) data: Vec<u8>,
+    /// Current position of the cursor
+    pub(crate) next_pos: isize,
+    /// Read frame stack
+    pub(crate) read: Vec<Frame>,
+    /// Write frame stack
+    pub(crate) write: Vec<Frame>,
 }
 
 impl BitMachine {
@@ -151,8 +58,8 @@ impl BitMachine {
 
     /// Push a new frame of given size onto the write stack
     fn new_frame(&mut self, len: usize) {
-        assert!(self.next_pos as usize + len < self.data.len() * 8);
-        assert!(self.write.len() + self.read.len() < self.read.capacity());
+        // assert!(self.next_pos as usize + len < self.data.len() * 8);
+        // assert!(self.write.len() + self.read.len() < self.read.capacity());
 
         self.write.push(Frame {
             data: self.data.as_mut_ptr(),
@@ -178,9 +85,11 @@ impl BitMachine {
     }
 
     /// Write a single bit to the current write frame
-    fn write(&mut self, bit: bool) {
-        let idx = self.write.len() - 1;
-        self.write[idx].write(bit);
+    pub(crate) fn write_bit(&mut self, bit: bool) {
+        self.write
+            .last_mut()
+            .expect("Empty write frame")
+            .write_bit(bit);
     }
 
     /// Move the cursor of the current write frame forward by
@@ -212,22 +121,83 @@ impl BitMachine {
 
     /// Write a big-endian u64 value to the current write frame
     pub(crate) fn write_u64(&mut self, data: u64) {
-        for idx in 0..64 {
-            self.write(data & (1 << (63 - idx)) != 0);
-        }
+        self.write
+            .last_mut()
+            .expect("Empty write frame")
+            .write_u64(data);
     }
 
     /// Write a big-endian u32 value to the current write frame
     pub(crate) fn write_u32(&mut self, data: u32) {
-        for idx in 0..32 {
-            self.write(data & (1 << (31 - idx)) != 0);
+        self.write
+            .last_mut()
+            .expect("Empty write frame")
+            .write_u32(data);
+    }
+
+    /// Write a big-endian u16 value to the current write frame
+    pub(crate) fn write_u16(&mut self, data: u16) {
+        self.write
+            .last_mut()
+            .expect("Empty write frame")
+            .write_u16(data);
+    }
+
+    /// Write a big-endian u8 value to the current write frame
+    pub(crate) fn write_u8(&mut self, data: u8) {
+        self.write
+            .last_mut()
+            .expect("Empty write frame")
+            .write_u8(data);
+    }
+
+    /// Read a big-endian u64 value to the current read frame
+    pub(crate) fn read_u64(&mut self) -> u64 {
+        self.read.last_mut().expect("Empty read frame").read_u64()
+    }
+
+    /// Read a big-endian u32 value to the current read frame
+    pub(crate) fn read_u32(&mut self) -> u32 {
+        self.read.last_mut().expect("Empty read frame").read_u32()
+    }
+
+    /// Read a big-endian u16 value to the current read frame
+    pub(crate) fn read_u16(&mut self) -> u16 {
+        self.read.last_mut().expect("Empty read frame").read_u16()
+    }
+
+    /// Read a big-endian u8 value to the current read frame
+    pub(crate) fn read_u8(&mut self) -> u8 {
+        self.read.last_mut().expect("Empty read frame").read_u8()
+    }
+
+    /// Read a bit value to the current read frame
+    pub(crate) fn read_bit(&mut self) -> bool {
+        self.read.last_mut().expect("Empty read frame").read_bit()
+    }
+
+    /// Read bytes 32 `u8` bytes to the current read frame
+    pub(crate) fn read_32bytes(&mut self) -> [u8; 32] {
+        let mut ret = [0u8; 32];
+        for byte in &mut ret {
+            *byte = self.read.last_mut().expect("Empty read frame").read_u8();
         }
+        ret
+    }
+
+    /// Read bytes n `u8` bytes to the current read frame
+    pub(crate) fn read_bytes(&mut self, n: usize) -> Vec<u8> {
+        let mut ret = Vec::with_capacity(n);
+        for _i in 0..n {
+            ret.push(self.read.last_mut().expect("Empty read frame").read_u8());
+        }
+        ret
     }
 
     /// Write a buch of bytes to the current write frame
     pub(crate) fn write_bytes(&mut self, data: &[u8]) {
         for bit in BitIter::new(data.iter().cloned()) {
-            self.write(bit);
+            self.write_bit(bit);
         }
     }
 
@@ -237,11 +207,11 @@ impl BitMachine {
         match *val {
             Value::Unit => {}
             Value::SumL(ref a) => {
-                self.write(false);
+                self.write_bit(false);
                 self.write_value(a);
             }
             Value::SumR(ref a) => {
-                self.write(true);
+                self.write_bit(true);
                 self.write_value(a);
             }
             Value::Prod(ref a, ref b) => {
@@ -278,7 +248,7 @@ impl BitMachine {
         let mut call_stack = vec![];
         let mut iters = 0u64;
 
-        let input_width = ip.target_ty.bit_width();
+        let input_width = ip.source_ty.bit_width();
         if input_width > 0 && self.read.is_empty() {
             panic!(
                 "Pleas call `Program::input` to add an input value for this program {}",
@@ -300,48 +270,48 @@ impl BitMachine {
                 Node::Unit => {}
                 Node::Iden => self.copy(ip.source_ty.bit_width()),
                 Node::InjL(t) => {
-                    self.write(false);
+                    self.write_bit(false);
                     if let FinalTypeInner::Sum(ref a, _) = ip.target_ty.ty {
                         let aw = a.bit_width();
                         self.skip(ip.target_ty.bit_width() - aw - 1);
-                        call_stack.push(CallStack::Goto(t));
+                        call_stack.push(CallStack::Goto(ip.index - t));
                     } else {
                         panic!("type error")
                     }
                 }
                 Node::InjR(t) => {
-                    self.write(true);
+                    self.write_bit(true);
                     if let FinalTypeInner::Sum(_, ref b) = ip.target_ty.ty {
                         let bw = b.bit_width();
                         self.skip(ip.target_ty.bit_width() - bw - 1);
-                        call_stack.push(CallStack::Goto(t));
+                        call_stack.push(CallStack::Goto(ip.index - t));
                     } else {
                         panic!("type error")
                     }
                 }
                 Node::Pair(s, t) => {
-                    call_stack.push(CallStack::Goto(t));
-                    call_stack.push(CallStack::Goto(s));
+                    call_stack.push(CallStack::Goto(ip.index - t));
+                    call_stack.push(CallStack::Goto(ip.index - s));
                 }
                 Node::Comp(s, t) => {
-                    let size = program.nodes[s].target_ty.bit_width();
+                    let size = program.nodes[ip.index - s].target_ty.bit_width();
                     self.new_frame(size);
 
                     call_stack.push(CallStack::DropFrame);
-                    call_stack.push(CallStack::Goto(t));
+                    call_stack.push(CallStack::Goto(ip.index - t));
                     call_stack.push(CallStack::MoveFrame);
-                    call_stack.push(CallStack::Goto(s));
+                    call_stack.push(CallStack::Goto(ip.index - s));
                 }
                 Node::Disconnect(s, t) => {
                     // Write `t`'s CMR followed by `s` input to a new read frame
-                    let size = program.nodes[s].source_ty.bit_width();
+                    let size = program.nodes[ip.index - s].source_ty.bit_width();
                     assert!(size >= 256);
                     self.new_frame(size);
-                    self.write_bytes(&program.nodes[t].cmr);
+                    self.write_bytes(&program.nodes[ip.index - t].cmr);
                     self.copy(size - 256);
                     self.move_frame();
 
-                    let s_target_size = program.nodes[s].target_ty.bit_width();
+                    let s_target_size = program.nodes[ip.index - s].target_ty.bit_width();
                     self.new_frame(s_target_size);
                     // Then recurse. Remembering that call stack pushes are executed
                     // in reverse order:
@@ -350,26 +320,26 @@ impl BitMachine {
                     call_stack.push(CallStack::DropFrame);
                     call_stack.push(CallStack::DropFrame);
                     // 2. Copy the first half of `s`s output directly then execute `t` on the second half
-                    call_stack.push(CallStack::Goto(t));
-                    let b_size = s_target_size - program.nodes[t].source_ty.bit_width();
+                    call_stack.push(CallStack::Goto(ip.index - t));
+                    let b_size = s_target_size - program.nodes[ip.index - t].source_ty.bit_width();
                     call_stack.push(CallStack::CopyFwd(b_size));
                     // 1. Execute `s` then move the write frame to the read frame for `t`
                     call_stack.push(CallStack::MoveFrame);
-                    call_stack.push(CallStack::Goto(s));
+                    call_stack.push(CallStack::Goto(ip.index - s));
                 }
-                Node::Take(t) => call_stack.push(CallStack::Goto(t)),
+                Node::Take(t) => call_stack.push(CallStack::Goto(ip.index - t)),
                 Node::Drop(t) => {
                     if let FinalTypeInner::Product(ref a, _) = ip.source_ty.ty {
                         let aw = a.bit_width();
                         self.fwd(aw);
                         call_stack.push(CallStack::Back(aw));
-                        call_stack.push(CallStack::Goto(t));
+                        call_stack.push(CallStack::Goto(ip.index - t));
                     } else {
                         panic!("type error")
                     }
                 }
                 Node::Case(s, t) => {
-                    let sw = self.read[self.read.len() - 1].read();
+                    let sw = self.read[self.read.len() - 1].peek_bit();
                     let aw;
                     let bw;
                     if let FinalTypeInner::Product(ref a, _) = ip.source_ty.ty {
@@ -386,11 +356,11 @@ impl BitMachine {
                     if sw {
                         self.fwd(1 + cmp::max(aw, bw) - bw);
                         call_stack.push(CallStack::Back(1 + cmp::max(aw, bw) - bw));
-                        call_stack.push(CallStack::Goto(t));
+                        call_stack.push(CallStack::Goto(ip.index - t));
                     } else {
                         self.fwd(1 + cmp::max(aw, bw) - aw);
                         call_stack.push(CallStack::Back(1 + cmp::max(aw, bw) - aw));
-                        call_stack.push(CallStack::Goto(s));
+                        call_stack.push(CallStack::Goto(ip.index - s));
                     }
                 }
                 Node::Witness(ref value) => self.write_value(value),
@@ -398,7 +368,7 @@ impl BitMachine {
                 Node::Ext(ref e) => e.exec(self, txenv),
                 /*
                  */
-                Node::Jet(ref j) => unimplemented!("jet {}", j),
+                Node::Jet(ref _j) => unimplemented!(),
                 Node::Fail(..) => panic!("encountered fail node while executing"),
             }
 
