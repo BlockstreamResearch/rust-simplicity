@@ -17,16 +17,17 @@
 extern crate bitcoin_hashes;
 extern crate byteorder;
 
+pub mod bit_machine;
 pub mod bititer;
 pub mod cmr;
 pub mod encode;
-pub mod exec;
 pub mod extension;
 pub mod program;
 pub mod types;
 
 use std::fmt;
 
+pub use bit_machine::exec;
 pub use program::Program;
 
 /// De/serialization error

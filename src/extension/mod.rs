@@ -81,7 +81,7 @@ pub trait Node: Sized + fmt::Display {
 
     /// Execute the node in a Bit Machine; assuming the surrounding
     /// program has typechecked, this cannot fail
-    fn exec(&self, &mut exec::BitMachine, txenv: &Self::TxEnv);
+    fn exec(&self, mac: &mut exec::BitMachine, txenv: &Self::TxEnv);
 
     /// Return the CMR of the node
     fn cmr(&self) -> Cmr;
