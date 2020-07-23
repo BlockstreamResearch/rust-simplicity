@@ -103,8 +103,8 @@ impl FinalType {
         };
         drop(var_borr);
 
-        let sub1 = find_root(sub1.clone());
-        let sub2 = find_root(sub2.clone());
+        let sub1 = find_root(sub1);
+        let sub2 = find_root(sub2);
 
         let sub1_borr = sub1.borrow_mut();
         let final1 = match sub1_borr.var {
@@ -292,10 +292,11 @@ fn unify(mut alpha: RcVar, mut beta: RcVar) -> Result<(), Error> {
     }
 
     // Adjust ranks for union-find path halving
-    if alpha.borrow().rank < beta.borrow().rank {
-        mem::swap(&mut alpha, &mut beta);
-    } else if alpha.borrow().rank == beta.borrow().rank {
-        alpha.borrow_mut().rank += 1;
+    let rank_ord = { alpha.borrow().rank.cmp(&beta.borrow().rank) };
+    match rank_ord {
+        cmp::Ordering::Less => mem::swap(&mut alpha, &mut beta),
+        cmp::Ordering::Equal => alpha.borrow_mut().rank += 1,
+        _ => {}
     }
 
     // Do the unification
@@ -360,7 +361,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
     }
 
     let two_0 = Type::Unit.into_rcvar();
-    let two_1 = Type::Sum(two_0.clone(), two_0.clone()).into_rcvar();
+    let two_1 = Type::Sum(two_0.clone(), two_0).into_rcvar();
     let two_2 = Type::Product(two_1.clone(), two_1.clone()).into_rcvar();
     let two_4 = Type::Product(two_2.clone(), two_2.clone()).into_rcvar();
     let two_8 = Type::Product(two_4.clone(), two_4.clone()).into_rcvar();

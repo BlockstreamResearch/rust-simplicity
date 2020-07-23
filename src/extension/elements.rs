@@ -28,13 +28,13 @@ use {encode, exec, extension};
 
 /// Transaction environment for Bitcoin Simplicity programs
 pub struct TxEnv {
-    tx: elements::Transaction,
+    _tx: elements::Transaction,
 }
 
 impl TxEnv {
     /// Constructor from a transaction
     pub fn from_tx(tx: elements::Transaction) -> TxEnv {
-        TxEnv { tx: tx }
+        TxEnv { _tx: tx }
     }
 }
 
@@ -390,8 +390,6 @@ impl extension::Node for Node {
 
     fn exec(&self, _mac: &mut exec::BitMachine, _txenv: &Self::TxEnv) {
         // FIXME finish this
-        match *self {
-            ref b => unimplemented!("elements {}", b),
-        }
+        unimplemented!()
     }
 }
