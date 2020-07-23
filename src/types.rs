@@ -108,42 +108,26 @@ impl FinalType {
 
         let sub1_borr = sub1.borrow_mut();
         let final1 = match sub1_borr.var {
-            Variable::Free => {
-                drop(sub1_borr);
-                Arc::new(FinalType {
-                    ty: FinalTypeInner::Unit,
-                    bit_width: 0,
-                })
-            }
-            Variable::Bound(..) => {
-                drop(sub1_borr);
-                FinalType::from_var(sub1.clone())?
-            }
+            Variable::Free => Arc::new(FinalType {
+                ty: FinalTypeInner::Unit,
+                bit_width: 0,
+            }),
+            Variable::Bound(..) => FinalType::from_var(sub1.clone())?,
             Variable::EqualTo(..) => unreachable!(),
-            Variable::Finalized(ref f1) => {
-                let ret = f1.clone();
-                drop(sub1_borr);
-                ret
-            }
+            Variable::Finalized(ref f1) => f1.clone(),
         };
-
+        drop(sub1_borr);
         let sub2_borr = sub2.borrow_mut();
         let final2 = match sub2_borr.var {
             Variable::Free => Arc::new(FinalType {
                 ty: FinalTypeInner::Unit,
                 bit_width: 0,
             }),
-            Variable::Bound(..) => {
-                drop(sub2_borr);
-                FinalType::from_var(sub2)?
-            }
+            Variable::Bound(..) => FinalType::from_var(sub2.clone())?,
             Variable::EqualTo(..) => unreachable!(),
-            Variable::Finalized(ref f2) => {
-                let ret = f2.clone();
-                drop(sub2_borr);
-                ret
-            }
+            Variable::Finalized(ref f2) => f2.clone(),
         };
+        drop(sub2_borr);
 
         let ret = match existing_type {
             Type::Unit => unreachable!(),
