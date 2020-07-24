@@ -454,9 +454,9 @@ mod tests {
 
         for (target, vec) in tries {
             let truncated = vec[0..vec.len() - 1].to_vec();
-            assert_eq!(
+            assert_matches!(
                 decode_natural(truncated.into_iter()),
-                Err(Error::EndOfStream),
+                Err(Error::EndOfStream)
             );
 
             let len = vec.len();
