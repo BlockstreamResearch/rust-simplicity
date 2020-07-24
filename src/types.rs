@@ -1,3 +1,6 @@
+//FIXME: Remove this later
+#![allow(dead_code)]
+
 use std::{cell::RefCell, cmp, fmt, mem, rc::Rc, sync::Arc};
 
 use crate::extension;
@@ -29,6 +32,47 @@ pub enum FinalTypeInner {
 pub struct FinalType {
     pub ty: FinalTypeInner,
     pub bit_width: usize,
+}
+
+impl FinalType {
+    const fn unit() -> Self {
+        Self {
+            ty: FinalTypeInner::Unit,
+            bit_width: 0,
+        }
+    }
+
+    fn sum(a: Arc<Self>, b: Arc<Self>) -> Self {
+        Self {
+            ty: FinalTypeInner::Sum(a.clone(), b.clone()),
+            bit_width: 1 + cmp::max(a.bit_width, b.bit_width),
+        }
+    }
+
+    fn prod(a: Arc<Self>, b: Arc<Self>) -> Self {
+        Self {
+            ty: FinalTypeInner::Product(a.clone(), b.clone()),
+            bit_width: a.bit_width + b.bit_width,
+        }
+    }
+}
+
+pub(crate) fn pow2_types() -> [Arc<FinalType>; 11] {
+    let word0 = Arc::new(FinalType::unit());
+    let word1 = Arc::new(FinalType::sum(Arc::clone(&word0), Arc::clone(&word0)));
+    let word2 = Arc::new(FinalType::prod(Arc::clone(&word1), Arc::clone(&word1)));
+    let word4 = Arc::new(FinalType::prod(Arc::clone(&word2), Arc::clone(&word2)));
+    let word8 = Arc::new(FinalType::prod(Arc::clone(&word4), Arc::clone(&word4)));
+    let word16 = Arc::new(FinalType::prod(Arc::clone(&word8), Arc::clone(&word8)));
+    let word32 = Arc::new(FinalType::prod(Arc::clone(&word16), Arc::clone(&word16)));
+    let word64 = Arc::new(FinalType::prod(Arc::clone(&word32), Arc::clone(&word32)));
+    let word128 = Arc::new(FinalType::prod(Arc::clone(&word64), Arc::clone(&word64)));
+    let word256 = Arc::new(FinalType::prod(Arc::clone(&word128), Arc::clone(&word128)));
+    let word512 = Arc::new(FinalType::prod(Arc::clone(&word256), Arc::clone(&word256)));
+
+    [
+        word0, word1, word2, word4, word8, word16, word32, word64, word128, word256, word512,
+    ]
 }
 
 impl fmt::Display for FinalType {

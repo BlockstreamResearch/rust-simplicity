@@ -73,9 +73,38 @@ impl<Ext: fmt::Display> fmt::Display for ProgramNode<Ext> {
 }
 
 /// A fully parsed, witnesses-included Simplicity program
+#[derive(Debug)]
 pub struct Program<Ext> {
     /// The list of nodes in the program
     pub nodes: Vec<ProgramNode<Ext>>,
+}
+
+/// Scribe progra: for any value of a Simplicity type b :B, the constant function
+/// from A -> B can be realized by a Simplicity expression called scribe.  
+/// Refer to 3.4 section of the Tech Report for details.
+/// This returns a list of untyped nodes.
+pub fn scribe<Ext>(b: Value) -> Vec<Node<(), Ext>> {
+    match b {
+        Value::Unit => vec![Node::Unit],
+        Value::SumL(l) => {
+            let mut nodes = scribe(*l);
+            nodes.push(Node::InjL(1));
+            nodes
+        }
+        Value::SumR(r) => {
+            let mut nodes = scribe(*r);
+            nodes.push(Node::InjR(1));
+            nodes
+        }
+        Value::Prod(l, r) => {
+            let mut nodes = scribe(*l);
+            let r_nodes = scribe(*r);
+            let li = r_nodes.len() + 1;
+            nodes.extend(r_nodes);
+            nodes.push(Node::Pair(li, 1));
+            nodes
+        }
+    }
 }
 
 impl<Ext: extension::Node> Program<Ext> {
