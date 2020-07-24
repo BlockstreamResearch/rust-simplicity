@@ -1,7 +1,4 @@
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::sync::Arc;
-use std::{cmp, fmt, mem};
+use std::{cell::RefCell, cmp, fmt, mem, rc::Rc, sync::Arc};
 
 use extension;
 use extension::Node as ExtNode;
@@ -109,26 +106,46 @@ impl FinalType {
 
         let sub1_borr = sub1.borrow_mut();
         let final1 = match sub1_borr.var {
-            Variable::Free => Arc::new(FinalType {
-                ty: FinalTypeInner::Unit,
-                bit_width: 0,
-            }),
-            Variable::Bound(..) => FinalType::from_var(sub1.clone())?,
+            Variable::Free => {
+                drop(sub1_borr);
+                Arc::new(FinalType {
+                    ty: FinalTypeInner::Unit,
+                    bit_width: 0,
+                })
+            }
+            Variable::Bound(..) => {
+                drop(sub1_borr);
+                FinalType::from_var(sub1.clone())?
+            }
             Variable::EqualTo(..) => unreachable!(),
-            Variable::Finalized(ref f1) => f1.clone(),
+            Variable::Finalized(ref f1) => {
+                let ret = f1.clone();
+                drop(sub1_borr);
+                ret
+            }
         };
-        drop(sub1_borr);
+        // drop(sub1_borr);
         let sub2_borr = sub2.borrow_mut();
         let final2 = match sub2_borr.var {
-            Variable::Free => Arc::new(FinalType {
-                ty: FinalTypeInner::Unit,
-                bit_width: 0,
-            }),
-            Variable::Bound(..) => FinalType::from_var(sub2.clone())?,
+            Variable::Free => {
+                drop(sub2_borr);
+                Arc::new(FinalType {
+                    ty: FinalTypeInner::Unit,
+                    bit_width: 0,
+                })
+            }
+            Variable::Bound(..) => {
+                drop(sub2_borr);
+                FinalType::from_var(sub2.clone())?
+            }
             Variable::EqualTo(..) => unreachable!(),
-            Variable::Finalized(ref f2) => f2.clone(),
+            Variable::Finalized(ref f2) => {
+                let ret = f2.clone();
+                drop(sub2_borr);
+                ret
+            }
         };
-        drop(sub2_borr);
+        // drop(sub2_borr);
 
         let ret = match existing_type {
             Type::Unit => unreachable!(),
@@ -262,7 +279,6 @@ fn find_root(mut node: RcVar) -> RcVar {
                 node.borrow_mut().var = Variable::EqualTo(grandparent.clone());
             }
         }
-
         node = parent;
     }
 }
@@ -364,16 +380,17 @@ pub fn type_check<Witness, Ext: extension::Node>(
     let mut finals = Vec::<TypedNode<Witness, Ext>>::with_capacity(program.len());
 
     // Compute most general unifier for all types in the DAG
-    for program_node in &program {
+    for (idx, program_node) in program.iter().enumerate() {
         let node = UnificationArrow {
             source: Rc::new(RefCell::new(UnificationVar::free())),
             target: Rc::new(RefCell::new(UnificationVar::free())),
         };
 
-        match *program_node {
+        match program_node {
             Node::Iden => unify(node.source.clone(), node.target.clone())?,
             Node::Unit => bind(&node.target, Type::Unit)?,
             Node::InjL(i) => {
+                let i = idx - i;
                 unify(node.source.clone(), rcs[i].source.clone())?;
                 let target_type = Type::Sum(
                     rcs[i].target.clone(),
@@ -382,6 +399,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
                 bind(&node.target, target_type)?;
             }
             Node::InjR(i) => {
+                let i = idx - i;
                 unify(node.source.clone(), rcs[i].source.clone())?;
                 let target_type = Type::Sum(
                     Rc::new(RefCell::new(UnificationVar::free())),
@@ -390,6 +408,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
                 bind(&node.target, target_type)?;
             }
             Node::Take(i) => {
+                let i = idx - i;
                 unify(node.target.clone(), rcs[i].target.clone())?;
                 let target_type = Type::Product(
                     rcs[i].source.clone(),
@@ -398,6 +417,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
                 bind(&node.source, target_type)?;
             }
             Node::Drop(i) => {
+                let i = idx - i;
                 unify(node.target.clone(), rcs[i].target.clone())?;
                 let target_type = Type::Product(
                     Rc::new(RefCell::new(UnificationVar::free())),
@@ -406,11 +426,13 @@ pub fn type_check<Witness, Ext: extension::Node>(
                 bind(&node.source, target_type)?;
             }
             Node::Comp(i, j) => {
+                let (i, j) = (idx - i, idx - j);
                 unify(node.source.clone(), rcs[i].source.clone())?;
                 unify(rcs[i].target.clone(), rcs[j].source.clone())?;
                 unify(node.target.clone(), rcs[j].target.clone())?;
             }
             Node::Case(i, j) => {
+                let (i, j) = (idx - i, idx - j);
                 let var1 = Rc::new(RefCell::new(UnificationVar::free()));
                 let var2 = Rc::new(RefCell::new(UnificationVar::free()));
                 let var3 = Rc::new(RefCell::new(UnificationVar::free()));
@@ -439,6 +461,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
                 }
             }
             Node::Pair(i, j) => {
+                let (i, j) = (idx - i, idx - j);
                 unify(node.source.clone(), rcs[i].source.clone())?;
                 unify(node.source.clone(), rcs[j].source.clone())?;
                 bind(
@@ -447,6 +470,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
                 )?;
             }
             Node::Disconnect(i, j) => {
+                let (i, j) = (idx - i, idx - j);
                 // See chapter 6 (Delegation) of TR
                 // Be careful, this order changed! https://github.com/ElementsProject/simplicity/pull/46
                 let var_a = Rc::new(RefCell::new(UnificationVar::free()));
@@ -487,6 +511,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
                     &node.source,
                     type_from_name(&mut jt.source_type(), &pow2s[..]),
                 )?;
+
                 bind(
                     &node.target,
                     type_from_name(&mut jt.target_type(), &pow2s[..]),
