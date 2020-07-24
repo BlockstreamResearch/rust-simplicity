@@ -21,11 +21,11 @@
 
 use std::{cmp, fmt, sync::Arc};
 
-use bititer::BitIter;
-use cmr::{self, Cmr};
-use extension::Node as ExtNode;
-use {encode, extension, types};
-use {Error, Node, Value};
+use crate::bititer::BitIter;
+use crate::cmr::{self, Cmr};
+use crate::extension::Node as ExtNode;
+use crate::{encode, extension, types};
+use crate::{Error, Node, Value};
 
 /// A node in a complete program, with associated metadata
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -102,7 +102,7 @@ impl<Ext: extension::Node> Program<Ext> {
 
         // Parse witnesses, if available
         // FIXME actually only read as much as wit_len
-        let wit_len = match iter.next() {
+        let _wit_len = match iter.next() {
             Some(false) => 0,
             Some(true) => encode::decode_natural(&mut *iter, None)?,
             None => return Err(Error::EndOfStream),
@@ -320,14 +320,14 @@ fn compute_frame_count_bound<Ext: extension::Node>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use exec;
+    use crate::exec;
 
-    use bititer::BitIter;
-    use extension::{
+    use crate::bititer::BitIter;
+    use crate::extension::{
         dummy::{Node as DummyNode, TxEnv},
         jets::Node as JetsNode,
     };
-    use Node;
+    use crate::Node;
 
     #[test]
     fn simple_unit_prog() {

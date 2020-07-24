@@ -22,12 +22,12 @@
 
 use std::{io, mem};
 
-use bititer::BitIter;
-use cmr;
+use crate::bititer::BitIter;
+use crate::cmr;
 
-use extension;
-use extension::Node as ExtNode;
-use {Error, Node};
+use crate::extension;
+use crate::extension::Node as ExtNode;
+use crate::{Error, Node};
 
 /// Trait for writing individual bits to some sink
 pub trait BitWrite {
@@ -227,7 +227,6 @@ pub fn decode_node_no_witness<I: Iterator<Item = u8>, Ext: extension::Node>(
 
 pub fn encode_node_no_witness<T, W: BitWrite, Ext: extension::Node>(
     node: &Node<T, Ext>,
-    index: usize,
     writer: &mut W,
 ) -> io::Result<usize> {
     match *node {

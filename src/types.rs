@@ -1,9 +1,9 @@
 use std::{cell::RefCell, cmp, fmt, mem, rc::Rc, sync::Arc};
 
-use extension;
-use extension::Node as ExtNode;
-use Error;
-use Node;
+use crate::extension;
+use crate::extension::Node as ExtNode;
+use crate::Error;
+use crate::Node;
 
 #[derive(Clone, Debug)]
 enum Type {
