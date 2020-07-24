@@ -20,12 +20,12 @@
 
 use std::cmp;
 
-use bititer::BitIter;
-use extension;
-use types::FinalTypeInner;
-use Node;
-use Program;
-use Value;
+use crate::bititer::BitIter;
+use crate::extension;
+use crate::types::FinalTypeInner;
+use crate::Node;
+use crate::Program;
+use crate::Value;
 
 use super::frame::Frame;
 

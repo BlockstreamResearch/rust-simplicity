@@ -31,8 +31,8 @@ pub mod types;
 
 use std::fmt;
 
-pub use bit_machine::exec;
-pub use program::Program;
+pub use crate::bit_machine::exec;
+pub use crate::program::Program;
 
 use miniscript::{DummyKey, MiniscriptKey};
 

@@ -21,13 +21,13 @@
 use std::{fmt, io};
 
 use super::TypeName;
-use bitcoin_hashes::{sha256, Hash, HashEngine};
-use bititer::BitIter;
-use cmr::Cmr;
-use encode;
-use exec;
-use extension;
-use Error;
+use crate::bitcoin_hashes::{sha256, Hash, HashEngine};
+use crate::bititer::BitIter;
+use crate::cmr::Cmr;
+use crate::encode;
+use crate::exec;
+use crate::extension;
+use crate::Error;
 
 /// Set of new Simplicity nodes enabled by the Bitcoin extension
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]

@@ -26,11 +26,11 @@ pub mod jets;
 
 use std::{fmt, io};
 
-use bititer::BitIter;
-use cmr::Cmr;
-use encode;
-use exec;
-use Error;
+use crate::bititer::BitIter;
+use crate::cmr::Cmr;
+use crate::encode;
+use crate::exec;
+use crate::Error;
 
 #[cfg(not(feature = "bitcoin"))]
 pub use self::dummy as bitcoin;

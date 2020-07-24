@@ -20,12 +20,12 @@
 use std::{fmt, io};
 
 use super::TypeName;
-use bititer::BitIter;
-use cmr;
-use encode;
-use exec;
-use extension;
-use Error;
+use crate::bititer::BitIter;
+use crate::cmr;
+use crate::encode;
+use crate::exec;
+use crate::extension;
+use crate::Error;
 
 /// Dummy transaction environment
 pub struct TxEnv;
