@@ -18,12 +18,14 @@ extern crate bitcoin_hashes;
 extern crate byteorder;
 extern crate miniscript;
 
+#[macro_use]
+mod macros;
+
 pub mod bit_machine;
 pub mod bititer;
 pub mod cmr;
 pub mod encode;
 pub mod extension;
-pub mod policy;
 pub mod program;
 pub mod types;
 

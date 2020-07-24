@@ -103,7 +103,7 @@ impl<Ext: extension::Node> Program<Ext> {
 
         let typed_nodes = typed_nodes
             .into_iter()
-            .map(|node| {
+            .map::<Result<_, Error>, _>(|node| {
                 Ok(types::TypedNode {
                     node: match node.node {
                         // really, Rust???
@@ -117,7 +117,7 @@ impl<Ext: extension::Node> Program<Ext> {
                         Node::Case(i, j) => Node::Case(i, j),
                         Node::Pair(i, j) => Node::Pair(i, j),
                         Node::Disconnect(i, j) => Node::Disconnect(i, j),
-                        Node::Witness(()) => Node::Witness(Value::from_witness(
+                        Node::Witness(()) => Node::Witness(Value::from_bits_and_type(
                             &mut iter.by_ref().take(wit_len),
                             &node.target_ty,
                         )?),
