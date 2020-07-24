@@ -27,6 +27,8 @@ use crate::Node;
 use crate::Program;
 use crate::Value;
 
+use crate::extension::Node as JetNode;
+
 use super::frame::Frame;
 
 /// An execution context for a Simplicity program
@@ -368,7 +370,7 @@ impl BitMachine {
                 Node::Ext(ref e) => e.exec(self, txenv),
                 /*
                  */
-                Node::Jet(ref _j) => unimplemented!(),
+                Node::Jet(ref j) => j.exec(self, &()),
                 Node::Fail(..) => panic!("encountered fail node while executing"),
             }
 

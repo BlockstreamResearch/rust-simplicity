@@ -26,6 +26,7 @@ pub mod bititer;
 pub mod cmr;
 pub mod encode;
 pub mod extension;
+pub mod policy;
 pub mod program;
 pub mod types;
 
