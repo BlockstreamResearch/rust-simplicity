@@ -13,7 +13,7 @@ use std::fmt;
 /// For ex: InjL(2) at index 7, represents InjL(x) where x is a node
 /// at index 5.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Node<Witness, Extension> {
+pub enum Term<Witness, Extension> {
     Iden,
     Unit,
     InjL(usize),

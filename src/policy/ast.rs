@@ -32,7 +32,7 @@ use miniscript::MiniscriptKey;
 use crate::extension::Node as ExtNode;
 
 use crate::Error;
-use crate::Node;
+use crate::Term;
 use crate::To32BytePubKey;
 
 use super::compiler;
@@ -64,7 +64,7 @@ pub enum Policy<Pk: MiniscriptKey> {
 }
 impl<Pk: MiniscriptKey + To32BytePubKey> Policy<Pk> {
     /// Compile a policy into a simplicity frgament
-    pub fn compile<Ext: ExtNode>(&self) -> Result<Vec<Node<(), Ext>>, Error> {
+    pub fn compile<Ext: ExtNode>(&self) -> Result<Vec<Term<(), Ext>>, Error> {
         compiler::compile(&self)
     }
 }
@@ -356,7 +356,7 @@ mod tests {
     fn compile_and_exec(pol: &str, witness: Vec<u8>) {
         // A single pk compilation
         let pol = Policy::<DummyKey>::from_str(pol).unwrap();
-        let prog: Vec<Node<_, DummyNode>> = pol.compile().unwrap();
+        let prog: Vec<Term<_, DummyNode>> = pol.compile().unwrap();
 
         let prog =
             Program::from_untyped_nodes(prog, &mut BitIter::from(witness.into_iter())).unwrap();

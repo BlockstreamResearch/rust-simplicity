@@ -22,7 +22,7 @@ use crate::extension;
 use crate::miniscript::MiniscriptKey;
 use crate::program::scribe;
 use crate::Error;
-use crate::Node;
+use crate::Term;
 use crate::To32BytePubKey;
 use crate::Value;
 
@@ -30,7 +30,7 @@ use crate::core::types::pow2_types;
 
 pub fn compile<Pk: MiniscriptKey + To32BytePubKey, Ext: extension::Node>(
     pol: &Policy<Pk>,
-) -> Result<Vec<Node<(), Ext>>, Error> {
+) -> Result<Vec<Term<(), Ext>>, Error> {
     let pk_ty = pow2_types()[9].clone();
     let frag = match pol {
         Policy::Unsatisfiable => unimplemented!(),
@@ -42,10 +42,10 @@ pub fn compile<Pk: MiniscriptKey + To32BytePubKey, Ext: extension::Node>(
                 &pk_ty,
             )?;
             nodes.extend(scribe(pk_value));
-            nodes.push(Node::Witness(()));
-            nodes.push(Node::Pair(2, 1));
-            nodes.push(Node::Jet(extension::jets::Node::SchnorrAssert));
-            nodes.push(Node::Comp(2, 1));
+            nodes.push(Term::Witness(()));
+            nodes.push(Term::Pair(2, 1));
+            nodes.push(Term::Jet(extension::jets::Node::SchnorrAssert));
+            nodes.push(Term::Comp(2, 1));
             nodes
         }
         Policy::Sha256(ref _h) => {
@@ -80,7 +80,7 @@ pub fn compile<Pk: MiniscriptKey + To32BytePubKey, Ext: extension::Node>(
             let r_nodes = compile(&subs[1])?;
             let li = r_nodes.len() + 1;
             nodes.extend(r_nodes);
-            nodes.push(Node::Comp(li, 1));
+            nodes.push(Term::Comp(li, 1));
             nodes
         }
         Policy::Or(ref subs) => {
@@ -89,9 +89,9 @@ pub fn compile<Pk: MiniscriptKey + To32BytePubKey, Ext: extension::Node>(
             let r_nodes = compile(&subs[1])?;
             let li = r_nodes.len() + 1;
             nodes.extend(r_nodes);
-            nodes.push(Node::Case(li, 1));
-            nodes.push(Node::Witness(()));
-            nodes.push(Node::Comp(1, 2));
+            nodes.push(Term::Case(li, 1));
+            nodes.push(Term::Witness(()));
+            nodes.push(Term::Comp(1, 2));
             nodes
         }
     };

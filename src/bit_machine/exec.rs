@@ -23,8 +23,8 @@ use std::cmp;
 use crate::bititer::BitIter;
 use crate::core::types::FinalTypeInner;
 use crate::extension;
-use crate::Node;
 use crate::Program;
+use crate::Term;
 use crate::Value;
 
 use crate::extension::Node as JetNode;
@@ -269,9 +269,9 @@ impl BitMachine {
             }
 
             match ip.node {
-                Node::Unit => {}
-                Node::Iden => self.copy(ip.source_ty.bit_width()),
-                Node::InjL(t) => {
+                Term::Unit => {}
+                Term::Iden => self.copy(ip.source_ty.bit_width()),
+                Term::InjL(t) => {
                     self.write_bit(false);
                     if let FinalTypeInner::Sum(ref a, _) = ip.target_ty.ty {
                         let aw = a.bit_width();
@@ -281,7 +281,7 @@ impl BitMachine {
                         panic!("type error")
                     }
                 }
-                Node::InjR(t) => {
+                Term::InjR(t) => {
                     self.write_bit(true);
                     if let FinalTypeInner::Sum(_, ref b) = ip.target_ty.ty {
                         let bw = b.bit_width();
@@ -291,11 +291,11 @@ impl BitMachine {
                         panic!("type error")
                     }
                 }
-                Node::Pair(s, t) => {
+                Term::Pair(s, t) => {
                     call_stack.push(CallStack::Goto(ip.index - t));
                     call_stack.push(CallStack::Goto(ip.index - s));
                 }
-                Node::Comp(s, t) => {
+                Term::Comp(s, t) => {
                     let size = program.nodes[ip.index - s].target_ty.bit_width();
                     self.new_frame(size);
 
@@ -304,7 +304,7 @@ impl BitMachine {
                     call_stack.push(CallStack::MoveFrame);
                     call_stack.push(CallStack::Goto(ip.index - s));
                 }
-                Node::Disconnect(s, t) => {
+                Term::Disconnect(s, t) => {
                     // Write `t`'s CMR followed by `s` input to a new read frame
                     let size = program.nodes[ip.index - s].source_ty.bit_width();
                     assert!(size >= 256);
@@ -329,8 +329,8 @@ impl BitMachine {
                     call_stack.push(CallStack::MoveFrame);
                     call_stack.push(CallStack::Goto(ip.index - s));
                 }
-                Node::Take(t) => call_stack.push(CallStack::Goto(ip.index - t)),
-                Node::Drop(t) => {
+                Term::Take(t) => call_stack.push(CallStack::Goto(ip.index - t)),
+                Term::Drop(t) => {
                     if let FinalTypeInner::Product(ref a, _) = ip.source_ty.ty {
                         let aw = a.bit_width();
                         self.fwd(aw);
@@ -340,7 +340,7 @@ impl BitMachine {
                         panic!("type error")
                     }
                 }
-                Node::Case(s, t) => {
+                Term::Case(s, t) => {
                     let sw = self.read[self.read.len() - 1].peek_bit();
                     let aw;
                     let bw;
@@ -365,13 +365,13 @@ impl BitMachine {
                         call_stack.push(CallStack::Goto(ip.index - s));
                     }
                 }
-                Node::Witness(ref value) => self.write_value(value),
-                Node::Hidden(ref h) => panic!("Hit hidden node {} at iter {}: {}", ip, iters, h),
-                Node::Ext(ref e) => e.exec(self, txenv),
+                Term::Witness(ref value) => self.write_value(value),
+                Term::Hidden(ref h) => panic!("Hit hidden node {} at iter {}: {}", ip, iters, h),
+                Term::Ext(ref e) => e.exec(self, txenv),
                 /*
                  */
-                Node::Jet(ref j) => j.exec(self, &()),
-                Node::Fail(..) => panic!("encountered fail node while executing"),
+                Term::Jet(ref j) => j.exec(self, &()),
+                Term::Fail(..) => panic!("encountered fail node while executing"),
             }
 
             ip = loop {

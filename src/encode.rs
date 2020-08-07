@@ -27,7 +27,7 @@ use crate::cmr;
 
 use crate::extension;
 use crate::extension::Node as ExtNode;
-use crate::{Error, Node};
+use crate::{Error, Term};
 
 /// Trait for writing individual bits to some sink
 pub trait BitWrite {
@@ -162,13 +162,13 @@ impl<'a, B: BitWrite> BitWrite for &'a mut B {
 pub fn decode_node_no_witness<I: Iterator<Item = u8>, Ext: extension::Node>(
     idx: usize,
     iter: &mut BitIter<I>,
-) -> Result<Node<(), Ext>, Error> {
+) -> Result<Term<(), Ext>, Error> {
     match iter.next() {
         None => Err(Error::EndOfStream),
         Some(true) => match iter.next() {
             None => Err(Error::EndOfStream),
-            Some(false) => Ok(Node::Ext(extension::Node::decode(iter)?)),
-            Some(true) => Ok(Node::Jet(extension::Node::decode(iter)?)),
+            Some(false) => Ok(Term::Ext(extension::Node::decode(iter)?)),
+            Some(true) => Ok(Term::Jet(extension::Node::decode(iter)?)),
         },
         Some(false) => {
             let code = match iter.read_bits_be(2) {
@@ -180,29 +180,29 @@ pub fn decode_node_no_witness<I: Iterator<Item = u8>, Ext: extension::Node>(
                 None => return Err(Error::EndOfStream),
             };
             match (code, subcode) {
-                (0, 0) => Ok(Node::Comp(
+                (0, 0) => Ok(Term::Comp(
                     decode_natural(&mut *iter, Some(idx))?,
                     decode_natural(iter, Some(idx))?,
                 )),
                 // FIXME `Case` should check for asserts and reject if both children are hidden
-                (0, 1) => Ok(Node::Case(
+                (0, 1) => Ok(Term::Case(
                     decode_natural(&mut *iter, Some(idx))?,
                     decode_natural(iter, Some(idx))?,
                 )),
-                (0, 2) => Ok(Node::Pair(
+                (0, 2) => Ok(Term::Pair(
                     decode_natural(&mut *iter, Some(idx))?,
                     decode_natural(iter, Some(idx))?,
                 )),
-                (0, 3) => Ok(Node::Disconnect(
+                (0, 3) => Ok(Term::Disconnect(
                     decode_natural(&mut *iter, Some(idx))?,
                     decode_natural(iter, Some(idx))?,
                 )),
-                (1, 0) => Ok(Node::InjL(decode_natural(iter, Some(idx))?)),
-                (1, 1) => Ok(Node::InjR(decode_natural(iter, Some(idx))?)),
-                (1, 2) => Ok(Node::Take(decode_natural(iter, Some(idx))?)),
-                (1, 3) => Ok(Node::Drop(decode_natural(iter, Some(idx))?)),
-                (2, 0) => Ok(Node::Iden),
-                (2, 1) => Ok(Node::Unit),
+                (1, 0) => Ok(Term::InjL(decode_natural(iter, Some(idx))?)),
+                (1, 1) => Ok(Term::InjR(decode_natural(iter, Some(idx))?)),
+                (1, 2) => Ok(Term::Take(decode_natural(iter, Some(idx))?)),
+                (1, 3) => Ok(Term::Drop(decode_natural(iter, Some(idx))?)),
+                (2, 0) => Ok(Term::Iden),
+                (2, 1) => Ok(Term::Unit),
                 (2, 2) => Err(Error::ParseError("01010 (fail node)")),
                 (2, 3) => Err(Error::ParseError("01011 (stop code)")),
                 (3, 0) => {
@@ -216,9 +216,9 @@ pub fn decode_node_no_witness<I: Iterator<Item = u8>, Ext: extension::Node>(
                             };
                         }
                     }
-                    Ok(Node::Hidden(cmr::Cmr::from(h)))
+                    Ok(Term::Hidden(cmr::Cmr::from(h)))
                 }
-                (3, 1) => Ok(Node::Witness(())),
+                (3, 1) => Ok(Term::Witness(())),
                 (_, _) => unreachable!("we read only so many bits"),
             }
         }
@@ -226,57 +226,57 @@ pub fn decode_node_no_witness<I: Iterator<Item = u8>, Ext: extension::Node>(
 }
 
 pub fn encode_node_no_witness<T, W: BitWrite, Ext: extension::Node>(
-    node: &Node<T, Ext>,
+    node: &Term<T, Ext>,
     writer: &mut W,
 ) -> io::Result<usize> {
     match *node {
-        Node::Comp(i, j) => {
+        Term::Comp(i, j) => {
             let ret = writer.write_u8(0, 5)?
                 + encode_natural(i, &mut *writer)?
                 + encode_natural(j, &mut *writer)?;
             Ok(ret)
         }
-        Node::Case(i, j) => {
+        Term::Case(i, j) => {
             let ret = writer.write_u8(1, 5)?
                 + encode_natural(i, &mut *writer)?
                 + encode_natural(j, &mut *writer)?;
             Ok(ret)
         }
-        Node::Pair(i, j) => {
+        Term::Pair(i, j) => {
             let ret = writer.write_u8(2, 5)?
                 + encode_natural(i, &mut *writer)?
                 + encode_natural(j, &mut *writer)?;
             Ok(ret)
         }
-        Node::Disconnect(i, j) => {
+        Term::Disconnect(i, j) => {
             let ret = writer.write_u8(3, 5)?
                 + encode_natural(i, &mut *writer)?
                 + encode_natural(j, &mut *writer)?;
             Ok(ret)
         }
-        Node::InjL(i) => Ok(writer.write_u8(4, 5)? + encode_natural(i, &mut *writer)?),
-        Node::InjR(i) => Ok(writer.write_u8(5, 5)? + encode_natural(i, &mut *writer)?),
-        Node::Take(i) => Ok(writer.write_u8(6, 5)? + encode_natural(i, &mut *writer)?),
-        Node::Drop(i) => Ok(writer.write_u8(7, 5)? + encode_natural(i, &mut *writer)?),
-        Node::Iden => writer.write_u8(8, 5),
-        Node::Unit => writer.write_u8(9, 5),
-        Node::Fail(..) => unimplemented!(),
-        Node::Hidden(cmr) => {
+        Term::InjL(i) => Ok(writer.write_u8(4, 5)? + encode_natural(i, &mut *writer)?),
+        Term::InjR(i) => Ok(writer.write_u8(5, 5)? + encode_natural(i, &mut *writer)?),
+        Term::Take(i) => Ok(writer.write_u8(6, 5)? + encode_natural(i, &mut *writer)?),
+        Term::Drop(i) => Ok(writer.write_u8(7, 5)? + encode_natural(i, &mut *writer)?),
+        Term::Iden => writer.write_u8(8, 5),
+        Term::Unit => writer.write_u8(9, 5),
+        Term::Fail(..) => unimplemented!(),
+        Term::Hidden(cmr) => {
             let mut len = writer.write_u8(6, 4)?;
             for byte in &cmr[..] {
                 len += writer.write_u8(*byte, 8)?;
             }
             Ok(len)
         }
-        Node::Witness(..) => writer.write_u8(7, 4),
-        Node::Ext(ref b) => extension::Node::encode(b, writer),
-        Node::Jet(ref j) => j.encode(writer),
+        Term::Witness(..) => writer.write_u8(7, 4),
+        Term::Ext(ref b) => extension::Node::encode(b, writer),
+        Term::Jet(ref j) => j.encode(writer),
     }
 }
 
 pub fn decode_program_no_witness<I: Iterator<Item = u8>, Ext: extension::Node>(
     iter: &mut BitIter<I>,
-) -> Result<Vec<Node<(), Ext>>, Error> {
+) -> Result<Vec<Term<(), Ext>>, Error> {
     let prog_len = decode_natural(&mut *iter, None)?;
 
     // FIXME make this a reasonable limit

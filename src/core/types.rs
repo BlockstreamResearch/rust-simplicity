@@ -6,7 +6,7 @@ use std::{cell::RefCell, cmp, fmt, mem, rc::Rc, sync::Arc};
 use crate::extension;
 use crate::extension::Node as ExtNode;
 use crate::Error;
-use crate::Node;
+use crate::Term;
 
 #[derive(Clone, Debug)]
 enum Type {
@@ -367,7 +367,7 @@ struct UnificationArrow {
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct TypedNode<Witness, Ext> {
-    pub node: Node<Witness, Ext>,
+    pub node: Term<Witness, Ext>,
     pub source_ty: Arc<FinalType>,
     pub target_ty: Arc<FinalType>,
 }
@@ -399,7 +399,7 @@ fn type_from_name<I: Iterator<Item = u8>>(n: &mut I, pow2s: &[RcVar]) -> Type {
 
 /// Attach types to all nodes in a program
 pub fn type_check<Witness, Ext: extension::Node>(
-    program: Vec<Node<Witness, Ext>>,
+    program: Vec<Term<Witness, Ext>>,
 ) -> Result<Vec<TypedNode<Witness, Ext>>, Error> {
     if program.is_empty() {
         return Ok(vec![]);
@@ -431,9 +431,9 @@ pub fn type_check<Witness, Ext: extension::Node>(
         };
 
         match program_node {
-            Node::Iden => unify(node.source.clone(), node.target.clone())?,
-            Node::Unit => bind(&node.target, Type::Unit)?,
-            Node::InjL(i) => {
+            Term::Iden => unify(node.source.clone(), node.target.clone())?,
+            Term::Unit => bind(&node.target, Type::Unit)?,
+            Term::InjL(i) => {
                 let i = idx - i;
                 unify(node.source.clone(), rcs[i].source.clone())?;
                 let target_type = Type::Sum(
@@ -442,7 +442,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
                 );
                 bind(&node.target, target_type)?;
             }
-            Node::InjR(i) => {
+            Term::InjR(i) => {
                 let i = idx - i;
                 unify(node.source.clone(), rcs[i].source.clone())?;
                 let target_type = Type::Sum(
@@ -451,7 +451,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
                 );
                 bind(&node.target, target_type)?;
             }
-            Node::Take(i) => {
+            Term::Take(i) => {
                 let i = idx - i;
                 unify(node.target.clone(), rcs[i].target.clone())?;
                 let target_type = Type::Product(
@@ -460,7 +460,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
                 );
                 bind(&node.source, target_type)?;
             }
-            Node::Drop(i) => {
+            Term::Drop(i) => {
                 let i = idx - i;
                 unify(node.target.clone(), rcs[i].target.clone())?;
                 let target_type = Type::Product(
@@ -469,13 +469,13 @@ pub fn type_check<Witness, Ext: extension::Node>(
                 );
                 bind(&node.source, target_type)?;
             }
-            Node::Comp(i, j) => {
+            Term::Comp(i, j) => {
                 let (i, j) = (idx - i, idx - j);
                 unify(node.source.clone(), rcs[i].source.clone())?;
                 unify(rcs[i].target.clone(), rcs[j].source.clone())?;
                 unify(node.target.clone(), rcs[j].target.clone())?;
             }
-            Node::Case(i, j) => {
+            Term::Case(i, j) => {
                 let (i, j) = (idx - i, idx - j);
                 let var1 = Rc::new(RefCell::new(UnificationVar::free()));
                 let var2 = Rc::new(RefCell::new(UnificationVar::free()));
@@ -487,7 +487,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
 
                 let source_ty = Type::Product(sum12_var, var3.clone());
                 bind(&node.source, source_ty)?;
-                if let Node::Hidden(..) = program[i] {
+                if let Term::Hidden(..) = program[i] {
                 } else {
                     bind(
                         &find_root(rcs[i].source.clone()),
@@ -495,7 +495,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
                     )?;
                     unify(node.target.clone(), rcs[i].target.clone())?;
                 }
-                if let Node::Hidden(..) = program[j] {
+                if let Term::Hidden(..) = program[j] {
                 } else {
                     bind(
                         &find_root(rcs[j].source.clone()),
@@ -504,7 +504,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
                     unify(node.target.clone(), rcs[j].target.clone())?;
                 }
             }
-            Node::Pair(i, j) => {
+            Term::Pair(i, j) => {
                 let (i, j) = (idx - i, idx - j);
                 unify(node.source.clone(), rcs[i].source.clone())?;
                 unify(node.source.clone(), rcs[j].source.clone())?;
@@ -513,7 +513,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
                     Type::Product(rcs[i].target.clone(), rcs[j].target.clone()),
                 )?;
             }
-            Node::Disconnect(i, j) => {
+            Term::Disconnect(i, j) => {
                 let (i, j) = (idx - i, idx - j);
                 // See chapter 6 (Delegation) of TR
                 // Be careful, this order changed! https://github.com/ElementsProject/simplicity/pull/46
@@ -534,13 +534,13 @@ pub fn type_check<Witness, Ext: extension::Node>(
                 unify(rcs[j].source.clone(), var_c)?;
                 unify(rcs[j].target.clone(), var_d)?;
             }
-            Node::Witness(..) => {
+            Term::Witness(..) => {
                 // No type constraints
             }
-            Node::Hidden(..) => {
+            Term::Hidden(..) => {
                 // No type constraints
             }
-            Node::Ext(ref bn) => {
+            Term::Ext(ref bn) => {
                 bind(
                     &node.source,
                     type_from_name(&mut bn.source_type(), &pow2s[..]),
@@ -550,7 +550,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
                     type_from_name(&mut bn.target_type(), &pow2s[..]),
                 )?;
             }
-            Node::Jet(ref jt) => {
+            Term::Jet(ref jt) => {
                 bind(
                     &node.source,
                     type_from_name(&mut jt.source_type(), &pow2s[..]),
@@ -561,7 +561,7 @@ pub fn type_check<Witness, Ext: extension::Node>(
                     type_from_name(&mut jt.target_type(), &pow2s[..]),
                 )?;
             }
-            Node::Fail(..) => unimplemented!("Cannot typecheck a program with `Fail` in it"),
+            Term::Fail(..) => unimplemented!("Cannot typecheck a program with `Fail` in it"),
         };
 
         rcs.push(Rc::new(node));

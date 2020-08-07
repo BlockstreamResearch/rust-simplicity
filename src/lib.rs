@@ -33,7 +33,7 @@ pub mod program;
 use std::fmt;
 
 pub use crate::bit_machine::exec;
-pub use crate::core::term::Node;
+pub use crate::core::term::Term;
 pub use crate::core::term::Value;
 pub use crate::program::Program;
 
