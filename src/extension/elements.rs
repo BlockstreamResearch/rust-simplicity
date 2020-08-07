@@ -42,7 +42,7 @@ impl TxEnv {
 
 /// Set of new Simplicity nodes enabled by the Bitcoin extension
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub enum Node {
+pub enum ElementsNode {
     Version,
     LockTime,
     InputIsPegin,
@@ -81,312 +81,338 @@ pub enum Node {
     Fee,
 }
 
-impl fmt::Display for Node {
+impl fmt::Display for ElementsNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match *self {
-            Node::Version => "version",
-            Node::LockTime => "locktime",
-            Node::InputIsPegin => "inputispegin",
-            Node::InputPrevOutpoint => "inputprevoutpoint",
-            Node::InputAsset => "inputasset",
-            Node::InputAmount => "inputamount",
-            Node::InputScriptHash => "inputscripthash",
-            Node::InputSequence => "inputsequence",
-            Node::InputIssuanceBlinding => "inputissuanceblinding",
-            Node::InputIssuanceContract => "inputissuancecontract",
-            Node::InputIssuanceEntropy => "inputissuanceentropy",
-            Node::InputIssuanceAssetAmount => "inputissuanceassetamount",
-            Node::InputIssuanceTokenAmount => "inputissuancetokenamount",
-            Node::OutputAsset => "outputasset",
-            Node::OutputAmount => "outputamount",
-            Node::OutputNonce => "outputnonce",
-            Node::OutputScriptHash => "outputscripthash",
-            Node::OutputNullDatum => "outputnulldatum",
-            Node::ScriptCmr => "scriptcmr",
-            Node::CurrentIndex => "currentIndex",
-            Node::CurrentIsPegin => "currentIspegin",
-            Node::CurrentPrevOutpoint => "currentprevoutpoint",
-            Node::CurrentAsset => "currentasset",
-            Node::CurrentAmount => "currentamount",
-            Node::CurrentScriptHash => "currentscripthash",
-            Node::CurrentSequence => "currentsequence",
-            Node::CurrentIssuanceBlinding => "currentissuanceblinding",
-            Node::CurrentIssuanceContract => "currentissuancecontract",
-            Node::CurrentIssuanceEntropy => "currentissuanceentropy",
-            Node::CurrentIssuanceAssetAmount => "currentissuanceassetAmount",
-            Node::CurrentIssuanceTokenAmount => "currentissuancetokenAmount",
-            Node::InputsHash => "inputshash",
-            Node::OutputsHash => "outputshash",
-            Node::NumInputs => "numinputs",
-            Node::NumOutputs => "numoutputs",
-            Node::Fee => "fee",
+            ElementsNode::Version => "version",
+            ElementsNode::LockTime => "locktime",
+            ElementsNode::InputIsPegin => "inputispegin",
+            ElementsNode::InputPrevOutpoint => "inputprevoutpoint",
+            ElementsNode::InputAsset => "inputasset",
+            ElementsNode::InputAmount => "inputamount",
+            ElementsNode::InputScriptHash => "inputscripthash",
+            ElementsNode::InputSequence => "inputsequence",
+            ElementsNode::InputIssuanceBlinding => "inputissuanceblinding",
+            ElementsNode::InputIssuanceContract => "inputissuancecontract",
+            ElementsNode::InputIssuanceEntropy => "inputissuanceentropy",
+            ElementsNode::InputIssuanceAssetAmount => "inputissuanceassetamount",
+            ElementsNode::InputIssuanceTokenAmount => "inputissuancetokenamount",
+            ElementsNode::OutputAsset => "outputasset",
+            ElementsNode::OutputAmount => "outputamount",
+            ElementsNode::OutputNonce => "outputnonce",
+            ElementsNode::OutputScriptHash => "outputscripthash",
+            ElementsNode::OutputNullDatum => "outputnulldatum",
+            ElementsNode::ScriptCmr => "scriptcmr",
+            ElementsNode::CurrentIndex => "currentIndex",
+            ElementsNode::CurrentIsPegin => "currentIspegin",
+            ElementsNode::CurrentPrevOutpoint => "currentprevoutpoint",
+            ElementsNode::CurrentAsset => "currentasset",
+            ElementsNode::CurrentAmount => "currentamount",
+            ElementsNode::CurrentScriptHash => "currentscripthash",
+            ElementsNode::CurrentSequence => "currentsequence",
+            ElementsNode::CurrentIssuanceBlinding => "currentissuanceblinding",
+            ElementsNode::CurrentIssuanceContract => "currentissuancecontract",
+            ElementsNode::CurrentIssuanceEntropy => "currentissuanceentropy",
+            ElementsNode::CurrentIssuanceAssetAmount => "currentissuanceassetAmount",
+            ElementsNode::CurrentIssuanceTokenAmount => "currentissuancetokenAmount",
+            ElementsNode::InputsHash => "inputshash",
+            ElementsNode::OutputsHash => "outputshash",
+            ElementsNode::NumInputs => "numinputs",
+            ElementsNode::NumOutputs => "numoutputs",
+            ElementsNode::Fee => "fee",
         })
     }
 }
 
-impl extension::Node for Node {
+impl extension::Jet for ElementsNode {
     type TxEnv = TxEnv;
 
-    fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Node, Error> {
+    fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<ElementsNode, Error> {
         let code = match iter.read_bits_be(5) {
             Some(code) => code,
             None => return Err(Error::EndOfStream),
         };
         match code {
             0 => match iter.next() {
-                Some(false) => Ok(Node::Version),
-                Some(true) => Ok(Node::LockTime),
+                Some(false) => Ok(ElementsNode::Version),
+                Some(true) => Ok(ElementsNode::LockTime),
                 None => Err(Error::EndOfStream),
             },
-            1 => Ok(Node::InputIsPegin),
-            2 => Ok(Node::InputPrevOutpoint),
-            3 => Ok(Node::InputAsset),
+            1 => Ok(ElementsNode::InputIsPegin),
+            2 => Ok(ElementsNode::InputPrevOutpoint),
+            3 => Ok(ElementsNode::InputAsset),
             4 => match iter.next() {
-                Some(false) => Ok(Node::InputAmount),
-                Some(true) => Ok(Node::InputScriptHash),
+                Some(false) => Ok(ElementsNode::InputAmount),
+                Some(true) => Ok(ElementsNode::InputScriptHash),
                 None => Err(Error::EndOfStream),
             },
-            5 => Ok(Node::InputSequence),
-            6 => Ok(Node::InputIssuanceBlinding),
-            7 => Ok(Node::InputIssuanceContract),
+            5 => Ok(ElementsNode::InputSequence),
+            6 => Ok(ElementsNode::InputIssuanceBlinding),
+            7 => Ok(ElementsNode::InputIssuanceContract),
             8 => match iter.next() {
-                Some(false) => Ok(Node::InputIssuanceEntropy),
-                Some(true) => Ok(Node::InputIssuanceAssetAmount),
+                Some(false) => Ok(ElementsNode::InputIssuanceEntropy),
+                Some(true) => Ok(ElementsNode::InputIssuanceAssetAmount),
                 None => Err(Error::EndOfStream),
             },
-            9 => Ok(Node::InputIssuanceTokenAmount),
-            10 => Ok(Node::OutputAsset),
-            11 => Ok(Node::OutputAmount),
+            9 => Ok(ElementsNode::InputIssuanceTokenAmount),
+            10 => Ok(ElementsNode::OutputAsset),
+            11 => Ok(ElementsNode::OutputAmount),
             12 => match iter.next() {
-                Some(false) => Ok(Node::OutputNonce),
-                Some(true) => Ok(Node::OutputScriptHash),
+                Some(false) => Ok(ElementsNode::OutputNonce),
+                Some(true) => Ok(ElementsNode::OutputScriptHash),
                 None => Err(Error::EndOfStream),
             },
-            13 => Ok(Node::OutputNullDatum),
-            14 => Ok(Node::ScriptCmr),
-            15 => Ok(Node::CurrentIndex),
-            16 => Ok(Node::CurrentIsPegin),
-            17 => Ok(Node::CurrentPrevOutpoint),
-            18 => Ok(Node::CurrentAsset),
-            19 => Ok(Node::CurrentAmount),
-            20 => Ok(Node::CurrentScriptHash),
-            21 => Ok(Node::CurrentSequence),
-            22 => Ok(Node::CurrentIssuanceBlinding),
-            23 => Ok(Node::CurrentIssuanceContract),
-            24 => Ok(Node::CurrentIssuanceEntropy),
-            25 => Ok(Node::CurrentIssuanceAssetAmount),
-            26 => Ok(Node::CurrentIssuanceTokenAmount),
-            27 => Ok(Node::InputsHash),
-            28 => Ok(Node::OutputsHash),
-            29 => Ok(Node::NumInputs),
-            30 => Ok(Node::NumOutputs),
-            31 => Ok(Node::Fee),
+            13 => Ok(ElementsNode::OutputNullDatum),
+            14 => Ok(ElementsNode::ScriptCmr),
+            15 => Ok(ElementsNode::CurrentIndex),
+            16 => Ok(ElementsNode::CurrentIsPegin),
+            17 => Ok(ElementsNode::CurrentPrevOutpoint),
+            18 => Ok(ElementsNode::CurrentAsset),
+            19 => Ok(ElementsNode::CurrentAmount),
+            20 => Ok(ElementsNode::CurrentScriptHash),
+            21 => Ok(ElementsNode::CurrentSequence),
+            22 => Ok(ElementsNode::CurrentIssuanceBlinding),
+            23 => Ok(ElementsNode::CurrentIssuanceContract),
+            24 => Ok(ElementsNode::CurrentIssuanceEntropy),
+            25 => Ok(ElementsNode::CurrentIssuanceAssetAmount),
+            26 => Ok(ElementsNode::CurrentIssuanceTokenAmount),
+            27 => Ok(ElementsNode::InputsHash),
+            28 => Ok(ElementsNode::OutputsHash),
+            29 => Ok(ElementsNode::NumInputs),
+            30 => Ok(ElementsNode::NumOutputs),
+            31 => Ok(ElementsNode::Fee),
             _ => unreachable!(),
         }
     }
 
     fn source_type(&self) -> TypeName {
         match *self {
-            Node::Version => TypeName(b"1"),
-            Node::LockTime => TypeName(b"1"),
-            Node::InputIsPegin
-            | Node::InputPrevOutpoint
-            | Node::InputAsset
-            | Node::InputAmount
-            | Node::InputScriptHash
-            | Node::InputSequence
-            | Node::InputIssuanceBlinding
-            | Node::InputIssuanceContract
-            | Node::InputIssuanceEntropy
-            | Node::InputIssuanceAssetAmount
-            | Node::InputIssuanceTokenAmount
-            | Node::OutputAsset
-            | Node::OutputAmount
-            | Node::OutputNonce
-            | Node::OutputScriptHash => TypeName(b"i"),
-            Node::OutputNullDatum => TypeName(b"*ii"),
-            Node::ScriptCmr
-            | Node::CurrentIndex
-            | Node::CurrentIsPegin
-            | Node::CurrentPrevOutpoint
-            | Node::CurrentAsset
-            | Node::CurrentAmount
-            | Node::CurrentScriptHash
-            | Node::CurrentSequence
-            | Node::CurrentIssuanceBlinding
-            | Node::CurrentIssuanceContract
-            | Node::CurrentIssuanceEntropy
-            | Node::CurrentIssuanceAssetAmount
-            | Node::CurrentIssuanceTokenAmount
-            | Node::InputsHash
-            | Node::OutputsHash
-            | Node::NumInputs
-            | Node::NumOutputs => TypeName(b"1"),
-            Node::Fee => TypeName(b"h"),
+            ElementsNode::Version => TypeName(b"1"),
+            ElementsNode::LockTime => TypeName(b"1"),
+            ElementsNode::InputIsPegin
+            | ElementsNode::InputPrevOutpoint
+            | ElementsNode::InputAsset
+            | ElementsNode::InputAmount
+            | ElementsNode::InputScriptHash
+            | ElementsNode::InputSequence
+            | ElementsNode::InputIssuanceBlinding
+            | ElementsNode::InputIssuanceContract
+            | ElementsNode::InputIssuanceEntropy
+            | ElementsNode::InputIssuanceAssetAmount
+            | ElementsNode::InputIssuanceTokenAmount
+            | ElementsNode::OutputAsset
+            | ElementsNode::OutputAmount
+            | ElementsNode::OutputNonce
+            | ElementsNode::OutputScriptHash => TypeName(b"i"),
+            ElementsNode::OutputNullDatum => TypeName(b"*ii"),
+            ElementsNode::ScriptCmr
+            | ElementsNode::CurrentIndex
+            | ElementsNode::CurrentIsPegin
+            | ElementsNode::CurrentPrevOutpoint
+            | ElementsNode::CurrentAsset
+            | ElementsNode::CurrentAmount
+            | ElementsNode::CurrentScriptHash
+            | ElementsNode::CurrentSequence
+            | ElementsNode::CurrentIssuanceBlinding
+            | ElementsNode::CurrentIssuanceContract
+            | ElementsNode::CurrentIssuanceEntropy
+            | ElementsNode::CurrentIssuanceAssetAmount
+            | ElementsNode::CurrentIssuanceTokenAmount
+            | ElementsNode::InputsHash
+            | ElementsNode::OutputsHash
+            | ElementsNode::NumInputs
+            | ElementsNode::NumOutputs => TypeName(b"1"),
+            ElementsNode::Fee => TypeName(b"h"),
         }
     }
 
     /// Name of the target type for this node
     fn target_type(&self) -> TypeName {
         match *self {
-            Node::Version => TypeName(b"i"),
-            Node::LockTime => TypeName(b"i"),
-            Node::InputIsPegin => TypeName(b"+12"),
-            Node::InputPrevOutpoint => TypeName(b"+1*hi"),
-            Node::InputAsset => TypeName(b"+1+*2hh"),
-            Node::InputAmount => TypeName(b"+1+*2hl"),
-            Node::InputScriptHash => TypeName(b"+1h"),
-            Node::InputSequence => TypeName(b"+1i"),
-            Node::InputIssuanceBlinding => TypeName(b"+1+1h"),
-            Node::InputIssuanceContract => TypeName(b"+1+1h"),
-            Node::InputIssuanceEntropy => TypeName(b"+1+1h"),
-            Node::InputIssuanceAssetAmount => TypeName(b"+1+1+*2hl"),
-            Node::InputIssuanceTokenAmount => TypeName(b"+1+1+*2hl"),
-            Node::OutputAsset => TypeName(b"+1+*2hh"),
-            Node::OutputAmount => TypeName(b"+1+*2hl"),
-            Node::OutputNonce => TypeName(b"+1+*2hh"),
-            Node::OutputScriptHash => TypeName(b"+1h"),
-            Node::OutputNullDatum => TypeName(b"+1+1+**22h+2*22"),
-            Node::ScriptCmr => TypeName(b"h"),
-            Node::CurrentIndex => TypeName(b"i"),
-            Node::CurrentIsPegin => TypeName(b"2"),
-            Node::CurrentPrevOutpoint => TypeName(b"*hi"),
-            Node::CurrentAsset => TypeName(b"+*2hh"),
-            Node::CurrentAmount => TypeName(b"+*2hl"),
-            Node::CurrentScriptHash => TypeName(b"h"),
-            Node::CurrentSequence => TypeName(b"i"),
-            Node::CurrentIssuanceBlinding => TypeName(b"+1h"),
-            Node::CurrentIssuanceContract => TypeName(b"+1h"),
-            Node::CurrentIssuanceEntropy => TypeName(b"+1h"),
-            Node::CurrentIssuanceAssetAmount => TypeName(b"+1+*2hl"),
-            Node::CurrentIssuanceTokenAmount => TypeName(b"+1+*2hl"),
-            Node::InputsHash => TypeName(b"h"),
-            Node::OutputsHash => TypeName(b"h"),
-            Node::NumInputs => TypeName(b"i"),
-            Node::NumOutputs => TypeName(b"i"),
-            Node::Fee => TypeName(b"l"),
+            ElementsNode::Version => TypeName(b"i"),
+            ElementsNode::LockTime => TypeName(b"i"),
+            ElementsNode::InputIsPegin => TypeName(b"+12"),
+            ElementsNode::InputPrevOutpoint => TypeName(b"+1*hi"),
+            ElementsNode::InputAsset => TypeName(b"+1+*2hh"),
+            ElementsNode::InputAmount => TypeName(b"+1+*2hl"),
+            ElementsNode::InputScriptHash => TypeName(b"+1h"),
+            ElementsNode::InputSequence => TypeName(b"+1i"),
+            ElementsNode::InputIssuanceBlinding => TypeName(b"+1+1h"),
+            ElementsNode::InputIssuanceContract => TypeName(b"+1+1h"),
+            ElementsNode::InputIssuanceEntropy => TypeName(b"+1+1h"),
+            ElementsNode::InputIssuanceAssetAmount => TypeName(b"+1+1+*2hl"),
+            ElementsNode::InputIssuanceTokenAmount => TypeName(b"+1+1+*2hl"),
+            ElementsNode::OutputAsset => TypeName(b"+1+*2hh"),
+            ElementsNode::OutputAmount => TypeName(b"+1+*2hl"),
+            ElementsNode::OutputNonce => TypeName(b"+1+*2hh"),
+            ElementsNode::OutputScriptHash => TypeName(b"+1h"),
+            ElementsNode::OutputNullDatum => TypeName(b"+1+1+**22h+2*22"),
+            ElementsNode::ScriptCmr => TypeName(b"h"),
+            ElementsNode::CurrentIndex => TypeName(b"i"),
+            ElementsNode::CurrentIsPegin => TypeName(b"2"),
+            ElementsNode::CurrentPrevOutpoint => TypeName(b"*hi"),
+            ElementsNode::CurrentAsset => TypeName(b"+*2hh"),
+            ElementsNode::CurrentAmount => TypeName(b"+*2hl"),
+            ElementsNode::CurrentScriptHash => TypeName(b"h"),
+            ElementsNode::CurrentSequence => TypeName(b"i"),
+            ElementsNode::CurrentIssuanceBlinding => TypeName(b"+1h"),
+            ElementsNode::CurrentIssuanceContract => TypeName(b"+1h"),
+            ElementsNode::CurrentIssuanceEntropy => TypeName(b"+1h"),
+            ElementsNode::CurrentIssuanceAssetAmount => TypeName(b"+1+*2hl"),
+            ElementsNode::CurrentIssuanceTokenAmount => TypeName(b"+1+*2hl"),
+            ElementsNode::InputsHash => TypeName(b"h"),
+            ElementsNode::OutputsHash => TypeName(b"h"),
+            ElementsNode::NumInputs => TypeName(b"i"),
+            ElementsNode::NumOutputs => TypeName(b"i"),
+            ElementsNode::Fee => TypeName(b"l"),
         }
     }
 
     fn cmr(&self) -> Cmr {
         match *self {
-            Node::Version => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fversion"),
-            Node::LockTime => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1flockTime"),
-            Node::InputIsPegin => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputIsPegin"),
-            Node::InputPrevOutpoint => {
+            ElementsNode::Version => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fversion"),
+            ElementsNode::LockTime => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1flockTime"),
+            ElementsNode::InputIsPegin => {
+                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputIsPegin")
+            }
+            ElementsNode::InputPrevOutpoint => {
                 Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputPrevOutpoint")
             }
-            Node::InputAsset => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputAsset"),
-            Node::InputAmount => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputAmount"),
-            Node::InputScriptHash => {
+            ElementsNode::InputAsset => {
+                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputAsset")
+            }
+            ElementsNode::InputAmount => {
+                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputAmount")
+            }
+            ElementsNode::InputScriptHash => {
                 Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputScriptHash")
             }
-            Node::InputSequence => {
+            ElementsNode::InputSequence => {
                 Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputSequence")
             }
-            Node::InputIssuanceBlinding => {
+            ElementsNode::InputIssuanceBlinding => {
                 Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputIssuanceBlinding")
             }
-            Node::InputIssuanceContract => {
+            ElementsNode::InputIssuanceContract => {
                 Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputIssuanceContract")
             }
-            Node::InputIssuanceEntropy => {
+            ElementsNode::InputIssuanceEntropy => {
                 Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputIssuanceEntropy")
             }
-            Node::InputIssuanceAssetAmount => {
+            ElementsNode::InputIssuanceAssetAmount => {
                 Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputIssuanceAssetAmt")
             }
-            Node::InputIssuanceTokenAmount => {
+            ElementsNode::InputIssuanceTokenAmount => {
                 Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputIssuanceTokenAmt")
             }
-            Node::OutputAsset => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1foutputAsset"),
-            Node::OutputAmount => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1foutputAmount"),
-            Node::OutputNonce => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1foutputNonce"),
-            Node::OutputScriptHash => {
+            ElementsNode::OutputAsset => {
+                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1foutputAsset")
+            }
+            ElementsNode::OutputAmount => {
+                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1foutputAmount")
+            }
+            ElementsNode::OutputNonce => {
+                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1foutputNonce")
+            }
+            ElementsNode::OutputScriptHash => {
                 Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1foutputScriptHash")
             }
-            Node::OutputNullDatum => {
+            ElementsNode::OutputNullDatum => {
                 Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1foutputNullDatum")
             }
-            Node::ScriptCmr => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fscriptCMR"),
-            Node::CurrentIndex => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentIndex"),
-            Node::CurrentIsPegin => {
+            ElementsNode::ScriptCmr => {
+                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fscriptCMR")
+            }
+            ElementsNode::CurrentIndex => {
+                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentIndex")
+            }
+            ElementsNode::CurrentIsPegin => {
                 Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentIsPegin")
             }
-            Node::CurrentPrevOutpoint => {
+            ElementsNode::CurrentPrevOutpoint => {
                 Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentPrevOutpoint")
             }
-            Node::CurrentAsset => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentAsset"),
-            Node::CurrentAmount => {
+            ElementsNode::CurrentAsset => {
+                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentAsset")
+            }
+            ElementsNode::CurrentAmount => {
                 Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentAmount")
             }
-            Node::CurrentScriptHash => {
+            ElementsNode::CurrentScriptHash => {
                 Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentScriptHash")
             }
-            Node::CurrentSequence => {
+            ElementsNode::CurrentSequence => {
                 Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentSequence")
             }
-            Node::CurrentIssuanceBlinding => {
+            ElementsNode::CurrentIssuanceBlinding => {
                 Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentIssuanceBlinding")
             }
-            Node::CurrentIssuanceContract => {
+            ElementsNode::CurrentIssuanceContract => {
                 Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentIssuanceContract")
             }
-            Node::CurrentIssuanceEntropy => {
+            ElementsNode::CurrentIssuanceEntropy => {
                 Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentIssuanceEntropy")
             }
-            Node::CurrentIssuanceAssetAmount => {
+            ElementsNode::CurrentIssuanceAssetAmount => {
                 Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentIssuanceAssetAmt")
             }
-            Node::CurrentIssuanceTokenAmount => {
+            ElementsNode::CurrentIssuanceTokenAmount => {
                 Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentIssuanceTokenAmt")
             }
-            Node::InputsHash => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputsHash"),
-            Node::OutputsHash => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1foutputsHash"),
-            Node::NumInputs => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fnumInputs"),
-            Node::NumOutputs => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fnumOutputs"),
-            Node::Fee => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1ffee"),
+            ElementsNode::InputsHash => {
+                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputsHash")
+            }
+            ElementsNode::OutputsHash => {
+                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1foutputsHash")
+            }
+            ElementsNode::NumInputs => {
+                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fnumInputs")
+            }
+            ElementsNode::NumOutputs => {
+                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fnumOutputs")
+            }
+            ElementsNode::Fee => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1ffee"),
         }
     }
 
     fn encode<W: encode::BitWrite>(&self, w: &mut W) -> io::Result<usize> {
         match *self {
-            Node::Version => w.write_u8(128 + 0, 8),
-            Node::LockTime => w.write_u8(128 + 1, 8),
-            Node::InputIsPegin => w.write_u8(64 + 1, 7),
-            Node::InputPrevOutpoint => w.write_u8(64 + 2, 7),
-            Node::InputAsset => w.write_u8(64 + 3, 7),
-            Node::InputAmount => w.write_u8(128 + 2, 8),
-            Node::InputScriptHash => w.write_u8(128 + 3, 8),
-            Node::InputSequence => w.write_u8(64 + 5, 7),
-            Node::InputIssuanceBlinding => w.write_u8(64 + 6, 7),
-            Node::InputIssuanceContract => w.write_u8(64 + 7, 7),
-            Node::InputIssuanceEntropy => w.write_u8(128 + 4, 8),
-            Node::InputIssuanceAssetAmount => w.write_u8(128 + 5, 8),
-            Node::InputIssuanceTokenAmount => w.write_u8(64 + 9, 7),
-            Node::OutputAsset => w.write_u8(64 + 10, 7),
-            Node::OutputAmount => w.write_u8(64 + 11, 7),
-            Node::OutputNonce => w.write_u8(128 + 6, 8),
-            Node::OutputScriptHash => w.write_u8(128 + 7, 8),
-            Node::OutputNullDatum => w.write_u8(64 + 13, 7),
-            Node::ScriptCmr => w.write_u8(64 + 14, 7),
-            Node::CurrentIndex => w.write_u8(64 + 15, 7),
-            Node::CurrentIsPegin => w.write_u8(64 + 16, 7),
-            Node::CurrentPrevOutpoint => w.write_u8(64 + 17, 7),
-            Node::CurrentAsset => w.write_u8(64 + 18, 7),
-            Node::CurrentAmount => w.write_u8(64 + 19, 7),
-            Node::CurrentScriptHash => w.write_u8(64 + 20, 7),
-            Node::CurrentSequence => w.write_u8(64 + 21, 7),
-            Node::CurrentIssuanceBlinding => w.write_u8(64 + 22, 7),
-            Node::CurrentIssuanceContract => w.write_u8(64 + 23, 7),
-            Node::CurrentIssuanceEntropy => w.write_u8(64 + 24, 7),
-            Node::CurrentIssuanceAssetAmount => w.write_u8(64 + 25, 7),
-            Node::CurrentIssuanceTokenAmount => w.write_u8(64 + 26, 7),
-            Node::InputsHash => w.write_u8(64 + 27, 7),
-            Node::OutputsHash => w.write_u8(64 + 28, 7),
-            Node::NumInputs => w.write_u8(64 + 29, 7),
-            Node::NumOutputs => w.write_u8(64 + 30, 7),
-            Node::Fee => w.write_u8(64 + 31, 7),
+            ElementsNode::Version => w.write_u8(128 + 0, 8),
+            ElementsNode::LockTime => w.write_u8(128 + 1, 8),
+            ElementsNode::InputIsPegin => w.write_u8(64 + 1, 7),
+            ElementsNode::InputPrevOutpoint => w.write_u8(64 + 2, 7),
+            ElementsNode::InputAsset => w.write_u8(64 + 3, 7),
+            ElementsNode::InputAmount => w.write_u8(128 + 2, 8),
+            ElementsNode::InputScriptHash => w.write_u8(128 + 3, 8),
+            ElementsNode::InputSequence => w.write_u8(64 + 5, 7),
+            ElementsNode::InputIssuanceBlinding => w.write_u8(64 + 6, 7),
+            ElementsNode::InputIssuanceContract => w.write_u8(64 + 7, 7),
+            ElementsNode::InputIssuanceEntropy => w.write_u8(128 + 4, 8),
+            ElementsNode::InputIssuanceAssetAmount => w.write_u8(128 + 5, 8),
+            ElementsNode::InputIssuanceTokenAmount => w.write_u8(64 + 9, 7),
+            ElementsNode::OutputAsset => w.write_u8(64 + 10, 7),
+            ElementsNode::OutputAmount => w.write_u8(64 + 11, 7),
+            ElementsNode::OutputNonce => w.write_u8(128 + 6, 8),
+            ElementsNode::OutputScriptHash => w.write_u8(128 + 7, 8),
+            ElementsNode::OutputNullDatum => w.write_u8(64 + 13, 7),
+            ElementsNode::ScriptCmr => w.write_u8(64 + 14, 7),
+            ElementsNode::CurrentIndex => w.write_u8(64 + 15, 7),
+            ElementsNode::CurrentIsPegin => w.write_u8(64 + 16, 7),
+            ElementsNode::CurrentPrevOutpoint => w.write_u8(64 + 17, 7),
+            ElementsNode::CurrentAsset => w.write_u8(64 + 18, 7),
+            ElementsNode::CurrentAmount => w.write_u8(64 + 19, 7),
+            ElementsNode::CurrentScriptHash => w.write_u8(64 + 20, 7),
+            ElementsNode::CurrentSequence => w.write_u8(64 + 21, 7),
+            ElementsNode::CurrentIssuanceBlinding => w.write_u8(64 + 22, 7),
+            ElementsNode::CurrentIssuanceContract => w.write_u8(64 + 23, 7),
+            ElementsNode::CurrentIssuanceEntropy => w.write_u8(64 + 24, 7),
+            ElementsNode::CurrentIssuanceAssetAmount => w.write_u8(64 + 25, 7),
+            ElementsNode::CurrentIssuanceTokenAmount => w.write_u8(64 + 26, 7),
+            ElementsNode::InputsHash => w.write_u8(64 + 27, 7),
+            ElementsNode::OutputsHash => w.write_u8(64 + 28, 7),
+            ElementsNode::NumInputs => w.write_u8(64 + 29, 7),
+            ElementsNode::NumOutputs => w.write_u8(64 + 30, 7),
+            ElementsNode::Fee => w.write_u8(64 + 31, 7),
         }
     }
 

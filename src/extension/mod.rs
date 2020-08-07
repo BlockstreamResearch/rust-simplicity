@@ -71,7 +71,7 @@ impl Iterator for TypeName {
 }
 
 /// Trait representing an extension (Bitcoin or Elements) to Simplicity
-pub trait Node: Sized + fmt::Display {
+pub trait Jet: Sized + fmt::Display {
     /// Transaction environment
     type TxEnv;
 

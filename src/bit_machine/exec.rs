@@ -27,7 +27,7 @@ use crate::Program;
 use crate::Term;
 use crate::Value;
 
-use crate::extension::Node as JetNode;
+use crate::extension::Jet as JetNode;
 
 use super::frame::Frame;
 
@@ -46,7 +46,7 @@ pub struct BitMachine {
 impl BitMachine {
     /// Construct a Bit Machine with enough space to execute
     /// the given program
-    pub fn for_program<Ext: extension::Node>(program: &Program<Ext>) -> BitMachine {
+    pub fn for_program<Ext: extension::Jet>(program: &Program<Ext>) -> BitMachine {
         let prog = program.root_node();
         let io_width = prog.source_ty.bit_width() + prog.target_ty.bit_width();
         BitMachine {
@@ -233,7 +233,7 @@ impl BitMachine {
     }
 
     /// Execute a program in the Bit Machine
-    pub fn exec<Ext: extension::Node>(
+    pub fn exec<Ext: extension::Jet>(
         &mut self,
         program: &Program<Ext>,
         txenv: &Ext::TxEnv,

@@ -26,7 +26,7 @@ use crate::bititer::BitIter;
 use crate::cmr;
 
 use crate::extension;
-use crate::extension::Node as ExtNode;
+use crate::extension::Jet as ExtNode;
 use crate::{Error, Term};
 
 /// Trait for writing individual bits to some sink
@@ -159,7 +159,7 @@ impl<'a, B: BitWrite> BitWrite for &'a mut B {
 
 /// Decode a natural number according to section 7.2.1
 /// of the Simplicity whitepaper.
-pub fn decode_node_no_witness<I: Iterator<Item = u8>, Ext: extension::Node>(
+pub fn decode_node_no_witness<I: Iterator<Item = u8>, Ext: extension::Jet>(
     idx: usize,
     iter: &mut BitIter<I>,
 ) -> Result<Term<(), Ext>, Error> {
@@ -167,8 +167,8 @@ pub fn decode_node_no_witness<I: Iterator<Item = u8>, Ext: extension::Node>(
         None => Err(Error::EndOfStream),
         Some(true) => match iter.next() {
             None => Err(Error::EndOfStream),
-            Some(false) => Ok(Term::Ext(extension::Node::decode(iter)?)),
-            Some(true) => Ok(Term::Jet(extension::Node::decode(iter)?)),
+            Some(false) => Ok(Term::Ext(extension::Jet::decode(iter)?)),
+            Some(true) => Ok(Term::Jet(extension::Jet::decode(iter)?)),
         },
         Some(false) => {
             let code = match iter.read_bits_be(2) {
@@ -225,7 +225,7 @@ pub fn decode_node_no_witness<I: Iterator<Item = u8>, Ext: extension::Node>(
     }
 }
 
-pub fn encode_node_no_witness<T, W: BitWrite, Ext: extension::Node>(
+pub fn encode_node_no_witness<T, W: BitWrite, Ext: extension::Jet>(
     node: &Term<T, Ext>,
     writer: &mut W,
 ) -> io::Result<usize> {
@@ -269,12 +269,12 @@ pub fn encode_node_no_witness<T, W: BitWrite, Ext: extension::Node>(
             Ok(len)
         }
         Term::Witness(..) => writer.write_u8(7, 4),
-        Term::Ext(ref b) => extension::Node::encode(b, writer),
+        Term::Ext(ref b) => extension::Jet::encode(b, writer),
         Term::Jet(ref j) => j.encode(writer),
     }
 }
 
-pub fn decode_program_no_witness<I: Iterator<Item = u8>, Ext: extension::Node>(
+pub fn decode_program_no_witness<I: Iterator<Item = u8>, Ext: extension::Jet>(
     iter: &mut BitIter<I>,
 ) -> Result<Vec<Term<(), Ext>>, Error> {
     let prog_len = decode_natural(&mut *iter, None)?;

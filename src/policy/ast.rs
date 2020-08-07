@@ -29,7 +29,7 @@ use miniscript::expression;
 use miniscript::Error as msError;
 use miniscript::MiniscriptKey;
 
-use crate::extension::Node as ExtNode;
+use crate::extension::Jet;
 
 use crate::Error;
 use crate::Term;
@@ -64,7 +64,7 @@ pub enum Policy<Pk: MiniscriptKey> {
 }
 impl<Pk: MiniscriptKey + To32BytePubKey> Policy<Pk> {
     /// Compile a policy into a simplicity frgament
-    pub fn compile<Ext: ExtNode>(&self) -> Result<Vec<Term<(), Ext>>, Error> {
+    pub fn compile<Ext: Jet>(&self) -> Result<Vec<Term<(), Ext>>, Error> {
         compiler::compile(&self)
     }
 }
@@ -347,7 +347,7 @@ mod tests {
     use super::*;
     use crate::bititer::BitIter;
     use crate::exec;
-    use crate::extension::dummy::{Node as DummyNode, TxEnv};
+    use crate::extension::dummy::{DummyNode, TxEnv};
     use crate::program::Program;
     use crate::DummyKey;
     use crate::Value;

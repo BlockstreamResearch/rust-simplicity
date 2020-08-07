@@ -44,7 +44,7 @@ impl TxEnv {
 
 /// Set of new Simplicity nodes enabled by the Bitcoin extension
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub enum Node {
+pub enum BtcNode {
     Version,
     LockTime,
     InputsHash,
@@ -65,163 +65,167 @@ pub enum Node {
     ScriptCMR,
 }
 
-impl fmt::Display for Node {
+impl fmt::Display for BtcNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match *self {
-            Node::Version => "version",
-            Node::LockTime => "locktime",
-            Node::InputsHash => "inputshash",
-            Node::OutputsHash => "outputshash",
-            Node::NumInputs => "numinputs",
-            Node::TotalInputValue => "totalinputvalue",
-            Node::CurrentPrevOutpoint => "currentprevoutpoint",
-            Node::CurrentValue => "currentvalue",
-            Node::CurrentSequence => "currentsequence",
-            Node::CurrentIndex => "currentindex",
-            Node::InputPrevOutpoint => "inputprevoutpoint",
-            Node::InputValue => "inputvalue",
-            Node::InputSequence => "inputsequence",
-            Node::NumOutputs => "numoutputs",
-            Node::TotalOutputValue => "totaloutputvalue",
-            Node::OutputValue => "outputvalue",
-            Node::OutputScriptHash => "outputscripthash",
-            Node::ScriptCMR => "scriptcmr",
+            BtcNode::Version => "version",
+            BtcNode::LockTime => "locktime",
+            BtcNode::InputsHash => "inputshash",
+            BtcNode::OutputsHash => "outputshash",
+            BtcNode::NumInputs => "numinputs",
+            BtcNode::TotalInputValue => "totalinputvalue",
+            BtcNode::CurrentPrevOutpoint => "currentprevoutpoint",
+            BtcNode::CurrentValue => "currentvalue",
+            BtcNode::CurrentSequence => "currentsequence",
+            BtcNode::CurrentIndex => "currentindex",
+            BtcNode::InputPrevOutpoint => "inputprevoutpoint",
+            BtcNode::InputValue => "inputvalue",
+            BtcNode::InputSequence => "inputsequence",
+            BtcNode::NumOutputs => "numoutputs",
+            BtcNode::TotalOutputValue => "totaloutputvalue",
+            BtcNode::OutputValue => "outputvalue",
+            BtcNode::OutputScriptHash => "outputscripthash",
+            BtcNode::ScriptCMR => "scriptcmr",
         })
     }
 }
 
-impl extension::Node for Node {
+impl extension::Jet for BtcNode {
     type TxEnv = TxEnv;
 
-    fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Node, Error> {
+    fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<BtcNode, Error> {
         let code = match iter.read_bits_be(4) {
             Some(code) => code,
             None => return Err(Error::EndOfStream),
         };
         match code {
             0 => match iter.next() {
-                Some(false) => Ok(Node::Version),
-                Some(true) => Ok(Node::LockTime),
+                Some(false) => Ok(BtcNode::Version),
+                Some(true) => Ok(BtcNode::LockTime),
                 None => Err(Error::EndOfStream),
             },
-            1 => Ok(Node::InputsHash),
-            2 => Ok(Node::OutputsHash),
-            3 => Ok(Node::NumInputs),
-            4 => Ok(Node::TotalInputValue),
-            5 => Ok(Node::CurrentPrevOutpoint),
-            6 => Ok(Node::CurrentValue),
-            7 => Ok(Node::CurrentSequence),
+            1 => Ok(BtcNode::InputsHash),
+            2 => Ok(BtcNode::OutputsHash),
+            3 => Ok(BtcNode::NumInputs),
+            4 => Ok(BtcNode::TotalInputValue),
+            5 => Ok(BtcNode::CurrentPrevOutpoint),
+            6 => Ok(BtcNode::CurrentValue),
+            7 => Ok(BtcNode::CurrentSequence),
             8 => match iter.next() {
-                Some(false) => Ok(Node::CurrentIndex),
-                Some(true) => Ok(Node::InputPrevOutpoint),
+                Some(false) => Ok(BtcNode::CurrentIndex),
+                Some(true) => Ok(BtcNode::InputPrevOutpoint),
                 None => Err(Error::EndOfStream),
             },
-            9 => Ok(Node::InputValue),
-            10 => Ok(Node::InputSequence),
-            11 => Ok(Node::NumOutputs),
-            12 => Ok(Node::TotalOutputValue),
-            13 => Ok(Node::OutputValue),
-            14 => Ok(Node::OutputScriptHash),
-            15 => Ok(Node::ScriptCMR),
+            9 => Ok(BtcNode::InputValue),
+            10 => Ok(BtcNode::InputSequence),
+            11 => Ok(BtcNode::NumOutputs),
+            12 => Ok(BtcNode::TotalOutputValue),
+            13 => Ok(BtcNode::OutputValue),
+            14 => Ok(BtcNode::OutputScriptHash),
+            15 => Ok(BtcNode::ScriptCMR),
             _ => unreachable!(),
         }
     }
 
     fn source_type(&self) -> TypeName {
         match *self {
-            Node::Version
-            | Node::LockTime
-            | Node::InputsHash
-            | Node::OutputsHash
-            | Node::NumInputs
-            | Node::TotalInputValue
-            | Node::CurrentPrevOutpoint
-            | Node::CurrentValue
-            | Node::CurrentSequence
-            | Node::CurrentIndex => TypeName(b"1"),
-            Node::InputPrevOutpoint | Node::InputValue | Node::InputSequence => TypeName(b"i"),
-            Node::NumOutputs | Node::TotalOutputValue => TypeName(b"1"),
-            Node::OutputValue | Node::OutputScriptHash => TypeName(b"i"),
-            Node::ScriptCMR => TypeName(b"1"),
+            BtcNode::Version
+            | BtcNode::LockTime
+            | BtcNode::InputsHash
+            | BtcNode::OutputsHash
+            | BtcNode::NumInputs
+            | BtcNode::TotalInputValue
+            | BtcNode::CurrentPrevOutpoint
+            | BtcNode::CurrentValue
+            | BtcNode::CurrentSequence
+            | BtcNode::CurrentIndex => TypeName(b"1"),
+            BtcNode::InputPrevOutpoint | BtcNode::InputValue | BtcNode::InputSequence => {
+                TypeName(b"i")
+            }
+            BtcNode::NumOutputs | BtcNode::TotalOutputValue => TypeName(b"1"),
+            BtcNode::OutputValue | BtcNode::OutputScriptHash => TypeName(b"i"),
+            BtcNode::ScriptCMR => TypeName(b"1"),
         }
     }
 
     /// Name of the target type for this node
     fn target_type(&self) -> TypeName {
         match *self {
-            Node::Version => TypeName(b"i"),
-            Node::LockTime => TypeName(b"i"),
-            Node::InputsHash => TypeName(b"h"),
-            Node::OutputsHash => TypeName(b"h"),
-            Node::NumInputs => TypeName(b"i"),
-            Node::TotalInputValue => TypeName(b"l"),
-            Node::CurrentPrevOutpoint => TypeName(b"*hi"),
-            Node::CurrentValue => TypeName(b"l"),
-            Node::CurrentSequence => TypeName(b"i"),
-            Node::CurrentIndex => TypeName(b"i"),
-            Node::InputPrevOutpoint => TypeName(b"+1*hi"),
-            Node::InputValue => TypeName(b"+1l"),
-            Node::InputSequence => TypeName(b"+1i"),
-            Node::NumOutputs => TypeName(b"i"),
-            Node::TotalOutputValue => TypeName(b"l"),
-            Node::OutputValue => TypeName(b"+1l"),
-            Node::OutputScriptHash => TypeName(b"+1h"),
-            Node::ScriptCMR => TypeName(b"h"),
+            BtcNode::Version => TypeName(b"i"),
+            BtcNode::LockTime => TypeName(b"i"),
+            BtcNode::InputsHash => TypeName(b"h"),
+            BtcNode::OutputsHash => TypeName(b"h"),
+            BtcNode::NumInputs => TypeName(b"i"),
+            BtcNode::TotalInputValue => TypeName(b"l"),
+            BtcNode::CurrentPrevOutpoint => TypeName(b"*hi"),
+            BtcNode::CurrentValue => TypeName(b"l"),
+            BtcNode::CurrentSequence => TypeName(b"i"),
+            BtcNode::CurrentIndex => TypeName(b"i"),
+            BtcNode::InputPrevOutpoint => TypeName(b"+1*hi"),
+            BtcNode::InputValue => TypeName(b"+1l"),
+            BtcNode::InputSequence => TypeName(b"+1i"),
+            BtcNode::NumOutputs => TypeName(b"i"),
+            BtcNode::TotalOutputValue => TypeName(b"l"),
+            BtcNode::OutputValue => TypeName(b"+1l"),
+            BtcNode::OutputScriptHash => TypeName(b"+1h"),
+            BtcNode::ScriptCMR => TypeName(b"h"),
         }
     }
 
     fn cmr(&self) -> Cmr {
         match *self {
-            Node::Version => Cmr::new(b"SimplicityPrimitiveBitcoin\x1fversion"),
-            Node::LockTime => Cmr::new(b"SimplicityPrimitiveBitcoin\x1flockTime"),
-            Node::InputsHash => Cmr::new(b"SimplicityPrimitiveBitcoin\x1finputsHash"),
-            Node::OutputsHash => Cmr::new(b"SimplicityPrimitiveBitcoinx1foutputsHash"),
-            Node::NumInputs => Cmr::new(b"SimplicityPrimitiveBitcoinx1fnumInputs"),
-            Node::TotalInputValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1ftotalInputValue"),
-            Node::CurrentPrevOutpoint => {
+            BtcNode::Version => Cmr::new(b"SimplicityPrimitiveBitcoin\x1fversion"),
+            BtcNode::LockTime => Cmr::new(b"SimplicityPrimitiveBitcoin\x1flockTime"),
+            BtcNode::InputsHash => Cmr::new(b"SimplicityPrimitiveBitcoin\x1finputsHash"),
+            BtcNode::OutputsHash => Cmr::new(b"SimplicityPrimitiveBitcoinx1foutputsHash"),
+            BtcNode::NumInputs => Cmr::new(b"SimplicityPrimitiveBitcoinx1fnumInputs"),
+            BtcNode::TotalInputValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1ftotalInputValue"),
+            BtcNode::CurrentPrevOutpoint => {
                 Cmr::new(b"SimplicityPrimitiveBitcoinx1fcurrentPrevOutpoint")
             }
-            Node::CurrentValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1fcurrentValue"),
-            Node::CurrentSequence => Cmr::new(b"SimplicityPrimitiveBitcoinx1fcurrentSequence"),
-            Node::CurrentIndex => Cmr::new(b"SimplicityPrimitiveBitcoinx1fcurrentIndex"),
-            Node::InputPrevOutpoint => Cmr::new(b"SimplicityPrimitiveBitcoinx1finputPrevOutpoint"),
-            Node::InputValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1finputValue"),
-            Node::InputSequence => Cmr::new(b"SimplicityPrimitiveBitcoinx1finputSequence"),
-            Node::NumOutputs => Cmr::new(b"SimplicityPrimitiveBitcoinx1fnumOutputs"),
-            Node::TotalOutputValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1ftotalOutputValue"),
-            Node::OutputValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1foutputValue"),
-            Node::OutputScriptHash => Cmr::new(b"SimplicityPrimitiveBitcoinx1foutputScriptHash"),
-            Node::ScriptCMR => Cmr::new(b"SimplicityPrimitiveBitcoinx1fscriptCMR"),
+            BtcNode::CurrentValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1fcurrentValue"),
+            BtcNode::CurrentSequence => Cmr::new(b"SimplicityPrimitiveBitcoinx1fcurrentSequence"),
+            BtcNode::CurrentIndex => Cmr::new(b"SimplicityPrimitiveBitcoinx1fcurrentIndex"),
+            BtcNode::InputPrevOutpoint => {
+                Cmr::new(b"SimplicityPrimitiveBitcoinx1finputPrevOutpoint")
+            }
+            BtcNode::InputValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1finputValue"),
+            BtcNode::InputSequence => Cmr::new(b"SimplicityPrimitiveBitcoinx1finputSequence"),
+            BtcNode::NumOutputs => Cmr::new(b"SimplicityPrimitiveBitcoinx1fnumOutputs"),
+            BtcNode::TotalOutputValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1ftotalOutputValue"),
+            BtcNode::OutputValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1foutputValue"),
+            BtcNode::OutputScriptHash => Cmr::new(b"SimplicityPrimitiveBitcoinx1foutputScriptHash"),
+            BtcNode::ScriptCMR => Cmr::new(b"SimplicityPrimitiveBitcoinx1fscriptCMR"),
         }
     }
 
     fn encode<W: encode::BitWrite>(&self, w: &mut W) -> io::Result<usize> {
         match *self {
-            Node::Version => w.write_u8(64 + 0, 7),
-            Node::LockTime => w.write_u8(64 + 1, 7),
-            Node::InputsHash => w.write_u8(32 + 1, 6),
-            Node::OutputsHash => w.write_u8(32 + 2, 6),
-            Node::NumInputs => w.write_u8(32 + 3, 6),
-            Node::TotalInputValue => w.write_u8(32 + 4, 6),
-            Node::CurrentPrevOutpoint => w.write_u8(32 + 5, 6),
-            Node::CurrentValue => w.write_u8(32 + 6, 6),
-            Node::CurrentSequence => w.write_u8(32 + 7, 6),
-            Node::CurrentIndex => w.write_u8(64 + 16, 7),
-            Node::InputPrevOutpoint => w.write_u8(64 + 17, 7),
-            Node::InputValue => w.write_u8(32 + 9, 6),
-            Node::InputSequence => w.write_u8(32 + 10, 6),
-            Node::NumOutputs => w.write_u8(32 + 11, 6),
-            Node::TotalOutputValue => w.write_u8(32 + 12, 6),
-            Node::OutputValue => w.write_u8(32 + 13, 6),
-            Node::OutputScriptHash => w.write_u8(32 + 14, 6),
-            Node::ScriptCMR => w.write_u8(32 + 15, 6),
+            BtcNode::Version => w.write_u8(64 + 0, 7),
+            BtcNode::LockTime => w.write_u8(64 + 1, 7),
+            BtcNode::InputsHash => w.write_u8(32 + 1, 6),
+            BtcNode::OutputsHash => w.write_u8(32 + 2, 6),
+            BtcNode::NumInputs => w.write_u8(32 + 3, 6),
+            BtcNode::TotalInputValue => w.write_u8(32 + 4, 6),
+            BtcNode::CurrentPrevOutpoint => w.write_u8(32 + 5, 6),
+            BtcNode::CurrentValue => w.write_u8(32 + 6, 6),
+            BtcNode::CurrentSequence => w.write_u8(32 + 7, 6),
+            BtcNode::CurrentIndex => w.write_u8(64 + 16, 7),
+            BtcNode::InputPrevOutpoint => w.write_u8(64 + 17, 7),
+            BtcNode::InputValue => w.write_u8(32 + 9, 6),
+            BtcNode::InputSequence => w.write_u8(32 + 10, 6),
+            BtcNode::NumOutputs => w.write_u8(32 + 11, 6),
+            BtcNode::TotalOutputValue => w.write_u8(32 + 12, 6),
+            BtcNode::OutputValue => w.write_u8(32 + 13, 6),
+            BtcNode::OutputScriptHash => w.write_u8(32 + 14, 6),
+            BtcNode::ScriptCMR => w.write_u8(32 + 15, 6),
         }
     }
 
     fn exec(&self, mac: &mut exec::BitMachine, txenv: &Self::TxEnv) {
         // FIXME finish this
         match *self {
-            Node::InputsHash => {
+            BtcNode::InputsHash => {
                 let mut eng = sha256::Hash::engine();
                 for input in &txenv.tx.input {
                     eng.input(&input.previous_output.txid[..]);
@@ -232,7 +236,7 @@ impl extension::Node for Node {
                 }
                 mac.write_bytes(&sha256::Hash::from_engine(eng)[..]);
             }
-            Node::OutputsHash => {
+            BtcNode::OutputsHash => {
                 let mut eng = sha256::Hash::engine();
                 for output in &txenv.tx.output {
                     eng.write_u64::<LittleEndian>(output.value).unwrap();
@@ -241,16 +245,16 @@ impl extension::Node for Node {
                 mac.write_bytes(&sha256::Hash::from_engine(eng)[..]);
             }
             // FIXME don't hardcode this
-            Node::CurrentValue => {
+            BtcNode::CurrentValue => {
                 mac.write_u64(99_998_000);
             }
-            Node::CurrentIndex => {
+            BtcNode::CurrentIndex => {
                 mac.write_u32(0);
             }
-            Node::LockTime => {
+            BtcNode::LockTime => {
                 mac.write_u32(txenv.tx.lock_time);
             }
-            Node::Version => {
+            BtcNode::Version => {
                 mac.write_u32(txenv.tx.version);
             }
             ref b => unimplemented!("bitcoin {}", b),

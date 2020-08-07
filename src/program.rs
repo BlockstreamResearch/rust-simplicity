@@ -24,7 +24,7 @@ use std::{cmp, fmt, sync::Arc};
 use crate::bititer::BitIter;
 use crate::cmr::{self, Cmr};
 use crate::core::types;
-use crate::extension::Node as ExtNode;
+use crate::extension::Jet as ExtNode;
 use crate::{encode, extension};
 use crate::{Error, Term, Value};
 
@@ -108,7 +108,7 @@ pub fn scribe<Ext>(b: Value) -> Vec<Term<(), Ext>> {
     }
 }
 
-impl<Ext: extension::Node> Program<Ext> {
+impl<Ext: extension::Jet> Program<Ext> {
     /// Obtain the node representing the root of the program DAG
     pub fn root_node(&self) -> &ProgramNode<Ext> {
         &self.nodes[self.nodes.len() - 1]
@@ -239,7 +239,7 @@ impl<Ext: extension::Node> Program<Ext> {
     }
 }
 
-fn compute_cmr<Ext: extension::Node>(
+fn compute_cmr<Ext: extension::Jet>(
     program: &[ProgramNode<Ext>],
     node: &Term<Value, Ext>,
     idx: usize,
@@ -263,7 +263,7 @@ fn compute_cmr<Ext: extension::Node>(
     }
 }
 
-fn compute_extra_cells_bound<Ext: extension::Node>(
+fn compute_extra_cells_bound<Ext: extension::Jet>(
     program: &[ProgramNode<Ext>],
     node: &Term<Value, Ext>,
     idx: usize,
@@ -307,7 +307,7 @@ fn compute_extra_cells_bound<Ext: extension::Node>(
     }
 }
 
-fn compute_frame_count_bound<Ext: extension::Node>(
+fn compute_frame_count_bound<Ext: extension::Jet>(
     program: &[ProgramNode<Ext>],
     node: &Term<Value, Ext>,
     idx: usize,
@@ -354,8 +354,8 @@ mod tests {
 
     use crate::bititer::BitIter;
     use crate::extension::{
-        dummy::{Node as DummyNode, TxEnv},
-        jets::Node as JetsNode,
+        dummy::{DummyNode, TxEnv},
+        jets::JetsNode,
     };
     use crate::Term;
 

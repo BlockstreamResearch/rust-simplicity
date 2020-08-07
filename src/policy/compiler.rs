@@ -28,7 +28,7 @@ use crate::Value;
 
 use crate::core::types::pow2_types;
 
-pub fn compile<Pk: MiniscriptKey + To32BytePubKey, Ext: extension::Node>(
+pub fn compile<Pk: MiniscriptKey + To32BytePubKey, Ext: extension::Jet>(
     pol: &Policy<Pk>,
 ) -> Result<Vec<Term<(), Ext>>, Error> {
     let pk_ty = pow2_types()[9].clone();
@@ -44,7 +44,7 @@ pub fn compile<Pk: MiniscriptKey + To32BytePubKey, Ext: extension::Node>(
             nodes.extend(scribe(pk_value));
             nodes.push(Term::Witness(()));
             nodes.push(Term::Pair(2, 1));
-            nodes.push(Term::Jet(extension::jets::Node::SchnorrAssert));
+            nodes.push(Term::Jet(extension::jets::JetsNode::SchnorrAssert));
             nodes.push(Term::Comp(2, 1));
             nodes
         }

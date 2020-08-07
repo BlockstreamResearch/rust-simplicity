@@ -4,7 +4,7 @@
 use std::{cell::RefCell, cmp, fmt, mem, rc::Rc, sync::Arc};
 
 use crate::extension;
-use crate::extension::Node as ExtNode;
+use crate::extension::Jet as ExtNode;
 use crate::Error;
 use crate::Term;
 
@@ -398,7 +398,7 @@ fn type_from_name<I: Iterator<Item = u8>>(n: &mut I, pow2s: &[RcVar]) -> Type {
 }
 
 /// Attach types to all nodes in a program
-pub fn type_check<Witness, Ext: extension::Node>(
+pub fn type_check<Witness, Ext: extension::Jet>(
     program: Vec<Term<Witness, Ext>>,
 ) -> Result<Vec<TypedNode<Witness, Ext>>, Error> {
     if program.is_empty() {

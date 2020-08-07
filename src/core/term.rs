@@ -28,7 +28,7 @@ pub enum Term<Witness, Extension> {
     Fail([u8; 32], [u8; 32]),
     Hidden(cmr::Cmr),
     Ext(Extension),
-    Jet(extension::jets::Node),
+    Jet(extension::jets::JetsNode),
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
