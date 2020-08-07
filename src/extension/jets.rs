@@ -40,6 +40,8 @@ pub enum Node {
     FullMultiplier32,
     Sha256HashBlock,
     SchnorrAssert,
+    // Temparory jets for compiler
+    EqV256,
 }
 
 impl fmt::Display for Node {
@@ -53,6 +55,7 @@ impl fmt::Display for Node {
             Node::FullMultiplier32 => "fullmultiplier32",
             Node::Sha256HashBlock => "sha256hashblock",
             Node::SchnorrAssert => "schnorrassert",
+            Node::EqV256 => "eqv256",
         })
     }
 }
@@ -70,6 +73,7 @@ impl extension::Node for Node {
             Node::FullMultiplier32 => TypeName(b"*ll"),
             Node::Sha256HashBlock => TypeName(b"*h*hh"),
             Node::SchnorrAssert => TypeName(b"*h*hh"),
+            Node::EqV256 => TypeName(b"*hh"),
         }
     }
 
@@ -84,6 +88,7 @@ impl extension::Node for Node {
             Node::FullMultiplier32 => TypeName(b"l"),
             Node::Sha256HashBlock => TypeName(b"h"),
             Node::SchnorrAssert => TypeName(b"1"),
+            Node::EqV256 => TypeName(b"1"),
         }
     }
 
@@ -131,6 +136,11 @@ impl extension::Node for Node {
                 0xb0, 0x89, 0xfd, 0xea, 0xdf, 0x1b, 0x9b, 0xb3, 0x82, 0xec, 0x6e, 0x69, 0x71, 0x9d,
                 0x31, 0xba, 0xec, 0x9b, //only last `a` changed to `b` from sha2 cmr
             ])),
+            Node::EqV256 => cmr.update_1(Cmr::from([
+                0xee, 0xae, 0x47, 0xe2, 0xf7, 0x87, 0x6c, 0x3b, 0x9c, 0xbc, 0xd4, 0x04, 0xa3, 0x38,
+                0xb0, 0x89, 0xfd, 0xea, 0xdf, 0x1b, 0x9b, 0xb3, 0x82, 0xec, 0x6e, 0x69, 0x71, 0x9d,
+                0x31, 0xba, 0xec, 0x9c, //only last `a` changed to `c` from sha2 cmr
+            ])),
         }
     }
 
@@ -144,7 +154,8 @@ impl extension::Node for Node {
             Node::FullSubtractor32 => w.write_u8(48 + 3, 6),
             Node::FullMultiplier32 => w.write_u8(24 + 3, 5),
             Node::Sha256HashBlock => w.write_u8(14, 4),
-            Node::SchnorrAssert => w.write_u8(14, 4),
+            Node::SchnorrAssert => w.write_u8(15 * 16 + 0, 8),
+            Node::EqV256 => w.write_u8(15 * 16 + 1, 8),
         }
     }
 
@@ -176,7 +187,19 @@ impl extension::Node for Node {
             }
             Some(true) => match iter.next() {
                 Some(false) => Ok(Node::Sha256HashBlock),
-                Some(true) => Ok(Node::SchnorrAssert),
+                Some(true) => {
+                    // Some custom jets for fast developement
+                    // FIXME: Get a consensus for encoding with Rusell
+                    let code = match iter.read_bits_be(4) {
+                        Some(code) => code,
+                        None => return Err(Error::EndOfStream),
+                    };
+                    match code {
+                        0 => Ok(Node::SchnorrAssert),
+                        1 => Ok(Node::EqV256),
+                        _ => unreachable!(),
+                    }
+                }
                 None => Err(Error::EndOfStream),
             },
             None => Err(Error::EndOfStream),
@@ -242,6 +265,14 @@ impl extension::Node for Node {
                 let _pubkey = mac.read_32bytes();
                 let _sig = mac.read_bytes(64);
                 //Check the signature here later
+            }
+            Node::EqV256 => {
+                let a = mac.read_32bytes();
+                let b = mac.read_32bytes();
+
+                // FIXME:
+                // Get Error here instead of assert
+                assert!(a == b);
             }
         }
     }
