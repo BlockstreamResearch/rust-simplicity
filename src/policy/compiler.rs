@@ -26,7 +26,7 @@ use crate::Node;
 use crate::To32BytePubKey;
 use crate::Value;
 
-use crate::types::pow2_types;
+use crate::core::types::pow2_types;
 
 pub fn compile<Pk: MiniscriptKey + To32BytePubKey, Ext: extension::Node>(
     pol: &Policy<Pk>,

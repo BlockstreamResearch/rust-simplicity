@@ -21,7 +21,7 @@ use bitcoin_hashes::{sha256, Hash, HashEngine};
 use std::{fmt, ops};
 
 /// Commitment Merkle Root
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Cmr(sha256::Midstate);
 
 impl From<[u8; 32]> for Cmr {

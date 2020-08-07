@@ -21,8 +21,8 @@
 use std::cmp;
 
 use crate::bititer::BitIter;
+use crate::core::types::FinalTypeInner;
 use crate::extension;
-use crate::types::FinalTypeInner;
 use crate::Node;
 use crate::Program;
 use crate::Value;

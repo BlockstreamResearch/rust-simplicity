@@ -23,8 +23,9 @@ use std::{cmp, fmt, sync::Arc};
 
 use crate::bititer::BitIter;
 use crate::cmr::{self, Cmr};
+use crate::core::types;
 use crate::extension::Node as ExtNode;
-use crate::{encode, extension, types};
+use crate::{encode, extension};
 use crate::{Error, Node, Value};
 
 /// A node in a complete program, with associated metadata

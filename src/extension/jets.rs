@@ -30,7 +30,7 @@ use crate::extension;
 use crate::Error;
 
 /// Set of new Simplicity nodes enabled by the Bitcoin extension
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Node {
     Adder32,
     FullAdder32,
