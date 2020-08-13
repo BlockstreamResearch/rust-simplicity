@@ -1,7 +1,10 @@
 use super::types;
 use crate::Error;
 use crate::{cmr, extension};
+use std::collections::HashMap;
 use std::fmt;
+use std::hash::{Hash, Hasher};
+use std::rc::Rc;
 
 /// Simplicity expression node, including Bitcoin/Elements extensions
 ///
@@ -12,6 +15,7 @@ use std::fmt;
 /// All references being relative indices in the context of a program.
 /// For ex: InjL(2) at index 7, represents InjL(x) where x is a node
 /// at index 5.
+/// This is used for representing a final constructed simplicity program.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Term<Witness, Extension> {
     Iden,
@@ -29,6 +33,205 @@ pub enum Term<Witness, Extension> {
     Hidden(cmr::Cmr),
     Ext(Extension),
     Jet(extension::jets::JetsNode),
+}
+
+/// Simplicity expression node, including Bitcoin/Elements extensions
+///
+/// If Bitcoin/Elements support is not compiled (see `bitcoin` and
+/// `elements` features) programs using these extensions will fail to
+/// parse.
+///
+/// The structure stores the simplicity program as a directed acyclic graph(DAG).
+/// This structure is useful for creating simplicity programs recursively.
+#[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Debug)]
+pub enum DagTerm<Witness, Extension> {
+    Iden,
+    Unit,
+    InjL(Rc<DagTerm<Witness, Extension>>),
+    InjR(Rc<DagTerm<Witness, Extension>>),
+    Take(Rc<DagTerm<Witness, Extension>>),
+    Drop(Rc<DagTerm<Witness, Extension>>),
+    Comp(
+        Rc<DagTerm<Witness, Extension>>,
+        Rc<DagTerm<Witness, Extension>>,
+    ),
+    Case(
+        Rc<DagTerm<Witness, Extension>>,
+        Rc<DagTerm<Witness, Extension>>,
+    ),
+    Pair(
+        Rc<DagTerm<Witness, Extension>>,
+        Rc<DagTerm<Witness, Extension>>,
+    ),
+    Disconnect(
+        Rc<DagTerm<Witness, Extension>>,
+        Rc<DagTerm<Witness, Extension>>,
+    ),
+    Witness(Witness),
+    Fail([u8; 32], [u8; 32]),
+    Hidden(cmr::Cmr),
+    Ext(Extension),
+    Jet(extension::jets::JetsNode),
+}
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct UnTypedProg<Witness, Extension>(Vec<Term<Witness, Extension>>);
+
+impl<Witness, Extension> DagTerm<Witness, Extension> {
+    /// Create a DAG representation from an untyped representation
+    pub fn from_untyped_prog(untyped_prog: UnTypedProg<Witness, Extension>) -> Rc<Self> {
+        assert!(
+            !untyped_prog.0.is_empty(),
+            "Untyped Program len must be greater than 0"
+        );
+        let mut dag: Vec<Rc<DagTerm<_, _>>> = vec![];
+        for (index, term) in untyped_prog.0.into_iter().enumerate() {
+            let dag_term = match term {
+                Term::Iden => Rc::new(DagTerm::Iden),
+                Term::Unit => Rc::new(DagTerm::Unit),
+                Term::InjL(l) => Rc::new(DagTerm::InjL(Rc::clone(&dag[index - l]))),
+                Term::InjR(r) => Rc::new(DagTerm::InjR(Rc::clone(&dag[index - r]))),
+                Term::Take(l) => Rc::new(DagTerm::Take(Rc::clone(&dag[index - l]))),
+                Term::Drop(r) => Rc::new(DagTerm::Drop(Rc::clone(&dag[index - r]))),
+                Term::Comp(l, r) => Rc::new(DagTerm::Comp(
+                    Rc::clone(&dag[index - l]),
+                    Rc::clone(&dag[index - r]),
+                )),
+                Term::Case(l, r) => Rc::new(DagTerm::Case(
+                    Rc::clone(&dag[index - l]),
+                    Rc::clone(&dag[index - r]),
+                )),
+                Term::Pair(l, r) => Rc::new(DagTerm::Pair(
+                    Rc::clone(&dag[index - l]),
+                    Rc::clone(&dag[index - r]),
+                )),
+                Term::Disconnect(l, r) => Rc::new(DagTerm::Disconnect(
+                    Rc::clone(&dag[index - l]),
+                    Rc::clone(&dag[index - r]),
+                )),
+                Term::Witness(w) => Rc::new(DagTerm::Witness(w)),
+                //TODO: understand how Fail works and rename `a` and `b`
+                Term::Fail(a, b) => Rc::new(DagTerm::Fail(a, b)),
+                Term::Hidden(c) => Rc::new(DagTerm::Hidden(c)),
+                Term::Ext(e) => Rc::new(DagTerm::Ext(e)),
+                Term::Jet(j) => Rc::new(DagTerm::Jet(j)),
+            };
+            dag.push(dag_term);
+        }
+        Rc::clone(dag.last().unwrap())
+    }
+}
+
+// A direct comparison for Rc<> results in comparison
+// of underllying inner values whereas we desire to
+// compare the referececs.
+#[derive(Debug)]
+struct RcWrapper<Witness, Extension> {
+    rc: Rc<DagTerm<Witness, Extension>>,
+}
+
+impl<Witness, Extension> PartialEq for RcWrapper<Witness, Extension> {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.rc, &other.rc)
+    }
+}
+
+impl<Witness, Extension> Eq for RcWrapper<Witness, Extension> {}
+
+impl<Witness, Extension> From<Rc<DagTerm<Witness, Extension>>> for RcWrapper<Witness, Extension> {
+    fn from(dag: Rc<DagTerm<Witness, Extension>>) -> Self {
+        Self { rc: dag }
+    }
+}
+
+impl<Witness, Extension> Hash for RcWrapper<Witness, Extension>
+where
+    Witness: Hash,
+    Extension: Hash,
+{
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.rc.hash(state);
+    }
+}
+
+impl<Witness, Extension> DagTerm<Witness, Extension>
+where
+    Witness: Hash + Clone,
+    Extension: Hash + Clone,
+{
+    /// Convert a DagTerm into into a untyped program vec.
+    pub fn into_untyped_prog(self) -> UnTypedProg<Witness, Extension> {
+        // helper function to recrusively compute the index positions
+        // of the children.
+        fn into_helper<Witness, Extension>(
+            dag: Rc<DagTerm<Witness, Extension>>,
+            index_map: &mut HashMap<RcWrapper<Witness, Extension>, usize>,
+            prog: &mut Vec<Term<Witness, Extension>>,
+        ) -> usize
+        where
+            RcWrapper<Witness, Extension>: Hash,
+            Witness: Clone,
+            Extension: Clone,
+        {
+            // insert one child into prog
+            macro_rules! insert_one_child {
+                ($term: expr, $l : expr) => {
+                    match index_map.get(&RcWrapper::from(Rc::clone($l))) {
+                        Some(ind) => prog.push($term(prog.len() - ind)),
+                        None => {
+                            let ind = into_helper(Rc::clone($l), index_map, prog);
+                            prog.push($term(prog.len() - ind));
+                        }
+                    }
+                };
+            }
+
+            // insert two children into prog
+            macro_rules! insert_two_child {
+                ($term: expr, $l : expr, $r: expr) => {{
+                    let l_ind = match index_map.get(&RcWrapper::from(Rc::clone($l))) {
+                        Some(ind) => *ind,
+                        None => into_helper(Rc::clone($l), index_map, prog),
+                    };
+                    let r_ind = match index_map.get(&RcWrapper::from(Rc::clone($r))) {
+                        Some(ind) => *ind,
+                        None => into_helper(Rc::clone($r), index_map, prog),
+                    };
+                    prog.push($term(prog.len() - l_ind, prog.len() - r_ind));
+                }};
+            }
+
+            if index_map.contains_key(&RcWrapper::from(Rc::clone(&dag))) {
+                return *index_map.get(&RcWrapper::from(Rc::clone(&dag))).unwrap();
+            }
+            match dag.as_ref() {
+                DagTerm::Unit => prog.push(Term::Unit),
+                DagTerm::Iden => prog.push(Term::Iden),
+                DagTerm::InjL(l) => insert_one_child!(Term::InjL, l),
+                DagTerm::InjR(r) => insert_one_child!(Term::InjR, r),
+                DagTerm::Take(l) => insert_one_child!(Term::Take, l),
+                DagTerm::Drop(r) => insert_one_child!(Term::Drop, r),
+                DagTerm::Comp(l, r) => insert_two_child!(Term::Comp, l, r),
+                DagTerm::Case(l, r) => insert_two_child!(Term::Case, l, r),
+                DagTerm::Pair(l, r) => insert_two_child!(Term::Pair, l, r),
+                DagTerm::Disconnect(l, r) => insert_two_child!(Term::Disconnect, l, r),
+                DagTerm::Witness(ref w) => prog.push(Term::Witness(w.clone())),
+                DagTerm::Fail(a, b) => prog.push(Term::Fail(*a, *b)),
+                DagTerm::Hidden(cmr) => prog.push(Term::Hidden(*cmr)),
+                DagTerm::Ext(ref e) => prog.push(Term::Ext(e.clone())),
+                DagTerm::Jet(ref j) => prog.push(Term::Jet(*j)),
+            }
+            // insert the current node remembering it's index for reusing
+            index_map.insert(RcWrapper::from(dag), prog.len() - 1);
+            prog.len() - 1
+        }
+
+        let mut prog = vec![];
+        let mut index_map = HashMap::new();
+        let _len = into_helper(Rc::new(self), &mut index_map, &mut prog);
+
+        UnTypedProg(prog)
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
