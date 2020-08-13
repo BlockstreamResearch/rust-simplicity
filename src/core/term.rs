@@ -75,7 +75,7 @@ pub enum DagTerm<Witness, Extension> {
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct UnTypedProg<Witness, Extension>(Vec<Term<Witness, Extension>>);
+pub struct UnTypedProg<Witness, Extension>(pub Vec<Term<Witness, Extension>>);
 
 impl<Witness, Extension> DagTerm<Witness, Extension> {
     /// Create a DAG representation from an untyped representation

@@ -18,35 +18,58 @@
 
 use super::ast::Policy;
 use crate::bititer::BitIter;
+use crate::core::term::DagTerm;
 use crate::extension;
 use crate::miniscript::MiniscriptKey;
-use crate::program::scribe;
 use crate::Error;
-use crate::Term;
 use crate::To32BytePubKey;
 use crate::Value;
 
+use std::rc::Rc;
+
 use crate::core::types::pow2_types;
+
+/// Scribe progra: for any value of a Simplicity type b :B, the constant function
+/// from A -> B can be realized by a Simplicity expression called scribe.  
+/// Refer to 3.4 section of the Tech Report for details.
+/// This returns a list of untyped nodes.
+pub fn scribe<Ext>(b: Value) -> DagTerm<(), Ext> {
+    match b {
+        Value::Unit => DagTerm::Unit,
+        Value::SumL(l) => {
+            let l = scribe(*l);
+            DagTerm::InjL(Rc::new(l))
+        }
+        Value::SumR(r) => {
+            let r = scribe(*r);
+            DagTerm::InjL(Rc::new(r))
+        }
+        Value::Prod(l, r) => {
+            let l = scribe(*l);
+            let r = scribe(*r);
+            DagTerm::Pair(Rc::new(l), Rc::new(r))
+        }
+    }
+}
 
 pub fn compile<Pk: MiniscriptKey + To32BytePubKey, Ext: extension::Jet>(
     pol: &Policy<Pk>,
-) -> Result<Vec<Term<(), Ext>>, Error> {
+) -> Result<DagTerm<(), Ext>, Error> {
     let pk_ty = pow2_types()[9].clone();
     let frag = match pol {
         Policy::Unsatisfiable => unimplemented!(),
         Policy::Trivial => unimplemented!(),
         Policy::Key(ref pk) => {
-            let mut nodes = vec![];
             let pk_value = Value::from_bits_and_type(
                 &mut BitIter::from(pk.to_32_byte_pubkey().to_vec().into_iter()),
                 &pk_ty,
             )?;
-            nodes.extend(scribe(pk_value));
-            nodes.push(Term::Witness(()));
-            nodes.push(Term::Pair(2, 1));
-            nodes.push(Term::Jet(extension::jets::JetsNode::SchnorrAssert));
-            nodes.push(Term::Comp(2, 1));
-            nodes
+            let scribe_pk = scribe(pk_value);
+            let pk_sig_pair = DagTerm::Pair(Rc::new(scribe_pk), Rc::new(DagTerm::Witness(())));
+            DagTerm::Comp(
+                Rc::new(pk_sig_pair),
+                Rc::new(DagTerm::Jet(extension::jets::JetsNode::SchnorrAssert)),
+            )
         }
         Policy::Sha256(ref _h) => {
             unimplemented!()
@@ -76,23 +99,16 @@ pub fn compile<Pk: MiniscriptKey + To32BytePubKey, Ext: extension::Jet>(
         Policy::Threshold(_k, ref _subs) => unimplemented!(),
         Policy::And(ref subs) => {
             assert!(subs.len() == 2);
-            let mut nodes = compile(&subs[0])?;
-            let r_nodes = compile(&subs[1])?;
-            let li = r_nodes.len() + 1;
-            nodes.extend(r_nodes);
-            nodes.push(Term::Comp(li, 1));
-            nodes
+            let l = compile(&subs[0])?;
+            let r = compile(&subs[1])?;
+            DagTerm::Comp(Rc::new(l), Rc::new(r))
         }
         Policy::Or(ref subs) => {
             assert!(subs.len() == 2);
-            let mut nodes = compile(&subs[0])?;
-            let r_nodes = compile(&subs[1])?;
-            let li = r_nodes.len() + 1;
-            nodes.extend(r_nodes);
-            nodes.push(Term::Case(li, 1));
-            nodes.push(Term::Witness(()));
-            nodes.push(Term::Comp(1, 2));
-            nodes
+            let l = compile(&subs[0])?;
+            let r = compile(&subs[1])?;
+            let case_term = DagTerm::Case(Rc::new(l), Rc::new(r));
+            DagTerm::Comp(Rc::new(DagTerm::Witness(())), Rc::new(case_term))
         }
     };
     Ok(frag)

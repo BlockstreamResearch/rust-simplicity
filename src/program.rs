@@ -28,6 +28,8 @@ use crate::extension::Jet as ExtNode;
 use crate::{encode, extension};
 use crate::{Error, Term, Value};
 
+use crate::core::term::UnTypedProg;
+
 /// A node in a complete program, with associated metadata
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct ProgramNode<Ext> {
@@ -80,34 +82,6 @@ pub struct Program<Ext> {
     pub nodes: Vec<ProgramNode<Ext>>,
 }
 
-/// Scribe progra: for any value of a Simplicity type b :B, the constant function
-/// from A -> B can be realized by a Simplicity expression called scribe.  
-/// Refer to 3.4 section of the Tech Report for details.
-/// This returns a list of untyped nodes.
-pub fn scribe<Ext>(b: Value) -> Vec<Term<(), Ext>> {
-    match b {
-        Value::Unit => vec![Term::Unit],
-        Value::SumL(l) => {
-            let mut nodes = scribe(*l);
-            nodes.push(Term::InjL(1));
-            nodes
-        }
-        Value::SumR(r) => {
-            let mut nodes = scribe(*r);
-            nodes.push(Term::InjR(1));
-            nodes
-        }
-        Value::Prod(l, r) => {
-            let mut nodes = scribe(*l);
-            let r_nodes = scribe(*r);
-            let li = r_nodes.len() + 1;
-            nodes.extend(r_nodes);
-            nodes.push(Term::Pair(li, 1));
-            nodes
-        }
-    }
-}
-
 impl<Ext: extension::Jet> Program<Ext> {
     /// Obtain the node representing the root of the program DAG
     pub fn root_node(&self) -> &ProgramNode<Ext> {
@@ -124,7 +98,7 @@ impl<Ext: extension::Jet> Program<Ext> {
 
     /// Decode a program from a stream of bits
     pub fn from_untyped_nodes<I: Iterator<Item = u8>>(
-        nodes: Vec<Term<(), Ext>>,
+        nodes: UnTypedProg<(), Ext>,
         iter: &mut BitIter<I>,
     ) -> Result<Program<Ext>, Error> {
         // Do type-checking
@@ -412,8 +386,11 @@ mod tests {
         prog.push(Term::Jet(JetsNode::Adder32));
         // prog.push(Node::Case(0, 1));
 
-        let prog =
-            Program::from_untyped_nodes(prog, &mut BitIter::from(vec![0x00].into_iter())).unwrap();
+        let prog = Program::from_untyped_nodes(
+            UnTypedProg(prog),
+            &mut BitIter::from(vec![0x00].into_iter()),
+        )
+        .unwrap();
         prog.graph_print();
     }
 
@@ -428,8 +405,11 @@ mod tests {
         prog.push(Term::Witness(()));
         prog.push(Term::Comp(1, 2));
 
-        let prog =
-            Program::from_untyped_nodes(prog, &mut BitIter::from(vec![0x80].into_iter())).unwrap();
+        let prog = Program::from_untyped_nodes(
+            UnTypedProg(prog),
+            &mut BitIter::from(vec![0x80].into_iter()),
+        )
+        .unwrap();
         prog.graph_print();
 
         let mut mac = exec::BitMachine::for_program(&prog);

@@ -31,7 +31,7 @@ use crate::Error;
 pub struct TxEnv;
 
 /// Dummy extension provides no combinators and cannot be constructed
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub enum DummyNode {}
 
 impl extension::Jet for DummyNode {

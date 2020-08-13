@@ -8,6 +8,8 @@ use crate::extension::Jet as ExtNode;
 use crate::Error;
 use crate::Term;
 
+use super::term::UnTypedProg;
+
 #[derive(Clone, Debug)]
 enum Type {
     Unit,
@@ -399,9 +401,10 @@ fn type_from_name<I: Iterator<Item = u8>>(n: &mut I, pow2s: &[RcVar]) -> Type {
 
 /// Attach types to all nodes in a program
 pub fn type_check<Witness, Ext: extension::Jet>(
-    program: Vec<Term<Witness, Ext>>,
+    program: UnTypedProg<Witness, Ext>,
 ) -> Result<Vec<TypedNode<Witness, Ext>>, Error> {
-    if program.is_empty() {
+    let vec_nodes = program.0;
+    if vec_nodes.is_empty() {
         return Ok(vec![]);
     }
 
@@ -420,11 +423,11 @@ pub fn type_check<Witness, Ext: extension::Jet>(
         two_1, two_2, two_4, two_8, two_16, two_32, two_64, two_128, two_256,
     ];
 
-    let mut rcs = Vec::<Rc<UnificationArrow>>::with_capacity(program.len());
-    let mut finals = Vec::<TypedNode<Witness, Ext>>::with_capacity(program.len());
+    let mut rcs = Vec::<Rc<UnificationArrow>>::with_capacity(vec_nodes.len());
+    let mut finals = Vec::<TypedNode<Witness, Ext>>::with_capacity(vec_nodes.len());
 
     // Compute most general unifier for all types in the DAG
-    for (idx, program_node) in program.iter().enumerate() {
+    for (idx, program_node) in vec_nodes.iter().enumerate() {
         let node = UnificationArrow {
             source: Rc::new(RefCell::new(UnificationVar::free())),
             target: Rc::new(RefCell::new(UnificationVar::free())),
@@ -487,7 +490,7 @@ pub fn type_check<Witness, Ext: extension::Jet>(
 
                 let source_ty = Type::Product(sum12_var, var3.clone());
                 bind(&node.source, source_ty)?;
-                if let Term::Hidden(..) = program[i] {
+                if let Term::Hidden(..) = vec_nodes[i] {
                 } else {
                     bind(
                         &find_root(rcs[i].source.clone()),
@@ -495,7 +498,7 @@ pub fn type_check<Witness, Ext: extension::Jet>(
                     )?;
                     unify(node.target.clone(), rcs[i].target.clone())?;
                 }
-                if let Term::Hidden(..) = program[j] {
+                if let Term::Hidden(..) = vec_nodes[j] {
                 } else {
                     bind(
                         &find_root(rcs[j].source.clone()),
@@ -569,7 +572,7 @@ pub fn type_check<Witness, Ext: extension::Jet>(
 
     // Finalize, setting all unconstrained types to `Unit` and doing the
     // occurs check. (All the magic happens inside `FinalType::from_var`.)
-    for (idx, node) in program.into_iter().enumerate() {
+    for (idx, node) in vec_nodes.into_iter().enumerate() {
         finals.push(TypedNode {
             node: node,
             source_ty: FinalType::from_var(rcs[idx].source.clone())?,

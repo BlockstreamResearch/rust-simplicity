@@ -20,6 +20,7 @@
 //! These policies can be compiled to Simplicity and also be lifted back up from
 //! Simplicity expressions to policy.
 
+use std::hash::Hash;
 use std::{fmt, str};
 
 use bitcoin_hashes::hex::FromHex;
@@ -31,8 +32,8 @@ use miniscript::MiniscriptKey;
 
 use crate::extension::Jet;
 
+use crate::core::term::UnTypedProg;
 use crate::Error;
-use crate::Term;
 use crate::To32BytePubKey;
 
 use super::compiler;
@@ -64,8 +65,9 @@ pub enum Policy<Pk: MiniscriptKey> {
 }
 impl<Pk: MiniscriptKey + To32BytePubKey> Policy<Pk> {
     /// Compile a policy into a simplicity frgament
-    pub fn compile<Ext: Jet>(&self) -> Result<Vec<Term<(), Ext>>, Error> {
-        compiler::compile(&self)
+    pub fn compile<Ext: Jet + Hash + Clone>(&self) -> Result<UnTypedProg<(), Ext>, Error> {
+        let dag = compiler::compile(&self)?;
+        Ok(dag.into_untyped_prog())
     }
 }
 
@@ -356,7 +358,7 @@ mod tests {
     fn compile_and_exec(pol: &str, witness: Vec<u8>) {
         // A single pk compilation
         let pol = Policy::<DummyKey>::from_str(pol).unwrap();
-        let prog: Vec<Term<_, DummyNode>> = pol.compile().unwrap();
+        let prog: UnTypedProg<_, DummyNode> = pol.compile().unwrap();
 
         let prog =
             Program::from_untyped_nodes(prog, &mut BitIter::from(witness.into_iter())).unwrap();
