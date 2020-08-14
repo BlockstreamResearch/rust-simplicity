@@ -33,7 +33,7 @@ use crate::extension::bitcoin::BtcNode;
 
 use crate::core::term::UnTypedProg;
 use crate::Error;
-use crate::To32BytePubKey;
+use crate::PubkeyKey32;
 
 use super::compiler;
 
@@ -62,7 +62,7 @@ pub enum Policy<Pk: MiniscriptKey> {
     /// A set of sub-policies, satisfactions must be provided for `k` of them
     Threshold(usize, Vec<Policy<Pk>>),
 }
-impl<Pk: MiniscriptKey + To32BytePubKey> Policy<Pk> {
+impl<Pk: MiniscriptKey + PubkeyKey32> Policy<Pk> {
     /// Compile a policy into a simplicity frgament
     pub fn compile(&self) -> Result<UnTypedProg<(), BtcNode>, Error> {
         let dag = compiler::compile(&self)?;

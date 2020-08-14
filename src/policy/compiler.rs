@@ -27,7 +27,7 @@ use crate::extension::jets::JetsNode::{
 };
 use crate::miniscript::MiniscriptKey;
 use crate::Error;
-use crate::To32BytePubKey;
+use crate::PubkeyKey32;
 use crate::Value;
 
 use std::rc::Rc;
@@ -99,7 +99,7 @@ fn u1_to_u32<Ext>(s: Rc<DagTerm<(), Ext>>) -> DagTerm<(), Ext> {
 }
 
 /// Compile the desired policy into a bitcoin simplicity program
-pub fn compile<Pk: MiniscriptKey + To32BytePubKey>(
+pub fn compile<Pk: MiniscriptKey + PubkeyKey32>(
     pol: &Policy<Pk>,
 ) -> Result<DagTerm<(), BtcNode>, Error> {
     let two_pow_256 = pow2_types()[9].clone();
