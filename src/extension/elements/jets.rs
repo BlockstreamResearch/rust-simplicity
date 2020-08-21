@@ -12,20 +12,20 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-//! # Elements Extensions
+//! # Elements Extensions: Jets
 //!
-//! Extensions to the Simplicity language to allow use on the Bitcoin
-//! blockchain
+//! Jets to the Simplicity language to allow use on the Elements
+//! blockchain.
 //!
 
 use std::{fmt, io};
 
-use super::TypeName;
 use crate::bititer::BitIter;
 use crate::cmr::Cmr;
 use crate::encode;
 use crate::exec;
 use crate::extension;
+use crate::extension::TypeName;
 use crate::Error;
 
 /// Transaction environment for Bitcoin Simplicity programs
