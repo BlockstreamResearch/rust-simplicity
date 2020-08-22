@@ -28,29 +28,10 @@ use crate::exec;
 use crate::extension::TypeName;
 use crate::extension::{self, ExtError};
 use crate::Error;
+use bitcoin_hashes::{sha256, Hash};
+use elements::confidential::Value;
 
-/// Transaction environment for Bitcoin Simplicity programs
-pub struct TxEnv {
-    _tx: elements::Transaction,
-}
-
-impl TxEnv {
-    /// Constructor from a transaction
-    pub fn from_tx(tx: elements::Transaction) -> TxEnv {
-        TxEnv { _tx: tx }
-    }
-}
-
-impl Default for TxEnv {
-    fn default() -> TxEnv {
-        TxEnv::from_tx(elements::Transaction {
-            version: 2,
-            lock_time: 0,
-            input: vec![],
-            output: vec![],
-        })
-    }
-}
+use super::data_structures::{is_asset_new_issue, is_asset_reissue, SimplicityEncodable, TxEnv};
 
 /// Set of new Simplicity nodes enabled by the Bitcoin extension
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -429,10 +410,323 @@ impl extension::Jet for ElementsNode {
         }
     }
 
-    fn exec(&self, _mac: &mut exec::BitMachine, _txenv: &Self::TxEnv) -> Result<(), Self::JetErr> {
-        // FIXME finish this
-        unimplemented!()
+    fn exec(&self, mac: &mut exec::BitMachine, txenv: &Self::TxEnv) -> Result<(), ElementsJetErr> {
+        assert!(txenv.tx.input.len() == txenv.utxos.len());
+        // env must always be valid.
+        let curr_idx = txenv.ix as usize;
+        let curr_inp = &txenv.tx.input[curr_idx];
+        let curr_utxo = &txenv.utxos[curr_idx];
+        match *self {
+            ElementsNode::Version => mac.write_u32(txenv.tx.version),
+            ElementsNode::LockTime => mac.write_u32(txenv.tx.lock_time),
+            ElementsNode::InputIsPegin => {
+                let idx = mac.read_u32() as usize;
+                let is_valid_idx = idx < txenv.tx.input.len();
+                mac.write_bit(is_valid_idx);
+                if is_valid_idx {
+                    mac.write_bit(txenv.tx.input[idx].is_pegin);
+                } else {
+                    mac.skip(1);
+                }
+            }
+            ElementsNode::InputPrevOutpoint => {
+                let idx = mac.read_u32() as usize;
+                let is_valid_idx = idx < txenv.tx.input.len();
+                mac.write_bit(is_valid_idx);
+                if is_valid_idx {
+                    mac.write_bytes(&txenv.tx.input[idx].previous_output.txid);
+                    mac.write_u32(txenv.tx.input[idx].previous_output.vout);
+                } else {
+                    mac.skip(256 + 32);
+                }
+            }
+            ElementsNode::InputAsset => {
+                let idx = mac.read_u32() as usize;
+                let is_valid_idx = idx < txenv.tx.input.len();
+                mac.write_bit(is_valid_idx);
+                if is_valid_idx {
+                    let asset = txenv.utxos[idx].asset;
+                    asset.simplicity_encode(mac)?
+                } else {
+                    // 2 bits for prefix and 256 bits for hash.
+                    mac.skip(2 + 256);
+                }
+            }
+            ElementsNode::InputAmount => {
+                let idx = mac.read_u32() as usize;
+                let is_valid_idx = idx < txenv.tx.input.len();
+                mac.write_bit(is_valid_idx);
+                if is_valid_idx {
+                    let amt = txenv.utxos[idx].value;
+                    amt.simplicity_encode(mac)?
+                } else {
+                    // 2 bits for prefix and 256 bits for hash.
+                    mac.skip(2 + 256);
+                }
+            }
+            ElementsNode::InputScriptHash => {
+                let idx = mac.read_u32() as usize;
+                let is_valid_idx = idx < txenv.tx.input.len();
+                mac.write_bit(is_valid_idx);
+                if is_valid_idx {
+                    let script_pubkey = txenv.utxos[idx].script_pubkey;
+                    mac.write_bytes(&script_pubkey);
+                } else {
+                    // 256 bits for hash.
+                    mac.skip(256);
+                }
+            }
+            ElementsNode::InputSequence => {
+                let idx = mac.read_u32() as usize;
+                let is_valid_idx = idx < txenv.tx.input.len();
+                mac.write_bit(is_valid_idx);
+                if is_valid_idx {
+                    let seq = txenv.tx.input[idx].sequence;
+                    mac.write_u32(seq);
+                } else {
+                    // 32 bits for sequence.
+                    mac.skip(32);
+                }
+            }
+            ElementsNode::InputIssuanceBlinding => {
+                let idx = mac.read_u32() as usize;
+                let is_valid_idx = idx < txenv.tx.input.len();
+                mac.write_bit(is_valid_idx);
+                if is_valid_idx {
+                    assert!(txenv.tx.input[idx].has_issuance());
+                    blinding_issuance(mac, &txenv.tx.input[idx].asset_issuance);
+                } else {
+                    // issuance_type + 256 hash bits.
+                    mac.skip(1 + 256);
+                }
+            }
+            ElementsNode::InputIssuanceContract => {
+                let idx = mac.read_u32() as usize;
+                let is_valid_idx = idx < txenv.tx.input.len();
+                mac.write_bit(is_valid_idx);
+                if is_valid_idx {
+                    assert!(txenv.tx.input[idx].has_issuance());
+                    contract_issuance(mac, &txenv.tx.input[idx].asset_issuance);
+                } else {
+                    // issuance type + 256 bits for hash.
+                    mac.skip(1 + 256);
+                }
+            }
+            ElementsNode::InputIssuanceEntropy => {
+                let idx = mac.read_u32() as usize;
+                let is_valid_idx = idx < txenv.tx.input.len();
+                mac.write_bit(is_valid_idx);
+                if is_valid_idx {
+                    assert!(txenv.tx.input[idx].has_issuance());
+                    let asset = txenv.tx.input[idx].asset_issuance;
+                    entropy_issuance(mac, &asset);
+                } else {
+                    // 1 + 256 bits for hash.
+                    mac.skip(1 + 256);
+                }
+            }
+            ElementsNode::InputIssuanceAssetAmount => {
+                let idx = mac.read_u32() as usize;
+                let is_valid_idx = idx < txenv.tx.input.len();
+                mac.write_bit(is_valid_idx);
+                if is_valid_idx {
+                    let asset = txenv.tx.input[idx].asset_issuance;
+                    asset_amt_issuance(mac, &asset, txenv.tx.input[idx].has_issuance())?
+                } else {
+                    // 1 + 258 bits for conf value.
+                    mac.skip(1 + 258);
+                }
+            }
+            ElementsNode::InputIssuanceTokenAmount => {
+                let idx = mac.read_u32() as usize;
+                let is_valid_idx = idx < txenv.tx.input.len();
+                mac.write_bit(is_valid_idx);
+                if is_valid_idx {
+                    let asset = txenv.tx.input[idx].asset_issuance;
+                    inflation_amt_issuance(mac, &asset)?
+                } else {
+                    // 1 + 258 bits for conf value.
+                    mac.skip(1 + 258);
+                }
+            }
+            ElementsNode::OutputAsset => {
+                let idx = mac.read_u32() as usize;
+                let is_valid_idx = idx < txenv.tx.output.len();
+                mac.write_bit(is_valid_idx);
+                if is_valid_idx {
+                    let asset = txenv.tx.output[idx].asset;
+                    asset.simplicity_encode(mac)?
+                } else {
+                    // 258 bits for conf value.
+                    mac.skip(258);
+                }
+            }
+            ElementsNode::OutputAmount => {
+                let idx = mac.read_u32() as usize;
+                let is_valid_idx = idx < txenv.tx.output.len();
+                mac.write_bit(is_valid_idx);
+                if is_valid_idx {
+                    let value = txenv.tx.output[idx].value;
+                    value.simplicity_encode(mac)?
+                } else {
+                    // 258 bits for conf value.
+                    mac.skip(258);
+                }
+            }
+            ElementsNode::OutputNonce => {
+                let idx = mac.read_u32() as usize;
+                let is_valid_idx = idx < txenv.tx.output.len();
+                mac.write_bit(is_valid_idx);
+                if is_valid_idx {
+                    let nonce = txenv.tx.output[idx].nonce;
+                    nonce.simplicity_encode(mac)?
+                } else {
+                    // 259 bits for conf nonce.
+                    mac.skip(259);
+                }
+            }
+            ElementsNode::OutputScriptHash => {
+                let idx = mac.read_u32() as usize;
+                let is_valid_idx = idx < txenv.tx.output.len();
+                mac.write_bit(is_valid_idx);
+                if is_valid_idx {
+                    let output_script_pubkey = &txenv.tx.output[idx].script_pubkey;
+                    mac.write_bytes(&sha256::Hash::hash(&output_script_pubkey.to_bytes()));
+                } else {
+                    // 256 bits of hash.
+                    mac.skip(256);
+                }
+            }
+            ElementsNode::OutputNullDatum => unimplemented!(),
+            ElementsNode::ScriptCmr => {
+                mac.write_bytes(&txenv.script_cmr);
+            }
+            ElementsNode::CurrentIndex => {
+                mac.write_u32(txenv.ix);
+            }
+            ElementsNode::CurrentIsPegin => {
+                mac.write_bit(curr_inp.is_pegin());
+            }
+            ElementsNode::CurrentPrevOutpoint => {
+                mac.write_bytes(&curr_inp.previous_output.txid);
+                mac.write_u32(curr_inp.previous_output.vout);
+            }
+            ElementsNode::CurrentAsset => curr_utxo.asset.simplicity_encode(mac)?,
+            ElementsNode::CurrentAmount => curr_utxo.value.simplicity_encode(mac)?,
+            ElementsNode::CurrentScriptHash => {
+                // TODO: cache these while creating utxo
+                mac.write_bytes(&curr_utxo.script_pubkey);
+            }
+            ElementsNode::CurrentSequence => {
+                mac.write_u32(curr_inp.sequence);
+            }
+            ElementsNode::CurrentIssuanceBlinding => {
+                assert!(curr_inp.has_issuance());
+                blinding_issuance(mac, &curr_inp.asset_issuance)
+            }
+            ElementsNode::CurrentIssuanceContract => {
+                assert!(curr_inp.has_issuance());
+                contract_issuance(mac, &curr_inp.asset_issuance);
+            }
+            ElementsNode::CurrentIssuanceEntropy => {
+                assert!(curr_inp.has_issuance());
+                entropy_issuance(mac, &curr_inp.asset_issuance);
+            }
+            ElementsNode::CurrentIssuanceAssetAmount => {
+                asset_amt_issuance(mac, &curr_inp.asset_issuance, curr_inp.has_issuance())?
+            }
+            ElementsNode::CurrentIssuanceTokenAmount => {
+                assert!(curr_inp.has_issuance());
+                inflation_amt_issuance(mac, &curr_inp.asset_issuance)?
+            }
+            /*
+            inputHash(l) :=
+            BE256(LE[prevOutpoint.txid]),LE32(prevOutpoint.vout),LE32(sequence),encIssuance(l[issuance])
+            */
+            ElementsNode::InputsHash => {
+                mac.write_bytes(&txenv.inputs_hash);
+            }
+            ElementsNode::OutputsHash => {
+                mac.write_bytes(&txenv.outputs_hash);
+            }
+            ElementsNode::NumInputs => {
+                mac.write_u32(txenv.tx.input.len() as u32);
+            }
+            ElementsNode::NumOutputs => {
+                mac.write_u32(txenv.tx.output.len() as u32);
+            }
+            ElementsNode::Fee => unimplemented!(),
+        };
+        Ok(())
     }
+}
+
+// Write an optional 'blindingNonce' from an 'assetIssuance' when reissuing an asset
+// writes 257 bits
+fn blinding_issuance(mac: &mut exec::BitMachine, issuance: &elements::AssetIssuance) {
+    let is_reissue = is_asset_reissue(issuance);
+    mac.write_bit(is_reissue);
+    if is_reissue {
+        mac.write_bytes(&issuance.asset_blinding_nonce);
+    } else {
+        mac.skip(256);
+    }
+}
+
+// Write an optional 'contractHash' from an 'assetIssuance' when issuing new asset
+fn contract_issuance(mac: &mut exec::BitMachine, issuance: &elements::AssetIssuance) {
+    let is_new_issue = is_asset_new_issue(issuance);
+    mac.write_bit(is_new_issue);
+    if is_new_issue {
+        mac.write_bytes(&issuance.asset_entropy);
+    } else {
+        mac.skip(256);
+    }
+}
+
+// Write an optional 'entropy' from an 'assetIssuance' when reissuing an asset
+fn entropy_issuance(mac: &mut exec::BitMachine, issuance: &elements::AssetIssuance) {
+    let is_reissue = is_asset_reissue(issuance);
+    mac.write_bit(is_reissue);
+    if is_reissue {
+        mac.write_bytes(&issuance.asset_entropy);
+    } else {
+        mac.skip(256);
+    }
+}
+
+// Write an optional confidential asset amount 'amount' from an 'assetIssuance'
+fn asset_amt_issuance(
+    mac: &mut exec::BitMachine,
+    issuance: &elements::AssetIssuance,
+    has_issuance: bool,
+) -> Result<(), ElementsJetErr> {
+    let is_null_amt = matches!(issuance.amount, Value::Null);
+    mac.write_bit(has_issuance && !is_null_amt);
+    if has_issuance {
+        issuance.amount.simplicity_encode(mac)?;
+    } else {
+        // confidential value 258 bits
+        mac.skip(2 + 256);
+    }
+    Ok(())
+}
+
+// Write an optional confidential new token amount 'amount' from an 'assetIssuance'
+fn inflation_amt_issuance(
+    mac: &mut exec::BitMachine,
+    issuance: &elements::AssetIssuance,
+) -> Result<(), ElementsJetErr> {
+    let is_null_amt = matches!(issuance.amount, Value::Null);
+    let is_new_issue = is_asset_new_issue(issuance);
+    mac.write_bit(is_new_issue && !is_null_amt);
+    if is_new_issue {
+        issuance.inflation_keys.simplicity_encode(mac)?;
+    } else {
+        // confidential value 258 bits
+        mac.skip(2 + 256);
+    }
+    Ok(())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

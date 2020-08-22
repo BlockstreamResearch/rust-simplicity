@@ -2058,6 +2058,6 @@ fn main() {
 
         println!("Running program ... warning, this will take several hours even in release mode");
         let mut mac = simplicity::exec::BitMachine::for_program(&program);
-        mac.exec(&program, &txenv);
+        mac.exec(&program, &txenv).unwrap();
     }
 }

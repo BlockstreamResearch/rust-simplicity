@@ -19,7 +19,7 @@
 //! simplicity transactions
 
 use crate::cmr::Cmr;
-use crate::exec::{self, ExecutionError};
+use crate::exec;
 use bitcoin_hashes::{sha256, Hash, HashEngine};
 use byteorder::{BigEndian, LittleEndian, WriteBytesExt};
 use elements::confidential::{Asset, Nonce, Value};
@@ -32,7 +32,7 @@ use super::jets::ElementsJetErr;
 pub(in crate::extension::elements) trait SimplicityEncodable {
     // write the simplicity encoding of `self` on bitmachine
     // at the current write cursor.
-    fn simplicity_encode(self, mac: &mut exec::BitMachine) -> Result<(), ExecutionError>;
+    fn simplicity_encode(self, mac: &mut exec::BitMachine) -> Result<(), ElementsJetErr>;
 }
 
 /// A simplicity representation of elements confidential asset is then:
@@ -40,9 +40,9 @@ pub(in crate::extension::elements) trait SimplicityEncodable {
 /// Write an confidential asset to write frame
 /// advancing the cursor 258 cells, unless asset is not None
 impl SimplicityEncodable for confidential::Asset {
-    fn simplicity_encode(self, mac: &mut exec::BitMachine) -> Result<(), ExecutionError> {
+    fn simplicity_encode(self, mac: &mut exec::BitMachine) -> Result<(), ElementsJetErr> {
         match self {
-            Asset::Null => Err(ElementsJetErr::NullAssetEncoding)?,
+            Asset::Null => return Err(ElementsJetErr::NullAssetEncoding),
             Asset::Explicit(data) => {
                 mac.write_bit(true);
                 mac.skip(1);
@@ -76,9 +76,9 @@ impl SimplicityEncodable for confidential::Asset {
 /// Write an confidential asset to write frame
 /// advancing the cursor 258 cells, unless asset is not None
 impl SimplicityEncodable for confidential::Value {
-    fn simplicity_encode(self, mac: &mut exec::BitMachine) -> Result<(), ExecutionError> {
+    fn simplicity_encode(self, mac: &mut exec::BitMachine) -> Result<(), ElementsJetErr> {
         match self {
-            Value::Null => Err(ElementsJetErr::NullAssetEncoding)?,
+            Value::Null => return Err(ElementsJetErr::NullAssetEncoding),
             Value::Explicit(data) => {
                 mac.write_bit(true);
                 mac.skip(1 + 256 - 64);
@@ -111,7 +111,7 @@ impl SimplicityEncodable for confidential::Value {
 /// Write an confidential asset to write frame
 /// advancing the cursor 259 cells, unless asset is not None
 impl SimplicityEncodable for confidential::Nonce {
-    fn simplicity_encode(self, mac: &mut exec::BitMachine) -> Result<(), ExecutionError> {
+    fn simplicity_encode(self, mac: &mut exec::BitMachine) -> Result<(), ElementsJetErr> {
         // all paths should write 259 bits
         match self {
             Nonce::Null => {
@@ -226,7 +226,7 @@ pub(super) fn is_asset_new_issue(asset: &AssetIssuance) -> bool {
 
 impl SimplicityHash for AssetIssuance {
     fn simplicity_hash(&self, eng: &mut sha256::HashEngine) {
-        let is_new_issue = is_asset_new_issue(&self);
+        let is_new_issue = is_asset_new_issue(self);
         if is_new_issue {
             self.amount.simplicity_hash(eng);
             self.inflation_keys.simplicity_hash(eng);
@@ -234,7 +234,7 @@ impl SimplicityHash for AssetIssuance {
             eng.input(&self.asset_blinding_nonce);
             eng.input(&self.asset_entropy);
         } else {
-            debug_assert!(is_asset_reissue(&self));
+            debug_assert!(is_asset_reissue(self));
             self.amount.simplicity_hash(eng);
             // The inflation keys here must be zero
             // Review this assertion
