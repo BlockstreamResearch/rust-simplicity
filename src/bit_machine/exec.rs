@@ -450,3 +450,9 @@ impl<'a> fmt::Display for ExecutionError<'a> {
 }
 
 impl<'a> error::Error for ExecutionError<'a> {}
+
+impl<'a, J: ExtError + 'a> From<J> for ExecutionError<'a> {
+    fn from(jet: J) -> Self {
+        ExecutionError::ExtError(Box::new(jet))
+    }
+}

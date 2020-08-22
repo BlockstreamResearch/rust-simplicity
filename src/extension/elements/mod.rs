@@ -18,5 +18,6 @@
 //! blockchain
 //!
 
+pub mod data_structures;
 pub mod jets;
 pub use jets::ElementsNode;

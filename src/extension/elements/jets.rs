@@ -436,11 +436,19 @@ impl extension::Jet for ElementsNode {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum ElementsJetErr {}
+pub enum ElementsJetErr {
+    /// Tried to encode Null Asset
+    NullAssetEncoding,
+    /// Tried to encode Null Value
+    NullValueEncoding,
+}
 
 impl fmt::Display for ElementsJetErr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "TODO in a later commit")
+        match self {
+            ElementsJetErr::NullAssetEncoding => write!(f, "tried to encode null asset"),
+            ElementsJetErr::NullValueEncoding => write!(f, "tried to encode null value"),
+        }
     }
 }
 
