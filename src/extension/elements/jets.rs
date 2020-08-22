@@ -748,3 +748,22 @@ impl fmt::Display for ElementsJetErr {
 
 impl error::Error for ElementsJetErr {}
 impl ExtError for ElementsJetErr {}
+
+#[cfg(test)]
+mod tests {
+    use crate::extension::elements::test_sighashall::{
+        ELEMENTS_CHECK_SIGHASH_ALL, SIGHASH_ALL_CMR,
+    };
+
+    #[test]
+    fn sighash_all_cmr() {
+        // Run SighashALL program
+        let mut bits: crate::bititer::BitIter<_> =
+            ELEMENTS_CHECK_SIGHASH_ALL.iter().cloned().into();
+        let program =
+            crate::program::Program::<crate::extension::elements::ElementsNode>::decode(&mut bits)
+                .expect("decoding program");
+        assert_eq!(program.root_node().cmr.into_inner(), SIGHASH_ALL_CMR,);
+        // FIXME: Implement and check wmr
+    }
+}
