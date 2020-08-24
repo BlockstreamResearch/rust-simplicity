@@ -34,13 +34,16 @@ pub enum FinalTypeInner {
 pub struct FinalType {
     pub ty: FinalTypeInner,
     pub bit_width: usize,
+    /// cached display result in order to avoid repeat computation
+    pub display: String,
 }
 
 impl FinalType {
-    const fn unit() -> Self {
+    fn unit() -> Self {
         Self {
             ty: FinalTypeInner::Unit,
             bit_width: 0,
+            display: "1".to_owned(),
         }
     }
 
@@ -48,6 +51,11 @@ impl FinalType {
         Self {
             ty: FinalTypeInner::Sum(a.clone(), b.clone()),
             bit_width: 1 + cmp::max(a.bit_width, b.bit_width),
+            display: if a.ty == FinalTypeInner::Unit && b.ty == FinalTypeInner::Unit {
+                "2".to_owned()
+            } else {
+                format!("({} + {})", a.display, b.display)
+            },
         }
     }
 
@@ -55,6 +63,21 @@ impl FinalType {
         Self {
             ty: FinalTypeInner::Product(a.clone(), b.clone()),
             bit_width: a.bit_width + b.bit_width,
+            display: if a.display == b.display {
+                match a.display.as_str() {
+                    "2" => "2^2".to_owned(),
+                    "2^2" => "2^4".to_owned(),
+                    "2^4" => "2^8".to_owned(),
+                    "2^8" => "2^16".to_owned(),
+                    "2^16" => "2^32".to_owned(),
+                    "2^32" => "2^64".to_owned(),
+                    "2^64" => "2^128".to_owned(),
+                    "2^128" => "2^256".to_owned(),
+                    _ => format!("({} × {})", a.display, b.display),
+                }
+            } else {
+                format!("({} × {})", a.display, b.display)
+            },
         }
     }
 }
@@ -79,35 +102,7 @@ pub(crate) fn pow2_types() -> [Arc<FinalType>; 11] {
 
 impl fmt::Display for FinalType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.ty {
-            FinalTypeInner::Unit => f.write_str("1"),
-            FinalTypeInner::Sum(ref a, ref b) => {
-                if a.ty == FinalTypeInner::Unit && b.ty == FinalTypeInner::Unit {
-                    write!(f, "2")
-                } else {
-                    write!(f, "({} + {})", a, b)
-                }
-            }
-            FinalTypeInner::Product(ref a, ref b) => {
-                let a_str = format!("{}", a);
-                let b_str = format!("{}", b);
-                if a_str == b_str {
-                    match &a_str[..] {
-                        "2" => write!(f, "2^2"),
-                        "2^2" => write!(f, "2^4"),
-                        "2^4" => write!(f, "2^8"),
-                        "2^8" => write!(f, "2^16"),
-                        "2^16" => write!(f, "2^32"),
-                        "2^32" => write!(f, "2^64"),
-                        "2^64" => write!(f, "2^128"),
-                        "2^128" => write!(f, "2^256"),
-                        _ => write!(f, "({} × {})", a, b),
-                    }
-                } else {
-                    write!(f, "({} × {})", a, b)
-                }
-            }
-        }
+        write!(f, "{}", self.display)
     }
 }
 
@@ -135,10 +130,7 @@ impl FinalType {
 
         let (sub1, sub2) = match existing_type {
             Type::Unit => {
-                let ret = Arc::new(FinalType {
-                    ty: FinalTypeInner::Unit,
-                    bit_width: 0,
-                });
+                let ret = Arc::new(FinalType::unit());
                 var_borr.var = Variable::Finalized(ret.clone());
                 return Ok(ret);
             }
@@ -154,10 +146,7 @@ impl FinalType {
         let final1 = match sub1_borr.var {
             Variable::Free => {
                 drop(sub1_borr);
-                Arc::new(FinalType {
-                    ty: FinalTypeInner::Unit,
-                    bit_width: 0,
-                })
+                Arc::new(FinalType::unit())
             }
             Variable::Bound(..) => {
                 drop(sub1_borr);
@@ -175,10 +164,7 @@ impl FinalType {
         let final2 = match sub2_borr.var {
             Variable::Free => {
                 drop(sub2_borr);
-                Arc::new(FinalType {
-                    ty: FinalTypeInner::Unit,
-                    bit_width: 0,
-                })
+                Arc::new(FinalType::unit())
             }
             Variable::Bound(..) => {
                 drop(sub2_borr);
@@ -195,14 +181,8 @@ impl FinalType {
 
         let ret = match existing_type {
             Type::Unit => unreachable!(),
-            Type::Sum(..) => Arc::new(FinalType {
-                bit_width: 1 + cmp::max(final1.bit_width, final2.bit_width),
-                ty: FinalTypeInner::Sum(final1, final2),
-            }),
-            Type::Product(..) => Arc::new(FinalType {
-                bit_width: final1.bit_width + final2.bit_width,
-                ty: FinalTypeInner::Product(final1, final2),
-            }),
+            Type::Sum(..) => Arc::new(FinalType::sum(final1, final2)),
+            Type::Product(..) => Arc::new(FinalType::prod(final1, final2)),
         };
         var.borrow_mut().var = Variable::Finalized(ret.clone());
         Ok(ret)
