@@ -58,14 +58,16 @@ impl<Ext: fmt::Display> fmt::Display for ProgramNode<Ext> {
         match self.node {
             Term::Iden => f.write_str("iden")?,
             Term::Unit => f.write_str("unit")?,
-            Term::InjL(i) => write!(f, "injl({})", i)?,
-            Term::InjR(i) => write!(f, "injr({})", i)?,
-            Term::Take(i) => write!(f, "take({})", i)?,
-            Term::Drop(i) => write!(f, "drop({})", i)?,
-            Term::Comp(i, j) => write!(f, "comp({}, {})", i, j)?,
-            Term::Case(i, j) => write!(f, "case({}, {})", i, j)?,
-            Term::Pair(i, j) => write!(f, "pair({}, {})", i, j)?,
-            Term::Disconnect(i, j) => write!(f, "disconnect({}, {})", i, j)?,
+            Term::InjL(i) => write!(f, "injl({})", self.index - i)?,
+            Term::InjR(i) => write!(f, "injr({})", self.index - i)?,
+            Term::Take(i) => write!(f, "take({})", self.index - i)?,
+            Term::Drop(i) => write!(f, "drop({})", self.index - i)?,
+            Term::Comp(i, j) => write!(f, "comp({}, {})", self.index - i, self.index - j)?,
+            Term::Case(i, j) => write!(f, "case({}, {})", self.index - i, self.index - j)?,
+            Term::Pair(i, j) => write!(f, "pair({}, {})", self.index - i, self.index - j)?,
+            Term::Disconnect(i, j) => {
+                write!(f, "disconnect({}, {})", self.index - i, self.index - j)?
+            }
             Term::Witness(..) => f.write_str("witness")?,
             Term::Hidden(..) => f.write_str("hidden")?,
             Term::Fail(..) => f.write_str("fail")?,
