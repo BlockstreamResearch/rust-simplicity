@@ -172,6 +172,10 @@ impl extension::Jet for JetsNode {
         }
     }
 
+    fn wmr(&self) -> Cmr {
+        self.cmr()
+    }
+
     /// Encode the node into a bitstream
     fn encode<W: encode::BitWrite>(&self, w: &mut W) -> io::Result<usize> {
         match *self {

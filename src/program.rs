@@ -23,12 +23,11 @@ use std::{cmp, fmt, sync::Arc};
 
 use crate::bititer::BitIter;
 use crate::cmr::{self, Cmr};
+use crate::core::term::UnTypedProg;
 use crate::core::types;
 use crate::extension::Jet as ExtNode;
 use crate::{encode, extension};
 use crate::{Error, Term, Value};
-
-use crate::core::term::UnTypedProg;
 
 /// A node in a complete program, with associated metadata
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -39,6 +38,8 @@ pub struct ProgramNode<Ext> {
     pub index: usize,
     /// Its Commitment Merkle Root
     pub cmr: Cmr,
+    /// Its Witness Commitment Merkle Root
+    pub wmr: Cmr,
     /// Source type for this node
     pub source_ty: Arc<types::FinalType>,
     /// Target type for this node
@@ -149,6 +150,7 @@ impl<Ext: extension::Jet> Program<Ext> {
             let final_node = ProgramNode {
                 index: index,
                 cmr: compute_cmr(&ret, &node.node, index),
+                wmr: compute_wmr(&ret, &node.node, index),
                 extra_cells_bound: compute_extra_cells_bound(
                     &ret,
                     &node.node,
@@ -219,17 +221,41 @@ fn compute_cmr<Ext: extension::Jet>(
     idx: usize,
 ) -> Cmr {
     match *node {
-        Term::Iden => cmr::tag::iden(),
-        Term::Unit => cmr::tag::unit(),
-        Term::InjL(i) => cmr::tag::injl().update_1(program[idx - i].cmr),
-        Term::InjR(i) => cmr::tag::injr().update_1(program[idx - i].cmr),
-        Term::Take(i) => cmr::tag::take().update_1(program[idx - i].cmr),
-        Term::Drop(i) => cmr::tag::drop().update_1(program[idx - i].cmr),
-        Term::Comp(i, j) => cmr::tag::comp().update(program[idx - i].cmr, program[idx - j].cmr),
-        Term::Case(i, j) => cmr::tag::case().update(program[idx - i].cmr, program[idx - j].cmr),
-        Term::Pair(i, j) => cmr::tag::pair().update(program[idx - i].cmr, program[idx - j].cmr),
-        Term::Disconnect(i, _) => cmr::tag::disconnect().update_1(program[idx - i].cmr),
-        Term::Witness(..) => cmr::tag::witness(),
+        Term::Iden => cmr::tag::iden_cmr(),
+        Term::Unit => cmr::tag::unit_cmr(),
+        Term::InjL(i) => cmr::tag::injl_cmr().update_1(program[idx - i].cmr),
+        Term::InjR(i) => cmr::tag::injr_cmr().update_1(program[idx - i].cmr),
+        Term::Take(i) => cmr::tag::take_cmr().update_1(program[idx - i].cmr),
+        Term::Drop(i) => cmr::tag::drop_cmr().update_1(program[idx - i].cmr),
+        Term::Comp(i, j) => cmr::tag::comp_cmr().update(program[idx - i].cmr, program[idx - j].cmr),
+        Term::Case(i, j) => cmr::tag::case_cmr().update(program[idx - i].cmr, program[idx - j].cmr),
+        Term::Pair(i, j) => cmr::tag::pair_cmr().update(program[idx - i].cmr, program[idx - j].cmr),
+        Term::Disconnect(i, _) => cmr::tag::disconnect_cmr().update_1(program[idx - i].cmr),
+        Term::Witness(..) => cmr::tag::witness_cmr(),
+        Term::Fail(..) => unimplemented!(),
+        Term::Hidden(cmr) => cmr,
+        Term::Ext(ref b) => b.cmr(),
+        Term::Jet(ref j) => j.cmr(),
+    }
+}
+
+fn compute_wmr<Ext: extension::Jet>(
+    program: &[ProgramNode<Ext>],
+    node: &Term<Value, Ext>,
+    idx: usize,
+) -> Cmr {
+    match *node {
+        Term::Iden => cmr::tag::iden_wmr(),
+        Term::Unit => cmr::tag::unit_wmr(),
+        Term::InjL(i) => cmr::tag::injl_wmr().update_1(program[idx - i].cmr),
+        Term::InjR(i) => cmr::tag::injr_wmr().update_1(program[idx - i].cmr),
+        Term::Take(i) => cmr::tag::take_wmr().update_1(program[idx - i].cmr),
+        Term::Drop(i) => cmr::tag::drop_wmr().update_1(program[idx - i].cmr),
+        Term::Comp(i, j) => cmr::tag::comp_wmr().update(program[idx - i].cmr, program[idx - j].cmr),
+        Term::Case(i, j) => cmr::tag::case_wmr().update(program[idx - i].cmr, program[idx - j].cmr),
+        Term::Pair(i, j) => cmr::tag::pair_wmr().update(program[idx - i].cmr, program[idx - j].cmr),
+        Term::Disconnect(i, _) => cmr::tag::disconnect_wmr().update_1(program[idx - i].cmr),
+        Term::Witness(..) => cmr::tag::witness_wmr(),
         Term::Fail(..) => unimplemented!(),
         Term::Hidden(cmr) => cmr,
         Term::Ext(ref b) => b.cmr(),

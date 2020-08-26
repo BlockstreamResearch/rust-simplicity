@@ -107,58 +107,113 @@ impl fmt::Display for Cmr {
 pub mod tag {
     use super::Cmr;
 
-    /// Tagged hash used by `iden`
-    pub fn iden() -> Cmr {
+    /// Tagged cmr hash used by `iden`
+    pub fn iden_cmr() -> Cmr {
         Cmr::new(b"Simplicity\x1fCommitment\x1fiden")
     }
 
-    /// Tagged hash used by `comp`
-    pub fn comp() -> Cmr {
+    /// Tagged cmr hash used by `comp`
+    pub fn comp_cmr() -> Cmr {
         Cmr::new(b"Simplicity\x1fCommitment\x1fcomp")
     }
 
-    /// Tagged hash used by `unit`
-    pub fn unit() -> Cmr {
+    /// Tagged cmr hash used by `unit`
+    pub fn unit_cmr() -> Cmr {
         Cmr::new(b"Simplicity\x1fCommitment\x1funit")
     }
 
-    /// Tagged hash used by `injl`
-    pub fn injl() -> Cmr {
+    /// Tagged cmr hash used by `injl`
+    pub fn injl_cmr() -> Cmr {
         Cmr::new(b"Simplicity\x1fCommitment\x1finjl")
     }
 
-    /// Tagged hash used by `injr`
-    pub fn injr() -> Cmr {
+    /// Tagged cmr hash used by `injr`
+    pub fn injr_cmr() -> Cmr {
         Cmr::new(b"Simplicity\x1fCommitment\x1finjr")
     }
 
-    /// Tagged hash used by `case`
-    pub fn case() -> Cmr {
+    /// Tagged cmr hash used by `case`
+    pub fn case_cmr() -> Cmr {
         Cmr::new(b"Simplicity\x1fCommitment\x1fcase")
     }
 
-    /// Tagged hash used by `pair`
-    pub fn pair() -> Cmr {
+    /// Tagged cmr hash used by `pair`
+    pub fn pair_cmr() -> Cmr {
         Cmr::new(b"Simplicity\x1fCommitment\x1fpair")
     }
 
-    /// Tagged hash used by `take`
-    pub fn take() -> Cmr {
+    /// Tagged cmr hash used by `take`
+    pub fn take_cmr() -> Cmr {
         Cmr::new(b"Simplicity\x1fCommitment\x1ftake")
     }
 
-    /// Tagged hash used by `drop`
-    pub fn drop() -> Cmr {
+    /// Tagged cmr hash used by `drop`
+    pub fn drop_cmr() -> Cmr {
         Cmr::new(b"Simplicity\x1fCommitment\x1fdrop")
     }
 
-    /// Tagged hash used by `witness`
-    pub fn witness() -> Cmr {
+    /// Tagged cmr hash used by `witness`
+    pub fn witness_cmr() -> Cmr {
         Cmr::new(b"Simplicity\x1fCommitment\x1fwitness")
     }
 
-    /// Tagged hash used by `disconnect`
-    pub fn disconnect() -> Cmr {
+    /// Tagged cmr hash used by `disconnect`
+    pub fn disconnect_cmr() -> Cmr {
         Cmr::new(b"Simplicity\x1fCommitment\x1fdisconnect")
+    }
+
+    /// Tagged wmr hash used by `iden`
+    pub fn iden_wmr() -> Cmr {
+        Cmr::new(b"Simplicity\x1fWitness\x1fiden")
+    }
+
+    /// Tagged wmr hash used by `comp`
+    pub fn comp_wmr() -> Cmr {
+        Cmr::new(b"Simplicity\x1fWitness\x1fcomp")
+    }
+
+    /// Tagged wmr hash used by `unit`
+    pub fn unit_wmr() -> Cmr {
+        Cmr::new(b"Simplicity\x1fWitness\x1funit")
+    }
+
+    /// Tagged wmr hash used by `injl`
+    pub fn injl_wmr() -> Cmr {
+        Cmr::new(b"Simplicity\x1fWitness\x1finjl")
+    }
+
+    /// Tagged wmr hash used by `injr`
+    pub fn injr_wmr() -> Cmr {
+        Cmr::new(b"Simplicity\x1fWitness\x1finjr")
+    }
+
+    /// Tagged wmr hash used by `case`
+    pub fn case_wmr() -> Cmr {
+        Cmr::new(b"Simplicity\x1fWitness\x1fcase")
+    }
+
+    /// Tagged wmr hash used by `pair`
+    pub fn pair_wmr() -> Cmr {
+        Cmr::new(b"Simplicity\x1fWitness\x1fpair")
+    }
+
+    /// Tagged wmr hash used by `take`
+    pub fn take_wmr() -> Cmr {
+        Cmr::new(b"Simplicity\x1fWitness\x1ftake")
+    }
+
+    /// Tagged wmr hash used by `drop`
+    pub fn drop_wmr() -> Cmr {
+        Cmr::new(b"Simplicity\x1fWitness\x1fdrop")
+    }
+
+    /// Tagged wmr hash used by `witness`
+    pub fn witness_wmr() -> Cmr {
+        Cmr::new(b"Simplicity\x1fWitness\x1fwitness")
+    }
+
+    /// Tagged wmr hash used by `disconnect`
+    pub fn disconnect_wmr() -> Cmr {
+        Cmr::new(b"Simplicity\x1fWitness\x1fdisconnect")
     }
 }

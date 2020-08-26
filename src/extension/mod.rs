@@ -89,6 +89,9 @@ pub trait Jet: Sized + fmt::Display {
     /// Return the CMR of the node
     fn cmr(&self) -> Cmr;
 
+    /// Return the WMR of the node
+    fn wmr(&self) -> Cmr;
+
     /// The name of the source type of this node
     fn source_type(&self) -> TypeName;
 

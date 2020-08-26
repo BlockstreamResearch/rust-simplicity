@@ -214,6 +214,10 @@ impl extension::Jet for BtcNode {
         }
     }
 
+    fn wmr(&self) -> Cmr {
+        self.cmr()
+    }
+
     fn encode<W: encode::BitWrite>(&self, w: &mut W) -> io::Result<usize> {
         match *self {
             BtcNode::Version => w.write_u8(64 + 0, 7),

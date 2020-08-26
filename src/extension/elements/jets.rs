@@ -369,6 +369,10 @@ impl extension::Jet for ElementsNode {
         }
     }
 
+    fn wmr(&self) -> Cmr {
+        self.cmr()
+    }
+
     fn encode<W: encode::BitWrite>(&self, w: &mut W) -> io::Result<usize> {
         match *self {
             ElementsNode::Version => w.write_u8(128 + 0, 8),
