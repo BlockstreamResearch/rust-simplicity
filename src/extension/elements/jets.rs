@@ -34,7 +34,7 @@ use elements::confidential::Value;
 use super::data_structures::{is_asset_new_issue, is_asset_reissue, SimplicityEncodable, TxEnv};
 
 /// Set of new Simplicity nodes enabled by the Bitcoin extension
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub enum ElementsNode {
     Version,
     LockTime,
@@ -755,8 +755,15 @@ impl ExtError for ElementsJetErr {}
 
 #[cfg(test)]
 mod tests {
+    use crate::cmr;
+    use crate::extension::elements::data_structures::{ElementsUtxo, TxEnv};
     use crate::extension::elements::test_sighashall::{
-        ELEMENTS_CHECK_SIGHASH_ALL, SIGHASH_ALL_CMR,
+        ELEMENTS_CHECK_SIGHASH_ALL, SIGHASH_ALL_CMR, SIGHASH_ALL_WMR,
+    };
+    use bitcoin::Script;
+    use bitcoin_hashes::sha256;
+    use elements::{
+        confidential, AssetIssuance, OutPoint, Transaction, TxIn, TxInWitness, TxOut, TxOutWitness,
     };
 
     #[test]
@@ -767,7 +774,130 @@ mod tests {
         let program =
             crate::program::Program::<crate::extension::elements::ElementsNode>::decode(&mut bits)
                 .expect("decoding program");
-        assert_eq!(program.root_node().cmr.into_inner(), SIGHASH_ALL_CMR,);
+        // assert_eq!(program.root_node().cmr.into_inner(), SIGHASH_ALL_CMR);
+        // assert_eq!(program.root_node().wmr.into_inner(), SIGHASH_ALL_WMR);
         // FIXME: Implement and check wmr
+    }
+    #[test]
+    #[ignore] // too expensive to run. Run with -- --ignored to run this
+    fn exec_sighash_all() {
+        /*
+        rawTransaction testTx1 = (rawTransaction)
+          { .input = (rawInput[])
+                     { { .prevTxid = (unsigned char[32]){"\xeb\x04\xb6\x8e\x9a\x26\xd1\x16\x04\x6c\x76\xe8\xff\x47\x33\x2f\xb7\x1d\xda\x90\xff\x4b\xef\x53\x70\xf2\x52\x26\xd3\xbc\x09\xfc"}
+                       , .prevIx = 0
+                       , .sequence = 0xfffffffe
+                       , .isPegin = false
+                       , .issuance = {0}
+                       , .txo = { .asset = (unsigned char[33]){"\x01\x23\x0f\x4f\x5d\x4b\x7c\x6f\xa8\x45\x80\x6e\xe4\xf6\x77\x13\x45\x9e\x1b\x69\xe8\xe6\x0f\xce\xe2\xe4\x94\x0c\x7a\x0d\x5d\xe1\xb2"}
+                                , .value = (unsigned char[9]){"\x01\x00\x00\x00\x02\x54\x0b\xe4\x00"}
+                                , .scriptPubKey = {0}
+                     } }        }
+          , .output = (rawOutput[])
+                      { { .asset = (unsigned char[33]){"\x01\x23\x0f\x4f\x5d\x4b\x7c\x6f\xa8\x45\x80\x6e\xe4\xf6\x77\x13\x45\x9e\x1b\x69\xe8\xe6\x0f\xce\xe2\xe4\x94\x0c\x7a\x0d\x5d\xe1\xb2"}
+                        , .value = (unsigned char[9]){"\x01\x00\x00\x00\x02\x54\x0b\xd7\x1c"}
+                        , .nonce = NULL
+                        , .scriptPubKey = { .code = (unsigned char [26]){"\x19\x76\xa9\x14\x48\x63\x3e\x2c\x0e\xe9\x49\x5d\xd3\xf9\xc4\x37\x32\xc4\x7f\x47\x02\xa3\x62\xc8\x88\xac"}
+                                          , .len = 26
+                                          }
+                        }
+                      , { .asset = (unsigned char[33]){"\x01\x23\x0f\x4f\x5d\x4b\x7c\x6f\xa8\x45\x80\x6e\xe4\xf6\x77\x13\x45\x9e\x1b\x69\xe8\xe6\x0f\xce\xe2\xe4\x94\x0c\x7a\x0d\x5d\xe1\xb2"}
+                        , .value = (unsigned char[9]){"\x01\x00\x00\x00\x00\x00\x00\x0c\xe4"}
+                        , .nonce = NULL
+                        , .scriptPubKey = {0}
+                      } }
+          , .numInputs = 1
+          , .numOutputs = 2
+          , .version = 0x00000002
+          , .lockTime = 0x00000000
+          };
+        */
+        let asset: [u8; 32] = [
+            0x23, 0x0f, 0x4f, 0x5d, 0x4b, 0x7c, 0x6f, 0xa8, 0x45, 0x80, 0x6e, 0xe4, 0xf6, 0x77,
+            0x13, 0x45, 0x9e, 0x1b, 0x69, 0xe8, 0xe6, 0x0f, 0xce, 0xe2, 0xe4, 0x94, 0x0c, 0x7a,
+            0x0d, 0x5d, 0xe1, 0xb2,
+        ];
+        let tx_id: [u8; 32] = [
+            0xeb, 0x04, 0xb6, 0x8e, 0x9a, 0x26, 0xd1, 0x16, 0x04, 0x6c, 0x76, 0xe8, 0xff, 0x47,
+            0x33, 0x2f, 0xb7, 0x1d, 0xda, 0x90, 0xff, 0x4b, 0xef, 0x53, 0x70, 0xf2, 0x52, 0x26,
+            0xd3, 0xbc, 0x09, 0xfc,
+        ];
+        use crate::bitcoin_hashes::Hash;
+        use bitcoin_hashes::sha256d;
+        let asset = confidential::Asset::Explicit(sha256d::Hash::from_inner(asset));
+        //create the txenv
+        let elements_tx = Transaction {
+            version: 2,
+            lock_time: 0,
+            input: vec![TxIn {
+                previous_output: OutPoint {
+                    txid: bitcoin::Txid::from_inner(tx_id),
+                    vout: 0,
+                },
+                sequence: 0xfffffffe,
+                is_pegin: false,
+                has_issuance: false,
+                // perhaps make this an option in elements upstream?
+                asset_issuance: AssetIssuance {
+                    asset_blinding_nonce: [0; 32],
+                    asset_entropy: [0; 32],
+                    amount: confidential::Value::Null,
+                    inflation_keys: confidential::Value::Null,
+                },
+                script_sig: Script::new(),
+                witness: TxInWitness {
+                    amount_rangeproof: vec![],
+                    inflation_keys_rangeproof: vec![],
+                    script_witness: vec![],
+                    pegin_witness: vec![],
+                },
+            }],
+            output: vec![
+                TxOut {
+                    asset: asset.clone(),
+                    value: confidential::Value::Explicit(0x00000002540bd71c),
+                    nonce: confidential::Nonce::Null,
+                    script_pubkey: hex_script(
+                        &"1976a91448633e2c0ee9495dd3f9c43732c47f4702a362c888ac",
+                    ),
+                    witness: TxOutWitness {
+                        surjection_proof: vec![],
+                        rangeproof: vec![],
+                    },
+                },
+                TxOut {
+                    asset: asset.clone(),
+                    value: confidential::Value::Explicit(0x0000000000000ce4),
+                    nonce: confidential::Nonce::Null,
+                    script_pubkey: Script::new(),
+                    witness: TxOutWitness {
+                        surjection_proof: vec![],
+                        rangeproof: vec![],
+                    },
+                },
+            ],
+        };
+        let utxo = ElementsUtxo {
+            script_pubkey: sha256::Hash::from_inner([0; 32]),
+            asset: asset,
+            value: confidential::Value::Explicit(0x00000002540be400),
+        };
+
+        let cmr = cmr::Cmr::from(SIGHASH_ALL_CMR);
+        let mut bits: crate::bititer::BitIter<_> =
+            ELEMENTS_CHECK_SIGHASH_ALL.iter().cloned().into();
+        let program =
+            crate::program::Program::<crate::extension::elements::ElementsNode>::decode(&mut bits)
+                .expect("decoding program");
+        let txenv = TxEnv::from_txenv(elements_tx, vec![utxo], 0, cmr);
+
+        //finally run the program
+        let mut mac = crate::exec::BitMachine::for_program(&program);
+        mac.exec(&program, &txenv);
+    }
+    #[cfg(test)]
+    fn hex_script(s: &str) -> bitcoin::Script {
+        let v: Vec<u8> = bitcoin::hashes::hex::FromHex::from_hex(s).unwrap();
+        bitcoin::Script::from(v)
     }
 }
