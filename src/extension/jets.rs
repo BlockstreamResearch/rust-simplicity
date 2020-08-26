@@ -296,8 +296,8 @@ impl extension::Jet for JetsNode {
                 let sha2_midstate = sha256::Midstate::from_inner(hash);
                 let mut engine = sha256::HashEngine::from_midstate(sha2_midstate, 0);
                 engine.input(&block);
-                let h = sha256::Hash::from_engine(engine).into_inner();
-                mac.write_bytes(&h);
+                let h = engine.midstate();
+                mac.write_bytes(&h.into_inner());
             }
             JetsNode::SchnorrAssert => {
                 let _pubkey = mac.read_32bytes();
