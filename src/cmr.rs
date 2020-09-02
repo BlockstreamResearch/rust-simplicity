@@ -52,12 +52,12 @@ impl Cmr {
 
         let mut engine = sha256::Hash::engine();
         engine.input(data);
-        engine.input(&[0x80]);
-        for _ in 0..64 - 2 - data.len() - 1 {
-            engine.input(&[0x00]);
-        }
-        engine.input(&[(data.len() as u8) >> 5]);
-        engine.input(&[(data.len() as u8) << 3]);
+        let h = sha256::Hash::from_engine(engine);
+        // concat with itself
+        let block = [h.into_inner(), h.into_inner()].concat();
+
+        let mut engine = sha256::Hash::engine();
+        engine.input(&block);
         Cmr(engine.midstate())
     }
 

@@ -758,7 +758,7 @@ mod tests {
     use crate::cmr;
     use crate::extension::elements::data_structures::{ElementsUtxo, TxEnv};
     use crate::extension::elements::test_sighashall::{
-        ELEMENTS_CHECK_SIGHASH_ALL, SIGHASH_ALL_CMR, SIGHASH_ALL_WMR,
+        ELEMENTS_CHECK_SIGHASH_ALL, SIGHASH_ALL_CMR,
     };
     use bitcoin::Script;
     use bitcoin_hashes::sha256;
@@ -774,7 +774,7 @@ mod tests {
         let program =
             crate::program::Program::<crate::extension::elements::ElementsNode>::decode(&mut bits)
                 .expect("decoding program");
-        // assert_eq!(program.root_node().cmr.into_inner(), SIGHASH_ALL_CMR);
+        assert_eq!(program.root_node().cmr.into_inner(), SIGHASH_ALL_CMR);
         // assert_eq!(program.root_node().wmr.into_inner(), SIGHASH_ALL_WMR);
         // FIXME: Implement and check wmr
     }
