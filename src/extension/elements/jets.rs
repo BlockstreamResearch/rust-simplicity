@@ -21,6 +21,7 @@
 use std::error;
 use std::{fmt, io};
 
+use super::data_structures::{is_asset_new_issue, is_asset_reissue, SimplicityEncodable, TxEnv};
 use crate::bititer::BitIter;
 use crate::cmr::Cmr;
 use crate::encode;
@@ -30,8 +31,6 @@ use crate::extension::{self, ExtError};
 use crate::Error;
 use bitcoin_hashes::{sha256, Hash};
 use elements::confidential::Value;
-
-use super::data_structures::{is_asset_new_issue, is_asset_reissue, SimplicityEncodable, TxEnv};
 
 /// Set of new Simplicity nodes enabled by the Bitcoin extension
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
@@ -893,7 +892,7 @@ mod tests {
 
         //finally run the program
         let mut mac = crate::exec::BitMachine::for_program(&program);
-        mac.exec(&program, &txenv);
+        mac.exec(&program, &txenv).unwrap();
     }
     #[cfg(test)]
     fn hex_script(s: &str) -> bitcoin::Script {

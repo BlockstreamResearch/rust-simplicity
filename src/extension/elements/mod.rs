@@ -20,7 +20,7 @@
 
 pub mod data_structures;
 pub mod jets;
-pub use jets::ElementsNode;
+pub use self::jets::ElementsNode;
 
 #[cfg(test)]
 mod test_sighashall;

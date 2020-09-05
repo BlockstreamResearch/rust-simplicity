@@ -325,8 +325,8 @@ mod tests {
     fn test_to_frame_data_iter() {
         let bytes = (0..100).collect::<Vec<u8>>();
         let frame = Frame::new(0, 100 * 8);
-        let bits = frame.to_frame_data(&bytes).collect();
-        let computed_bytes = bitvec_to_bytevec(bits);
+        let bits = frame.to_frame_data(&bytes).collect::<Vec<_>>();
+        let computed_bytes = bitvec_to_bytevec(&bits);
 
         assert_eq!(bytes, computed_bytes);
     }
