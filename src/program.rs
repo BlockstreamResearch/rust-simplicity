@@ -64,6 +64,8 @@ impl<Ext: fmt::Display> fmt::Display for ProgramNode<Ext> {
             Term::Drop(i) => write!(f, "drop({})", self.index - i)?,
             Term::Comp(i, j) => write!(f, "comp({}, {})", self.index - i, self.index - j)?,
             Term::Case(i, j) => write!(f, "case({}, {})", self.index - i, self.index - j)?,
+            Term::AssertL(i, j) => write!(f, "assertL({}, {})", self.index - i, self.index - j)?,
+            Term::AssertR(i, j) => write!(f, "assertR({}, {})", self.index - i, self.index - j)?,
             Term::Pair(i, j) => write!(f, "pair({}, {})", self.index - i, self.index - j)?,
             Term::Disconnect(i, j) => {
                 write!(f, "disconnect({}, {})", self.index - i, self.index - j)?
@@ -129,6 +131,8 @@ impl<Ext: extension::Jet> Program<Ext> {
                         Term::Drop(i) => Term::Drop(i),
                         Term::Comp(i, j) => Term::Comp(i, j),
                         Term::Case(i, j) => Term::Case(i, j),
+                        Term::AssertL(i, j) => Term::AssertL(i, j),
+                        Term::AssertR(i, j) => Term::AssertR(i, j),
                         Term::Pair(i, j) => Term::Pair(i, j),
                         Term::Disconnect(i, j) => Term::Disconnect(i, j),
                         Term::Witness(()) => Term::Witness(Value::from_bits_and_type(
@@ -185,6 +189,8 @@ impl<Ext: extension::Jet> Program<Ext> {
                     Term::Drop(..) => "drop".to_owned(),
                     Term::Comp(..) => "comp".to_owned(),
                     Term::Case(..) => "case".to_owned(),
+                    Term::AssertL(..) => "assertL".to_owned(),
+                    Term::AssertR(..) => "assertR".to_owned(),
                     Term::Pair(..) => "pair".to_owned(),
                     Term::Disconnect(..) => "disconnect".to_owned(),
                     Term::Witness(..) => "witness".to_owned(),
@@ -208,7 +214,12 @@ impl<Ext: extension::Jet> Program<Ext> {
                 Term::InjL(i) | Term::InjR(i) | Term::Take(i) | Term::Drop(i) => {
                     println!("  {} -> {};", node.index, node.index - i);
                 }
-                Term::Comp(i, j) | Term::Case(i, j) | Term::Pair(i, j) | Term::Disconnect(i, j) => {
+                Term::Comp(i, j)
+                | Term::Case(i, j)
+                | Term::AssertL(i, j)
+                | Term::AssertR(i, j)
+                | Term::Pair(i, j)
+                | Term::Disconnect(i, j) => {
                     println!("  {} -> {} [color=red];", node.index, node.index - i);
                     println!("  {} -> {} [color=blue];", node.index, node.index - j);
                 }
@@ -230,7 +241,9 @@ fn compute_cmr<Ext: extension::Jet>(
         Term::Take(i) => cmr::tag::take_cmr().update_1(program[idx - i].cmr),
         Term::Drop(i) => cmr::tag::drop_cmr().update_1(program[idx - i].cmr),
         Term::Comp(i, j) => cmr::tag::comp_cmr().update(program[idx - i].cmr, program[idx - j].cmr),
-        Term::Case(i, j) => cmr::tag::case_cmr().update(program[idx - i].cmr, program[idx - j].cmr),
+        Term::Case(i, j) | Term::AssertL(i, j) | Term::AssertR(i, j) => {
+            cmr::tag::case_cmr().update(program[idx - i].cmr, program[idx - j].cmr)
+        }
         Term::Pair(i, j) => cmr::tag::pair_cmr().update(program[idx - i].cmr, program[idx - j].cmr),
         Term::Disconnect(i, _) => cmr::tag::disconnect_cmr().update_1(program[idx - i].cmr),
         Term::Witness(..) => cmr::tag::witness_cmr(),
@@ -262,6 +275,12 @@ fn compute_wmr<Ext: extension::Jet>(
         Term::Hidden(cmr) => cmr,
         Term::Ext(ref b) => b.cmr(),
         Term::Jet(ref j) => j.cmr(),
+        Term::AssertL(i, j) => {
+            cmr::tag::assertl_wmr().update(program[idx - i].cmr, program[idx - j].cmr)
+        }
+        Term::AssertR(i, j) => {
+            cmr::tag::assertr_wmr().update(program[idx - i].cmr, program[idx - j].cmr)
+        }
     }
 }
 
@@ -285,7 +304,7 @@ fn compute_extra_cells_bound<Ext: extension::Jet>(
                     program[idx - j].extra_cells_bound,
                 )
         }
-        Term::Case(i, j) => cmp::max(
+        Term::Case(i, j) | Term::AssertL(i, j) | Term::AssertR(i, j) => cmp::max(
             program[idx - i].extra_cells_bound,
             program[idx - j].extra_cells_bound,
         ),
@@ -327,7 +346,7 @@ fn compute_frame_count_bound<Ext: extension::Jet>(
                 program[idx - j].frame_count_bound,
             )
         }
-        Term::Case(i, j) => cmp::max(
+        Term::Case(i, j) | Term::AssertL(i, j) | Term::AssertR(i, j) => cmp::max(
             program[idx - i].frame_count_bound,
             program[idx - j].frame_count_bound,
         ),

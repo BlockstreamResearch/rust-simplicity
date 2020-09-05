@@ -458,7 +458,7 @@ pub fn type_check<Witness, Ext: extension::Jet>(
                 unify(rcs[i].target.clone(), rcs[j].source.clone())?;
                 unify(node.target.clone(), rcs[j].target.clone())?;
             }
-            Term::Case(i, j) => {
+            Term::Case(i, j) | Term::AssertL(i, j) | Term::AssertR(i, j) => {
                 let (i, j) = (idx - i, idx - j);
                 let var1 = Rc::new(RefCell::new(UnificationVar::free()));
                 let var2 = Rc::new(RefCell::new(UnificationVar::free()));

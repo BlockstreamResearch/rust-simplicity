@@ -26,6 +26,8 @@ pub enum Term<Witness, Extension> {
     Drop(usize),
     Comp(usize, usize),
     Case(usize, usize),
+    AssertL(usize, usize), // Right Node must be hidden
+    AssertR(usize, usize), // Left Node must be hidden
     Pair(usize, usize),
     Disconnect(usize, usize),
     Witness(Witness),
@@ -56,6 +58,14 @@ pub enum DagTerm<Witness, Extension> {
         Rc<DagTerm<Witness, Extension>>,
     ),
     Case(
+        Rc<DagTerm<Witness, Extension>>,
+        Rc<DagTerm<Witness, Extension>>,
+    ),
+    AssertL(
+        Rc<DagTerm<Witness, Extension>>,
+        Rc<DagTerm<Witness, Extension>>,
+    ),
+    AssertR(
         Rc<DagTerm<Witness, Extension>>,
         Rc<DagTerm<Witness, Extension>>,
     ),
@@ -115,6 +125,14 @@ impl<Witness, Extension> DagTerm<Witness, Extension> {
                     Rc::clone(&dag[index - r]),
                 )),
                 Term::Case(l, r) => Rc::new(DagTerm::Case(
+                    Rc::clone(&dag[index - l]),
+                    Rc::clone(&dag[index - r]),
+                )),
+                Term::AssertL(l, r) => Rc::new(DagTerm::AssertL(
+                    Rc::clone(&dag[index - l]),
+                    Rc::clone(&dag[index - r]),
+                )),
+                Term::AssertR(l, r) => Rc::new(DagTerm::AssertR(
                     Rc::clone(&dag[index - l]),
                     Rc::clone(&dag[index - r]),
                 )),
@@ -230,6 +248,8 @@ where
                 DagTerm::Drop(r) => insert_one_child!(Term::Drop, r),
                 DagTerm::Comp(l, r) => insert_two_child!(Term::Comp, l, r),
                 DagTerm::Case(l, r) => insert_two_child!(Term::Case, l, r),
+                DagTerm::AssertL(l, r) => insert_two_child!(Term::AssertL, l, r),
+                DagTerm::AssertR(l, r) => insert_two_child!(Term::AssertR, l, r),
                 DagTerm::Pair(l, r) => insert_two_child!(Term::Pair, l, r),
                 DagTerm::Disconnect(l, r) => insert_two_child!(Term::Disconnect, l, r),
                 DagTerm::Witness(ref w) => prog.push(Term::Witness(w.clone())),

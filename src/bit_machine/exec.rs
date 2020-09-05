@@ -382,7 +382,7 @@ impl BitMachine {
                         panic!("type error")
                     }
                 }
-                Term::Case(s, t) => {
+                Term::Case(s, t) | Term::AssertL(s, t) | Term::AssertR(s, t) => {
                     let sw = self.read[self.read.len() - 1].peek_bit(&self.data);
                     let aw;
                     let bw;

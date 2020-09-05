@@ -192,6 +192,16 @@ pub mod tag {
         Cmr::new(b"Simplicity\x1fWitness\x1fcase")
     }
 
+    /// Tagged wmr hash used by `assertl`
+    pub fn assertl_wmr() -> Cmr {
+        Cmr::new(b"Simplicity\x1fWitness\x1fassertl")
+    }
+
+    /// Tagged wmr hash used by `assertr`
+    pub fn assertr_wmr() -> Cmr {
+        Cmr::new(b"Simplicity\x1fWitness\x1fassertr")
+    }
+
     /// Tagged wmr hash used by `pair`
     pub fn pair_wmr() -> Cmr {
         Cmr::new(b"Simplicity\x1fWitness\x1fpair")
