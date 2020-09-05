@@ -1,4 +1,5 @@
 use super::types;
+use crate::extension::Jet;
 use crate::Error;
 use crate::{cmr, extension};
 use std::collections::HashMap;
@@ -35,6 +36,62 @@ pub enum Term<Witness, Extension> {
     Hidden(cmr::Cmr),
     Ext(Extension),
     Jet(extension::jets::JetsNode),
+}
+
+impl<Witness, Extension: extension::Jet> Term<Witness, Extension> {
+    /// Compute the cmr_iv of the term.
+    /// Jet's don't technically have an IV, but this function
+    /// returns the CMR
+    pub(crate) fn cmr_iv(&self) -> cmr::Cmr {
+        // This helps in avoiding repeated code by allowing to merge
+        // patterns in cmr calculation code.
+        match self {
+            Term::Iden => cmr::tag::iden_cmr(),
+            Term::Unit => cmr::tag::unit_cmr(),
+            Term::InjL(_i) => cmr::tag::injl_cmr(),
+            Term::InjR(_i) => cmr::tag::injr_cmr(),
+            Term::Take(_i) => cmr::tag::take_cmr(),
+            Term::Drop(_i) => cmr::tag::drop_cmr(),
+            Term::Comp(_i, _j) => cmr::tag::comp_cmr(),
+            Term::Case(_i, _j) | Term::AssertL(_i, _j) | Term::AssertR(_i, _j) => {
+                cmr::tag::case_cmr()
+            }
+            Term::Pair(_i, _j) => cmr::tag::pair_cmr(),
+            Term::Disconnect(_i, _) => cmr::tag::disconnect_cmr(),
+            Term::Witness(..) => cmr::tag::witness_cmr(),
+            Term::Hidden(cmr) => *cmr,
+            Term::Ext(j) => j.cmr(),
+            Term::Jet(j) => j.cmr(),
+            Term::Fail(..) => unimplemented!(),
+        }
+    }
+
+    /// Compute the cmr_iv of the term.
+    /// Jet's don't technically have an IV, but this function
+    /// returns the CMR
+    pub(crate) fn amr_iv(&self) -> cmr::Cmr {
+        // This helps in avoiding repeated code by allowing to merge
+        // patterns in cmr calculation code.
+        match self {
+            Term::Iden => cmr::tag::iden_amr(),
+            Term::Unit => cmr::tag::unit_amr(),
+            Term::InjL(_i) => cmr::tag::injl_amr(),
+            Term::InjR(_i) => cmr::tag::injr_amr(),
+            Term::Take(_i) => cmr::tag::take_amr(),
+            Term::Drop(_i) => cmr::tag::drop_amr(),
+            Term::Comp(_i, _j) => cmr::tag::comp_amr(),
+            Term::Case(_i, _j) => cmr::tag::case_amr(),
+            Term::AssertL(_i, _j) => cmr::tag::assertl_amr(),
+            Term::AssertR(_i, _j) => cmr::tag::assertr_amr(),
+            Term::Pair(_i, _j) => cmr::tag::pair_amr(),
+            Term::Disconnect(_i, _) => cmr::tag::disconnect_amr(),
+            Term::Witness(..) => cmr::tag::witness_amr(),
+            Term::Hidden(cmr) => *cmr,
+            Term::Ext(j) => j.cmr(),
+            Term::Jet(j) => j.cmr(),
+            Term::Fail(..) => unimplemented!(),
+        }
+    }
 }
 
 /// Simplicity expression node, including Bitcoin/Elements extensions

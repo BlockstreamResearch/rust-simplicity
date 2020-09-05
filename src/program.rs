@@ -24,8 +24,7 @@ use std::{cmp, fmt, sync::Arc};
 use crate::bititer::BitIter;
 use crate::cmr::{self, Cmr};
 use crate::core::term::UnTypedProg;
-use crate::core::types;
-use crate::extension::Jet as ExtNode;
+use crate::core::{sha256_value, types};
 use crate::{encode, extension};
 use crate::{Error, Term, Value};
 
@@ -38,8 +37,8 @@ pub struct ProgramNode<Ext> {
     pub index: usize,
     /// Its Commitment Merkle Root
     pub cmr: Cmr,
-    /// Its Witness Commitment Merkle Root
-    pub wmr: Cmr,
+    /// Its Annotated Commitment Merkle Root
+    pub amr: Cmr,
     /// Source type for this node
     pub source_ty: Arc<types::FinalType>,
     /// Target type for this node
@@ -156,7 +155,7 @@ impl<Ext: extension::Jet> Program<Ext> {
             let final_node = ProgramNode {
                 index: index,
                 cmr: compute_cmr(&ret, &node.node, index),
-                wmr: compute_wmr(&ret, &node.node, index),
+                amr: Cmr::from([0; 32]), // assign a random default initially
                 extra_cells_bound: compute_extra_cells_bound(
                     &ret,
                     &node.node,
@@ -168,9 +167,11 @@ impl<Ext: extension::Jet> Program<Ext> {
                 source_ty: node.source_ty,
                 target_ty: node.target_ty,
             };
+            // Append the typed annotated node to the program
             ret.push(final_node);
+            // Use the types to compute amr
+            ret[index].amr = compute_amr(&ret, &ret[index].node, index);
         }
-
         Ok(Program { nodes: ret })
     }
 
@@ -233,54 +234,95 @@ fn compute_cmr<Ext: extension::Jet>(
     node: &Term<Value, Ext>,
     idx: usize,
 ) -> Cmr {
+    let cmr_iv = node.cmr_iv();
     match *node {
-        Term::Iden => cmr::tag::iden_cmr(),
-        Term::Unit => cmr::tag::unit_cmr(),
-        Term::InjL(i) => cmr::tag::injl_cmr().update_1(program[idx - i].cmr),
-        Term::InjR(i) => cmr::tag::injr_cmr().update_1(program[idx - i].cmr),
-        Term::Take(i) => cmr::tag::take_cmr().update_1(program[idx - i].cmr),
-        Term::Drop(i) => cmr::tag::drop_cmr().update_1(program[idx - i].cmr),
-        Term::Comp(i, j) => cmr::tag::comp_cmr().update(program[idx - i].cmr, program[idx - j].cmr),
-        Term::Case(i, j) | Term::AssertL(i, j) | Term::AssertR(i, j) => {
-            cmr::tag::case_cmr().update(program[idx - i].cmr, program[idx - j].cmr)
+        Term::Iden
+        | Term::Unit
+        | Term::Witness(..)
+        | Term::Hidden(..)
+        | Term::Ext(..)
+        | Term::Jet(..) => cmr_iv,
+        Term::InjL(i) | Term::InjR(i) | Term::Take(i) | Term::Drop(i) | Term::Disconnect(i, _) => {
+            cmr_iv.update_1(program[idx - i].cmr)
         }
-        Term::Pair(i, j) => cmr::tag::pair_cmr().update(program[idx - i].cmr, program[idx - j].cmr),
-        Term::Disconnect(i, _) => cmr::tag::disconnect_cmr().update_1(program[idx - i].cmr),
-        Term::Witness(..) => cmr::tag::witness_cmr(),
+        Term::Comp(i, j)
+        | Term::Case(i, j)
+        | Term::Pair(i, j)
+        | Term::AssertL(i, j)
+        | Term::AssertR(i, j) => cmr_iv.update(program[idx - i].cmr, program[idx - j].cmr),
         Term::Fail(..) => unimplemented!(),
-        Term::Hidden(cmr) => cmr,
-        Term::Ext(ref b) => b.cmr(),
-        Term::Jet(ref j) => j.cmr(),
     }
 }
 
-fn compute_wmr<Ext: extension::Jet>(
+fn compute_amr<Ext: extension::Jet>(
     program: &[ProgramNode<Ext>],
     node: &Term<Value, Ext>,
     idx: usize,
 ) -> Cmr {
-    match *node {
-        Term::Iden => cmr::tag::iden_wmr(),
-        Term::Unit => cmr::tag::unit_wmr(),
-        Term::InjL(i) => cmr::tag::injl_wmr().update_1(program[idx - i].cmr),
-        Term::InjR(i) => cmr::tag::injr_wmr().update_1(program[idx - i].cmr),
-        Term::Take(i) => cmr::tag::take_wmr().update_1(program[idx - i].cmr),
-        Term::Drop(i) => cmr::tag::drop_wmr().update_1(program[idx - i].cmr),
-        Term::Comp(i, j) => cmr::tag::comp_wmr().update(program[idx - i].cmr, program[idx - j].cmr),
-        Term::Case(i, j) => cmr::tag::case_wmr().update(program[idx - i].cmr, program[idx - j].cmr),
-        Term::Pair(i, j) => cmr::tag::pair_wmr().update(program[idx - i].cmr, program[idx - j].cmr),
-        Term::Disconnect(i, _) => cmr::tag::disconnect_wmr().update_1(program[idx - i].cmr),
-        Term::Witness(..) => cmr::tag::witness_wmr(),
+    let amr_iv = node.amr_iv();
+    match node {
+        Term::Iden | Term::Unit => amr_iv.update_1(program[idx].source_ty.tmr),
+        Term::InjL(i) | Term::InjR(i) => {
+            // anon_i denotes the type annotation for i
+            if let types::FinalTypeInner::Sum(anno_b, anno_c) = &program[idx].target_ty.ty {
+                amr_iv
+                    .update(program[idx].source_ty.tmr, anno_b.tmr)
+                    .update(anno_c.tmr, program[idx - i].amr)
+            } else {
+                unreachable!("Type checked InjL/InjR must have target type as sum");
+            }
+        }
+        Term::Take(i) | Term::Drop(i) => {
+            if let types::FinalTypeInner::Product(anno_a, anno_b) = &program[idx].source_ty.ty {
+                amr_iv
+                    .update(anno_a.tmr, anno_b.tmr)
+                    .update(program[idx].target_ty.tmr, program[idx - i].amr)
+            } else {
+                unreachable!("Type checked Take/Drop must have source type as product");
+            }
+        }
+        Term::Comp(i, j) | Term::Pair(i, j) => amr_iv
+            .update_1(program[idx].source_ty.tmr)
+            .update(
+                program[idx - i].target_ty.tmr,
+                program[idx - j].target_ty.tmr, // target type of j and idx is same for comp
+            )
+            .update(program[idx - i].amr, program[idx - j].amr),
+        Term::Case(i, j) | Term::AssertL(i, j) | Term::AssertR(i, j) => {
+            if let types::FinalTypeInner::Product(anno_ab, anno_c) = &program[idx].source_ty.ty {
+                // Putting two conditions in same pattern is annoying because of RefCell matching
+                if let types::FinalTypeInner::Sum(anno_a, anno_b) = &anno_ab.ty {
+                    amr_iv
+                        .update(anno_a.tmr, anno_b.tmr)
+                        .update(anno_c.tmr, program[idx].target_ty.tmr)
+                        .update(program[idx - i].amr, program[idx - j].amr)
+                } else {
+                    unreachable!("Case expression typecheck");
+                }
+            } else {
+                unreachable!("Case expression typecheck");
+            }
+        }
+        Term::Disconnect(i, j) => {
+            if let types::FinalTypeInner::Product(anno_b, anno_d) = &program[idx].target_ty.ty {
+                debug_assert!(anno_d.tmr == program[idx - j].target_ty.tmr);
+                amr_iv
+                    .update(program[idx].source_ty.tmr, anno_b.tmr)
+                    .update(
+                        program[idx - j].source_ty.tmr,
+                        program[idx - j].target_ty.tmr,
+                    )
+                    .update(program[idx - i].amr, program[idx - j].amr)
+            } else {
+                unreachable!("Type checked Take/Drop must have source type as product");
+            }
+        }
+        Term::Witness(ref data) => amr_iv.update_1(program[idx].source_ty.tmr).update(
+            program[idx].target_ty.tmr,
+            cmr::Cmr::from(sha256_value(data.clone())),
+        ),
         Term::Fail(..) => unimplemented!(),
-        Term::Hidden(cmr) => cmr,
-        Term::Ext(ref b) => b.cmr(),
-        Term::Jet(ref j) => j.cmr(),
-        Term::AssertL(i, j) => {
-            cmr::tag::assertl_wmr().update(program[idx - i].cmr, program[idx - j].cmr)
-        }
-        Term::AssertR(i, j) => {
-            cmr::tag::assertr_wmr().update(program[idx - i].cmr, program[idx - j].cmr)
-        }
+        Term::Hidden(..) | Term::Ext(..) | Term::Jet(..) => amr_iv,
     }
 }
 

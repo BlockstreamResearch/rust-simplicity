@@ -3,6 +3,7 @@
 
 use std::{cell::RefCell, cmp, fmt, mem, rc::Rc, sync::Arc};
 
+use crate::cmr::{tag, Cmr};
 use crate::extension;
 use crate::extension::Jet as ExtNode;
 use crate::Error;
@@ -34,6 +35,8 @@ pub enum FinalTypeInner {
 pub struct FinalType {
     pub ty: FinalTypeInner,
     pub bit_width: usize,
+    /// The annotated type merkle root of the type
+    pub tmr: Cmr,
     /// cached display result in order to avoid repeat computation
     pub display: String,
 }
@@ -43,6 +46,7 @@ impl FinalType {
         Self {
             ty: FinalTypeInner::Unit,
             bit_width: 0,
+            tmr: tag::unit_type_tmr(),
             display: "1".to_owned(),
         }
     }
@@ -51,6 +55,7 @@ impl FinalType {
         Self {
             ty: FinalTypeInner::Sum(a.clone(), b.clone()),
             bit_width: 1 + cmp::max(a.bit_width, b.bit_width),
+            tmr: tag::sum_type_tmr().update(a.tmr, b.tmr),
             display: if a.ty == FinalTypeInner::Unit && b.ty == FinalTypeInner::Unit {
                 "2".to_owned()
             } else {
@@ -63,6 +68,7 @@ impl FinalType {
         Self {
             ty: FinalTypeInner::Product(a.clone(), b.clone()),
             bit_width: a.bit_width + b.bit_width,
+            tmr: tag::prod_type_tmr().update(a.tmr, b.tmr),
             display: if a.display == b.display {
                 match a.display.as_str() {
                     "2" => "2^2".to_owned(),
@@ -341,7 +347,7 @@ fn unify(mut alpha: RcVar, mut beta: RcVar) -> Result<(), Error> {
     Ok(())
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct UnificationArrow {
     source: Rc<RefCell<UnificationVar>>,
     target: Rc<RefCell<UnificationVar>>,
@@ -546,8 +552,8 @@ pub fn type_check<Witness, Ext: extension::Jet>(
             }
             Term::Fail(..) => unimplemented!("Cannot typecheck a program with `Fail` in it"),
         };
-
         rcs.push(Rc::new(node));
+        // dbg!(&rcs);
     }
 
     // Finalize, setting all unconstrained types to `Unit` and doing the
