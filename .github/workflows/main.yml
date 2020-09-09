@@ -46,9 +46,12 @@ jobs:
           toolchain: ${{ matrix.rust }}
           override: true
       - name: Running cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
+        env: 
+          FEATUERS: bitcoin elements
+        run: |
+          for f in $FEATURES; do [cargo test --no-default-features --features=f]; done
+          cargo test --no-default-features
+          cargo test --all-features
 
   clippy:
     name: Clippy
