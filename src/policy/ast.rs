@@ -20,7 +20,6 @@
 //! These policies can be compiled to Simplicity and also be lifted back up from
 //! Simplicity expressions to policy.
 
-use std::hash::Hash;
 use std::{fmt, str};
 
 use bitcoin_hashes::hex::FromHex;
@@ -30,11 +29,11 @@ use miniscript::expression;
 use miniscript::Error as msError;
 use miniscript::MiniscriptKey;
 
-use crate::extension::Jet;
+use crate::extension::bitcoin::BtcNode;
 
 use crate::core::term::UnTypedProg;
 use crate::Error;
-use crate::To32BytePubKey;
+use crate::PubkeyKey32;
 
 use super::compiler;
 
@@ -63,9 +62,9 @@ pub enum Policy<Pk: MiniscriptKey> {
     /// A set of sub-policies, satisfactions must be provided for `k` of them
     Threshold(usize, Vec<Policy<Pk>>),
 }
-impl<Pk: MiniscriptKey + To32BytePubKey> Policy<Pk> {
+impl<Pk: MiniscriptKey + PubkeyKey32> Policy<Pk> {
     /// Compile a policy into a simplicity frgament
-    pub fn compile<Ext: Jet + Hash + Clone>(&self) -> Result<UnTypedProg<(), Ext>, Error> {
+    pub fn compile(&self) -> Result<UnTypedProg<(), BtcNode>, Error> {
         let dag = compiler::compile(&self)?;
         Ok(dag.into_untyped_prog())
     }
@@ -349,7 +348,7 @@ mod tests {
     use super::*;
     use crate::bititer::BitIter;
     use crate::exec;
-    use crate::extension::dummy::{DummyNode, TxEnv};
+    use crate::extension::bitcoin::{BtcNode, TxEnv};
     use crate::program::Program;
     use crate::DummyKey;
     use crate::Value;
@@ -358,14 +357,16 @@ mod tests {
     fn compile_and_exec(pol: &str, witness: Vec<u8>) {
         // A single pk compilation
         let pol = Policy::<DummyKey>::from_str(pol).unwrap();
-        let prog: UnTypedProg<_, DummyNode> = pol.compile().unwrap();
+        let prog: UnTypedProg<_, BtcNode> = pol.compile().unwrap();
 
         let prog =
             Program::from_untyped_nodes(prog, &mut BitIter::from(witness.into_iter())).unwrap();
         // prog.graph_print();
 
+        let txenv = TxEnv::default();
+
         let mut mac = exec::BitMachine::for_program(&prog);
-        let output = mac.exec(&prog, &TxEnv);
+        let output = mac.exec(&prog, &txenv);
 
         assert!(output == Value::Unit);
     }

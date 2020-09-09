@@ -311,6 +311,30 @@ impl Value {
         Value::Prod(Box::new(Value::u32(w0)), Box::new(Value::u32(w1)))
     }
 
+    /// Convert the value to a byte array.
+    pub fn into_bits(self) -> Vec<bool> {
+        let mut ret = vec![];
+        fn into_bit_helper(v: Value, ret: &mut Vec<bool>) {
+            match v {
+                Value::Unit => {}
+                Value::SumL(l) => {
+                    ret.push(false);
+                    into_bit_helper(*l, ret);
+                }
+                Value::SumR(r) => {
+                    ret.push(true);
+                    into_bit_helper(*r, ret);
+                }
+                Value::Prod(l, r) => {
+                    into_bit_helper(*l, ret);
+                    into_bit_helper(*r, ret);
+                }
+            }
+        }
+        into_bit_helper(self, &mut ret);
+        ret
+    }
+
     /// Convenience constructor for a left sum of a value
     pub fn sum_l(a: Value) -> Value {
         Value::SumL(Box::new(a))

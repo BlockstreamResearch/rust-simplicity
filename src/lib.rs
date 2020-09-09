@@ -34,6 +34,7 @@ use std::fmt;
 
 pub use crate::bit_machine::exec;
 pub use crate::core::term::Term;
+pub use crate::core::term::UnTypedProg;
 pub use crate::core::term::Value;
 pub use crate::program::Program;
 
@@ -100,14 +101,23 @@ impl From<miniscript::Error> for Error {
 }
 
 /// Trait describing public key types which can be converted to bitcoin pubkeys
-pub trait To32BytePubKey: MiniscriptKey {
+pub trait PubkeyKey32: MiniscriptKey {
     /// Converts an object to a public key
     fn to_32_byte_pubkey(&self) -> [u8; 32];
+
+    fn from_32_byte_pubkey(bytes: &[u8]) -> Self;
 }
 
-impl To32BytePubKey for DummyKey {
+impl PubkeyKey32 for DummyKey {
     // Dummy value which returns a 32 byte public.
     fn to_32_byte_pubkey(&self) -> [u8; 32] {
         [0xab; 32]
+    }
+
+    fn from_32_byte_pubkey(bytes: &[u8]) -> Self {
+        if *bytes != [0xab; 32] {
+            panic!("Unable to parse DummyKey from bytes")
+        }
+        DummyKey
     }
 }

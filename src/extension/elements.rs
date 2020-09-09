@@ -40,6 +40,17 @@ impl TxEnv {
     }
 }
 
+impl Default for TxEnv {
+    fn default() -> TxEnv {
+        TxEnv::from_tx(elements::Transaction {
+            version: 2,
+            lock_time: 0,
+            input: vec![],
+            output: vec![],
+        })
+    }
+}
+
 /// Set of new Simplicity nodes enabled by the Bitcoin extension
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum ElementsNode {

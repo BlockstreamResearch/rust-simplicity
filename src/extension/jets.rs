@@ -42,6 +42,9 @@ pub enum JetsNode {
     SchnorrAssert,
     // Temparory jets for compiler
     EqV256,
+    Sha256,
+    LessThanV32, // less than verify for u32
+    EqV32,
 }
 
 impl fmt::Display for JetsNode {
@@ -56,6 +59,9 @@ impl fmt::Display for JetsNode {
             JetsNode::Sha256HashBlock => "sha256hashblock",
             JetsNode::SchnorrAssert => "schnorrassert",
             JetsNode::EqV256 => "eqv256",
+            JetsNode::Sha256 => "sha256",
+            JetsNode::LessThanV32 => "le32",
+            JetsNode::EqV32 => "eqv32",
         })
     }
 }
@@ -74,6 +80,9 @@ impl extension::Jet for JetsNode {
             JetsNode::Sha256HashBlock => TypeName(b"*h*hh"),
             JetsNode::SchnorrAssert => TypeName(b"*h*hh"),
             JetsNode::EqV256 => TypeName(b"*hh"),
+            JetsNode::Sha256 => TypeName(b"*hh"),
+            JetsNode::LessThanV32 => TypeName(b"l"),
+            JetsNode::EqV32 => TypeName(b"l"),
         }
     }
 
@@ -89,6 +98,9 @@ impl extension::Jet for JetsNode {
             JetsNode::Sha256HashBlock => TypeName(b"h"),
             JetsNode::SchnorrAssert => TypeName(b"1"),
             JetsNode::EqV256 => TypeName(b"1"),
+            JetsNode::Sha256 => TypeName(b"h"),
+            JetsNode::LessThanV32 => TypeName(b"1"),
+            JetsNode::EqV32 => TypeName(b"1"),
         }
     }
 
@@ -134,12 +146,27 @@ impl extension::Jet for JetsNode {
             JetsNode::SchnorrAssert => cmr.update_1(Cmr::from([
                 0xee, 0xae, 0x47, 0xe2, 0xf7, 0x87, 0x6c, 0x3b, 0x9c, 0xbc, 0xd4, 0x04, 0xa3, 0x38,
                 0xb0, 0x89, 0xfd, 0xea, 0xdf, 0x1b, 0x9b, 0xb3, 0x82, 0xec, 0x6e, 0x69, 0x71, 0x9d,
-                0x31, 0xba, 0xec, 0x9b, //only last `a` changed to `b` from sha2 cmr
+                0x31, 0xba, 0xec, 0x9b, //only last `a` changed to `b` from sha2 block cmr
             ])),
             JetsNode::EqV256 => cmr.update_1(Cmr::from([
                 0xee, 0xae, 0x47, 0xe2, 0xf7, 0x87, 0x6c, 0x3b, 0x9c, 0xbc, 0xd4, 0x04, 0xa3, 0x38,
                 0xb0, 0x89, 0xfd, 0xea, 0xdf, 0x1b, 0x9b, 0xb3, 0x82, 0xec, 0x6e, 0x69, 0x71, 0x9d,
-                0x31, 0xba, 0xec, 0x9c, //only last `a` changed to `c` from sha2 cmr
+                0x31, 0xba, 0xec, 0x9c, //only last `a` changed to `c` from sha2 block cmr
+            ])),
+            JetsNode::Sha256 => cmr.update_1(Cmr::from([
+                0xee, 0xae, 0x47, 0xe2, 0xf7, 0x87, 0x6c, 0x3b, 0x9c, 0xbc, 0xd4, 0x04, 0xa3, 0x38,
+                0xb0, 0x89, 0xfd, 0xea, 0xdf, 0x1b, 0x9b, 0xb3, 0x82, 0xec, 0x6e, 0x69, 0x71, 0x9d,
+                0x31, 0xba, 0xec, 0x9d, //only last `a` changed to `d` from sha2 block cmr
+            ])),
+            JetsNode::LessThanV32 => cmr.update_1(Cmr::from([
+                0xee, 0xae, 0x47, 0xe2, 0xf7, 0x87, 0x6c, 0x3b, 0x9c, 0xbc, 0xd4, 0x04, 0xa3, 0x38,
+                0xb0, 0x89, 0xfd, 0xea, 0xdf, 0x1b, 0x9b, 0xb3, 0x82, 0xec, 0x6e, 0x69, 0x71, 0x9d,
+                0x31, 0xba, 0xec, 0x9e, //only last `a` changed to `e` from sha2 block cmr
+            ])),
+            JetsNode::EqV32 => cmr.update_1(Cmr::from([
+                0xee, 0xae, 0x47, 0xe2, 0xf7, 0x87, 0x6c, 0x3b, 0x9c, 0xbc, 0xd4, 0x04, 0xa3, 0x38,
+                0xb0, 0x89, 0xfd, 0xea, 0xdf, 0x1b, 0x9b, 0xb3, 0x82, 0xec, 0x6e, 0x69, 0x71, 0x9d,
+                0x31, 0xba, 0xec, 0x9f, //only last `a` changed to `f` from sha2 block cmr
             ])),
         }
     }
@@ -156,6 +183,9 @@ impl extension::Jet for JetsNode {
             JetsNode::Sha256HashBlock => w.write_u8(14, 4),
             JetsNode::SchnorrAssert => w.write_u8(15 * 16 + 0, 8),
             JetsNode::EqV256 => w.write_u8(15 * 16 + 1, 8),
+            JetsNode::Sha256 => w.write_u8(15 * 16 + 2, 8),
+            JetsNode::LessThanV32 => w.write_u8(15 * 16 + 3, 8),
+            JetsNode::EqV32 => w.write_u8(15 * 16 + 3, 8),
         }
     }
 
@@ -197,6 +227,9 @@ impl extension::Jet for JetsNode {
                     match code {
                         0 => Ok(JetsNode::SchnorrAssert),
                         1 => Ok(JetsNode::EqV256),
+                        2 => Ok(JetsNode::Sha256),
+                        3 => Ok(JetsNode::LessThanV32),
+                        4 => Ok(JetsNode::EqV32),
                         _ => unreachable!(),
                     }
                 }
@@ -272,6 +305,26 @@ impl extension::Jet for JetsNode {
 
                 // FIXME:
                 // Get Error here instead of assert
+                assert!(a == b);
+            }
+            JetsNode::Sha256 => {
+                let data = mac.read_32bytes();
+                let h = sha256::Hash::hash(&data);
+
+                mac.write_bytes(&h);
+            }
+            JetsNode::LessThanV32 => {
+                let a = mac.read_u32();
+                let b = mac.read_u32();
+
+                // FIXME: error
+                assert!(a < b);
+            }
+            JetsNode::EqV32 => {
+                let a = mac.read_u32();
+                let b = mac.read_u32();
+
+                // FIXME: error
                 assert!(a == b);
             }
         }
