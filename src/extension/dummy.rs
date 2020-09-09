@@ -31,13 +31,13 @@ use crate::Error;
 pub struct TxEnv;
 
 /// Dummy extension provides no combinators and cannot be constructed
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub enum Node {}
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+pub enum DummyNode {}
 
-impl extension::Node for Node {
+impl extension::Jet for DummyNode {
     type TxEnv = TxEnv;
 
-    fn decode<I: Iterator<Item = u8>>(_: &mut BitIter<I>) -> Result<Node, Error> {
+    fn decode<I: Iterator<Item = u8>>(_: &mut BitIter<I>) -> Result<DummyNode, Error> {
         Err(Error::ParseError("[unavailable extension]"))
     }
 
@@ -62,7 +62,7 @@ impl extension::Node for Node {
     }
 }
 
-impl fmt::Display for Node {
+impl fmt::Display for DummyNode {
     fn fmt(&self, _: &mut fmt::Formatter) -> fmt::Result {
         match *self {}
     }

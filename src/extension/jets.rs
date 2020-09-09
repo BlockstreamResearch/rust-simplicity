@@ -30,8 +30,8 @@ use crate::extension;
 use crate::Error;
 
 /// Set of new Simplicity nodes enabled by the Bitcoin extension
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub enum Node {
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum JetsNode {
     Adder32,
     FullAdder32,
     Subtractor32,
@@ -40,50 +40,55 @@ pub enum Node {
     FullMultiplier32,
     Sha256HashBlock,
     SchnorrAssert,
+    // Temparory jets for compiler
+    EqV256,
 }
 
-impl fmt::Display for Node {
+impl fmt::Display for JetsNode {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match *self {
-            Node::Adder32 => "adder32",
-            Node::FullAdder32 => "fulladder32",
-            Node::Subtractor32 => "subtractor32",
-            Node::FullSubtractor32 => "fullsubtractor32",
-            Node::Multiplier32 => "multiplier32",
-            Node::FullMultiplier32 => "fullmultiplier32",
-            Node::Sha256HashBlock => "sha256hashblock",
-            Node::SchnorrAssert => "schnorrassert",
+            JetsNode::Adder32 => "adder32",
+            JetsNode::FullAdder32 => "fulladder32",
+            JetsNode::Subtractor32 => "subtractor32",
+            JetsNode::FullSubtractor32 => "fullsubtractor32",
+            JetsNode::Multiplier32 => "multiplier32",
+            JetsNode::FullMultiplier32 => "fullmultiplier32",
+            JetsNode::Sha256HashBlock => "sha256hashblock",
+            JetsNode::SchnorrAssert => "schnorrassert",
+            JetsNode::EqV256 => "eqv256",
         })
     }
 }
 
-impl extension::Node for Node {
+impl extension::Jet for JetsNode {
     type TxEnv = ();
     /// Name of the source type for this node
     fn source_type(&self) -> TypeName {
         match *self {
-            Node::Adder32 => TypeName(b"l"),
-            Node::FullAdder32 => TypeName(b"*l2"),
-            Node::Subtractor32 => TypeName(b"l"),
-            Node::FullSubtractor32 => TypeName(b"*l2"),
-            Node::Multiplier32 => TypeName(b"l"),
-            Node::FullMultiplier32 => TypeName(b"*ll"),
-            Node::Sha256HashBlock => TypeName(b"*h*hh"),
-            Node::SchnorrAssert => TypeName(b"*h*hh"),
+            JetsNode::Adder32 => TypeName(b"l"),
+            JetsNode::FullAdder32 => TypeName(b"*l2"),
+            JetsNode::Subtractor32 => TypeName(b"l"),
+            JetsNode::FullSubtractor32 => TypeName(b"*l2"),
+            JetsNode::Multiplier32 => TypeName(b"l"),
+            JetsNode::FullMultiplier32 => TypeName(b"*ll"),
+            JetsNode::Sha256HashBlock => TypeName(b"*h*hh"),
+            JetsNode::SchnorrAssert => TypeName(b"*h*hh"),
+            JetsNode::EqV256 => TypeName(b"*hh"),
         }
     }
 
     /// Name of the target type for this node
     fn target_type(&self) -> TypeName {
         match *self {
-            Node::Adder32 => TypeName(b"*2i"),
-            Node::FullAdder32 => TypeName(b"*2i"),
-            Node::Subtractor32 => TypeName(b"*2i"),
-            Node::FullSubtractor32 => TypeName(b"*2i"),
-            Node::Multiplier32 => TypeName(b"l"),
-            Node::FullMultiplier32 => TypeName(b"l"),
-            Node::Sha256HashBlock => TypeName(b"h"),
-            Node::SchnorrAssert => TypeName(b"1"),
+            JetsNode::Adder32 => TypeName(b"*2i"),
+            JetsNode::FullAdder32 => TypeName(b"*2i"),
+            JetsNode::Subtractor32 => TypeName(b"*2i"),
+            JetsNode::FullSubtractor32 => TypeName(b"*2i"),
+            JetsNode::Multiplier32 => TypeName(b"l"),
+            JetsNode::FullMultiplier32 => TypeName(b"l"),
+            JetsNode::Sha256HashBlock => TypeName(b"h"),
+            JetsNode::SchnorrAssert => TypeName(b"1"),
+            JetsNode::EqV256 => TypeName(b"1"),
         }
     }
 
@@ -91,45 +96,50 @@ impl extension::Node for Node {
     fn cmr(&self) -> Cmr {
         let cmr = Cmr::new(b"Simplicity\x1fJet");
         match *self {
-            Node::Adder32 => cmr.update_1(Cmr::from([
+            JetsNode::Adder32 => cmr.update_1(Cmr::from([
                 0x8e, 0x38, 0x9a, 0x7d, 0x75, 0x42, 0x9a, 0x8a, 0x6f, 0x5b, 0x44, 0x8e, 0xc8, 0xe8,
                 0x45, 0x85, 0x20, 0xe2, 0x76, 0xfc, 0x8e, 0x09, 0xef, 0x5a, 0x68, 0xf3, 0xf3, 0x2d,
                 0x9f, 0xb9, 0x79, 0x35,
             ])),
-            Node::FullAdder32 => cmr.update_1(Cmr::from([
+            JetsNode::FullAdder32 => cmr.update_1(Cmr::from([
                 0xb9, 0x14, 0xe4, 0xb5, 0x9f, 0x8e, 0xde, 0xd4, 0xcd, 0x03, 0x6e, 0x03, 0xff, 0xa5,
                 0xf1, 0x1a, 0xa8, 0x66, 0x8a, 0xe4, 0x98, 0x63, 0xbb, 0xb4, 0x3a, 0x0d, 0x7c, 0x3a,
                 0x14, 0xc9, 0x16, 0xf0,
             ])),
-            Node::Subtractor32 => cmr.update_1(Cmr::from([
+            JetsNode::Subtractor32 => cmr.update_1(Cmr::from([
                 0x75, 0xeb, 0xd5, 0x69, 0xbf, 0xce, 0x7a, 0xf8, 0x03, 0x0c, 0x49, 0xc7, 0x3e, 0x10,
                 0x4c, 0x03, 0x65, 0xde, 0x89, 0x8e, 0xa8, 0xd5, 0x26, 0x70, 0xbf, 0xfe, 0x9f, 0x6e,
                 0x31, 0x2f, 0xf6, 0xe6,
             ])),
-            Node::FullSubtractor32 => cmr.update_1(Cmr::from([
+            JetsNode::FullSubtractor32 => cmr.update_1(Cmr::from([
                 0x7a, 0x52, 0xe8, 0x3e, 0x25, 0x3a, 0xe7, 0x76, 0xb0, 0xb9, 0x48, 0xf1, 0x50, 0x83,
                 0x52, 0x8e, 0x1c, 0x5d, 0x58, 0xcd, 0x5e, 0x03, 0xd4, 0xf2, 0xf0, 0x4a, 0x96, 0x26,
                 0xe0, 0x47, 0x6a, 0xeb,
             ])),
-            Node::Multiplier32 => cmr.update_1(Cmr::from([
+            JetsNode::Multiplier32 => cmr.update_1(Cmr::from([
                 0x40, 0x59, 0x14, 0xc9, 0x52, 0x4c, 0x48, 0x73, 0xce, 0x5d, 0xdb, 0x06, 0xfd, 0x30,
                 0xd6, 0xd5, 0xfc, 0x4a, 0xc1, 0xfa, 0xc0, 0xee, 0xf8, 0xd8, 0x2d, 0xe6, 0xc6, 0x22,
                 0x7f, 0xb2, 0xd2, 0xcd,
             ])),
-            Node::FullMultiplier32 => cmr.update_1(Cmr::from([
+            JetsNode::FullMultiplier32 => cmr.update_1(Cmr::from([
                 0x89, 0xa0, 0xae, 0x09, 0x8a, 0xff, 0x5e, 0x9c, 0x40, 0x90, 0x74, 0x47, 0x91, 0xff,
                 0x5c, 0x8e, 0xe1, 0x7a, 0x8c, 0xeb, 0x9e, 0x49, 0x42, 0x24, 0xe9, 0x19, 0xde, 0xb1,
                 0x1c, 0x5b, 0x8a, 0xf4,
             ])),
-            Node::Sha256HashBlock => cmr.update_1(Cmr::from([
+            JetsNode::Sha256HashBlock => cmr.update_1(Cmr::from([
                 0xee, 0xae, 0x47, 0xe2, 0xf7, 0x87, 0x6c, 0x3b, 0x9c, 0xbc, 0xd4, 0x04, 0xa3, 0x38,
                 0xb0, 0x89, 0xfd, 0xea, 0xdf, 0x1b, 0x9b, 0xb3, 0x82, 0xec, 0x6e, 0x69, 0x71, 0x9d,
                 0x31, 0xba, 0xec, 0x9a,
             ])),
-            Node::SchnorrAssert => cmr.update_1(Cmr::from([
+            JetsNode::SchnorrAssert => cmr.update_1(Cmr::from([
                 0xee, 0xae, 0x47, 0xe2, 0xf7, 0x87, 0x6c, 0x3b, 0x9c, 0xbc, 0xd4, 0x04, 0xa3, 0x38,
                 0xb0, 0x89, 0xfd, 0xea, 0xdf, 0x1b, 0x9b, 0xb3, 0x82, 0xec, 0x6e, 0x69, 0x71, 0x9d,
                 0x31, 0xba, 0xec, 0x9b, //only last `a` changed to `b` from sha2 cmr
+            ])),
+            JetsNode::EqV256 => cmr.update_1(Cmr::from([
+                0xee, 0xae, 0x47, 0xe2, 0xf7, 0x87, 0x6c, 0x3b, 0x9c, 0xbc, 0xd4, 0x04, 0xa3, 0x38,
+                0xb0, 0x89, 0xfd, 0xea, 0xdf, 0x1b, 0x9b, 0xb3, 0x82, 0xec, 0x6e, 0x69, 0x71, 0x9d,
+                0x31, 0xba, 0xec, 0x9c, //only last `a` changed to `c` from sha2 cmr
             ])),
         }
     }
@@ -137,14 +147,15 @@ impl extension::Node for Node {
     /// Encode the node into a bitstream
     fn encode<W: encode::BitWrite>(&self, w: &mut W) -> io::Result<usize> {
         match *self {
-            Node::Adder32 => w.write_u8(48 + 0, 6),
-            Node::Subtractor32 => w.write_u8(48 + 1, 6),
-            Node::Multiplier32 => w.write_u8(24 + 1, 5),
-            Node::FullAdder32 => w.write_u8(48 + 2, 6),
-            Node::FullSubtractor32 => w.write_u8(48 + 3, 6),
-            Node::FullMultiplier32 => w.write_u8(24 + 3, 5),
-            Node::Sha256HashBlock => w.write_u8(14, 4),
-            Node::SchnorrAssert => w.write_u8(14, 4),
+            JetsNode::Adder32 => w.write_u8(48 + 0, 6),
+            JetsNode::Subtractor32 => w.write_u8(48 + 1, 6),
+            JetsNode::Multiplier32 => w.write_u8(24 + 1, 5),
+            JetsNode::FullAdder32 => w.write_u8(48 + 2, 6),
+            JetsNode::FullSubtractor32 => w.write_u8(48 + 3, 6),
+            JetsNode::FullMultiplier32 => w.write_u8(24 + 3, 5),
+            JetsNode::Sha256HashBlock => w.write_u8(14, 4),
+            JetsNode::SchnorrAssert => w.write_u8(15 * 16 + 0, 8),
+            JetsNode::EqV256 => w.write_u8(15 * 16 + 1, 8),
         }
     }
 
@@ -160,23 +171,35 @@ impl extension::Node for Node {
                 };
                 match code {
                     0 => match iter.next() {
-                        Some(false) => Ok(Node::Adder32),
-                        Some(true) => Ok(Node::Subtractor32),
+                        Some(false) => Ok(JetsNode::Adder32),
+                        Some(true) => Ok(JetsNode::Subtractor32),
                         None => Err(Error::EndOfStream),
                     },
-                    1 => Ok(Node::Multiplier32),
+                    1 => Ok(JetsNode::Multiplier32),
                     2 => match iter.next() {
-                        Some(false) => Ok(Node::FullAdder32),
-                        Some(true) => Ok(Node::FullSubtractor32),
+                        Some(false) => Ok(JetsNode::FullAdder32),
+                        Some(true) => Ok(JetsNode::FullSubtractor32),
                         None => Err(Error::EndOfStream),
                     },
-                    3 => Ok(Node::FullMultiplier32),
+                    3 => Ok(JetsNode::FullMultiplier32),
                     _ => unreachable!(),
                 }
             }
             Some(true) => match iter.next() {
-                Some(false) => Ok(Node::Sha256HashBlock),
-                Some(true) => Ok(Node::SchnorrAssert),
+                Some(false) => Ok(JetsNode::Sha256HashBlock),
+                Some(true) => {
+                    // Some custom jets for fast developement
+                    // FIXME: Get a consensus for encoding with Rusell
+                    let code = match iter.read_bits_be(4) {
+                        Some(code) => code,
+                        None => return Err(Error::EndOfStream),
+                    };
+                    match code {
+                        0 => Ok(JetsNode::SchnorrAssert),
+                        1 => Ok(JetsNode::EqV256),
+                        _ => unreachable!(),
+                    }
+                }
                 None => Err(Error::EndOfStream),
             },
             None => Err(Error::EndOfStream),
@@ -185,14 +208,14 @@ impl extension::Node for Node {
 
     fn exec(&self, mac: &mut exec::BitMachine, _tx_env: &Self::TxEnv) {
         match *self {
-            Node::Adder32 => {
+            JetsNode::Adder32 => {
                 let a = mac.read_u32();
                 let b = mac.read_u32();
                 let (res, overflow) = a.overflowing_add(b);
                 mac.write_bit(overflow);
                 mac.write_u32(res);
             }
-            Node::FullAdder32 => {
+            JetsNode::FullAdder32 => {
                 let a = mac.read_u32();
                 let b = mac.read_u32();
                 let carry = mac.read_bit();
@@ -201,14 +224,14 @@ impl extension::Node for Node {
                 mac.write_bit(overflow_1 || overflow_2);
                 mac.write_u32(res);
             }
-            Node::Subtractor32 => {
+            JetsNode::Subtractor32 => {
                 let a = mac.read_u32();
                 let b = mac.read_u32();
                 let (res, overflow) = a.overflowing_sub(b);
                 mac.write_bit(overflow);
                 mac.write_u32(res);
             }
-            Node::FullSubtractor32 => {
+            JetsNode::FullSubtractor32 => {
                 let a = mac.read_u32();
                 let b = mac.read_u32();
                 let carry = mac.read_bit();
@@ -217,19 +240,19 @@ impl extension::Node for Node {
                 mac.write_bit(overflow_1 || overflow_2);
                 mac.write_u32(res);
             }
-            Node::Multiplier32 => {
+            JetsNode::Multiplier32 => {
                 let a = mac.read_u32() as u64;
                 let b = mac.read_u32() as u64;
                 mac.write_u64(a * b);
             }
-            Node::FullMultiplier32 => {
+            JetsNode::FullMultiplier32 => {
                 let a = mac.read_u32() as u64;
                 let b = mac.read_u32() as u64;
                 let c = mac.read_u32() as u64;
                 let d = mac.read_u32() as u64;
                 mac.write_u64(a * b + c + d);
             }
-            Node::Sha256HashBlock => {
+            JetsNode::Sha256HashBlock => {
                 let hash = mac.read_32bytes();
                 let block = mac.read_bytes(64);
                 let sha2_midstate = sha256::Midstate::from_inner(hash);
@@ -238,10 +261,18 @@ impl extension::Node for Node {
                 let h = sha256::Hash::from_engine(engine).into_inner();
                 mac.write_bytes(&h);
             }
-            Node::SchnorrAssert => {
+            JetsNode::SchnorrAssert => {
                 let _pubkey = mac.read_32bytes();
                 let _sig = mac.read_bytes(64);
                 //Check the signature here later
+            }
+            JetsNode::EqV256 => {
+                let a = mac.read_32bytes();
+                let b = mac.read_32bytes();
+
+                // FIXME:
+                // Get Error here instead of assert
+                assert!(a == b);
             }
         }
     }
