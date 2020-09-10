@@ -32,7 +32,7 @@ pub mod extension;
 #[cfg(feature = "bitcoin")]
 pub mod policy;
 pub mod program;
-
+mod util;
 use std::fmt;
 
 pub use crate::bit_machine::exec;
