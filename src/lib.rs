@@ -43,6 +43,8 @@ pub use crate::program::Program;
 
 use miniscript::{DummyKey, MiniscriptKey};
 
+#[cfg(test)]
+mod test_progs;
 /// Error type for simplicity
 #[derive(Debug)]
 pub enum Error {

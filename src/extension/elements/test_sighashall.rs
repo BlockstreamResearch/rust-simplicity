@@ -13,12 +13,6 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-//! # Elements Extensions: Test for Simplicity execution sighash all program
-//!
-//! Jets to the Simplicity language to allow use on the Elements
-//! blockchain.
-//!
-
 /* A length-prefixed encoding of the following Simplicity program:
  *       (Simplicity.Programs.CheckSigHash.checkSigHash' Simplicity.Elements.Programs.CheckSigHashAll.Lib.hashAll
  *         (Simplicity.LibSecp256k1.Spec.XOnlyPubKey 0x00000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c63)
