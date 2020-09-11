@@ -271,7 +271,7 @@ fn get_indices(cursor: usize) -> (usize, usize) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::bitvec_to_bytevec;
+    use crate::util::bitvec_to_bytevec;
 
     #[test]
     fn read_unsigned() {

@@ -16,9 +16,9 @@
 //! Currently the policy compilation is one to one mapping
 //! between policy fragment and a simplicity program.
 
-use crate::core::bitvec_to_bytevec;
 use crate::core::term::DagTerm;
 use crate::extension::bitcoin::BtcNode;
+use crate::util::bitvec_to_bytevec;
 use crate::util::slice_to_u32_be;
 use crate::PubkeyKey32;
 use crate::Value;

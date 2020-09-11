@@ -1,5 +1,6 @@
 use super::types;
 use crate::extension::Jet;
+use crate::util::slice_to_u64_be;
 use crate::Error;
 use crate::{cmr, extension};
 use std::collections::HashMap;
@@ -403,6 +404,31 @@ impl Value {
         let w0 = (n >> 32) as u32;
         let w1 = (n & 0xffff_ffff) as u32;
         Value::Prod(Box::new(Value::u32(w0)), Box::new(Value::u32(w1)))
+    }
+
+    /// Encode a 32 byte number into value. Useful for encoding 32 pubkeys/hashes
+    pub fn u256_from_slice(v: &[u8]) -> Value {
+        assert!(v.len() == 32);
+        Value::Prod(
+            Box::new(Value::Prod(
+                Box::new(Value::u64(slice_to_u64_be(&v[0..8]))),
+                Box::new(Value::u64(slice_to_u64_be(&v[8..16]))),
+            )),
+            Box::new(Value::Prod(
+                Box::new(Value::u64(slice_to_u64_be(&v[16..24]))),
+                Box::new(Value::u64(slice_to_u64_be(&v[24..32]))),
+            )),
+        )
+    }
+
+    /// Encode a 64(pair(32, 32)) byte number into value.
+    /// Useful for encoding 64 byte signatures
+    pub fn u512_from_slice(v: &[u8]) -> Value {
+        assert!(v.len() == 64);
+        Value::Prod(
+            Box::new(Value::u256_from_slice(&v[0..32])),
+            Box::new(Value::u256_from_slice(&v[32..64])),
+        )
     }
 
     /// Convert the value to a byte array.
