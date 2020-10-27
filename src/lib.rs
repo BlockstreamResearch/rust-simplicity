@@ -27,6 +27,9 @@ pub mod cmr;
 pub mod core;
 pub mod encode;
 pub mod extension;
+
+// FIXME: Extend to elements mode.
+#[cfg(feature = "bitcoin")]
 pub mod policy;
 pub mod program;
 

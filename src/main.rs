@@ -2,9 +2,11 @@
 extern crate bitcoin;
 extern crate simplicity;
 
+#[cfg(feature = "bitcoin")]
 use bitcoin::hashes::hex::FromHex;
 use simplicity::Value;
 
+#[cfg(feature = "elements")]
 const SIGHASH_ALL: [u8; 12368] = [
     0xec, 0x8f, 0x84, 0x90, 0x20, 0x40, 0x81, 0x02, 0x04, 0x17, 0x40, 0x81, 0x68, 0x0a, 0xea, 0x12,
     0x8a, 0x85, 0xa8, 0x2d, 0x41, 0x6f, 0xd0, 0x26, 0x81, 0x67, 0xc0, 0x05, 0x02, 0xd7, 0xc0, 0x85,
@@ -781,6 +783,7 @@ const SIGHASH_ALL: [u8; 12368] = [
     0x63, 0x70, 0xc0, 0x8c, 0xf0, 0x5e, 0x35, 0x60, 0xfc, 0xc8, 0x8a, 0x43, 0x1a, 0x08, 0xef, 0x80,
 ];
 
+#[cfg(feature = "elements")]
 const SIGHASH_ALL_CMR: [u8; 32] = [
     0xe6, 0xce, 0x80, 0x7b, 0x06, 0x79, 0x4d, 0x83, 0x77, 0x2d, 0x75, 0x68, 0xdc, 0x1d, 0xbc, 0xb5,
     0x6e, 0x07, 0x03, 0x70, 0x21, 0x39, 0x39, 0x6a, 0x14, 0xa1, 0x60, 0xb2, 0x78, 0x5b, 0x10, 0x8d,
@@ -869,6 +872,7 @@ const FIB_CMR: [u8; 32] = [
  *       witness (toWord512 0x787A848E71043D280C50470E8E1532B2DD5D20EE912A45DBDD2BD1DFBF187EF67031A98831859DC34DFFEEDDA86831842CCD0079E1F92AF177F7F22CC1DCED05) >>>
  *     schnorrAssert
  */
+#[cfg(feature = "bitcoin")]
 const SCHNORR_1: [u8; 14583] = [
     0xec, 0xc5, 0x34, 0x90, 0x58, 0x28, 0x14, 0x82, 0x81, 0x61, 0x88, 0x98, 0x0a, 0x85, 0x71, 0x16,
     0x58, 0x0a, 0x05, 0x80, 0x5a, 0xb3, 0x10, 0x2d, 0x58, 0x8a, 0x05, 0x88, 0x5b, 0xb7, 0x09, 0xb0,
@@ -1790,11 +1794,13 @@ const SCHNORR_1_CMR: [u32; 8] = [
     0xc64df1cb, 0xdd50bd2c, 0x979ad948, 0x742d253c, 0xd2c0ea83, 0xe635ea96, 0xb8ba8c8e, 0xb61a2181,
 ];
 */
+#[cfg(feature = "bitcoin")]
 const SCHNORR_1_CMR: [u8; 32] = [
     0xc6, 0x4d, 0xf1, 0xcb, 0xdd, 0x50, 0xbd, 0x2c, 0x97, 0x9a, 0xd9, 0x48, 0x74, 0x2d, 0x25, 0x3c,
     0xd2, 0xc0, 0xea, 0x83, 0xe6, 0x35, 0xea, 0x96, 0xb8, 0xba, 0x8c, 0x8e, 0xb6, 0x1a, 0x21, 0x81,
 ];
 
+#[cfg(feature = "bitcoin")]
 const BITCOIN_PROG: [u8; 14635] = [
     0xec, 0xc1, 0x74, 0x90, 0x20, 0x40, 0x81, 0x02, 0x04, 0x17, 0x40, 0x81, 0x68, 0x0a, 0xea, 0x12,
     0x8a, 0x85, 0xa8, 0x2d, 0x41, 0x6f, 0xd0, 0x26, 0x81, 0x67, 0xc0, 0x05, 0x02, 0xd7, 0xc0, 0x85,
@@ -2729,22 +2735,31 @@ fn main() {
         }
     }
 
-    // Check CMR/CMR computations
-    let mut bits: simplicity::bititer::BitIter<_> = SCHNORR_1.iter().cloned().into();
-    let program =
-        simplicity::program::Program::<simplicity::extension::bitcoin::BtcNode>::decode(&mut bits)
+    // FIXME: Extend to elements mode.
+    #[cfg(feature = "bitcoin")]
+    {
+        // Check CMR/CMR computations
+        let mut bits: simplicity::bititer::BitIter<_> = SCHNORR_1.iter().cloned().into();
+        let program =
+            simplicity::program::Program::<simplicity::extension::bitcoin::BtcNode>::decode(
+                &mut bits,
+            )
             .expect("decoding program");
-    assert_eq!(program.root_node().cmr.into_inner(), SCHNORR_1_CMR,);
+        assert_eq!(program.root_node().cmr.into_inner(), SCHNORR_1_CMR,);
+    }
 
-    // Run SighashALL program
-    println!("*** START");
-    let mut bits: simplicity::bititer::BitIter<_> = SIGHASH_ALL.iter().cloned().into();
-    let program =
-        simplicity::program::Program::<simplicity::extension::elements::ElementsNode>::decode(
-            &mut bits,
-        )
-        .expect("decoding program");
-    assert_eq!(program.root_node().cmr.into_inner(), SIGHASH_ALL_CMR,);
+    #[cfg(feature = "elements")]
+    {
+        // Run SighashALL program
+        println!("*** START");
+        let mut bits: simplicity::bititer::BitIter<_> = SIGHASH_ALL.iter().cloned().into();
+        let program =
+            simplicity::program::Program::<simplicity::extension::elements::ElementsNode>::decode(
+                &mut bits,
+            )
+            .expect("decoding program");
+        assert_eq!(program.root_node().cmr.into_inner(), SIGHASH_ALL_CMR,);
+    }
 
     // Run disconnect program
     let mut bits: simplicity::bititer::BitIter<_> = FIB_DISCONNECT.iter().cloned().into();
@@ -2774,10 +2789,12 @@ fn main() {
     println!();
     println!();
 
-    // Run Bitcoin program
-    let mut bits: simplicity::bititer::BitIter<_> = BITCOIN_PROG.iter().cloned().into();
+    #[cfg(feature = "bitcoin")]
+    {
+        // Run Bitcoin program
+        let mut bits: simplicity::bititer::BitIter<_> = BITCOIN_PROG.iter().cloned().into();
 
-    let tx = bitcoin::Transaction {
+        let tx = bitcoin::Transaction {
         version: 2,
         lock_time: 0,
         input: vec![
@@ -2806,30 +2823,35 @@ fn main() {
             }
         ],
     };
-    assert_eq!(
-        tx.txid(),
-        bitcoin::Txid::from_hex("f6e9efb5e734c4e407a211da6b4fca1890e1c294322331ae0f131538a978b04a")
+        assert_eq!(
+            tx.txid(),
+            bitcoin::Txid::from_hex(
+                "f6e9efb5e734c4e407a211da6b4fca1890e1c294322331ae0f131538a978b04a"
+            )
             .unwrap(),
-    );
-    assert_eq!(
-        tx.wtxid(),
-        bitcoin::Wtxid::from_hex(
-            "a70c989a271c49e26f7019500948c95c6a4a210f2b11be078761e01320a4cb0b"
-        )
-        .unwrap(),
-    );
+        );
+        assert_eq!(
+            tx.wtxid(),
+            bitcoin::Wtxid::from_hex(
+                "a70c989a271c49e26f7019500948c95c6a4a210f2b11be078761e01320a4cb0b"
+            )
+            .unwrap(),
+        );
 
-    let txenv = simplicity::extension::bitcoin::TxEnv::from_tx(tx);
-    let program =
-        simplicity::program::Program::<simplicity::extension::bitcoin::BtcNode>::decode(&mut bits)
+        let txenv = simplicity::extension::bitcoin::TxEnv::from_tx(tx);
+        let program =
+            simplicity::program::Program::<simplicity::extension::bitcoin::BtcNode>::decode(
+                &mut bits,
+            )
             .expect("decoding program");
-    let exec_node = program.root_node();
+        let exec_node = program.root_node();
 
-    println!("{}", exec_node);
-    println!("extra cells: {}", exec_node.extra_cells_bound);
-    println!("frame count: {}", exec_node.frame_count_bound);
+        println!("{}", exec_node);
+        println!("extra cells: {}", exec_node.extra_cells_bound);
+        println!("frame count: {}", exec_node.frame_count_bound);
 
-    println!("Running program ... warning, this will take several hours even in release mode");
-    let mut mac = simplicity::exec::BitMachine::for_program(&program);
-    mac.exec(&program, &txenv);
+        println!("Running program ... warning, this will take several hours even in release mode");
+        let mut mac = simplicity::exec::BitMachine::for_program(&program);
+        mac.exec(&program, &txenv);
+    }
 }
