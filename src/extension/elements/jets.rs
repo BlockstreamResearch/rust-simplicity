@@ -263,108 +263,112 @@ impl extension::Jet for ElementsNode {
 
     fn cmr(&self) -> Cmr {
         match *self {
-            ElementsNode::Version => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fversion"),
-            ElementsNode::LockTime => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1flockTime"),
+            ElementsNode::Version => {
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fversion")
+            }
+            ElementsNode::LockTime => {
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1flockTime")
+            }
             ElementsNode::InputIsPegin => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputIsPegin")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputIsPegin")
             }
             ElementsNode::InputPrevOutpoint => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputPrevOutpoint")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputPrevOutpoint")
             }
             ElementsNode::InputAsset => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputAsset")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputAsset")
             }
             ElementsNode::InputAmount => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputAmount")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputAmount")
             }
             ElementsNode::InputScriptHash => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputScriptHash")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputScriptHash")
             }
             ElementsNode::InputSequence => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputSequence")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputSequence")
             }
             ElementsNode::InputIssuanceBlinding => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputIssuanceBlinding")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputIssuanceBlinding")
             }
             ElementsNode::InputIssuanceContract => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputIssuanceContract")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputIssuanceContract")
             }
             ElementsNode::InputIssuanceEntropy => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputIssuanceEntropy")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputIssuanceEntropy")
             }
             ElementsNode::InputIssuanceAssetAmount => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputIssuanceAssetAmt")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputIssuanceAssetAmt")
             }
             ElementsNode::InputIssuanceTokenAmount => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputIssuanceTokenAmt")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputIssuanceTokenAmt")
             }
             ElementsNode::OutputAsset => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1foutputAsset")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1foutputAsset")
             }
             ElementsNode::OutputAmount => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1foutputAmount")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1foutputAmount")
             }
             ElementsNode::OutputNonce => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1foutputNonce")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1foutputNonce")
             }
             ElementsNode::OutputScriptHash => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1foutputScriptHash")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1foutputScriptHash")
             }
             ElementsNode::OutputNullDatum => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1foutputNullDatum")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1foutputNullDatum")
             }
             ElementsNode::ScriptCmr => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fscriptCMR")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fscriptCMR")
             }
             ElementsNode::CurrentIndex => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentIndex")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentIndex")
             }
             ElementsNode::CurrentIsPegin => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentIsPegin")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentIsPegin")
             }
             ElementsNode::CurrentPrevOutpoint => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentPrevOutpoint")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentPrevOutpoint")
             }
             ElementsNode::CurrentAsset => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentAsset")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentAsset")
             }
             ElementsNode::CurrentAmount => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentAmount")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentAmount")
             }
             ElementsNode::CurrentScriptHash => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentScriptHash")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentScriptHash")
             }
             ElementsNode::CurrentSequence => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentSequence")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentSequence")
             }
             ElementsNode::CurrentIssuanceBlinding => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentIssuanceBlinding")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentIssuanceBlinding")
             }
             ElementsNode::CurrentIssuanceContract => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentIssuanceContract")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentIssuanceContract")
             }
             ElementsNode::CurrentIssuanceEntropy => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentIssuanceEntropy")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentIssuanceEntropy")
             }
             ElementsNode::CurrentIssuanceAssetAmount => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentIssuanceAssetAmt")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentIssuanceAssetAmt")
             }
             ElementsNode::CurrentIssuanceTokenAmount => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fcurrentIssuanceTokenAmt")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentIssuanceTokenAmt")
             }
             ElementsNode::InputsHash => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1finputsHash")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputsHash")
             }
             ElementsNode::OutputsHash => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1foutputsHash")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1foutputsHash")
             }
             ElementsNode::NumInputs => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fnumInputs")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fnumInputs")
             }
             ElementsNode::NumOutputs => {
-                Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1fnumOutputs")
+                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fnumOutputs")
             }
-            ElementsNode::Fee => Cmr::new(b"Simplicity\x1fPrimitive\x1fElements\x1ffee"),
+            ElementsNode::Fee => Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1ffee"),
         }
     }
 

@@ -109,136 +109,136 @@ pub mod tag {
 
     /// Tagged cmr hash used by `iden`
     pub fn iden_cmr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fCommitment\x1fiden")
+        Cmr::new(b"Simplicity-Draft\x1fCommitment\x1fiden")
     }
 
     /// Tagged cmr hash used by `comp`
     pub fn comp_cmr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fCommitment\x1fcomp")
+        Cmr::new(b"Simplicity-Draft\x1fCommitment\x1fcomp")
     }
 
     /// Tagged cmr hash used by `unit`
     pub fn unit_cmr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fCommitment\x1funit")
+        Cmr::new(b"Simplicity-Draft\x1fCommitment\x1funit")
     }
 
     /// Tagged cmr hash used by `injl`
     pub fn injl_cmr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fCommitment\x1finjl")
+        Cmr::new(b"Simplicity-Draft\x1fCommitment\x1finjl")
     }
 
     /// Tagged cmr hash used by `injr`
     pub fn injr_cmr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fCommitment\x1finjr")
+        Cmr::new(b"Simplicity-Draft\x1fCommitment\x1finjr")
     }
 
     /// Tagged cmr hash used by `case`
     pub fn case_cmr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fCommitment\x1fcase")
+        Cmr::new(b"Simplicity-Draft\x1fCommitment\x1fcase")
     }
 
     /// Tagged cmr hash used by `pair`
     pub fn pair_cmr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fCommitment\x1fpair")
+        Cmr::new(b"Simplicity-Draft\x1fCommitment\x1fpair")
     }
 
     /// Tagged cmr hash used by `take`
     pub fn take_cmr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fCommitment\x1ftake")
+        Cmr::new(b"Simplicity-Draft\x1fCommitment\x1ftake")
     }
 
     /// Tagged cmr hash used by `drop`
     pub fn drop_cmr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fCommitment\x1fdrop")
+        Cmr::new(b"Simplicity-Draft\x1fCommitment\x1fdrop")
     }
 
     /// Tagged cmr hash used by `witness`
     pub fn witness_cmr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fCommitment\x1fwitness")
+        Cmr::new(b"Simplicity-Draft\x1fCommitment\x1fwitness")
     }
 
     /// Tagged cmr hash used by `disconnect`
     pub fn disconnect_cmr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fCommitment\x1fdisconnect")
+        Cmr::new(b"Simplicity-Draft\x1fCommitment\x1fdisconnect")
     }
 
     /// Tagged amr hash used by `iden`
     pub fn iden_amr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fAnnotated\x1fiden")
+        Cmr::new(b"Simplicity-Draft\x1fAnnotated\x1fiden")
     }
 
     /// Tagged amr hash used by `comp`
     pub fn comp_amr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fAnnotated\x1fcomp")
+        Cmr::new(b"Simplicity-Draft\x1fAnnotated\x1fcomp")
     }
 
     /// Tagged amr hash used by `unit`
     pub fn unit_amr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fAnnotated\x1funit")
+        Cmr::new(b"Simplicity-Draft\x1fAnnotated\x1funit")
     }
 
     /// Tagged amr hash used by `injl`
     pub fn injl_amr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fAnnotated\x1finjl")
+        Cmr::new(b"Simplicity-Draft\x1fAnnotated\x1finjl")
     }
 
     /// Tagged amr hash used by `injr`
     pub fn injr_amr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fAnnotated\x1finjr")
+        Cmr::new(b"Simplicity-Draft\x1fAnnotated\x1finjr")
     }
 
     /// Tagged amr hash used by `case`
     pub fn case_amr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fAnnotated\x1fcase")
+        Cmr::new(b"Simplicity-Draft\x1fAnnotated\x1fcase")
     }
 
     /// Tagged amr hash used by `assertl`
     pub fn assertl_amr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fAnnotated\x1fassertl")
+        Cmr::new(b"Simplicity-Draft\x1fAnnotated\x1fassertl")
     }
 
     /// Tagged amr hash used by `assertr`
     pub fn assertr_amr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fAnnotated\x1fassertr")
+        Cmr::new(b"Simplicity-Draft\x1fAnnotated\x1fassertr")
     }
 
     /// Tagged amr hash used by `pair`
     pub fn pair_amr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fAnnotated\x1fpair")
+        Cmr::new(b"Simplicity-Draft\x1fAnnotated\x1fpair")
     }
 
     /// Tagged amr hash used by `take`
     pub fn take_amr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fAnnotated\x1ftake")
+        Cmr::new(b"Simplicity-Draft\x1fAnnotated\x1ftake")
     }
 
     /// Tagged amr hash used by `drop`
     pub fn drop_amr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fAnnotated\x1fdrop")
+        Cmr::new(b"Simplicity-Draft\x1fAnnotated\x1fdrop")
     }
 
     /// Tagged amr hash used by `witness`
     pub fn witness_amr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fAnnotated\x1fwitness")
+        Cmr::new(b"Simplicity-Draft\x1fAnnotated\x1fwitness")
     }
 
     /// Tagged amr hash used by `disconnect`
     pub fn disconnect_amr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fAnnotated\x1fdisconnect")
+        Cmr::new(b"Simplicity-Draft\x1fAnnotated\x1fdisconnect")
     }
 
     /// Tagged term type mr IV for unit type
     pub fn unit_type_tmr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fType\x1funit")
+        Cmr::new(b"Simplicity-Draft\x1fType\x1funit")
     }
 
     /// Tagged term type rm IV for unit type
     pub fn sum_type_tmr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fType\x1fsum")
+        Cmr::new(b"Simplicity-Draft\x1fType\x1fsum")
     }
 
     /// Tagged term type rm IV for prod type
     pub fn prod_type_tmr() -> Cmr {
-        Cmr::new(b"Simplicity\x1fType\x1fprod")
+        Cmr::new(b"Simplicity-Draft\x1fType\x1fprod")
     }
 }

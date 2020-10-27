@@ -439,7 +439,7 @@ mod tests {
         // Checked against C implementation
         assert_eq!(
             prog.nodes[0].cmr.to_string(),
-            "c40a10263f7436b4160acbef1c36fba4be4d95df181a968afeab5eac247adff7",
+            "62274a89833ece8ba5ff57b28118c0063d3d4a85dd25aae06f87617604402715",
         );
     }
 
@@ -459,12 +459,12 @@ mod tests {
         // Checked against C implementation
         assert_eq!(
             prog.nodes[0].cmr.to_string(),
-            "c40a10263f7436b4160acbef1c36fba4be4d95df181a968afeab5eac247adff7",
+            "62274a89833ece8ba5ff57b28118c0063d3d4a85dd25aae06f87617604402715",
         );
         // Checked against C implementation
         assert_eq!(
             prog.nodes[1].cmr.to_string(),
-            "8881aff5160cc0c9f8ecead8b401fa97eef5fc60752e98d247561a4da6ce965e"
+            "bd0cce93e713a2ae961bf91c7d113edb0671c7869c72251364682ac8977eade7"
         );
     }
 
