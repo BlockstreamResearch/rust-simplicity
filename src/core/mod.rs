@@ -52,9 +52,9 @@ pub(crate) fn sha256_value(v: Value) -> [u8; 32] {
     } else {
         k = 448 - 1 - (len % 512);
     }
-    for _ in 0..k {
-        bits.push(false);
-    }
+    let sz = bits.len();
+    bits.resize(sz + k, false);
+
     debug_assert!(bits.len() % 512 == 448);
     // append L as a 64-bit big-endian integer, making the total post-processed length a multiple of 512 bits
     let mut block_bytes = bitvec_to_bytevec(&bits);

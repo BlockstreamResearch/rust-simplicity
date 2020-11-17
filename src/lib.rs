@@ -61,7 +61,7 @@ pub enum Error {
     NonCaseHiddenChild,
     /// 'case' nodes may have at most one hidden child
     CaseMultipleHiddenChildren,
-    /// Bitstream ended early
+    /// Bitstream ended early   
     EndOfStream,
     /// Tried to allocate too many nodes in a program
     TooManyNodes(usize),
