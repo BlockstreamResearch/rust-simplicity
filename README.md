@@ -2,3 +2,8 @@
 
 # rust-simplicity
 Under development....
+
+# Minimum Supported Rust Version
+
+The MSRV of this crate is **1.41.0**.
+
