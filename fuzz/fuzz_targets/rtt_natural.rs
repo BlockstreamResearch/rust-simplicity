@@ -19,7 +19,7 @@ use simplicity::encode::{self, BitWrite};
 
 fn do_test(data: &[u8]) {
     let mut read_iter = BitIter::new(data.iter().cloned());
-    if let Ok(nat) = encode::decode_natural(&mut read_iter) {
+    if let Ok(nat) = encode::decode_natural(&mut read_iter, None) {
         let len = read_iter.n_total_read();
 
         let bit_vec: Vec<bool> = BitIter::new(data.iter().cloned()).take(len).collect();

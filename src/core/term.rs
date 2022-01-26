@@ -77,6 +77,18 @@ pub enum DagTerm<Witness, Extension> {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct UnTypedProg<Witness, Extension>(pub Vec<Term<Witness, Extension>>);
 
+impl<Witness, Extension> UnTypedProg<Witness, Extension> {
+    /// The number of (shared) terms in the program
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Returns an iterator over the (shared) terms in the program
+    pub fn iter(&self) -> impl Iterator<Item = &Term<Witness, Extension>> {
+        self.0.iter()
+    }
+}
+
 impl<Witness, Extension> DagTerm<Witness, Extension> {
     /// Create a DAG representation from an untyped representation
     pub fn from_untyped_prog(untyped_prog: UnTypedProg<Witness, Extension>) -> Rc<Self> {
