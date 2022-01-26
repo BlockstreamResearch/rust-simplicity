@@ -19,7 +19,7 @@
 use super::ast::Policy;
 use crate::bitcoin_hashes::Hash;
 use crate::bititer::BitIter;
-use crate::core::term::TermDag;
+use crate::core::term_dag::TermDag;
 use crate::core::types::pow2_types;
 use crate::extension::bitcoin::BtcNode;
 use crate::extension::jets::JetsNode::{

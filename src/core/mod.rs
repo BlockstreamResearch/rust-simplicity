@@ -21,7 +21,9 @@ use crate::{
 };
 /// Core Module for simplicity
 pub mod term;
+pub mod term_dag;
 pub mod types;
+pub mod value;
 
 /// Simplicity has a different logic for computing the transaction input and output
 /// digest. This trait defines the method for computation of such digests.

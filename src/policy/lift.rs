@@ -16,19 +16,18 @@
 //! Currently the policy compilation is one to one mapping
 //! between policy fragment and a simplicity program.
 
-use crate::core::term::TermDag;
+use crate::core::term_dag::TermDag;
 use crate::extension::bitcoin::BtcNode;
+use crate::extension::jets::JetsNode::{EqV256, LessThanV32, SchnorrAssert, Sha256};
 use crate::util::bitvec_to_bytevec;
 use crate::util::slice_to_u32_be;
 use crate::PubkeyKey32;
 use crate::Value;
+
 use bitcoin_hashes::{sha256, Hash};
 use miniscript::policy::Liftable;
 use miniscript::policy::Semantic;
 use miniscript::{DummyKey, MiniscriptKey};
-
-use crate::extension::jets::JetsNode::{EqV256, LessThanV32, SchnorrAssert, Sha256};
-
 use std::rc::Rc;
 
 /// Functional opposite of scribe. Read the scribed value

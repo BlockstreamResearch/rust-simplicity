@@ -38,7 +38,7 @@ use std::fmt;
 pub use crate::bit_machine::exec;
 pub use crate::core::term::Term;
 pub use crate::core::term::UnTypedProg;
-pub use crate::core::term::Value;
+pub use crate::core::value::Value;
 pub use crate::program::Program;
 
 use miniscript::{DummyKey, MiniscriptKey};
