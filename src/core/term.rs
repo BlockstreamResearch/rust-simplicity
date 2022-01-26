@@ -78,6 +78,11 @@ pub enum DagTerm<Witness, Extension> {
 pub struct UnTypedProg<Witness, Extension>(pub Vec<Term<Witness, Extension>>);
 
 impl<Witness, Extension> UnTypedProg<Witness, Extension> {
+    /// Whether this is the null program
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     /// The number of (shared) terms in the program
     pub fn len(&self) -> usize {
         self.0.len()
