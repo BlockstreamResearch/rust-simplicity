@@ -75,3 +75,37 @@ jobs:
         with:
           command: clippy
           args: -- -D warnings
+
+  fuzz:
+    name: Fuzz Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - stable
+    steps:
+      - name: Checkout Crate 
+        uses: actions/checkout@v2
+      - name: Install hongfuzz dependancies
+        run: sudo apt install build-essential binutils-dev libunwind-dev libblocksruntime-dev liblzma-dev
+      - name: Checkout Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+      - name: Running cargo test
+        env: 
+          FEATUERS: bitcoin elements
+        run: |
+          cd fuzz/
+          for f in $FEATURES; do [cargo test --no-default-features --features=f]; done
+          cargo test --no-default-features
+          cargo test --all-features
+      - name: Running fuzz tests
+        env: 
+          FEATUERS: bitcoin elements
+        run: |
+          cd fuzz/
+          ./travis-fuzz.sh
+
