@@ -20,7 +20,6 @@
 
 use std::cmp;
 
-use crate::bititer::BitIter;
 use crate::core::types::FinalTypeInner;
 use crate::extension;
 use crate::Program;
@@ -33,10 +32,11 @@ use super::frame::Frame;
 
 /// An execution context for a Simplicity program
 pub struct BitMachine {
-    /// Data corresponding to bitMachine
+    /// Space for bytes that read and write frames point to.
+    /// (De)allocation happens LIFO from left to right
     pub(crate) data: Vec<u8>,
-    /// Current position of the cursor
-    pub(crate) next_pos: isize,
+    /// Top of data stack; index of first non-allocated byte
+    pub(crate) next_frame_start: usize,
     /// Read frame stack
     pub(crate) read: Vec<Frame>,
     /// Write frame stack
@@ -51,155 +51,176 @@ impl BitMachine {
         let io_width = prog.source_ty.bit_width() + prog.target_ty.bit_width();
         BitMachine {
             data: vec![0; (io_width + prog.extra_cells_bound + 7) / 8],
-            next_pos: 0,
+            next_frame_start: 0,
             // +1's for input and output; these are used only for nontrivial
             read: Vec::with_capacity(prog.frame_count_bound + 1),
             write: Vec::with_capacity(prog.frame_count_bound + 1),
         }
     }
 
-    /// Push a new frame of given size onto the write stack
+    /// Push a new frame of given size onto the write frame stack
     fn new_frame(&mut self, len: usize) {
         // assert!(self.next_pos as usize + len < self.data.len() * 8);
         // assert!(self.write.len() + self.read.len() < self.read.capacity());
 
-        self.write.push(Frame {
-            data: self.data.as_mut_ptr(),
-            abs_pos: self.next_pos,
-            start: self.next_pos,
-            len: len as isize,
-        });
-        self.next_pos += len as isize;
+        self.write.push(Frame::new(self.next_frame_start, len));
+        self.next_frame_start += len;
     }
 
-    /// Move the topmost write frame to the read stack
+    /// Move the active write frame to the read frame stack
     fn move_frame(&mut self) {
-        let mut pop = self.write.pop().unwrap();
-        pop.abs_pos = pop.start;
-        self.read.push(pop);
+        let mut _active_write_frame = self.write.pop().unwrap();
+        _active_write_frame.reset_cursor();
+        self.read.push(_active_write_frame);
     }
 
-    /// Drop the topmost read frame
+    /// Drop the active read frame
     fn drop_frame(&mut self) {
-        let d = self.read.pop().unwrap();
-        self.next_pos -= d.len;
-        assert_eq!(self.next_pos, d.start);
+        let active_read_frame = self.read.pop().unwrap();
+        self.next_frame_start -= active_read_frame.len;
+        assert_eq!(self.next_frame_start, active_read_frame.start);
     }
 
-    /// Write a single bit to the current write frame
+    /// Write a single bit to the active write frame
     pub(crate) fn write_bit(&mut self, bit: bool) {
         self.write
             .last_mut()
-            .expect("Empty write frame")
-            .write_bit(bit);
+            .expect("Empty write frame stack")
+            .write_bit(bit, &mut self.data);
     }
 
-    /// Move the cursor of the current write frame forward by
-    /// a specified number of bits
+    /// Move the cursor of the active write frame forward by
+    /// the given number of bits
     fn skip(&mut self, n: usize) {
         let idx = self.write.len() - 1;
-        self.write[idx].fwd(n);
+        self.write[idx].move_cursor_forward(n);
     }
 
-    /// Copy a specified number of bits from the current read
-    /// frame to the current write frame
+    /// Copy the given number of bits from the active read frame
+    /// to the active write frame
     fn copy(&mut self, n: usize) {
         let widx = self.write.len() - 1;
         let ridx = self.read.len() - 1;
-        self.write[widx].copy_from(&self.read[ridx], n);
+        self.write[widx].copy_from(&self.read[ridx], n, &mut self.data);
     }
 
-    /// Move the cursor of the current read frame forward a number of bits
+    /// Move the cursor of the active read frame forward
+    /// by the given number of bits
     fn fwd(&mut self, n: usize) {
         let idx = self.read.len() - 1;
-        self.read[idx].fwd(n);
+        self.read[idx].move_cursor_forward(n);
     }
 
-    /// Move the cursor of the current read frame back a number of bits
+    /// Move the cursor of the active read frame back
+    /// by the given number of bits
     fn back(&mut self, n: usize) {
         let idx = self.read.len() - 1;
-        self.read[idx].back(n);
+        self.read[idx].move_cursor_backward(n);
     }
 
-    /// Write a big-endian u64 value to the current write frame
-    pub(crate) fn write_u64(&mut self, data: u64) {
+    /// Write a big-endian u64 value to the active write frame
+    pub(crate) fn write_u64(&mut self, value: u64) {
         self.write
             .last_mut()
-            .expect("Empty write frame")
-            .write_u64(data);
+            .expect("Empty write frame stack")
+            .write_u64(value, &mut self.data);
     }
 
-    /// Write a big-endian u32 value to the current write frame
-    pub(crate) fn write_u32(&mut self, data: u32) {
+    /// Write a big-endian u32 value to the active write frame
+    pub(crate) fn write_u32(&mut self, value: u32) {
         self.write
             .last_mut()
-            .expect("Empty write frame")
-            .write_u32(data);
+            .expect("Empty write frame stack")
+            .write_u32(value, &mut self.data);
     }
 
-    /// Write a big-endian u16 value to the current write frame
-    pub(crate) fn write_u16(&mut self, data: u16) {
+    /// Write a big-endian u16 value to the active write frame
+    pub(crate) fn write_u16(&mut self, value: u16) {
         self.write
             .last_mut()
-            .expect("Empty write frame")
-            .write_u16(data);
+            .expect("Empty write frame stack")
+            .write_u16(value, &mut self.data);
     }
 
-    /// Write a big-endian u8 value to the current write frame
-    pub(crate) fn write_u8(&mut self, data: u8) {
+    /// Write a big-endian u8 value to the active write frame
+    pub(crate) fn write_u8(&mut self, value: u8) {
         self.write
             .last_mut()
-            .expect("Empty write frame")
-            .write_u8(data);
+            .expect("Empty write frame stack")
+            .write_u8(value, &mut self.data);
     }
 
-    /// Read a big-endian u64 value to the current read frame
+    /// Read a big-endian u64 value from the active read frame
     pub(crate) fn read_u64(&mut self) -> u64 {
-        self.read.last_mut().expect("Empty read frame").read_u64()
+        self.read
+            .last_mut()
+            .expect("Empty read frame stack")
+            .read_u64(&self.data)
     }
 
-    /// Read a big-endian u32 value to the current read frame
+    /// Read a big-endian u32 value from the active read frame
     pub(crate) fn read_u32(&mut self) -> u32 {
-        self.read.last_mut().expect("Empty read frame").read_u32()
+        self.read
+            .last_mut()
+            .expect("Empty read frame stack")
+            .read_u32(&self.data)
     }
 
-    /// Read a big-endian u16 value to the current read frame
+    /// Read a big-endian u16 value from the active read frame
     pub(crate) fn read_u16(&mut self) -> u16 {
-        self.read.last_mut().expect("Empty read frame").read_u16()
+        self.read
+            .last_mut()
+            .expect("Empty read frame stack")
+            .read_u16(&self.data)
     }
 
-    /// Read a big-endian u8 value to the current read frame
+    /// Read a big-endian u8 value from the active read frame
     pub(crate) fn read_u8(&mut self) -> u8 {
-        self.read.last_mut().expect("Empty read frame").read_u8()
+        self.read
+            .last_mut()
+            .expect("Empty read frame stack")
+            .read_u8(&self.data)
     }
 
-    /// Read a bit value to the current read frame
+    /// Read a bit from the active read frame
     pub(crate) fn read_bit(&mut self) -> bool {
-        self.read.last_mut().expect("Empty read frame").read_bit()
+        self.read
+            .last_mut()
+            .expect("Empty read frame stack")
+            .read_bit(&self.data)
     }
 
-    /// Read bytes 32 `u8` bytes to the current read frame
+    /// Read 32 bytes from the active read frame
     pub(crate) fn read_32bytes(&mut self) -> [u8; 32] {
         let mut ret = [0u8; 32];
         for byte in &mut ret {
-            *byte = self.read.last_mut().expect("Empty read frame").read_u8();
+            *byte = self
+                .read
+                .last_mut()
+                .expect("Empty read frame stack")
+                .read_u8(&self.data);
         }
         ret
     }
 
-    /// Read bytes n `u8` bytes to the current read frame
+    /// Read the given number of bytes from the active read frame
     pub(crate) fn read_bytes(&mut self, n: usize) -> Vec<u8> {
         let mut ret = Vec::with_capacity(n);
         for _i in 0..n {
-            ret.push(self.read.last_mut().expect("Empty read frame").read_u8());
+            ret.push(
+                self.read
+                    .last_mut()
+                    .expect("Empty read frame stack")
+                    .read_u8(&self.data),
+            );
         }
         ret
     }
 
-    /// Write a buch of bytes to the current write frame
-    pub(crate) fn write_bytes(&mut self, data: &[u8]) {
-        for bit in BitIter::new(data.iter().cloned()) {
-            self.write_bit(bit);
+    /// Write a bit string to the active write frame
+    pub(crate) fn write_bytes(&mut self, bytes: &[u8]) {
+        for bit in bytes {
+            self.write_u8(*bit);
         }
     }
 
@@ -341,7 +362,7 @@ impl BitMachine {
                     }
                 }
                 Term::Case(s, t) => {
-                    let sw = self.read[self.read.len() - 1].peek_bit();
+                    let sw = self.read[self.read.len() - 1].peek_bit(&self.data);
                     let aw;
                     let bw;
                     if let FinalTypeInner::Product(ref a, _) = ip.source_ty.ty {
@@ -391,9 +412,12 @@ impl BitMachine {
 
         if output_width > 0 {
             let out_frame = self.write.last_mut().unwrap();
-            out_frame.abs_pos -= out_frame.len;
-            Value::from_bits_and_type(out_frame, &program.root_node().target_ty)
-                .expect("unwrapping output value")
+            out_frame.reset_cursor();
+            Value::from_bits_and_type(
+                &mut out_frame.with_data(&self.data),
+                &program.root_node().target_ty,
+            )
+            .expect("unwrapping output value")
         } else {
             Value::Unit
         }
