@@ -294,8 +294,8 @@ impl Value {
     pub fn u4(n: u8) -> Value {
         let w0 = (n & 12) / 4;
         let w1 = n & 3;
-        if n > 7 {
-            panic!("{} out of range for Value::u2", n);
+        if n > 15 {
+            panic!("{} out of range for Value::u4", n);
         }
         Value::Prod(Box::new(Value::u2(w0)), Box::new(Value::u2(w1)))
     }
