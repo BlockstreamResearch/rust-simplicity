@@ -177,15 +177,15 @@ impl extension::Jet for JetsNode {
             JetsNode::Adder32 => w.write_u8(48 + 0, 6),
             JetsNode::Subtractor32 => w.write_u8(48 + 1, 6),
             JetsNode::Multiplier32 => w.write_u8(24 + 1, 5),
-            JetsNode::FullAdder32 => w.write_u8(48 + 2, 6),
-            JetsNode::FullSubtractor32 => w.write_u8(48 + 3, 6),
+            JetsNode::FullAdder32 => w.write_u8(48 + 4, 6),
+            JetsNode::FullSubtractor32 => w.write_u8(48 + 5, 6),
             JetsNode::FullMultiplier32 => w.write_u8(24 + 3, 5),
             JetsNode::Sha256HashBlock => w.write_u8(14, 4),
             JetsNode::SchnorrAssert => w.write_u8(15 * 16 + 0, 8),
             JetsNode::EqV256 => w.write_u8(15 * 16 + 1, 8),
             JetsNode::Sha256 => w.write_u8(15 * 16 + 2, 8),
             JetsNode::LessThanV32 => w.write_u8(15 * 16 + 3, 8),
-            JetsNode::EqV32 => w.write_u8(15 * 16 + 3, 8),
+            JetsNode::EqV32 => w.write_u8(15 * 16 + 4, 8),
         }
     }
 
@@ -230,7 +230,7 @@ impl extension::Jet for JetsNode {
                         2 => Ok(JetsNode::Sha256),
                         3 => Ok(JetsNode::LessThanV32),
                         4 => Ok(JetsNode::EqV32),
-                        _ => unreachable!(),
+                        _ => Err(Error::ParseError("bad jet")),
                     }
                 }
                 None => Err(Error::EndOfStream),
