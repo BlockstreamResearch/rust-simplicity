@@ -61,7 +61,7 @@ where
                 // check for Key
                 match (&**l, &**r) {
                     (DagTerm::Pair(key, w), DagTerm::Jet(SchnorrAssert)) => {
-                        let key_value = read_scribed_value(Rc::clone(&Rc::clone(&key)));
+                        let key_value = read_scribed_value(Rc::clone(&Rc::clone(key)));
                         let key_bytes = bitvec_to_bytevec(key_value.into_bits());
                         let k = DummyKey::from_32_byte_pubkey(&key_bytes);
                         match &**w {
@@ -70,7 +70,7 @@ where
                         }
                     }
                     (DagTerm::Pair(scribed_hash, computed_hash), DagTerm::Jet(EqV256)) => {
-                        let hash_value = read_scribed_value(Rc::clone(&Rc::clone(&scribed_hash)));
+                        let hash_value = read_scribed_value(Rc::clone(&Rc::clone(scribed_hash)));
                         let hash_bytes = bitvec_to_bytevec(hash_value.into_bits());
                         let h = sha256::Hash::from_slice(&hash_bytes).unwrap();
                         match &**computed_hash {
@@ -82,7 +82,7 @@ where
                         }
                     }
                     (DagTerm::Pair(scibe_t, computed_t), DagTerm::Jet(LessThanV32)) => {
-                        let timelock_value = read_scribed_value(Rc::clone(&Rc::clone(&scibe_t)));
+                        let timelock_value = read_scribed_value(Rc::clone(&Rc::clone(scibe_t)));
                         let timelock_bytes = bitvec_to_bytevec(timelock_value.into_bits());
                         let t = u32_from_be_bytes(&timelock_bytes);
                         match &**computed_t {

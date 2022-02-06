@@ -30,9 +30,9 @@ impl From<[u8; 32]> for Cmr {
     }
 }
 
-impl Into<[u8; 32]> for Cmr {
-    fn into(self) -> [u8; 32] {
-        self.0.into_inner()
+impl From<Cmr> for [u8; 32] {
+    fn from(cmr: Cmr) -> [u8; 32] {
+        cmr.0.into_inner()
     }
 }
 

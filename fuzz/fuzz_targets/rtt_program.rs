@@ -15,16 +15,17 @@
 extern crate simplicity;
 
 use simplicity::bititer::BitIter;
+use simplicity::extension::dummy::DummyNode;
 use simplicity::encode::{self, BitWrite};
 
 fn do_test(data: &[u8]) {
     let mut read_iter = BitIter::new(data.iter().cloned());
-    if let Ok(prog) = encode::decode_program_no_witness(&mut read_iter) {
+    if let Ok(prog) = encode::decode_program_no_witness::<_, DummyNode>(&mut read_iter) {
         let mut w = encode::BitWriter::new(Vec::<u8>::new());
         let mut write_len = encode::encode_natural(prog.len(), &mut w)
             .expect("encoding natural");
-        for (i, node) in prog.iter().enumerate() {
-            write_len += encode::encode_node_no_witness(node, i, &mut w)
+        for node in prog.iter() {
+            write_len += encode::encode_node_no_witness(node, &mut w)
                 .expect("encoding node");
         }
         w.flush_all().expect("flushing");

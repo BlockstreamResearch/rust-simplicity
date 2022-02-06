@@ -244,7 +244,7 @@ impl BitMachine {
             DropFrame,
             CopyFwd(usize),
             Back(usize),
-        };
+        }
 
         let mut ip = program.root_node();
         let mut call_stack = vec![];
