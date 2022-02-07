@@ -1987,7 +1987,9 @@ fn main() {
         " input: {}",
         Value::prod(Value::prod(Value::u2(3), Value::u16(1)), Value::u16(0))
     );
-    let output = mac.exec(&program, &simplicity::extension::dummy::TxEnv);
+    let output = mac
+        .exec(&program, &simplicity::extension::dummy::TxEnv)
+        .unwrap();
     println!(" output: {}", output);
     println!();
     println!();

@@ -18,9 +18,9 @@
 //! blockchain
 //!
 
-use std::{fmt, io};
+use std::{error, fmt, io};
 
-use super::TypeName;
+use super::{ExtError, TypeName};
 use crate::bitcoin_hashes::{sha256, Hash, HashEngine};
 use crate::bititer::BitIter;
 use crate::cmr::Cmr;
@@ -68,6 +68,7 @@ impl fmt::Display for JetsNode {
 
 impl extension::Jet for JetsNode {
     type TxEnv = ();
+    type JetErr = ArithJetErr;
     /// Name of the source type for this node
     fn source_type(&self) -> TypeName {
         match *self {
@@ -239,7 +240,7 @@ impl extension::Jet for JetsNode {
         }
     }
 
-    fn exec(&self, mac: &mut exec::BitMachine, _tx_env: &Self::TxEnv) {
+    fn exec(&self, mac: &mut exec::BitMachine, _tx_env: &Self::TxEnv) -> Result<(), Self::JetErr> {
         match *self {
             JetsNode::Adder32 => {
                 let a = mac.read_u32();
@@ -328,5 +329,18 @@ impl extension::Jet for JetsNode {
                 assert!(a == b);
             }
         }
+        Ok(())
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ArithJetErr {}
+
+impl fmt::Display for ArithJetErr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "TODO in a later commit")
+    }
+}
+
+impl error::Error for ArithJetErr {}
+impl ExtError for ArithJetErr {}

@@ -414,7 +414,7 @@ mod tests {
 
         let mut mac = exec::BitMachine::for_program(&prog);
         // mac.input(&Value::prod(Value::u1(0), Value::Unit));
-        let output = mac.exec(&prog, &TxEnv);
+        let output = mac.exec(&prog, &TxEnv).unwrap();
 
         println!("{}", output);
     }

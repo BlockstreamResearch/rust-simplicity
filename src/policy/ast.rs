@@ -366,7 +366,7 @@ mod tests {
         let txenv = TxEnv::default();
 
         let mut mac = exec::BitMachine::for_program(&prog);
-        let output = mac.exec(&prog, &txenv);
+        let output = mac.exec(&prog, &txenv).unwrap();
 
         assert!(output == Value::Unit);
     }

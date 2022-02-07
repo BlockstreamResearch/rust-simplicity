@@ -18,14 +18,15 @@
 //! blockchain.
 //!
 
+use std::error;
 use std::{fmt, io};
 
 use crate::bititer::BitIter;
 use crate::cmr::Cmr;
 use crate::encode;
 use crate::exec;
-use crate::extension;
 use crate::extension::TypeName;
+use crate::extension::{self, ExtError};
 use crate::Error;
 
 /// Transaction environment for Bitcoin Simplicity programs
@@ -137,6 +138,7 @@ impl fmt::Display for ElementsNode {
 
 impl extension::Jet for ElementsNode {
     type TxEnv = TxEnv;
+    type JetErr = ElementsJetErr;
 
     fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<ElementsNode, Error> {
         let code = match iter.read_bits_be(5) {
@@ -427,8 +429,20 @@ impl extension::Jet for ElementsNode {
         }
     }
 
-    fn exec(&self, _mac: &mut exec::BitMachine, _txenv: &Self::TxEnv) {
+    fn exec(&self, _mac: &mut exec::BitMachine, _txenv: &Self::TxEnv) -> Result<(), Self::JetErr> {
         // FIXME finish this
         unimplemented!()
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ElementsJetErr {}
+
+impl fmt::Display for ElementsJetErr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "TODO in a later commit")
+    }
+}
+
+impl error::Error for ElementsJetErr {}
+impl ExtError for ElementsJetErr {}

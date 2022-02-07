@@ -19,6 +19,8 @@
 //!
 
 use std::cmp;
+use std::error;
+use std::fmt;
 
 use crate::core::types::FinalTypeInner;
 use crate::extension;
@@ -26,6 +28,7 @@ use crate::Program;
 use crate::Term;
 use crate::Value;
 
+use crate::extension::ExtError;
 use crate::extension::Jet as JetNode;
 
 use super::frame::Frame;
@@ -254,11 +257,11 @@ impl BitMachine {
     }
 
     /// Execute a program in the Bit Machine
-    pub fn exec<Ext: extension::Jet>(
+    pub fn exec<'a, Ext: extension::Jet>(
         &mut self,
-        program: &Program<Ext>,
+        program: &'a Program<Ext>,
         txenv: &Ext::TxEnv,
-    ) -> Value {
+    ) -> Result<Value, ExecutionError<'a>> {
         enum CallStack {
             Goto(usize),
             MoveFrame,
@@ -388,11 +391,13 @@ impl BitMachine {
                 }
                 Term::Witness(ref value) => self.write_value(value),
                 Term::Hidden(ref h) => panic!("Hit hidden node {} at iter {}: {}", ip, iters, h),
-                Term::Ext(ref e) => e.exec(self, txenv),
-                /*
-                 */
-                Term::Jet(ref j) => j.exec(self, &()),
-                Term::Fail(..) => panic!("encountered fail node while executing"),
+                Term::Ext(ref e) => e
+                    .exec(self, txenv)
+                    .map_err(|x| ExecutionError::ExtError(Box::new(x)))?,
+                Term::Jet(ref j) => j
+                    .exec(self, &())
+                    .map_err(|x| ExecutionError::ExtError(Box::new(x)))?,
+                Term::Fail(..) => return Err(ExecutionError::ReachedFailNode),
             }
 
             ip = loop {
@@ -410,7 +415,7 @@ impl BitMachine {
             };
         }
 
-        if output_width > 0 {
+        let res = if output_width > 0 {
             let out_frame = self.write.last_mut().unwrap();
             out_frame.reset_cursor();
             Value::from_bits_and_type(
@@ -420,6 +425,28 @@ impl BitMachine {
             .expect("unwrapping output value")
         } else {
             Value::Unit
+        };
+        Ok(res)
+    }
+}
+
+/// Errors related to simplicity Execution
+#[derive(Debug)]
+pub enum ExecutionError<'a> {
+    /// Reached a fail node
+    ReachedFailNode,
+    /// Extension related error.
+    /// Depending on the extensions enabled, this can be elements/bitcoin/dummy jet failure
+    ExtError(Box<dyn ExtError + 'a>),
+}
+
+impl<'a> fmt::Display for ExecutionError<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ExecutionError::ReachedFailNode => write!(f, "Encountered fail node"),
+            ExecutionError::ExtError(e) => e.fmt(f),
         }
     }
 }
+
+impl<'a> error::Error for ExecutionError<'a> {}
