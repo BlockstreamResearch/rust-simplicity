@@ -42,7 +42,7 @@ mod tests {
         let txenv = TxEnv;
         //finally run the program
         let mut mac = crate::exec::BitMachine::for_program(&program);
-        mac.exec(&program, &txenv);
+        mac.exec(&program, &txenv).unwrap();
     }
 
     #[test]
