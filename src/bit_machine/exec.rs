@@ -414,7 +414,7 @@ impl BitMachine {
             let out_frame = self.write.last_mut().unwrap();
             out_frame.reset_cursor();
             Value::from_bits_and_type(
-                &mut out_frame.with_data(&self.data),
+                &mut out_frame.to_frame_data(&self.data),
                 &program.root_node().target_ty,
             )
             .expect("unwrapping output value")

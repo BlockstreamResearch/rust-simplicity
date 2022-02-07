@@ -148,8 +148,9 @@ impl Frame {
         }
     }
 
-    /// Adds
-    pub fn with_data<'a>(&self, data: &'a [u8]) -> FrameData<'a> {
+    /// Extend the present frame with a read-only reference the the data
+    /// and return the resulting struct.
+    pub fn to_frame_data<'a>(&self, data: &'a [u8]) -> FrameData<'a> {
         FrameData::new(self, data)
     }
 
@@ -321,10 +322,10 @@ mod tests {
     }
 
     #[test]
-    fn test_with_data_iter() {
+    fn test_to_frame_data_iter() {
         let bytes = (0..100).collect::<Vec<u8>>();
         let frame = Frame::new(0, 100 * 8);
-        let bits = frame.with_data(&bytes).collect();
+        let bits = frame.to_frame_data(&bytes).collect();
         let computed_bytes = bitvec_to_bytevec(bits);
 
         assert_eq!(bytes, computed_bytes);
