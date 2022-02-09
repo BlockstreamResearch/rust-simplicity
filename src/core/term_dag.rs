@@ -1,3 +1,5 @@
+use crate::cmr::Cmr;
+use crate::extension::jets::JetsNode;
 use crate::{cmr, extension};
 use crate::{Term, UnTypedProg};
 use std::collections::HashMap;
@@ -49,6 +51,83 @@ pub enum TermDag<Witness, Extension> {
     Hidden(cmr::Cmr),
     Ext(Extension),
     Jet(extension::jets::JetsNode),
+}
+
+impl<Extension> TermDag<(), Extension> {
+    /// Create DAG with single `iden` node
+    pub fn iden() -> Rc<Self> {
+        Rc::new(TermDag::Iden)
+    }
+
+    /// Create DAG with single `unit` node
+    pub fn unit() -> Rc<Self> {
+        Rc::new(TermDag::Unit)
+    }
+
+    /// Create DAG with `injl` root that points to given sub-DAG
+    pub fn injl(sub_dag: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::InjL(sub_dag))
+    }
+
+    /// Create DAG with `injr` root that points to given sub-DAG
+    pub fn injr(sub_dag: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::InjR(sub_dag))
+    }
+
+    /// Create DAG with `take` root that points to given sub-DAG
+    pub fn take(sub_dag: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::Take(sub_dag))
+    }
+
+    /// Create DAG with `drop` root that points to given sub-DAG
+    pub fn drop(sub_dag: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::Drop(sub_dag))
+    }
+
+    /// Create DAG with `comp` root that points to given `left` and `right` sub-DAGs
+    pub fn comp(left_dag: Rc<Self>, right_dag: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::Comp(left_dag, right_dag))
+    }
+
+    /// Create DAG with `case` root that points to given `left` and `right` sub-DAGs
+    pub fn case(left_dag: Rc<Self>, right_dag: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::Case(left_dag, right_dag))
+    }
+
+    /// Create DAG with `pair` root that points to given `left` and `right` sub-DAGs
+    pub fn pair(left_dag: Rc<Self>, right_dag: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::Pair(left_dag, right_dag))
+    }
+
+    /// Create DAG with `disconnect` root that points to given `left` and `right` sub-DAGs
+    pub fn disconnect(left_dag: Rc<Self>, right_dag: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::Disconnect(left_dag, right_dag))
+    }
+
+    /// Create DAG with single `witness` node _(with no witness data)_
+    pub fn witness() -> Rc<Self> {
+        Rc::new(TermDag::Witness(()))
+    }
+
+    /// Create DAG with single `fail` node that contains the given `left` and `right` payloads
+    pub fn fail(left: [u8; 32], right: [u8; 32]) -> Rc<Self> {
+        Rc::new(TermDag::Fail(left, right))
+    }
+
+    /// Create DAG with single `hidden` node that contains the given CMR
+    pub fn hidden(cmr: Cmr) -> Rc<Self> {
+        Rc::new(TermDag::Hidden(cmr))
+    }
+
+    /// Create DAG with single `extension` node that enables functionality beyond Full Simplicity
+    pub fn ext(extension: Extension) -> Rc<Self> {
+        Rc::new(TermDag::Ext(extension))
+    }
+
+    /// Create DAG with single `jet_node` that encodes a larger sub-DAG
+    pub fn jet(jet_node: JetsNode) -> Rc<Self> {
+        Rc::new(TermDag::Jet(jet_node))
+    }
 }
 
 impl<Witness, Extension> TermDag<Witness, Extension> {
