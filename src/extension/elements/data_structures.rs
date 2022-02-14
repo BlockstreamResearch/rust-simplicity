@@ -28,17 +28,18 @@ use elements::{confidential, AssetIssuance};
 use super::jets::ElementsJetErr;
 
 /// Helper trait for writing various components of
-/// Simplicity transactions(Assets, Values) into bit machine.
+/// Simplicity transactions (assets, values) into bit machine.
 pub(in crate::extension::elements) trait SimplicityEncodable {
     // write the simplicity encoding of `self` on bitmachine
     // at the current write cursor.
     fn simplicity_encode(self, mac: &mut exec::BitMachine) -> Result<(), ElementsJetErr>;
 }
 
-/// A simplicity representation of elements confidential asset is then:
-/// (prefix, asset) = ((is_explicit, is_odd),[u8; 32])
-/// Write an confidential asset to write frame
-/// advancing the cursor 258 cells, unless asset is not None
+/// Write an confidential asset to write frame, advancing the cursor 258
+/// cells (or returning an error if the asset is null)
+///
+/// The Simplicity representation of a confidential asset is:
+///    ((is_explicit, is_odd), [u8; 32])
 impl SimplicityEncodable for confidential::Asset {
     fn simplicity_encode(self, mac: &mut exec::BitMachine) -> Result<(), ElementsJetErr> {
         match self {
@@ -64,17 +65,11 @@ impl SimplicityEncodable for confidential::Asset {
     }
 }
 
-/// In Elements, many fields can optionally be blinded and encoded as a
-/// point on the secp256k1 curve.
-/// The prefix determines the parity of the y-coordinate of that point, or
-/// indicates the value is explicit.
-/// In few cases, values are entirely optional, in which case
-/// 'NONE' is a possibility.
-/// Following are the possibilites of prefix: [None, Explicit, EvenY, OddY]
-/// A simplicity representation of elements confidential value is then:
-/// (prefix, value) = ((is_explicit, is_odd),[u8; 32])
-/// Write an confidential asset to write frame
-/// advancing the cursor 258 cells, unless asset is not None
+/// Write an confidential value to write frame, advancing the cursor 258
+/// cells (or returning an error if the value is null)
+///
+/// The Simplicity representation of a confidential value is:
+///     ((is_explicit, is_odd), [u8; 32])
 impl SimplicityEncodable for confidential::Value {
     fn simplicity_encode(self, mac: &mut exec::BitMachine) -> Result<(), ElementsJetErr> {
         match self {
@@ -99,17 +94,10 @@ impl SimplicityEncodable for confidential::Value {
     }
 }
 
-/// In Elements, many fields can optionally be blinded and encoded as a
-/// point on the secp256k1 curve.
-/// The prefix determines the parity of the y-coordinate of that point, or
-/// indicates the value is explicit.
-/// In few cases, values are entirely optional, in which case
-/// 'NONE' is a possibility.
-/// Following are the possibilites of prefix: [None, Explicit, EvenY, OddY]
-/// A simplicity representation of elements confidential none is then:
-/// (prefix, value) = ((is_not_null, is_explicit, is_odd),[u8; 32])
-/// Write an confidential asset to write frame
-/// advancing the cursor 259 cells, unless asset is not None
+/// Write an confidential nonce to write frame, advancing the cursor 259 cells
+///
+/// The Simplicity representation of a confidential nonce is:
+///     ((is_not_null, is_explicit, is_odd), [u8; 32])
 impl SimplicityEncodable for confidential::Nonce {
     fn simplicity_encode(self, mac: &mut exec::BitMachine) -> Result<(), ElementsJetErr> {
         // all paths should write 259 bits
@@ -139,7 +127,7 @@ impl SimplicityEncodable for confidential::Nonce {
         Ok(())
     }
 }
-/// Simplicity has a different logic for computing the transactoin input and output
+/// Simplicity has a different logic for computing the transaction input and output
 /// digest. This trait defines the method for computation of such digests.
 //
 // TODO: Review this hashing again now that taproot sighash possibly changed these too
@@ -226,8 +214,7 @@ pub(super) fn is_asset_new_issue(asset: &AssetIssuance) -> bool {
 
 impl SimplicityHash for AssetIssuance {
     fn simplicity_hash(&self, eng: &mut sha256::HashEngine) {
-        let is_new_issue = is_asset_new_issue(self);
-        if is_new_issue {
+        if is_asset_new_issue(self) {
             self.amount.simplicity_hash(eng);
             self.inflation_keys.simplicity_hash(eng);
             // asset blinding nonce here must be zero
@@ -287,30 +274,21 @@ impl SimplicityHash for Vec<elements::TxOut> {
     }
 }
 
-/// An elementsUTXO.
-/// The data held by an Elements unspent transaction output database.
-/// This `scriptPubKey` of the unspent transaction output,
-/// which in our application is digested as a SHA-256 hash of simplicity program.
-/// This also includes the asset and amout of the output, each of
-/// which may or may not be blinded.
+/// An Elements UTXO.
 // This is not a complete TxOut as it does not contain the nonce that
 // is sent to the recipient.
 pub struct ElementsUtxo {
-    /// the scriptpubkey hashed of the elements transaction
+    /// The ``scriptpubkey'' (hash of Simplicity program)
     pub(super) script_pubkey: sha256::Hash,
-    /// The confidential asset
+    /// The explicit or confidential asset
     pub(super) asset: confidential::Asset,
-    /// The confidential transaction value
+    /// The explict or confidential value
     pub(super) value: confidential::Value,
 }
 
 /// Transaction environment for Bitcoin Simplicity programs
-///  * This includes
-/// 1. the transaction data, which may be shared when Simplicity expressions
-/// 2. The Utxos corresponding to value
-/// 3. the input index under consideration,
-/// 4. and the commitment Merkle root of the Simplicity expression being executed.
-/// #NOTE:
+///
+/// # Note
 /// The order of `utxos` must be same as of the order of inputs in the
 /// transaction.
 // FIXME: tx can be shared across multiple inputs in the same transaction.
@@ -323,17 +301,17 @@ pub struct ElementsUtxo {
 // the usage of the trait because we need to pass around a generic everywhere we use the jet
 // trait. This maybe slightly annoying but maybe what we have to do until have Associated generic types
 pub struct TxEnv {
-    // The elements transaction
+    /// The elements transaction
     pub(super) tx: elements::Transaction,
-    // The input utxo information corresponding to outpoint being spent.
+    /// The input utxo information corresponding to outpoint being spent.
     pub(super) utxos: Vec<ElementsUtxo>,
-    // the current index of the input
+    /// the current index of the input
     pub(super) ix: u32,
-    // Commitment merkle root of the script
+    /// Commitment merkle root of the script being executed
     pub(super) script_cmr: Cmr,
-    // cached InputHash
+    /// cached InputHash
     pub(super) inputs_hash: sha256::Hash,
-    // cached OutputHash
+    /// cached OutputHash
     pub(super) outputs_hash: sha256::Hash,
 }
 

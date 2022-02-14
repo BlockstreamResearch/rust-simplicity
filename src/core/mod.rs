@@ -23,7 +23,7 @@ use crate::{
 pub mod term;
 pub mod types;
 
-/// Simplicity has a different logic for computing the transactoin input and output
+/// Simplicity has a different logic for computing the transaction input and output
 /// digest. This trait defines the method for computation of such digests.
 pub(crate) trait SimplicityHash {
     /// Add the hash of current tx component
