@@ -758,6 +758,8 @@ impl ExtError for ElementsJetErr {}
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use crate::cmr;
     use crate::extension::elements::data_structures::{ElementsUtxo, TxEnv};
     use crate::extension::elements::test_sighashall::{
@@ -892,7 +894,7 @@ mod tests {
         let program =
             crate::program::Program::<crate::extension::elements::ElementsNode>::decode(&mut bits)
                 .expect("decoding program");
-        let txenv = TxEnv::from_txenv(elements_tx, vec![utxo], 0, cmr);
+        let txenv = TxEnv::from_txenv(Arc::new(elements_tx), vec![utxo], 0, cmr);
 
         //finally run the program
         let mut mac = crate::exec::BitMachine::for_program(&program);

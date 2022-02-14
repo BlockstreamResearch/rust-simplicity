@@ -18,6 +18,8 @@
 //! rust-simplicity. This file has additional data-structures for
 //! simplicity transactions
 
+use std::sync::Arc;
+
 use crate::cmr::Cmr;
 use crate::exec;
 use bitcoin_hashes::{sha256, Hash, HashEngine};
@@ -291,18 +293,18 @@ pub struct ElementsUtxo {
 /// # Note
 /// The order of `utxos` must be same as of the order of inputs in the
 /// transaction.
-// FIXME: tx can be shared across multiple inputs in the same transaction.
-// Changing tx to reference does not directly work as the trait declarations do
-// not support generic assiciated types.
-// Other ways of fixing this either
-// 1) involve implementing triat for a reference which we cannot do
-// currently because the trait also has a constructor that needs to return Self.
-// 2) Changing the trait definition to have explicit lifetime parameter that complicates
-// the usage of the trait because we need to pass around a generic everywhere we use the jet
-// trait. This maybe slightly annoying but maybe what we have to do until have Associated generic types
+// FIXME:
+// Ideally the `Arc<elements::Transaction>` would be a generic
+// `AsRef<elements::Transaction>` or something, but this is an associated type
+// for the `Extension` trait, and Rust will not let us have generic parameters
+// on associated types. (We could possibly add a parameter to the Extension
+// trait itself, but that would be messy and layer-violating.)
+//
+// Similar story if we tried to use a &'a elements::Transaction rather than
+// an Arc: we'd have a lifetime parameter <'a> that would cause us trouble.
 pub struct TxEnv {
     /// The elements transaction
-    pub(super) tx: elements::Transaction,
+    pub(super) tx: Arc<elements::Transaction>,
     /// The input utxo information corresponding to outpoint being spent.
     pub(super) utxos: Vec<ElementsUtxo>,
     /// the current index of the input
@@ -318,7 +320,7 @@ pub struct TxEnv {
 impl TxEnv {
     /// Constructor from a transaction
     pub fn from_txenv(
-        tx: elements::Transaction,
+        tx: Arc<elements::Transaction>,
         utxos: Vec<ElementsUtxo>,
         ix: u32,
         script_cmr: Cmr,
