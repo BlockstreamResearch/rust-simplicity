@@ -35,7 +35,7 @@ pub(crate) trait SimplicityHash {
 /// it is not a multiple of 8 bits. We have to reimplement that here.
 /// Consumes the value as we are reading it anyways.
 // FIXME: Consider taking a reference and inplementing to_bits() instead
-// At fisrt glance, maybe we are still reading the entire value so it
+// At first glance, maybe we are still reading the entire value so it
 // makes sense to consume it.
 pub(crate) fn sha256_value(v: Value) -> [u8; 32] {
     let mut bits = v.into_bits();

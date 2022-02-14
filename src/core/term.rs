@@ -70,7 +70,7 @@ impl<Witness, Extension: extension::Jet> Term<Witness, Extension> {
     /// Compute the cmr_iv of the term.
     /// Jet's don't technically have an IV, but this function
     /// returns the CMR
-    pub(crate) fn amr_iv(&self) -> cmr::Cmr {
+    pub(crate) fn amr_iv(&self) -> cmr::Amr {
         // This helps in avoiding repeated code by allowing to merge
         // patterns in cmr calculation code.
         match self {
@@ -87,9 +87,9 @@ impl<Witness, Extension: extension::Jet> Term<Witness, Extension> {
             Term::Pair(_i, _j) => cmr::tag::pair_amr(),
             Term::Disconnect(_i, _) => cmr::tag::disconnect_amr(),
             Term::Witness(..) => cmr::tag::witness_amr(),
-            Term::Hidden(cmr) => *cmr,
-            Term::Ext(j) => j.cmr(),
-            Term::Jet(j) => j.cmr(),
+            Term::Hidden(cmr) => cmr::Amr::from(<[u8; 32]>::from(*cmr)),
+            Term::Ext(j) => cmr::Amr::from(<[u8; 32]>::from(j.cmr())),
+            Term::Jet(j) => cmr::Amr::from(<[u8; 32]>::from(j.cmr())),
             Term::Fail(..) => unimplemented!(),
         }
     }

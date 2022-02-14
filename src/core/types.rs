@@ -3,7 +3,7 @@
 
 use std::{cell::RefCell, cmp, fmt, mem, rc::Rc, sync::Arc};
 
-use crate::cmr::{tag, Cmr};
+use crate::cmr::{tag, Tmr};
 use crate::extension;
 use crate::extension::Jet as ExtNode;
 use crate::Error;
@@ -36,7 +36,7 @@ pub struct FinalType {
     pub ty: FinalTypeInner,
     pub bit_width: usize,
     /// The annotated type merkle root of the type
-    pub tmr: Cmr,
+    pub tmr: Tmr,
     /// cached display result in order to avoid repeat computation
     pub display: String,
 }
