@@ -32,7 +32,7 @@ pub mod extension;
 #[cfg(feature = "bitcoin")]
 pub mod policy;
 pub mod program;
-
+mod util;
 use std::fmt;
 
 pub use crate::bit_machine::exec;
@@ -43,6 +43,8 @@ pub use crate::program::Program;
 
 use miniscript::{DummyKey, MiniscriptKey};
 
+#[cfg(test)]
+mod test_progs;
 /// Error type for simplicity
 #[derive(Debug)]
 pub enum Error {
@@ -59,7 +61,7 @@ pub enum Error {
     NonCaseHiddenChild,
     /// 'case' nodes may have at most one hidden child
     CaseMultipleHiddenChildren,
-    /// Bitstream ended early
+    /// Bitstream ended early   
     EndOfStream,
     /// Tried to allocate too many nodes in a program
     TooManyNodes(usize),

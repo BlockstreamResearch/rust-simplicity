@@ -19,6 +19,8 @@
 //!
 
 use std::cmp;
+use std::error;
+use std::fmt;
 
 use crate::core::types::FinalTypeInner;
 use crate::extension;
@@ -26,6 +28,7 @@ use crate::Program;
 use crate::Term;
 use crate::Value;
 
+use crate::extension::ExtError;
 use crate::extension::Jet as JetNode;
 
 use super::frame::Frame;
@@ -90,8 +93,12 @@ impl BitMachine {
     }
 
     /// Move the cursor of the active write frame forward by
-    /// the given number of bits
-    fn skip(&mut self, n: usize) {
+    /// a specified number of bits
+    pub(crate) fn skip(&mut self, n: usize) {
+        // short circuit n = 0
+        if n == 0 {
+            return;
+        }
         let idx = self.write.len() - 1;
         self.write[idx].move_cursor_forward(n);
     }
@@ -99,6 +106,10 @@ impl BitMachine {
     /// Copy the given number of bits from the active read frame
     /// to the active write frame
     fn copy(&mut self, n: usize) {
+        // short circuit n = 0
+        if n == 0 {
+            return;
+        }
         let widx = self.write.len() - 1;
         let ridx = self.read.len() - 1;
         self.write[widx].copy_from(&self.read[ridx], n, &mut self.data);
@@ -107,6 +118,10 @@ impl BitMachine {
     /// Move the cursor of the active read frame forward
     /// by the given number of bits
     fn fwd(&mut self, n: usize) {
+        // short circuit n = 0
+        if n == 0 {
+            return;
+        }
         let idx = self.read.len() - 1;
         self.read[idx].move_cursor_forward(n);
     }
@@ -114,6 +129,10 @@ impl BitMachine {
     /// Move the cursor of the active read frame back
     /// by the given number of bits
     fn back(&mut self, n: usize) {
+        // short circuit n = 0
+        if n == 0 {
+            return;
+        }
         let idx = self.read.len() - 1;
         self.read[idx].move_cursor_backward(n);
     }
@@ -254,11 +273,11 @@ impl BitMachine {
     }
 
     /// Execute a program in the Bit Machine
-    pub fn exec<Ext: extension::Jet>(
+    pub fn exec<'a, Ext: extension::Jet>(
         &mut self,
-        program: &Program<Ext>,
+        program: &'a Program<Ext>,
         txenv: &Ext::TxEnv,
-    ) -> Value {
+    ) -> Result<Value, ExecutionError<'a>> {
         enum CallStack {
             Goto(usize),
             MoveFrame,
@@ -342,9 +361,11 @@ impl BitMachine {
                     // 3. Delete the two frames we created, which have both moved to the read stack
                     call_stack.push(CallStack::DropFrame);
                     call_stack.push(CallStack::DropFrame);
+                    let b_size = s_target_size - program.nodes[ip.index - t].source_ty.bit_width();
+                    // Back not required since we are dropping the frame anyways
+                    // call_stack.push(CallStack::Back(b_size));
                     // 2. Copy the first half of `s`s output directly then execute `t` on the second half
                     call_stack.push(CallStack::Goto(ip.index - t));
-                    let b_size = s_target_size - program.nodes[ip.index - t].source_ty.bit_width();
                     call_stack.push(CallStack::CopyFwd(b_size));
                     // 1. Execute `s` then move the write frame to the read frame for `t`
                     call_stack.push(CallStack::MoveFrame);
@@ -361,7 +382,7 @@ impl BitMachine {
                         panic!("type error")
                     }
                 }
-                Term::Case(s, t) => {
+                Term::Case(s, t) | Term::AssertL(s, t) | Term::AssertR(s, t) => {
                     let sw = self.read[self.read.len() - 1].peek_bit(&self.data);
                     let aw;
                     let bw;
@@ -388,11 +409,13 @@ impl BitMachine {
                 }
                 Term::Witness(ref value) => self.write_value(value),
                 Term::Hidden(ref h) => panic!("Hit hidden node {} at iter {}: {}", ip, iters, h),
-                Term::Ext(ref e) => e.exec(self, txenv),
-                /*
-                 */
-                Term::Jet(ref j) => j.exec(self, &()),
-                Term::Fail(..) => panic!("encountered fail node while executing"),
+                Term::Ext(ref e) => e
+                    .exec(self, txenv)
+                    .map_err(|x| ExecutionError::ExtError(Box::new(x)))?,
+                Term::Jet(ref j) => j
+                    .exec(self, &())
+                    .map_err(|x| ExecutionError::ExtError(Box::new(x)))?,
+                Term::Fail(..) => return Err(ExecutionError::ReachedFailNode),
             }
 
             ip = loop {
@@ -410,7 +433,7 @@ impl BitMachine {
             };
         }
 
-        if output_width > 0 {
+        let res = if output_width > 0 {
             let out_frame = self.write.last_mut().unwrap();
             out_frame.reset_cursor();
             Value::from_bits_and_type(
@@ -420,6 +443,34 @@ impl BitMachine {
             .expect("unwrapping output value")
         } else {
             Value::Unit
+        };
+        Ok(res)
+    }
+}
+
+/// Errors related to simplicity Execution
+#[derive(Debug)]
+pub enum ExecutionError<'a> {
+    /// Reached a fail node
+    ReachedFailNode,
+    /// Extension related error.
+    /// Depending on the extensions enabled, this can be elements/bitcoin/dummy jet failure
+    ExtError(Box<dyn ExtError + 'a>),
+}
+
+impl<'a> fmt::Display for ExecutionError<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ExecutionError::ReachedFailNode => write!(f, "Encountered fail node"),
+            ExecutionError::ExtError(e) => e.fmt(f),
         }
+    }
+}
+
+impl<'a> error::Error for ExecutionError<'a> {}
+
+impl<'a, J: ExtError + 'a> From<J> for ExecutionError<'a> {
+    fn from(jet: J) -> Self {
+        ExecutionError::ExtError(Box::new(jet))
     }
 }

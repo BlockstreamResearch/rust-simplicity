@@ -238,7 +238,7 @@ pub fn encode_node_no_witness<T, W: BitWrite, Ext: extension::Jet>(
                 + encode_natural(j, &mut *writer)?;
             Ok(ret)
         }
-        Term::Case(i, j) => {
+        Term::Case(i, j) | Term::AssertL(i, j) | Term::AssertR(i, j) => {
             let ret = writer.write_u8(1, 5)?
                 + encode_natural(i, &mut *writer)?
                 + encode_natural(j, &mut *writer)?;
@@ -287,8 +287,21 @@ pub fn decode_program_no_witness<I: Iterator<Item = u8>, Ext: extension::Jet>(
     }
 
     let mut program = Vec::with_capacity(prog_len);
-    for i in 0..prog_len {
-        program.push(decode_node_no_witness(i, iter)?);
+    for idx in 0..prog_len {
+        let node = decode_node_no_witness(idx, iter)?;
+        let node = if let Term::Case(i, j) = node {
+            match (&program[idx - i], &program[idx - j]) {
+                (Term::Hidden(..), Term::Hidden(..)) => {
+                    return Err(Error::CaseMultipleHiddenChildren)
+                }
+                (Term::Hidden(..), _) => Term::AssertR(i, j),
+                (_, Term::Hidden(..)) => Term::AssertL(i, j),
+                _ => Term::Case(i, j),
+            }
+        } else {
+            node
+        };
+        program.push(node);
     }
 
     Ok(UnTypedProg(program))

@@ -74,6 +74,7 @@ impl Iterator for TypeName {
 pub trait Jet: Sized + fmt::Display {
     /// Transaction environment
     type TxEnv;
+    type JetErr: ExtError;
 
     /// Decode a node from a bit iterator
     fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Self, Error>;
@@ -83,10 +84,13 @@ pub trait Jet: Sized + fmt::Display {
 
     /// Execute the node in a Bit Machine; assuming the surrounding
     /// program has typechecked, this cannot fail
-    fn exec(&self, mac: &mut exec::BitMachine, txenv: &Self::TxEnv);
+    fn exec(&self, mac: &mut exec::BitMachine, txenv: &Self::TxEnv) -> Result<(), Self::JetErr>;
 
     /// Return the CMR of the node
     fn cmr(&self) -> Cmr;
+
+    /// Return the WMR of the node
+    fn wmr(&self) -> Cmr;
 
     /// The name of the source type of this node
     fn source_type(&self) -> TypeName;
@@ -94,3 +98,6 @@ pub trait Jet: Sized + fmt::Display {
     /// The name of the target type of this node
     fn target_type(&self) -> TypeName;
 }
+
+/// Errors encountered while executing a jet
+pub trait ExtError: std::error::Error {}

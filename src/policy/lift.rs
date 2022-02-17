@@ -16,9 +16,10 @@
 //! Currently the policy compilation is one to one mapping
 //! between policy fragment and a simplicity program.
 
-use crate::core::bitvec_to_bytevec;
 use crate::core::term::DagTerm;
 use crate::extension::bitcoin::BtcNode;
+use crate::util::bitvec_to_bytevec;
+use crate::util::slice_to_u32_be;
 use crate::PubkeyKey32;
 use crate::Value;
 use bitcoin_hashes::{sha256, Hash};
@@ -62,7 +63,7 @@ where
                 match (&**l, &**r) {
                     (DagTerm::Pair(key, w), DagTerm::Jet(SchnorrAssert)) => {
                         let key_value = read_scribed_value(Rc::clone(&Rc::clone(key)));
-                        let key_bytes = bitvec_to_bytevec(key_value.into_bits());
+                        let key_bytes = bitvec_to_bytevec(&key_value.into_bits());
                         let k = DummyKey::from_32_byte_pubkey(&key_bytes);
                         match &**w {
                             DagTerm::Witness(..) => Semantic::KeyHash(k.to_pubkeyhash()),
@@ -71,7 +72,7 @@ where
                     }
                     (DagTerm::Pair(scribed_hash, computed_hash), DagTerm::Jet(EqV256)) => {
                         let hash_value = read_scribed_value(Rc::clone(&Rc::clone(scribed_hash)));
-                        let hash_bytes = bitvec_to_bytevec(hash_value.into_bits());
+                        let hash_bytes = bitvec_to_bytevec(&hash_value.into_bits());
                         let h = sha256::Hash::from_slice(&hash_bytes).unwrap();
                         match &**computed_hash {
                             DagTerm::Pair(w, sha_jet) => match (&**w, &**sha_jet) {
@@ -83,8 +84,8 @@ where
                     }
                     (DagTerm::Pair(scibe_t, computed_t), DagTerm::Jet(LessThanV32)) => {
                         let timelock_value = read_scribed_value(Rc::clone(&Rc::clone(scibe_t)));
-                        let timelock_bytes = bitvec_to_bytevec(timelock_value.into_bits());
-                        let t = u32_from_be_bytes(&timelock_bytes);
+                        let timelock_bytes = bitvec_to_bytevec(&timelock_value.into_bits());
+                        let t = slice_to_u32_be(&timelock_bytes);
                         match &**computed_t {
                             DagTerm::Ext(BtcNode::LockTime) => Semantic::After(t),
                             DagTerm::Ext(BtcNode::CurrentSequence) => Semantic::After(t),
@@ -97,15 +98,4 @@ where
             _ => unimplemented!(),
         }
     }
-}
-
-// utility function to convert 4 bytes [u8;4] to u32
-// panics if bytes.len() !=4
-fn u32_from_be_bytes(bytes: &[u8]) -> u32 {
-    assert!(bytes.len() == 4);
-    let mut ret: u32 = 0;
-    for (i, byte) in bytes.iter().enumerate() {
-        ret += (*byte as u32) * (1 << (24 - 8 * i));
-    }
-    ret
 }

@@ -20,8 +20,10 @@
 
 use bitcoin_hashes::{sha256, Hash, HashEngine};
 use byteorder::{LittleEndian, WriteBytesExt};
+use std::error;
 use std::{fmt, io};
 
+use super::ExtError;
 use super::TypeName;
 use crate::bititer::BitIter;
 use crate::cmr::Cmr;
@@ -104,6 +106,7 @@ impl fmt::Display for BtcNode {
 
 impl extension::Jet for BtcNode {
     type TxEnv = TxEnv;
+    type JetErr = BtcJetErr;
 
     fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<BtcNode, Error> {
         let code = match iter.read_bits_be(4) {
@@ -211,6 +214,10 @@ impl extension::Jet for BtcNode {
         }
     }
 
+    fn wmr(&self) -> Cmr {
+        self.cmr()
+    }
+
     fn encode<W: encode::BitWrite>(&self, w: &mut W) -> io::Result<usize> {
         match *self {
             BtcNode::Version => w.write_u8(64 + 0, 7),
@@ -234,7 +241,7 @@ impl extension::Jet for BtcNode {
         }
     }
 
-    fn exec(&self, mac: &mut exec::BitMachine, txenv: &Self::TxEnv) {
+    fn exec(&self, mac: &mut exec::BitMachine, txenv: &Self::TxEnv) -> Result<(), Self::JetErr> {
         // FIXME finish this
         match *self {
             BtcNode::InputsHash => {
@@ -271,5 +278,18 @@ impl extension::Jet for BtcNode {
             }
             ref b => unimplemented!("bitcoin {}", b),
         }
+        Ok(())
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum BtcJetErr {}
+
+impl fmt::Display for BtcJetErr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "TODO in a later commit")
+    }
+}
+
+impl error::Error for BtcJetErr {}
+impl ExtError for BtcJetErr {}

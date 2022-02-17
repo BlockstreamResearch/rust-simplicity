@@ -17,9 +17,10 @@
 //! If some extension is compiled out, it is replaced with this
 //!
 
+use std::error;
 use std::{fmt, io};
 
-use super::TypeName;
+use super::{ExtError, TypeName};
 use crate::bititer::BitIter;
 use crate::cmr;
 use crate::encode;
@@ -36,6 +37,7 @@ pub enum DummyNode {}
 
 impl extension::Jet for DummyNode {
     type TxEnv = TxEnv;
+    type JetErr = DummyJetErr;
 
     fn decode<I: Iterator<Item = u8>>(_: &mut BitIter<I>) -> Result<DummyNode, Error> {
         Err(Error::ParseError("[unavailable extension]"))
@@ -53,11 +55,15 @@ impl extension::Jet for DummyNode {
         match *self {}
     }
 
+    fn wmr(&self) -> cmr::Cmr {
+        match *self {}
+    }
+
     fn encode<W: encode::BitWrite>(&self, _: &mut W) -> io::Result<usize> {
         match *self {}
     }
 
-    fn exec(&self, _: &mut exec::BitMachine, _: &Self::TxEnv) {
+    fn exec(&self, _: &mut exec::BitMachine, _: &Self::TxEnv) -> Result<(), Self::JetErr> {
         match *self {}
     }
 }
@@ -67,3 +73,15 @@ impl fmt::Display for DummyNode {
         match *self {}
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum DummyJetErr {}
+
+impl fmt::Display for DummyJetErr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "TODO in a later commit")
+    }
+}
+
+impl error::Error for DummyJetErr {}
+impl ExtError for DummyJetErr {}
