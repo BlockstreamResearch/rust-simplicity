@@ -22,9 +22,10 @@
 use std::{cmp, fmt, sync::Arc};
 
 use crate::bititer::BitIter;
-use crate::cmr::{self, Amr, Cmr};
 use crate::core::term::UnTypedProg;
-use crate::core::{sha256_value, types};
+use crate::core::types;
+use crate::merkle::cmr::Cmr;
+use crate::merkle::common::{MerkleRoot, TermMerkleRoot};
 use crate::{encode, extension};
 use crate::{Error, Term, Value};
 
@@ -35,10 +36,8 @@ pub struct ProgramNode<Ext> {
     pub node: Term<Value, Ext>,
     /// Its index within the total program
     pub index: usize,
-    /// Its Commitment Merkle Root
+    /// Its commitment Merkle root
     pub cmr: Cmr,
-    /// Its Annotated Commitment Merkle Root
-    pub amr: Amr,
     /// Source type for this node
     pub source_ty: Arc<types::FinalType>,
     /// Target type for this node
@@ -155,7 +154,6 @@ impl<Ext: extension::Jet> Program<Ext> {
             let final_node = ProgramNode {
                 index: index,
                 cmr: compute_cmr(&ret, &node.node, index),
-                amr: Amr::from([0; 32]), // assign a random default initially
                 extra_cells_bound: compute_extra_cells_bound(
                     &ret,
                     &node.node,
@@ -167,10 +165,7 @@ impl<Ext: extension::Jet> Program<Ext> {
                 source_ty: node.source_ty,
                 target_ty: node.target_ty,
             };
-            // Append the typed annotated node to the program
             ret.push(final_node);
-            // Use the types to compute amr
-            ret[index].amr = compute_amr(&ret, &ret[index].node, index);
         }
         Ok(Program { nodes: ret })
     }
@@ -234,11 +229,13 @@ fn compute_cmr<Ext: extension::Jet>(
     node: &Term<Value, Ext>,
     idx: usize,
 ) -> Cmr {
-    let cmr_iv = node.cmr_iv();
+    let cmr_iv = Cmr::get_iv(node);
+
     match *node {
         Term::Iden
         | Term::Unit
         | Term::Witness(..)
+        | Term::Fail(..)
         | Term::Hidden(..)
         | Term::Ext(..)
         | Term::Jet(..) => cmr_iv,
@@ -250,79 +247,6 @@ fn compute_cmr<Ext: extension::Jet>(
         | Term::Pair(i, j)
         | Term::AssertL(i, j)
         | Term::AssertR(i, j) => cmr_iv.update(program[idx - i].cmr, program[idx - j].cmr),
-        Term::Fail(..) => unimplemented!(),
-    }
-}
-
-fn compute_amr<Ext: extension::Jet>(
-    program: &[ProgramNode<Ext>],
-    node: &Term<Value, Ext>,
-    idx: usize,
-) -> Amr {
-    let amr_iv = node.amr_iv();
-    match node {
-        Term::Iden | Term::Unit => amr_iv.update_1(program[idx].source_ty.tmr.into()),
-        Term::InjL(i) | Term::InjR(i) => {
-            // anon_i denotes the type annotation for i
-            if let types::FinalTypeInner::Sum(anno_b, anno_c) = &program[idx].target_ty.ty {
-                amr_iv
-                    .update(program[idx].source_ty.tmr.into(), anno_b.tmr.into())
-                    .update(anno_c.tmr.into(), program[idx - i].amr)
-            } else {
-                unreachable!("Type checked InjL/InjR must have target type as sum");
-            }
-        }
-        Term::Take(i) | Term::Drop(i) => {
-            if let types::FinalTypeInner::Product(anno_a, anno_b) = &program[idx].source_ty.ty {
-                amr_iv
-                    .update(anno_a.tmr.into(), anno_b.tmr.into())
-                    .update(program[idx].target_ty.tmr.into(), program[idx - i].amr)
-            } else {
-                unreachable!("Type checked Take/Drop must have source type as product");
-            }
-        }
-        Term::Comp(i, j) | Term::Pair(i, j) => amr_iv
-            .update_1(program[idx].source_ty.tmr.into())
-            .update(
-                program[idx - i].target_ty.tmr.into(),
-                program[idx - j].target_ty.tmr.into(), // target type of j and idx is same for comp
-            )
-            .update(program[idx - i].amr, program[idx - j].amr),
-        Term::Case(i, j) | Term::AssertL(i, j) | Term::AssertR(i, j) => {
-            if let types::FinalTypeInner::Product(anno_ab, anno_c) = &program[idx].source_ty.ty {
-                // Putting two conditions in same pattern is annoying because of RefCell matching
-                if let types::FinalTypeInner::Sum(anno_a, anno_b) = &anno_ab.ty {
-                    amr_iv
-                        .update(anno_a.tmr.into(), anno_b.tmr.into())
-                        .update(anno_c.tmr.into(), program[idx].target_ty.tmr.into())
-                        .update(program[idx - i].amr, program[idx - j].amr)
-                } else {
-                    unreachable!("Case expression typecheck");
-                }
-            } else {
-                unreachable!("Case expression typecheck");
-            }
-        }
-        Term::Disconnect(i, j) => {
-            if let types::FinalTypeInner::Product(anno_b, anno_d) = &program[idx].target_ty.ty {
-                debug_assert!(anno_d.tmr == program[idx - j].target_ty.tmr);
-                amr_iv
-                    .update(program[idx].source_ty.tmr.into(), anno_b.tmr.into())
-                    .update(
-                        program[idx - j].source_ty.tmr.into(),
-                        program[idx - j].target_ty.tmr.into(),
-                    )
-                    .update(program[idx - i].amr, program[idx - j].amr)
-            } else {
-                unreachable!("Type checked Take/Drop must have source type as product");
-            }
-        }
-        Term::Witness(ref data) => amr_iv.update_1(program[idx].source_ty.tmr.into()).update(
-            program[idx].target_ty.tmr.into(),
-            cmr::Amr::from(sha256_value(data)),
-        ),
-        Term::Fail(..) => unimplemented!(),
-        Term::Hidden(..) | Term::Ext(..) | Term::Jet(..) => amr_iv,
     }
 }
 

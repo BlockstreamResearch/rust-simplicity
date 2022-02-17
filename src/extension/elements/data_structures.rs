@@ -20,8 +20,8 @@
 
 use std::sync::Arc;
 
-use crate::cmr::Cmr;
 use crate::exec;
+use crate::merkle::cmr::Cmr;
 use bitcoin_hashes::{sha256, Hash, HashEngine};
 use byteorder::{BigEndian, LittleEndian, WriteBytesExt};
 use elements::confidential::{Asset, Nonce, Value};

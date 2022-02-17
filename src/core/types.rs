@@ -3,9 +3,10 @@
 
 use std::{cell::RefCell, cmp, fmt, mem, rc::Rc, sync::Arc};
 
-use crate::cmr::{tag, Tmr};
 use crate::extension;
 use crate::extension::Jet as ExtNode;
+use crate::merkle::common::{MerkleRoot, TypeMerkleRoot};
+use crate::merkle::tmr::Tmr;
 use crate::Error;
 use crate::Term;
 
@@ -43,19 +44,23 @@ pub struct FinalType {
 
 impl FinalType {
     fn unit() -> Self {
+        let ty = FinalTypeInner::Unit;
+
         Self {
-            ty: FinalTypeInner::Unit,
+            tmr: Tmr::get_iv(&ty),
+            ty,
             bit_width: 0,
-            tmr: tag::unit_type_tmr(),
             display: "1".to_owned(),
         }
     }
 
     fn sum(a: Arc<Self>, b: Arc<Self>) -> Self {
+        let ty = FinalTypeInner::Sum(a.clone(), b.clone());
+
         Self {
-            ty: FinalTypeInner::Sum(a.clone(), b.clone()),
+            tmr: Tmr::get_iv(&ty).update(a.tmr, b.tmr),
+            ty,
             bit_width: 1 + cmp::max(a.bit_width, b.bit_width),
-            tmr: tag::sum_type_tmr().update(a.tmr, b.tmr),
             display: if a.ty == FinalTypeInner::Unit && b.ty == FinalTypeInner::Unit {
                 "2".to_owned()
             } else {
@@ -65,10 +70,12 @@ impl FinalType {
     }
 
     fn prod(a: Arc<Self>, b: Arc<Self>) -> Self {
+        let ty = FinalTypeInner::Product(a.clone(), b.clone());
+
         Self {
-            ty: FinalTypeInner::Product(a.clone(), b.clone()),
+            tmr: Tmr::get_iv(&ty).update(a.tmr, b.tmr),
+            ty,
             bit_width: a.bit_width + b.bit_width,
-            tmr: tag::prod_type_tmr().update(a.tmr, b.tmr),
             display: if a.display == b.display {
                 match a.display.as_str() {
                     "2" => "2^2".to_owned(),

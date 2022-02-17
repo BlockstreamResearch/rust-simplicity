@@ -20,18 +20,19 @@ mod schnorr6;
 
 #[cfg(test)]
 mod tests {
-    use super::hashblock::{HASHBLOCK, HASHBLOCK_AMR, HASHBLOCK_CMR};
-    use super::schnorr0::{SCHNORR0, SCHNORR0_AMR, SCHNORR0_CMR};
-    use super::schnorr6::{SCHNORR6, SCHNORR6_AMR, SCHNORR6_CMR};
+    use super::hashblock::{HASHBLOCK, HASHBLOCK_CMR};
+    use super::schnorr0::{SCHNORR0, SCHNORR0_CMR};
+    use super::schnorr6::{SCHNORR6, SCHNORR6_CMR};
     use crate::extension::dummy::{DummyNode, TxEnv};
+    use crate::merkle::common::MerkleRoot;
     use crate::Value;
 
-    fn check_merkle_roots(prog: &[u8], cmr: [u8; 32], amr: [u8; 32]) {
+    // TODO: check IMR
+    fn check_merkle_roots(prog: &[u8], cmr: [u8; 32]) {
         let mut bits: crate::bititer::BitIter<_> = prog.iter().cloned().into();
         let program =
             crate::program::Program::<DummyNode>::decode(&mut bits).expect("decoding program");
         assert_eq!(program.root_node().cmr.into_inner(), cmr);
-        assert_eq!(program.root_node().amr.into_inner(), amr);
     }
 
     fn exec_prog(prog: &[u8]) {
@@ -45,10 +46,10 @@ mod tests {
     }
 
     #[test]
-    fn progs_cmr_amr() {
-        check_merkle_roots(&HASHBLOCK, HASHBLOCK_CMR, HASHBLOCK_AMR);
-        check_merkle_roots(&SCHNORR0, SCHNORR0_CMR, SCHNORR0_AMR);
-        check_merkle_roots(&SCHNORR6, SCHNORR6_CMR, SCHNORR6_AMR);
+    fn progs_cmr() {
+        check_merkle_roots(&HASHBLOCK, HASHBLOCK_CMR);
+        check_merkle_roots(&SCHNORR0, SCHNORR0_CMR);
+        check_merkle_roots(&SCHNORR6, SCHNORR6_CMR);
     }
 
     #[test]

@@ -1,6 +1,5 @@
-use crate::cmr::Cmr;
 use crate::extension::jets::JetsNode;
-use crate::{cmr, extension};
+use crate::merkle::cmr::Cmr;
 use crate::{Term, UnTypedProg};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -47,10 +46,10 @@ pub enum TermDag<Witness, Extension> {
         Rc<TermDag<Witness, Extension>>,
     ),
     Witness(Witness),
-    Fail([u8; 32], [u8; 32]),
-    Hidden(cmr::Cmr),
+    Fail(Cmr, Cmr),
+    Hidden(Cmr),
     Ext(Extension),
-    Jet(extension::jets::JetsNode),
+    Jet(JetsNode),
 }
 
 impl<Extension> TermDag<(), Extension> {
@@ -109,14 +108,14 @@ impl<Extension> TermDag<(), Extension> {
         Rc::new(TermDag::Witness(()))
     }
 
-    /// Create DAG with single `fail` node that contains the given `left` and `right` payloads
-    pub fn fail(left: [u8; 32], right: [u8; 32]) -> Rc<Self> {
-        Rc::new(TermDag::Fail(left, right))
+    /// Create DAG with single `fail` node that contains the given `left` and `right` hashes
+    pub fn fail(left_hash: Cmr, right_hash: Cmr) -> Rc<Self> {
+        Rc::new(TermDag::Fail(left_hash, right_hash))
     }
 
-    /// Create DAG with single `hidden` node that contains the given CMR
-    pub fn hidden(cmr: Cmr) -> Rc<Self> {
-        Rc::new(TermDag::Hidden(cmr))
+    /// Create DAG with single `hidden` node that contains the given hash
+    pub fn hidden(hash: Cmr) -> Rc<Self> {
+        Rc::new(TermDag::Hidden(hash))
     }
 
     /// Create DAG with single `extension` node that enables functionality beyond Full Simplicity
@@ -171,9 +170,8 @@ impl<Witness, Extension> TermDag<Witness, Extension> {
                     Rc::clone(&dag_list[index - r]),
                 )),
                 Term::Witness(w) => Rc::new(TermDag::Witness(w)),
-                //TODO: understand how Fail works and rename `a` and `b`
-                Term::Fail(a, b) => Rc::new(TermDag::Fail(a, b)),
-                Term::Hidden(c) => Rc::new(TermDag::Hidden(c)),
+                Term::Fail(hl, hr) => Rc::new(TermDag::Fail(hl, hr)),
+                Term::Hidden(h) => Rc::new(TermDag::Hidden(h)),
                 Term::Ext(e) => Rc::new(TermDag::Ext(e)),
                 Term::Jet(j) => Rc::new(TermDag::Jet(j)),
             };

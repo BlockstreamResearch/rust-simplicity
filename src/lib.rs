@@ -23,10 +23,10 @@ mod macros;
 
 pub mod bit_machine;
 pub mod bititer;
-pub mod cmr;
 pub mod core;
 pub mod encode;
 pub mod extension;
+pub mod merkle;
 
 // FIXME: Extend to elements mode.
 #[cfg(feature = "bitcoin")]

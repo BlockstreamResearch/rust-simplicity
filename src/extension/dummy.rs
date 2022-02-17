@@ -22,10 +22,10 @@ use std::{fmt, io};
 
 use super::{ExtError, TypeName};
 use crate::bititer::BitIter;
-use crate::cmr;
 use crate::encode;
 use crate::exec;
 use crate::extension;
+use crate::merkle::cmr::Cmr;
 use crate::Error;
 
 /// Dummy transaction environment
@@ -43,27 +43,23 @@ impl extension::Jet for DummyNode {
         Err(Error::ParseError("[unavailable extension]"))
     }
 
-    fn source_type(&self) -> TypeName {
+    fn encode<W: encode::BitWrite>(&self, _: &mut W) -> io::Result<usize> {
         match *self {} // lol rust
     }
 
-    fn target_type(&self) -> TypeName {
-        match *self {}
-    }
-
-    fn cmr(&self) -> cmr::Cmr {
-        match *self {}
-    }
-
-    fn wmr(&self) -> cmr::Cmr {
-        match *self {}
-    }
-
-    fn encode<W: encode::BitWrite>(&self, _: &mut W) -> io::Result<usize> {
-        match *self {}
-    }
-
     fn exec(&self, _: &mut exec::BitMachine, _: &Self::TxEnv) -> Result<(), Self::JetErr> {
+        match *self {}
+    }
+
+    fn cmr(&self) -> Cmr {
+        match *self {}
+    }
+
+    fn source_type(&self) -> TypeName {
+        match *self {}
+    }
+
+    fn target_type(&self) -> TypeName {
         match *self {}
     }
 }

@@ -4,6 +4,7 @@ extern crate simplicity;
 
 #[cfg(feature = "bitcoin")]
 use bitcoin::hashes::hex::FromHex;
+use simplicity::merkle::common::MerkleRoot;
 use simplicity::Value;
 
 // Some Fibonnacci program that uses Disconnect
