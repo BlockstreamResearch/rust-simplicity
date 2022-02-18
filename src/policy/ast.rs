@@ -360,7 +360,7 @@ mod tests {
         let prog: UnTypedProg<_, BtcNode> = pol.compile().unwrap();
 
         let prog =
-            Program::from_untyped_nodes(prog, &mut BitIter::from(witness.into_iter())).unwrap();
+            Program::from_untyped_program(prog, &mut BitIter::from(witness.into_iter())).unwrap();
         // prog.graph_print();
 
         let txenv = TxEnv::default();

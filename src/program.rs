@@ -24,6 +24,7 @@ use std::{cmp, fmt, sync::Arc};
 use crate::bititer::BitIter;
 use crate::core::term::UnTypedProg;
 use crate::core::types;
+use crate::core::types::TypedNode;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::common::{MerkleRoot, TermMerkleRoot};
 use crate::{encode, extension};
@@ -92,65 +93,31 @@ impl<Ext: extension::Jet> Program<Ext> {
     }
 
     /// Decode a program from a stream of bits
-    pub fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Program<Ext>, Error> {
-        // Decode a bunch of untyped, witness-less nodes
-        let nodes = encode::decode_program_no_witness(&mut *iter)?;
-
-        Program::<Ext>::from_untyped_nodes(nodes, iter)
+    pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Program<Ext>, Error> {
+        let untyped_program = encode::decode_program_no_witness(&mut *bits)?;
+        Program::<Ext>::from_untyped_program(untyped_program, bits)
     }
 
     /// Decode a program from a stream of bits
-    pub fn from_untyped_nodes<I: Iterator<Item = u8>>(
-        nodes: UnTypedProg<(), Ext>,
-        iter: &mut BitIter<I>,
+    pub fn from_untyped_program<I: Iterator<Item = u8>>(
+        untyped_program: UnTypedProg<(), Ext>,
+        witness_bits: &mut BitIter<I>,
     ) -> Result<Program<Ext>, Error> {
-        // Do type-checking
-        let typed_nodes = types::type_check(nodes)?;
+        let typed_program = types::type_check(untyped_program)?;
 
         // Parse witnesses, if available
         // FIXME actually only read as much as wit_len
-        let _wit_len = match iter.next() {
+        let _wit_len = match witness_bits.next() {
             Some(false) => 0,
-            Some(true) => encode::decode_natural(&mut *iter, None)?,
+            Some(true) => encode::decode_natural(&mut *witness_bits, None)?,
             None => return Err(Error::EndOfStream),
         };
 
-        let typed_nodes = typed_nodes
-            .into_iter()
-            .map::<Result<_, Error>, _>(|node| {
-                Ok(types::TypedNode {
-                    node: match node.node {
-                        // really, Rust???
-                        Term::Iden => Term::Iden,
-                        Term::Unit => Term::Unit,
-                        Term::InjL(i) => Term::InjL(i),
-                        Term::InjR(i) => Term::InjR(i),
-                        Term::Take(i) => Term::Take(i),
-                        Term::Drop(i) => Term::Drop(i),
-                        Term::Comp(i, j) => Term::Comp(i, j),
-                        Term::Case(i, j) => Term::Case(i, j),
-                        Term::AssertL(i, j) => Term::AssertL(i, j),
-                        Term::AssertR(i, j) => Term::AssertR(i, j),
-                        Term::Pair(i, j) => Term::Pair(i, j),
-                        Term::Disconnect(i, j) => Term::Disconnect(i, j),
-                        Term::Witness(()) => Term::Witness(Value::from_bits_and_type(
-                            &mut iter.by_ref(),
-                            &node.target_ty,
-                        )?),
-                        Term::Fail(x, y) => Term::Fail(x, y),
-                        Term::Hidden(x) => Term::Hidden(x),
-                        Term::Ext(e) => Term::Ext(e),
-                        Term::Jet(j) => Term::Jet(j),
-                    },
-                    source_ty: node.source_ty,
-                    target_ty: node.target_ty,
-                })
-            })
-            .collect::<Result<Vec<_>, _>>()?;
+        let typed_program = add_witness_data(typed_program, witness_bits)?;
 
         // Compute cached data and return
-        let mut ret = Vec::<ProgramNode<Ext>>::with_capacity(typed_nodes.len());
-        for (index, node) in typed_nodes.into_iter().enumerate() {
+        let mut ret = Vec::<ProgramNode<Ext>>::with_capacity(typed_program.len());
+        for (index, node) in typed_program.into_iter().enumerate() {
             let final_node = ProgramNode {
                 index: index,
                 cmr: compute_cmr(&ret, &node.node, index),
@@ -222,6 +189,47 @@ impl<Ext: extension::Jet> Program<Ext> {
             }
         }
     }
+}
+
+fn add_witness_data<Ext, I>(
+    typed_program: Vec<TypedNode<(), Ext>>,
+    witness_bits: &mut BitIter<I>,
+) -> Result<Vec<TypedNode<Value, Ext>>, Error>
+where
+    I: Iterator<Item = u8>,
+{
+    typed_program
+        .into_iter()
+        .map::<Result<_, Error>, _>(|node| {
+            Ok(TypedNode {
+                node: match node.node {
+                    // really, Rust???
+                    Term::Iden => Term::Iden,
+                    Term::Unit => Term::Unit,
+                    Term::InjL(i) => Term::InjL(i),
+                    Term::InjR(i) => Term::InjR(i),
+                    Term::Take(i) => Term::Take(i),
+                    Term::Drop(i) => Term::Drop(i),
+                    Term::Comp(i, j) => Term::Comp(i, j),
+                    Term::Case(i, j) => Term::Case(i, j),
+                    Term::AssertL(i, j) => Term::AssertL(i, j),
+                    Term::AssertR(i, j) => Term::AssertR(i, j),
+                    Term::Pair(i, j) => Term::Pair(i, j),
+                    Term::Disconnect(i, j) => Term::Disconnect(i, j),
+                    Term::Witness(()) => Term::Witness(Value::from_bits_and_type(
+                        witness_bits.by_ref(),
+                        &node.target_ty,
+                    )?),
+                    Term::Fail(x, y) => Term::Fail(x, y),
+                    Term::Hidden(x) => Term::Hidden(x),
+                    Term::Ext(e) => Term::Ext(e),
+                    Term::Jet(j) => Term::Jet(j),
+                },
+                source_ty: node.source_ty,
+                target_ty: node.target_ty,
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()
 }
 
 fn compute_cmr<Ext: extension::Jet>(
@@ -399,7 +407,7 @@ mod tests {
         prog.push(Term::Jet(JetsNode::Adder32));
         // prog.push(Node::Case(0, 1));
 
-        let prog = Program::from_untyped_nodes(
+        let prog = Program::from_untyped_program(
             UnTypedProg(prog),
             &mut BitIter::from(vec![0x00].into_iter()),
         )
@@ -418,7 +426,7 @@ mod tests {
         prog.push(Term::Witness(()));
         prog.push(Term::Comp(1, 2));
 
-        let prog = Program::from_untyped_nodes(
+        let prog = Program::from_untyped_program(
             UnTypedProg(prog),
             &mut BitIter::from(vec![0x80].into_iter()),
         )
