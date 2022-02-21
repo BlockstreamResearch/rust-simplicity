@@ -19,14 +19,16 @@
 //! data.
 //!
 
+use std::collections::HashMap;
 use std::{cmp, fmt, sync::Arc};
 
 use crate::bititer::BitIter;
 use crate::core::term::UnTypedProg;
 use crate::core::types;
-use crate::core::types::TypedNode;
+use crate::core::types::{FinalType, TypedNode};
 use crate::merkle::cmr::Cmr;
 use crate::merkle::common::{MerkleRoot, TermMerkleRoot};
+use crate::merkle::imr::Imr;
 use crate::{encode, extension};
 use crate::{Error, Term, Value};
 
@@ -39,6 +41,8 @@ pub struct ProgramNode<Ext> {
     pub index: usize,
     /// Its commitment Merkle root
     pub cmr: Cmr,
+    /// Its identity Merkle root
+    pub imr: Imr,
     /// Source type for this node
     pub source_ty: Arc<types::FinalType>,
     /// Target type for this node
@@ -114,27 +118,8 @@ impl<Ext: extension::Jet> Program<Ext> {
         };
 
         let typed_program = add_witness_data(typed_program, witness_bits)?;
-
-        // Compute cached data and return
-        let mut ret = Vec::<ProgramNode<Ext>>::with_capacity(typed_program.len());
-        for (index, node) in typed_program.into_iter().enumerate() {
-            let final_node = ProgramNode {
-                index: index,
-                cmr: compute_cmr(&ret, &node.node, index),
-                extra_cells_bound: compute_extra_cells_bound(
-                    &ret,
-                    &node.node,
-                    index,
-                    node.target_ty.bit_width(),
-                ),
-                frame_count_bound: compute_frame_count_bound(&ret, &node.node, index),
-                node: node.node,
-                source_ty: node.source_ty,
-                target_ty: node.target_ty,
-            };
-            ret.push(final_node);
-        }
-        Ok(Program { nodes: ret })
+        let finalized_program = compress_and_finalize(typed_program);
+        Ok(finalized_program)
     }
 
     /// Print out the program in a graphviz-parseable format
@@ -232,6 +217,86 @@ where
         .collect::<Result<Vec<_>, _>>()
 }
 
+/// Primary key for non-hidden nodes in shared (typed) Simplicity DAGs.
+/// _[`Term::Hidden`] nodes have their hash as primary key_
+type PrimaryKey = (Imr, Arc<FinalType>, Arc<FinalType>);
+
+fn compress_and_finalize<Ext: extension::Jet>(
+    typed_program: Vec<TypedNode<Value, Ext>>,
+) -> Program<Ext> {
+    let mut shared_program = Vec::<ProgramNode<Ext>>::new();
+    let mut shared_idx = 0;
+
+    let mut primary_key_to_shared_idx: HashMap<PrimaryKey, usize> = HashMap::new();
+    let mut hash_to_shared_idx: HashMap<Cmr, usize> = HashMap::new();
+    let mut unshared_to_shared_idx: HashMap<usize, usize> = HashMap::new();
+
+    for (unshared_idx, typed_node) in typed_program.into_iter().enumerate() {
+        let shared_node =
+            typed_node
+                .node
+                .into_shared(unshared_idx, shared_idx, &unshared_to_shared_idx);
+        let imr = compute_imr(
+            &shared_program,
+            &shared_node,
+            shared_idx,
+            &typed_node.target_ty,
+        );
+
+        if let Term::Hidden(h) = &shared_node {
+            if let Some(previous_shared_idx) = hash_to_shared_idx.get(h) {
+                unshared_to_shared_idx.insert(unshared_idx, *previous_shared_idx);
+                continue;
+            }
+
+            hash_to_shared_idx.insert(*h, shared_idx);
+        } else {
+            let primary_key = (
+                imr,
+                typed_node.source_ty.clone(),
+                typed_node.target_ty.clone(),
+            );
+
+            if let Some(previous_shared_idx) = primary_key_to_shared_idx.get(&primary_key) {
+                unshared_to_shared_idx.insert(unshared_idx, *previous_shared_idx);
+                continue;
+            }
+
+            primary_key_to_shared_idx.insert(primary_key, shared_idx);
+        }
+
+        unshared_to_shared_idx.insert(unshared_idx, shared_idx);
+
+        let cmr = compute_cmr(&shared_program, &shared_node, shared_idx);
+        let extra_cells_bound = compute_extra_cells_bound(
+            &shared_program,
+            &shared_node,
+            shared_idx,
+            typed_node.target_ty.bit_width(),
+        );
+        let frame_count_bound =
+            compute_frame_count_bound(&shared_program, &shared_node, shared_idx);
+
+        let finalized_node = ProgramNode {
+            node: shared_node,
+            index: shared_idx,
+            cmr,
+            imr,
+            source_ty: typed_node.source_ty,
+            target_ty: typed_node.target_ty,
+            extra_cells_bound,
+            frame_count_bound,
+        };
+
+        shared_program.push(finalized_node);
+        shared_idx += 1;
+    }
+
+    Program {
+        nodes: shared_program,
+    }
+}
+
 fn compute_cmr<Ext: extension::Jet>(
     program: &[ProgramNode<Ext>],
     node: &Term<Value, Ext>,
@@ -255,6 +320,34 @@ fn compute_cmr<Ext: extension::Jet>(
         | Term::Pair(i, j)
         | Term::AssertL(i, j)
         | Term::AssertR(i, j) => cmr_iv.update(program[idx - i].cmr, program[idx - j].cmr),
+    }
+}
+
+fn compute_imr<Ext: extension::Jet>(
+    program: &[ProgramNode<Ext>],
+    node: &Term<Value, Ext>,
+    idx: usize,
+    target_ty: &FinalType,
+) -> Imr {
+    let imr_iv = Imr::get_iv(node);
+
+    match *node {
+        Term::Iden
+        | Term::Unit
+        | Term::Fail(..)
+        | Term::Hidden(..)
+        | Term::Ext(..)
+        | Term::Jet(..) => imr_iv,
+        Term::InjL(i) | Term::InjR(i) | Term::Take(i) | Term::Drop(i) => {
+            imr_iv.update_1(program[idx - i].imr)
+        }
+        Term::Comp(i, j)
+        | Term::Case(i, j)
+        | Term::Pair(i, j)
+        | Term::AssertL(i, j)
+        | Term::AssertR(i, j)
+        | Term::Disconnect(i, j) => imr_iv.update(program[idx - i].imr, program[idx - j].imr),
+        Term::Witness(ref value) => imr_iv.update_value(value, target_ty),
     }
 }
 

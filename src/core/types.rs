@@ -32,7 +32,7 @@ pub enum FinalTypeInner {
     Product(Arc<FinalType>, Arc<FinalType>),
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, PartialOrd, Ord, Debug)]
 pub struct FinalType {
     pub ty: FinalTypeInner,
     pub bit_width: usize,
@@ -116,6 +116,20 @@ pub(crate) fn pow2_types() -> [Arc<FinalType>; 11] {
 impl fmt::Display for FinalType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.display)
+    }
+}
+
+impl PartialEq for FinalType {
+    fn eq(&self, other: &Self) -> bool {
+        self.tmr.eq(&other.tmr)
+    }
+}
+
+impl Eq for FinalType {}
+
+impl std::hash::Hash for FinalType {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.tmr.hash(state)
     }
 }
 

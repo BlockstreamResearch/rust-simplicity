@@ -1,5 +1,6 @@
 use crate::extension::jets::JetsNode;
 use crate::merkle::cmr::Cmr;
+use std::collections::HashMap;
 use std::hash::Hash;
 
 /// Simplicity expression node, including Bitcoin/Elements extensions
@@ -31,6 +32,58 @@ pub enum Term<Witness, Extension> {
     Hidden(Cmr),
     Ext(Extension),
     Jet(JetsNode),
+}
+
+impl<Witness, Extension> Term<Witness, Extension> {
+    /// Converts the term to a term that uses sharing.
+    ///
+    /// The relative indices are updated such that
+    /// the IMRs of terms pointed to in the unshared program equal
+    /// the IMRs of terms pointed to in the shared program.
+    pub(crate) fn into_shared(
+        self,
+        unshared_idx: usize,
+        shared_idx: usize,
+        unshared_to_shared_idx: &HashMap<usize, usize>,
+    ) -> Self {
+        let get_relative_shared_ptr_idx = |relative_unshared_ptr_idx: usize| {
+            let unshared_ptr_idx = unshared_idx - relative_unshared_ptr_idx;
+            let shared_ptr_idx = unshared_to_shared_idx[&unshared_ptr_idx];
+            shared_idx - shared_ptr_idx
+        };
+
+        match self {
+            Term::InjL(i) => Term::InjL(get_relative_shared_ptr_idx(i)),
+            Term::InjR(i) => Term::InjR(get_relative_shared_ptr_idx(i)),
+            Term::Take(i) => Term::Take(get_relative_shared_ptr_idx(i)),
+            Term::Drop(i) => Term::Drop(get_relative_shared_ptr_idx(i)),
+            Term::Comp(i, j) => Term::Comp(
+                get_relative_shared_ptr_idx(i),
+                get_relative_shared_ptr_idx(j),
+            ),
+            Term::Case(i, j) => Term::Case(
+                get_relative_shared_ptr_idx(i),
+                get_relative_shared_ptr_idx(j),
+            ),
+            Term::AssertL(i, j) => Term::AssertL(
+                get_relative_shared_ptr_idx(i),
+                get_relative_shared_ptr_idx(j),
+            ),
+            Term::AssertR(i, j) => Term::AssertR(
+                get_relative_shared_ptr_idx(i),
+                get_relative_shared_ptr_idx(j),
+            ),
+            Term::Pair(i, j) => Term::Pair(
+                get_relative_shared_ptr_idx(i),
+                get_relative_shared_ptr_idx(j),
+            ),
+            Term::Disconnect(i, j) => Term::Disconnect(
+                get_relative_shared_ptr_idx(i),
+                get_relative_shared_ptr_idx(j),
+            ),
+            _ => self,
+        }
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
