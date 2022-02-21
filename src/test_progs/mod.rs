@@ -24,7 +24,6 @@ mod tests {
     use super::schnorr0::{SCHNORR0, SCHNORR0_AMR, SCHNORR0_CMR};
     use super::schnorr6::{SCHNORR6, SCHNORR6_AMR, SCHNORR6_CMR};
     use crate::extension::dummy::{DummyNode, TxEnv};
-    use crate::util::bitvec_to_bytevec;
     use crate::Value;
 
     fn check_merkle_roots(prog: &[u8], cmr: [u8; 32], amr: [u8; 32]) {
@@ -81,7 +80,7 @@ mod tests {
             0xf2, 0x0, 0x15, 0xad,
         ];
         let output = mac.exec(&program, &txenv).unwrap();
-        assert_eq!(bitvec_to_bytevec(&output.into_bits()), expected);
+        assert_eq!(output.try_to_bytes().unwrap(), expected);
     }
 
     #[test]

@@ -106,28 +106,57 @@ impl Value {
         )
     }
 
-    /// Convert the value to a byte array.
-    pub fn into_bits(self) -> Vec<bool> {
-        let mut ret = vec![];
-        fn into_bit_helper(v: Value, ret: &mut Vec<bool>) {
-            match v {
+    /// Encode value as big-endian byte string.
+    /// Fails if underlying bit string has length not divisible by 8
+    pub fn try_to_bytes(&self) -> Result<Vec<u8>, &str> {
+        let (bytes, bit_length) = self.to_bytes_len();
+
+        if bit_length % 8 == 0 {
+            Ok(bytes)
+        } else {
+            Err("Length of bit string that encodes this value is not divisible by 8!")
+        }
+    }
+
+    /// Encode value as big-endian byte string.
+    /// Trailing zeroes are added as padding if underlying bit string has length not divisible by 8.
+    /// The length of said bit string is returned as second argument
+    pub fn to_bytes_len(&self) -> (Vec<u8>, usize) {
+        let mut bytes = vec![];
+        let mut unfinished_byte = Vec::with_capacity(8);
+        let mut value_stack = vec![self];
+
+        while let Some(value) = value_stack.pop() {
+            match value {
                 Value::Unit => {}
                 Value::SumL(l) => {
-                    ret.push(false);
-                    into_bit_helper(*l, ret);
+                    unfinished_byte.push(false);
+                    value_stack.push(l);
                 }
                 Value::SumR(r) => {
-                    ret.push(true);
-                    into_bit_helper(*r, ret);
+                    unfinished_byte.push(true);
+                    value_stack.push(r);
                 }
                 Value::Prod(l, r) => {
-                    into_bit_helper(*l, ret);
-                    into_bit_helper(*r, ret);
+                    value_stack.push(r);
+                    value_stack.push(l);
                 }
             }
+
+            if unfinished_byte.len() == 8 {
+                bytes.push(unfinished_byte.iter().fold(0, |acc, &b| acc * 2 + b as u8));
+                unfinished_byte.clear();
+            }
         }
-        into_bit_helper(self, &mut ret);
-        ret
+
+        let bit_length = bytes.len() * 8 + unfinished_byte.len();
+
+        if !unfinished_byte.is_empty() {
+            unfinished_byte.resize(8, false);
+            bytes.push(unfinished_byte.iter().fold(0, |acc, &b| acc * 2 + b as u8));
+        }
+
+        (bytes, bit_length)
     }
 
     /// Convenience constructor for a left sum of a value

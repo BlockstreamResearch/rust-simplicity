@@ -19,7 +19,6 @@
 use crate::core::term_dag::TermDag;
 use crate::extension::bitcoin::BtcNode;
 use crate::extension::jets::JetsNode::{EqV256, LessThanV32, SchnorrAssert, Sha256};
-use crate::util::bitvec_to_bytevec;
 use crate::util::slice_to_u32_be;
 use crate::PubkeyKey32;
 use crate::Value;
@@ -62,7 +61,7 @@ where
                 match (&**l, &**r) {
                     (TermDag::Pair(key, w), TermDag::Jet(SchnorrAssert)) => {
                         let key_value = read_scribed_value(Rc::clone(&Rc::clone(key)));
-                        let key_bytes = bitvec_to_bytevec(&key_value.into_bits());
+                        let key_bytes = key_value.try_to_bytes().unwrap();
                         let k = DummyKey::from_32_byte_pubkey(&key_bytes);
                         match &**w {
                             TermDag::Witness(..) => Semantic::KeyHash(k.to_pubkeyhash()),
@@ -71,7 +70,7 @@ where
                     }
                     (TermDag::Pair(scribed_hash, computed_hash), TermDag::Jet(EqV256)) => {
                         let hash_value = read_scribed_value(Rc::clone(&Rc::clone(scribed_hash)));
-                        let hash_bytes = bitvec_to_bytevec(&hash_value.into_bits());
+                        let hash_bytes = hash_value.try_to_bytes().unwrap();
                         let h = sha256::Hash::from_slice(&hash_bytes).unwrap();
                         match &**computed_hash {
                             TermDag::Pair(w, sha_jet) => match (&**w, &**sha_jet) {
@@ -83,7 +82,7 @@ where
                     }
                     (TermDag::Pair(scibe_t, computed_t), TermDag::Jet(LessThanV32)) => {
                         let timelock_value = read_scribed_value(Rc::clone(&Rc::clone(scibe_t)));
-                        let timelock_bytes = bitvec_to_bytevec(&timelock_value.into_bits());
+                        let timelock_bytes = timelock_value.try_to_bytes().unwrap();
                         let t = slice_to_u32_be(&timelock_bytes);
                         match &**computed_t {
                             TermDag::Ext(BtcNode::LockTime) => Semantic::After(t),

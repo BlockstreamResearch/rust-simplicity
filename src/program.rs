@@ -319,7 +319,7 @@ fn compute_amr<Ext: extension::Jet>(
         }
         Term::Witness(ref data) => amr_iv.update_1(program[idx].source_ty.tmr.into()).update(
             program[idx].target_ty.tmr.into(),
-            cmr::Amr::from(sha256_value(data.clone())),
+            cmr::Amr::from(sha256_value(data)),
         ),
         Term::Fail(..) => unimplemented!(),
         Term::Hidden(..) | Term::Ext(..) | Term::Jet(..) => amr_iv,

@@ -15,10 +15,7 @@
 
 use bitcoin_hashes::{sha256, HashEngine};
 
-use crate::{
-    util::{bitvec_to_bytevec, u64_to_array_be},
-    Value,
-};
+use crate::{util::u64_to_array_be, Value};
 /// Core Module for simplicity
 pub mod term;
 pub mod term_dag;
@@ -36,42 +33,41 @@ pub(crate) trait SimplicityHash {
 /// but since the bitcoin_hashes does not support input message when
 /// it is not a multiple of 8 bits. We have to reimplement that here.
 /// Consumes the value as we are reading it anyways.
-// FIXME: Consider taking a reference and inplementing to_bits() instead
-// At first glance, maybe we are still reading the entire value so it
-// makes sense to consume it.
-pub(crate) fn sha256_value(v: Value) -> [u8; 32] {
-    let mut bits = v.into_bits();
-    let len = bits.len();
-    // Now that we have stored the len modify the bitvec for the sha2
-    // specification
-    // append a single '1' bit
-    bits.push(true);
-    // append K '0' bits, where K is the minimum number >= 0 such that L + 1 + K + 64 is a multiple of 512
-    let k;
-    if len % 512 >= 448 {
-        // 448 from the next byte.
-        k = 448 + (512 - (len % 512) - 1);
+pub(crate) fn sha256_value(v: &Value) -> [u8; 32] {
+    let (mut bytes, bit_length) = v.to_bytes_len();
+
+    // Append single '1' bit
+    if bit_length % 8 == 0 {
+        bytes.push(0x80);
     } else {
-        k = 448 - 1 - (len % 512);
+        let delimiter_index = bit_length % 8;
+        *bytes.last_mut().unwrap() |= 1 << (7 - delimiter_index);
     }
-    let sz = bits.len();
-    bits.resize(sz + k, false);
 
-    debug_assert!(bits.len() % 512 == 448);
-    // append L as a 64-bit big-endian integer, making the total post-processed length a multiple of 512 bits
-    let mut block_bytes = bitvec_to_bytevec(&bits);
-    let len_bytes = u64_to_array_be(len as u64);
-    // IntoIter not implemented for [u8; N]. Cheap to allocate agian for 2 bytes
-    block_bytes.extend(&len_bytes);
-    debug_assert!(block_bytes.len() % 16 == 0);
+    // Append k '0x00' bytes, where k is minimum number >= 0 such that bytes.len() + k + 8 is multiple of 64
+    let k = if bytes.len() % 64 > 56 {
+        // Not enough space for 64-bit integer
+        // Pad with zeroes until next block is 64 bits short of completion
+        56 + (64 - (bytes.len() % 64))
+    } else {
+        // Pad with zeroes until current block is 64 bits short of completion
+        56 - (bytes.len() % 64)
+    };
+    bytes.resize(bytes.len() + k, 0x00);
+    debug_assert!(bytes.len() % 64 == 56);
 
-    // Now compute the hash as normal since data is multiple of 512 bits
+    // Append bit_length as 64-bit bit-endian integer
+    let bit_length_bytes = u64_to_array_be(bit_length as u64);
+    bytes.extend(&bit_length_bytes);
+    debug_assert!(bytes.len() % 16 == 0);
+
+    // Compute hash normally since bytes.len() is multiple of 64
     let mut consumed = 0;
     let mut engine = sha256::HashEngine::default();
-    while consumed < block_bytes.len() {
-        engine.input(&block_bytes[consumed..(consumed + 16)]);
+    while consumed < bytes.len() {
+        engine.input(&bytes[consumed..(consumed + 16)]);
         consumed += 16;
     }
-    debug_assert!(consumed == block_bytes.len());
+    debug_assert!(consumed == bytes.len());
     engine.midstate().into_inner()
 }
