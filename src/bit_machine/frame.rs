@@ -159,7 +159,6 @@ impl Frame {
         T: From<u8> + Shl<usize, Output = T> + Add<Output = T>,
     {
         let (mut self_byte_index, self_bit_index) = get_indices(self.cursor);
-        let mut read_number;
 
         let number_bits = size_of::<T>() * 8;
         let number_leading_bits = 8 - self_bit_index;
@@ -169,7 +168,7 @@ impl Frame {
         // Read leading bits
         let read_mask = 0xff >> self_bit_index;
         let masked_data = data[self_byte_index] & read_mask;
-        read_number = T::from(masked_data << self_bit_index);
+        let mut read_number = T::from(masked_data << self_bit_index);
         self_byte_index += 1;
 
         for _ in 0..number_full_bytes {

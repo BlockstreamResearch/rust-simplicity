@@ -108,7 +108,7 @@ pub fn compile<Pk: MiniscriptKey + PubkeyKey32>(
         Policy::Trivial => TermDag::Unit,
         Policy::Key(ref pk) => {
             let pk_value = Value::from_bits_and_type(
-                &mut BitIter::from(pk.to_32_byte_pubkey().to_vec().into_iter()),
+                &mut BitIter::from(pk.to_32_byte_pubkey().iter().copied()),
                 &two_pow_256,
             )?;
             let scribe_pk = scribe(pk_value);
@@ -117,7 +117,7 @@ pub fn compile<Pk: MiniscriptKey + PubkeyKey32>(
         }
         Policy::Sha256(ref h) => {
             let hash_value = Value::from_bits_and_type(
-                &mut BitIter::from(h.into_inner().to_vec().into_iter()),
+                &mut BitIter::from(h.into_inner().iter().copied()),
                 &two_pow_256,
             )?;
             // scribe target hash
