@@ -3,16 +3,24 @@ use crate::merkle::cmr::Cmr;
 use std::collections::HashMap;
 use std::hash::Hash;
 
-/// Simplicity expression node, including Bitcoin/Elements extensions
+/// Single, untyped Simplicity node.
+/// May include Bitcoin/Elements extensions.
 ///
 /// If Bitcoin/Elements support is not compiled (see `bitcoin` and
-/// `elements` features) programs using these extensions will fail to
-/// parse.
+/// `elements` features), then programs using these extensions will
+/// fail to parse.
 ///
-/// All references being relative indices in the context of a program.
-/// For ex: InjL(2) at index 7, represents InjL(x) where x is a node
-/// at index 5.
-/// This is used for representing a final constructed simplicity program.
+/// A node consists of a combinator and its payload
+/// _(references to other nodes, witness data, etc.)_.
+/// A list of nodes forms an untyped Simplicity program,
+/// which represents an untyped Simplicity DAG.
+///
+/// References to other nodes are relative indices in the context of a program.
+/// For example, node `InjL(2)` at index 7 represents DAG `InjL → x`,
+/// where `x` is the DAG that the node at index 5 represents.
+/// A node has no meaning without a program.
+///
+/// The node representation is later used for executing Simplicity programs.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Term<Witness, Extension> {
     Iden,
@@ -86,6 +94,7 @@ impl<Witness, Extension> Term<Witness, Extension> {
     }
 }
 
+/// Untyped Simplicity program (see [`Term`]).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct UnTypedProg<Witness, Extension>(pub Vec<Term<Witness, Extension>>);
 

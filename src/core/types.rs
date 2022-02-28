@@ -374,10 +374,23 @@ struct UnificationArrow {
     target: Rc<RefCell<UnificationVar>>,
 }
 
+/// Single, typed Simplicity node.
+/// May include Bitcoin/Elements extensions (see [`Term`]).
+///
+/// A node consists of a combinator, its payload (see [`Term`]),
+/// its source type and its target type.
+/// A list of nodes forms a typed Simplicity program,
+/// which represents a typed Simplicity DAG.
+///
+/// Nodes have no meaning without a program.
+/// The node representation is later used for executing Simplicity programs.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct TypedNode<Witness, Ext> {
+    /// Combinator and payload
     pub node: Term<Witness, Ext>,
+    /// Source type of combinator
     pub source_ty: Arc<FinalType>,
+    /// Target type of combinator
     pub target_ty: Arc<FinalType>,
 }
 

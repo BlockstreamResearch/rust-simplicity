@@ -5,14 +5,17 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-/// Simplicity expression node, including Bitcoin/Elements extensions
+/// Untyped Simplicity DAG _(directed acyclic graph)_.
+/// May include Bitcoin/Elements extensions (see [`Term`]).
 ///
-/// If Bitcoin/Elements support is not compiled (see `bitcoin` and
-/// `elements` features) programs using these extensions will fail to
-/// parse.
+/// A DAG consists of a combinator as parent node and its payload
+/// _(references to sub-DAGs, witness data, etc.)_.
+/// A DAG corresponds to an untyped Simplicity program.
 ///
-/// The structure stores the simplicity program as a directed acyclic graph(DAG).
-/// This structure is useful for creating simplicity programs recursively.
+/// References to sub-DAGs are pointers to heap memory.
+///
+/// The DAG representation is used for inductively constructing Simplicity programs
+/// that are later translated into the node representation.
 #[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Debug)]
 pub enum TermDag<Witness, Extension> {
     Iden,

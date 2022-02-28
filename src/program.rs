@@ -32,20 +32,31 @@ use crate::merkle::imr::Imr;
 use crate::{encode, extension};
 use crate::{Error, Term, Value};
 
-/// A node in a complete program, with associated metadata
+/// Single, finalized Simplicity node.
+/// Includes witness data (encoded as [`Value`]).
+/// May include Bitcoin/Elements extensions (see [`Term`]).
+///
+/// A node consists of a combinator, its payload (see [`Term`]),
+/// its source and target types (see [`TypedNode`]),
+/// as well as additional metadata.
+/// A list of nodes forms a finalized Simplicity program,
+/// which represents a finalized Simplicity DAG.
+///
+/// Nodes have no meaning without a program.
+/// Finalized programs are executed on the Bit Machine.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct ProgramNode<Ext> {
-    /// The underlying node
+    /// Combinator and payload with witness data
     pub node: Term<Value, Ext>,
-    /// Its index within the total program
+    /// Index of node in encompassing program
     pub index: usize,
-    /// Its commitment Merkle root
+    /// Commitment Merkle root of node
     pub cmr: Cmr,
-    /// Its identity Merkle root
+    /// Identity Merkle root of node
     pub imr: Imr,
-    /// Source type for this node
+    /// Source type of combinator
     pub source_ty: Arc<types::FinalType>,
-    /// Target type for this node
+    /// Target type of combinator
     pub target_ty: Arc<types::FinalType>,
     /// Upper bound on the number of cells required in the Bit
     /// Machine by this node
@@ -83,10 +94,13 @@ impl<Ext: fmt::Display> fmt::Display for ProgramNode<Ext> {
     }
 }
 
-/// A fully parsed, witnesses-included Simplicity program
+/// Finalized Simplicity program,
+/// i.e., program of finalized Simplicity nodes (see [`ProgramNode`]).
+///
+/// Finalized programs are executed on the Bit Machine.
 #[derive(Debug)]
 pub struct Program<Ext> {
-    /// The list of nodes in the program
+    /// List of finalized nodes
     pub nodes: Vec<ProgramNode<Ext>>,
 }
 
