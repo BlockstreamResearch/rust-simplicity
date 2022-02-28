@@ -98,7 +98,7 @@ impl<Ext: fmt::Display> fmt::Display for ProgramNode<Ext> {
 /// i.e., program of finalized Simplicity nodes (see [`ProgramNode`]).
 ///
 /// Finalized programs are executed on the Bit Machine.
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct Program<Ext> {
     /// List of finalized nodes
     pub nodes: Vec<ProgramNode<Ext>>,
@@ -542,5 +542,90 @@ mod tests {
         let output = mac.exec(&prog, &TxEnv).unwrap();
 
         println!("{}", output);
+    }
+
+    #[test]
+    fn maximal_sharing_non_hidden() {
+        // Same combinator, same CMR
+        let minimal = UntypedProgram(vec![Term::Unit, Term::InjR(1)]);
+        let duplicate = UntypedProgram(vec![Term::Unit, Term::InjR(1), Term::Unit, Term::InjR(1)]);
+        assert!(equal_after_sharing(minimal.clone(), duplicate, &[0x00]));
+
+        // Same combinator, different CMR
+        let non_duplicate = UntypedProgram(vec![Term::Unit, Term::InjR(1), Term::InjR(1)]);
+        assert!(!equal_after_sharing(minimal, non_duplicate, &[0x00]));
+    }
+
+    #[test]
+    fn maximal_sharing_hidden() {
+        // Same hidden payload
+        let minimal = UntypedProgram(vec![Term::Hidden(Cmr::from([0; 32]))]);
+        let duplicate = UntypedProgram(vec![
+            Term::Hidden(Cmr::from([0; 32])),
+            Term::Hidden(Cmr::from([0; 32])),
+        ]);
+        assert!(equal_after_sharing(minimal.clone(), duplicate, &[0x00]));
+
+        // Different hidden payload
+        let non_duplicate = UntypedProgram(vec![
+            Term::Hidden(Cmr::from([0; 32])),
+            Term::Hidden(Cmr::from([1; 32])),
+        ]);
+        assert!(!equal_after_sharing(minimal, non_duplicate, &[0x00]));
+    }
+
+    #[test]
+    fn maximal_sharing_witness() {
+        // Program that takes 2 bits of witness data
+        let double_witness = UntypedProgram(vec![
+            Term::Unit,
+            Term::InjR(1),
+            Term::Witness(()),
+            // cond
+            Term::Drop(1),
+            Term::Drop(3),
+            Term::Case(2, 1),
+            // begin non-duplicate
+            Term::Witness(()),
+            Term::Drop(1),
+            Term::Case(1, 4),
+        ]);
+        // Same program with maximum sharing, provided that both witness bits are equal
+        let single_witness = UntypedProgram(vec![
+            Term::Unit,
+            Term::InjR(1),
+            Term::Witness(()),
+            Term::Drop(1),
+            Term::Drop(3),
+            Term::Case(2, 1),
+        ]);
+
+        // Leading '0' bit + two '0' witness bits
+        assert!(equal_after_sharing(
+            single_witness.clone(),
+            double_witness.clone(),
+            &[0x00]
+        ));
+        // Leading '0' bit + '1' witness bit + '0' witness bit
+        assert!(!equal_after_sharing(
+            single_witness,
+            double_witness,
+            &[0x55]
+        ));
+    }
+
+    fn equal_after_sharing(
+        left: UntypedProgram<(), DummyNode>,
+        right: UntypedProgram<(), DummyNode>,
+        witness_bytes: &[u8],
+    ) -> bool {
+        let shared_left =
+            Program::from_untyped_program(left, &mut BitIter::from(witness_bytes.iter().cloned()))
+                .unwrap();
+        let shared_right =
+            Program::from_untyped_program(right, &mut BitIter::from(witness_bytes.iter().cloned()))
+                .unwrap();
+
+        shared_left == shared_right
     }
 }
