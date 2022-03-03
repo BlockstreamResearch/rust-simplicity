@@ -28,7 +28,7 @@ use crate::extension;
 use crate::extension::Jet as ExtNode;
 use crate::{Error, Term};
 
-use crate::core::term::UnTypedProg;
+use crate::core::term::UntypedProgram;
 use crate::merkle::cmr::Cmr;
 
 /// Trait for writing individual bits to some sink
@@ -278,7 +278,7 @@ pub fn encode_node_no_witness<T, W: BitWrite, Ext: extension::Jet>(
 
 pub fn decode_program_no_witness<I: Iterator<Item = u8>, Ext: extension::Jet>(
     iter: &mut BitIter<I>,
-) -> Result<UnTypedProg<(), Ext>, Error> {
+) -> Result<UntypedProgram<(), Ext>, Error> {
     let prog_len = decode_natural(&mut *iter, None)?;
 
     // FIXME make this a reasonable limit
@@ -304,7 +304,7 @@ pub fn decode_program_no_witness<I: Iterator<Item = u8>, Ext: extension::Jet>(
         program.push(node);
     }
 
-    Ok(UnTypedProg(program))
+    Ok(UntypedProgram(program))
 }
 
 /// Encode a natural number according to section 7.2.1 of the Simplicity tech

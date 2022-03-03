@@ -96,20 +96,21 @@ impl<Witness, Extension> Term<Witness, Extension> {
 
 /// Untyped Simplicity program (see [`Term`]).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct UnTypedProg<Witness, Extension>(pub Vec<Term<Witness, Extension>>);
+pub struct UntypedProgram<Witness, Extension>(pub(crate) Vec<Term<Witness, Extension>>);
 
-impl<Witness, Extension> UnTypedProg<Witness, Extension> {
-    /// Whether this is the null program
+// TODO: move to trait that is common to all program types
+impl<Witness, Extension> UntypedProgram<Witness, Extension> {
+    /// Whether this program is empty
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
-    /// The number of (shared) terms in the program
+    /// Returns the number of terms in the program
     pub fn len(&self) -> usize {
         self.0.len()
     }
 
-    /// Returns an iterator over the (shared) terms in the program
+    /// Returns an iterator over the terms in the program
     pub fn iter(&self) -> impl Iterator<Item = &Term<Witness, Extension>> {
         self.0.iter()
     }

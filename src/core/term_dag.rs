@@ -1,6 +1,6 @@
 use crate::extension::jets::JetsNode;
 use crate::merkle::cmr::Cmr;
-use crate::{Term, UnTypedProg};
+use crate::{Term, UntypedProgram};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -133,14 +133,11 @@ impl<Extension> TermDag<(), Extension> {
 }
 
 impl<Witness, Extension> TermDag<Witness, Extension> {
-    /// Create a DAG representation from an untyped representation
-    pub fn from_untyped_prog(untyped_prog: UnTypedProg<Witness, Extension>) -> Rc<Self> {
-        assert!(
-            !untyped_prog.0.is_empty(),
-            "Untyped Program len must be greater than 0"
-        );
+    /// Create untyped DAG from node representation
+    pub fn from_untyped_program(program: UntypedProgram<Witness, Extension>) -> Rc<Self> {
+        assert!(!program.0.is_empty(), "Program must be non-empty");
         let mut dag_list: Vec<Rc<TermDag<_, _>>> = vec![];
-        for (index, term) in untyped_prog.0.into_iter().enumerate() {
+        for (index, term) in program.0.into_iter().enumerate() {
             let dag = match term {
                 Term::Iden => Rc::new(TermDag::Iden),
                 Term::Unit => Rc::new(TermDag::Unit),
@@ -221,8 +218,8 @@ where
     Witness: Hash + Clone,
     Extension: Hash + Clone,
 {
-    /// Convert a TermDag into into a untyped program vec.
-    pub fn into_untyped_prog(self) -> UnTypedProg<Witness, Extension> {
+    /// Convert untyped DAG into node representation.
+    pub fn into_untyped_program(self) -> UntypedProgram<Witness, Extension> {
         // helper function to recrusively compute the index positions
         // of the children.
         fn into_helper<Witness, Extension>(
@@ -294,6 +291,6 @@ where
         let mut index_map = HashMap::new();
         let _len = into_helper(Rc::new(self), &mut index_map, &mut prog);
 
-        UnTypedProg(prog)
+        UntypedProgram(prog)
     }
 }

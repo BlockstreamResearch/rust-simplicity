@@ -23,9 +23,9 @@ use std::collections::HashMap;
 use std::{cmp, fmt, sync::Arc};
 
 use crate::bititer::BitIter;
-use crate::core::term::UnTypedProg;
+use crate::core::term::UntypedProgram;
 use crate::core::types;
-use crate::core::types::{FinalType, TypedNode};
+use crate::core::types::{FinalType, TypedNode, TypedProgram};
 use crate::merkle::cmr::Cmr;
 use crate::merkle::common::{MerkleRoot, TermMerkleRoot};
 use crate::merkle::imr::Imr;
@@ -118,7 +118,7 @@ impl<Ext: extension::Jet> Program<Ext> {
 
     /// Decode a program from a stream of bits
     pub fn from_untyped_program<I: Iterator<Item = u8>>(
-        untyped_program: UnTypedProg<(), Ext>,
+        untyped_program: UntypedProgram<(), Ext>,
         witness_bits: &mut BitIter<I>,
     ) -> Result<Program<Ext>, Error> {
         let typed_program = types::type_check(untyped_program)?;
@@ -191,13 +191,14 @@ impl<Ext: extension::Jet> Program<Ext> {
 }
 
 fn add_witness_data<Ext, I>(
-    typed_program: Vec<TypedNode<(), Ext>>,
+    typed_program: TypedProgram<(), Ext>,
     witness_bits: &mut BitIter<I>,
-) -> Result<Vec<TypedNode<Value, Ext>>, Error>
+) -> Result<TypedProgram<Value, Ext>, Error>
 where
     I: Iterator<Item = u8>,
 {
-    typed_program
+    let ret = typed_program
+        .0
         .into_iter()
         .map::<Result<_, Error>, _>(|node| {
             Ok(TypedNode {
@@ -228,7 +229,9 @@ where
                 target_ty: node.target_ty,
             })
         })
-        .collect::<Result<Vec<_>, _>>()
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(TypedProgram(ret))
 }
 
 /// Primary key for non-hidden nodes in shared (typed) Simplicity DAGs.
@@ -236,7 +239,7 @@ where
 type PrimaryKey = (Imr, Arc<FinalType>, Arc<FinalType>);
 
 fn compress_and_finalize<Ext: extension::Jet>(
-    typed_program: Vec<TypedNode<Value, Ext>>,
+    typed_program: TypedProgram<Value, Ext>,
 ) -> Program<Ext> {
     let mut shared_program = Vec::<ProgramNode<Ext>>::new();
     let mut shared_idx = 0;
@@ -245,7 +248,7 @@ fn compress_and_finalize<Ext: extension::Jet>(
     let mut hash_to_shared_idx: HashMap<Cmr, usize> = HashMap::new();
     let mut unshared_to_shared_idx: HashMap<usize, usize> = HashMap::new();
 
-    for (unshared_idx, typed_node) in typed_program.into_iter().enumerate() {
+    for (unshared_idx, typed_node) in typed_program.0.into_iter().enumerate() {
         let shared_node =
             typed_node
                 .node
@@ -509,35 +512,29 @@ mod tests {
 
     #[test]
     fn encode_prog() {
-        let mut prog: Vec<Term<(), DummyNode>> = vec![];
+        let prog: UntypedProgram<(), DummyNode> = UntypedProgram(vec![
+            Term::Jet(JetsNode::Adder32),
+            // Node::Case(0, 1),
+        ]);
 
-        prog.push(Term::Jet(JetsNode::Adder32));
-        // prog.push(Node::Case(0, 1));
-
-        let prog = Program::from_untyped_program(
-            UnTypedProg(prog),
-            &mut BitIter::from(vec![0x00].into_iter()),
-        )
-        .unwrap();
+        let prog = Program::from_untyped_program(prog, &mut BitIter::from(vec![0x00].into_iter()))
+            .unwrap();
         prog.graph_print();
     }
 
     #[test]
     fn witness_and() {
-        let mut prog: Vec<Term<(), DummyNode>> = vec![];
+        let prog: UntypedProgram<(), DummyNode> = UntypedProgram(vec![
+            Term::Unit,
+            Term::InjR(1),
+            Term::Witness(()),
+            Term::Case(2, 1),
+            Term::Witness(()),
+            Term::Comp(1, 2),
+        ]);
 
-        prog.push(Term::Unit);
-        prog.push(Term::InjR(1));
-        prog.push(Term::Witness(()));
-        prog.push(Term::Case(2, 1));
-        prog.push(Term::Witness(()));
-        prog.push(Term::Comp(1, 2));
-
-        let prog = Program::from_untyped_program(
-            UnTypedProg(prog),
-            &mut BitIter::from(vec![0x80].into_iter()),
-        )
-        .unwrap();
+        let prog = Program::from_untyped_program(prog, &mut BitIter::from(vec![0x80].into_iter()))
+            .unwrap();
         prog.graph_print();
 
         let mut mac = exec::BitMachine::for_program(&prog);

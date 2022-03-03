@@ -10,7 +10,7 @@ use crate::merkle::tmr::Tmr;
 use crate::Error;
 use crate::Term;
 
-use super::term::UnTypedProg;
+use super::term::UntypedProgram;
 
 #[derive(Clone, Debug)]
 enum Type {
@@ -384,7 +384,7 @@ struct UnificationArrow {
 ///
 /// Nodes have no meaning without a program.
 /// The node representation is later used for executing Simplicity programs.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct TypedNode<Witness, Ext> {
     /// Combinator and payload
     pub node: Term<Witness, Ext>,
@@ -393,6 +393,10 @@ pub struct TypedNode<Witness, Ext> {
     /// Target type of combinator
     pub target_ty: Arc<FinalType>,
 }
+
+/// Typed Simplicity program (see [`TypedNode`]).
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct TypedProgram<Witness, Extension>(pub(crate) Vec<TypedNode<Witness, Extension>>);
 
 /// Convenience method for converting a type for an extension
 /// field from a name to an actual `Type`
@@ -421,11 +425,11 @@ fn type_from_name<I: Iterator<Item = u8>>(n: &mut I, pow2s: &[RcVar]) -> Type {
 
 /// Attach types to all nodes in a program
 pub fn type_check<Witness, Ext: extension::Jet>(
-    program: UnTypedProg<Witness, Ext>,
-) -> Result<Vec<TypedNode<Witness, Ext>>, Error> {
+    program: UntypedProgram<Witness, Ext>,
+) -> Result<TypedProgram<Witness, Ext>, Error> {
     let vec_nodes = program.0;
     if vec_nodes.is_empty() {
-        return Ok(vec![]);
+        return Ok(TypedProgram(vec![]));
     }
 
     let two_0 = Type::Unit.into_rcvar();
@@ -600,5 +604,5 @@ pub fn type_check<Witness, Ext: extension::Jet>(
         });
     }
 
-    Ok(finals)
+    Ok(TypedProgram(finals))
 }
