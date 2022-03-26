@@ -53,8 +53,8 @@ where
     Witness: Eq,
 {
     // Lift a simplicity program into a semantic policy
-    fn lift(&self) -> Semantic<DummyKey> {
-        match self {
+    fn lift(&self) -> Result<Semantic<DummyKey>, miniscript::Error> {
+        let ret = match self {
             TermDag::Unit => Semantic::Trivial,
             TermDag::Comp(l, r) => {
                 // check for Key
@@ -94,6 +94,8 @@ where
                 }
             }
             _ => unimplemented!(),
-        }
+        };
+
+        Ok(ret)
     }
 }

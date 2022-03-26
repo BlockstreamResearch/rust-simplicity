@@ -301,7 +301,7 @@ impl extension::Jet for BtcNode {
                 mac.write_u32(txenv.tx.lock_time);
             }
             BtcNode::Version => {
-                mac.write_u32(txenv.tx.version);
+                mac.write_u32(txenv.tx.version as u32);
             }
             ref b => unimplemented!("bitcoin {}", b),
         }
