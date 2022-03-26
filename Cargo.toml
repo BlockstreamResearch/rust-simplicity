@@ -13,10 +13,6 @@ default = [ "bitcoin", "elements" ]
 name = "simplicity"
 path = "src/lib.rs"
 
-[[bin]]
-name = "main"
-path = "src/main.rs"
-
 [dependencies.bitcoin]
 version = "0.23"
 optional = true
