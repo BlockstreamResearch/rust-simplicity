@@ -26,10 +26,11 @@ use std::{fmt, io};
 use super::ExtError;
 use super::TypeName;
 use crate::bititer::BitIter;
-use crate::cmr::Cmr;
 use crate::encode;
 use crate::exec;
 use crate::extension;
+use crate::merkle::cmr::Cmr;
+use crate::merkle::common::MerkleRoot;
 use crate::Error;
 
 /// Transaction environment for Bitcoin Simplicity programs
@@ -189,33 +190,59 @@ impl extension::Jet for BtcNode {
 
     fn cmr(&self) -> Cmr {
         match *self {
-            BtcNode::Version => Cmr::new(b"SimplicityPrimitiveBitcoin\x1fversion"),
-            BtcNode::LockTime => Cmr::new(b"SimplicityPrimitiveBitcoin\x1flockTime"),
-            BtcNode::InputsHash => Cmr::new(b"SimplicityPrimitiveBitcoin\x1finputsHash"),
-            BtcNode::OutputsHash => Cmr::new(b"SimplicityPrimitiveBitcoinx1foutputsHash"),
-            BtcNode::NumInputs => Cmr::new(b"SimplicityPrimitiveBitcoinx1fnumInputs"),
-            BtcNode::TotalInputValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1ftotalInputValue"),
+            BtcNode::Version => Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fBitcoin\x1fversion"),
+            BtcNode::LockTime => {
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fBitcoin\x1flockTime")
+            }
+            BtcNode::InputsHash => {
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fBitcoin\x1finputsHash")
+            }
+            BtcNode::OutputsHash => {
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fBitcoin\x1foutputsHash")
+            }
+            BtcNode::NumInputs => {
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fBitcoin\x1fnumInputs")
+            }
+            BtcNode::TotalInputValue => {
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fBitcoin\x1ftotalInputValue")
+            }
             BtcNode::CurrentPrevOutpoint => {
-                Cmr::new(b"SimplicityPrimitiveBitcoinx1fcurrentPrevOutpoint")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fBitcoin\x1fcurrentPrevOutpoint")
             }
-            BtcNode::CurrentValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1fcurrentValue"),
-            BtcNode::CurrentSequence => Cmr::new(b"SimplicityPrimitiveBitcoinx1fcurrentSequence"),
-            BtcNode::CurrentIndex => Cmr::new(b"SimplicityPrimitiveBitcoinx1fcurrentIndex"),
+            BtcNode::CurrentValue => {
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fBitcoin\x1fcurrentValue")
+            }
+            BtcNode::CurrentSequence => {
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fBitcoin\x1fcurrentSequence")
+            }
+            BtcNode::CurrentIndex => {
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fBitcoin\x1fcurrentIndex")
+            }
             BtcNode::InputPrevOutpoint => {
-                Cmr::new(b"SimplicityPrimitiveBitcoinx1finputPrevOutpoint")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fBitcoin\x1finputPrevOutpoint")
             }
-            BtcNode::InputValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1finputValue"),
-            BtcNode::InputSequence => Cmr::new(b"SimplicityPrimitiveBitcoinx1finputSequence"),
-            BtcNode::NumOutputs => Cmr::new(b"SimplicityPrimitiveBitcoinx1fnumOutputs"),
-            BtcNode::TotalOutputValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1ftotalOutputValue"),
-            BtcNode::OutputValue => Cmr::new(b"SimplicityPrimitiveBitcoinx1foutputValue"),
-            BtcNode::OutputScriptHash => Cmr::new(b"SimplicityPrimitiveBitcoinx1foutputScriptHash"),
-            BtcNode::ScriptCMR => Cmr::new(b"SimplicityPrimitiveBitcoinx1fscriptCMR"),
+            BtcNode::InputValue => {
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fBitcoin\x1finputValue")
+            }
+            BtcNode::InputSequence => {
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fBitcoin\x1finputSequence")
+            }
+            BtcNode::NumOutputs => {
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fBitcoin\x1fnumOutputs")
+            }
+            BtcNode::TotalOutputValue => {
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fBitcoin\x1ftotalOutputValue")
+            }
+            BtcNode::OutputValue => {
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fBitcoin\x1foutputValue")
+            }
+            BtcNode::OutputScriptHash => {
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fBitcoin\x1foutputScriptHash")
+            }
+            BtcNode::ScriptCMR => {
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fBitcoin\x1fscriptCMR")
+            }
         }
-    }
-
-    fn wmr(&self) -> Cmr {
-        self.cmr()
     }
 
     fn encode<W: encode::BitWrite>(&self, w: &mut W) -> io::Result<usize> {

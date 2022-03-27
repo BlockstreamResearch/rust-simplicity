@@ -31,7 +31,7 @@ use miniscript::MiniscriptKey;
 
 use crate::extension::bitcoin::BtcNode;
 
-use crate::core::term::UnTypedProg;
+use crate::core::term::UntypedProgram;
 use crate::Error;
 use crate::PubkeyKey32;
 
@@ -64,9 +64,9 @@ pub enum Policy<Pk: MiniscriptKey> {
 }
 impl<Pk: MiniscriptKey + PubkeyKey32> Policy<Pk> {
     /// Compile a policy into a simplicity frgament
-    pub fn compile(&self) -> Result<UnTypedProg<(), BtcNode>, Error> {
+    pub fn compile(&self) -> Result<UntypedProgram<(), BtcNode>, Error> {
         let dag = compiler::compile(self)?;
-        Ok(dag.into_untyped_prog())
+        Ok(dag.into_untyped_program())
     }
 }
 
@@ -357,10 +357,10 @@ mod tests {
     fn compile_and_exec(pol: &str, witness: Vec<u8>) {
         // A single pk compilation
         let pol = Policy::<DummyKey>::from_str(pol).unwrap();
-        let prog: UnTypedProg<_, BtcNode> = pol.compile().unwrap();
+        let prog: UntypedProgram<_, BtcNode> = pol.compile().unwrap();
 
         let prog =
-            Program::from_untyped_nodes(prog, &mut BitIter::from(witness.into_iter())).unwrap();
+            Program::from_untyped_program(prog, &mut BitIter::from(witness.into_iter())).unwrap();
         // prog.graph_print();
 
         let txenv = TxEnv::default();

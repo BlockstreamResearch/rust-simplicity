@@ -49,6 +49,7 @@ define_be_to_array!(u64_to_array_be, u64, 8);
 // handy function for converting bit vector to vec[u8]
 // # PANIC:
 // panics when bitvec length is not a multiple of 8.
+#[cfg(test)]
 pub(crate) fn bitvec_to_bytevec(bitvec: &[bool]) -> Vec<u8> {
     let mut ret = vec![];
     assert!(bitvec.len() % 8 == 0, "Bitvec len must be multiple of 8");

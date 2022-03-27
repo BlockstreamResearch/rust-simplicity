@@ -27,9 +27,11 @@ pub mod jets;
 use std::{fmt, io};
 
 use crate::bititer::BitIter;
-use crate::cmr::Cmr;
 use crate::encode;
 use crate::exec;
+use crate::merkle::cmr::Cmr;
+use crate::merkle::common::MerkleRoot;
+use crate::merkle::imr::Imr;
 use crate::Error;
 
 #[cfg(not(feature = "bitcoin"))]
@@ -89,8 +91,10 @@ pub trait Jet: Sized + fmt::Display {
     /// Return the CMR of the node
     fn cmr(&self) -> Cmr;
 
-    /// Return the WMR of the node
-    fn wmr(&self) -> Cmr;
+    /// Return the IMR of the node
+    fn imr(&self) -> Imr {
+        self.cmr().into_inner().into()
+    }
 
     /// The name of the source type of this node
     fn source_type(&self) -> TypeName;

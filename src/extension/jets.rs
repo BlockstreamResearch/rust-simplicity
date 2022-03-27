@@ -23,10 +23,11 @@ use std::{error, fmt, io};
 use super::{ExtError, TypeName};
 use crate::bitcoin_hashes::{sha256, Hash, HashEngine};
 use crate::bititer::BitIter;
-use crate::cmr::Cmr;
 use crate::encode;
 use crate::exec;
 use crate::extension;
+use crate::merkle::cmr::Cmr;
+use crate::merkle::common::MerkleRoot;
 use crate::Error;
 
 /// Set of new Simplicity nodes enabled by the Bitcoin extension
@@ -107,7 +108,7 @@ impl extension::Jet for JetsNode {
 
     /// CMR for this node
     fn cmr(&self) -> Cmr {
-        let cmr = Cmr::new(b"Simplicity-Draft\x1fJet");
+        let cmr = Cmr::tag_iv(b"Simplicity-Draft\x1fJet");
         match *self {
             JetsNode::Adder32 => cmr.update_1(Cmr::from([
                 0x6c, 0xd6, 0x15, 0x93, 0xe8, 0xe2, 0x43, 0xe5, 0xb7, 0x54, 0x4d, 0x2a, 0x12, 0x93,
@@ -170,10 +171,6 @@ impl extension::Jet for JetsNode {
                 0x31, 0xba, 0xec, 0x9f, //only last `a` changed to `f` from sha2 block cmr
             ])),
         }
-    }
-
-    fn wmr(&self) -> Cmr {
-        self.cmr()
     }
 
     /// Encode the node into a bitstream

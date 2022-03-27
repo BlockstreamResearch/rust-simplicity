@@ -16,30 +16,28 @@
 //! Currently the policy compilation is one to one mapping
 //! between policy fragment and a simplicity program.
 
-use crate::core::term::DagTerm;
+use crate::core::term_dag::TermDag;
 use crate::extension::bitcoin::BtcNode;
-use crate::util::bitvec_to_bytevec;
+use crate::extension::jets::JetsNode::{EqV256, LessThanV32, SchnorrAssert, Sha256};
 use crate::util::slice_to_u32_be;
 use crate::PubkeyKey32;
 use crate::Value;
+
 use bitcoin_hashes::{sha256, Hash};
 use miniscript::policy::Liftable;
 use miniscript::policy::Semantic;
 use miniscript::{DummyKey, MiniscriptKey};
-
-use crate::extension::jets::JetsNode::{EqV256, LessThanV32, SchnorrAssert, Sha256};
-
 use std::rc::Rc;
 
 /// Functional opposite of scribe. Read the scribed value
 /// by interpretting that as constant function and return
 /// a value corresponding to it.
-pub fn read_scribed_value<Witness, Ext>(dag: Rc<DagTerm<Witness, Ext>>) -> Value {
+pub fn read_scribed_value<Witness, Ext>(dag: Rc<TermDag<Witness, Ext>>) -> Value {
     match dag.as_ref() {
-        DagTerm::Unit => Value::Unit,
-        DagTerm::InjL(l) => Value::sum_l(read_scribed_value(Rc::clone(l))),
-        DagTerm::InjR(r) => Value::sum_r(read_scribed_value(Rc::clone(r))),
-        DagTerm::Pair(l, r) => Value::prod(
+        TermDag::Unit => Value::Unit,
+        TermDag::InjL(l) => Value::sum_l(read_scribed_value(Rc::clone(l))),
+        TermDag::InjR(r) => Value::sum_r(read_scribed_value(Rc::clone(r))),
+        TermDag::Pair(l, r) => Value::prod(
             read_scribed_value(Rc::clone(l)),
             read_scribed_value(Rc::clone(r)),
         ),
@@ -50,45 +48,45 @@ pub fn read_scribed_value<Witness, Ext>(dag: Rc<DagTerm<Witness, Ext>>) -> Value
 
 // FIXME: Wait for 32 byte pubkeys to be added to rust-bitcoin.
 // Then, we can add implementations that depend on bitcoin::PublicKey
-impl<Witness> Liftable<DummyKey> for DagTerm<Witness, BtcNode>
+impl<Witness> Liftable<DummyKey> for TermDag<Witness, BtcNode>
 where
     Witness: Eq,
 {
     // Lift a simplicity program into a semantic policy
     fn lift(&self) -> Semantic<DummyKey> {
         match self {
-            DagTerm::Unit => Semantic::Trivial,
-            DagTerm::Comp(l, r) => {
+            TermDag::Unit => Semantic::Trivial,
+            TermDag::Comp(l, r) => {
                 // check for Key
                 match (&**l, &**r) {
-                    (DagTerm::Pair(key, w), DagTerm::Jet(SchnorrAssert)) => {
+                    (TermDag::Pair(key, w), TermDag::Jet(SchnorrAssert)) => {
                         let key_value = read_scribed_value(Rc::clone(&Rc::clone(key)));
-                        let key_bytes = bitvec_to_bytevec(&key_value.into_bits());
+                        let key_bytes = key_value.try_to_bytes().unwrap();
                         let k = DummyKey::from_32_byte_pubkey(&key_bytes);
                         match &**w {
-                            DagTerm::Witness(..) => Semantic::KeyHash(k.to_pubkeyhash()),
+                            TermDag::Witness(..) => Semantic::KeyHash(k.to_pubkeyhash()),
                             _ => unimplemented!(),
                         }
                     }
-                    (DagTerm::Pair(scribed_hash, computed_hash), DagTerm::Jet(EqV256)) => {
+                    (TermDag::Pair(scribed_hash, computed_hash), TermDag::Jet(EqV256)) => {
                         let hash_value = read_scribed_value(Rc::clone(&Rc::clone(scribed_hash)));
-                        let hash_bytes = bitvec_to_bytevec(&hash_value.into_bits());
+                        let hash_bytes = hash_value.try_to_bytes().unwrap();
                         let h = sha256::Hash::from_slice(&hash_bytes).unwrap();
                         match &**computed_hash {
-                            DagTerm::Pair(w, sha_jet) => match (&**w, &**sha_jet) {
-                                (DagTerm::Witness(..), DagTerm::Jet(Sha256)) => Semantic::Sha256(h),
+                            TermDag::Pair(w, sha_jet) => match (&**w, &**sha_jet) {
+                                (TermDag::Witness(..), TermDag::Jet(Sha256)) => Semantic::Sha256(h),
                                 _ => unimplemented!(),
                             },
                             _ => unimplemented!(),
                         }
                     }
-                    (DagTerm::Pair(scibe_t, computed_t), DagTerm::Jet(LessThanV32)) => {
+                    (TermDag::Pair(scibe_t, computed_t), TermDag::Jet(LessThanV32)) => {
                         let timelock_value = read_scribed_value(Rc::clone(&Rc::clone(scibe_t)));
-                        let timelock_bytes = bitvec_to_bytevec(&timelock_value.into_bits());
+                        let timelock_bytes = timelock_value.try_to_bytes().unwrap();
                         let t = slice_to_u32_be(&timelock_bytes);
                         match &**computed_t {
-                            DagTerm::Ext(BtcNode::LockTime) => Semantic::After(t),
-                            DagTerm::Ext(BtcNode::CurrentSequence) => Semantic::After(t),
+                            TermDag::Ext(BtcNode::LockTime) => Semantic::After(t),
+                            TermDag::Ext(BtcNode::CurrentSequence) => Semantic::After(t),
                             _ => unimplemented!(),
                         }
                     }

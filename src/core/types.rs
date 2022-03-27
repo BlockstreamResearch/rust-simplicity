@@ -3,13 +3,14 @@
 
 use std::{cell::RefCell, cmp, fmt, mem, rc::Rc, sync::Arc};
 
-use crate::cmr::{tag, Tmr};
 use crate::extension;
 use crate::extension::Jet as ExtNode;
+use crate::merkle::common::{MerkleRoot, TypeMerkleRoot};
+use crate::merkle::tmr::Tmr;
 use crate::Error;
 use crate::Term;
 
-use super::term::UnTypedProg;
+use super::term::UntypedProgram;
 
 #[derive(Clone, Debug)]
 enum Type {
@@ -31,7 +32,7 @@ pub enum FinalTypeInner {
     Product(Arc<FinalType>, Arc<FinalType>),
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, PartialOrd, Ord, Debug)]
 pub struct FinalType {
     pub ty: FinalTypeInner,
     pub bit_width: usize,
@@ -43,19 +44,23 @@ pub struct FinalType {
 
 impl FinalType {
     fn unit() -> Self {
+        let ty = FinalTypeInner::Unit;
+
         Self {
-            ty: FinalTypeInner::Unit,
+            tmr: Tmr::get_iv(&ty),
+            ty,
             bit_width: 0,
-            tmr: tag::unit_type_tmr(),
             display: "1".to_owned(),
         }
     }
 
     fn sum(a: Arc<Self>, b: Arc<Self>) -> Self {
+        let ty = FinalTypeInner::Sum(a.clone(), b.clone());
+
         Self {
-            ty: FinalTypeInner::Sum(a.clone(), b.clone()),
+            tmr: Tmr::get_iv(&ty).update(a.tmr, b.tmr),
+            ty,
             bit_width: 1 + cmp::max(a.bit_width, b.bit_width),
-            tmr: tag::sum_type_tmr().update(a.tmr, b.tmr),
             display: if a.ty == FinalTypeInner::Unit && b.ty == FinalTypeInner::Unit {
                 "2".to_owned()
             } else {
@@ -65,10 +70,12 @@ impl FinalType {
     }
 
     fn prod(a: Arc<Self>, b: Arc<Self>) -> Self {
+        let ty = FinalTypeInner::Product(a.clone(), b.clone());
+
         Self {
-            ty: FinalTypeInner::Product(a.clone(), b.clone()),
+            tmr: Tmr::get_iv(&ty).update(a.tmr, b.tmr),
+            ty,
             bit_width: a.bit_width + b.bit_width,
-            tmr: tag::prod_type_tmr().update(a.tmr, b.tmr),
             display: if a.display == b.display {
                 match a.display.as_str() {
                     "2" => "2^2".to_owned(),
@@ -109,6 +116,20 @@ pub(crate) fn pow2_types() -> [Arc<FinalType>; 11] {
 impl fmt::Display for FinalType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.display)
+    }
+}
+
+impl PartialEq for FinalType {
+    fn eq(&self, other: &Self) -> bool {
+        self.tmr.eq(&other.tmr)
+    }
+}
+
+impl Eq for FinalType {}
+
+impl std::hash::Hash for FinalType {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.tmr.hash(state)
     }
 }
 
@@ -353,12 +374,29 @@ struct UnificationArrow {
     target: Rc<RefCell<UnificationVar>>,
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+/// Single, typed Simplicity node.
+/// May include Bitcoin/Elements extensions (see [`Term`]).
+///
+/// A node consists of a combinator, its payload (see [`Term`]),
+/// its source type and its target type.
+/// A list of nodes forms a typed Simplicity program,
+/// which represents a typed Simplicity DAG.
+///
+/// Nodes have no meaning without a program.
+/// The node representation is later used for executing Simplicity programs.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct TypedNode<Witness, Ext> {
+    /// Combinator and payload
     pub node: Term<Witness, Ext>,
+    /// Source type of combinator
     pub source_ty: Arc<FinalType>,
+    /// Target type of combinator
     pub target_ty: Arc<FinalType>,
 }
+
+/// Typed Simplicity program (see [`TypedNode`]).
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct TypedProgram<Witness, Extension>(pub(crate) Vec<TypedNode<Witness, Extension>>);
 
 /// Convenience method for converting a type for an extension
 /// field from a name to an actual `Type`
@@ -387,11 +425,11 @@ fn type_from_name<I: Iterator<Item = u8>>(n: &mut I, pow2s: &[RcVar]) -> Type {
 
 /// Attach types to all nodes in a program
 pub fn type_check<Witness, Ext: extension::Jet>(
-    program: UnTypedProg<Witness, Ext>,
-) -> Result<Vec<TypedNode<Witness, Ext>>, Error> {
+    program: UntypedProgram<Witness, Ext>,
+) -> Result<TypedProgram<Witness, Ext>, Error> {
     let vec_nodes = program.0;
     if vec_nodes.is_empty() {
-        return Ok(vec![]);
+        return Ok(TypedProgram(vec![]));
     }
 
     let two_0 = Type::Unit.into_rcvar();
@@ -566,5 +604,5 @@ pub fn type_check<Witness, Ext: extension::Jet>(
         });
     }
 
-    Ok(finals)
+    Ok(TypedProgram(finals))
 }

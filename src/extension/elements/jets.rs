@@ -23,11 +23,12 @@ use std::{fmt, io};
 
 use super::data_structures::{is_asset_new_issue, is_asset_reissue, SimplicityEncodable, TxEnv};
 use crate::bititer::BitIter;
-use crate::cmr::Cmr;
 use crate::encode;
 use crate::exec;
 use crate::extension::TypeName;
 use crate::extension::{self, ExtError};
+use crate::merkle::cmr::Cmr;
+use crate::merkle::common::MerkleRoot;
 use crate::Error;
 use bitcoin_hashes::{sha256, Hash};
 use elements::confidential::Value;
@@ -264,116 +265,112 @@ impl extension::Jet for ElementsNode {
     fn cmr(&self) -> Cmr {
         match *self {
             ElementsNode::Version => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fversion")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fversion")
             }
             ElementsNode::LockTime => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1flockTime")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1flockTime")
             }
             ElementsNode::InputIsPegin => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputIsPegin")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputIsPegin")
             }
             ElementsNode::InputPrevOutpoint => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputPrevOutpoint")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputPrevOutpoint")
             }
             ElementsNode::InputAsset => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputAsset")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputAsset")
             }
             ElementsNode::InputAmount => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputAmount")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputAmount")
             }
             ElementsNode::InputScriptHash => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputScriptHash")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputScriptHash")
             }
             ElementsNode::InputSequence => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputSequence")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputSequence")
             }
             ElementsNode::InputIssuanceBlinding => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputIssuanceBlinding")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputIssuanceBlinding")
             }
             ElementsNode::InputIssuanceContract => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputIssuanceContract")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputIssuanceContract")
             }
             ElementsNode::InputIssuanceEntropy => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputIssuanceEntropy")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputIssuanceEntropy")
             }
             ElementsNode::InputIssuanceAssetAmount => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputIssuanceAssetAmt")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputIssuanceAssetAmt")
             }
             ElementsNode::InputIssuanceTokenAmount => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputIssuanceTokenAmt")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputIssuanceTokenAmt")
             }
             ElementsNode::OutputAsset => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1foutputAsset")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1foutputAsset")
             }
             ElementsNode::OutputAmount => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1foutputAmount")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1foutputAmount")
             }
             ElementsNode::OutputNonce => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1foutputNonce")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1foutputNonce")
             }
             ElementsNode::OutputScriptHash => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1foutputScriptHash")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1foutputScriptHash")
             }
             ElementsNode::OutputNullDatum => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1foutputNullDatum")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1foutputNullDatum")
             }
             ElementsNode::ScriptCmr => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fscriptCMR")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fscriptCMR")
             }
             ElementsNode::CurrentIndex => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentIndex")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentIndex")
             }
             ElementsNode::CurrentIsPegin => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentIsPegin")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentIsPegin")
             }
             ElementsNode::CurrentPrevOutpoint => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentPrevOutpoint")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentPrevOutpoint")
             }
             ElementsNode::CurrentAsset => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentAsset")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentAsset")
             }
             ElementsNode::CurrentAmount => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentAmount")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentAmount")
             }
             ElementsNode::CurrentScriptHash => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentScriptHash")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentScriptHash")
             }
             ElementsNode::CurrentSequence => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentSequence")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentSequence")
             }
             ElementsNode::CurrentIssuanceBlinding => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentIssuanceBlinding")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentIssuanceBlinding")
             }
             ElementsNode::CurrentIssuanceContract => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentIssuanceContract")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentIssuanceContract")
             }
             ElementsNode::CurrentIssuanceEntropy => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentIssuanceEntropy")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentIssuanceEntropy")
             }
             ElementsNode::CurrentIssuanceAssetAmount => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentIssuanceAssetAmt")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentIssuanceAssetAmt")
             }
             ElementsNode::CurrentIssuanceTokenAmount => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentIssuanceTokenAmt")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fcurrentIssuanceTokenAmt")
             }
             ElementsNode::InputsHash => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputsHash")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1finputsHash")
             }
             ElementsNode::OutputsHash => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1foutputsHash")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1foutputsHash")
             }
             ElementsNode::NumInputs => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fnumInputs")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fnumInputs")
             }
             ElementsNode::NumOutputs => {
-                Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fnumOutputs")
+                Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1fnumOutputs")
             }
-            ElementsNode::Fee => Cmr::new(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1ffee"),
+            ElementsNode::Fee => Cmr::tag_iv(b"Simplicity-Draft\x1fPrimitive\x1fElements\x1ffee"),
         }
-    }
-
-    fn wmr(&self) -> Cmr {
-        self.cmr()
     }
 
     fn encode<W: encode::BitWrite>(&self, w: &mut W) -> io::Result<usize> {
@@ -606,7 +603,7 @@ impl extension::Jet for ElementsNode {
             }
             ElementsNode::OutputNullDatum => unimplemented!(),
             ElementsNode::ScriptCmr => {
-                mac.write_bytes(&txenv.script_cmr);
+                mac.write_bytes(txenv.script_cmr.as_ref());
             }
             ElementsNode::CurrentIndex => {
                 mac.write_u32(txenv.ix);
@@ -760,11 +757,12 @@ impl ExtError for ElementsJetErr {}
 mod tests {
     use std::sync::Arc;
 
-    use crate::cmr;
     use crate::extension::elements::data_structures::{ElementsUtxo, TxEnv};
     use crate::extension::elements::test_sighashall::{
-        ELEMENTS_CHECK_SIGHASH_ALL, SIGHASH_ALL_AMR, SIGHASH_ALL_CMR,
+        ELEMENTS_CHECK_SIGHASH_ALL, SIGHASH_ALL_CMR,
     };
+    use crate::merkle::cmr::Cmr;
+    use crate::merkle::common::MerkleRoot;
     use bitcoin::Script;
     use bitcoin_hashes::sha256;
     use elements::{
@@ -780,8 +778,7 @@ mod tests {
             crate::program::Program::<crate::extension::elements::ElementsNode>::decode(&mut bits)
                 .expect("decoding program");
         assert_eq!(program.root_node().cmr.into_inner(), SIGHASH_ALL_CMR);
-        assert_eq!(program.root_node().amr.into_inner(), SIGHASH_ALL_AMR);
-        // FIXME: Implement and check wmr
+        // TODO: check IMR
     }
     #[test]
     #[ignore] // too expensive to run. Run with -- --ignored to run this
@@ -888,7 +885,7 @@ mod tests {
             value: confidential::Value::Explicit(0x00000002540be400),
         };
 
-        let cmr = cmr::Cmr::from(SIGHASH_ALL_CMR);
+        let cmr = Cmr::from(SIGHASH_ALL_CMR);
         let mut bits: crate::bititer::BitIter<_> =
             ELEMENTS_CHECK_SIGHASH_ALL.iter().cloned().into();
         let program =

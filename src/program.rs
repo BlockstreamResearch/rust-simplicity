@@ -19,29 +19,44 @@
 //! data.
 //!
 
+use std::collections::HashMap;
 use std::{cmp, fmt, sync::Arc};
 
 use crate::bititer::BitIter;
-use crate::cmr::{self, Amr, Cmr};
-use crate::core::term::UnTypedProg;
-use crate::core::{sha256_value, types};
+use crate::core::term::UntypedProgram;
+use crate::core::types;
+use crate::core::types::{FinalType, TypedNode, TypedProgram};
+use crate::merkle::cmr::Cmr;
+use crate::merkle::common::{MerkleRoot, TermMerkleRoot};
+use crate::merkle::imr::Imr;
 use crate::{encode, extension};
 use crate::{Error, Term, Value};
 
-/// A node in a complete program, with associated metadata
+/// Single, finalized Simplicity node.
+/// Includes witness data (encoded as [`Value`]).
+/// May include Bitcoin/Elements extensions (see [`Term`]).
+///
+/// A node consists of a combinator, its payload (see [`Term`]),
+/// its source and target types (see [`TypedNode`]),
+/// as well as additional metadata.
+/// A list of nodes forms a finalized Simplicity program,
+/// which represents a finalized Simplicity DAG.
+///
+/// Nodes have no meaning without a program.
+/// Finalized programs are executed on the Bit Machine.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct ProgramNode<Ext> {
-    /// The underlying node
+    /// Combinator and payload with witness data
     pub node: Term<Value, Ext>,
-    /// Its index within the total program
+    /// Index of node in encompassing program
     pub index: usize,
-    /// Its Commitment Merkle Root
+    /// Commitment Merkle root of node
     pub cmr: Cmr,
-    /// Its Annotated Commitment Merkle Root
-    pub amr: Amr,
-    /// Source type for this node
+    /// Identity Merkle root of node
+    pub imr: Imr,
+    /// Source type of combinator
     pub source_ty: Arc<types::FinalType>,
-    /// Target type for this node
+    /// Target type of combinator
     pub target_ty: Arc<types::FinalType>,
     /// Upper bound on the number of cells required in the Bit
     /// Machine by this node
@@ -79,10 +94,13 @@ impl<Ext: fmt::Display> fmt::Display for ProgramNode<Ext> {
     }
 }
 
-/// A fully parsed, witnesses-included Simplicity program
-#[derive(Debug)]
+/// Finalized Simplicity program,
+/// i.e., program of finalized Simplicity nodes (see [`ProgramNode`]).
+///
+/// Finalized programs are executed on the Bit Machine.
+#[derive(Debug, Eq, PartialEq)]
 pub struct Program<Ext> {
-    /// The list of nodes in the program
+    /// List of finalized nodes
     pub nodes: Vec<ProgramNode<Ext>>,
 }
 
@@ -93,86 +111,29 @@ impl<Ext: extension::Jet> Program<Ext> {
     }
 
     /// Decode a program from a stream of bits
-    pub fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Program<Ext>, Error> {
-        // Decode a bunch of untyped, witness-less nodes
-        let nodes = encode::decode_program_no_witness(&mut *iter)?;
-
-        Program::<Ext>::from_untyped_nodes(nodes, iter)
+    pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Program<Ext>, Error> {
+        let untyped_program = encode::decode_program_no_witness(&mut *bits)?;
+        Program::<Ext>::from_untyped_program(untyped_program, bits)
     }
 
     /// Decode a program from a stream of bits
-    pub fn from_untyped_nodes<I: Iterator<Item = u8>>(
-        nodes: UnTypedProg<(), Ext>,
-        iter: &mut BitIter<I>,
+    pub fn from_untyped_program<I: Iterator<Item = u8>>(
+        untyped_program: UntypedProgram<(), Ext>,
+        witness_bits: &mut BitIter<I>,
     ) -> Result<Program<Ext>, Error> {
-        // Do type-checking
-        let typed_nodes = types::type_check(nodes)?;
+        let typed_program = types::type_check(untyped_program)?;
 
         // Parse witnesses, if available
         // FIXME actually only read as much as wit_len
-        let _wit_len = match iter.next() {
+        let _wit_len = match witness_bits.next() {
             Some(false) => 0,
-            Some(true) => encode::decode_natural(&mut *iter, None)?,
+            Some(true) => encode::decode_natural(&mut *witness_bits, None)?,
             None => return Err(Error::EndOfStream),
         };
 
-        let typed_nodes = typed_nodes
-            .into_iter()
-            .map::<Result<_, Error>, _>(|node| {
-                Ok(types::TypedNode {
-                    node: match node.node {
-                        // really, Rust???
-                        Term::Iden => Term::Iden,
-                        Term::Unit => Term::Unit,
-                        Term::InjL(i) => Term::InjL(i),
-                        Term::InjR(i) => Term::InjR(i),
-                        Term::Take(i) => Term::Take(i),
-                        Term::Drop(i) => Term::Drop(i),
-                        Term::Comp(i, j) => Term::Comp(i, j),
-                        Term::Case(i, j) => Term::Case(i, j),
-                        Term::AssertL(i, j) => Term::AssertL(i, j),
-                        Term::AssertR(i, j) => Term::AssertR(i, j),
-                        Term::Pair(i, j) => Term::Pair(i, j),
-                        Term::Disconnect(i, j) => Term::Disconnect(i, j),
-                        Term::Witness(()) => Term::Witness(Value::from_bits_and_type(
-                            &mut iter.by_ref(),
-                            &node.target_ty,
-                        )?),
-                        Term::Fail(x, y) => Term::Fail(x, y),
-                        Term::Hidden(x) => Term::Hidden(x),
-                        Term::Ext(e) => Term::Ext(e),
-                        Term::Jet(j) => Term::Jet(j),
-                    },
-                    source_ty: node.source_ty,
-                    target_ty: node.target_ty,
-                })
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-
-        // Compute cached data and return
-        let mut ret = Vec::<ProgramNode<Ext>>::with_capacity(typed_nodes.len());
-        for (index, node) in typed_nodes.into_iter().enumerate() {
-            let final_node = ProgramNode {
-                index: index,
-                cmr: compute_cmr(&ret, &node.node, index),
-                amr: Amr::from([0; 32]), // assign a random default initially
-                extra_cells_bound: compute_extra_cells_bound(
-                    &ret,
-                    &node.node,
-                    index,
-                    node.target_ty.bit_width(),
-                ),
-                frame_count_bound: compute_frame_count_bound(&ret, &node.node, index),
-                node: node.node,
-                source_ty: node.source_ty,
-                target_ty: node.target_ty,
-            };
-            // Append the typed annotated node to the program
-            ret.push(final_node);
-            // Use the types to compute amr
-            ret[index].amr = compute_amr(&ret, &ret[index].node, index);
-        }
-        Ok(Program { nodes: ret })
+        let typed_program = add_witness_data(typed_program, witness_bits)?;
+        let finalized_program = compress_and_finalize(typed_program);
+        Ok(finalized_program)
     }
 
     /// Print out the program in a graphviz-parseable format
@@ -229,16 +190,142 @@ impl<Ext: extension::Jet> Program<Ext> {
     }
 }
 
+fn add_witness_data<Ext, I>(
+    typed_program: TypedProgram<(), Ext>,
+    witness_bits: &mut BitIter<I>,
+) -> Result<TypedProgram<Value, Ext>, Error>
+where
+    I: Iterator<Item = u8>,
+{
+    let ret = typed_program
+        .0
+        .into_iter()
+        .map::<Result<_, Error>, _>(|node| {
+            Ok(TypedNode {
+                node: match node.node {
+                    // really, Rust???
+                    Term::Iden => Term::Iden,
+                    Term::Unit => Term::Unit,
+                    Term::InjL(i) => Term::InjL(i),
+                    Term::InjR(i) => Term::InjR(i),
+                    Term::Take(i) => Term::Take(i),
+                    Term::Drop(i) => Term::Drop(i),
+                    Term::Comp(i, j) => Term::Comp(i, j),
+                    Term::Case(i, j) => Term::Case(i, j),
+                    Term::AssertL(i, j) => Term::AssertL(i, j),
+                    Term::AssertR(i, j) => Term::AssertR(i, j),
+                    Term::Pair(i, j) => Term::Pair(i, j),
+                    Term::Disconnect(i, j) => Term::Disconnect(i, j),
+                    Term::Witness(()) => Term::Witness(Value::from_bits_and_type(
+                        witness_bits.by_ref(),
+                        &node.target_ty,
+                    )?),
+                    Term::Fail(x, y) => Term::Fail(x, y),
+                    Term::Hidden(x) => Term::Hidden(x),
+                    Term::Ext(e) => Term::Ext(e),
+                    Term::Jet(j) => Term::Jet(j),
+                },
+                source_ty: node.source_ty,
+                target_ty: node.target_ty,
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    Ok(TypedProgram(ret))
+}
+
+/// Primary key for non-hidden nodes in shared (typed) Simplicity DAGs.
+/// _[`Term::Hidden`] nodes have their hash as primary key_
+type PrimaryKey = (Imr, Arc<FinalType>, Arc<FinalType>);
+
+fn compress_and_finalize<Ext: extension::Jet>(
+    typed_program: TypedProgram<Value, Ext>,
+) -> Program<Ext> {
+    let mut shared_program = Vec::<ProgramNode<Ext>>::new();
+    let mut shared_idx = 0;
+
+    let mut primary_key_to_shared_idx: HashMap<PrimaryKey, usize> = HashMap::new();
+    let mut hash_to_shared_idx: HashMap<Cmr, usize> = HashMap::new();
+    let mut unshared_to_shared_idx: HashMap<usize, usize> = HashMap::new();
+
+    for (unshared_idx, typed_node) in typed_program.0.into_iter().enumerate() {
+        let shared_node =
+            typed_node
+                .node
+                .into_shared(unshared_idx, shared_idx, &unshared_to_shared_idx);
+        let imr = compute_imr(
+            &shared_program,
+            &shared_node,
+            shared_idx,
+            &typed_node.target_ty,
+        );
+
+        if let Term::Hidden(h) = &shared_node {
+            if let Some(previous_shared_idx) = hash_to_shared_idx.get(h) {
+                unshared_to_shared_idx.insert(unshared_idx, *previous_shared_idx);
+                continue;
+            }
+
+            hash_to_shared_idx.insert(*h, shared_idx);
+        } else {
+            let primary_key = (
+                imr,
+                typed_node.source_ty.clone(),
+                typed_node.target_ty.clone(),
+            );
+
+            if let Some(previous_shared_idx) = primary_key_to_shared_idx.get(&primary_key) {
+                unshared_to_shared_idx.insert(unshared_idx, *previous_shared_idx);
+                continue;
+            }
+
+            primary_key_to_shared_idx.insert(primary_key, shared_idx);
+        }
+
+        unshared_to_shared_idx.insert(unshared_idx, shared_idx);
+
+        let cmr = compute_cmr(&shared_program, &shared_node, shared_idx);
+        let extra_cells_bound = compute_extra_cells_bound(
+            &shared_program,
+            &shared_node,
+            shared_idx,
+            typed_node.target_ty.bit_width(),
+        );
+        let frame_count_bound =
+            compute_frame_count_bound(&shared_program, &shared_node, shared_idx);
+
+        let finalized_node = ProgramNode {
+            node: shared_node,
+            index: shared_idx,
+            cmr,
+            imr,
+            source_ty: typed_node.source_ty,
+            target_ty: typed_node.target_ty,
+            extra_cells_bound,
+            frame_count_bound,
+        };
+
+        shared_program.push(finalized_node);
+        shared_idx += 1;
+    }
+
+    Program {
+        nodes: shared_program,
+    }
+}
+
 fn compute_cmr<Ext: extension::Jet>(
     program: &[ProgramNode<Ext>],
     node: &Term<Value, Ext>,
     idx: usize,
 ) -> Cmr {
-    let cmr_iv = node.cmr_iv();
+    let cmr_iv = Cmr::get_iv(node);
+
     match *node {
         Term::Iden
         | Term::Unit
         | Term::Witness(..)
+        | Term::Fail(..)
         | Term::Hidden(..)
         | Term::Ext(..)
         | Term::Jet(..) => cmr_iv,
@@ -250,79 +337,34 @@ fn compute_cmr<Ext: extension::Jet>(
         | Term::Pair(i, j)
         | Term::AssertL(i, j)
         | Term::AssertR(i, j) => cmr_iv.update(program[idx - i].cmr, program[idx - j].cmr),
-        Term::Fail(..) => unimplemented!(),
     }
 }
 
-fn compute_amr<Ext: extension::Jet>(
+fn compute_imr<Ext: extension::Jet>(
     program: &[ProgramNode<Ext>],
     node: &Term<Value, Ext>,
     idx: usize,
-) -> Amr {
-    let amr_iv = node.amr_iv();
-    match node {
-        Term::Iden | Term::Unit => amr_iv.update_1(program[idx].source_ty.tmr.into()),
-        Term::InjL(i) | Term::InjR(i) => {
-            // anon_i denotes the type annotation for i
-            if let types::FinalTypeInner::Sum(anno_b, anno_c) = &program[idx].target_ty.ty {
-                amr_iv
-                    .update(program[idx].source_ty.tmr.into(), anno_b.tmr.into())
-                    .update(anno_c.tmr.into(), program[idx - i].amr)
-            } else {
-                unreachable!("Type checked InjL/InjR must have target type as sum");
-            }
+    target_ty: &FinalType,
+) -> Imr {
+    let imr_iv = Imr::get_iv(node);
+
+    match *node {
+        Term::Iden
+        | Term::Unit
+        | Term::Fail(..)
+        | Term::Hidden(..)
+        | Term::Ext(..)
+        | Term::Jet(..) => imr_iv,
+        Term::InjL(i) | Term::InjR(i) | Term::Take(i) | Term::Drop(i) => {
+            imr_iv.update_1(program[idx - i].imr)
         }
-        Term::Take(i) | Term::Drop(i) => {
-            if let types::FinalTypeInner::Product(anno_a, anno_b) = &program[idx].source_ty.ty {
-                amr_iv
-                    .update(anno_a.tmr.into(), anno_b.tmr.into())
-                    .update(program[idx].target_ty.tmr.into(), program[idx - i].amr)
-            } else {
-                unreachable!("Type checked Take/Drop must have source type as product");
-            }
-        }
-        Term::Comp(i, j) | Term::Pair(i, j) => amr_iv
-            .update_1(program[idx].source_ty.tmr.into())
-            .update(
-                program[idx - i].target_ty.tmr.into(),
-                program[idx - j].target_ty.tmr.into(), // target type of j and idx is same for comp
-            )
-            .update(program[idx - i].amr, program[idx - j].amr),
-        Term::Case(i, j) | Term::AssertL(i, j) | Term::AssertR(i, j) => {
-            if let types::FinalTypeInner::Product(anno_ab, anno_c) = &program[idx].source_ty.ty {
-                // Putting two conditions in same pattern is annoying because of RefCell matching
-                if let types::FinalTypeInner::Sum(anno_a, anno_b) = &anno_ab.ty {
-                    amr_iv
-                        .update(anno_a.tmr.into(), anno_b.tmr.into())
-                        .update(anno_c.tmr.into(), program[idx].target_ty.tmr.into())
-                        .update(program[idx - i].amr, program[idx - j].amr)
-                } else {
-                    unreachable!("Case expression typecheck");
-                }
-            } else {
-                unreachable!("Case expression typecheck");
-            }
-        }
-        Term::Disconnect(i, j) => {
-            if let types::FinalTypeInner::Product(anno_b, anno_d) = &program[idx].target_ty.ty {
-                debug_assert!(anno_d.tmr == program[idx - j].target_ty.tmr);
-                amr_iv
-                    .update(program[idx].source_ty.tmr.into(), anno_b.tmr.into())
-                    .update(
-                        program[idx - j].source_ty.tmr.into(),
-                        program[idx - j].target_ty.tmr.into(),
-                    )
-                    .update(program[idx - i].amr, program[idx - j].amr)
-            } else {
-                unreachable!("Type checked Take/Drop must have source type as product");
-            }
-        }
-        Term::Witness(ref data) => amr_iv.update_1(program[idx].source_ty.tmr.into()).update(
-            program[idx].target_ty.tmr.into(),
-            cmr::Amr::from(sha256_value(data.clone())),
-        ),
-        Term::Fail(..) => unimplemented!(),
-        Term::Hidden(..) | Term::Ext(..) | Term::Jet(..) => amr_iv,
+        Term::Comp(i, j)
+        | Term::Case(i, j)
+        | Term::Pair(i, j)
+        | Term::AssertL(i, j)
+        | Term::AssertR(i, j)
+        | Term::Disconnect(i, j) => imr_iv.update(program[idx - i].imr, program[idx - j].imr),
+        Term::Witness(ref value) => imr_iv.update_value(value, target_ty),
     }
 }
 
@@ -470,35 +512,29 @@ mod tests {
 
     #[test]
     fn encode_prog() {
-        let mut prog: Vec<Term<(), DummyNode>> = vec![];
+        let prog: UntypedProgram<(), DummyNode> = UntypedProgram(vec![
+            Term::Jet(JetsNode::Adder32),
+            // Node::Case(0, 1),
+        ]);
 
-        prog.push(Term::Jet(JetsNode::Adder32));
-        // prog.push(Node::Case(0, 1));
-
-        let prog = Program::from_untyped_nodes(
-            UnTypedProg(prog),
-            &mut BitIter::from(vec![0x00].into_iter()),
-        )
-        .unwrap();
+        let prog = Program::from_untyped_program(prog, &mut BitIter::from(vec![0x00].into_iter()))
+            .unwrap();
         prog.graph_print();
     }
 
     #[test]
     fn witness_and() {
-        let mut prog: Vec<Term<(), DummyNode>> = vec![];
+        let prog: UntypedProgram<(), DummyNode> = UntypedProgram(vec![
+            Term::Unit,
+            Term::InjR(1),
+            Term::Witness(()),
+            Term::Case(2, 1),
+            Term::Witness(()),
+            Term::Comp(1, 2),
+        ]);
 
-        prog.push(Term::Unit);
-        prog.push(Term::InjR(1));
-        prog.push(Term::Witness(()));
-        prog.push(Term::Case(2, 1));
-        prog.push(Term::Witness(()));
-        prog.push(Term::Comp(1, 2));
-
-        let prog = Program::from_untyped_nodes(
-            UnTypedProg(prog),
-            &mut BitIter::from(vec![0x80].into_iter()),
-        )
-        .unwrap();
+        let prog = Program::from_untyped_program(prog, &mut BitIter::from(vec![0x80].into_iter()))
+            .unwrap();
         prog.graph_print();
 
         let mut mac = exec::BitMachine::for_program(&prog);
@@ -506,5 +542,90 @@ mod tests {
         let output = mac.exec(&prog, &TxEnv).unwrap();
 
         println!("{}", output);
+    }
+
+    #[test]
+    fn maximal_sharing_non_hidden() {
+        // Same combinator, same CMR
+        let minimal = UntypedProgram(vec![Term::Unit, Term::InjR(1)]);
+        let duplicate = UntypedProgram(vec![Term::Unit, Term::InjR(1), Term::Unit, Term::InjR(1)]);
+        assert!(equal_after_sharing(minimal.clone(), duplicate, &[0x00]));
+
+        // Same combinator, different CMR
+        let non_duplicate = UntypedProgram(vec![Term::Unit, Term::InjR(1), Term::InjR(1)]);
+        assert!(!equal_after_sharing(minimal, non_duplicate, &[0x00]));
+    }
+
+    #[test]
+    fn maximal_sharing_hidden() {
+        // Same hidden payload
+        let minimal = UntypedProgram(vec![Term::Hidden(Cmr::from([0; 32]))]);
+        let duplicate = UntypedProgram(vec![
+            Term::Hidden(Cmr::from([0; 32])),
+            Term::Hidden(Cmr::from([0; 32])),
+        ]);
+        assert!(equal_after_sharing(minimal.clone(), duplicate, &[0x00]));
+
+        // Different hidden payload
+        let non_duplicate = UntypedProgram(vec![
+            Term::Hidden(Cmr::from([0; 32])),
+            Term::Hidden(Cmr::from([1; 32])),
+        ]);
+        assert!(!equal_after_sharing(minimal, non_duplicate, &[0x00]));
+    }
+
+    #[test]
+    fn maximal_sharing_witness() {
+        // Program that takes 2 bits of witness data
+        let double_witness = UntypedProgram(vec![
+            Term::Unit,
+            Term::InjR(1),
+            Term::Witness(()),
+            // cond
+            Term::Drop(1),
+            Term::Drop(3),
+            Term::Case(2, 1),
+            // begin non-duplicate
+            Term::Witness(()),
+            Term::Drop(1),
+            Term::Case(1, 4),
+        ]);
+        // Same program with maximum sharing, provided that both witness bits are equal
+        let single_witness = UntypedProgram(vec![
+            Term::Unit,
+            Term::InjR(1),
+            Term::Witness(()),
+            Term::Drop(1),
+            Term::Drop(3),
+            Term::Case(2, 1),
+        ]);
+
+        // Leading '0' bit + two '0' witness bits
+        assert!(equal_after_sharing(
+            single_witness.clone(),
+            double_witness.clone(),
+            &[0x00]
+        ));
+        // Leading '0' bit + '1' witness bit + '0' witness bit
+        assert!(!equal_after_sharing(
+            single_witness,
+            double_witness,
+            &[0x55]
+        ));
+    }
+
+    fn equal_after_sharing(
+        left: UntypedProgram<(), DummyNode>,
+        right: UntypedProgram<(), DummyNode>,
+        witness_bytes: &[u8],
+    ) -> bool {
+        let shared_left =
+            Program::from_untyped_program(left, &mut BitIter::from(witness_bytes.iter().cloned()))
+                .unwrap();
+        let shared_right =
+            Program::from_untyped_program(right, &mut BitIter::from(witness_bytes.iter().cloned()))
+                .unwrap();
+
+        shared_left == shared_right
     }
 }

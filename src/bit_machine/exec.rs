@@ -349,7 +349,7 @@ impl BitMachine {
                     let size = program.nodes[ip.index - s].source_ty.bit_width();
                     assert!(size >= 256);
                     self.new_frame(size);
-                    self.write_bytes(&program.nodes[ip.index - t].cmr);
+                    self.write_bytes(program.nodes[ip.index - t].cmr.as_ref());
                     self.copy(size - 256);
                     self.move_frame();
 
