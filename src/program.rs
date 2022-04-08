@@ -29,7 +29,7 @@ use crate::core::types::{FinalType, TypedNode, TypedProgram};
 use crate::merkle::cmr::Cmr;
 use crate::merkle::common::{MerkleRoot, TermMerkleRoot};
 use crate::merkle::imr::Imr;
-use crate::{encode, extension};
+use crate::{decode, extension};
 use crate::{Error, Term, Value};
 
 /// Single, finalized Simplicity node.
@@ -112,7 +112,7 @@ impl<Ext: extension::Jet> Program<Ext> {
 
     /// Decode a program from a stream of bits
     pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Program<Ext>, Error> {
-        let untyped_program = encode::decode_program_no_witness(&mut *bits)?;
+        let untyped_program = decode::decode_program_no_witness(&mut *bits)?;
         Program::<Ext>::from_untyped_program(untyped_program, bits)
     }
 
@@ -127,7 +127,7 @@ impl<Ext: extension::Jet> Program<Ext> {
         // FIXME actually only read as much as wit_len
         let _wit_len = match witness_bits.next() {
             Some(false) => 0,
-            Some(true) => encode::decode_natural(&mut *witness_bits, None)?,
+            Some(true) => decode::decode_natural(&mut *witness_bits, None)?,
             None => return Err(Error::EndOfStream),
         };
 
