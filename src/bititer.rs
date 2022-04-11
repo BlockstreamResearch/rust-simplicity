@@ -24,16 +24,20 @@
 /// Bitwise iterator formed from a wrapped bytewise iterator. Bytes are
 /// interpreted big-endian, i.e. MSB is returned first
 pub struct BitIter<I: Iterator<Item = u8>> {
+    /// Byte iterator
     iter: I,
+    /// Current byte that contains next bit
     cached_byte: u8,
+    /// Number of read bits in current byte
     read_bits: usize,
+    /// Total number of read bits
     total_read: usize,
 }
 
 impl<I: Iterator<Item = u8>> From<I> for BitIter<I> {
     fn from(iter: I) -> Self {
         BitIter {
-            iter: iter,
+            iter,
             cached_byte: 0,
             read_bits: 8,
             total_read: 0,
@@ -76,10 +80,17 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
             return Some(0);
         }
 
+        // 0 <= avail_bits <= 8
+        // 0 <= n < 64
         let avail_bits = 8 - self.read_bits;
         if avail_bits < n {
             n -= avail_bits;
-            let pre_result = ((self.cached_byte & ((1 << avail_bits) - 1)) as u64) << n;
+            let mask = if avail_bits < 8 {
+                (1 << avail_bits) - 1
+            } else {
+                0xff
+            };
+            let pre_result = ((self.cached_byte & mask) as u64) << n;
             self.cached_byte = self.iter.next()?;
             self.read_bits = 0;
 
@@ -90,9 +101,11 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
                 None
             }
         } else {
+            // 0 <= n <= 8
             self.read_bits += n;
             self.total_read += n;
-            Some(((self.cached_byte >> (avail_bits - n)) & ((1 << n) - 1)) as u64)
+            let mask = if n < 8 { (1 << n) - 1 } else { 0xff };
+            Some(((self.cached_byte >> (avail_bits - n)) & mask) as u64)
         }
     }
 
