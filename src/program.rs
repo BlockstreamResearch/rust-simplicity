@@ -111,28 +111,20 @@ impl<Ext: extension::Jet> Program<Ext> {
     }
 
     /// Decode a program from a stream of bits
-    pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Program<Ext>, Error> {
-        let untyped_program = decode::decode_program_no_witness(&mut *bits)?;
-        Program::<Ext>::from_untyped_program(untyped_program, bits)
+    pub fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Program<Ext>, Error> {
+        let untyped_program = decode::decode_program_no_witness(iter)?;
+        Program::<Ext>::from_untyped_program(untyped_program, iter)
     }
 
     /// Decode a program from a stream of bits
     pub fn from_untyped_program<I: Iterator<Item = u8>>(
         untyped_program: UntypedProgram<(), Ext>,
-        witness_bits: &mut BitIter<I>,
+        iter: &mut BitIter<I>,
     ) -> Result<Program<Ext>, Error> {
         let typed_program = types::type_check(untyped_program)?;
-
-        // Parse witnesses, if available
-        // FIXME actually only read as much as wit_len
-        let _wit_len = match witness_bits.next() {
-            Some(false) => 0,
-            Some(true) => decode::decode_natural(&mut *witness_bits, None)?,
-            None => return Err(Error::EndOfStream),
-        };
-
-        let typed_program = add_witness_data(typed_program, witness_bits)?;
-        let finalized_program = compress_and_finalize(typed_program);
+        let witness = decode::decode_witness(&typed_program, iter)?;
+        let witness_program = fill_witness_data(typed_program, witness)?;
+        let finalized_program = compress_and_finalize(witness_program);
         Ok(finalized_program)
     }
 
@@ -190,46 +182,21 @@ impl<Ext: extension::Jet> Program<Ext> {
     }
 }
 
-fn add_witness_data<Ext, I>(
-    typed_program: TypedProgram<(), Ext>,
-    witness_bits: &mut BitIter<I>,
-) -> Result<TypedProgram<Value, Ext>, Error>
-where
-    I: Iterator<Item = u8>,
-{
+fn fill_witness_data<Wit, Ext>(
+    typed_program: TypedProgram<Wit, Ext>,
+    witness: Vec<Value>,
+) -> Result<TypedProgram<Value, Ext>, Error> {
+    let mut it = witness.into_iter();
+    let mut translate = |_old_witness: Wit| it.next().expect("witness too short!");
     let ret = typed_program
         .0
         .into_iter()
-        .map::<Result<_, Error>, _>(|node| {
-            Ok(TypedNode {
-                node: match node.node {
-                    // really, Rust???
-                    Term::Iden => Term::Iden,
-                    Term::Unit => Term::Unit,
-                    Term::InjL(i) => Term::InjL(i),
-                    Term::InjR(i) => Term::InjR(i),
-                    Term::Take(i) => Term::Take(i),
-                    Term::Drop(i) => Term::Drop(i),
-                    Term::Comp(i, j) => Term::Comp(i, j),
-                    Term::Case(i, j) => Term::Case(i, j),
-                    Term::AssertL(i, j) => Term::AssertL(i, j),
-                    Term::AssertR(i, j) => Term::AssertR(i, j),
-                    Term::Pair(i, j) => Term::Pair(i, j),
-                    Term::Disconnect(i, j) => Term::Disconnect(i, j),
-                    Term::Witness(()) => Term::Witness(Value::from_bits_and_type(
-                        witness_bits.by_ref(),
-                        &node.target_ty,
-                    )?),
-                    Term::Fail(x, y) => Term::Fail(x, y),
-                    Term::Hidden(x) => Term::Hidden(x),
-                    Term::Ext(e) => Term::Ext(e),
-                    Term::Jet(j) => Term::Jet(j),
-                },
-                source_ty: node.source_ty,
-                target_ty: node.target_ty,
-            })
+        .map(|node| TypedNode {
+            node: node.node.translate_witness(&mut translate),
+            source_ty: node.source_ty,
+            target_ty: node.target_ty,
         })
-        .collect::<Result<Vec<_>, _>>()?;
+        .collect();
 
     Ok(TypedProgram(ret))
 }

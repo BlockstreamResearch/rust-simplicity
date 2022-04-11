@@ -19,116 +19,196 @@
 
 use crate::bititer::BitIter;
 use crate::core::term::UntypedProgram;
-use crate::extension;
+use crate::core::types::{FinalType, FinalTypeInner, TypedProgram};
+use crate::extension::Jet;
 use crate::merkle::cmr::Cmr;
+use crate::Value;
 use crate::{Error, Term};
 
-/// Decode a natural number according to section 7.2.1
-/// of the Simplicity whitepaper.
-pub fn decode_node_no_witness<I: Iterator<Item = u8>, Ext: extension::Jet>(
-    idx: usize,
-    iter: &mut BitIter<I>,
-) -> Result<Term<(), Ext>, Error> {
-    match iter.next() {
-        None => Err(Error::EndOfStream),
-        Some(true) => match iter.next() {
-            None => Err(Error::EndOfStream),
-            Some(false) => Ok(Term::Ext(extension::Jet::decode(iter)?)),
-            Some(true) => Ok(Term::Jet(extension::Jet::decode(iter)?)),
-        },
-        Some(false) => {
-            let code = match iter.read_bits_be(2) {
-                Some(n) => n,
-                None => return Err(Error::EndOfStream),
-            };
-            let subcode = match iter.read_bits_be(if code < 3 { 2 } else { 1 }) {
-                Some(n) => n,
-                None => return Err(Error::EndOfStream),
-            };
-            match (code, subcode) {
-                (0, 0) => Ok(Term::Comp(
-                    decode_natural(&mut *iter, Some(idx))?,
-                    decode_natural(iter, Some(idx))?,
-                )),
-                // FIXME `Case` should check for asserts and reject if both children are hidden
-                (0, 1) => Ok(Term::Case(
-                    decode_natural(&mut *iter, Some(idx))?,
-                    decode_natural(iter, Some(idx))?,
-                )),
-                (0, 2) => Ok(Term::Pair(
-                    decode_natural(&mut *iter, Some(idx))?,
-                    decode_natural(iter, Some(idx))?,
-                )),
-                (0, 3) => Ok(Term::Disconnect(
-                    decode_natural(&mut *iter, Some(idx))?,
-                    decode_natural(iter, Some(idx))?,
-                )),
-                (1, 0) => Ok(Term::InjL(decode_natural(iter, Some(idx))?)),
-                (1, 1) => Ok(Term::InjR(decode_natural(iter, Some(idx))?)),
-                (1, 2) => Ok(Term::Take(decode_natural(iter, Some(idx))?)),
-                (1, 3) => Ok(Term::Drop(decode_natural(iter, Some(idx))?)),
-                (2, 0) => Ok(Term::Iden),
-                (2, 1) => Ok(Term::Unit),
-                (2, 2) => Err(Error::ParseError("01010 (fail node)")),
-                (2, 3) => Err(Error::ParseError("01011 (stop code)")),
-                (3, 0) => {
-                    let mut h = [0; 32];
-                    for byte in &mut h {
-                        for b in 0..8 {
-                            match iter.next() {
-                                Some(true) => *byte |= 1 << (7 - b),
-                                Some(false) => {}
-                                None => return Err(Error::EndOfStream),
-                            };
-                        }
-                    }
-                    Ok(Term::Hidden(Cmr::from(h)))
-                }
-                (3, 1) => Ok(Term::Witness(())),
-                (_, _) => unreachable!("we read only so many bits"),
-            }
-        }
-    }
-}
-
-pub fn decode_program_no_witness<I: Iterator<Item = u8>, Ext: extension::Jet>(
+/// Decode an untyped Simplicity program from bits.
+pub fn decode_program_no_witness<I: Iterator<Item = u8>, Ext: Jet>(
     iter: &mut BitIter<I>,
 ) -> Result<UntypedProgram<(), Ext>, Error> {
     let prog_len = decode_natural(&mut *iter, None)?;
 
-    // FIXME make this a reasonable limit
+    // FIXME: check maximum length of DAG that is allowed by consensus
     if prog_len > 1_000_000 {
         return Err(Error::TooManyNodes(prog_len));
     }
 
     let mut program = Vec::with_capacity(prog_len);
-    for idx in 0..prog_len {
-        let node = decode_node_no_witness(idx, iter)?;
-        let node = if let Term::Case(i, j) = node {
-            match (&program[idx - i], &program[idx - j]) {
-                (Term::Hidden(..), Term::Hidden(..)) => {
-                    return Err(Error::CaseMultipleHiddenChildren)
-                }
-                (Term::Hidden(..), _) => Term::AssertR(i, j),
-                (_, Term::Hidden(..)) => Term::AssertL(i, j),
-                _ => Term::Case(i, j),
-            }
-        } else {
-            node
-        };
-        program.push(node);
+    for _ in 0..prog_len {
+        decode_node(&mut program, iter)?;
     }
 
+    // FIXME: verify canonical order
     Ok(UntypedProgram(program))
 }
 
-/// Decode a natural number according to section 7.2.1
-/// of the Simplicity whitepaper.
-/// Optionally provide a bound for the value being decoded.
-/// If the value is strictly greater than bound, this function
-/// returns an error
-pub fn decode_natural<BitStream: Iterator<Item = bool>>(
-    mut iter: BitStream,
+/// Decode witness data from bits.
+pub fn decode_witness<Wit, Ext, I: Iterator<Item = u8>>(
+    program: &TypedProgram<Wit, Ext>,
+    iter: &mut BitIter<I>,
+) -> Result<Vec<Value>, Error> {
+    let mut remaining_wit_len = match iter.next() {
+        Some(false) => 0,
+        Some(true) => decode_natural(&mut *iter, None)?,
+        None => return Err(Error::EndOfStream),
+    };
+    let mut witness = Vec::with_capacity(remaining_wit_len);
+
+    for node in &program.0 {
+        if let Term::Witness(_old_witness) = &node.node {
+            if remaining_wit_len > 0 {
+                remaining_wit_len -= 1;
+                witness.push(decode_value(&node.target_ty, iter)?);
+            } else {
+                return Err(Error::EndOfStream);
+            }
+        }
+    }
+
+    Ok(witness)
+}
+
+/// Decode a value from bits, based on the given type.
+///
+/// In particular, witness data can be decoded by invoking this function repeatedly.
+/// In this case, function [`decode_witness_length`] should be invoked beforehand.
+pub fn decode_value<I: Iterator<Item = bool>>(
+    ty: &FinalType,
+    iter: &mut I,
+) -> Result<Value, Error> {
+    let value = match ty.ty {
+        FinalTypeInner::Unit => Value::Unit,
+        FinalTypeInner::Sum(ref l, ref r) => match iter.next() {
+            Some(false) => Value::SumL(Box::new(decode_value(l, iter)?)),
+            Some(true) => Value::SumR(Box::new(decode_value(r, iter)?)),
+            None => return Err(Error::EndOfStream),
+        },
+        FinalTypeInner::Product(ref l, ref r) => Value::Prod(
+            Box::new(decode_value(l, iter)?),
+            Box::new(decode_value(r, iter)?),
+        ),
+    };
+
+    Ok(value)
+}
+
+/// Decode an untyped Simplicity term from bits and add it to the given program.
+fn decode_node<I: Iterator<Item = u8>, Ext: Jet>(
+    program: &mut Vec<Term<(), Ext>>,
+    iter: &mut BitIter<I>,
+) -> Result<(), Error> {
+    match iter.next() {
+        None => return Err(Error::EndOfStream),
+        Some(true) => return decode_jet(program, iter),
+        Some(false) => {}
+    };
+
+    let code = match iter.read_bits_be(2) {
+        Some(n) => n,
+        None => return Err(Error::EndOfStream),
+    };
+    let subcode = match iter.read_bits_be(if code < 3 { 2 } else { 1 }) {
+        Some(n) => n,
+        None => return Err(Error::EndOfStream),
+    };
+    let node = if code <= 1 {
+        let idx = program.len();
+        let i = decode_natural(&mut *iter, Some(idx))?;
+
+        if code == 0 {
+            let j = decode_natural(iter, Some(idx))?;
+
+            match subcode {
+                0 => Term::Comp(i, j),
+                1 => {
+                    let mut node = Term::Case(i, j);
+                    let mut left_hidden = false;
+
+                    if let Term::Hidden(..) = program[idx - i] {
+                        node = Term::AssertR(i, j);
+                        left_hidden = true;
+                    }
+                    if let Term::Hidden(..) = program[idx - j] {
+                        if left_hidden {
+                            return Err(Error::CaseMultipleHiddenChildren);
+                        }
+
+                        node = Term::AssertL(i, j);
+                    }
+
+                    node
+                }
+                2 => Term::Pair(i, j),
+                3 => Term::Disconnect(i, j),
+                _ => unreachable!(),
+            }
+        } else {
+            match subcode {
+                0 => Term::InjL(i),
+                1 => Term::InjR(i),
+                2 => Term::Take(i),
+                3 => Term::Drop(i),
+                _ => unreachable!(),
+            }
+        }
+    } else if code == 2 {
+        match subcode {
+            0 => Term::Iden,
+            1 => Term::Unit,
+            2 => return Err(Error::ParseError("01010 (fail code)")),
+            3 => return Err(Error::ParseError("01011 (stop code)")),
+            _ => unreachable!(),
+        }
+    } else if code == 3 {
+        match subcode {
+            0 => Term::Hidden(Cmr::from(decode_hash(iter)?)),
+            1 => Term::Witness(()),
+            _ => unreachable!(),
+        }
+    } else {
+        unreachable!()
+    };
+
+    program.push(node);
+    Ok(())
+}
+
+/// Decode a Simplicity jet from bits.
+fn decode_jet<I: Iterator<Item = u8>, Ext: Jet>(
+    program: &mut Vec<Term<(), Ext>>,
+    iter: &mut BitIter<I>,
+) -> Result<(), Error> {
+    let node = match iter.next() {
+        None => return Err(Error::EndOfStream),
+        Some(false) => Term::Ext(Jet::decode(iter)?),
+        Some(true) => Term::Jet(Jet::decode(iter)?),
+    };
+
+    program.push(node);
+    Ok(())
+}
+
+/// Decode a 256-bit hash from bits.
+fn decode_hash<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<[u8; 32], Error> {
+    let mut h = [0; 32];
+
+    for b in &mut h {
+        match iter.read_bits_be(8) {
+            Some(n) => *b = n as u8,
+            None => return Err(Error::EndOfStream),
+        }
+    }
+
+    Ok(h)
+}
+
+/// Decode a natural number from bits.
+/// If a bound is specified, then the decoding terminates before trying to decode a larger number.
+pub fn decode_natural<I: Iterator<Item = bool>>(
+    mut iter: I,
     bound: Option<usize>,
 ) -> Result<usize, Error> {
     let mut recurse_depth = 0;
