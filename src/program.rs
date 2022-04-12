@@ -422,9 +422,8 @@ fn compute_frame_count_bound<Ext: extension::Jet>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::exec;
-
     use crate::bititer::BitIter;
+    use crate::exec;
     use crate::extension::{
         dummy::{DummyNode, TxEnv},
         jets::JetsNode,
@@ -500,12 +499,12 @@ mod tests {
             Term::Comp(1, 2),
         ]);
 
-        let prog = Program::from_untyped_program(prog, &mut BitIter::from(vec![0x80].into_iter()))
-            .unwrap();
+        // Witness [Value::u1(0), Value::Unit]: '1' + '10' + '0'
+        let mut iter = BitIter::from([0b_1_10_0_0000].iter().cloned());
+        let prog = Program::from_untyped_program(prog, &mut iter).unwrap();
         prog.graph_print();
 
         let mut mac = exec::BitMachine::for_program(&prog);
-        // mac.input(&Value::prod(Value::u1(0), Value::Unit));
         let output = mac.exec(&prog, &TxEnv).unwrap();
 
         println!("{}", output);
@@ -567,17 +566,17 @@ mod tests {
             Term::Case(2, 1),
         ]);
 
-        // Leading '0' bit + two '0' witness bits
+        // Witness [Value::u1(0), Value::u1(0)]: '1' + '100' + '00'
         assert!(equal_after_sharing(
             single_witness.clone(),
             double_witness.clone(),
-            &[0x00]
+            &[0b_1_100_00_00]
         ));
-        // Leading '0' bit + '1' witness bit + '0' witness bit
+        // Witness [Value::u1(0), Value::u1(1)]: '1' + '100' + '01'
         assert!(!equal_after_sharing(
             single_witness,
             double_witness,
-            &[0x55]
+            &[0b_1_100_01_00]
         ));
     }
 
