@@ -26,7 +26,7 @@ use std::{fmt, io};
 use super::ExtError;
 use super::TypeName;
 use crate::bititer::BitIter;
-use crate::encode;
+use crate::encode::BitWriter;
 use crate::exec;
 use crate::extension;
 use crate::merkle::cmr::Cmr;
@@ -245,26 +245,26 @@ impl extension::Jet for BtcNode {
         }
     }
 
-    fn encode<W: encode::BitWrite>(&self, w: &mut W) -> io::Result<usize> {
+    fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
         match *self {
-            BtcNode::Version => w.write_u8(64 + 0, 7),
-            BtcNode::LockTime => w.write_u8(64 + 1, 7),
-            BtcNode::InputsHash => w.write_u8(32 + 1, 6),
-            BtcNode::OutputsHash => w.write_u8(32 + 2, 6),
-            BtcNode::NumInputs => w.write_u8(32 + 3, 6),
-            BtcNode::TotalInputValue => w.write_u8(32 + 4, 6),
-            BtcNode::CurrentPrevOutpoint => w.write_u8(32 + 5, 6),
-            BtcNode::CurrentValue => w.write_u8(32 + 6, 6),
-            BtcNode::CurrentSequence => w.write_u8(32 + 7, 6),
-            BtcNode::CurrentIndex => w.write_u8(64 + 16, 7),
-            BtcNode::InputPrevOutpoint => w.write_u8(64 + 17, 7),
-            BtcNode::InputValue => w.write_u8(32 + 9, 6),
-            BtcNode::InputSequence => w.write_u8(32 + 10, 6),
-            BtcNode::NumOutputs => w.write_u8(32 + 11, 6),
-            BtcNode::TotalOutputValue => w.write_u8(32 + 12, 6),
-            BtcNode::OutputValue => w.write_u8(32 + 13, 6),
-            BtcNode::OutputScriptHash => w.write_u8(32 + 14, 6),
-            BtcNode::ScriptCMR => w.write_u8(32 + 15, 6),
+            BtcNode::Version => w.write_bits_be(64 + 0, 7),
+            BtcNode::LockTime => w.write_bits_be(64 + 1, 7),
+            BtcNode::InputsHash => w.write_bits_be(32 + 1, 6),
+            BtcNode::OutputsHash => w.write_bits_be(32 + 2, 6),
+            BtcNode::NumInputs => w.write_bits_be(32 + 3, 6),
+            BtcNode::TotalInputValue => w.write_bits_be(32 + 4, 6),
+            BtcNode::CurrentPrevOutpoint => w.write_bits_be(32 + 5, 6),
+            BtcNode::CurrentValue => w.write_bits_be(32 + 6, 6),
+            BtcNode::CurrentSequence => w.write_bits_be(32 + 7, 6),
+            BtcNode::CurrentIndex => w.write_bits_be(64 + 16, 7),
+            BtcNode::InputPrevOutpoint => w.write_bits_be(64 + 17, 7),
+            BtcNode::InputValue => w.write_bits_be(32 + 9, 6),
+            BtcNode::InputSequence => w.write_bits_be(32 + 10, 6),
+            BtcNode::NumOutputs => w.write_bits_be(32 + 11, 6),
+            BtcNode::TotalOutputValue => w.write_bits_be(32 + 12, 6),
+            BtcNode::OutputValue => w.write_bits_be(32 + 13, 6),
+            BtcNode::OutputScriptHash => w.write_bits_be(32 + 14, 6),
+            BtcNode::ScriptCMR => w.write_bits_be(32 + 15, 6),
         }
     }
 

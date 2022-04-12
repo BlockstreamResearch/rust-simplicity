@@ -14,66 +14,39 @@
 
 //! # Encoding
 //!
-//! Functionality to encode Simplicity programs. These programs
-//! are encoded bitwise rather than bytewise, so given a hex dump of a
-//! program it is not generally possible to read it visually the way you
-//! can with Bitcoin Script.
+//! Functionality to encode Simplicity programs.
+//! These programs are encoded bitwise rather than bytewise,
+//! so given a hex dump of a program it is not generally possible
+//! to read it visually the way you can with Bitcoin Script.
 
 use std::{io, mem};
 
-use crate::extension;
-use crate::extension::Jet as ExtNode;
-use crate::Term;
+use crate::extension::Jet;
+use crate::Value;
+use crate::{Term, UntypedProgram};
 
-/// Trait for writing individual bits to some sink
-pub trait BitWrite {
-    /// Write a single bit to the writer
-    fn write_bit(&mut self, b: bool) -> io::Result<()>;
-
-    /// Write out all cached bits, including those written since the last
-    /// byte boundary. (0s will be written after the actual data to pad out
-    /// to the next byte boundary). Then flushes the underlying `io::Write`
-    /// if one exists.
-    fn flush_all(&mut self) -> io::Result<()>;
-
-    /// Total number of bits written to this object (not necessarily the number
-    /// of bits written to the underlying byte-oriented sink, which in general
-    /// will be less)
-    fn n_written(&self) -> usize;
-
-    /// Write several bytes at once, up to 8. If `len` is less than 8, the
-    /// data is read in big-endian order from the least significant bits.
-    /// On success, returns `len`.
-    fn write_u8(&mut self, n: u8, len: usize) -> io::Result<usize> {
-        for i in 0..len {
-            self.write_bit(n & (1 << (len - i - 1)) != 0)?;
-        }
-        Ok(len)
-    }
-}
-
-/// Wrapper around `io::Write` to enable writing individual bits to a bytestream
+/// Bitwise writer formed by wrapping a bytewise [`io::Write`].
+/// Bits are written in big-endian order.
+/// Bytes are filled with zeroes for padding.
 pub struct BitWriter<W: io::Write> {
+    /// Byte writer
     w: W,
+    /// Current byte that contains current bits, yet to be written out
     cache: u8,
+    /// Number of current bits
     cache_len: usize,
+    /// Total number of written bits
     total_written: usize,
 }
 
-impl<W: io::Write> BitWriter<W> {
-    /// Create a new `BitWriter` from an underlying `Write`
-    pub fn new(w: W) -> BitWriter<W> {
+impl<W: io::Write> From<W> for BitWriter<W> {
+    fn from(w: W) -> Self {
         BitWriter {
-            w: w,
+            w,
             cache: 0,
             cache_len: 0,
             total_written: 0,
         }
-    }
-
-    /// Recover the underlying `Write`
-    pub fn into_inner(self) -> W {
-        self.w
     }
 }
 
@@ -82,16 +55,23 @@ impl<W: io::Write> io::Write for BitWriter<W> {
         self.w.write(buf)
     }
 
-    /// Flush the underlying `io::Write` -- does **not** write out cached
-    /// bits (i.e. bits written since the last byte boundary). To do this
-    /// you must call `flush_all`.
+    /// Does **not** write out cached bits
+    /// (i.e. bits written since the last byte boundary).
+    /// To do this you must call [`flush_all`].
     fn flush(&mut self) -> io::Result<()> {
         self.w.flush()
     }
 }
 
-impl<W: io::Write> BitWrite for BitWriter<W> {
-    fn write_bit(&mut self, b: bool) -> io::Result<()> {
+impl<W: io::Write> BitWriter<W> {
+    /// Create a bitwise writer from a bytewise one.
+    /// Equivalent to using [`From`].
+    pub fn new(w: W) -> BitWriter<W> {
+        BitWriter::from(w)
+    }
+
+    /// Write a single bit.
+    pub fn write_bit(&mut self, b: bool) -> io::Result<()> {
         if self.cache_len < 8 {
             self.cache_len += 1;
             self.total_written += 1;
@@ -107,119 +87,203 @@ impl<W: io::Write> BitWrite for BitWriter<W> {
         }
     }
 
-    /// Write out all cached bits, including those written since the last
-    /// byte boundary. (0s will be written after the actual data to pad out
-    /// to the next byte boundary). Then flushes the underlying `io::Write`.
-    fn flush_all(&mut self) -> io::Result<()> {
+    /// Write out all cached bits.
+    /// This may write up to two bytes and flushes the underlying [`io::Write`].
+    pub fn flush_all(&mut self) -> io::Result<()> {
         self.w.write_all(&[self.cache])?;
         self.cache_len = 0;
 
         io::Write::flush(&mut self.w)
     }
 
-    /// Total number of bits written to this iterator (not necessarily the number
-    /// of bits written to the underlying iterator, which in general will be less)
-    fn n_written(&self) -> usize {
+    /// Return total number of written bits.
+    pub fn n_total_written(&self) -> usize {
         self.total_written
     }
-}
 
-impl BitWrite for Vec<bool> {
-    fn write_bit(&mut self, b: bool) -> io::Result<()> {
-        self.push(b);
-        Ok(())
-    }
-
-    fn flush_all(&mut self) -> io::Result<()> {
-        Ok(())
-    }
-
-    fn n_written(&self) -> usize {
-        self.len()
+    /// Write up to 64 bits in big-endian order.
+    /// The first `len` many _least significant_ bits from `n` are written.
+    ///
+    /// Returns the number of written bits.
+    pub fn write_bits_be(&mut self, n: u64, len: usize) -> io::Result<usize> {
+        for i in 0..len {
+            self.write_bit(n & (1 << (len - i - 1)) != 0)?;
+        }
+        Ok(len)
     }
 }
 
-impl<'a, B: BitWrite> BitWrite for &'a mut B {
-    fn write_bit(&mut self, b: bool) -> io::Result<()> {
-        (**self).write_bit(b)
-    }
-
-    fn flush_all(&mut self) -> io::Result<()> {
-        (**self).flush_all()
-    }
-
-    fn n_written(&self) -> usize {
-        (**self).n_written()
-    }
-}
-
-pub fn encode_node_no_witness<T, W: BitWrite, Ext: extension::Jet>(
-    node: &Term<T, Ext>,
-    writer: &mut W,
+/// Encode an untyped Simplicity program to bits.
+///
+/// Returns the number of written bits.
+pub fn encode_program_no_witness<W: io::Write, Ext: Jet>(
+    program: &UntypedProgram<(), Ext>,
+    w: &mut BitWriter<W>,
 ) -> io::Result<usize> {
+    let start_n = w.n_total_written();
+
+    encode_natural(program.len(), w)?;
+
+    for term in program.iter() {
+        encode_node(term, w)?;
+    }
+
+    Ok(w.n_total_written() - start_n)
+}
+
+/// Encode witness data to bits.
+///
+/// Returns the number of written bits.
+pub fn encode_witness<W: io::Write>(witness: &[Value], w: &mut BitWriter<W>) -> io::Result<usize> {
+    let start_n = w.n_total_written();
+
+    if witness.is_empty() {
+        w.write_bit(false)?;
+    } else {
+        w.write_bit(true)?;
+        encode_natural(witness.len(), w)?;
+
+        for value in witness {
+            encode_value(value, w)?;
+        }
+    }
+
+    Ok(w.n_total_written() - start_n)
+}
+
+/// Encode a value to bits.
+///
+/// Returns the number of written bits.
+pub fn encode_value<W: io::Write>(value: &Value, w: &mut BitWriter<W>) -> io::Result<usize> {
+    let n_start = w.n_total_written();
+
+    match *value {
+        Value::Unit => {}
+        Value::SumL(ref l) => {
+            w.write_bit(false)?;
+            encode_value(l, w)?;
+        }
+        Value::SumR(ref r) => {
+            w.write_bit(true)?;
+            encode_value(r, w)?;
+        }
+        Value::Prod(ref l, ref r) => {
+            encode_value(l, w)?;
+            encode_value(r, w)?;
+        }
+    }
+
+    Ok(w.n_total_written() - n_start)
+}
+
+/// Encode an untyped Simplicity term to bits.
+fn encode_node<W: io::Write, Wit, Ext: Jet>(
+    node: &Term<Wit, Ext>,
+    w: &mut BitWriter<W>,
+) -> io::Result<()> {
     match *node {
         Term::Comp(i, j) => {
-            let ret = writer.write_u8(0, 5)?
-                + encode_natural(i, &mut *writer)?
-                + encode_natural(j, &mut *writer)?;
-            Ok(ret)
+            w.write_bits_be(0, 5)?;
+            encode_natural(i, w)?;
+            encode_natural(j, w)?;
         }
         Term::Case(i, j) | Term::AssertL(i, j) | Term::AssertR(i, j) => {
-            let ret = writer.write_u8(1, 5)?
-                + encode_natural(i, &mut *writer)?
-                + encode_natural(j, &mut *writer)?;
-            Ok(ret)
+            w.write_bits_be(1, 5)?;
+            encode_natural(i, w)?;
+            encode_natural(j, w)?;
         }
         Term::Pair(i, j) => {
-            let ret = writer.write_u8(2, 5)?
-                + encode_natural(i, &mut *writer)?
-                + encode_natural(j, &mut *writer)?;
-            Ok(ret)
+            w.write_bits_be(2, 5)?;
+            encode_natural(i, w)?;
+            encode_natural(j, w)?;
         }
         Term::Disconnect(i, j) => {
-            let ret = writer.write_u8(3, 5)?
-                + encode_natural(i, &mut *writer)?
-                + encode_natural(j, &mut *writer)?;
-            Ok(ret)
+            w.write_bits_be(3, 5)?;
+            encode_natural(i, w)?;
+            encode_natural(j, w)?;
         }
-        Term::InjL(i) => Ok(writer.write_u8(4, 5)? + encode_natural(i, &mut *writer)?),
-        Term::InjR(i) => Ok(writer.write_u8(5, 5)? + encode_natural(i, &mut *writer)?),
-        Term::Take(i) => Ok(writer.write_u8(6, 5)? + encode_natural(i, &mut *writer)?),
-        Term::Drop(i) => Ok(writer.write_u8(7, 5)? + encode_natural(i, &mut *writer)?),
-        Term::Iden => writer.write_u8(8, 5),
-        Term::Unit => writer.write_u8(9, 5),
+        Term::InjL(i) => {
+            w.write_bits_be(4, 5)?;
+            encode_natural(i, w)?;
+        }
+        Term::InjR(i) => {
+            w.write_bits_be(5, 5)?;
+            encode_natural(i, w)?;
+        }
+        Term::Take(i) => {
+            w.write_bits_be(6, 5)?;
+            encode_natural(i, w)?;
+        }
+        Term::Drop(i) => {
+            w.write_bits_be(7, 5)?;
+            encode_natural(i, w)?;
+        }
+        Term::Iden => {
+            w.write_bits_be(8, 5)?;
+        }
+        Term::Unit => {
+            w.write_bits_be(9, 5)?;
+        }
         Term::Fail(..) => unimplemented!(),
         Term::Hidden(cmr) => {
-            let mut len = writer.write_u8(6, 4)?;
-            for byte in cmr.as_ref() {
-                len += writer.write_u8(*byte, 8)?;
-            }
-            Ok(len)
+            w.write_bits_be(6, 4)?;
+            encode_hash(cmr.as_ref(), w)?;
         }
-        Term::Witness(..) => writer.write_u8(7, 4),
-        Term::Ext(ref b) => extension::Jet::encode(b, writer),
-        Term::Jet(ref j) => j.encode(writer),
-    }
+        Term::Witness(..) => {
+            w.write_bits_be(7, 4)?;
+        }
+        Term::Ext(ref b) => {
+            Jet::encode(b, w)?;
+        }
+        Term::Jet(ref j) => {
+            j.encode(w)?;
+        }
+    };
+
+    Ok(())
 }
 
-/// Encode a natural number according to section 7.2.1 of the Simplicity tech
-/// report. Returns the length of the written number, in bits
-pub fn encode_natural<W: BitWrite>(n: usize, writer: &mut W) -> io::Result<usize> {
+/// Encode a hash to bits.
+fn encode_hash<W: io::Write>(h: &[u8], w: &mut BitWriter<W>) -> io::Result<()> {
+    for byte in h {
+        w.write_bits_be(*byte as u64, 8)?;
+    }
+
+    Ok(())
+}
+
+/// Encode a natural number to bits.
+pub fn encode_natural<W: io::Write>(n: usize, w: &mut BitWriter<W>) -> io::Result<()> {
     assert_ne!(n, 0); // Cannot encode zero
-    let n_start = writer.n_written();
     let len = 8 * mem::size_of::<usize>() - n.leading_zeros() as usize - 1;
 
     if len == 0 {
-        writer.write_bit(false)?;
-        Ok(1)
+        w.write_bit(false)?;
     } else {
-        writer.write_bit(true)?;
-        encode_natural(len, &mut *writer)?;
+        w.write_bit(true)?;
+        encode_natural(len, w)?;
+        w.write_bits_be(n as u64, len)?;
+    }
 
-        for i in 0..len {
-            writer.write_bit(n & (1 << (len - i - 1)) != 0)?;
+    Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::bititer::BitIter;
+    use crate::decode;
+
+    #[test]
+    fn encode_decode_natural() {
+        for n in 1..1000 {
+            let mut sink = Vec::<u8>::new();
+            let mut w = BitWriter::from(&mut sink);
+            encode_natural(n, &mut w).expect("encoding to vector");
+            w.flush_all().expect("flushing");
+            let m = decode::decode_natural(&mut BitIter::from(sink.into_iter()), None)
+                .expect("decoding from vector");
+            assert_eq!(n, m);
         }
-
-        Ok(writer.n_written() - n_start)
     }
 }

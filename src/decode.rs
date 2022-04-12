@@ -253,7 +253,7 @@ pub fn decode_natural<I: Iterator<Item = bool>>(
 mod tests {
     use super::*;
     use crate::encode;
-    use crate::encode::{BitWrite, BitWriter};
+    use crate::encode::BitWriter;
 
     #[test]
     fn decode_fixed() {
@@ -330,31 +330,23 @@ mod tests {
             ),
         ];
 
-        for (target, vec) in tries {
-            let truncated = vec[0..vec.len() - 1].to_vec();
+        for (natural, bitvec) in tries {
+            let truncated = bitvec[0..bitvec.len() - 1].to_vec();
             assert_matches!(
                 decode_natural(truncated.into_iter(), None),
                 Err(Error::EndOfStream)
             );
 
-            let len = vec.len();
+            let mut sink = Vec::<u8>::new();
 
-            // Encode/decode bitwise
-            let mut encode = Vec::<bool>::new();
-            encode::encode_natural(target, &mut encode).expect("encoding to a Vec");
-            assert_eq!(encode, vec);
-            let decode = decode_natural(vec.into_iter(), None).unwrap();
-            assert_eq!(target, decode);
-
-            // Encode/decode bytewise
-            let mut w = BitWriter::new(Vec::<u8>::new());
-            encode::encode_natural(target, &mut w).expect("encoding to a Vec");
+            let mut w = BitWriter::from(&mut sink);
+            encode::encode_natural(natural, &mut w).expect("encoding to vector");
             w.flush_all().expect("flushing");
-            assert_eq!(w.n_written(), len);
-            let r = BitIter::new(w.into_inner().into_iter());
-            let decode = decode_natural(r, None).unwrap();
+            assert_eq!(w.n_total_written(), bitvec.len());
 
-            assert_eq!(target, decode);
+            let decoded_natural = decode_natural(BitIter::from(sink.into_iter()), None)
+                .expect("decoding from vector");
+            assert_eq!(natural, decoded_natural);
         }
     }
 }
