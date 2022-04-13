@@ -12,9 +12,13 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-mod bitstream;
-mod bitstring;
-pub mod dag;
-pub mod error;
-pub mod test;
-mod util;
+use libc::{c_uchar, size_t};
+
+/// String of bits.
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub(crate) struct Bitstring {
+    arr: *const c_uchar,
+    len: size_t,
+    offset: size_t,
+}
