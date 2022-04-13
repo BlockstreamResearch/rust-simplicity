@@ -1,5 +1,5 @@
-/target
-/fuzz/target
+target
+fuzz/target
 **/*.rs.bk
 *~
 Cargo.lock
@@ -17,3 +17,8 @@ fuzz/hfuzz_workspace
 
 #Vscode project files
 .vscode
+
+#Compiled C
+*.o
+*.a
+*.lib
