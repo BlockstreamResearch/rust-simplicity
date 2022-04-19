@@ -46,12 +46,12 @@ jobs:
           toolchain: ${{ matrix.rust }}
           override: true
       - name: Running cargo test
-        env: 
-          FEATUERS: bitcoin elements
+        env:
+          FEATURES: bitcoin elements
         run: |
-          for f in $FEATURES; do [cargo test --no-default-features --features=f]; done
-          cargo test --no-default-features
-          cargo test --all-features
+          for f in $FEATURES; do echo "Features: $f" && cargo test --no-default-features --features="$f"; done
+          echo "No default features" && cargo test --no-default-features
+          echo "All features" && cargo test --all-features
 
   clippy:
     name: Clippy
@@ -95,16 +95,16 @@ jobs:
           toolchain: ${{ matrix.rust }}
           override: true
       - name: Running cargo test
-        env: 
-          FEATUERS: bitcoin elements
+        env:
+          FEATURES: honggfuzz_fuzz
         run: |
           cd fuzz/
-          for f in $FEATURES; do [cargo test --no-default-features --features=f]; done
-          cargo test --no-default-features
-          cargo test --all-features
+          for f in $FEATURES; do echo "Features: $f" && cargo test --no-default-features --features="$f"; done
+          echo "No default features" && cargo test --no-default-features
+          echo "All features" && cargo test --all-features
       - name: Running fuzz tests
-        env: 
-          FEATUERS: bitcoin elements
+        env:
+          FEATURES: honggfuzz_fuzz
         run: |
           cd fuzz/
           ./travis-fuzz.sh
