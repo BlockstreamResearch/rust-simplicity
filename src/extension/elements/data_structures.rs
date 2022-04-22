@@ -195,7 +195,7 @@ impl SimplicityHash for confidential::Nonce {
     }
 }
 
-impl SimplicityHash for bitcoin::Script {
+impl SimplicityHash for elements::bitcoin::Script {
     /// All scripts are first hashed to sha256 to get a scriptpubkey
     /// equivalent and then added to current sha256 context.
     fn simplicity_hash(&self, eng: &mut sha256::HashEngine) {

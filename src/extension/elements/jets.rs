@@ -763,8 +763,8 @@ mod tests {
     };
     use crate::merkle::cmr::Cmr;
     use crate::merkle::common::MerkleRoot;
-    use bitcoin::Script;
     use bitcoin_hashes::sha256;
+    use elements::bitcoin::Script;
     use elements::{
         confidential, AssetIssuance, OutPoint, Transaction, TxIn, TxInWitness, TxOut, TxOutWitness,
     };
@@ -833,7 +833,7 @@ mod tests {
             lock_time: 0,
             input: vec![TxIn {
                 previous_output: OutPoint {
-                    txid: bitcoin::Txid::from_inner(tx_id),
+                    txid: elements::bitcoin::Txid::from_inner(tx_id),
                     vout: 0,
                 },
                 sequence: 0xfffffffe,
@@ -898,8 +898,8 @@ mod tests {
         mac.exec(&program, &txenv).unwrap();
     }
     #[cfg(test)]
-    fn hex_script(s: &str) -> bitcoin::Script {
-        let v: Vec<u8> = bitcoin::hashes::hex::FromHex::from_hex(s).unwrap();
-        bitcoin::Script::from(v)
+    fn hex_script(s: &str) -> elements::bitcoin::Script {
+        let v: Vec<u8> = elements::bitcoin::hashes::hex::FromHex::from_hex(s).unwrap();
+        elements::bitcoin::Script::from(v)
     }
 }
