@@ -29,7 +29,7 @@ use crate::{Error, Term};
 pub fn decode_program_no_witness<I: Iterator<Item = u8>, Ext: Jet>(
     iter: &mut BitIter<I>,
 ) -> Result<UntypedProgram<(), Ext>, Error> {
-    let prog_len = decode_natural(&mut *iter, None)?;
+    let prog_len = decode_natural(iter, None)?;
 
     // FIXME: check maximum length of DAG that is allowed by consensus
     if prog_len > 1_000_000 {
@@ -52,7 +52,7 @@ pub fn decode_witness<Wit, Ext, I: Iterator<Item = u8>>(
 ) -> Result<Vec<Value>, Error> {
     let mut remaining_wit_len = match iter.next() {
         Some(false) => 0,
-        Some(true) => decode_natural(&mut *iter, None)?,
+        Some(true) => decode_natural(iter, None)?,
         None => return Err(Error::EndOfStream),
     };
     let mut witness = Vec::with_capacity(remaining_wit_len);
@@ -116,7 +116,7 @@ fn decode_node<I: Iterator<Item = u8>, Ext: Jet>(
     };
     let node = if code <= 1 {
         let idx = program.len();
-        let i = decode_natural(&mut *iter, Some(idx))?;
+        let i = decode_natural(iter, Some(idx))?;
 
         if code == 0 {
             let j = decode_natural(iter, Some(idx))?;
@@ -208,7 +208,7 @@ fn decode_hash<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<[u8; 32]
 /// Decode a natural number from bits.
 /// If a bound is specified, then the decoding terminates before trying to decode a larger number.
 pub fn decode_natural<I: Iterator<Item = bool>>(
-    mut iter: I,
+    iter: &mut I,
     bound: Option<usize>,
 ) -> Result<usize, Error> {
     let mut recurse_depth = 0;
@@ -333,7 +333,7 @@ mod tests {
         for (natural, bitvec) in tries {
             let truncated = bitvec[0..bitvec.len() - 1].to_vec();
             assert_matches!(
-                decode_natural(truncated.into_iter(), None),
+                decode_natural(&mut truncated.into_iter(), None),
                 Err(Error::EndOfStream)
             );
 
@@ -344,7 +344,7 @@ mod tests {
             w.flush_all().expect("flushing");
             assert_eq!(w.n_total_written(), bitvec.len());
 
-            let decoded_natural = decode_natural(BitIter::from(sink.into_iter()), None)
+            let decoded_natural = decode_natural(&mut BitIter::from(sink.into_iter()), None)
                 .expect("decoding from vector");
             assert_eq!(natural, decoded_natural);
         }
