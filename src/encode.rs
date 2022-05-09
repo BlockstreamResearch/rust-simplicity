@@ -141,7 +141,16 @@ pub fn encode_witness<W: io::Write>(witness: &[Value], w: &mut BitWriter<W>) -> 
         w.write_bit(false)?;
     } else {
         w.write_bit(true)?;
-        encode_natural(witness.len(), w)?;
+
+        let mut payload = Vec::new();
+        let mut payload_w = BitWriter::from(&mut payload);
+        let mut bit_len = 0;
+
+        for value in witness {
+            bit_len += encode_value(value, &mut payload_w)?;
+        }
+
+        encode_natural(bit_len, w)?;
 
         for value in witness {
             encode_value(value, w)?;
@@ -272,7 +281,11 @@ pub fn encode_natural<W: io::Write>(n: usize, w: &mut BitWriter<W>) -> io::Resul
 mod test {
     use super::*;
     use crate::bititer::BitIter;
+    use crate::core::types;
+    use crate::core::types::TypedProgram;
     use crate::decode;
+    use crate::extension::dummy::DummyNode;
+    use crate::extension::jets::JetsNode;
 
     #[test]
     fn encode_decode_natural() {
@@ -284,6 +297,30 @@ mod test {
             let m = decode::decode_natural(&mut BitIter::from(sink.into_iter()), None)
                 .expect("decoding from vector");
             assert_eq!(n, m);
+        }
+    }
+
+    #[test]
+    fn encode_decode_witness() {
+        let program: TypedProgram<(), DummyNode> = types::type_check(UntypedProgram(vec![
+            Term::Witness(()),
+            Term::Jet(JetsNode::Adder32),
+            Term::Comp(2, 1),
+        ]))
+        .expect("type checking");
+
+        for n in 1..1000 {
+            let witness = vec![Value::u64(n)];
+
+            let mut sink = Vec::<u8>::new();
+            let mut w = BitWriter::from(&mut sink);
+            encode_witness(&witness, &mut w).expect("encoding to vector");
+            w.flush_all().expect("flushing");
+
+            let decoded_witness =
+                decode::decode_witness(&program, &mut BitIter::from(sink.into_iter()))
+                    .expect("decoding from vector");
+            assert_eq!(witness, decoded_witness);
         }
     }
 }

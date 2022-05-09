@@ -50,25 +50,27 @@ pub fn decode_witness<Wit, Ext, I: Iterator<Item = u8>>(
     program: &TypedProgram<Wit, Ext>,
     iter: &mut BitIter<I>,
 ) -> Result<Vec<Value>, Error> {
-    let mut remaining_wit_len = match iter.next() {
+    let bit_len = match iter.next() {
         Some(false) => 0,
         Some(true) => decode_natural(iter, None)?,
         None => return Err(Error::EndOfStream),
     };
-    let mut witness = Vec::with_capacity(remaining_wit_len);
+    let mut witness = Vec::new();
+    let n_start = iter.n_total_read();
 
     for node in &program.0 {
         if let Term::Witness(_old_witness) = &node.node {
-            if remaining_wit_len > 0 {
-                remaining_wit_len -= 1;
-                witness.push(decode_value(&node.target_ty, iter)?);
-            } else {
-                return Err(Error::EndOfStream);
-            }
+            witness.push(decode_value(&node.target_ty, iter)?);
         }
     }
 
-    Ok(witness)
+    if iter.n_total_read() - n_start > bit_len {
+        Err(Error::ParseError(
+            "Witness bit string is longer than defined in its preamble!",
+        ))
+    } else {
+        Ok(witness)
+    }
 }
 
 /// Decode a value from bits, based on the given type.
