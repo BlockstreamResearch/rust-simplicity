@@ -26,9 +26,9 @@ use crate::extension::jets::JetsNode::{
     Adder32, EqV256, EqV32, LessThanV32, SchnorrAssert, Sha256,
 };
 use crate::miniscript::MiniscriptKey;
-use crate::Error;
 use crate::PubkeyKey32;
 use crate::Value;
+use crate::{decode, Error};
 
 use std::rc::Rc;
 
@@ -107,18 +107,18 @@ pub fn compile<Pk: MiniscriptKey + PubkeyKey32>(
         Policy::Unsatisfiable => unimplemented!(), //lookup  fail
         Policy::Trivial => TermDag::Unit,
         Policy::Key(ref pk) => {
-            let pk_value = Value::from_bits_and_type(
-                &mut BitIter::from(pk.to_32_byte_pubkey().iter().copied()),
+            let pk_value = decode::decode_value(
                 &two_pow_256,
+                &mut BitIter::from(pk.to_32_byte_pubkey().iter().copied()),
             )?;
             let scribe_pk = scribe(pk_value);
             let pk_sig_pair = TermDag::Pair(Rc::new(scribe_pk), Rc::new(TermDag::Witness(())));
             TermDag::Comp(Rc::new(pk_sig_pair), Rc::new(TermDag::Jet(SchnorrAssert)))
         }
         Policy::Sha256(ref h) => {
-            let hash_value = Value::from_bits_and_type(
-                &mut BitIter::from(h.into_inner().iter().copied()),
+            let hash_value = decode::decode_value(
                 &two_pow_256,
+                &mut BitIter::from(h.into_inner().iter().copied()),
             )?;
             // scribe target hash
             let scribe_hash = scribe(hash_value);

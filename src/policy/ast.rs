@@ -370,6 +370,8 @@ mod tests {
         assert!(output == Value::Unit);
     }
 
+    // TODO: rewrite with proper witness
+    #[ignore]
     #[test]
     fn basic_compile() {
         // A single pk compilation

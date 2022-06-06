@@ -29,7 +29,7 @@ use crate::core::types::{FinalType, TypedNode, TypedProgram};
 use crate::merkle::cmr::Cmr;
 use crate::merkle::common::{MerkleRoot, TermMerkleRoot};
 use crate::merkle::imr::Imr;
-use crate::{encode, extension};
+use crate::{decode, extension};
 use crate::{Error, Term, Value};
 
 /// Single, finalized Simplicity node.
@@ -111,28 +111,20 @@ impl<Ext: extension::Jet> Program<Ext> {
     }
 
     /// Decode a program from a stream of bits
-    pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Program<Ext>, Error> {
-        let untyped_program = encode::decode_program_no_witness(&mut *bits)?;
-        Program::<Ext>::from_untyped_program(untyped_program, bits)
+    pub fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Program<Ext>, Error> {
+        let untyped_program = decode::decode_program_no_witness(iter)?;
+        Program::<Ext>::from_untyped_program(untyped_program, iter)
     }
 
     /// Decode a program from a stream of bits
     pub fn from_untyped_program<I: Iterator<Item = u8>>(
         untyped_program: UntypedProgram<(), Ext>,
-        witness_bits: &mut BitIter<I>,
+        iter: &mut BitIter<I>,
     ) -> Result<Program<Ext>, Error> {
         let typed_program = types::type_check(untyped_program)?;
-
-        // Parse witnesses, if available
-        // FIXME actually only read as much as wit_len
-        let _wit_len = match witness_bits.next() {
-            Some(false) => 0,
-            Some(true) => encode::decode_natural(&mut *witness_bits, None)?,
-            None => return Err(Error::EndOfStream),
-        };
-
-        let typed_program = add_witness_data(typed_program, witness_bits)?;
-        let finalized_program = compress_and_finalize(typed_program);
+        let witness = decode::decode_witness(&typed_program, iter)?;
+        let witness_program = fill_witness_data(typed_program, witness)?;
+        let finalized_program = compress_and_finalize(witness_program);
         Ok(finalized_program)
     }
 
@@ -190,46 +182,21 @@ impl<Ext: extension::Jet> Program<Ext> {
     }
 }
 
-fn add_witness_data<Ext, I>(
-    typed_program: TypedProgram<(), Ext>,
-    witness_bits: &mut BitIter<I>,
-) -> Result<TypedProgram<Value, Ext>, Error>
-where
-    I: Iterator<Item = u8>,
-{
+fn fill_witness_data<Wit, Ext>(
+    typed_program: TypedProgram<Wit, Ext>,
+    witness: Vec<Value>,
+) -> Result<TypedProgram<Value, Ext>, Error> {
+    let mut it = witness.into_iter();
+    let mut translate = |_old_witness: Wit| it.next().expect("witness too short!");
     let ret = typed_program
         .0
         .into_iter()
-        .map::<Result<_, Error>, _>(|node| {
-            Ok(TypedNode {
-                node: match node.node {
-                    // really, Rust???
-                    Term::Iden => Term::Iden,
-                    Term::Unit => Term::Unit,
-                    Term::InjL(i) => Term::InjL(i),
-                    Term::InjR(i) => Term::InjR(i),
-                    Term::Take(i) => Term::Take(i),
-                    Term::Drop(i) => Term::Drop(i),
-                    Term::Comp(i, j) => Term::Comp(i, j),
-                    Term::Case(i, j) => Term::Case(i, j),
-                    Term::AssertL(i, j) => Term::AssertL(i, j),
-                    Term::AssertR(i, j) => Term::AssertR(i, j),
-                    Term::Pair(i, j) => Term::Pair(i, j),
-                    Term::Disconnect(i, j) => Term::Disconnect(i, j),
-                    Term::Witness(()) => Term::Witness(Value::from_bits_and_type(
-                        witness_bits.by_ref(),
-                        &node.target_ty,
-                    )?),
-                    Term::Fail(x, y) => Term::Fail(x, y),
-                    Term::Hidden(x) => Term::Hidden(x),
-                    Term::Ext(e) => Term::Ext(e),
-                    Term::Jet(j) => Term::Jet(j),
-                },
-                source_ty: node.source_ty,
-                target_ty: node.target_ty,
-            })
+        .map(|node| TypedNode {
+            node: node.node.translate_witness(&mut translate),
+            source_ty: node.source_ty,
+            target_ty: node.target_ty,
         })
-        .collect::<Result<Vec<_>, _>>()?;
+        .collect();
 
     Ok(TypedProgram(ret))
 }
@@ -455,9 +422,8 @@ fn compute_frame_count_bound<Ext: extension::Jet>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::exec;
-
     use crate::bititer::BitIter;
+    use crate::exec;
     use crate::extension::{
         dummy::{DummyNode, TxEnv},
         jets::JetsNode,
@@ -533,12 +499,12 @@ mod tests {
             Term::Comp(1, 2),
         ]);
 
-        let prog = Program::from_untyped_program(prog, &mut BitIter::from(vec![0x80].into_iter()))
-            .unwrap();
+        // Witness [Value::u1(0), Value::Unit]: '1' + '10' + '0'
+        let mut iter = BitIter::from([0b_1_10_0_0000].iter().cloned());
+        let prog = Program::from_untyped_program(prog, &mut iter).unwrap();
         prog.graph_print();
 
         let mut mac = exec::BitMachine::for_program(&prog);
-        // mac.input(&Value::prod(Value::u1(0), Value::Unit));
         let output = mac.exec(&prog, &TxEnv).unwrap();
 
         println!("{}", output);
@@ -600,17 +566,17 @@ mod tests {
             Term::Case(2, 1),
         ]);
 
-        // Leading '0' bit + two '0' witness bits
+        // Witness [Value::u1(0), Value::u1(0)]: '1' + '100' + '00'
         assert!(equal_after_sharing(
             single_witness.clone(),
             double_witness.clone(),
-            &[0x00]
+            &[0b_1_100_00_00]
         ));
-        // Leading '0' bit + '1' witness bit + '0' witness bit
+        // Witness [Value::u1(0), Value::u1(1)]: '1' + '100' + '01'
         assert!(!equal_after_sharing(
             single_witness,
             double_witness,
-            &[0x55]
+            &[0b_1_100_01_00]
         ));
     }
 

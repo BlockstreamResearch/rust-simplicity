@@ -24,6 +24,7 @@ mod macros;
 pub mod bit_machine;
 pub mod bititer;
 pub mod core;
+pub mod decode;
 pub mod encode;
 pub mod extension;
 pub mod merkle;

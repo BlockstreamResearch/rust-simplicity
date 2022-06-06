@@ -43,6 +43,36 @@ pub enum Term<Witness, Extension> {
 }
 
 impl<Witness, Extension> Term<Witness, Extension> {
+    /// Converts the term from one witness to another,
+    /// using a function that translates witness values.
+    pub(crate) fn translate_witness<AltWitness, F>(
+        self,
+        mut translate: F,
+    ) -> Term<AltWitness, Extension>
+    where
+        F: FnMut(Witness) -> AltWitness,
+    {
+        match self {
+            Term::Iden => Term::Iden,
+            Term::Unit => Term::Unit,
+            Term::InjL(i) => Term::InjL(i),
+            Term::InjR(i) => Term::InjR(i),
+            Term::Take(i) => Term::Take(i),
+            Term::Drop(i) => Term::Drop(i),
+            Term::Comp(i, j) => Term::Comp(i, j),
+            Term::Case(i, j) => Term::Case(i, j),
+            Term::AssertL(i, j) => Term::AssertL(i, j),
+            Term::AssertR(i, j) => Term::AssertR(i, j),
+            Term::Pair(i, j) => Term::Pair(i, j),
+            Term::Disconnect(i, j) => Term::Disconnect(i, j),
+            Term::Witness(w) => Term::Witness(translate(w)),
+            Term::Fail(x, y) => Term::Fail(x, y),
+            Term::Hidden(x) => Term::Hidden(x),
+            Term::Ext(e) => Term::Ext(e),
+            Term::Jet(j) => Term::Jet(j),
+        }
+    }
+
     /// Converts the term to a term that uses sharing.
     ///
     /// The relative indices are updated such that

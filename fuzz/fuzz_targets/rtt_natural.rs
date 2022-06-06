@@ -15,35 +15,35 @@
 extern crate simplicity;
 
 use simplicity::bititer::BitIter;
-use simplicity::encode::{self, BitWrite};
+use simplicity::encode::BitWriter;
+use simplicity::{decode, encode};
 
 fn do_test(data: &[u8]) {
-    let mut read_iter = BitIter::new(data.iter().cloned());
-    if let Ok(nat) = encode::decode_natural(&mut read_iter, None) {
-        let len = read_iter.n_total_read();
+    let mut iter = BitIter::new(data.iter().cloned());
 
-        let bit_vec: Vec<bool> = BitIter::new(data.iter().cloned()).take(len).collect();
-        let mut enc_vec = Vec::<bool>::new();
-        encode::encode_natural(nat, &mut enc_vec)
-            .expect("encoding natural");
-        assert_eq!(bit_vec, enc_vec);
+    if let Ok(natural) = decode::decode_natural(&mut iter, None) {
+        let bit_len = iter.n_total_read();
 
-        let mut w = encode::BitWriter::new(Vec::<u8>::new());
-        let write_len = encode::encode_natural(nat, &mut w)
-            .expect("encoding natural");
+        let mut sink = Vec::<u8>::new();
+        let mut w = BitWriter::from(&mut sink);
+        encode::encode_natural(natural, &mut w).expect("encoding to vector");
         w.flush_all().expect("flushing");
-        let mut output = w.into_inner();
-        if write_len % 8 != 0 {
-            let mask = !(1u8 << (8 - (write_len % 8)));
-            let idx = output.len() - 1;
-            output[idx] |= data[idx] & mask;
+        assert_eq!(w.n_total_written(), bit_len);
+
+        // decode_natural() may stop reading `data` mid-byte:
+        // copy trailing bits from `data` to `sink`
+        if bit_len % 8 != 0 {
+            let mask = !(1u8 << (8 - (bit_len % 8)));
+            let idx = sink.len() - 1;
+            sink[idx] |= data[idx] & mask;
         }
-        assert_eq!(output, &data[0..output.len()]);
+        assert_eq!(sink, &data[0..sink.len()]);
     }
 }
 
 #[cfg(feature = "afl")]
-#[macro_use] extern crate afl;
+#[macro_use]
+extern crate afl;
 #[cfg(feature = "afl")]
 fn main() {
     fuzz!(|data| {
@@ -52,7 +52,8 @@ fn main() {
 }
 
 #[cfg(feature = "honggfuzz")]
-#[macro_use] extern crate honggfuzz;
+#[macro_use]
+extern crate honggfuzz;
 #[cfg(feature = "honggfuzz")]
 fn main() {
     loop {

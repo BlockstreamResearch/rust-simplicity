@@ -23,7 +23,7 @@ use std::{error, fmt, io};
 use super::{ExtError, TypeName};
 use crate::bitcoin_hashes::{sha256, Hash, HashEngine};
 use crate::bititer::BitIter;
-use crate::encode;
+use crate::encode::BitWriter;
 use crate::exec;
 use crate::extension;
 use crate::merkle::cmr::Cmr;
@@ -174,20 +174,20 @@ impl extension::Jet for JetsNode {
     }
 
     /// Encode the node into a bitstream
-    fn encode<W: encode::BitWrite>(&self, w: &mut W) -> io::Result<usize> {
+    fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
         match *self {
-            JetsNode::Adder32 => w.write_u8(48 + 0, 6),
-            JetsNode::Subtractor32 => w.write_u8(48 + 1, 6),
-            JetsNode::Multiplier32 => w.write_u8(24 + 1, 5),
-            JetsNode::FullAdder32 => w.write_u8(48 + 4, 6),
-            JetsNode::FullSubtractor32 => w.write_u8(48 + 5, 6),
-            JetsNode::FullMultiplier32 => w.write_u8(24 + 3, 5),
-            JetsNode::Sha256HashBlock => w.write_u8(14, 4),
-            JetsNode::SchnorrAssert => w.write_u8(15 * 16 + 0, 8),
-            JetsNode::EqV256 => w.write_u8(15 * 16 + 1, 8),
-            JetsNode::Sha256 => w.write_u8(15 * 16 + 2, 8),
-            JetsNode::LessThanV32 => w.write_u8(15 * 16 + 3, 8),
-            JetsNode::EqV32 => w.write_u8(15 * 16 + 4, 8),
+            JetsNode::Adder32 => w.write_bits_be(48 + 0, 6),
+            JetsNode::Subtractor32 => w.write_bits_be(48 + 1, 6),
+            JetsNode::Multiplier32 => w.write_bits_be(24 + 1, 5),
+            JetsNode::FullAdder32 => w.write_bits_be(48 + 4, 6),
+            JetsNode::FullSubtractor32 => w.write_bits_be(48 + 5, 6),
+            JetsNode::FullMultiplier32 => w.write_bits_be(24 + 3, 5),
+            JetsNode::Sha256HashBlock => w.write_bits_be(14, 4),
+            JetsNode::SchnorrAssert => w.write_bits_be(15 * 16 + 0, 8),
+            JetsNode::EqV256 => w.write_bits_be(15 * 16 + 1, 8),
+            JetsNode::Sha256 => w.write_bits_be(15 * 16 + 2, 8),
+            JetsNode::LessThanV32 => w.write_bits_be(15 * 16 + 3, 8),
+            JetsNode::EqV32 => w.write_bits_be(15 * 16 + 4, 8),
         }
     }
 

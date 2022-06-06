@@ -23,7 +23,7 @@ use std::{fmt, io};
 
 use super::data_structures::{is_asset_new_issue, is_asset_reissue, SimplicityEncodable, TxEnv};
 use crate::bititer::BitIter;
-use crate::encode;
+use crate::encode::BitWriter;
 use crate::exec;
 use crate::extension::TypeName;
 use crate::extension::{self, ExtError};
@@ -373,44 +373,44 @@ impl extension::Jet for ElementsNode {
         }
     }
 
-    fn encode<W: encode::BitWrite>(&self, w: &mut W) -> io::Result<usize> {
+    fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
         match *self {
-            ElementsNode::Version => w.write_u8(128 + 0, 8),
-            ElementsNode::LockTime => w.write_u8(128 + 1, 8),
-            ElementsNode::InputIsPegin => w.write_u8(64 + 1, 7),
-            ElementsNode::InputPrevOutpoint => w.write_u8(64 + 2, 7),
-            ElementsNode::InputAsset => w.write_u8(64 + 3, 7),
-            ElementsNode::InputAmount => w.write_u8(128 + 2, 8),
-            ElementsNode::InputScriptHash => w.write_u8(128 + 3, 8),
-            ElementsNode::InputSequence => w.write_u8(64 + 5, 7),
-            ElementsNode::InputIssuanceBlinding => w.write_u8(64 + 6, 7),
-            ElementsNode::InputIssuanceContract => w.write_u8(64 + 7, 7),
-            ElementsNode::InputIssuanceEntropy => w.write_u8(128 + 4, 8),
-            ElementsNode::InputIssuanceAssetAmount => w.write_u8(128 + 5, 8),
-            ElementsNode::InputIssuanceTokenAmount => w.write_u8(64 + 9, 7),
-            ElementsNode::OutputAsset => w.write_u8(64 + 10, 7),
-            ElementsNode::OutputAmount => w.write_u8(64 + 11, 7),
-            ElementsNode::OutputNonce => w.write_u8(128 + 6, 8),
-            ElementsNode::OutputScriptHash => w.write_u8(128 + 7, 8),
-            ElementsNode::OutputNullDatum => w.write_u8(64 + 13, 7),
-            ElementsNode::ScriptCmr => w.write_u8(64 + 14, 7),
-            ElementsNode::CurrentIndex => w.write_u8(64 + 15, 7),
-            ElementsNode::CurrentIsPegin => w.write_u8(64 + 16, 7),
-            ElementsNode::CurrentPrevOutpoint => w.write_u8(64 + 17, 7),
-            ElementsNode::CurrentAsset => w.write_u8(64 + 18, 7),
-            ElementsNode::CurrentAmount => w.write_u8(64 + 19, 7),
-            ElementsNode::CurrentScriptHash => w.write_u8(64 + 20, 7),
-            ElementsNode::CurrentSequence => w.write_u8(64 + 21, 7),
-            ElementsNode::CurrentIssuanceBlinding => w.write_u8(64 + 22, 7),
-            ElementsNode::CurrentIssuanceContract => w.write_u8(64 + 23, 7),
-            ElementsNode::CurrentIssuanceEntropy => w.write_u8(64 + 24, 7),
-            ElementsNode::CurrentIssuanceAssetAmount => w.write_u8(64 + 25, 7),
-            ElementsNode::CurrentIssuanceTokenAmount => w.write_u8(64 + 26, 7),
-            ElementsNode::InputsHash => w.write_u8(64 + 27, 7),
-            ElementsNode::OutputsHash => w.write_u8(64 + 28, 7),
-            ElementsNode::NumInputs => w.write_u8(64 + 29, 7),
-            ElementsNode::NumOutputs => w.write_u8(64 + 30, 7),
-            ElementsNode::Fee => w.write_u8(64 + 31, 7),
+            ElementsNode::Version => w.write_bits_be(128 + 0, 8),
+            ElementsNode::LockTime => w.write_bits_be(128 + 1, 8),
+            ElementsNode::InputIsPegin => w.write_bits_be(64 + 1, 7),
+            ElementsNode::InputPrevOutpoint => w.write_bits_be(64 + 2, 7),
+            ElementsNode::InputAsset => w.write_bits_be(64 + 3, 7),
+            ElementsNode::InputAmount => w.write_bits_be(128 + 2, 8),
+            ElementsNode::InputScriptHash => w.write_bits_be(128 + 3, 8),
+            ElementsNode::InputSequence => w.write_bits_be(64 + 5, 7),
+            ElementsNode::InputIssuanceBlinding => w.write_bits_be(64 + 6, 7),
+            ElementsNode::InputIssuanceContract => w.write_bits_be(64 + 7, 7),
+            ElementsNode::InputIssuanceEntropy => w.write_bits_be(128 + 4, 8),
+            ElementsNode::InputIssuanceAssetAmount => w.write_bits_be(128 + 5, 8),
+            ElementsNode::InputIssuanceTokenAmount => w.write_bits_be(64 + 9, 7),
+            ElementsNode::OutputAsset => w.write_bits_be(64 + 10, 7),
+            ElementsNode::OutputAmount => w.write_bits_be(64 + 11, 7),
+            ElementsNode::OutputNonce => w.write_bits_be(128 + 6, 8),
+            ElementsNode::OutputScriptHash => w.write_bits_be(128 + 7, 8),
+            ElementsNode::OutputNullDatum => w.write_bits_be(64 + 13, 7),
+            ElementsNode::ScriptCmr => w.write_bits_be(64 + 14, 7),
+            ElementsNode::CurrentIndex => w.write_bits_be(64 + 15, 7),
+            ElementsNode::CurrentIsPegin => w.write_bits_be(64 + 16, 7),
+            ElementsNode::CurrentPrevOutpoint => w.write_bits_be(64 + 17, 7),
+            ElementsNode::CurrentAsset => w.write_bits_be(64 + 18, 7),
+            ElementsNode::CurrentAmount => w.write_bits_be(64 + 19, 7),
+            ElementsNode::CurrentScriptHash => w.write_bits_be(64 + 20, 7),
+            ElementsNode::CurrentSequence => w.write_bits_be(64 + 21, 7),
+            ElementsNode::CurrentIssuanceBlinding => w.write_bits_be(64 + 22, 7),
+            ElementsNode::CurrentIssuanceContract => w.write_bits_be(64 + 23, 7),
+            ElementsNode::CurrentIssuanceEntropy => w.write_bits_be(64 + 24, 7),
+            ElementsNode::CurrentIssuanceAssetAmount => w.write_bits_be(64 + 25, 7),
+            ElementsNode::CurrentIssuanceTokenAmount => w.write_bits_be(64 + 26, 7),
+            ElementsNode::InputsHash => w.write_bits_be(64 + 27, 7),
+            ElementsNode::OutputsHash => w.write_bits_be(64 + 28, 7),
+            ElementsNode::NumInputs => w.write_bits_be(64 + 29, 7),
+            ElementsNode::NumOutputs => w.write_bits_be(64 + 30, 7),
+            ElementsNode::Fee => w.write_bits_be(64 + 31, 7),
         }
     }
 

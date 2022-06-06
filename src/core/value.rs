@@ -1,6 +1,4 @@
-use super::types;
 use crate::util::slice_to_u64_be;
-use crate::Error;
 use std::fmt;
 use std::hash::Hash;
 
@@ -199,26 +197,6 @@ impl fmt::Display for Value {
                 write!(f, "({},", l)?;
                 write!(f, "{})", r)
             }
-        }
-    }
-}
-
-impl Value {
-    pub fn from_bits_and_type<Bits: Iterator<Item = bool>>(
-        bits: &mut Bits,
-        ty: &types::FinalType,
-    ) -> Result<Value, Error> {
-        match ty.ty {
-            types::FinalTypeInner::Unit => Ok(Value::Unit),
-            types::FinalTypeInner::Sum(ref l, ref r) => match bits.next() {
-                Some(false) => Ok(Value::SumL(Box::new(Value::from_bits_and_type(bits, &*l)?))),
-                Some(true) => Ok(Value::SumR(Box::new(Value::from_bits_and_type(bits, &*r)?))),
-                None => Err(Error::EndOfStream),
-            },
-            types::FinalTypeInner::Product(ref l, ref r) => Ok(Value::Prod(
-                Box::new(Value::from_bits_and_type(&mut *bits, &*l)?),
-                Box::new(Value::from_bits_and_type(bits, &*r)?),
-            )),
         }
     }
 }

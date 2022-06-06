@@ -27,7 +27,7 @@ pub mod jets;
 use std::{fmt, io};
 
 use crate::bititer::BitIter;
-use crate::encode;
+use crate::encode::BitWriter;
 use crate::exec;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::common::MerkleRoot;
@@ -78,11 +78,14 @@ pub trait Jet: Sized + fmt::Display {
     type TxEnv;
     type JetErr: ExtError;
 
+    // XXX: Assumes two previous bits were already read:
+    // Bytes 10 for extension
+    // Bytes 11 for jet
     /// Decode a node from a bit iterator
     fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Self, Error>;
 
     /// Encode a node into a bit writer
-    fn encode<W: encode::BitWrite>(&self, w: &mut W) -> io::Result<usize>;
+    fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize>;
 
     /// Execute the node in a Bit Machine; assuming the surrounding
     /// program has typechecked, this cannot fail

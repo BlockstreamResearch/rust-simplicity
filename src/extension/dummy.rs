@@ -22,7 +22,7 @@ use std::{fmt, io};
 
 use super::{ExtError, TypeName};
 use crate::bititer::BitIter;
-use crate::encode;
+use crate::encode::BitWriter;
 use crate::exec;
 use crate::extension;
 use crate::merkle::cmr::Cmr;
@@ -43,7 +43,7 @@ impl extension::Jet for DummyNode {
         Err(Error::ParseError("[unavailable extension]"))
     }
 
-    fn encode<W: encode::BitWrite>(&self, _: &mut W) -> io::Result<usize> {
+    fn encode<W: io::Write>(&self, _: &mut BitWriter<W>) -> io::Result<usize> {
         match *self {} // lol rust
     }
 

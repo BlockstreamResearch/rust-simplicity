@@ -23,10 +23,10 @@ use std::error;
 use std::fmt;
 
 use crate::core::types::FinalTypeInner;
-use crate::extension;
 use crate::Program;
 use crate::Term;
 use crate::Value;
+use crate::{decode, extension};
 
 use crate::extension::ExtError;
 use crate::extension::Jet as JetNode;
@@ -436,11 +436,11 @@ impl BitMachine {
         let res = if output_width > 0 {
             let out_frame = self.write.last_mut().unwrap();
             out_frame.reset_cursor();
-            Value::from_bits_and_type(
-                &mut out_frame.to_frame_data(&self.data),
+            decode::decode_value(
                 &program.root_node().target_ty,
+                &mut out_frame.to_frame_data(&self.data),
             )
-            .expect("unwrapping output value")
+            .expect("decoding output value")
         } else {
             Value::Unit
         };
