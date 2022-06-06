@@ -671,7 +671,7 @@ fn blinding_issuance(mac: &mut exec::BitMachine, issuance: &elements::AssetIssua
     let is_reissue = is_asset_reissue(issuance);
     mac.write_bit(is_reissue);
     if is_reissue {
-        mac.write_bytes(&issuance.asset_blinding_nonce);
+        mac.write_bytes(issuance.asset_blinding_nonce.as_ref());
     } else {
         mac.skip(256);
     }
@@ -763,10 +763,12 @@ mod tests {
     };
     use crate::merkle::cmr::Cmr;
     use crate::merkle::common::MerkleRoot;
-    use bitcoin_hashes::sha256;
-    use elements::bitcoin::Script;
+    use bitcoin_hashes::sha256::Midstate;
+    use bitcoin_hashes::{sha256, Hash};
+    use elements::secp256k1_zkp::Tweak;
     use elements::{
-        confidential, AssetIssuance, OutPoint, Transaction, TxIn, TxInWitness, TxOut, TxOutWitness,
+        confidential, AssetId, AssetIssuance, OutPoint, Transaction, TxIn, TxInWitness, TxOut,
+        TxOutWitness,
     };
 
     #[test]
@@ -780,6 +782,7 @@ mod tests {
         assert_eq!(program.root_node().cmr.into_inner(), SIGHASH_ALL_CMR);
         // TODO: check IMR
     }
+
     #[test]
     #[ignore] // too expensive to run. Run with -- --ignored to run this
     fn exec_sighash_all() {
@@ -824,16 +827,15 @@ mod tests {
             0x33, 0x2f, 0xb7, 0x1d, 0xda, 0x90, 0xff, 0x4b, 0xef, 0x53, 0x70, 0xf2, 0x52, 0x26,
             0xd3, 0xbc, 0x09, 0xfc,
         ];
-        use crate::bitcoin_hashes::Hash;
-        use bitcoin_hashes::sha256d;
-        let asset = confidential::Asset::Explicit(sha256d::Hash::from_inner(asset));
+
+        let asset = confidential::Asset::Explicit(AssetId::from_inner(Midstate::from_inner(asset)));
         //create the txenv
         let elements_tx = Transaction {
             version: 2,
             lock_time: 0,
             input: vec![TxIn {
                 previous_output: OutPoint {
-                    txid: elements::bitcoin::Txid::from_inner(tx_id),
+                    txid: elements::Txid::from_inner(tx_id),
                     vout: 0,
                 },
                 sequence: 0xfffffffe,
@@ -841,15 +843,15 @@ mod tests {
                 has_issuance: false,
                 // perhaps make this an option in elements upstream?
                 asset_issuance: AssetIssuance {
-                    asset_blinding_nonce: [0; 32],
+                    asset_blinding_nonce: Tweak::from_inner([0; 32]).expect("tweak from inner"),
                     asset_entropy: [0; 32],
                     amount: confidential::Value::Null,
                     inflation_keys: confidential::Value::Null,
                 },
-                script_sig: Script::new(),
+                script_sig: elements::Script::new(),
                 witness: TxInWitness {
-                    amount_rangeproof: vec![],
-                    inflation_keys_rangeproof: vec![],
+                    amount_rangeproof: None,
+                    inflation_keys_rangeproof: None,
                     script_witness: vec![],
                     pegin_witness: vec![],
                 },
@@ -863,25 +865,25 @@ mod tests {
                         &"1976a91448633e2c0ee9495dd3f9c43732c47f4702a362c888ac",
                     ),
                     witness: TxOutWitness {
-                        surjection_proof: vec![],
-                        rangeproof: vec![],
+                        surjection_proof: None,
+                        rangeproof: None,
                     },
                 },
                 TxOut {
                     asset: asset.clone(),
                     value: confidential::Value::Explicit(0x0000000000000ce4),
                     nonce: confidential::Nonce::Null,
-                    script_pubkey: Script::new(),
+                    script_pubkey: elements::Script::new(),
                     witness: TxOutWitness {
-                        surjection_proof: vec![],
-                        rangeproof: vec![],
+                        surjection_proof: None,
+                        rangeproof: None,
                     },
                 },
             ],
         };
         let utxo = ElementsUtxo {
             script_pubkey: sha256::Hash::from_inner([0; 32]),
-            asset: asset,
+            asset,
             value: confidential::Value::Explicit(0x00000002540be400),
         };
 
@@ -897,9 +899,10 @@ mod tests {
         let mut mac = crate::exec::BitMachine::for_program(&program);
         mac.exec(&program, &txenv).unwrap();
     }
+
     #[cfg(test)]
-    fn hex_script(s: &str) -> elements::bitcoin::Script {
-        let v: Vec<u8> = elements::bitcoin::hashes::hex::FromHex::from_hex(s).unwrap();
-        elements::bitcoin::Script::from(v)
+    fn hex_script(s: &str) -> elements::Script {
+        let v: Vec<u8> = bitcoin_hashes::hex::FromHex::from_hex(s).unwrap();
+        elements::Script::from(v)
     }
 }

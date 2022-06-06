@@ -188,9 +188,8 @@ impl<Pk: MiniscriptKey> fmt::Display for Policy<Pk> {
 
 impl<Pk> str::FromStr for Policy<Pk>
 where
-    Pk: MiniscriptKey,
+    Pk: MiniscriptKey + str::FromStr,
     <Pk as str::FromStr>::Err: ToString,
-    <<Pk as MiniscriptKey>::Hash as str::FromStr>::Err: ToString,
 {
     type Err = miniscript::Error;
 
@@ -212,7 +211,7 @@ where
 // FIXME: Make a generic module for parsing recusrive structure with it's own error type.
 impl<Pk> expression::FromTree for Policy<Pk>
 where
-    Pk: MiniscriptKey,
+    Pk: MiniscriptKey + str::FromStr,
     <Pk as str::FromStr>::Err: ToString,
 {
     fn from_tree(top: &expression::Tree) -> Result<Policy<Pk>, msError> {

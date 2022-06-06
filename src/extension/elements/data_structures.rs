@@ -20,14 +20,13 @@
 
 use std::sync::Arc;
 
+use super::jets::ElementsJetErr;
 use crate::exec;
 use crate::merkle::cmr::Cmr;
 use bitcoin_hashes::{sha256, Hash, HashEngine};
 use byteorder::{BigEndian, LittleEndian, WriteBytesExt};
 use elements::confidential::{Asset, Nonce, Value};
 use elements::{confidential, AssetIssuance};
-
-use super::jets::ElementsJetErr;
 
 /// Helper trait for writing various components of
 /// Simplicity transactions (assets, values) into bit machine.
@@ -46,21 +45,17 @@ impl SimplicityEncodable for confidential::Asset {
     fn simplicity_encode(self, mac: &mut exec::BitMachine) -> Result<(), ElementsJetErr> {
         match self {
             Asset::Null => return Err(ElementsJetErr::NullAssetEncoding),
-            Asset::Explicit(data) => {
+            Asset::Explicit(asset_id) => {
                 mac.write_bit(true);
                 mac.skip(1);
-                mac.write_bytes(&data);
+                mac.write_bytes(asset_id.into_inner().as_ref());
             }
             // consensus rules state that asset must be 0x0a or 0x0b
-            Asset::Confidential(prefix, comm) => {
-                if prefix != 0x0a || prefix != 0x0b {
-                    unreachable!(
-                        "No need to add an return error here. This will be fixed in elements 0.18"
-                    )
-                }
+            Asset::Confidential(generator) => {
+                let bytes = generator.serialize();
                 mac.write_bit(false); //not explicit
-                mac.write_bit(prefix == 0x0b);
-                mac.write_bytes(&comm);
+                mac.write_bit(bytes[0] == 0x0b);
+                mac.write_bytes(&bytes[1..]);
             }
         }
         Ok(())
@@ -82,14 +77,11 @@ impl SimplicityEncodable for confidential::Value {
                 mac.write_u64(data);
             }
             // consensus rules state that prefix value must be 0x08 or 0x09
-            Value::Confidential(prefix, comm) => {
-                if prefix != 0x08 || prefix != 0x09 {
-                    panic!("This is fixed upstream in rust-elements 0.18. This panic would be removed later")
-                }
+            Value::Confidential(generator) => {
+                let bytes = generator.serialize();
                 mac.write_bit(false); //not explicit
-                mac.write_bit(prefix == 0x09);
-                debug_assert!(comm.len() == 32);
-                mac.write_bytes(&comm);
+                mac.write_bit(bytes[0] == 0x09);
+                mac.write_bytes(&bytes[1..]);
             }
         }
         Ok(())
@@ -115,15 +107,12 @@ impl SimplicityEncodable for confidential::Nonce {
                 mac.write_bytes(&data);
             }
             // consensus rules state that prefix nocne must be 0x02 or 0x03
-            Nonce::Confidential(prefix, comm) => {
-                if prefix != 0x02 || prefix != 0x03 {
-                    panic!("This is fixed upstream in rust-elements 0.18. This panic would be removed later")
-                }
+            Nonce::Confidential(generator) => {
+                let bytes = generator.serialize();
                 mac.write_bit(true); // not null
                 mac.write_bit(false); // not explicit
-                mac.write_bit(prefix == 0x03); // oddY
-                debug_assert!(comm.len() == 32);
-                mac.write_bytes(&comm);
+                mac.write_bit(bytes[0] == 0x03); // oddY
+                mac.write_bytes(&bytes[1..]);
             }
         }
         Ok(())
@@ -144,14 +133,12 @@ impl SimplicityHash for confidential::Asset {
             Asset::Null => {
                 eng.write_u8(0).unwrap();
             }
-            Asset::Explicit(data) => {
+            Asset::Explicit(asset_id) => {
                 eng.write_u8(1).unwrap();
-                eng.input(&data);
+                eng.input(asset_id.into_inner().as_ref());
             }
-            Asset::Confidential(prefix, data) => {
-                assert!(prefix == 0x0a || prefix == 0x0b);
-                eng.write_u8(prefix).unwrap();
-                eng.input(&data);
+            Asset::Confidential(generator) => {
+                eng.input(&generator.serialize());
             }
         }
     }
@@ -167,10 +154,8 @@ impl SimplicityHash for confidential::Value {
                 eng.write_u8(1).unwrap();
                 eng.write_u64::<BigEndian>(data).unwrap();
             }
-            Value::Confidential(prefix, data) => {
-                assert!(prefix == 0x08 || prefix == 0x09);
-                eng.write_u8(prefix).unwrap();
-                eng.input(&data);
+            Value::Confidential(comm) => {
+                eng.input(&comm.serialize());
             }
         }
     }
@@ -186,16 +171,14 @@ impl SimplicityHash for confidential::Nonce {
                 eng.write_u8(1).unwrap();
                 eng.input(&data);
             }
-            Nonce::Confidential(prefix, data) => {
-                assert!(prefix == 0x02 || prefix == 0x03);
-                eng.write_u8(prefix).unwrap();
-                eng.input(&data);
+            Nonce::Confidential(pubkey) => {
+                eng.input(&pubkey.serialize());
             }
         }
     }
 }
 
-impl SimplicityHash for elements::bitcoin::Script {
+impl SimplicityHash for elements::Script {
     /// All scripts are first hashed to sha256 to get a scriptpubkey
     /// equivalent and then added to current sha256 context.
     fn simplicity_hash(&self, eng: &mut sha256::HashEngine) {
@@ -204,14 +187,14 @@ impl SimplicityHash for elements::bitcoin::Script {
     }
 }
 
-// I think this should belong in rust-elements
+// FIXME: I think this should belong in rust-elements
 pub(super) fn is_asset_reissue(asset: &AssetIssuance) -> bool {
-    asset.asset_blinding_nonce != [0; 32]
+    asset.asset_blinding_nonce.as_ref() != &[0; 32]
 }
 
-// I think this should belong in rust-elements
+// FIXME: I think this should belong in rust-elements
 pub(super) fn is_asset_new_issue(asset: &AssetIssuance) -> bool {
-    asset.asset_blinding_nonce == [0; 32]
+    asset.asset_blinding_nonce.as_ref() == &[0; 32]
 }
 
 impl SimplicityHash for AssetIssuance {
@@ -220,8 +203,8 @@ impl SimplicityHash for AssetIssuance {
             self.amount.simplicity_hash(eng);
             self.inflation_keys.simplicity_hash(eng);
             // asset blinding nonce here must be zero
-            eng.input(&self.asset_blinding_nonce);
-            eng.input(&self.asset_entropy);
+            eng.input(self.asset_blinding_nonce.as_ref());
+            eng.input(self.asset_entropy.as_ref());
         } else {
             debug_assert!(is_asset_reissue(self));
             self.amount.simplicity_hash(eng);
@@ -229,8 +212,8 @@ impl SimplicityHash for AssetIssuance {
             // Review this assertion
             let null_amt = Value::Null;
             null_amt.simplicity_hash(eng);
-            eng.input(&self.asset_blinding_nonce);
-            eng.input(&self.asset_entropy);
+            eng.input(self.asset_blinding_nonce.as_ref());
+            eng.input(self.asset_entropy.as_ref());
         }
     }
 }
@@ -332,13 +315,14 @@ impl TxEnv {
         tx.output.simplicity_hash(&mut output_eng);
         let inputs_hash = sha256::Hash::from_engine(inp_eng);
         let outputs_hash = sha256::Hash::from_engine(output_eng);
+
         TxEnv {
-            tx: tx,
-            utxos: utxos,
-            ix: ix,
-            script_cmr: script_cmr,
-            inputs_hash: inputs_hash,
-            outputs_hash: outputs_hash,
+            tx,
+            utxos,
+            ix,
+            script_cmr,
+            inputs_hash,
+            outputs_hash,
         }
     }
 }
