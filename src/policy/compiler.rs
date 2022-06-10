@@ -44,7 +44,7 @@ pub fn scribe<App: Application>(b: Value) -> TermDag<(), App> {
         }
         Value::SumR(r) => {
             let r = scribe(*r);
-            TermDag::InjL(Rc::new(r))
+            TermDag::InjR(Rc::new(r))
         }
         Value::Prod(l, r) => {
             let l = scribe(*l);

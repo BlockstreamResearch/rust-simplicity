@@ -45,7 +45,7 @@ use crate::{Error, Term, Value};
 ///
 /// Nodes have no meaning without a program.
 /// Finalized programs are executed on the Bit Machine.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct ProgramNode<App: Application> {
     /// Combinator and payload with witness data
     pub node: Term<Value, App>,
@@ -98,7 +98,7 @@ impl<App: Application> fmt::Display for ProgramNode<App> {
 /// i.e., program of finalized Simplicity nodes (see [`ProgramNode`]).
 ///
 /// Finalized programs are executed on the Bit Machine.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Program<App: Application> {
     /// List of finalized nodes
     pub nodes: Vec<ProgramNode<App>>,
