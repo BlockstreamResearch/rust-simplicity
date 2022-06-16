@@ -26,26 +26,23 @@ pub mod bititer;
 pub mod core;
 pub mod decode;
 pub mod encode;
-pub mod extension;
+pub mod jet;
 pub mod merkle;
-
-// FIXME: Extend to elements mode.
-#[cfg(feature = "bitcoin")]
-pub mod policy;
 pub mod program;
 mod util;
-use std::fmt;
+// #[cfg(feature = "bitcoin")]
+// pub mod policy;
+#[cfg(test)]
+mod test_progs;
 
 pub use crate::bit_machine::exec;
 pub use crate::core::term::Term;
 pub use crate::core::term::UntypedProgram;
 pub use crate::core::value::Value;
 pub use crate::program::Program;
-
 use miniscript::{DummyKey, MiniscriptKey};
+use std::fmt;
 
-#[cfg(test)]
-mod test_progs;
 /// Error type for simplicity
 #[derive(Debug)]
 pub enum Error {

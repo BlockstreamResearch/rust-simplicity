@@ -1,4 +1,4 @@
-use crate::extension::jets::JetsNode;
+use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
 use crate::{Term, UntypedProgram};
 use std::collections::HashMap;
@@ -17,45 +17,26 @@ use std::rc::Rc;
 /// The DAG representation is used for inductively constructing Simplicity programs
 /// that are later translated into the node representation.
 #[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Debug)]
-pub enum TermDag<Witness, Extension> {
+pub enum TermDag<Witness, App: Application> {
     Iden,
     Unit,
-    InjL(Rc<TermDag<Witness, Extension>>),
-    InjR(Rc<TermDag<Witness, Extension>>),
-    Take(Rc<TermDag<Witness, Extension>>),
-    Drop(Rc<TermDag<Witness, Extension>>),
-    Comp(
-        Rc<TermDag<Witness, Extension>>,
-        Rc<TermDag<Witness, Extension>>,
-    ),
-    Case(
-        Rc<TermDag<Witness, Extension>>,
-        Rc<TermDag<Witness, Extension>>,
-    ),
-    AssertL(
-        Rc<TermDag<Witness, Extension>>,
-        Rc<TermDag<Witness, Extension>>,
-    ),
-    AssertR(
-        Rc<TermDag<Witness, Extension>>,
-        Rc<TermDag<Witness, Extension>>,
-    ),
-    Pair(
-        Rc<TermDag<Witness, Extension>>,
-        Rc<TermDag<Witness, Extension>>,
-    ),
-    Disconnect(
-        Rc<TermDag<Witness, Extension>>,
-        Rc<TermDag<Witness, Extension>>,
-    ),
+    InjL(Rc<TermDag<Witness, App>>),
+    InjR(Rc<TermDag<Witness, App>>),
+    Take(Rc<TermDag<Witness, App>>),
+    Drop(Rc<TermDag<Witness, App>>),
+    Comp(Rc<TermDag<Witness, App>>, Rc<TermDag<Witness, App>>),
+    Case(Rc<TermDag<Witness, App>>, Rc<TermDag<Witness, App>>),
+    AssertL(Rc<TermDag<Witness, App>>, Rc<TermDag<Witness, App>>),
+    AssertR(Rc<TermDag<Witness, App>>, Rc<TermDag<Witness, App>>),
+    Pair(Rc<TermDag<Witness, App>>, Rc<TermDag<Witness, App>>),
+    Disconnect(Rc<TermDag<Witness, App>>, Rc<TermDag<Witness, App>>),
     Witness(Witness),
     Fail(Cmr, Cmr),
     Hidden(Cmr),
-    Ext(Extension),
-    Jet(JetsNode),
+    Jet(&'static JetNode<App>),
 }
 
-impl<Extension> TermDag<(), Extension> {
+impl<App: Application> TermDag<(), App> {
     /// Create DAG with single `iden` node
     pub fn iden() -> Rc<Self> {
         Rc::new(TermDag::Iden)
@@ -121,20 +102,15 @@ impl<Extension> TermDag<(), Extension> {
         Rc::new(TermDag::Hidden(hash))
     }
 
-    /// Create DAG with single `extension` node that enables functionality beyond Full Simplicity
-    pub fn ext(extension: Extension) -> Rc<Self> {
-        Rc::new(TermDag::Ext(extension))
-    }
-
-    /// Create DAG with single `jet_node` that encodes a larger sub-DAG
-    pub fn jet(jet_node: JetsNode) -> Rc<Self> {
-        Rc::new(TermDag::Jet(jet_node))
+    /// Create DAG with single `jet_node` that performs some black-box execution.
+    pub fn jet(jet: &'static JetNode<App>) -> Rc<Self> {
+        Rc::new(TermDag::Jet(jet))
     }
 }
 
-impl<Witness, Extension> TermDag<Witness, Extension> {
+impl<Witness, App: Application> TermDag<Witness, App> {
     /// Create untyped DAG from node representation
-    pub fn from_untyped_program(program: UntypedProgram<Witness, Extension>) -> Rc<Self> {
+    pub fn from_untyped_program(program: UntypedProgram<Witness, App>) -> Rc<Self> {
         assert!(!program.0.is_empty(), "Program must be non-empty");
         let mut dag_list: Vec<Rc<TermDag<_, _>>> = vec![];
         for (index, term) in program.0.into_iter().enumerate() {
@@ -172,7 +148,6 @@ impl<Witness, Extension> TermDag<Witness, Extension> {
                 Term::Witness(w) => Rc::new(TermDag::Witness(w)),
                 Term::Fail(hl, hr) => Rc::new(TermDag::Fail(hl, hr)),
                 Term::Hidden(h) => Rc::new(TermDag::Hidden(h)),
-                Term::Ext(e) => Rc::new(TermDag::Ext(e)),
                 Term::Jet(j) => Rc::new(TermDag::Jet(j)),
             };
             dag_list.push(dag);
@@ -185,52 +160,52 @@ impl<Witness, Extension> TermDag<Witness, Extension> {
 // of underllying inner values whereas we desire to
 // compare the referececs.
 #[derive(Debug)]
-struct RcWrapper<Witness, Extension> {
-    rc: Rc<TermDag<Witness, Extension>>,
+struct RcWrapper<Witness, App: Application> {
+    rc: Rc<TermDag<Witness, App>>,
 }
 
-impl<Witness, Extension> PartialEq for RcWrapper<Witness, Extension> {
+impl<Witness, App: Application> PartialEq for RcWrapper<Witness, App> {
     fn eq(&self, other: &Self) -> bool {
         Rc::ptr_eq(&self.rc, &other.rc)
     }
 }
 
-impl<Witness, Extension> Eq for RcWrapper<Witness, Extension> {}
+impl<Witness, App: Application> Eq for RcWrapper<Witness, App> {}
 
-impl<Witness, Extension> From<Rc<TermDag<Witness, Extension>>> for RcWrapper<Witness, Extension> {
-    fn from(dag: Rc<TermDag<Witness, Extension>>) -> Self {
+impl<Witness, App: Application> From<Rc<TermDag<Witness, App>>> for RcWrapper<Witness, App> {
+    fn from(dag: Rc<TermDag<Witness, App>>) -> Self {
         Self { rc: dag }
     }
 }
 
-impl<Witness, Extension> Hash for RcWrapper<Witness, Extension>
+impl<Witness, App> Hash for RcWrapper<Witness, App>
 where
     Witness: Hash,
-    Extension: Hash,
+    App: Hash + Application,
 {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.rc.hash(state);
     }
 }
 
-impl<Witness, Extension> TermDag<Witness, Extension>
+impl<Witness, App> TermDag<Witness, App>
 where
     Witness: Hash + Clone,
-    Extension: Hash + Clone,
+    App: Hash + Clone + Application,
 {
     /// Convert untyped DAG into node representation.
-    pub fn into_untyped_program(self) -> UntypedProgram<Witness, Extension> {
+    pub fn into_untyped_program(self) -> UntypedProgram<Witness, App> {
         // helper function to recrusively compute the index positions
         // of the children.
-        fn into_helper<Witness, Extension>(
-            dag: Rc<TermDag<Witness, Extension>>,
-            index_map: &mut HashMap<RcWrapper<Witness, Extension>, usize>,
-            prog: &mut Vec<Term<Witness, Extension>>,
+        fn into_helper<Witness, App>(
+            dag: Rc<TermDag<Witness, App>>,
+            index_map: &mut HashMap<RcWrapper<Witness, App>, usize>,
+            prog: &mut Vec<Term<Witness, App>>,
         ) -> usize
         where
-            RcWrapper<Witness, Extension>: Hash,
+            RcWrapper<Witness, App>: Hash,
             Witness: Clone,
-            Extension: Clone,
+            App: Clone + Application,
         {
             // insert one child into prog
             macro_rules! insert_one_child {
@@ -279,8 +254,7 @@ where
                 TermDag::Witness(ref w) => prog.push(Term::Witness(w.clone())),
                 TermDag::Fail(a, b) => prog.push(Term::Fail(*a, *b)),
                 TermDag::Hidden(cmr) => prog.push(Term::Hidden(*cmr)),
-                TermDag::Ext(ref e) => prog.push(Term::Ext(e.clone())),
-                TermDag::Jet(ref j) => prog.push(Term::Jet(*j)),
+                TermDag::Jet(j) => prog.push(Term::Jet(*j)),
             }
             // insert the current node remembering it's index for reusing
             index_map.insert(RcWrapper::from(dag), prog.len() - 1);

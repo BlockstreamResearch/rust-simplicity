@@ -17,32 +17,32 @@
 mod hashblock;
 mod schnorr0;
 mod schnorr6;
+pub(crate) mod sighash_all;
 
 #[cfg(test)]
 mod tests {
     use super::hashblock::{HASHBLOCK, HASHBLOCK_CMR};
     use super::schnorr0::{SCHNORR0, SCHNORR0_CMR};
     use super::schnorr6::{SCHNORR6, SCHNORR6_CMR};
-    use crate::extension::dummy::{DummyNode, TxEnv};
+    use crate::bititer::BitIter;
+    use crate::exec::BitMachine;
+    use crate::jet::application::Core;
     use crate::merkle::common::MerkleRoot;
-    use crate::Value;
+    use crate::{Program, Value};
 
     // TODO: check IMR
     fn check_merkle_roots(prog: &[u8], cmr: [u8; 32]) {
-        let mut bits: crate::bititer::BitIter<_> = prog.iter().cloned().into();
-        let program =
-            crate::program::Program::<DummyNode>::decode(&mut bits).expect("decoding program");
+        let mut bits: BitIter<_> = prog.iter().cloned().into();
+        let program = Program::<Core>::decode(&mut bits).expect("decoding program");
         assert_eq!(program.root_node().cmr.into_inner(), cmr);
     }
 
     fn exec_prog(prog: &[u8]) {
-        let mut bits: crate::bititer::BitIter<_> = prog.iter().cloned().into();
-        let program =
-            crate::program::Program::<DummyNode>::decode(&mut bits).expect("decoding program");
-        let txenv = TxEnv;
+        let mut bits: BitIter<_> = prog.iter().cloned().into();
+        let program = Program::<Core>::decode(&mut bits).expect("decoding program");
         //finally run the program
-        let mut mac = crate::exec::BitMachine::for_program(&program);
-        mac.exec(&program, &txenv).unwrap();
+        let mut mac = BitMachine::for_program(&program);
+        mac.exec(&program, &()).unwrap();
     }
 
     #[test]
@@ -54,12 +54,10 @@ mod tests {
 
     #[test]
     fn exec_hashblock() {
-        let mut bits: crate::bititer::BitIter<_> = HASHBLOCK.iter().cloned().into();
-        let program =
-            crate::program::Program::<DummyNode>::decode(&mut bits).expect("decoding program");
-        let txenv = TxEnv;
+        let mut bits: BitIter<_> = HASHBLOCK.iter().cloned().into();
+        let program = Program::<Core>::decode(&mut bits).expect("decoding program");
         //finally run the program
-        let mut mac = crate::exec::BitMachine::for_program(&program);
+        let mut mac = BitMachine::for_program(&program);
 
         let h = [
             0x6a, 0x09, 0xe6, 0x67, 0xbb, 0x67, 0xae, 0x85, 0x3c, 0x6e, 0xf3, 0x72, 0xa5, 0x4f,
@@ -80,7 +78,7 @@ mod tests {
             0x22, 0x23, 0xb0, 0x3, 0x61, 0xa3, 0x96, 0x17, 0x7a, 0x9c, 0xb4, 0x10, 0xff, 0x61,
             0xf2, 0x0, 0x15, 0xad,
         ];
-        let output = mac.exec(&program, &txenv).unwrap();
+        let output = mac.exec(&program, &()).unwrap();
         assert_eq!(output.try_to_bytes().unwrap(), expected);
     }
 

@@ -3,8 +3,8 @@
 
 use std::{cell::RefCell, cmp, fmt, mem, rc::Rc, sync::Arc};
 
-use crate::extension;
-use crate::extension::Jet as ExtNode;
+use crate::jet::type_name::TypeName;
+use crate::jet::Application;
 use crate::merkle::common::{MerkleRoot, TypeMerkleRoot};
 use crate::merkle::tmr::Tmr;
 use crate::Error;
@@ -385,9 +385,9 @@ struct UnificationArrow {
 /// Nodes have no meaning without a program.
 /// The node representation is later used for executing Simplicity programs.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub struct TypedNode<Witness, Ext> {
+pub struct TypedNode<Witness, App: Application> {
     /// Combinator and payload
-    pub node: Term<Witness, Ext>,
+    pub node: Term<Witness, App>,
     /// Source type of combinator
     pub source_ty: Arc<FinalType>,
     /// Target type of combinator
@@ -396,37 +396,55 @@ pub struct TypedNode<Witness, Ext> {
 
 /// Typed Simplicity program (see [`TypedNode`]).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct TypedProgram<Witness, Extension>(pub(crate) Vec<TypedNode<Witness, Extension>>);
+pub struct TypedProgram<Witness, App: Application>(pub(crate) Vec<TypedNode<Witness, App>>);
 
-/// Convenience method for converting a type for an extension
-/// field from a name to an actual `Type`
-fn type_from_name<I: Iterator<Item = u8>>(n: &mut I, pow2s: &[RcVar]) -> Type {
-    match n.next() {
-        Some(b'1') => Type::Unit,
-        Some(b'2') => {
-            let unit = Type::Unit.into_rcvar();
-            Type::Sum(unit.clone(), unit)
+// b'1' = 49
+// b'2' = 50
+// b'i' = 105
+// b'l' = 108
+// b'h' = 104
+// b'+' = 43
+// b'*' = 42
+/// Convert a [`TypeName`] into a [`Type`]
+fn type_from_name(name: &TypeName, pow2s: &[RcVar]) -> Type {
+    let it = name.0.iter().rev();
+    let mut stack = Vec::new();
+
+    for c in it {
+        match c {
+            b'1' => stack.push(Type::Unit),
+            b'2' => {
+                let unit = Type::Unit.into_rcvar();
+                stack.push(Type::Sum(unit.clone(), unit))
+            }
+            b'i' => stack.push(Type::Product(pow2s[4].clone(), pow2s[4].clone())),
+            b'l' => stack.push(Type::Product(pow2s[5].clone(), pow2s[5].clone())),
+            b'h' => stack.push(Type::Product(pow2s[7].clone(), pow2s[7].clone())),
+            b'+' | b'*' => {
+                let left = stack.pop().expect("Illegal type name syntax!").into_rcvar();
+                let right = stack.pop().expect("Illegal type name syntax!").into_rcvar();
+
+                match c {
+                    b'+' => stack.push(Type::Sum(left, right)),
+                    b'*' => stack.push(Type::Product(left, right)),
+                    _ => unreachable!(),
+                }
+            }
+            _ => panic!("Illegal type name syntax!"),
         }
-        Some(b'i') => Type::Product(pow2s[4].clone(), pow2s[4].clone()),
-        Some(b'l') => Type::Product(pow2s[5].clone(), pow2s[5].clone()),
-        Some(b'h') => Type::Product(pow2s[7].clone(), pow2s[7].clone()),
-        Some(b'+') => Type::Sum(
-            type_from_name(&mut *n, pow2s).into_rcvar(),
-            type_from_name(&mut *n, pow2s).into_rcvar(),
-        ),
-        Some(b'*') => Type::Product(
-            type_from_name(&mut *n, pow2s).into_rcvar(),
-            type_from_name(&mut *n, pow2s).into_rcvar(),
-        ),
-        Some(x) => panic!("Do not understand byte {} in type name", x as char),
-        None => panic!("unexpected end of string parsing type"),
+    }
+
+    if stack.len() == 1 {
+        stack.pop().unwrap()
+    } else {
+        panic!("Illegal type name syntax!")
     }
 }
 
 /// Attach types to all nodes in a program
-pub fn type_check<Witness, Ext: extension::Jet>(
-    program: UntypedProgram<Witness, Ext>,
-) -> Result<TypedProgram<Witness, Ext>, Error> {
+pub fn type_check<Witness, App: Application>(
+    program: UntypedProgram<Witness, App>,
+) -> Result<TypedProgram<Witness, App>, Error> {
     let vec_nodes = program.0;
     if vec_nodes.is_empty() {
         return Ok(TypedProgram(vec![]));
@@ -448,7 +466,7 @@ pub fn type_check<Witness, Ext: extension::Jet>(
     ];
 
     let mut rcs = Vec::<Rc<UnificationArrow>>::with_capacity(vec_nodes.len());
-    let mut finals = Vec::<TypedNode<Witness, Ext>>::with_capacity(vec_nodes.len());
+    let mut finals = Vec::<TypedNode<Witness, App>>::with_capacity(vec_nodes.len());
 
     // Compute most general unifier for all types in the DAG
     for (idx, program_node) in vec_nodes.iter().enumerate() {
@@ -567,26 +585,10 @@ pub fn type_check<Witness, Ext: extension::Jet>(
             Term::Hidden(..) => {
                 // No type constraints
             }
-            Term::Ext(ref bn) => {
-                bind(
-                    &node.source,
-                    type_from_name(&mut bn.source_type(), &pow2s[..]),
-                )?;
-                bind(
-                    &node.target,
-                    type_from_name(&mut bn.target_type(), &pow2s[..]),
-                )?;
-            }
-            Term::Jet(ref jt) => {
-                bind(
-                    &node.source,
-                    type_from_name(&mut jt.source_type(), &pow2s[..]),
-                )?;
+            Term::Jet(jet) => {
+                bind(&node.source, type_from_name(&jet.source_ty, &pow2s[..]))?;
 
-                bind(
-                    &node.target,
-                    type_from_name(&mut jt.target_type(), &pow2s[..]),
-                )?;
+                bind(&node.target, type_from_name(&jet.target_ty, &pow2s[..]))?;
             }
             Term::Fail(..) => unimplemented!("Cannot typecheck a program with `Fail` in it"),
         };

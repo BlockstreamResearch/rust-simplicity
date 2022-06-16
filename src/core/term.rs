@@ -1,4 +1,4 @@
-use crate::extension::jets::JetsNode;
+use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -22,7 +22,7 @@ use std::hash::Hash;
 ///
 /// The node representation is later used for executing Simplicity programs.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Term<Witness, Extension> {
+pub enum Term<Witness, App: Application> {
     Iden,
     Unit,
     InjL(usize),
@@ -38,17 +38,13 @@ pub enum Term<Witness, Extension> {
     Witness(Witness),
     Fail(Cmr, Cmr),
     Hidden(Cmr),
-    Ext(Extension),
-    Jet(JetsNode),
+    Jet(&'static JetNode<App>),
 }
 
-impl<Witness, Extension> Term<Witness, Extension> {
+impl<Witness, App: Application> Term<Witness, App> {
     /// Converts the term from one witness to another,
     /// using a function that translates witness values.
-    pub(crate) fn translate_witness<AltWitness, F>(
-        self,
-        mut translate: F,
-    ) -> Term<AltWitness, Extension>
+    pub(crate) fn translate_witness<AltWitness, F>(self, mut translate: F) -> Term<AltWitness, App>
     where
         F: FnMut(Witness) -> AltWitness,
     {
@@ -68,7 +64,6 @@ impl<Witness, Extension> Term<Witness, Extension> {
             Term::Witness(w) => Term::Witness(translate(w)),
             Term::Fail(x, y) => Term::Fail(x, y),
             Term::Hidden(x) => Term::Hidden(x),
-            Term::Ext(e) => Term::Ext(e),
             Term::Jet(j) => Term::Jet(j),
         }
     }
@@ -126,10 +121,10 @@ impl<Witness, Extension> Term<Witness, Extension> {
 
 /// Untyped Simplicity program (see [`Term`]).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct UntypedProgram<Witness, Extension>(pub(crate) Vec<Term<Witness, Extension>>);
+pub struct UntypedProgram<Witness, App: Application>(pub(crate) Vec<Term<Witness, App>>);
 
 // TODO: move to trait that is common to all program types
-impl<Witness, Extension> UntypedProgram<Witness, Extension> {
+impl<Witness, App: Application> UntypedProgram<Witness, App> {
     /// Whether this program is empty
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
@@ -141,7 +136,7 @@ impl<Witness, Extension> UntypedProgram<Witness, Extension> {
     }
 
     /// Returns an iterator over the terms in the program
-    pub fn iter(&self) -> impl Iterator<Item = &Term<Witness, Extension>> {
+    pub fn iter(&self) -> impl Iterator<Item = &Term<Witness, App>> {
         self.0.iter()
     }
 }

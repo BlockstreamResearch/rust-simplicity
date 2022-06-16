@@ -21,7 +21,7 @@
 
 use std::{io, mem};
 
-use crate::extension::Jet;
+use crate::jet::Application;
 use crate::Value;
 use crate::{Term, UntypedProgram};
 
@@ -116,8 +116,8 @@ impl<W: io::Write> BitWriter<W> {
 /// Encode an untyped Simplicity program to bits.
 ///
 /// Returns the number of written bits.
-pub fn encode_program_no_witness<W: io::Write, Ext: Jet>(
-    program: &UntypedProgram<(), Ext>,
+pub fn encode_program_no_witness<W: io::Write, App: Application>(
+    program: &UntypedProgram<(), App>,
     w: &mut BitWriter<W>,
 ) -> io::Result<usize> {
     let start_n = w.n_total_written();
@@ -186,8 +186,8 @@ pub fn encode_value<W: io::Write>(value: &Value, w: &mut BitWriter<W>) -> io::Re
 }
 
 /// Encode an untyped Simplicity term to bits.
-fn encode_node<W: io::Write, Wit, Ext: Jet>(
-    node: &Term<Wit, Ext>,
+fn encode_node<W: io::Write, Wit, App: Application>(
+    node: &Term<Wit, App>,
     w: &mut BitWriter<W>,
 ) -> io::Result<()> {
     match *node {
@@ -241,11 +241,8 @@ fn encode_node<W: io::Write, Wit, Ext: Jet>(
         Term::Witness(..) => {
             w.write_bits_be(7, 4)?;
         }
-        Term::Ext(ref b) => {
-            Jet::encode(b, w)?;
-        }
-        Term::Jet(ref j) => {
-            j.encode(w)?;
+        Term::Jet(jet) => {
+            App::encode_jet(jet, w)?;
         }
     };
 
@@ -283,9 +280,8 @@ mod test {
     use crate::bititer::BitIter;
     use crate::core::types;
     use crate::core::types::TypedProgram;
-    use crate::decode;
-    use crate::extension::dummy::DummyNode;
-    use crate::extension::jets::JetsNode;
+    use crate::jet::application::Core;
+    use crate::{decode, jet};
 
     #[test]
     fn encode_decode_natural() {
@@ -302,9 +298,9 @@ mod test {
 
     #[test]
     fn encode_decode_witness() {
-        let program: TypedProgram<(), DummyNode> = types::type_check(UntypedProgram(vec![
+        let program: TypedProgram<(), Core> = types::type_check(UntypedProgram(vec![
             Term::Witness(()),
-            Term::Jet(JetsNode::Adder32),
+            Term::Jet(&jet::core::ADD32),
             Term::Comp(2, 1),
         ]))
         .expect("type checking");

@@ -15,7 +15,7 @@
 //! # Common traits and macros
 
 use crate::core::types::{FinalType, FinalTypeInner};
-use crate::extension::Jet;
+use crate::jet::Application;
 use crate::util::u64_to_array_be;
 use crate::{Term, Value};
 use bitcoin_hashes::sha256::Midstate;
@@ -129,7 +129,7 @@ pub trait TermMerkleRoot: MerkleRoot {
     ///
     /// Each [`Term`] corresponds to some tag that is hashed
     /// and returned as initial value
-    fn get_iv<Witness, Extension: Jet>(term: &Term<Witness, Extension>) -> Self;
+    fn get_iv<Witness, App: Application>(term: &Term<Witness, App>) -> Self;
 }
 
 /// Tagged SHA256 hash used for [`FinalType`]

@@ -20,15 +20,15 @@
 use crate::bititer::BitIter;
 use crate::core::term::UntypedProgram;
 use crate::core::types::{FinalType, FinalTypeInner, TypedProgram};
-use crate::extension::Jet;
+use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
 use crate::Value;
 use crate::{Error, Term};
 
 /// Decode an untyped Simplicity program from bits.
-pub fn decode_program_no_witness<I: Iterator<Item = u8>, Ext: Jet>(
+pub fn decode_program_no_witness<I: Iterator<Item = u8>, App: Application>(
     iter: &mut BitIter<I>,
-) -> Result<UntypedProgram<(), Ext>, Error> {
+) -> Result<UntypedProgram<(), App>, Error> {
     let prog_len = decode_natural(iter, None)?;
 
     // FIXME: check maximum length of DAG that is allowed by consensus
@@ -46,8 +46,8 @@ pub fn decode_program_no_witness<I: Iterator<Item = u8>, Ext: Jet>(
 }
 
 /// Decode witness data from bits.
-pub fn decode_witness<Wit, Ext, I: Iterator<Item = u8>>(
-    program: &TypedProgram<Wit, Ext>,
+pub fn decode_witness<Wit, App: Application, I: Iterator<Item = u8>>(
+    program: &TypedProgram<Wit, App>,
     iter: &mut BitIter<I>,
 ) -> Result<Vec<Value>, Error> {
     let bit_len = match iter.next() {
@@ -98,8 +98,8 @@ pub fn decode_value<I: Iterator<Item = bool>>(
 }
 
 /// Decode an untyped Simplicity term from bits and add it to the given program.
-fn decode_node<I: Iterator<Item = u8>, Ext: Jet>(
-    program: &mut Vec<Term<(), Ext>>,
+fn decode_node<I: Iterator<Item = u8>, App: Application>(
+    program: &mut Vec<Term<(), App>>,
     iter: &mut BitIter<I>,
 ) -> Result<(), Error> {
     match iter.next() {
@@ -179,16 +179,11 @@ fn decode_node<I: Iterator<Item = u8>, Ext: Jet>(
 }
 
 /// Decode a Simplicity jet from bits.
-fn decode_jet<I: Iterator<Item = u8>, Ext: Jet>(
-    program: &mut Vec<Term<(), Ext>>,
+fn decode_jet<I: Iterator<Item = u8>, App: Application>(
+    program: &mut Vec<Term<(), App>>,
     iter: &mut BitIter<I>,
 ) -> Result<(), Error> {
-    let node = match iter.next() {
-        None => return Err(Error::EndOfStream),
-        Some(false) => Term::Ext(Jet::decode(iter)?),
-        Some(true) => Term::Jet(Jet::decode(iter)?),
-    };
-
+    let node = Term::Jet(App::decode_jet(iter)?);
     program.push(node);
     Ok(())
 }
