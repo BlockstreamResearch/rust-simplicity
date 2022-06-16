@@ -19,5 +19,5 @@
 #[cfg(feature = "bitcoin")]
 pub mod bitcoin;
 pub mod core;
-//#[cfg(feature = "elements")]
-//pub mod elements;
+#[cfg(feature = "elements")]
+pub mod elements;
