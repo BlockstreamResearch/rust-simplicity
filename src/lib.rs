@@ -28,12 +28,12 @@ pub mod decode;
 pub mod encode;
 pub mod jet;
 pub mod merkle;
+#[cfg(feature = "bitcoin")]
+pub mod policy;
 pub mod program;
-mod util;
-// #[cfg(feature = "bitcoin")]
-// pub mod policy;
 #[cfg(test)]
 mod test_progs;
+mod util;
 
 pub use crate::bit_machine::exec;
 pub use crate::core::term::Term;

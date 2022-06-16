@@ -29,9 +29,8 @@ use miniscript::expression;
 use miniscript::Error as msError;
 use miniscript::MiniscriptKey;
 
-use crate::extension::bitcoin::BtcNode;
-
 use crate::core::term::UntypedProgram;
+use crate::jet::application::Bitcoin;
 use crate::Error;
 use crate::PubkeyKey32;
 
@@ -64,7 +63,7 @@ pub enum Policy<Pk: MiniscriptKey> {
 }
 impl<Pk: MiniscriptKey + PubkeyKey32> Policy<Pk> {
     /// Compile a policy into a simplicity frgament
-    pub fn compile(&self) -> Result<UntypedProgram<(), BtcNode>, Error> {
+    pub fn compile(&self) -> Result<UntypedProgram<(), Bitcoin>, Error> {
         let dag = compiler::compile(self)?;
         Ok(dag.into_untyped_program())
     }
@@ -347,7 +346,7 @@ mod tests {
     use super::*;
     use crate::bititer::BitIter;
     use crate::exec;
-    use crate::extension::bitcoin::{BtcNode, TxEnv};
+    use crate::jet::application::{Bitcoin, BitcoinEnv};
     use crate::program::Program;
     use crate::DummyKey;
     use crate::Value;
@@ -356,18 +355,18 @@ mod tests {
     fn compile_and_exec(pol: &str, witness: Vec<u8>) {
         // A single pk compilation
         let pol = Policy::<DummyKey>::from_str(pol).unwrap();
-        let prog: UntypedProgram<_, BtcNode> = pol.compile().unwrap();
+        let prog: UntypedProgram<_, Bitcoin> = pol.compile().unwrap();
 
         let prog =
             Program::from_untyped_program(prog, &mut BitIter::from(witness.into_iter())).unwrap();
         // prog.graph_print();
 
-        let txenv = TxEnv::default();
+        let env = BitcoinEnv::default();
 
         let mut mac = exec::BitMachine::for_program(&prog);
-        let output = mac.exec(&prog, &txenv).unwrap();
+        let output = mac.exec(&prog, &env).unwrap();
 
-        assert!(output == Value::Unit);
+        assert_eq!(output, Value::Unit);
     }
 
     // TODO: rewrite with proper witness
