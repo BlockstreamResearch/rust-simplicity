@@ -36,73 +36,83 @@ pub enum TermDag<Witness, App: Application> {
     Jet(&'static JetNode<App>),
 }
 
-impl<App: Application> TermDag<(), App> {
-    /// Create DAG with single `iden` node
+impl<Witness, App: Application> TermDag<Witness, App> {
+    /// Create a DAG with a single `iden` node
     pub fn iden() -> Rc<Self> {
         Rc::new(TermDag::Iden)
     }
 
-    /// Create DAG with single `unit` node
+    /// Create a DAG with a single `unit` node
     pub fn unit() -> Rc<Self> {
         Rc::new(TermDag::Unit)
     }
 
-    /// Create DAG with `injl` root that points to given sub-DAG
-    pub fn injl(sub_dag: Rc<Self>) -> Rc<Self> {
-        Rc::new(TermDag::InjL(sub_dag))
+    /// Create a DAG with root `injl` and the given `child`
+    pub fn injl(child: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::InjL(child))
     }
 
-    /// Create DAG with `injr` root that points to given sub-DAG
-    pub fn injr(sub_dag: Rc<Self>) -> Rc<Self> {
-        Rc::new(TermDag::InjR(sub_dag))
+    /// Create a DAG with root `injr` and the given `child`
+    pub fn injr(child: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::InjR(child))
     }
 
-    /// Create DAG with `take` root that points to given sub-DAG
-    pub fn take(sub_dag: Rc<Self>) -> Rc<Self> {
-        Rc::new(TermDag::Take(sub_dag))
+    /// Create a DAG with root `take` and the given `child`
+    pub fn take(child: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::Take(child))
     }
 
-    /// Create DAG with `drop` root that points to given sub-DAG
-    pub fn drop(sub_dag: Rc<Self>) -> Rc<Self> {
-        Rc::new(TermDag::Drop(sub_dag))
+    /// Create a DAG with root `drop` and the given `child`
+    pub fn drop(child: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::Drop(child))
     }
 
-    /// Create DAG with `comp` root that points to given `left` and `right` sub-DAGs
-    pub fn comp(left_dag: Rc<Self>, right_dag: Rc<Self>) -> Rc<Self> {
-        Rc::new(TermDag::Comp(left_dag, right_dag))
+    /// Create a DAG with root `comp` and the given `left` and `right` child
+    pub fn comp(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::Comp(left, right))
     }
 
-    /// Create DAG with `case` root that points to given `left` and `right` sub-DAGs
-    pub fn case(left_dag: Rc<Self>, right_dag: Rc<Self>) -> Rc<Self> {
-        Rc::new(TermDag::Case(left_dag, right_dag))
+    /// Create a DAG with root `case` and the given `left` and `right` child
+    pub fn case(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::Case(left, right))
     }
 
-    /// Create DAG with `pair` root that points to given `left` and `right` sub-DAGs
-    pub fn pair(left_dag: Rc<Self>, right_dag: Rc<Self>) -> Rc<Self> {
-        Rc::new(TermDag::Pair(left_dag, right_dag))
+    /// Create a DAG with root `assertl` and the given `left` and `right` child
+    pub fn assertl(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::AssertL(left, right))
     }
 
-    /// Create DAG with `disconnect` root that points to given `left` and `right` sub-DAGs
-    pub fn disconnect(left_dag: Rc<Self>, right_dag: Rc<Self>) -> Rc<Self> {
-        Rc::new(TermDag::Disconnect(left_dag, right_dag))
+    /// Create a DAG with root `assertr` and the given `left` and `right` child
+    pub fn assertr(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::AssertR(left, right))
     }
 
-    /// Create DAG with single `witness` node _(with no witness data)_
-    pub fn witness() -> Rc<Self> {
-        Rc::new(TermDag::Witness(()))
+    /// Create a DAG with root `pair` and the given `left` and `right` child
+    pub fn pair(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::Pair(left, right))
     }
 
-    /// Create DAG with single `fail` node that contains the given `left` and `right` hashes
-    pub fn fail(left_hash: Cmr, right_hash: Cmr) -> Rc<Self> {
-        Rc::new(TermDag::Fail(left_hash, right_hash))
+    /// Create a DAG with root `disconnect` and the given `left` and `right` child
+    pub fn disconnect(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::Disconnect(left, right))
     }
 
-    /// Create DAG with single `hidden` node that contains the given hash
+    /// Create a DAG with a single `witness` node that contains the given `value`
+    pub fn witness(value: Witness) -> Rc<Self> {
+        Rc::new(TermDag::Witness(value))
+    }
+
+    /// Create a DAG with a single `fail` node that contains the given `left` and `right` hashes
+    pub fn fail(left: Cmr, right: Cmr) -> Rc<Self> {
+        Rc::new(TermDag::Fail(left, right))
+    }
+
+    /// Create a DAG with a single `hidden` node that contains the given `hash`
     pub fn hidden(hash: Cmr) -> Rc<Self> {
         Rc::new(TermDag::Hidden(hash))
     }
 
-    /// Create DAG with single `jet_node` that performs some black-box execution.
+    /// Create a DAG with a single `jet` node that performs some black-box execution.
     pub fn jet(jet: &'static JetNode<App>) -> Rc<Self> {
         Rc::new(TermDag::Jet(jet))
     }
