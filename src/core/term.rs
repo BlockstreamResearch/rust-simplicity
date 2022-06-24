@@ -68,6 +68,33 @@ impl<Witness, App: Application> Term<Witness, App> {
         }
     }
 
+    /// Return the relative index of the left child of the given term, if there is such a child.
+    pub(crate) fn get_left(&self) -> Option<usize> {
+        match self {
+            Term::InjL(i) | Term::InjR(i) | Term::Take(i) | Term::Drop(i) => Some(*i),
+            Term::Comp(i, _)
+            | Term::Case(i, _)
+            | Term::AssertL(i, _)
+            | Term::AssertR(i, _)
+            | Term::Pair(i, _)
+            | Term::Disconnect(i, _) => Some(*i),
+            _ => None,
+        }
+    }
+
+    /// Return the relative index of the right child of the given term, if there is such a child.
+    pub(crate) fn get_right(&self) -> Option<usize> {
+        match self {
+            Term::Comp(_, j)
+            | Term::Case(_, j)
+            | Term::AssertL(_, j)
+            | Term::AssertR(_, j)
+            | Term::Pair(_, j)
+            | Term::Disconnect(_, j) => Some(*j),
+            _ => None,
+        }
+    }
+
     /// Converts the term to a term that uses sharing.
     ///
     /// The relative indices are updated such that
@@ -138,5 +165,71 @@ impl<Witness, App: Application> UntypedProgram<Witness, App> {
     /// Returns an iterator over the terms in the program
     pub fn iter(&self) -> impl Iterator<Item = &Term<Witness, App>> {
         self.0.iter()
+    }
+
+    /// Visit the DAG that underlies the program
+    /// and return a stack of node indices that can be popped such that the nodes are in post order.
+    fn get_post_order_stack(&self) -> Vec<usize> {
+        if self.0.is_empty() {
+            return Vec::new();
+        }
+
+        let mut visited = Vec::with_capacity(self.len());
+        let mut to_visit = vec![self.0.len() - 1];
+
+        while let Some(index) = to_visit.pop() {
+            visited.push(index);
+
+            if let Some(l) = self.0[index].get_left() {
+                let idx_l = index - l;
+                if !Self::is_cross_reference(idx_l, &to_visit) {
+                    to_visit.push(idx_l);
+                }
+            }
+            if let Some(r) = self.0[index].get_right() {
+                let idx_r = index - r;
+                if !Self::is_cross_reference(idx_r, &to_visit) {
+                    to_visit.push(idx_r);
+                }
+            }
+        }
+
+        visited
+    }
+
+    /// Return whether the given `index` is a cross-reference to a node that appears
+    /// earlier in the post-order of the DAG.
+    ///
+    /// Using the two-stack approach of [`Self::get_post_order_stack`],
+    /// the largest index of any unvisited node is always the last element of `to_visit`.
+    /// In a post order, the indices of descendants are always lower than the ancestor index.
+    fn is_cross_reference(index: usize, to_visit: &[usize]) -> bool {
+        if let Some(largest_unvisited_index) = to_visit.last() {
+            if index <= *largest_unvisited_index {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Return whether the program is in _canonical order_.
+    /// This means that node indices appear in post order,
+    /// i.e., children appear before their parent.
+    /// It also means that if there is a node that cannot be reached from the root,
+    /// then the program is not in canonical order.
+    pub fn has_canonical_order(&self) -> bool {
+        let mut post_order_stack = self.get_post_order_stack();
+        let mut bottom = 0;
+
+        while let Some(index) = post_order_stack.pop() {
+            if index == bottom {
+                bottom += 1;
+            } else {
+                return false;
+            }
+        }
+
+        bottom == self.len()
     }
 }

@@ -41,8 +41,13 @@ pub fn decode_program_no_witness<I: Iterator<Item = u8>, App: Application>(
         decode_node(&mut program, iter)?;
     }
 
-    // FIXME: verify canonical order
-    Ok(UntypedProgram(program))
+    let program = UntypedProgram(program);
+
+    if program.has_canonical_order() {
+        Ok(program)
+    } else {
+        Err(Error::ParseError("Program is not in canonical order!"))
+    }
 }
 
 /// Decode witness data from bits.
