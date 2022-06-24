@@ -2,7 +2,6 @@ use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
 use crate::{Term, UntypedProgram};
 use std::collections::HashMap;
-use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 /// Untyped Simplicity DAG _(directed acyclic graph)_.
@@ -116,6 +115,111 @@ impl<Witness, App: Application> TermDag<Witness, App> {
     pub fn jet(jet: &'static JetNode<App>) -> Rc<Self> {
         Rc::new(TermDag::Jet(jet))
     }
+
+    /// Return the left child of the given DAG root, if there is such a child.
+    pub fn get_left(&self) -> Option<&Self> {
+        match self {
+            TermDag::InjL(l) | TermDag::InjR(l) | TermDag::Take(l) | TermDag::Drop(l) => Some(l),
+            TermDag::Comp(l, _)
+            | TermDag::Case(l, _)
+            | TermDag::Pair(l, _)
+            | TermDag::AssertL(l, _)
+            | TermDag::AssertR(l, _)
+            | TermDag::Disconnect(l, _) => Some(l),
+            _ => None,
+        }
+    }
+
+    /// Return the right child of the given DAG root, if there is such a child.
+    pub fn get_right(&self) -> Option<&Self> {
+        match self {
+            TermDag::Comp(_, r)
+            | TermDag::Case(_, r)
+            | TermDag::Pair(_, r)
+            | TermDag::AssertL(_, r)
+            | TermDag::AssertR(_, r)
+            | TermDag::Disconnect(_, r) => Some(r),
+            _ => None,
+        }
+    }
+
+    /// Visit the DAG and return a stack that can be popped such that the nodes are in post order,
+    /// i.e., children appear before their parent.
+    fn get_post_order_stack(&self) -> Vec<&TermDag<Witness, App>> {
+        let mut visited = Vec::new();
+        let mut to_visit = vec![self];
+
+        while let Some(dag) = to_visit.pop() {
+            visited.push(dag);
+
+            if let Some(l) = dag.get_left() {
+                if !l.is_cross_reference(&to_visit) {
+                    to_visit.push(l);
+                }
+            }
+            if let Some(r) = dag.get_right() {
+                if !r.is_cross_reference(&to_visit) {
+                    to_visit.push(r);
+                }
+            }
+        }
+
+        visited
+    }
+
+    /// Return whether `self` is a cross-reference to a node that appears
+    /// earlier in the post-order of the DAG.
+    ///
+    /// Using the two-stack approach of [`Self::get_post_order_stack`],
+    /// nodes that appear earlier are reachable from the nodes in `to_visit`.
+    fn is_cross_reference(&self, to_visit: &[&TermDag<Witness, App>]) -> bool {
+        for dag in to_visit {
+            if self.is_reachable_from(dag) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    // TODO: Slow for large programs, like HASHBLOCK or SCHNORR
+    // Memoize reachable nodes? Save unique pairs of parents to leftmost child (requires additional iteration).
+    /// Return whether the DAG root `self` is reachable from the DAG root `other`.
+    ///
+    /// Performs DFS internally.
+    fn is_reachable_from(&self, other: &Self) -> bool {
+        let mut to_visit = vec![other];
+
+        while let Some(node) = to_visit.pop() {
+            if std::ptr::eq(node, self) {
+                return true;
+            }
+
+            if let Some(l) = node.get_left() {
+                to_visit.push(l);
+            }
+            if let Some(r) = node.get_right() {
+                to_visit.push(r);
+            }
+        }
+
+        false
+    }
+
+    /// Read `dag_to_index` and return the relative index of `self` in `program`.
+    /// Because children appear before parents in post order,
+    /// their index is known when processing the parent.
+    fn get_relative_index(
+        &self,
+        program: &[Term<Witness, App>],
+        dag_to_index: &HashMap<*const TermDag<Witness, App>, usize>,
+    ) -> usize {
+        let ptr: *const TermDag<_, _> = self;
+        let index = dag_to_index
+            .get(&ptr)
+            .expect("children come before parent in post order");
+        program.len() - index
+    }
 }
 
 impl<Witness, App: Application> TermDag<Witness, App>
@@ -161,117 +265,58 @@ where
         }
         Rc::clone(dag_list.last().unwrap())
     }
-}
 
-// A direct comparison for Rc<> results in comparison
-// of underllying inner values whereas we desire to
-// compare the referececs.
-#[derive(Debug)]
-struct RcWrapper<Witness, App: Application> {
-    rc: Rc<TermDag<Witness, App>>,
-}
+    /// Convert a Simplicity DAG into a linear program.
+    ///
+    /// The program is guaranteed to be in canonical order.
+    pub fn to_untyped_program(&self) -> UntypedProgram<Witness, App> {
+        let mut post_order_stack = self.get_post_order_stack();
+        let mut program = Vec::with_capacity(post_order_stack.len());
+        let mut dag_to_index = HashMap::new();
 
-impl<Witness, App: Application> PartialEq for RcWrapper<Witness, App> {
-    fn eq(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.rc, &other.rc)
-    }
-}
+        while let Some(dag) = post_order_stack.pop() {
+            let term = if let Some(l) = dag.get_left() {
+                // Program of left child is already added
+                let l_idx = l.get_relative_index(&program, &dag_to_index);
 
-impl<Witness, App: Application> Eq for RcWrapper<Witness, App> {}
+                if let Some(r) = dag.get_right() {
+                    // Program of right child is already added
+                    let r_idx = r.get_relative_index(&program, &dag_to_index);
 
-impl<Witness, App: Application> From<Rc<TermDag<Witness, App>>> for RcWrapper<Witness, App> {
-    fn from(dag: Rc<TermDag<Witness, App>>) -> Self {
-        Self { rc: dag }
-    }
-}
-
-impl<Witness, App> Hash for RcWrapper<Witness, App>
-where
-    Witness: Hash,
-    App: Hash + Application,
-{
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.rc.hash(state);
-    }
-}
-
-impl<Witness, App> TermDag<Witness, App>
-where
-    Witness: Hash + Clone,
-    App: Hash + Clone + Application,
-{
-    /// Convert untyped DAG into node representation.
-    pub fn into_untyped_program(self) -> UntypedProgram<Witness, App> {
-        // helper function to recrusively compute the index positions
-        // of the children.
-        fn into_helper<Witness, App>(
-            dag: Rc<TermDag<Witness, App>>,
-            index_map: &mut HashMap<RcWrapper<Witness, App>, usize>,
-            prog: &mut Vec<Term<Witness, App>>,
-        ) -> usize
-        where
-            RcWrapper<Witness, App>: Hash,
-            Witness: Clone,
-            App: Clone + Application,
-        {
-            // insert one child into prog
-            macro_rules! insert_one_child {
-                ($term: expr, $l : expr) => {
-                    match index_map.get(&RcWrapper::from(Rc::clone($l))) {
-                        Some(ind) => prog.push($term(prog.len() - ind)),
-                        None => {
-                            let ind = into_helper(Rc::clone($l), index_map, prog);
-                            prog.push($term(prog.len() - ind));
-                        }
+                    match dag {
+                        TermDag::Comp(_, _) => Term::Comp(l_idx, r_idx),
+                        TermDag::Case(_, _) => Term::Case(l_idx, r_idx),
+                        TermDag::Pair(_, _) => Term::Pair(l_idx, r_idx),
+                        TermDag::AssertL(_, _) => Term::AssertL(l_idx, r_idx),
+                        TermDag::AssertR(_, _) => Term::AssertR(l_idx, r_idx),
+                        TermDag::Disconnect(_, _) => Term::Disconnect(l_idx, r_idx),
+                        _ => unreachable!(),
                     }
-                };
-            }
+                } else {
+                    match dag {
+                        TermDag::InjL(_) => Term::InjL(l_idx),
+                        TermDag::InjR(_) => Term::InjR(l_idx),
+                        TermDag::Take(_) => Term::Take(l_idx),
+                        TermDag::Drop(_) => Term::Drop(l_idx),
+                        _ => unreachable!(),
+                    }
+                }
+            } else {
+                match dag {
+                    TermDag::Unit => Term::Unit,
+                    TermDag::Iden => Term::Iden,
+                    TermDag::Witness(w) => Term::Witness(w.clone()),
+                    TermDag::Fail(hl, hr) => Term::Fail(*hl, *hr),
+                    TermDag::Hidden(h) => Term::Hidden(*h),
+                    TermDag::Jet(j) => Term::Jet(j),
+                    _ => unreachable!(),
+                }
+            };
 
-            // insert two children into prog
-            macro_rules! insert_two_child {
-                ($term: expr, $l : expr, $r: expr) => {{
-                    let l_ind = match index_map.get(&RcWrapper::from(Rc::clone($l))) {
-                        Some(ind) => *ind,
-                        None => into_helper(Rc::clone($l), index_map, prog),
-                    };
-                    let r_ind = match index_map.get(&RcWrapper::from(Rc::clone($r))) {
-                        Some(ind) => *ind,
-                        None => into_helper(Rc::clone($r), index_map, prog),
-                    };
-                    prog.push($term(prog.len() - l_ind, prog.len() - r_ind));
-                }};
-            }
-
-            if index_map.contains_key(&RcWrapper::from(Rc::clone(&dag))) {
-                return *index_map.get(&RcWrapper::from(Rc::clone(&dag))).unwrap();
-            }
-            match dag.as_ref() {
-                TermDag::Unit => prog.push(Term::Unit),
-                TermDag::Iden => prog.push(Term::Iden),
-                TermDag::InjL(l) => insert_one_child!(Term::InjL, l),
-                TermDag::InjR(r) => insert_one_child!(Term::InjR, r),
-                TermDag::Take(l) => insert_one_child!(Term::Take, l),
-                TermDag::Drop(r) => insert_one_child!(Term::Drop, r),
-                TermDag::Comp(l, r) => insert_two_child!(Term::Comp, l, r),
-                TermDag::Case(l, r) => insert_two_child!(Term::Case, l, r),
-                TermDag::AssertL(l, r) => insert_two_child!(Term::AssertL, l, r),
-                TermDag::AssertR(l, r) => insert_two_child!(Term::AssertR, l, r),
-                TermDag::Pair(l, r) => insert_two_child!(Term::Pair, l, r),
-                TermDag::Disconnect(l, r) => insert_two_child!(Term::Disconnect, l, r),
-                TermDag::Witness(ref w) => prog.push(Term::Witness(w.clone())),
-                TermDag::Fail(a, b) => prog.push(Term::Fail(*a, *b)),
-                TermDag::Hidden(cmr) => prog.push(Term::Hidden(*cmr)),
-                TermDag::Jet(j) => prog.push(Term::Jet(*j)),
-            }
-            // insert the current node remembering it's index for reusing
-            index_map.insert(RcWrapper::from(dag), prog.len() - 1);
-            prog.len() - 1
+            dag_to_index.insert(dag, program.len());
+            program.push(term);
         }
 
-        let mut prog = vec![];
-        let mut index_map = HashMap::new();
-        let _len = into_helper(Rc::new(self), &mut index_map, &mut prog);
-
-        UntypedProgram(prog)
+        UntypedProgram(program)
     }
 }
