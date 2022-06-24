@@ -17,19 +17,19 @@
 //! Used at time of commitment.
 //! Importantly, `witness` data and right `disconnect` branches are _not_ included in the hash.
 
-use crate::extension::Jet;
+use crate::jet::Application;
 use crate::merkle::common::{MerkleRoot, TermMerkleRoot};
 use crate::{impl_midstate_wrapper, Term};
 use bitcoin_hashes::sha256::Midstate;
 
 /// Commitment Merkle root
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Cmr(Midstate);
+pub struct Cmr(pub(crate) Midstate);
 
 impl_midstate_wrapper!(Cmr);
 
 impl TermMerkleRoot for Cmr {
-    fn get_iv<Witness, Extension: Jet>(term: &Term<Witness, Extension>) -> Self {
+    fn get_iv<Witness, App: Application>(term: &Term<Witness, App>) -> Self {
         match term {
             Term::Iden => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1fiden"),
             Term::Unit => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1funit"),
@@ -46,7 +46,6 @@ impl TermMerkleRoot for Cmr {
             Term::Witness(..) => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1fwitness"),
             Term::Fail(..) => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1ffail"),
             Term::Hidden(h) => *h,
-            Term::Ext(e) => e.cmr(),
             Term::Jet(j) => j.cmr(),
         }
     }

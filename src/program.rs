@@ -26,10 +26,11 @@ use crate::bititer::BitIter;
 use crate::core::term::UntypedProgram;
 use crate::core::types;
 use crate::core::types::{FinalType, TypedNode, TypedProgram};
+use crate::decode;
+use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::common::{MerkleRoot, TermMerkleRoot};
 use crate::merkle::imr::Imr;
-use crate::{decode, extension};
 use crate::{Error, Term, Value};
 
 /// Single, finalized Simplicity node.
@@ -45,9 +46,9 @@ use crate::{Error, Term, Value};
 /// Nodes have no meaning without a program.
 /// Finalized programs are executed on the Bit Machine.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub struct ProgramNode<Ext> {
+pub struct ProgramNode<App: Application> {
     /// Combinator and payload with witness data
-    pub node: Term<Value, Ext>,
+    pub node: Term<Value, App>,
     /// Index of node in encompassing program
     pub index: usize,
     /// Commitment Merkle root of node
@@ -66,7 +67,7 @@ pub struct ProgramNode<Ext> {
     pub frame_count_bound: usize,
 }
 
-impl<Ext: fmt::Display> fmt::Display for ProgramNode<Ext> {
+impl<App: Application> fmt::Display for ProgramNode<App> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{}] ", self.index)?;
         match self.node {
@@ -87,8 +88,7 @@ impl<Ext: fmt::Display> fmt::Display for ProgramNode<Ext> {
             Term::Witness(..) => f.write_str("witness")?,
             Term::Hidden(..) => f.write_str("hidden")?,
             Term::Fail(..) => f.write_str("fail")?,
-            Term::Ext(ref b) => write!(f, "[ext]{}", b)?,
-            Term::Jet(ref j) => write!(f, "[jet]{}", j)?,
+            Term::Jet(j) => write!(f, "[jet]{}", j)?,
         }
         write!(f, ": {} → {}", self.source_ty, self.target_ty,)
     }
@@ -99,28 +99,28 @@ impl<Ext: fmt::Display> fmt::Display for ProgramNode<Ext> {
 ///
 /// Finalized programs are executed on the Bit Machine.
 #[derive(Debug, Eq, PartialEq)]
-pub struct Program<Ext> {
+pub struct Program<App: Application> {
     /// List of finalized nodes
-    pub nodes: Vec<ProgramNode<Ext>>,
+    pub nodes: Vec<ProgramNode<App>>,
 }
 
-impl<Ext: extension::Jet> Program<Ext> {
+impl<App: Application> Program<App> {
     /// Obtain the node representing the root of the program DAG
-    pub fn root_node(&self) -> &ProgramNode<Ext> {
+    pub fn root_node(&self) -> &ProgramNode<App> {
         &self.nodes[self.nodes.len() - 1]
     }
 
     /// Decode a program from a stream of bits
-    pub fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Program<Ext>, Error> {
+    pub fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Program<App>, Error> {
         let untyped_program = decode::decode_program_no_witness(iter)?;
-        Program::<Ext>::from_untyped_program(untyped_program, iter)
+        Program::<App>::from_untyped_program(untyped_program, iter)
     }
 
     /// Decode a program from a stream of bits
     pub fn from_untyped_program<I: Iterator<Item = u8>>(
-        untyped_program: UntypedProgram<(), Ext>,
+        untyped_program: UntypedProgram<(), App>,
         iter: &mut BitIter<I>,
-    ) -> Result<Program<Ext>, Error> {
+    ) -> Result<Program<App>, Error> {
         let typed_program = types::type_check(untyped_program)?;
         let witness = decode::decode_witness(&typed_program, iter)?;
         let witness_program = fill_witness_data(typed_program, witness)?;
@@ -150,7 +150,6 @@ impl<Ext: extension::Jet> Program<Ext> {
                     Term::Witness(..) => "witness".to_owned(),
                     Term::Hidden(..) => "hidden".to_owned(),
                     Term::Fail(..) => "fail".to_owned(),
-                    Term::Ext(e) => format!("[ext]{}", e), // FIXME `ext` and `jet` should passthrough
                     Term::Jet(j) => format!("[jet]{}", j),
                 },
                 node.index,
@@ -163,7 +162,6 @@ impl<Ext: extension::Jet> Program<Ext> {
                 | Term::Witness(..)
                 | Term::Hidden(..)
                 | Term::Fail(..)
-                | Term::Ext(..)
                 | Term::Jet(..) => {}
                 Term::InjL(i) | Term::InjR(i) | Term::Take(i) | Term::Drop(i) => {
                     println!("  {} -> {};", node.index, node.index - i);
@@ -182,10 +180,10 @@ impl<Ext: extension::Jet> Program<Ext> {
     }
 }
 
-fn fill_witness_data<Wit, Ext>(
-    typed_program: TypedProgram<Wit, Ext>,
+fn fill_witness_data<Wit, App: Application>(
+    typed_program: TypedProgram<Wit, App>,
     witness: Vec<Value>,
-) -> Result<TypedProgram<Value, Ext>, Error> {
+) -> Result<TypedProgram<Value, App>, Error> {
     let mut it = witness.into_iter();
     let mut translate = |_old_witness: Wit| it.next().expect("witness too short!");
     let ret = typed_program
@@ -205,10 +203,10 @@ fn fill_witness_data<Wit, Ext>(
 /// _[`Term::Hidden`] nodes have their hash as primary key_
 type PrimaryKey = (Imr, Arc<FinalType>, Arc<FinalType>);
 
-fn compress_and_finalize<Ext: extension::Jet>(
-    typed_program: TypedProgram<Value, Ext>,
-) -> Program<Ext> {
-    let mut shared_program = Vec::<ProgramNode<Ext>>::new();
+fn compress_and_finalize<App: Application>(
+    typed_program: TypedProgram<Value, App>,
+) -> Program<App> {
+    let mut shared_program = Vec::<ProgramNode<App>>::new();
     let mut shared_idx = 0;
 
     let mut primary_key_to_shared_idx: HashMap<PrimaryKey, usize> = HashMap::new();
@@ -281,9 +279,9 @@ fn compress_and_finalize<Ext: extension::Jet>(
     }
 }
 
-fn compute_cmr<Ext: extension::Jet>(
-    program: &[ProgramNode<Ext>],
-    node: &Term<Value, Ext>,
+fn compute_cmr<App: Application>(
+    program: &[ProgramNode<App>],
+    node: &Term<Value, App>,
     idx: usize,
 ) -> Cmr {
     let cmr_iv = Cmr::get_iv(node);
@@ -294,7 +292,6 @@ fn compute_cmr<Ext: extension::Jet>(
         | Term::Witness(..)
         | Term::Fail(..)
         | Term::Hidden(..)
-        | Term::Ext(..)
         | Term::Jet(..) => cmr_iv,
         Term::InjL(i) | Term::InjR(i) | Term::Take(i) | Term::Drop(i) | Term::Disconnect(i, _) => {
             cmr_iv.update_1(program[idx - i].cmr)
@@ -307,21 +304,16 @@ fn compute_cmr<Ext: extension::Jet>(
     }
 }
 
-fn compute_imr<Ext: extension::Jet>(
-    program: &[ProgramNode<Ext>],
-    node: &Term<Value, Ext>,
+fn compute_imr<App: Application>(
+    program: &[ProgramNode<App>],
+    node: &Term<Value, App>,
     idx: usize,
     target_ty: &FinalType,
 ) -> Imr {
     let imr_iv = Imr::get_iv(node);
 
     match *node {
-        Term::Iden
-        | Term::Unit
-        | Term::Fail(..)
-        | Term::Hidden(..)
-        | Term::Ext(..)
-        | Term::Jet(..) => imr_iv,
+        Term::Iden | Term::Unit | Term::Fail(..) | Term::Hidden(..) | Term::Jet(..) => imr_iv,
         Term::InjL(i) | Term::InjR(i) | Term::Take(i) | Term::Drop(i) => {
             imr_iv.update_1(program[idx - i].imr)
         }
@@ -335,9 +327,9 @@ fn compute_imr<Ext: extension::Jet>(
     }
 }
 
-fn compute_extra_cells_bound<Ext: extension::Jet>(
-    program: &[ProgramNode<Ext>],
-    node: &Term<Value, Ext>,
+fn compute_extra_cells_bound<App: Application>(
+    program: &[ProgramNode<App>],
+    node: &Term<Value, App>,
     idx: usize,
     witness_target_width: usize,
 ) -> usize {
@@ -374,14 +366,13 @@ fn compute_extra_cells_bound<Ext: extension::Jet>(
         Term::Witness(..) => witness_target_width,
         Term::Fail(..) => unimplemented!(),
         Term::Hidden(..) => 0,
-        Term::Ext(..) => 0, // FIXME should fallthrough
         Term::Jet(..) => 0,
     }
 }
 
-fn compute_frame_count_bound<Ext: extension::Jet>(
-    program: &[ProgramNode<Ext>],
-    node: &Term<Value, Ext>,
+fn compute_frame_count_bound<App: Application>(
+    program: &[ProgramNode<App>],
+    node: &Term<Value, App>,
     idx: usize,
 ) -> usize {
     match *node {
@@ -414,7 +405,6 @@ fn compute_frame_count_bound<Ext: extension::Jet>(
         Term::Witness(..) => 0,
         Term::Fail(..) => unimplemented!(),
         Term::Hidden(..) => 0,
-        Term::Ext(..) => 0, // FIXME should fallthrough
         Term::Jet(..) => 0,
     }
 }
@@ -423,12 +413,9 @@ fn compute_frame_count_bound<Ext: extension::Jet>(
 mod tests {
     use super::*;
     use crate::bititer::BitIter;
-    use crate::exec;
-    use crate::extension::{
-        dummy::{DummyNode, TxEnv},
-        jets::JetsNode,
-    };
+    use crate::jet::application::Core;
     use crate::Term;
+    use crate::{exec, jet};
 
     #[test]
     fn simple_unit_prog() {
@@ -439,7 +426,7 @@ mod tests {
         // subcode = 1 [0 1]:  vec![0 0] => Parsed unit node.
         // witness len = 0 vec![0]
         let prog = vec![0x24];
-        let prog = Program::<DummyNode>::decode(&mut BitIter::from(prog.into_iter()))
+        let prog = Program::<Core>::decode(&mut BitIter::from(prog.into_iter()))
             .expect("decoding program");
 
         assert_eq!(prog.nodes.len(), 1);
@@ -456,7 +443,7 @@ mod tests {
         // 100 01001 00100 0
         // 1000 1001 0010 0000
         let prog = vec![0x89, 0x20];
-        let prog = Program::<DummyNode>::decode(&mut BitIter::from(prog.into_iter()))
+        let prog = Program::<Core>::decode(&mut BitIter::from(prog.into_iter()))
             .expect("decoding program");
 
         prog.graph_print();
@@ -478,8 +465,8 @@ mod tests {
 
     #[test]
     fn encode_prog() {
-        let prog: UntypedProgram<(), DummyNode> = UntypedProgram(vec![
-            Term::Jet(JetsNode::Adder32),
+        let prog: UntypedProgram<(), Core> = UntypedProgram(vec![
+            Term::Jet(&jet::core::ADD32),
             // Node::Case(0, 1),
         ]);
 
@@ -490,7 +477,7 @@ mod tests {
 
     #[test]
     fn witness_and() {
-        let prog: UntypedProgram<(), DummyNode> = UntypedProgram(vec![
+        let prog: UntypedProgram<(), Core> = UntypedProgram(vec![
             Term::Unit,
             Term::InjR(1),
             Term::Witness(()),
@@ -505,7 +492,7 @@ mod tests {
         prog.graph_print();
 
         let mut mac = exec::BitMachine::for_program(&prog);
-        let output = mac.exec(&prog, &TxEnv).unwrap();
+        let output = mac.exec(&prog, &()).unwrap();
 
         println!("{}", output);
     }
@@ -581,8 +568,8 @@ mod tests {
     }
 
     fn equal_after_sharing(
-        left: UntypedProgram<(), DummyNode>,
-        right: UntypedProgram<(), DummyNode>,
+        left: UntypedProgram<(), Core>,
+        right: UntypedProgram<(), Core>,
         witness_bytes: &[u8],
     ) -> bool {
         let shared_left =

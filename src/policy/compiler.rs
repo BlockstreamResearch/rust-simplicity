@@ -21,22 +21,21 @@ use crate::bitcoin_hashes::Hash;
 use crate::bititer::BitIter;
 use crate::core::term_dag::TermDag;
 use crate::core::types::pow2_types;
-use crate::extension::bitcoin::BtcNode;
-use crate::extension::jets::JetsNode::{
-    Adder32, EqV256, EqV32, LessThanV32, SchnorrAssert, Sha256,
-};
+use crate::jet;
 use crate::miniscript::MiniscriptKey;
 use crate::PubkeyKey32;
 use crate::Value;
 use crate::{decode, Error};
 
+use crate::jet::application::Bitcoin;
+use crate::jet::Application;
 use std::rc::Rc;
 
 /// Scribe progra: for any value of a Simplicity type b :B, the constant function
 /// from A -> B can be realized by a Simplicity expression called scribe.  
 /// Refer to 3.4 section of the Tech Report for details.
 /// This returns a list of untyped nodes.
-pub fn scribe<Ext>(b: Value) -> TermDag<(), Ext> {
+pub fn scribe<App: Application>(b: Value) -> TermDag<(), App> {
     match b {
         Value::Unit => TermDag::Unit,
         Value::SumL(l) => {
@@ -56,12 +55,12 @@ pub fn scribe<Ext>(b: Value) -> TermDag<(), Ext> {
 }
 
 /// constant function that returns false
-pub fn zero<Ext>() -> TermDag<(), Ext> {
+pub fn zero<App: Application>() -> TermDag<(), App> {
     scribe(Value::sum_l(Value::Unit))
 }
 
 /// constant function that returns true
-pub fn one<Ext>() -> TermDag<(), Ext> {
+pub fn one<App: Application>() -> TermDag<(), App> {
     scribe(Value::sum_r(Value::Unit))
 }
 
@@ -69,39 +68,42 @@ pub fn one<Ext>() -> TermDag<(), Ext> {
 /// bit using case and drop. The first argument is the
 /// then clause and the second argument is the else clause
 /// [[cond st]] <0, a> = [[s]](a); [[cond st]] <1, a> = [[t]](a)
-pub fn cond<Ext>(s: Rc<TermDag<(), Ext>>, t: Rc<TermDag<(), Ext>>) -> TermDag<(), Ext> {
+pub fn cond<App: Application>(
+    s: Rc<TermDag<(), App>>,
+    t: Rc<TermDag<(), App>>,
+) -> TermDag<(), App> {
     TermDag::Case(Rc::new(TermDag::Drop(s)), Rc::new(TermDag::Drop(t)))
 }
 
 /// Convert a single bit into u2 by pre-padding zeros
-fn u1_to_u2<Ext>(s: Rc<TermDag<(), Ext>>) -> TermDag<(), Ext> {
+fn u1_to_u2<App: Application>(s: Rc<TermDag<(), App>>) -> TermDag<(), App> {
     TermDag::Pair(Rc::new(scribe(Value::u1(0))), s)
 }
 
 /// Convert a single bit into u4 by pre-padding zeros
-fn u1_to_u4<Ext>(s: Rc<TermDag<(), Ext>>) -> TermDag<(), Ext> {
+fn u1_to_u4<App: Application>(s: Rc<TermDag<(), App>>) -> TermDag<(), App> {
     TermDag::Pair(Rc::new(scribe(Value::u2(0))), Rc::new(u1_to_u2(s)))
 }
 
 /// Convert a single bit into u8 by pre-padding zeros
-fn u1_to_u8<Ext>(s: Rc<TermDag<(), Ext>>) -> TermDag<(), Ext> {
+fn u1_to_u8<App: Application>(s: Rc<TermDag<(), App>>) -> TermDag<(), App> {
     TermDag::Pair(Rc::new(scribe(Value::u4(0))), Rc::new(u1_to_u4(s)))
 }
 
 /// Convert a single bit into u16 by pre-padding zeros
-fn u1_to_u16<Ext>(s: Rc<TermDag<(), Ext>>) -> TermDag<(), Ext> {
+fn u1_to_u16<App: Application>(s: Rc<TermDag<(), App>>) -> TermDag<(), App> {
     TermDag::Pair(Rc::new(scribe(Value::u8(0))), Rc::new(u1_to_u8(s)))
 }
 
 /// Convert a single bit into u32 by pre-padding zeros
-fn u1_to_u32<Ext>(s: Rc<TermDag<(), Ext>>) -> TermDag<(), Ext> {
+fn u1_to_u32<App: Application>(s: Rc<TermDag<(), App>>) -> TermDag<(), App> {
     TermDag::Pair(Rc::new(scribe(Value::u16(0))), Rc::new(u1_to_u16(s)))
 }
 
 /// Compile the desired policy into a bitcoin simplicity program
 pub fn compile<Pk: MiniscriptKey + PubkeyKey32>(
     pol: &Policy<Pk>,
-) -> Result<TermDag<(), BtcNode>, Error> {
+) -> Result<TermDag<(), Bitcoin>, Error> {
     let two_pow_256 = pow2_types()[9].clone();
     let frag = match pol {
         Policy::Unsatisfiable => unimplemented!(), //lookup  fail
@@ -113,7 +115,10 @@ pub fn compile<Pk: MiniscriptKey + PubkeyKey32>(
             )?;
             let scribe_pk = scribe(pk_value);
             let pk_sig_pair = TermDag::Pair(Rc::new(scribe_pk), Rc::new(TermDag::Witness(())));
-            TermDag::Comp(Rc::new(pk_sig_pair), Rc::new(TermDag::Jet(SchnorrAssert)))
+            TermDag::Comp(
+                Rc::new(pk_sig_pair),
+                Rc::new(TermDag::Jet(&jet::bitcoin::BIP_0340_VERIFY)),
+            )
         }
         Policy::Sha256(ref h) => {
             let hash_value = decode::decode_value(
@@ -124,25 +129,36 @@ pub fn compile<Pk: MiniscriptKey + PubkeyKey32>(
             let scribe_hash = scribe(hash_value);
             // compute the preimage hash. An implicit contraint on the len=32 is enfored
             // by the typesystem.
-            let computed_hash =
-                TermDag::Comp(Rc::new(TermDag::Witness(())), Rc::new(TermDag::Jet(Sha256)));
+            let computed_hash = TermDag::Comp(
+                Rc::new(TermDag::Witness(())),
+                Rc::new(TermDag::Jet(&jet::bitcoin::SHA256)),
+            );
             // Check eq256 here
             let pair = TermDag::Pair(Rc::new(scribe_hash), Rc::new(computed_hash));
-            TermDag::Comp(Rc::new(pair), Rc::new(TermDag::Jet(EqV256)))
+            TermDag::Comp(
+                Rc::new(pair),
+                Rc::new(TermDag::Jet(&jet::bitcoin::EQ256_VERIFY)),
+            )
         }
         Policy::After(n) => {
-            let cltv = TermDag::Ext(BtcNode::LockTime);
+            let cltv = TermDag::Jet(&jet::bitcoin::LOCK_TIME);
             let n_value = Value::u32(*n);
             let scribe_n = scribe(n_value);
             let pair = TermDag::Pair(Rc::new(scribe_n), Rc::new(cltv));
-            TermDag::Comp(Rc::new(pair), Rc::new(TermDag::Jet(LessThanV32)))
+            TermDag::Comp(
+                Rc::new(pair),
+                Rc::new(TermDag::Jet(&jet::bitcoin::LT32_VERIFY)),
+            )
         }
         Policy::Older(n) => {
-            let csv = TermDag::Ext(BtcNode::CurrentSequence);
+            let csv = TermDag::Jet(&jet::bitcoin::CURRENT_SEQUENCE);
             let n_value = Value::u32(*n);
             let scribe_n = scribe(n_value);
             let pair = TermDag::Pair(Rc::new(scribe_n), Rc::new(csv));
-            TermDag::Comp(Rc::new(pair), Rc::new(TermDag::Jet(LessThanV32)))
+            TermDag::Comp(
+                Rc::new(pair),
+                Rc::new(TermDag::Jet(&jet::bitcoin::LT32_VERIFY)),
+            )
         }
         Policy::Threshold(k, ref subs) => {
             assert!(subs.len() >= 2, "Threshold must have numbre of subs >=2");
@@ -164,7 +180,7 @@ pub fn compile<Pk: MiniscriptKey + PubkeyKey32>(
                 acc = TermDag::Comp(Rc::new(acc), Rc::new(curr_term));
                 let full_sum = TermDag::Comp(
                     Rc::new(TermDag::Pair(Rc::new(sum), Rc::new(selector_u32))),
-                    Rc::new(TermDag::Jet(Adder32)),
+                    Rc::new(TermDag::Jet(&jet::bitcoin::ADD32)),
                 );
                 // Discard the overflow bit.
                 // NOTE: This *assumes* that the threshold would be have 2**32 branches.
@@ -174,7 +190,7 @@ pub fn compile<Pk: MiniscriptKey + PubkeyKey32>(
             let scribe_k = scribe(Value::u32(*k as u32));
             TermDag::Comp(
                 Rc::new(TermDag::Pair(Rc::new(scribe_k), Rc::new(sum))),
-                Rc::new(TermDag::Jet(EqV32)),
+                Rc::new(TermDag::Jet(&jet::bitcoin::EQ32_VERIFY)),
             )
         }
         Policy::And(ref subs) => {

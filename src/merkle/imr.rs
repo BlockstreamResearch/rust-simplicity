@@ -18,7 +18,7 @@
 //! In contrast to [`super::cmr`], `witness` data and both `disconnect` branches are included in the hash.
 //! The type of `witness` data is included in the hash via [`super::tmr`].
 
-use crate::extension::Jet;
+use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::common::{MerkleRoot, TermMerkleRoot};
 use crate::{impl_midstate_wrapper, Term};
@@ -31,7 +31,7 @@ pub struct Imr(Midstate);
 impl_midstate_wrapper!(Imr);
 
 impl TermMerkleRoot for Imr {
-    fn get_iv<Witness, Extension: Jet>(term: &Term<Witness, Extension>) -> Self {
+    fn get_iv<Witness, App: Application>(term: &Term<Witness, App>) -> Self {
         match term {
             Term::Disconnect(..) => Imr::tag_iv(b"Simplicity-Draft\x1fIdentity\x1fdisconnect"),
             Term::Witness(..) => Imr::tag_iv(b"Simplicity-Draft\x1fIdentity\x1fwitness"),

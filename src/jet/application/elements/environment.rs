@@ -12,39 +12,99 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-//! # Elements Extensions: Data Structures
-//!
-//! Data Structures in rust-elements cannot be directly used as-is in
-//! rust-simplicity. This file has additional data-structures for
-//! simplicity transactions
-
-use std::sync::Arc;
-
-use super::jets::ElementsJetErr;
-use crate::exec;
+use crate::exec::BitMachine;
+use crate::jet::application::elements::ElementsError;
 use crate::merkle::cmr::Cmr;
 use bitcoin_hashes::{sha256, Hash, HashEngine};
 use byteorder::{BigEndian, LittleEndian, WriteBytesExt};
 use elements::confidential::{Asset, Nonce, Value};
 use elements::{confidential, AssetIssuance};
+use std::sync::Arc;
+
+/// An Elements UTXO
+// This is not a complete TxOut as it does not contain the nonce that
+// is sent to the recipient.
+pub struct ElementsUtxo {
+    /// The 'scriptpubkey' (hash of Simplicity program)
+    pub script_pubkey: sha256::Hash,
+    /// The explicit or confidential asset
+    pub asset: confidential::Asset,
+    /// The explict or confidential value
+    pub value: confidential::Value,
+}
+
+/// Environment for Elements Simplicity
+///
+/// # Note
+/// The order of `utxos` must be same as of the order of inputs in the
+/// transaction.
+// FIXME:
+// Ideally the `Arc<elements::Transaction>` would be a generic
+// `AsRef<elements::Transaction>` or something, but this is an associated type
+// for the `Extension` trait, and Rust will not let us have generic parameters
+// on associated types. (We could possibly add a parameter to the Extension
+// trait itself, but that would be messy and layer-violating.)
+//
+// Similar story if we tried to use a &'a elements::Transaction rather than
+// an Arc: we'd have a lifetime parameter <'a> that would cause us trouble.
+pub struct ElementsEnv {
+    /// The elements transaction
+    pub(super) tx: Arc<elements::Transaction>,
+    /// The input utxo information corresponding to outpoint being spent.
+    pub(super) utxos: Vec<ElementsUtxo>,
+    /// the current index of the input
+    pub(super) ix: u32,
+    /// Commitment merkle root of the script being executed
+    pub(super) script_cmr: Cmr,
+    /// cached InputHash
+    pub(super) inputs_hash: sha256::Hash,
+    /// cached OutputHash
+    pub(super) outputs_hash: sha256::Hash,
+}
+
+impl ElementsEnv {
+    pub fn new(
+        tx: Arc<elements::Transaction>,
+        utxos: Vec<ElementsUtxo>,
+        ix: u32,
+        script_cmr: Cmr,
+    ) -> Self {
+        let mut inp_eng = sha256::Hash::engine();
+        let mut output_eng = sha256::Hash::engine();
+
+        tx.input.simplicity_hash(&mut inp_eng);
+        tx.output.simplicity_hash(&mut output_eng);
+        let inputs_hash = sha256::Hash::from_engine(inp_eng);
+        let outputs_hash = sha256::Hash::from_engine(output_eng);
+
+        ElementsEnv {
+            tx,
+            utxos,
+            ix,
+            script_cmr,
+            inputs_hash,
+            outputs_hash,
+        }
+    }
+}
 
 /// Helper trait for writing various components of
 /// Simplicity transactions (assets, values) into bit machine.
-pub(in crate::extension::elements) trait SimplicityEncodable {
+pub(super) trait SimplicityEncodable {
     // write the simplicity encoding of `self` on bitmachine
     // at the current write cursor.
-    fn simplicity_encode(self, mac: &mut exec::BitMachine) -> Result<(), ElementsJetErr>;
+    fn simplicity_encode(self, mac: &mut BitMachine) -> Result<(), ElementsError>;
 }
 
-/// Write an confidential asset to write frame, advancing the cursor 258
-/// cells (or returning an error if the asset is null)
-///
-/// The Simplicity representation of a confidential asset is:
-///    ((is_explicit, is_odd), [u8; 32])
+// Write an confidential asset to write frame, advancing the cursor 258
+// cells (or returning an error if the asset is null)
+//
+// The Simplicity representation of a confidential asset is:
+//    ((is_explicit, is_odd), [u8; 32])
 impl SimplicityEncodable for confidential::Asset {
-    fn simplicity_encode(self, mac: &mut exec::BitMachine) -> Result<(), ElementsJetErr> {
+    fn simplicity_encode(self, mac: &mut BitMachine) -> Result<(), ElementsError> {
         match self {
-            Asset::Null => return Err(ElementsJetErr::NullAssetEncoding),
+            Asset::Null => return Err(ElementsError::NullAssetEncoding),
             Asset::Explicit(asset_id) => {
                 mac.write_bit(true);
                 mac.skip(1);
@@ -62,15 +122,15 @@ impl SimplicityEncodable for confidential::Asset {
     }
 }
 
-/// Write an confidential value to write frame, advancing the cursor 258
-/// cells (or returning an error if the value is null)
-///
-/// The Simplicity representation of a confidential value is:
-///     ((is_explicit, is_odd), [u8; 32])
+// Write an confidential value to write frame, advancing the cursor 258
+// cells (or returning an error if the value is null)
+//
+// The Simplicity representation of a confidential value is:
+//     ((is_explicit, is_odd), [u8; 32])
 impl SimplicityEncodable for confidential::Value {
-    fn simplicity_encode(self, mac: &mut exec::BitMachine) -> Result<(), ElementsJetErr> {
+    fn simplicity_encode(self, mac: &mut BitMachine) -> Result<(), ElementsError> {
         match self {
-            Value::Null => return Err(ElementsJetErr::NullAssetEncoding),
+            Value::Null => return Err(ElementsError::NullAssetEncoding),
             Value::Explicit(data) => {
                 mac.write_bit(true);
                 mac.skip(1 + 256 - 64);
@@ -88,12 +148,12 @@ impl SimplicityEncodable for confidential::Value {
     }
 }
 
-/// Write an confidential nonce to write frame, advancing the cursor 259 cells
-///
-/// The Simplicity representation of a confidential nonce is:
-///     ((is_not_null, is_explicit, is_odd), [u8; 32])
+// Write an confidential nonce to write frame, advancing the cursor 259 cells
+//
+// The Simplicity representation of a confidential nonce is:
+//     ((is_not_null, is_explicit, is_odd), [u8; 32])
 impl SimplicityEncodable for confidential::Nonce {
-    fn simplicity_encode(self, mac: &mut exec::BitMachine) -> Result<(), ElementsJetErr> {
+    fn simplicity_encode(self, mac: &mut BitMachine) -> Result<(), ElementsError> {
         // all paths should write 259 bits
         match self {
             Nonce::Null => {
@@ -118,6 +178,7 @@ impl SimplicityEncodable for confidential::Nonce {
         Ok(())
     }
 }
+
 /// Simplicity has a different logic for computing the transaction input and output
 /// digest. This trait defines the method for computation of such digests.
 //
@@ -255,74 +316,6 @@ impl SimplicityHash for Vec<elements::TxOut> {
     fn simplicity_hash(&self, eng: &mut sha256::HashEngine) {
         for i in self {
             i.simplicity_hash(eng);
-        }
-    }
-}
-
-/// An Elements UTXO.
-// This is not a complete TxOut as it does not contain the nonce that
-// is sent to the recipient.
-pub struct ElementsUtxo {
-    /// The ``scriptpubkey'' (hash of Simplicity program)
-    pub(super) script_pubkey: sha256::Hash,
-    /// The explicit or confidential asset
-    pub(super) asset: confidential::Asset,
-    /// The explict or confidential value
-    pub(super) value: confidential::Value,
-}
-
-/// Transaction environment for Bitcoin Simplicity programs
-///
-/// # Note
-/// The order of `utxos` must be same as of the order of inputs in the
-/// transaction.
-// FIXME:
-// Ideally the `Arc<elements::Transaction>` would be a generic
-// `AsRef<elements::Transaction>` or something, but this is an associated type
-// for the `Extension` trait, and Rust will not let us have generic parameters
-// on associated types. (We could possibly add a parameter to the Extension
-// trait itself, but that would be messy and layer-violating.)
-//
-// Similar story if we tried to use a &'a elements::Transaction rather than
-// an Arc: we'd have a lifetime parameter <'a> that would cause us trouble.
-pub struct TxEnv {
-    /// The elements transaction
-    pub(super) tx: Arc<elements::Transaction>,
-    /// The input utxo information corresponding to outpoint being spent.
-    pub(super) utxos: Vec<ElementsUtxo>,
-    /// the current index of the input
-    pub(super) ix: u32,
-    /// Commitment merkle root of the script being executed
-    pub(super) script_cmr: Cmr,
-    /// cached InputHash
-    pub(super) inputs_hash: sha256::Hash,
-    /// cached OutputHash
-    pub(super) outputs_hash: sha256::Hash,
-}
-
-impl TxEnv {
-    /// Constructor from a transaction
-    pub fn from_txenv(
-        tx: Arc<elements::Transaction>,
-        utxos: Vec<ElementsUtxo>,
-        ix: u32,
-        script_cmr: Cmr,
-    ) -> TxEnv {
-        let mut inp_eng = sha256::Hash::engine();
-        let mut output_eng = sha256::Hash::engine();
-        // compute the hash
-        tx.input.simplicity_hash(&mut inp_eng);
-        tx.output.simplicity_hash(&mut output_eng);
-        let inputs_hash = sha256::Hash::from_engine(inp_eng);
-        let outputs_hash = sha256::Hash::from_engine(output_eng);
-
-        TxEnv {
-            tx,
-            utxos,
-            ix,
-            script_cmr,
-            inputs_hash,
-            outputs_hash,
         }
     }
 }
