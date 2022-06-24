@@ -118,47 +118,44 @@ impl<Witness, App: Application> TermDag<Witness, App> {
     }
 }
 
-impl<Witness, App: Application> TermDag<Witness, App> {
-    /// Create untyped DAG from node representation
-    pub fn from_untyped_program(program: UntypedProgram<Witness, App>) -> Rc<Self> {
+impl<Witness, App: Application> TermDag<Witness, App>
+where
+    Witness: Clone,
+{
+    /// Create a Simplicity DAG from a linear program.
+    pub fn from_untyped_program(program: &UntypedProgram<Witness, App>) -> Rc<Self> {
         assert!(!program.0.is_empty(), "Program must be non-empty");
         let mut dag_list: Vec<Rc<TermDag<_, _>>> = vec![];
-        for (index, term) in program.0.into_iter().enumerate() {
+        for (index, term) in program.0.iter().enumerate() {
             let dag = match term {
-                Term::Iden => Rc::new(TermDag::Iden),
-                Term::Unit => Rc::new(TermDag::Unit),
-                Term::InjL(l) => Rc::new(TermDag::InjL(Rc::clone(&dag_list[index - l]))),
-                Term::InjR(r) => Rc::new(TermDag::InjR(Rc::clone(&dag_list[index - r]))),
-                Term::Take(l) => Rc::new(TermDag::Take(Rc::clone(&dag_list[index - l]))),
-                Term::Drop(r) => Rc::new(TermDag::Drop(Rc::clone(&dag_list[index - r]))),
-                Term::Comp(l, r) => Rc::new(TermDag::Comp(
-                    Rc::clone(&dag_list[index - l]),
-                    Rc::clone(&dag_list[index - r]),
-                )),
-                Term::Case(l, r) => Rc::new(TermDag::Case(
-                    Rc::clone(&dag_list[index - l]),
-                    Rc::clone(&dag_list[index - r]),
-                )),
-                Term::AssertL(l, r) => Rc::new(TermDag::AssertL(
-                    Rc::clone(&dag_list[index - l]),
-                    Rc::clone(&dag_list[index - r]),
-                )),
-                Term::AssertR(l, r) => Rc::new(TermDag::AssertR(
-                    Rc::clone(&dag_list[index - l]),
-                    Rc::clone(&dag_list[index - r]),
-                )),
-                Term::Pair(l, r) => Rc::new(TermDag::Pair(
-                    Rc::clone(&dag_list[index - l]),
-                    Rc::clone(&dag_list[index - r]),
-                )),
-                Term::Disconnect(l, r) => Rc::new(TermDag::Disconnect(
-                    Rc::clone(&dag_list[index - l]),
-                    Rc::clone(&dag_list[index - r]),
-                )),
-                Term::Witness(w) => Rc::new(TermDag::Witness(w)),
-                Term::Fail(hl, hr) => Rc::new(TermDag::Fail(hl, hr)),
-                Term::Hidden(h) => Rc::new(TermDag::Hidden(h)),
-                Term::Jet(j) => Rc::new(TermDag::Jet(j)),
+                Term::Iden => TermDag::iden(),
+                Term::Unit => TermDag::unit(),
+                Term::InjL(l) => TermDag::injl(dag_list[index - l].clone()),
+                Term::InjR(r) => TermDag::injr(dag_list[index - r].clone()),
+                Term::Take(l) => TermDag::take(dag_list[index - l].clone()),
+                Term::Drop(r) => TermDag::drop(dag_list[index - r].clone()),
+                Term::Comp(l, r) => {
+                    TermDag::comp(dag_list[index - l].clone(), dag_list[index - r].clone())
+                }
+                Term::Case(l, r) => {
+                    TermDag::case(dag_list[index - l].clone(), dag_list[index - r].clone())
+                }
+                Term::AssertL(l, r) => {
+                    TermDag::assertl(dag_list[index - l].clone(), dag_list[index - r].clone())
+                }
+                Term::AssertR(l, r) => {
+                    TermDag::assertr(dag_list[index - l].clone(), dag_list[index - r].clone())
+                }
+                Term::Pair(l, r) => {
+                    TermDag::pair(dag_list[index - l].clone(), dag_list[index - r].clone())
+                }
+                Term::Disconnect(l, r) => {
+                    TermDag::disconnect(dag_list[index - l].clone(), dag_list[index - r].clone())
+                }
+                Term::Witness(w) => TermDag::witness(w.clone()),
+                Term::Fail(hl, hr) => TermDag::fail(*hl, *hr),
+                Term::Hidden(h) => TermDag::hidden(*h),
+                Term::Jet(j) => TermDag::jet(j),
             };
             dag_list.push(dag);
         }
