@@ -79,9 +79,6 @@ pub fn decode_witness<Wit, App: Application, I: Iterator<Item = u8>>(
 }
 
 /// Decode a value from bits, based on the given type.
-///
-/// In particular, witness data can be decoded by invoking this function repeatedly.
-/// In this case, function [`decode_witness_length`] should be invoked beforehand.
 pub fn decode_value<I: Iterator<Item = bool>>(
     ty: &FinalType,
     iter: &mut I,

@@ -1,3 +1,31 @@
+// Rust Simplicity Library
+// Written in 2020 by
+//   Andrew Poelstra <apoelstra@blockstream.com>
+//   Sanket Kanjalkar <sanket1729@gmail.com>
+//
+// To the extent possible under law, the author(s) have dedicated all
+// copyright and related and neighboring rights to this software to
+// the public domain worldwide. This software is distributed without
+// any warranty.
+//
+// You should have received a copy of the CC0 Public Domain Dedication
+// along with this software.
+// If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+//
+
+//! # Simplicity DAGs
+//!
+//! DAGs are the logical structure of Simplicity programs.
+//! Each program has a root node,
+//! and each node is a leaf or has left or right children.
+//!
+//! This DAG representation is meant for composing programs by hand.
+//! One should use methods that return reference-counting pointers (see [`std::rc`])
+//! and copy duplicate sub-DAGs by [`Rc::clone()`].
+//! This keeps memory usage minimal.
+//!
+//! For (de)serialization and execution, the DAG needs to be converted into a linear program.
+
 use crate::core::iter::DagIterable;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
@@ -6,114 +34,132 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-/// Untyped Simplicity DAG _(directed acyclic graph)_.
-/// May include Bitcoin/Elements extensions (see [`Term`]).
+/// Simplicity DAG for some witness type and application.
+/// A DAG is a _directed acyclic graph_ consisting of _nodes_ and _edges_.
+/// There is a _root_,
+/// nodes may have left or right _children_,
+/// and nodes without children are called _leaves_.
 ///
-/// A DAG consists of a combinator as parent node and its payload
-/// _(references to sub-DAGs, witness data, etc.)_.
-/// A DAG corresponds to an untyped Simplicity program.
-///
-/// References to sub-DAGs are pointers to heap memory.
-///
-/// The DAG representation is used for inductively constructing Simplicity programs
-/// that are later translated into the node representation.
+/// Nodes refer to other nodes via reference-counted pointers to heap memory.
+/// If possible, duplicate DAGs make use of this fact and reference the same memory.
 #[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Debug)]
 pub enum TermDag<Witness, App: Application> {
+    /// Identity
     Iden,
+    /// Unit constant
     Unit,
+    /// Left injection of some child
     InjL(Rc<TermDag<Witness, App>>),
+    /// Right injection of some child
     InjR(Rc<TermDag<Witness, App>>),
+    /// Take of some child
     Take(Rc<TermDag<Witness, App>>),
+    /// Drop of some child
     Drop(Rc<TermDag<Witness, App>>),
+    /// Composition of a left and right child
     Comp(Rc<TermDag<Witness, App>>, Rc<TermDag<Witness, App>>),
+    /// Case of a left and right child
     Case(Rc<TermDag<Witness, App>>, Rc<TermDag<Witness, App>>),
+    /// Left assertion of a left and right child.
+    ///
+    /// Right child must be [`Self::Hidden`]
     AssertL(Rc<TermDag<Witness, App>>, Rc<TermDag<Witness, App>>),
+    /// Right assertion of a left and right child.
+    ///
+    /// Left child must be [`Self::Hidden`]
     AssertR(Rc<TermDag<Witness, App>>, Rc<TermDag<Witness, App>>),
+    /// Pair of a left and right child
     Pair(Rc<TermDag<Witness, App>>, Rc<TermDag<Witness, App>>),
+    /// Disconnect of a left and right child
     Disconnect(Rc<TermDag<Witness, App>>, Rc<TermDag<Witness, App>>),
+    /// Witness data
     Witness(Witness),
+    /// Fail
     Fail(Cmr, Cmr),
+    /// Hidden
     Hidden(Cmr),
+    /// Application jet
     Jet(&'static JetNode<App>),
 }
 
 impl<Witness, App: Application> TermDag<Witness, App> {
-    /// Create a DAG with a single `iden` node
+    /// Create a DAG with a single [`Self::Iden`] node
     pub fn iden() -> Rc<Self> {
         Rc::new(TermDag::Iden)
     }
 
-    /// Create a DAG with a single `unit` node
+    /// Create a DAG with a single [`Self::Unit`] node
     pub fn unit() -> Rc<Self> {
         Rc::new(TermDag::Unit)
     }
 
-    /// Create a DAG with root `injl` and the given `child`
+    /// Create a DAG with root [`Self::InjL`] and the given `child`
     pub fn injl(child: Rc<Self>) -> Rc<Self> {
         Rc::new(TermDag::InjL(child))
     }
 
-    /// Create a DAG with root `injr` and the given `child`
+    /// Create a DAG with root [`Self::InjR`] and the given `child`
     pub fn injr(child: Rc<Self>) -> Rc<Self> {
         Rc::new(TermDag::InjR(child))
     }
 
-    /// Create a DAG with root `take` and the given `child`
+    /// Create a DAG with root [`Self::Take`] and the given `child`
     pub fn take(child: Rc<Self>) -> Rc<Self> {
         Rc::new(TermDag::Take(child))
     }
 
-    /// Create a DAG with root `drop` and the given `child`
+    /// Create a DAG with root [`Self::Drop`] and the given `child`
     pub fn drop(child: Rc<Self>) -> Rc<Self> {
         Rc::new(TermDag::Drop(child))
     }
 
-    /// Create a DAG with root `comp` and the given `left` and `right` child
+    /// Create a DAG with root [`Self::Comp`] and the given `left` and `right` child
     pub fn comp(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
         Rc::new(TermDag::Comp(left, right))
     }
 
-    /// Create a DAG with root `case` and the given `left` and `right` child
+    /// Create a DAG with root [`Self::Case`] and the given `left` and `right` child
     pub fn case(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
         Rc::new(TermDag::Case(left, right))
     }
 
-    /// Create a DAG with root `assertl` and the given `left` and `right` child
+    /// Create a DAG with root [`Self::AssertL`] and the given `left` and `right` child
     pub fn assertl(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
         Rc::new(TermDag::AssertL(left, right))
     }
 
-    /// Create a DAG with root `assertr` and the given `left` and `right` child
+    /// Create a DAG with root [`Self::AssertR`] and the given `left` and `right` child
     pub fn assertr(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
         Rc::new(TermDag::AssertR(left, right))
     }
 
-    /// Create a DAG with root `pair` and the given `left` and `right` child
+    /// Create a DAG with root [`Self::Pair`] and the given `left` and `right` child
     pub fn pair(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
         Rc::new(TermDag::Pair(left, right))
     }
 
-    /// Create a DAG with root `disconnect` and the given `left` and `right` child
+    /// Create a DAG with root [`Self::Disconnect`] and the given `left` and `right` child
     pub fn disconnect(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
         Rc::new(TermDag::Disconnect(left, right))
     }
 
-    /// Create a DAG with a single `witness` node that contains the given `value`
+    /// Create a DAG with a single [`Self::Witness`] node that contains the given `value`
     pub fn witness(value: Witness) -> Rc<Self> {
         Rc::new(TermDag::Witness(value))
     }
 
-    /// Create a DAG with a single `fail` node that contains the given `left` and `right` hashes
+    /// Create a DAG with a single [`Self::Fail`] node that contains the given `left` and `right` hashes
     pub fn fail(left: Cmr, right: Cmr) -> Rc<Self> {
         Rc::new(TermDag::Fail(left, right))
     }
 
-    /// Create a DAG with a single `hidden` node that contains the given `hash`
+    /// Create a DAG with a single [`Self::Hidden`] node that contains the given `hash`
     pub fn hidden(hash: Cmr) -> Rc<Self> {
         Rc::new(TermDag::Hidden(hash))
     }
 
-    /// Create a DAG with a single `jet` node that performs some black-box execution.
+    /// Create a DAG with a single [`Self::Jet`] node that contains the given `jet`
+    /// and performs some associated black-box execution
     pub fn jet(jet: &'static JetNode<App>) -> Rc<Self> {
         Rc::new(TermDag::Jet(jet))
     }

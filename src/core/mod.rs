@@ -13,7 +13,10 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-/// Core Module for simplicity
+//! # Core Simplicity structures
+//!
+//! Defines Simplicity terms, values, types, DAGs and programs.
+
 pub mod iter;
 pub mod term;
 pub mod term_dag;

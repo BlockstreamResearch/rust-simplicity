@@ -57,7 +57,7 @@ impl<W: io::Write> io::Write for BitWriter<W> {
 
     /// Does **not** write out cached bits
     /// (i.e. bits written since the last byte boundary).
-    /// To do this you must call [`flush_all`].
+    /// To do this you must call [`BitWriter::flush_all()`].
     fn flush(&mut self) -> io::Result<()> {
         self.w.flush()
     }

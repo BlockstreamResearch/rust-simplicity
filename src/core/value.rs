@@ -1,12 +1,45 @@
+// Rust Simplicity Library
+// Written in 2020 by
+//   Andrew Poelstra <apoelstra@blockstream.com>
+//   Sanket Kanjalkar <sanket1729@gmail.com>
+//
+// To the extent possible under law, the author(s) have dedicated all
+// copyright and related and neighboring rights to this software to
+// the public domain worldwide. This software is distributed without
+// any warranty.
+//
+// You should have received a copy of the CC0 Public Domain Dedication
+// along with this software.
+// If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+//
+
+//! # Simplicity values
+//!
+//! Simplicity processes data in terms of [`Value`]s,
+//! i.e., inputs, intermediate results and outputs.
+
 use crate::util::slice_to_u64_be;
 use std::fmt;
 use std::hash::Hash;
 
+/// Simplicity value.
+///
+/// _Unit_ is the base value and contains no information.
+///
+/// The zero bit is represented as the _left sum_ of unit,
+/// and the one bit is represented as the _right sum_ of unit.
+///
+/// Bitstrings are represented as a tree of _products_ (a.k.a. a tuple)
+/// with sums of unit as its leaves (a.k.a. bits).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Value {
+    /// Unit value
     Unit,
+    /// Left sum of some value
     SumL(Box<Value>),
+    /// Right sum of some value
     SumR(Box<Value>),
+    /// Product of two values
     Prod(Box<Value>, Box<Value>),
 }
 
