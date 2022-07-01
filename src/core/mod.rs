@@ -13,8 +13,8 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-
 /// Core Module for simplicity
+pub mod iter;
 pub mod term;
 pub mod term_dag;
 pub mod types;

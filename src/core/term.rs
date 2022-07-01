@@ -1,3 +1,4 @@
+use crate::core::iter::DagIterable;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
 use std::collections::HashMap;
@@ -167,62 +168,15 @@ impl<Witness, App: Application> UntypedProgram<Witness, App> {
         self.0.iter()
     }
 
-    /// Visit the DAG that underlies the program
-    /// and return a stack of node indices that can be popped such that the nodes are in post order.
-    fn get_post_order_stack(&self) -> Vec<usize> {
-        if self.0.is_empty() {
-            return Vec::new();
-        }
-
-        let mut visited = Vec::with_capacity(self.len());
-        let mut to_visit = vec![self.0.len() - 1];
-
-        while let Some(index) = to_visit.pop() {
-            visited.push(index);
-
-            if let Some(l) = self.0[index].get_left() {
-                let idx_l = index - l;
-                if !Self::is_cross_reference(idx_l, &to_visit) {
-                    to_visit.push(idx_l);
-                }
-            }
-            if let Some(r) = self.0[index].get_right() {
-                let idx_r = index - r;
-                if !Self::is_cross_reference(idx_r, &to_visit) {
-                    to_visit.push(idx_r);
-                }
-            }
-        }
-
-        visited
-    }
-
-    /// Return whether the given `index` is a cross-reference to a node that appears
-    /// earlier in the post-order of the DAG.
-    ///
-    /// Using the two-stack approach of [`Self::get_post_order_stack`],
-    /// the largest index of any unvisited node is always the last element of `to_visit`.
-    /// In a post order, the indices of descendants are always lower than the ancestor index.
-    fn is_cross_reference(index: usize, to_visit: &[usize]) -> bool {
-        if let Some(largest_unvisited_index) = to_visit.last() {
-            if index <= *largest_unvisited_index {
-                return true;
-            }
-        }
-
-        false
-    }
-
     /// Return whether the program is in _canonical order_.
     /// This means that node indices appear in post order,
-    /// i.e., children appear before their parent.
+    /// i.e., _left child < right child < parent_, for each node in the DAG.
     /// It also means that if there is a node that cannot be reached from the root,
     /// then the program is not in canonical order.
     pub fn has_canonical_order(&self) -> bool {
-        let mut post_order_stack = self.get_post_order_stack();
         let mut bottom = 0;
 
-        while let Some(index) = post_order_stack.pop() {
+        for index in self.iter_post_order() {
             if index == bottom {
                 bottom += 1;
             } else {
@@ -231,5 +185,25 @@ impl<Witness, App: Application> UntypedProgram<Witness, App> {
         }
 
         bottom == self.len()
+    }
+}
+
+impl<Witness, App: Application> DagIterable for UntypedProgram<Witness, App> {
+    type Node = usize;
+
+    fn root(&self) -> Option<Self::Node> {
+        if self.0.is_empty() {
+            None
+        } else {
+            Some(self.0.len() - 1)
+        }
+    }
+
+    fn left_of(&self, index: Self::Node) -> Option<Self::Node> {
+        self.0[index].get_left().map(|l| index - l)
+    }
+
+    fn right_of(&self, index: Self::Node) -> Option<Self::Node> {
+        self.0[index].get_right().map(|r| index - r)
     }
 }

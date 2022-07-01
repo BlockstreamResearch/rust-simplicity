@@ -1,7 +1,9 @@
+use crate::core::iter::DagIterable;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
 use crate::{Term, UntypedProgram};
 use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
 /// Untyped Simplicity DAG _(directed acyclic graph)_.
@@ -142,83 +144,64 @@ impl<Witness, App: Application> TermDag<Witness, App> {
             _ => None,
         }
     }
+}
 
-    /// Visit the DAG and return a stack that can be popped such that the nodes are in post order,
-    /// i.e., children appear before their parent.
-    fn get_post_order_stack(&self) -> Vec<&TermDag<Witness, App>> {
-        let mut visited = Vec::new();
-        let mut to_visit = vec![self];
+/// Wrapper for `&'a TermDag<Witness, App>` that implements `Eq` and `Hash`
+/// via pointer equality and pointer hashing, respectively.
+#[derive(Debug)]
+pub struct RefWrapper<'a, Witness, App: Application>(pub &'a TermDag<Witness, App>);
 
-        while let Some(dag) = to_visit.pop() {
-            visited.push(dag);
-
-            if let Some(l) = dag.get_left() {
-                if !l.is_cross_reference(&to_visit) {
-                    to_visit.push(l);
-                }
-            }
-            if let Some(r) = dag.get_right() {
-                if !r.is_cross_reference(&to_visit) {
-                    to_visit.push(r);
-                }
-            }
-        }
-
-        visited
-    }
-
-    /// Return whether `self` is a cross-reference to a node that appears
-    /// earlier in the post-order of the DAG.
-    ///
-    /// Using the two-stack approach of [`Self::get_post_order_stack`],
-    /// nodes that appear earlier are reachable from the nodes in `to_visit`.
-    fn is_cross_reference(&self, to_visit: &[&TermDag<Witness, App>]) -> bool {
-        for dag in to_visit {
-            if self.is_reachable_from(dag) {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    // TODO: Slow for large programs, like HASHBLOCK or SCHNORR
-    // Memoize reachable nodes? Save unique pairs of parents to leftmost child (requires additional iteration).
-    /// Return whether the DAG root `self` is reachable from the DAG root `other`.
-    ///
-    /// Performs DFS internally.
-    fn is_reachable_from(&self, other: &Self) -> bool {
-        let mut to_visit = vec![other];
-
-        while let Some(node) = to_visit.pop() {
-            if std::ptr::eq(node, self) {
-                return true;
-            }
-
-            if let Some(l) = node.get_left() {
-                to_visit.push(l);
-            }
-            if let Some(r) = node.get_right() {
-                to_visit.push(r);
-            }
-        }
-
-        false
-    }
-
+impl<'a, Witness, App: Application> RefWrapper<'a, Witness, App> {
     /// Read `dag_to_index` and return the relative index of `self` in `program`.
     /// Because children appear before parents in post order,
     /// their index is known when processing the parent.
     fn get_relative_index(
         &self,
         program: &[Term<Witness, App>],
-        dag_to_index: &HashMap<*const TermDag<Witness, App>, usize>,
+        dag_to_index: &HashMap<Self, usize>,
     ) -> usize {
-        let ptr: *const TermDag<_, _> = self;
         let index = dag_to_index
-            .get(&ptr)
+            .get(self)
             .expect("children come before parent in post order");
         program.len() - index
+    }
+}
+
+impl<'a, Witness, App: Application> Clone for RefWrapper<'a, Witness, App> {
+    fn clone(&self) -> Self {
+        RefWrapper(<&TermDag<Witness, App>>::clone(&self.0))
+    }
+}
+
+impl<'a, Witness, App: Application> Copy for RefWrapper<'a, Witness, App> {}
+
+impl<'a, Witness, App: Application> PartialEq for RefWrapper<'a, Witness, App> {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.0, other.0)
+    }
+}
+
+impl<'a, Witness, App: Application> Eq for RefWrapper<'a, Witness, App> {}
+
+impl<'a, Witness, App: Application> Hash for RefWrapper<'a, Witness, App> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.0, state)
+    }
+}
+
+impl<'a, Witness, App: Application> DagIterable for &'a TermDag<Witness, App> {
+    type Node = RefWrapper<'a, Witness, App>;
+
+    fn root(&self) -> Option<Self::Node> {
+        Some(RefWrapper(self))
+    }
+
+    fn left_of(&self, node: Self::Node) -> Option<Self::Node> {
+        node.0.get_left().map(|l| RefWrapper(l))
+    }
+
+    fn right_of(&self, node: Self::Node) -> Option<Self::Node> {
+        node.0.get_right().map(|r| RefWrapper(r))
     }
 }
 
@@ -270,20 +253,20 @@ where
     ///
     /// The program is guaranteed to be in canonical order.
     pub fn to_untyped_program(&self) -> UntypedProgram<Witness, App> {
-        let mut post_order_stack = self.get_post_order_stack();
-        let mut program = Vec::with_capacity(post_order_stack.len());
+        let it_post_order = self.iter_post_order();
+        let mut program = Vec::new();
         let mut dag_to_index = HashMap::new();
 
-        while let Some(dag) = post_order_stack.pop() {
-            let term = if let Some(l) = dag.get_left() {
+        for dag in it_post_order {
+            let term = if let Some(l) = dag.0.get_left() {
                 // Program of left child is already added
-                let l_idx = l.get_relative_index(&program, &dag_to_index);
+                let l_idx = RefWrapper(l).get_relative_index(&program, &dag_to_index);
 
-                if let Some(r) = dag.get_right() {
+                if let Some(r) = dag.0.get_right() {
                     // Program of right child is already added
-                    let r_idx = r.get_relative_index(&program, &dag_to_index);
+                    let r_idx = RefWrapper(r).get_relative_index(&program, &dag_to_index);
 
-                    match dag {
+                    match dag.0 {
                         TermDag::Comp(_, _) => Term::Comp(l_idx, r_idx),
                         TermDag::Case(_, _) => Term::Case(l_idx, r_idx),
                         TermDag::Pair(_, _) => Term::Pair(l_idx, r_idx),
@@ -293,7 +276,7 @@ where
                         _ => unreachable!(),
                     }
                 } else {
-                    match dag {
+                    match dag.0 {
                         TermDag::InjL(_) => Term::InjL(l_idx),
                         TermDag::InjR(_) => Term::InjR(l_idx),
                         TermDag::Take(_) => Term::Take(l_idx),
@@ -302,7 +285,7 @@ where
                     }
                 }
             } else {
-                match dag {
+                match dag.0 {
                     TermDag::Unit => Term::Unit,
                     TermDag::Iden => Term::Iden,
                     TermDag::Witness(w) => Term::Witness(w.clone()),
