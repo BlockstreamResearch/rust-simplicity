@@ -44,7 +44,7 @@ pub fn scribe<App: Application>(b: Value) -> TermDag<(), App> {
         }
         Value::SumR(r) => {
             let r = scribe(*r);
-            TermDag::InjL(Rc::new(r))
+            TermDag::InjR(Rc::new(r))
         }
         Value::Prod(l, r) => {
             let l = scribe(*l);
@@ -67,7 +67,7 @@ pub fn one<App: Application>() -> TermDag<(), App> {
 /// Cond program: The combinator to branch based on the value of a
 /// bit using case and drop. The first argument is the
 /// then clause and the second argument is the else clause
-/// [[cond st]] <0, a> = [[s]](a); [[cond st]] <1, a> = [[t]](a)
+/// `[[cond st]] <0, a> = [[s]](a); [[cond st]] <1, a> = [[t]](a)`
 pub fn cond<App: Application>(
     s: Rc<TermDag<(), App>>,
     t: Rc<TermDag<(), App>>,

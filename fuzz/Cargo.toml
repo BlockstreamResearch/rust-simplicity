@@ -26,3 +26,6 @@ path = "fuzz_targets/rtt_natural.rs"
 name = "rtt_program"
 path = "fuzz_targets/rtt_program.rs"
 
+[[bin]]
+name = "rtt_dag"
+path = "fuzz_targets/rtt_dag.rs"

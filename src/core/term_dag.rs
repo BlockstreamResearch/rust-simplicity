@@ -1,3 +1,32 @@
+// Rust Simplicity Library
+// Written in 2020 by
+//   Andrew Poelstra <apoelstra@blockstream.com>
+//   Sanket Kanjalkar <sanket1729@gmail.com>
+//
+// To the extent possible under law, the author(s) have dedicated all
+// copyright and related and neighboring rights to this software to
+// the public domain worldwide. This software is distributed without
+// any warranty.
+//
+// You should have received a copy of the CC0 Public Domain Dedication
+// along with this software.
+// If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+//
+
+//! # Simplicity DAGs
+//!
+//! DAGs are the logical structure of Simplicity programs.
+//! Each program has a root node,
+//! and each node is a leaf or has left or right children.
+//!
+//! This DAG representation is meant for composing programs by hand.
+//! One should use methods that return reference-counting pointers (see [`std::rc`])
+//! and copy duplicate sub-DAGs by [`Rc::clone()`].
+//! This keeps memory usage minimal.
+//!
+//! For (de)serialization and execution, the DAG needs to be converted into a linear program.
+
+use crate::core::iter::DagIterable;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
 use crate::{Term, UntypedProgram};
@@ -5,266 +34,318 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-/// Untyped Simplicity DAG _(directed acyclic graph)_.
-/// May include Bitcoin/Elements extensions (see [`Term`]).
+/// Simplicity DAG for some witness type and application.
+/// A DAG is a _directed acyclic graph_ consisting of _nodes_ and _edges_.
+/// There is a _root_,
+/// nodes may have left or right _children_,
+/// and nodes without children are called _leaves_.
 ///
-/// A DAG consists of a combinator as parent node and its payload
-/// _(references to sub-DAGs, witness data, etc.)_.
-/// A DAG corresponds to an untyped Simplicity program.
-///
-/// References to sub-DAGs are pointers to heap memory.
-///
-/// The DAG representation is used for inductively constructing Simplicity programs
-/// that are later translated into the node representation.
+/// Nodes refer to other nodes via reference-counted pointers to heap memory.
+/// If possible, duplicate DAGs make use of this fact and reference the same memory.
 #[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Hash, Debug)]
 pub enum TermDag<Witness, App: Application> {
+    /// Identity
     Iden,
+    /// Unit constant
     Unit,
+    /// Left injection of some child
     InjL(Rc<TermDag<Witness, App>>),
+    /// Right injection of some child
     InjR(Rc<TermDag<Witness, App>>),
+    /// Take of some child
     Take(Rc<TermDag<Witness, App>>),
+    /// Drop of some child
     Drop(Rc<TermDag<Witness, App>>),
+    /// Composition of a left and right child
     Comp(Rc<TermDag<Witness, App>>, Rc<TermDag<Witness, App>>),
+    /// Case of a left and right child
     Case(Rc<TermDag<Witness, App>>, Rc<TermDag<Witness, App>>),
+    /// Left assertion of a left and right child.
+    ///
+    /// Right child must be [`Self::Hidden`]
     AssertL(Rc<TermDag<Witness, App>>, Rc<TermDag<Witness, App>>),
+    /// Right assertion of a left and right child.
+    ///
+    /// Left child must be [`Self::Hidden`]
     AssertR(Rc<TermDag<Witness, App>>, Rc<TermDag<Witness, App>>),
+    /// Pair of a left and right child
     Pair(Rc<TermDag<Witness, App>>, Rc<TermDag<Witness, App>>),
+    /// Disconnect of a left and right child
     Disconnect(Rc<TermDag<Witness, App>>, Rc<TermDag<Witness, App>>),
+    /// Witness data
     Witness(Witness),
+    /// Fail
     Fail(Cmr, Cmr),
+    /// Hidden
     Hidden(Cmr),
+    /// Application jet
     Jet(&'static JetNode<App>),
 }
 
-impl<App: Application> TermDag<(), App> {
-    /// Create DAG with single `iden` node
+impl<Witness, App: Application> TermDag<Witness, App> {
+    /// Create a DAG with a single [`Self::Iden`] node
     pub fn iden() -> Rc<Self> {
         Rc::new(TermDag::Iden)
     }
 
-    /// Create DAG with single `unit` node
+    /// Create a DAG with a single [`Self::Unit`] node
     pub fn unit() -> Rc<Self> {
         Rc::new(TermDag::Unit)
     }
 
-    /// Create DAG with `injl` root that points to given sub-DAG
-    pub fn injl(sub_dag: Rc<Self>) -> Rc<Self> {
-        Rc::new(TermDag::InjL(sub_dag))
+    /// Create a DAG with root [`Self::InjL`] and the given `child`
+    pub fn injl(child: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::InjL(child))
     }
 
-    /// Create DAG with `injr` root that points to given sub-DAG
-    pub fn injr(sub_dag: Rc<Self>) -> Rc<Self> {
-        Rc::new(TermDag::InjR(sub_dag))
+    /// Create a DAG with root [`Self::InjR`] and the given `child`
+    pub fn injr(child: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::InjR(child))
     }
 
-    /// Create DAG with `take` root that points to given sub-DAG
-    pub fn take(sub_dag: Rc<Self>) -> Rc<Self> {
-        Rc::new(TermDag::Take(sub_dag))
+    /// Create a DAG with root [`Self::Take`] and the given `child`
+    pub fn take(child: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::Take(child))
     }
 
-    /// Create DAG with `drop` root that points to given sub-DAG
-    pub fn drop(sub_dag: Rc<Self>) -> Rc<Self> {
-        Rc::new(TermDag::Drop(sub_dag))
+    /// Create a DAG with root [`Self::Drop`] and the given `child`
+    pub fn drop(child: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::Drop(child))
     }
 
-    /// Create DAG with `comp` root that points to given `left` and `right` sub-DAGs
-    pub fn comp(left_dag: Rc<Self>, right_dag: Rc<Self>) -> Rc<Self> {
-        Rc::new(TermDag::Comp(left_dag, right_dag))
+    /// Create a DAG with root [`Self::Comp`] and the given `left` and `right` child
+    pub fn comp(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::Comp(left, right))
     }
 
-    /// Create DAG with `case` root that points to given `left` and `right` sub-DAGs
-    pub fn case(left_dag: Rc<Self>, right_dag: Rc<Self>) -> Rc<Self> {
-        Rc::new(TermDag::Case(left_dag, right_dag))
+    /// Create a DAG with root [`Self::Case`] and the given `left` and `right` child
+    pub fn case(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::Case(left, right))
     }
 
-    /// Create DAG with `pair` root that points to given `left` and `right` sub-DAGs
-    pub fn pair(left_dag: Rc<Self>, right_dag: Rc<Self>) -> Rc<Self> {
-        Rc::new(TermDag::Pair(left_dag, right_dag))
+    /// Create a DAG with root [`Self::AssertL`] and the given `left` and `right` child
+    pub fn assertl(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::AssertL(left, right))
     }
 
-    /// Create DAG with `disconnect` root that points to given `left` and `right` sub-DAGs
-    pub fn disconnect(left_dag: Rc<Self>, right_dag: Rc<Self>) -> Rc<Self> {
-        Rc::new(TermDag::Disconnect(left_dag, right_dag))
+    /// Create a DAG with root [`Self::AssertR`] and the given `left` and `right` child
+    pub fn assertr(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::AssertR(left, right))
     }
 
-    /// Create DAG with single `witness` node _(with no witness data)_
-    pub fn witness() -> Rc<Self> {
-        Rc::new(TermDag::Witness(()))
+    /// Create a DAG with root [`Self::Pair`] and the given `left` and `right` child
+    pub fn pair(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::Pair(left, right))
     }
 
-    /// Create DAG with single `fail` node that contains the given `left` and `right` hashes
-    pub fn fail(left_hash: Cmr, right_hash: Cmr) -> Rc<Self> {
-        Rc::new(TermDag::Fail(left_hash, right_hash))
+    /// Create a DAG with root [`Self::Disconnect`] and the given `left` and `right` child
+    pub fn disconnect(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
+        Rc::new(TermDag::Disconnect(left, right))
     }
 
-    /// Create DAG with single `hidden` node that contains the given hash
+    /// Create a DAG with a single [`Self::Witness`] node that contains the given `value`
+    pub fn witness(value: Witness) -> Rc<Self> {
+        Rc::new(TermDag::Witness(value))
+    }
+
+    /// Create a DAG with a single [`Self::Fail`] node that contains the given `left` and `right` hashes
+    pub fn fail(left: Cmr, right: Cmr) -> Rc<Self> {
+        Rc::new(TermDag::Fail(left, right))
+    }
+
+    /// Create a DAG with a single [`Self::Hidden`] node that contains the given `hash`
     pub fn hidden(hash: Cmr) -> Rc<Self> {
         Rc::new(TermDag::Hidden(hash))
     }
 
-    /// Create DAG with single `jet_node` that performs some black-box execution.
+    /// Create a DAG with a single [`Self::Jet`] node that contains the given `jet`
+    /// and performs some associated black-box execution
     pub fn jet(jet: &'static JetNode<App>) -> Rc<Self> {
         Rc::new(TermDag::Jet(jet))
     }
+
+    /// Return the left child of the given DAG root, if there is such a child.
+    pub fn get_left(&self) -> Option<&Self> {
+        match self {
+            TermDag::InjL(l) | TermDag::InjR(l) | TermDag::Take(l) | TermDag::Drop(l) => Some(l),
+            TermDag::Comp(l, _)
+            | TermDag::Case(l, _)
+            | TermDag::Pair(l, _)
+            | TermDag::AssertL(l, _)
+            | TermDag::AssertR(l, _)
+            | TermDag::Disconnect(l, _) => Some(l),
+            _ => None,
+        }
+    }
+
+    /// Return the right child of the given DAG root, if there is such a child.
+    pub fn get_right(&self) -> Option<&Self> {
+        match self {
+            TermDag::Comp(_, r)
+            | TermDag::Case(_, r)
+            | TermDag::Pair(_, r)
+            | TermDag::AssertL(_, r)
+            | TermDag::AssertR(_, r)
+            | TermDag::Disconnect(_, r) => Some(r),
+            _ => None,
+        }
+    }
 }
 
-impl<Witness, App: Application> TermDag<Witness, App> {
-    /// Create untyped DAG from node representation
-    pub fn from_untyped_program(program: UntypedProgram<Witness, App>) -> Rc<Self> {
+/// Wrapper for `&'a TermDag<Witness, App>` that implements `Eq` and `Hash`
+/// via pointer equality and pointer hashing, respectively.
+#[derive(Debug)]
+pub struct RefWrapper<'a, Witness, App: Application>(pub &'a TermDag<Witness, App>);
+
+impl<'a, Witness, App: Application> RefWrapper<'a, Witness, App> {
+    /// Read `dag_to_index` and return the relative index of `self` in `program`.
+    /// Because children appear before parents in post order,
+    /// their index is known when processing the parent.
+    fn get_relative_index(
+        &self,
+        program: &[Term<Witness, App>],
+        dag_to_index: &HashMap<Self, usize>,
+    ) -> usize {
+        let index = dag_to_index
+            .get(self)
+            .expect("children come before parent in post order");
+        program.len() - index
+    }
+}
+
+impl<'a, Witness, App: Application> Clone for RefWrapper<'a, Witness, App> {
+    fn clone(&self) -> Self {
+        RefWrapper(<&TermDag<Witness, App>>::clone(&self.0))
+    }
+}
+
+impl<'a, Witness, App: Application> Copy for RefWrapper<'a, Witness, App> {}
+
+impl<'a, Witness, App: Application> PartialEq for RefWrapper<'a, Witness, App> {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self.0, other.0)
+    }
+}
+
+impl<'a, Witness, App: Application> Eq for RefWrapper<'a, Witness, App> {}
+
+impl<'a, Witness, App: Application> Hash for RefWrapper<'a, Witness, App> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        std::ptr::hash(self.0, state)
+    }
+}
+
+impl<'a, Witness, App: Application> DagIterable for &'a TermDag<Witness, App> {
+    type Node = RefWrapper<'a, Witness, App>;
+
+    fn root(&self) -> Option<Self::Node> {
+        Some(RefWrapper(self))
+    }
+
+    fn left_of(&self, node: Self::Node) -> Option<Self::Node> {
+        node.0.get_left().map(|l| RefWrapper(l))
+    }
+
+    fn right_of(&self, node: Self::Node) -> Option<Self::Node> {
+        node.0.get_right().map(|r| RefWrapper(r))
+    }
+}
+
+impl<Witness, App: Application> TermDag<Witness, App>
+where
+    Witness: Clone,
+{
+    /// Create a Simplicity DAG from a linear program.
+    pub fn from_untyped_program(program: &UntypedProgram<Witness, App>) -> Rc<Self> {
         assert!(!program.0.is_empty(), "Program must be non-empty");
         let mut dag_list: Vec<Rc<TermDag<_, _>>> = vec![];
-        for (index, term) in program.0.into_iter().enumerate() {
+        for (index, term) in program.0.iter().enumerate() {
             let dag = match term {
-                Term::Iden => Rc::new(TermDag::Iden),
-                Term::Unit => Rc::new(TermDag::Unit),
-                Term::InjL(l) => Rc::new(TermDag::InjL(Rc::clone(&dag_list[index - l]))),
-                Term::InjR(r) => Rc::new(TermDag::InjR(Rc::clone(&dag_list[index - r]))),
-                Term::Take(l) => Rc::new(TermDag::Take(Rc::clone(&dag_list[index - l]))),
-                Term::Drop(r) => Rc::new(TermDag::Drop(Rc::clone(&dag_list[index - r]))),
-                Term::Comp(l, r) => Rc::new(TermDag::Comp(
-                    Rc::clone(&dag_list[index - l]),
-                    Rc::clone(&dag_list[index - r]),
-                )),
-                Term::Case(l, r) => Rc::new(TermDag::Case(
-                    Rc::clone(&dag_list[index - l]),
-                    Rc::clone(&dag_list[index - r]),
-                )),
-                Term::AssertL(l, r) => Rc::new(TermDag::AssertL(
-                    Rc::clone(&dag_list[index - l]),
-                    Rc::clone(&dag_list[index - r]),
-                )),
-                Term::AssertR(l, r) => Rc::new(TermDag::AssertR(
-                    Rc::clone(&dag_list[index - l]),
-                    Rc::clone(&dag_list[index - r]),
-                )),
-                Term::Pair(l, r) => Rc::new(TermDag::Pair(
-                    Rc::clone(&dag_list[index - l]),
-                    Rc::clone(&dag_list[index - r]),
-                )),
-                Term::Disconnect(l, r) => Rc::new(TermDag::Disconnect(
-                    Rc::clone(&dag_list[index - l]),
-                    Rc::clone(&dag_list[index - r]),
-                )),
-                Term::Witness(w) => Rc::new(TermDag::Witness(w)),
-                Term::Fail(hl, hr) => Rc::new(TermDag::Fail(hl, hr)),
-                Term::Hidden(h) => Rc::new(TermDag::Hidden(h)),
-                Term::Jet(j) => Rc::new(TermDag::Jet(j)),
+                Term::Iden => TermDag::iden(),
+                Term::Unit => TermDag::unit(),
+                Term::InjL(l) => TermDag::injl(dag_list[index - l].clone()),
+                Term::InjR(r) => TermDag::injr(dag_list[index - r].clone()),
+                Term::Take(l) => TermDag::take(dag_list[index - l].clone()),
+                Term::Drop(r) => TermDag::drop(dag_list[index - r].clone()),
+                Term::Comp(l, r) => {
+                    TermDag::comp(dag_list[index - l].clone(), dag_list[index - r].clone())
+                }
+                Term::Case(l, r) => {
+                    TermDag::case(dag_list[index - l].clone(), dag_list[index - r].clone())
+                }
+                Term::AssertL(l, r) => {
+                    TermDag::assertl(dag_list[index - l].clone(), dag_list[index - r].clone())
+                }
+                Term::AssertR(l, r) => {
+                    TermDag::assertr(dag_list[index - l].clone(), dag_list[index - r].clone())
+                }
+                Term::Pair(l, r) => {
+                    TermDag::pair(dag_list[index - l].clone(), dag_list[index - r].clone())
+                }
+                Term::Disconnect(l, r) => {
+                    TermDag::disconnect(dag_list[index - l].clone(), dag_list[index - r].clone())
+                }
+                Term::Witness(w) => TermDag::witness(w.clone()),
+                Term::Fail(hl, hr) => TermDag::fail(*hl, *hr),
+                Term::Hidden(h) => TermDag::hidden(*h),
+                Term::Jet(j) => TermDag::jet(j),
             };
             dag_list.push(dag);
         }
         Rc::clone(dag_list.last().unwrap())
     }
-}
 
-// A direct comparison for Rc<> results in comparison
-// of underllying inner values whereas we desire to
-// compare the referececs.
-#[derive(Debug)]
-struct RcWrapper<Witness, App: Application> {
-    rc: Rc<TermDag<Witness, App>>,
-}
+    /// Convert a Simplicity DAG into a linear program.
+    ///
+    /// The program is guaranteed to be in canonical order.
+    pub fn to_untyped_program(&self) -> UntypedProgram<Witness, App> {
+        let it_post_order = self.iter_post_order();
+        let mut program = Vec::new();
+        let mut dag_to_index = HashMap::new();
 
-impl<Witness, App: Application> PartialEq for RcWrapper<Witness, App> {
-    fn eq(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.rc, &other.rc)
-    }
-}
+        for dag in it_post_order {
+            let term = if let Some(l) = dag.0.get_left() {
+                // Program of left child is already added
+                let l_idx = RefWrapper(l).get_relative_index(&program, &dag_to_index);
 
-impl<Witness, App: Application> Eq for RcWrapper<Witness, App> {}
+                if let Some(r) = dag.0.get_right() {
+                    // Program of right child is already added
+                    let r_idx = RefWrapper(r).get_relative_index(&program, &dag_to_index);
 
-impl<Witness, App: Application> From<Rc<TermDag<Witness, App>>> for RcWrapper<Witness, App> {
-    fn from(dag: Rc<TermDag<Witness, App>>) -> Self {
-        Self { rc: dag }
-    }
-}
-
-impl<Witness, App> Hash for RcWrapper<Witness, App>
-where
-    Witness: Hash,
-    App: Hash + Application,
-{
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.rc.hash(state);
-    }
-}
-
-impl<Witness, App> TermDag<Witness, App>
-where
-    Witness: Hash + Clone,
-    App: Hash + Clone + Application,
-{
-    /// Convert untyped DAG into node representation.
-    pub fn into_untyped_program(self) -> UntypedProgram<Witness, App> {
-        // helper function to recrusively compute the index positions
-        // of the children.
-        fn into_helper<Witness, App>(
-            dag: Rc<TermDag<Witness, App>>,
-            index_map: &mut HashMap<RcWrapper<Witness, App>, usize>,
-            prog: &mut Vec<Term<Witness, App>>,
-        ) -> usize
-        where
-            RcWrapper<Witness, App>: Hash,
-            Witness: Clone,
-            App: Clone + Application,
-        {
-            // insert one child into prog
-            macro_rules! insert_one_child {
-                ($term: expr, $l : expr) => {
-                    match index_map.get(&RcWrapper::from(Rc::clone($l))) {
-                        Some(ind) => prog.push($term(prog.len() - ind)),
-                        None => {
-                            let ind = into_helper(Rc::clone($l), index_map, prog);
-                            prog.push($term(prog.len() - ind));
-                        }
+                    match dag.0 {
+                        TermDag::Comp(_, _) => Term::Comp(l_idx, r_idx),
+                        TermDag::Case(_, _) => Term::Case(l_idx, r_idx),
+                        TermDag::Pair(_, _) => Term::Pair(l_idx, r_idx),
+                        TermDag::AssertL(_, _) => Term::AssertL(l_idx, r_idx),
+                        TermDag::AssertR(_, _) => Term::AssertR(l_idx, r_idx),
+                        TermDag::Disconnect(_, _) => Term::Disconnect(l_idx, r_idx),
+                        _ => unreachable!(),
                     }
-                };
-            }
+                } else {
+                    match dag.0 {
+                        TermDag::InjL(_) => Term::InjL(l_idx),
+                        TermDag::InjR(_) => Term::InjR(l_idx),
+                        TermDag::Take(_) => Term::Take(l_idx),
+                        TermDag::Drop(_) => Term::Drop(l_idx),
+                        _ => unreachable!(),
+                    }
+                }
+            } else {
+                match dag.0 {
+                    TermDag::Unit => Term::Unit,
+                    TermDag::Iden => Term::Iden,
+                    TermDag::Witness(w) => Term::Witness(w.clone()),
+                    TermDag::Fail(hl, hr) => Term::Fail(*hl, *hr),
+                    TermDag::Hidden(h) => Term::Hidden(*h),
+                    TermDag::Jet(j) => Term::Jet(j),
+                    _ => unreachable!(),
+                }
+            };
 
-            // insert two children into prog
-            macro_rules! insert_two_child {
-                ($term: expr, $l : expr, $r: expr) => {{
-                    let l_ind = match index_map.get(&RcWrapper::from(Rc::clone($l))) {
-                        Some(ind) => *ind,
-                        None => into_helper(Rc::clone($l), index_map, prog),
-                    };
-                    let r_ind = match index_map.get(&RcWrapper::from(Rc::clone($r))) {
-                        Some(ind) => *ind,
-                        None => into_helper(Rc::clone($r), index_map, prog),
-                    };
-                    prog.push($term(prog.len() - l_ind, prog.len() - r_ind));
-                }};
-            }
-
-            if index_map.contains_key(&RcWrapper::from(Rc::clone(&dag))) {
-                return *index_map.get(&RcWrapper::from(Rc::clone(&dag))).unwrap();
-            }
-            match dag.as_ref() {
-                TermDag::Unit => prog.push(Term::Unit),
-                TermDag::Iden => prog.push(Term::Iden),
-                TermDag::InjL(l) => insert_one_child!(Term::InjL, l),
-                TermDag::InjR(r) => insert_one_child!(Term::InjR, r),
-                TermDag::Take(l) => insert_one_child!(Term::Take, l),
-                TermDag::Drop(r) => insert_one_child!(Term::Drop, r),
-                TermDag::Comp(l, r) => insert_two_child!(Term::Comp, l, r),
-                TermDag::Case(l, r) => insert_two_child!(Term::Case, l, r),
-                TermDag::AssertL(l, r) => insert_two_child!(Term::AssertL, l, r),
-                TermDag::AssertR(l, r) => insert_two_child!(Term::AssertR, l, r),
-                TermDag::Pair(l, r) => insert_two_child!(Term::Pair, l, r),
-                TermDag::Disconnect(l, r) => insert_two_child!(Term::Disconnect, l, r),
-                TermDag::Witness(ref w) => prog.push(Term::Witness(w.clone())),
-                TermDag::Fail(a, b) => prog.push(Term::Fail(*a, *b)),
-                TermDag::Hidden(cmr) => prog.push(Term::Hidden(*cmr)),
-                TermDag::Jet(j) => prog.push(Term::Jet(*j)),
-            }
-            // insert the current node remembering it's index for reusing
-            index_map.insert(RcWrapper::from(dag), prog.len() - 1);
-            prog.len() - 1
+            dag_to_index.insert(dag, program.len());
+            program.push(term);
         }
 
-        let mut prog = vec![];
-        let mut index_map = HashMap::new();
-        let _len = into_helper(Rc::new(self), &mut index_map, &mut prog);
-
-        UntypedProgram(prog)
+        UntypedProgram(program)
     }
 }

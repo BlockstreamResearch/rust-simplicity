@@ -65,7 +65,7 @@ impl<Pk: MiniscriptKey + PubkeyKey32> Policy<Pk> {
     /// Compile a policy into a simplicity frgament
     pub fn compile(&self) -> Result<UntypedProgram<(), Bitcoin>, Error> {
         let dag = compiler::compile(self)?;
-        Ok(dag.into_untyped_program())
+        Ok(dag.to_untyped_program())
     }
 }
 

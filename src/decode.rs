@@ -41,8 +41,13 @@ pub fn decode_program_no_witness<I: Iterator<Item = u8>, App: Application>(
         decode_node(&mut program, iter)?;
     }
 
-    // FIXME: verify canonical order
-    Ok(UntypedProgram(program))
+    let program = UntypedProgram(program);
+
+    if program.has_canonical_order() {
+        Ok(program)
+    } else {
+        Err(Error::ParseError("Program is not in canonical order!"))
+    }
 }
 
 /// Decode witness data from bits.
@@ -74,9 +79,6 @@ pub fn decode_witness<Wit, App: Application, I: Iterator<Item = u8>>(
 }
 
 /// Decode a value from bits, based on the given type.
-///
-/// In particular, witness data can be decoded by invoking this function repeatedly.
-/// In this case, function [`decode_witness_length`] should be invoked beforehand.
 pub fn decode_value<I: Iterator<Item = bool>>(
     ty: &FinalType,
     iter: &mut I,

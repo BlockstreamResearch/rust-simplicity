@@ -13,17 +13,12 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use bitcoin_hashes::sha256;
+//! # Core Simplicity structures
+//!
+//! Defines Simplicity terms, values, types, DAGs and programs.
 
-/// Core Module for simplicity
+pub mod iter;
 pub mod term;
 pub mod term_dag;
 pub mod types;
 pub mod value;
-
-/// Simplicity has a different logic for computing the transaction input and output
-/// digest. This trait defines the method for computation of such digests.
-pub(crate) trait SimplicityHash {
-    /// Add the hash of current tx component
-    fn simplicity_hash(&self, eng: &mut sha256::HashEngine);
-}

@@ -1,43 +1,80 @@
+// Rust Simplicity Library
+// Written in 2020 by
+//   Andrew Poelstra <apoelstra@blockstream.com>
+//   Sanket Kanjalkar <sanket1729@gmail.com>
+//
+// To the extent possible under law, the author(s) have dedicated all
+// copyright and related and neighboring rights to this software to
+// the public domain worldwide. This software is distributed without
+// any warranty.
+//
+// You should have received a copy of the CC0 Public Domain Dedication
+// along with this software.
+// If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+//
+
+//! # Simplicity terms
+//!
+//! Terms are the atomic building blocks of linear Simplicity programs.
+//! A program is a sequence of terms, and
+//! the meaning of a term depends on its program.
+//! We speak of _nodes_ to refer to terms in context of their program.
+//!
+//! This linear representation is meant for (de)serialization and execution of programs.
+//! To compose programs by hand, use the DAG representation of [`super::term_dag`].
+
+use crate::core::iter::DagIterable;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
 use std::collections::HashMap;
 use std::hash::Hash;
 
-/// Single, untyped Simplicity node.
-/// May include Bitcoin/Elements extensions.
+/// Simplicity term for some witness type and application.
+/// Terms in context of programs are called _nodes_,
+/// and terms have no meaning outside a program.
 ///
-/// If Bitcoin/Elements support is not compiled (see `bitcoin` and
-/// `elements` features), then programs using these extensions will
-/// fail to parse.
-///
-/// A node consists of a combinator and its payload
-/// _(references to other nodes, witness data, etc.)_.
-/// A list of nodes forms an untyped Simplicity program,
-/// which represents an untyped Simplicity DAG.
-///
-/// References to other nodes are relative indices in the context of a program.
-/// For example, node `InjL(2)` at index 7 represents DAG `InjL → x`,
-/// where `x` is the DAG that the node at index 5 represents.
-/// A node has no meaning without a program.
-///
-/// The node representation is later used for executing Simplicity programs.
+/// Nodes refer to other nodes via indices that are relative to the node's own index.
+/// This encodes a DAG _(directed acyclic graph)_.
+/// For example, node `InjL(2)` at index 7 in its program
+/// represents node `InjL` whose child is `x`,
+/// where `x` is the node at index 7 - 2 = 5.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Term<Witness, App: Application> {
+    /// Identity
     Iden,
+    /// Unit constant
     Unit,
+    /// Left injection of some term
     InjL(usize),
+    /// Right injection of some term
     InjR(usize),
+    /// Take of some term
     Take(usize),
+    /// Drop of some term
     Drop(usize),
+    /// Composition of two terms
     Comp(usize, usize),
+    /// Case of two terms
     Case(usize, usize),
-    AssertL(usize, usize), // Right Node must be hidden
-    AssertR(usize, usize), // Left Node must be hidden
+    /// Left assertion of two terms.
+    ///
+    /// Right child must be [`Self::Hidden`]
+    AssertL(usize, usize),
+    /// Right assertion of two terms.
+    ///
+    /// Left child must be [`Self::Hidden`]
+    AssertR(usize, usize),
+    /// Pair of two terms
     Pair(usize, usize),
+    /// Disconnect of two terms
     Disconnect(usize, usize),
+    /// Witness data
     Witness(Witness),
+    /// Fail
     Fail(Cmr, Cmr),
+    /// Hidden
     Hidden(Cmr),
+    /// Application jet
     Jet(&'static JetNode<App>),
 }
 
@@ -65,6 +102,33 @@ impl<Witness, App: Application> Term<Witness, App> {
             Term::Fail(x, y) => Term::Fail(x, y),
             Term::Hidden(x) => Term::Hidden(x),
             Term::Jet(j) => Term::Jet(j),
+        }
+    }
+
+    /// Return the relative index of the left child of the given term, if there is such a child.
+    pub(crate) fn get_left(&self) -> Option<usize> {
+        match self {
+            Term::InjL(i) | Term::InjR(i) | Term::Take(i) | Term::Drop(i) => Some(*i),
+            Term::Comp(i, _)
+            | Term::Case(i, _)
+            | Term::AssertL(i, _)
+            | Term::AssertR(i, _)
+            | Term::Pair(i, _)
+            | Term::Disconnect(i, _) => Some(*i),
+            _ => None,
+        }
+    }
+
+    /// Return the relative index of the right child of the given term, if there is such a child.
+    pub(crate) fn get_right(&self) -> Option<usize> {
+        match self {
+            Term::Comp(_, j)
+            | Term::Case(_, j)
+            | Term::AssertL(_, j)
+            | Term::AssertR(_, j)
+            | Term::Pair(_, j)
+            | Term::Disconnect(_, j) => Some(*j),
+            _ => None,
         }
     }
 
@@ -138,5 +202,44 @@ impl<Witness, App: Application> UntypedProgram<Witness, App> {
     /// Returns an iterator over the terms in the program
     pub fn iter(&self) -> impl Iterator<Item = &Term<Witness, App>> {
         self.0.iter()
+    }
+
+    /// Return whether the program is in _canonical order_.
+    /// This means that node indices appear in _post order_,
+    /// i.e., left children appear before right ones,
+    /// children appear before their parent,
+    /// and every node can be reached from the root.
+    pub fn has_canonical_order(&self) -> bool {
+        let mut bottom = 0;
+
+        for index in self.iter_post_order() {
+            if index == bottom {
+                bottom += 1;
+            } else {
+                return false;
+            }
+        }
+
+        bottom == self.len()
+    }
+}
+
+impl<Witness, App: Application> DagIterable for UntypedProgram<Witness, App> {
+    type Node = usize;
+
+    fn root(&self) -> Option<Self::Node> {
+        if self.0.is_empty() {
+            None
+        } else {
+            Some(self.0.len() - 1)
+        }
+    }
+
+    fn left_of(&self, index: Self::Node) -> Option<Self::Node> {
+        self.0[index].get_left().map(|l| index - l)
+    }
+
+    fn right_of(&self, index: Self::Node) -> Option<Self::Node> {
+        self.0[index].get_right().map(|r| index - r)
     }
 }

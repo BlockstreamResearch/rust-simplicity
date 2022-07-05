@@ -14,9 +14,9 @@
 //
 
 /// Test programs for simplicity.
-mod hashblock;
-mod schnorr0;
-mod schnorr6;
+pub(crate) mod hashblock;
+pub(crate) mod schnorr0;
+pub(crate) mod schnorr6;
 pub(crate) mod sighash_all;
 
 #[cfg(test)]
