@@ -579,18 +579,14 @@ pub fn type_check<Witness, App: Application>(
                 unify(rcs[j].source.clone(), var_c)?;
                 unify(rcs[j].target.clone(), var_d)?;
             }
-            Term::Witness(..) => {
-                // No type constraints
-            }
-            Term::Hidden(..) => {
-                // No type constraints
-            }
             Term::Jet(jet) => {
                 bind(&node.source, type_from_name(&jet.source_ty, &pow2s[..]))?;
 
                 bind(&node.target, type_from_name(&jet.target_ty, &pow2s[..]))?;
             }
-            Term::Fail(..) => unimplemented!("Cannot typecheck a program with `Fail` in it"),
+            Term::Witness(..) | Term::Hidden(..) | Term::Fail(..) => {
+                // No type constraints
+            }
         };
         rcs.push(Rc::new(node));
         // dbg!(&rcs);

@@ -364,7 +364,7 @@ fn compute_extra_cells_bound<App: Application>(
                 )
         }
         Term::Witness(..) => witness_target_width,
-        Term::Fail(..) => unimplemented!(),
+        Term::Fail(..) => 0,
         Term::Hidden(..) => 0,
         Term::Jet(..) => 0,
     }
@@ -403,7 +403,7 @@ fn compute_frame_count_bound<App: Application>(
             )
         }
         Term::Witness(..) => 0,
-        Term::Fail(..) => unimplemented!(),
+        Term::Fail(..) => 0,
         Term::Hidden(..) => 0,
         Term::Jet(..) => 0,
     }

@@ -162,7 +162,7 @@ fn decode_node<I: Iterator<Item = u8>, App: Application>(
         match subcode {
             0 => Term::Iden,
             1 => Term::Unit,
-            2 => return Err(Error::ParseError("01010 (fail code)")),
+            2 => Term::Fail(Cmr::from(decode_hash(iter)?), Cmr::from(decode_hash(iter)?)),
             3 => return Err(Error::ParseError("01011 (stop code)")),
             _ => unreachable!(),
         }
