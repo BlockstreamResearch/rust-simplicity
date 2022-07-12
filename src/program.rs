@@ -20,8 +20,9 @@
 //!
 
 use std::collections::HashMap;
-use std::{cmp, fmt, sync::Arc};
+use std::{fmt, sync::Arc};
 
+use crate::analysis;
 use crate::bititer::BitIter;
 use crate::core::types::FinalType;
 use crate::core::{LinearProgram, Term, TypedNode, TypedProgram, UntypedProgram, Value};
@@ -41,7 +42,7 @@ pub struct ProgramNode<App: Application> {
     pub imr: Imr,
     /// Upper bound on the number of cells required in the Bit Machine by this node
     pub extra_cells_bound: usize,
-    /// Upper bound on the number of cells required in the Bit Machine by this node
+    /// Upper bound on the number of frames required in the Bit Machine by this node
     pub frame_count_bound: usize,
 }
 
@@ -183,14 +184,8 @@ fn compress_and_finalize<App: Application>(
 
         unshared_to_shared_idx.insert(unshared_idx, shared_idx);
 
-        let extra_cells_bound = compute_extra_cells_bound(
-            &shared_program,
-            &shared_node.term,
-            shared_idx,
-            shared_node.target_ty.bit_width(),
-        );
-        let frame_count_bound =
-            compute_frame_count_bound(&shared_program, &shared_node.term, shared_idx);
+        let extra_cells_bound = analysis::compute_extra_cells_bound(&shared_program, &shared_node);
+        let frame_count_bound = analysis::compute_frame_count_bound(&shared_program, &shared_node);
 
         let finalized_node = ProgramNode {
             typed: shared_node,
@@ -205,88 +200,6 @@ fn compress_and_finalize<App: Application>(
 
     Program {
         nodes: shared_program,
-    }
-}
-
-fn compute_extra_cells_bound<App: Application>(
-    program: &[ProgramNode<App>],
-    node: &Term<Value, App>,
-    idx: usize,
-    witness_target_width: usize,
-) -> usize {
-    match *node {
-        Term::Iden => 0,
-        Term::Unit => 0,
-        Term::InjL(i) => program[idx - i].extra_cells_bound,
-        Term::InjR(i) => program[idx - i].extra_cells_bound,
-        Term::Take(i) => program[idx - i].extra_cells_bound,
-        Term::Drop(i) => program[idx - i].extra_cells_bound,
-        Term::Comp(i, j) => {
-            program[idx - i].target_ty().bit_width()
-                + cmp::max(
-                    program[idx - i].extra_cells_bound,
-                    program[idx - j].extra_cells_bound,
-                )
-        }
-        Term::Case(i, j) | Term::AssertL(i, j) | Term::AssertR(i, j) => cmp::max(
-            program[idx - i].extra_cells_bound,
-            program[idx - j].extra_cells_bound,
-        ),
-        Term::Pair(i, j) => cmp::max(
-            program[idx - i].extra_cells_bound,
-            program[idx - j].extra_cells_bound,
-        ),
-        Term::Disconnect(i, j) => {
-            program[idx - i].source_ty().bit_width()
-                + program[idx - i].target_ty().bit_width()
-                + cmp::max(
-                    program[idx - i].extra_cells_bound,
-                    program[idx - j].extra_cells_bound,
-                )
-        }
-        Term::Witness(..) => witness_target_width,
-        Term::Fail(..) => 0,
-        Term::Hidden(..) => 0,
-        Term::Jet(..) => 0,
-    }
-}
-
-fn compute_frame_count_bound<App: Application>(
-    program: &[ProgramNode<App>],
-    node: &Term<Value, App>,
-    idx: usize,
-) -> usize {
-    match *node {
-        Term::Iden => 0,
-        Term::Unit => 0,
-        Term::InjL(i) => program[idx - i].frame_count_bound,
-        Term::InjR(i) => program[idx - i].frame_count_bound,
-        Term::Take(i) => program[idx - i].frame_count_bound,
-        Term::Drop(i) => program[idx - i].frame_count_bound,
-        Term::Comp(i, j) => {
-            1 + cmp::max(
-                program[idx - i].frame_count_bound,
-                program[idx - j].frame_count_bound,
-            )
-        }
-        Term::Case(i, j) | Term::AssertL(i, j) | Term::AssertR(i, j) => cmp::max(
-            program[idx - i].frame_count_bound,
-            program[idx - j].frame_count_bound,
-        ),
-        Term::Pair(i, j) => cmp::max(
-            program[idx - i].frame_count_bound,
-            program[idx - j].frame_count_bound,
-        ),
-        Term::Disconnect(i, j) => {
-            2 + cmp::max(
-                program[idx - i].frame_count_bound,
-                program[idx - j].frame_count_bound,
-            )
-        }
-        Term::Witness(..) => 0,
-        Term::Fail(..) => 0,
-        Term::Hidden(..) => 0,
-        Term::Jet(..) => 0,
     }
 }
 
