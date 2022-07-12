@@ -25,7 +25,6 @@ use std::{cmp, fmt, sync::Arc};
 use crate::bititer::BitIter;
 use crate::core::types::FinalType;
 use crate::core::{LinearProgram, Term, TypedNode, TypedProgram, UntypedProgram, Value};
-use crate::decode;
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::common::{MerkleRoot, TermMerkleRoot};
@@ -134,8 +133,7 @@ impl<App: Application> Program<App> {
         iter: &mut BitIter<I>,
     ) -> Result<Program<App>, Error> {
         let typed_program = untyped_program.type_check()?;
-        let witness = decode::decode_witness(&typed_program, iter)?;
-        let witness_program = fill_witness_data(typed_program, witness)?;
+        let witness_program = typed_program.decode_witness(iter)?;
         let finalized_program = compress_and_finalize(witness_program);
         Ok(finalized_program)
     }
@@ -164,25 +162,6 @@ impl<App: Application> IntoIterator for Program<App> {
     fn into_iter(self) -> Self::IntoIter {
         self.nodes.into_iter()
     }
-}
-
-fn fill_witness_data<Wit, App: Application>(
-    typed_program: TypedProgram<Wit, App>,
-    witness: Vec<Value>,
-) -> Result<TypedProgram<Value, App>, Error> {
-    let mut it = witness.into_iter();
-    let mut translate = |_old_witness: Wit| it.next().expect("witness too short!");
-    let ret = typed_program
-        .0
-        .into_iter()
-        .map(|node| TypedNode {
-            term: node.term.translate_witness(&mut translate),
-            source_ty: node.source_ty,
-            target_ty: node.target_ty,
-        })
-        .collect();
-
-    Ok(TypedProgram(ret))
 }
 
 /// Primary key for non-hidden nodes in shared (typed) Simplicity DAGs.
