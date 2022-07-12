@@ -127,57 +127,6 @@ impl<App: Application> Program<App> {
         let finalized_program = compress_and_finalize(witness_program);
         Ok(finalized_program)
     }
-
-    /// Print out the program in a graphviz-parseable format
-    pub fn graph_print(&self) {
-        for node in &self.nodes {
-            println!(
-                "{} [label=\"{}\\n{}\\n{} → {}\"];",
-                node.index,
-                match &node.node {
-                    Term::Iden => "iden".to_owned(),
-                    Term::Unit => "unit".to_owned(),
-                    Term::InjL(..) => "injl".to_owned(),
-                    Term::InjR(..) => "injr".to_owned(),
-                    Term::Take(..) => "take".to_owned(),
-                    Term::Drop(..) => "drop".to_owned(),
-                    Term::Comp(..) => "comp".to_owned(),
-                    Term::Case(..) => "case".to_owned(),
-                    Term::AssertL(..) => "assertL".to_owned(),
-                    Term::AssertR(..) => "assertR".to_owned(),
-                    Term::Pair(..) => "pair".to_owned(),
-                    Term::Disconnect(..) => "disconnect".to_owned(),
-                    Term::Witness(..) => "witness".to_owned(),
-                    Term::Hidden(..) => "hidden".to_owned(),
-                    Term::Fail(..) => "fail".to_owned(),
-                    Term::Jet(j) => format!("[jet]{}", j),
-                },
-                node.index,
-                node.source_ty,
-                node.target_ty,
-            );
-            match node.node {
-                Term::Iden
-                | Term::Unit
-                | Term::Witness(..)
-                | Term::Hidden(..)
-                | Term::Fail(..)
-                | Term::Jet(..) => {}
-                Term::InjL(i) | Term::InjR(i) | Term::Take(i) | Term::Drop(i) => {
-                    println!("  {} -> {};", node.index, node.index - i);
-                }
-                Term::Comp(i, j)
-                | Term::Case(i, j)
-                | Term::AssertL(i, j)
-                | Term::AssertR(i, j)
-                | Term::Pair(i, j)
-                | Term::Disconnect(i, j) => {
-                    println!("  {} -> {} [color=red];", node.index, node.index - i);
-                    println!("  {} -> {} [color=blue];", node.index, node.index - j);
-                }
-            }
-        }
-    }
 }
 
 fn fill_witness_data<Wit, App: Application>(
@@ -446,7 +395,6 @@ mod tests {
         let prog = Program::<Core>::decode(&mut BitIter::from(prog.into_iter()))
             .expect("decoding program");
 
-        prog.graph_print();
         assert_eq!(prog.nodes.len(), 2);
         assert_eq!(prog.nodes[0].node, Term::Unit);
         assert_eq!(prog.nodes[1].node, Term::InjL(1));
@@ -470,9 +418,7 @@ mod tests {
             // Node::Case(0, 1),
         ]);
 
-        let prog = Program::from_untyped_program(prog, &mut BitIter::from(vec![0x00].into_iter()))
-            .unwrap();
-        prog.graph_print();
+        Program::from_untyped_program(prog, &mut BitIter::from(vec![0x00].into_iter())).unwrap();
     }
 
     #[test]
@@ -489,7 +435,6 @@ mod tests {
         // Witness [Value::u1(0), Value::Unit]: '1' + '10' + '0'
         let mut iter = BitIter::from([0b_1_10_0_0000].iter().cloned());
         let prog = Program::from_untyped_program(prog, &mut iter).unwrap();
-        prog.graph_print();
 
         let mut mac = exec::BitMachine::for_program(&prog);
         let output = mac.exec(&prog, &()).unwrap();
