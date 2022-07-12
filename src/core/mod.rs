@@ -21,11 +21,12 @@ mod common;
 pub mod iter;
 mod term;
 mod term_dag;
+mod typed;
 pub mod types;
 mod value;
 
 pub use common::LinearProgram;
 pub use term::{Term, UntypedProgram};
 pub use term_dag::{RefWrapper, TermDag};
-pub use types::{TypedNode, TypedProgram};
+pub use typed::{TypedNode, TypedProgram};
 pub use value::Value;

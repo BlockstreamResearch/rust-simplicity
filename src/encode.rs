@@ -281,7 +281,7 @@ pub fn encode_natural<W: io::Write>(n: usize, w: &mut BitWriter<W>) -> io::Resul
 mod test {
     use super::*;
     use crate::bititer::BitIter;
-    use crate::core::types::TypedProgram;
+    use crate::core::TypedProgram;
     use crate::jet::application::Core;
     use crate::{decode, jet};
 

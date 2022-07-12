@@ -25,8 +25,8 @@
 
 use crate::bititer::BitIter;
 use crate::core::iter::DagIterable;
+use crate::core::typed::TypedProgram;
 use crate::core::types;
-use crate::core::types::TypedProgram;
 use crate::core::LinearProgram;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;

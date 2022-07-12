@@ -23,8 +23,8 @@ use std::collections::HashMap;
 use std::{cmp, fmt, sync::Arc};
 
 use crate::bititer::BitIter;
-use crate::core::types::{FinalType, TypedNode, TypedProgram};
-use crate::core::{LinearProgram, Term, UntypedProgram, Value};
+use crate::core::types::FinalType;
+use crate::core::{LinearProgram, Term, TypedNode, TypedProgram, UntypedProgram, Value};
 use crate::decode;
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;

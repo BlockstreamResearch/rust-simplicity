@@ -1,9 +1,9 @@
 //FIXME: Remove this later
 #![allow(dead_code)]
 
-use crate::core::{LinearProgram, Term};
 use std::{cell::RefCell, cmp, fmt, mem, rc::Rc, sync::Arc};
 
+use crate::core::{Term, TypedNode, TypedProgram};
 use crate::jet::type_name::TypeName;
 use crate::jet::Application;
 use crate::merkle::common::{MerkleRoot, TypeMerkleRoot};
@@ -372,62 +372,6 @@ fn unify(mut alpha: RcVar, mut beta: RcVar) -> Result<(), Error> {
 struct UnificationArrow {
     source: Rc<RefCell<UnificationVar>>,
     target: Rc<RefCell<UnificationVar>>,
-}
-
-/// Single, typed Simplicity node.
-/// May include Bitcoin/Elements extensions (see [`Term`]).
-///
-/// A node consists of a combinator, its payload (see [`Term`]),
-/// its source type and its target type.
-/// A list of nodes forms a typed Simplicity program,
-/// which represents a typed Simplicity DAG.
-///
-/// Nodes have no meaning without a program.
-/// The node representation is later used for executing Simplicity programs.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub struct TypedNode<Witness, App: Application> {
-    /// Underlying term
-    pub term: Term<Witness, App>,
-    /// Source type of the node
-    pub source_ty: Arc<FinalType>,
-    /// Target type of the node
-    pub target_ty: Arc<FinalType>,
-}
-
-/// Typed Simplicity program (see [`TypedNode`]).
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct TypedProgram<Witness, App: Application>(pub(crate) Vec<TypedNode<Witness, App>>);
-
-impl<Witness, App: Application> TypedProgram<Witness, App> {
-    /// Return an iterator over the nodes of the program.
-    pub fn iter(&self) -> impl Iterator<Item = &TypedNode<Witness, App>> {
-        self.0.iter()
-    }
-}
-
-impl<Witness, App: Application> LinearProgram for TypedProgram<Witness, App> {
-    type Node = TypedNode<Witness, App>;
-
-    fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    fn root(&self) -> &Self::Node {
-        &self.0[self.0.len() - 1]
-    }
-}
-
-impl<Witness, App: Application> IntoIterator for TypedProgram<Witness, App> {
-    type Item = TypedNode<Witness, App>;
-    type IntoIter = std::vec::IntoIter<TypedNode<Witness, App>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
 }
 
 // b'1' = 49
