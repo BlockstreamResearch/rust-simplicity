@@ -6,6 +6,7 @@ use std::{cell::RefCell, cmp, fmt, mem, rc::Rc, sync::Arc};
 use crate::core::{Term, TypedNode, TypedProgram};
 use crate::jet::type_name::TypeName;
 use crate::jet::Application;
+use crate::merkle::cmr;
 use crate::merkle::common::{MerkleRoot, TypeMerkleRoot};
 use crate::merkle::tmr::Tmr;
 use crate::Error;
@@ -570,11 +571,13 @@ pub(crate) fn type_check<Witness, App: Application>(
 
     // Finalize, setting all unconstrained types to `Unit` and doing the
     // occurs check. (All the magic happens inside `FinalType::from_var`.)
-    for (idx, term) in vec_nodes.into_iter().enumerate() {
+    for (index, term) in vec_nodes.into_iter().enumerate() {
         finals.push(TypedNode {
+            cmr: cmr::compute_cmr(&finals, &term, index),
             term,
-            source_ty: FinalType::from_var(rcs[idx].source.clone())?,
-            target_ty: FinalType::from_var(rcs[idx].target.clone())?,
+            source_ty: FinalType::from_var(rcs[index].source.clone())?,
+            target_ty: FinalType::from_var(rcs[index].target.clone())?,
+            index,
         });
     }
 

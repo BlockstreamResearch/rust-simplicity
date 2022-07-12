@@ -18,10 +18,12 @@ use crate::core::Term;
 use crate::core::{types, Value};
 use crate::core::{LinearProgram, UntypedProgram};
 use crate::jet::Application;
+use crate::merkle::cmr::Cmr;
 use crate::{decode, Error};
+use std::fmt;
 use std::sync::Arc;
 
-/// Simplicity node with source and target type.
+/// Simplicity node with metadata for the time of commitment.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct TypedNode<Witness, App: Application> {
     /// Underlying term
@@ -30,6 +32,37 @@ pub struct TypedNode<Witness, App: Application> {
     pub source_ty: Arc<FinalType>,
     /// Target type of the node
     pub target_ty: Arc<FinalType>,
+    /// Index of the node inside the surrounding program
+    pub index: usize,
+    /// Commitment Merkle root of the node
+    pub cmr: Cmr,
+}
+
+impl<Witness, App: Application> fmt::Display for TypedNode<Witness, App> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "[{}] ", self.index)?;
+        match self.term {
+            Term::Iden => f.write_str("iden")?,
+            Term::Unit => f.write_str("unit")?,
+            Term::InjL(i) => write!(f, "injl({})", self.index - i)?,
+            Term::InjR(i) => write!(f, "injr({})", self.index - i)?,
+            Term::Take(i) => write!(f, "take({})", self.index - i)?,
+            Term::Drop(i) => write!(f, "drop({})", self.index - i)?,
+            Term::Comp(i, j) => write!(f, "comp({}, {})", self.index - i, self.index - j)?,
+            Term::Case(i, j) => write!(f, "case({}, {})", self.index - i, self.index - j)?,
+            Term::AssertL(i, j) => write!(f, "assertL({}, {})", self.index - i, self.index - j)?,
+            Term::AssertR(i, j) => write!(f, "assertR({}, {})", self.index - i, self.index - j)?,
+            Term::Pair(i, j) => write!(f, "pair({}, {})", self.index - i, self.index - j)?,
+            Term::Disconnect(i, j) => {
+                write!(f, "disconnect({}, {})", self.index - i, self.index - j)?
+            }
+            Term::Witness(..) => f.write_str("witness")?,
+            Term::Hidden(..) => f.write_str("hidden")?,
+            Term::Fail(..) => f.write_str("fail")?,
+            Term::Jet(j) => write!(f, "[jet]{}", j)?,
+        }
+        write!(f, ": {} → {}", self.source_ty, self.target_ty,)
+    }
 }
 
 /// Typed Simplicity program (see [`TypedNode`]).
@@ -64,6 +97,8 @@ impl<Witness, App: Application> TypedProgram<Witness, App> {
                 term: node.term.translate_witness(&mut translate),
                 source_ty: node.source_ty,
                 target_ty: node.target_ty,
+                index: node.index,
+                cmr: node.cmr,
             })
             .collect();
 

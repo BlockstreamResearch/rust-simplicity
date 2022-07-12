@@ -25,7 +25,7 @@ fn sighash_all_cmr() {
         .into();
     let program = Program::<Elements>::decode(&mut bits).expect("decoding program");
     assert_eq!(
-        program.root().cmr.into_inner(),
+        program.root().cmr().into_inner(),
         sighash_all::SIGHASH_ALL_CMR
     );
     // TODO: check IMR

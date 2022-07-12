@@ -35,7 +35,7 @@ mod tests {
     fn check_merkle_roots(prog: &[u8], cmr: [u8; 32]) {
         let mut bits: BitIter<_> = prog.iter().cloned().into();
         let program = Program::<Core>::decode(&mut bits).expect("decoding program");
-        assert_eq!(program.root().cmr.into_inner(), cmr);
+        assert_eq!(program.root().cmr().into_inner(), cmr);
     }
 
     fn exec_prog(prog: &[u8]) {

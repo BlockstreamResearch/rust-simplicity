@@ -17,11 +17,10 @@
 //! Used at time of commitment.
 //! Importantly, `witness` data and right `disconnect` branches are _not_ included in the hash.
 
-use crate::core::{Term, Value};
+use crate::core::{Term, TypedNode};
 use crate::impl_midstate_wrapper;
 use crate::jet::Application;
 use crate::merkle::common::{MerkleRoot, TermMerkleRoot};
-use crate::program::ProgramNode;
 use bitcoin_hashes::sha256::Midstate;
 
 /// Commitment Merkle root
@@ -55,9 +54,9 @@ impl TermMerkleRoot for Cmr {
 
 /// Compute the CMR of the given `node` that will be appended to the given `program`
 /// at the given `index`.
-pub(crate) fn compute_cmr<App: Application>(
-    program: &[ProgramNode<App>],
-    node: &Term<Value, App>,
+pub(crate) fn compute_cmr<Witness, App: Application>(
+    program: &[TypedNode<Witness, App>],
+    node: &Term<Witness, App>,
     index: usize,
 ) -> Cmr {
     let cmr_iv = Cmr::get_iv(node);

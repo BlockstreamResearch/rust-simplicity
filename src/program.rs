@@ -27,64 +27,27 @@ use crate::core::types::FinalType;
 use crate::core::{LinearProgram, Term, TypedNode, TypedProgram, UntypedProgram, Value};
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
+use crate::merkle::imr;
 use crate::merkle::imr::Imr;
-use crate::merkle::{cmr, imr};
 use crate::Error;
 
-/// Single, finalized Simplicity node.
-/// Includes witness data (encoded as [`Value`]).
-/// May include Bitcoin/Elements extensions (see [`Term`]).
-///
-/// A node consists of a combinator, its payload (see [`Term`]),
-/// its source and target types (see [`TypedNode`]),
-/// as well as additional metadata.
-/// A list of nodes forms a finalized Simplicity program,
-/// which represents a finalized Simplicity DAG.
-///
-/// Nodes have no meaning without a program.
-/// Finalized programs are executed on the Bit Machine.
+/// Simplicity node with full metadata for the time of redemption.
+/// This type of node is executed on the Bit Machine.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct ProgramNode<App: Application> {
-    /// Node with source and target type
+    /// Node with commitment metadata
     pub typed: TypedNode<Value, App>,
-    /// Index of node in encompassing program
-    pub index: usize,
-    /// Commitment Merkle root of node
-    pub cmr: Cmr,
-    /// Identity Merkle root of node
+    /// Identity Merkle root of the node
     pub imr: Imr,
-    /// Upper bound on the number of cells required in the Bit
-    /// Machine by this node
+    /// Upper bound on the number of cells required in the Bit Machine by this node
     pub extra_cells_bound: usize,
-    /// Upper bound on the number of cells required in the Bit
-    /// Machine by this node
+    /// Upper bound on the number of cells required in the Bit Machine by this node
     pub frame_count_bound: usize,
 }
 
 impl<App: Application> fmt::Display for ProgramNode<App> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[{}] ", self.index)?;
-        match self.typed.term {
-            Term::Iden => f.write_str("iden")?,
-            Term::Unit => f.write_str("unit")?,
-            Term::InjL(i) => write!(f, "injl({})", self.index - i)?,
-            Term::InjR(i) => write!(f, "injr({})", self.index - i)?,
-            Term::Take(i) => write!(f, "take({})", self.index - i)?,
-            Term::Drop(i) => write!(f, "drop({})", self.index - i)?,
-            Term::Comp(i, j) => write!(f, "comp({}, {})", self.index - i, self.index - j)?,
-            Term::Case(i, j) => write!(f, "case({}, {})", self.index - i, self.index - j)?,
-            Term::AssertL(i, j) => write!(f, "assertL({}, {})", self.index - i, self.index - j)?,
-            Term::AssertR(i, j) => write!(f, "assertR({}, {})", self.index - i, self.index - j)?,
-            Term::Pair(i, j) => write!(f, "pair({}, {})", self.index - i, self.index - j)?,
-            Term::Disconnect(i, j) => {
-                write!(f, "disconnect({}, {})", self.index - i, self.index - j)?
-            }
-            Term::Witness(..) => f.write_str("witness")?,
-            Term::Hidden(..) => f.write_str("hidden")?,
-            Term::Fail(..) => f.write_str("fail")?,
-            Term::Jet(j) => write!(f, "[jet]{}", j)?,
-        }
-        write!(f, ": {} → {}", self.typed.source_ty, self.typed.target_ty,)
+        fmt::Display::fmt(&self.typed, f)
     }
 }
 
@@ -103,15 +66,21 @@ impl<App: Application> ProgramNode<App> {
     pub fn target_ty(&self) -> &FinalType {
         &self.typed.target_ty
     }
+
+    /// Return the index of the node inside the surrounding program.
+    pub fn index(&self) -> usize {
+        self.typed.index
+    }
+
+    /// Return the CMR of the node.
+    pub fn cmr(&self) -> Cmr {
+        self.typed.cmr
+    }
 }
 
-/// Finalized Simplicity program,
-/// i.e., program of finalized Simplicity nodes (see [`ProgramNode`]).
-///
-/// Finalized programs are executed on the Bit Machine.
+/// Finalized Simplicity program (see [`ProgramNode`]).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Program<App: Application> {
-    /// List of finalized nodes
     pub nodes: Vec<ProgramNode<App>>,
 }
 
@@ -185,6 +154,8 @@ fn compress_and_finalize<App: Application>(
                 .into_shared(unshared_idx, shared_idx, &unshared_to_shared_idx),
             source_ty: typed_node.source_ty,
             target_ty: typed_node.target_ty,
+            index: shared_idx,
+            cmr: typed_node.cmr,
         };
         let imr = imr::compute_imr(&shared_program, &shared_node, shared_idx);
 
@@ -212,7 +183,6 @@ fn compress_and_finalize<App: Application>(
 
         unshared_to_shared_idx.insert(unshared_idx, shared_idx);
 
-        let cmr = cmr::compute_cmr(&shared_program, &shared_node.term, shared_idx);
         let extra_cells_bound = compute_extra_cells_bound(
             &shared_program,
             &shared_node.term,
@@ -224,8 +194,6 @@ fn compress_and_finalize<App: Application>(
 
         let finalized_node = ProgramNode {
             typed: shared_node,
-            index: shared_idx,
-            cmr,
             imr,
             extra_cells_bound,
             frame_count_bound,
@@ -345,7 +313,7 @@ mod tests {
         assert_eq!(prog.nodes[0].typed.term, Term::Unit);
         // Checked against C implementation
         assert_eq!(
-            prog.nodes[0].cmr.to_string(),
+            prog.nodes[0].cmr().to_string(),
             "62274a89833ece8ba5ff57b28118c0063d3d4a85dd25aae06f87617604402715",
         );
     }
@@ -364,12 +332,12 @@ mod tests {
 
         // Checked against C implementation
         assert_eq!(
-            prog.nodes[0].cmr.to_string(),
+            prog.nodes[0].cmr().to_string(),
             "62274a89833ece8ba5ff57b28118c0063d3d4a85dd25aae06f87617604402715",
         );
         // Checked against C implementation
         assert_eq!(
-            prog.nodes[1].cmr.to_string(),
+            prog.nodes[1].cmr().to_string(),
             "bd0cce93e713a2ae961bf91c7d113edb0671c7869c72251364682ac8977eade7"
         );
     }

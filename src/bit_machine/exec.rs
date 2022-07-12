@@ -283,18 +283,18 @@ impl BitMachine {
             Back(usize),
         }
 
-        let mut ip = program.root();
+        let mut ip = &program.root().typed;
         let mut call_stack = vec![];
         let mut iters = 0u64;
 
-        let input_width = ip.source_ty().bit_width();
+        let input_width = ip.source_ty.bit_width();
         if input_width > 0 && self.read.is_empty() {
             panic!(
                 "Pleas call `Program::input` to add an input value for this program {}",
                 ip
             );
         }
-        let output_width = ip.target_ty().bit_width();
+        let output_width = ip.target_ty.bit_width();
         if output_width > 0 {
             self.new_frame(output_width);
         }
@@ -305,14 +305,14 @@ impl BitMachine {
                 println!("({:5} M) exec {}", iters / 1_000_000, ip);
             }
 
-            match ip.typed.term {
+            match ip.term {
                 Term::Unit => {}
-                Term::Iden => self.copy(ip.source_ty().bit_width()),
+                Term::Iden => self.copy(ip.source_ty.bit_width()),
                 Term::InjL(t) => {
                     self.write_bit(false);
-                    if let FinalTypeInner::Sum(ref a, _) = ip.target_ty().ty {
+                    if let FinalTypeInner::Sum(ref a, _) = ip.target_ty.ty {
                         let aw = a.bit_width();
-                        self.skip(ip.target_ty().bit_width() - aw - 1);
+                        self.skip(ip.target_ty.bit_width() - aw - 1);
                         call_stack.push(CallStack::Goto(ip.index - t));
                     } else {
                         panic!("type error")
@@ -320,9 +320,9 @@ impl BitMachine {
                 }
                 Term::InjR(t) => {
                     self.write_bit(true);
-                    if let FinalTypeInner::Sum(_, ref b) = ip.target_ty().ty {
+                    if let FinalTypeInner::Sum(_, ref b) = ip.target_ty.ty {
                         let bw = b.bit_width();
-                        self.skip(ip.target_ty().bit_width() - bw - 1);
+                        self.skip(ip.target_ty.bit_width() - bw - 1);
                         call_stack.push(CallStack::Goto(ip.index - t));
                     } else {
                         panic!("type error")
@@ -346,7 +346,7 @@ impl BitMachine {
                     let size = program.nodes[ip.index - s].source_ty().bit_width();
                     assert!(size >= 256);
                     self.new_frame(size);
-                    self.write_bytes(program.nodes[ip.index - t].cmr.as_ref());
+                    self.write_bytes(program.nodes[ip.index - t].cmr().as_ref());
                     self.copy(size - 256);
                     self.move_frame();
 
@@ -371,7 +371,7 @@ impl BitMachine {
                 }
                 Term::Take(t) => call_stack.push(CallStack::Goto(ip.index - t)),
                 Term::Drop(t) => {
-                    if let FinalTypeInner::Product(ref a, _) = ip.source_ty().ty {
+                    if let FinalTypeInner::Product(ref a, _) = ip.source_ty.ty {
                         let aw = a.bit_width();
                         self.fwd(aw);
                         call_stack.push(CallStack::Back(aw));
@@ -384,7 +384,7 @@ impl BitMachine {
                     let sw = self.read[self.read.len() - 1].peek_bit(&self.data);
                     let aw;
                     let bw;
-                    if let FinalTypeInner::Product(ref a, _) = ip.source_ty().ty {
+                    if let FinalTypeInner::Product(ref a, _) = ip.source_ty.ty {
                         if let FinalTypeInner::Sum(ref a, ref b) = a.ty {
                             aw = a.bit_width();
                             bw = b.bit_width();
@@ -414,7 +414,7 @@ impl BitMachine {
 
             ip = loop {
                 match call_stack.pop() {
-                    Some(CallStack::Goto(next)) => break &program.nodes[next],
+                    Some(CallStack::Goto(next)) => break &program.nodes[next].typed,
                     Some(CallStack::MoveFrame) => self.move_frame(),
                     Some(CallStack::DropFrame) => self.drop_frame(),
                     Some(CallStack::CopyFwd(n)) => {
