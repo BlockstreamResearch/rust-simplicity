@@ -63,7 +63,7 @@ pub fn decode_witness<Wit, App: Application, I: Iterator<Item = u8>>(
     let n_start = iter.n_total_read();
 
     for node in &program.0 {
-        if let Term::Witness(_old_witness) = &node.node {
+        if let Term::Witness(_old_witness) = &node.term {
             witness.push(decode_value(&node.target_ty, iter)?);
         }
     }

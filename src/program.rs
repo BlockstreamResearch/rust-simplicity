@@ -47,18 +47,14 @@ use crate::Error;
 /// Finalized programs are executed on the Bit Machine.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct ProgramNode<App: Application> {
-    /// Combinator and payload with witness data
-    pub node: Term<Value, App>,
+    /// Node with source and target type
+    pub typed: TypedNode<Value, App>,
     /// Index of node in encompassing program
     pub index: usize,
     /// Commitment Merkle root of node
     pub cmr: Cmr,
     /// Identity Merkle root of node
     pub imr: Imr,
-    /// Source type of combinator
-    pub source_ty: Arc<types::FinalType>,
-    /// Target type of combinator
-    pub target_ty: Arc<types::FinalType>,
     /// Upper bound on the number of cells required in the Bit
     /// Machine by this node
     pub extra_cells_bound: usize,
@@ -70,7 +66,7 @@ pub struct ProgramNode<App: Application> {
 impl<App: Application> fmt::Display for ProgramNode<App> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[{}] ", self.index)?;
-        match self.node {
+        match self.typed.term {
             Term::Iden => f.write_str("iden")?,
             Term::Unit => f.write_str("unit")?,
             Term::InjL(i) => write!(f, "injl({})", self.index - i)?,
@@ -90,7 +86,24 @@ impl<App: Application> fmt::Display for ProgramNode<App> {
             Term::Fail(..) => f.write_str("fail")?,
             Term::Jet(j) => write!(f, "[jet]{}", j)?,
         }
-        write!(f, ": {} → {}", self.source_ty, self.target_ty,)
+        write!(f, ": {} → {}", self.typed.source_ty, self.typed.target_ty,)
+    }
+}
+
+impl<App: Application> ProgramNode<App> {
+    /// Return the underlying term of the node.
+    pub fn term(&self) -> &Term<Value, App> {
+        &self.typed.term
+    }
+
+    /// Return the source type of the node.
+    pub fn source_ty(&self) -> &FinalType {
+        &self.typed.source_ty
+    }
+
+    /// Return the target type of the node.
+    pub fn target_ty(&self) -> &FinalType {
+        &self.typed.target_ty
     }
 }
 
@@ -164,7 +177,7 @@ fn fill_witness_data<Wit, App: Application>(
         .0
         .into_iter()
         .map(|node| TypedNode {
-            node: node.node.translate_witness(&mut translate),
+            term: node.term.translate_witness(&mut translate),
             source_ty: node.source_ty,
             target_ty: node.target_ty,
         })
@@ -190,7 +203,7 @@ fn compress_and_finalize<App: Application>(
     for (unshared_idx, typed_node) in typed_program.0.into_iter().enumerate() {
         let shared_node =
             typed_node
-                .node
+                .term
                 .into_shared(unshared_idx, shared_idx, &unshared_to_shared_idx);
         let imr = compute_imr(
             &shared_program,
@@ -234,12 +247,14 @@ fn compress_and_finalize<App: Application>(
             compute_frame_count_bound(&shared_program, &shared_node, shared_idx);
 
         let finalized_node = ProgramNode {
-            node: shared_node,
+            typed: TypedNode {
+                term: shared_node,
+                source_ty: typed_node.source_ty,
+                target_ty: typed_node.target_ty,
+            },
             index: shared_idx,
             cmr,
             imr,
-            source_ty: typed_node.source_ty,
-            target_ty: typed_node.target_ty,
             extra_cells_bound,
             frame_count_bound,
         };
@@ -315,7 +330,7 @@ fn compute_extra_cells_bound<App: Application>(
         Term::Take(i) => program[idx - i].extra_cells_bound,
         Term::Drop(i) => program[idx - i].extra_cells_bound,
         Term::Comp(i, j) => {
-            program[idx - i].target_ty.bit_width()
+            program[idx - i].target_ty().bit_width()
                 + cmp::max(
                     program[idx - i].extra_cells_bound,
                     program[idx - j].extra_cells_bound,
@@ -330,8 +345,8 @@ fn compute_extra_cells_bound<App: Application>(
             program[idx - j].extra_cells_bound,
         ),
         Term::Disconnect(i, j) => {
-            program[idx - i].source_ty.bit_width()
-                + program[idx - i].target_ty.bit_width()
+            program[idx - i].source_ty().bit_width()
+                + program[idx - i].target_ty().bit_width()
                 + cmp::max(
                     program[idx - i].extra_cells_bound,
                     program[idx - j].extra_cells_bound,
@@ -403,7 +418,7 @@ mod tests {
             .expect("decoding program");
 
         assert_eq!(prog.nodes.len(), 1);
-        assert_eq!(prog.nodes[0].node, Term::Unit);
+        assert_eq!(prog.nodes[0].typed.term, Term::Unit);
         // Checked against C implementation
         assert_eq!(
             prog.nodes[0].cmr.to_string(),
@@ -420,8 +435,8 @@ mod tests {
             .expect("decoding program");
 
         assert_eq!(prog.nodes.len(), 2);
-        assert_eq!(prog.nodes[0].node, Term::Unit);
-        assert_eq!(prog.nodes[1].node, Term::InjL(1));
+        assert_eq!(prog.nodes[0].typed.term, Term::Unit);
+        assert_eq!(prog.nodes[1].typed.term, Term::InjL(1));
 
         // Checked against C implementation
         assert_eq!(

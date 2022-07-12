@@ -386,11 +386,11 @@ struct UnificationArrow {
 /// The node representation is later used for executing Simplicity programs.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct TypedNode<Witness, App: Application> {
-    /// Combinator and payload
-    pub node: Term<Witness, App>,
-    /// Source type of combinator
+    /// Underlying term
+    pub term: Term<Witness, App>,
+    /// Source type of the node
     pub source_ty: Arc<FinalType>,
-    /// Target type of combinator
+    /// Target type of the node
     pub target_ty: Arc<FinalType>,
 }
 
@@ -626,9 +626,9 @@ pub fn type_check<Witness, App: Application>(
 
     // Finalize, setting all unconstrained types to `Unit` and doing the
     // occurs check. (All the magic happens inside `FinalType::from_var`.)
-    for (idx, node) in vec_nodes.into_iter().enumerate() {
+    for (idx, term) in vec_nodes.into_iter().enumerate() {
         finals.push(TypedNode {
-            node: node,
+            term,
             source_ty: FinalType::from_var(rcs[idx].source.clone())?,
             target_ty: FinalType::from_var(rcs[idx].target.clone())?,
         });
