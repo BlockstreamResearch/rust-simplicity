@@ -1,6 +1,7 @@
 //FIXME: Remove this later
 #![allow(dead_code)]
 
+use crate::core::LinearProgram;
 use std::{cell::RefCell, cmp, fmt, mem, rc::Rc, sync::Arc};
 
 use crate::jet::type_name::TypeName;
@@ -397,6 +398,38 @@ pub struct TypedNode<Witness, App: Application> {
 /// Typed Simplicity program (see [`TypedNode`]).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct TypedProgram<Witness, App: Application>(pub(crate) Vec<TypedNode<Witness, App>>);
+
+impl<Witness, App: Application> TypedProgram<Witness, App> {
+    /// Return an iterator over the nodes of the program.
+    pub fn iter(&self) -> impl Iterator<Item = &TypedNode<Witness, App>> {
+        self.0.iter()
+    }
+}
+
+impl<Witness, App: Application> LinearProgram for TypedProgram<Witness, App> {
+    type Node = TypedNode<Witness, App>;
+
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn root(&self) -> &Self::Node {
+        &self.0[self.0.len() - 1]
+    }
+}
+
+impl<Witness, App: Application> IntoIterator for TypedProgram<Witness, App> {
+    type Item = TypedNode<Witness, App>;
+    type IntoIter = std::vec::IntoIter<TypedNode<Witness, App>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
 
 // b'1' = 49
 // b'2' = 50

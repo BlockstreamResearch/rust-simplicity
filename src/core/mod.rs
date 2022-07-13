@@ -17,8 +17,11 @@
 //!
 //! Defines Simplicity terms, values, types, DAGs and programs.
 
+mod common;
 pub mod iter;
 pub mod term;
 pub mod term_dag;
 pub mod types;
 pub mod value;
+
+pub use common::LinearProgram;

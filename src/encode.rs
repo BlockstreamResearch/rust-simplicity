@@ -21,6 +21,7 @@
 
 use std::{io, mem};
 
+use crate::core::LinearProgram;
 use crate::jet::Application;
 use crate::Value;
 use crate::{Term, UntypedProgram};

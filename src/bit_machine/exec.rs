@@ -23,6 +23,7 @@ use std::error;
 use std::fmt;
 
 use crate::core::types::FinalTypeInner;
+use crate::core::LinearProgram;
 use crate::decode;
 use crate::jet::{AppError, Application};
 use crate::Program;
@@ -48,7 +49,7 @@ impl BitMachine {
     /// Construct a Bit Machine with enough space to execute
     /// the given program
     pub fn for_program<App: Application>(program: &Program<App>) -> BitMachine {
-        let prog = program.root_node();
+        let prog = program.root();
         let io_width = prog.source_ty.bit_width() + prog.target_ty.bit_width();
         BitMachine {
             data: vec![0; (io_width + prog.extra_cells_bound + 7) / 8],
@@ -284,7 +285,7 @@ impl BitMachine {
             Back(usize),
         }
 
-        let mut ip = program.root_node();
+        let mut ip = program.root();
         let mut call_stack = vec![];
         let mut iters = 0u64;
 
@@ -431,7 +432,7 @@ impl BitMachine {
             let out_frame = self.write.last_mut().unwrap();
             out_frame.reset_cursor();
             decode::decode_value(
-                &program.root_node().target_ty,
+                &program.root().target_ty,
                 &mut out_frame.to_frame_data(&self.data),
             )
             .expect("decoding output value")

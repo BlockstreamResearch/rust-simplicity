@@ -23,8 +23,8 @@ fn do_test(data: &[u8]) {
     let mut iter = BitIter::new(data.iter().cloned());
 
     if let Ok(program) = decode::decode_program_no_witness::<_, Core>(&mut iter) {
-        let dag = TermDag::from_untyped_program(&program);
-        let program_from_dag = dag.to_untyped_program();
+        let dag = TermDag::from_linear(&program);
+        let program_from_dag = dag.to_linear();
         assert_eq!(program, program_from_dag);
     }
 }

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::bititer::BitIter;
+use crate::core::LinearProgram;
 use crate::exec::BitMachine;
 use crate::jet::application::elements::{ElementsEnv, ElementsUtxo};
 use crate::jet::application::Elements;
@@ -24,7 +25,7 @@ fn sighash_all_cmr() {
         .into();
     let program = Program::<Elements>::decode(&mut bits).expect("decoding program");
     assert_eq!(
-        program.root_node().cmr.into_inner(),
+        program.root().cmr.into_inner(),
         sighash_all::SIGHASH_ALL_CMR
     );
     // TODO: check IMR

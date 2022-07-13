@@ -24,8 +24,8 @@ use std::{cmp, fmt, sync::Arc};
 
 use crate::bititer::BitIter;
 use crate::core::term::UntypedProgram;
-use crate::core::types;
 use crate::core::types::{FinalType, TypedNode, TypedProgram};
+use crate::core::{types, LinearProgram};
 use crate::decode;
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
@@ -105,9 +105,9 @@ pub struct Program<App: Application> {
 }
 
 impl<App: Application> Program<App> {
-    /// Obtain the node representing the root of the program DAG
-    pub fn root_node(&self) -> &ProgramNode<App> {
-        &self.nodes[self.nodes.len() - 1]
+    /// Return an iterator over the nodes of the program.
+    pub fn iter(&self) -> impl Iterator<Item = &ProgramNode<App>> {
+        self.nodes.iter()
     }
 
     /// Decode a program from a stream of bits
@@ -126,6 +126,31 @@ impl<App: Application> Program<App> {
         let witness_program = fill_witness_data(typed_program, witness)?;
         let finalized_program = compress_and_finalize(witness_program);
         Ok(finalized_program)
+    }
+}
+
+impl<App: Application> LinearProgram for Program<App> {
+    type Node = ProgramNode<App>;
+
+    fn is_empty(&self) -> bool {
+        self.nodes.is_empty()
+    }
+
+    fn len(&self) -> usize {
+        self.nodes.len()
+    }
+
+    fn root(&self) -> &Self::Node {
+        &self.nodes[self.nodes.len() - 1]
+    }
+}
+
+impl<App: Application> IntoIterator for Program<App> {
+    type Item = ProgramNode<App>;
+    type IntoIter = std::vec::IntoIter<ProgramNode<App>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.nodes.into_iter()
     }
 }
 

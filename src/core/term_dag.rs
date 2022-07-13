@@ -332,7 +332,7 @@ where
     Witness: Clone,
 {
     /// Create a Simplicity DAG from a linear program.
-    pub fn from_untyped_program(program: &UntypedProgram<Witness, App>) -> Rc<Self> {
+    pub fn from_linear(program: &UntypedProgram<Witness, App>) -> Rc<Self> {
         assert!(!program.0.is_empty(), "Program must be non-empty");
         let mut dag_list: Vec<Rc<TermDag<_, _>>> = vec![];
         for (index, term) in program.0.iter().enumerate() {
@@ -374,7 +374,7 @@ where
     /// Convert a Simplicity DAG into a linear program.
     ///
     /// The program is guaranteed to be in canonical order.
-    pub fn to_untyped_program(&self) -> UntypedProgram<Witness, App> {
+    pub fn to_linear(&self) -> UntypedProgram<Witness, App> {
         let it_post_order = self.iter_post_order();
         let mut program = Vec::new();
         let mut dag_to_index = HashMap::new();
