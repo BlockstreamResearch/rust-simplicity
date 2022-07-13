@@ -29,7 +29,7 @@
 use crate::core::iter::DagIterable;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
-use crate::{Term, UntypedProgram};
+use crate::{Term, UntypedProgram, Value};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -162,6 +162,82 @@ impl<Witness, App: Application> TermDag<Witness, App> {
     /// and performs some associated black-box execution
     pub fn jet(jet: &'static JetNode<App>) -> Rc<Self> {
         Rc::new(TermDag::Jet(jet))
+    }
+
+    /// Create a DAG that takes any input and returns `value` as constant output.
+    ///
+    /// _Overall type: A → B where value: B_
+    pub fn scribe(value: &Value) -> Rc<TermDag<Witness, App>> {
+        match value {
+            Value::Unit => TermDag::unit(),
+            Value::SumL(l) => {
+                let l = TermDag::scribe(l);
+                TermDag::injl(l)
+            }
+            Value::SumR(r) => {
+                let r = TermDag::scribe(r);
+                TermDag::injr(r)
+            }
+            Value::Prod(l, r) => {
+                let l = TermDag::scribe(l);
+                let r = TermDag::scribe(r);
+                TermDag::pair(l, r)
+            }
+        }
+    }
+
+    /// Create a DAG that takes any input and returns bit `0` as constant output.
+    ///
+    /// _Overall type: A → 2_
+    pub fn bit_false() -> Rc<Self> {
+        TermDag::injl(TermDag::unit())
+    }
+
+    /// Create a DAG that takes any input and returns bit `1` as constant output.
+    ///
+    /// _Overall type: A → 2_
+    pub fn bit_true() -> Rc<Self> {
+        TermDag::injr(TermDag::unit())
+    }
+
+    /// Create a DAG that takes a bit and an input,
+    /// such that the `left` child is evaluated on the input if the bit is `1` _(if branch)_
+    /// and the `right` child is evaluated on the input otherwise _(else branch)_.
+    ///
+    /// _Overall type: 2 × A → B where left: A → B and right: A → B_
+    pub fn cond(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
+        TermDag::case(TermDag::drop(right), TermDag::drop(left))
+    }
+
+    /// Create a DAG that computes Boolean _NOT_ of the `child`.
+    ///
+    /// _Overall type: A → 2 where child: A → 2_
+    #[allow(clippy::should_implement_trait)]
+    pub fn not(child: Rc<Self>) -> Rc<Self> {
+        TermDag::comp(
+            TermDag::pair(child, TermDag::unit()),
+            TermDag::cond(TermDag::bit_false(), TermDag::bit_true()),
+        )
+    }
+
+    /// Create a DAG that computes Boolean _AND_ of the `left` and `right` child.
+    ///
+    /// _Overall type: A → 2 where left: A → 2 and right: A → 2_
+    pub fn and(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
+        TermDag::comp(
+            TermDag::pair(left, TermDag::iden()),
+            TermDag::cond(right, TermDag::bit_false()),
+        )
+    }
+
+    /// Create a DAG that computes Boolean _OR_ of the `left` and `right`.
+    ///
+    /// _Overall type: A → 2 where left: A → 2 and right: A → 2_
+    pub fn or(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
+        TermDag::comp(
+            TermDag::pair(left, TermDag::iden()),
+            TermDag::cond(TermDag::bit_true(), right),
+        )
     }
 
     /// Return the left child of the given DAG root, if there is such a child.
