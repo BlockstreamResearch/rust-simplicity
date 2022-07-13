@@ -474,7 +474,7 @@ fn type_from_name(name: &TypeName, pow2s: &[RcVar]) -> Type {
 }
 
 /// Attach types to all nodes in a program
-pub fn type_check<Witness, App: Application>(
+pub(crate) fn type_check<Witness, App: Application>(
     program: UntypedProgram<Witness, App>,
 ) -> Result<TypedProgram<Witness, App>, Error> {
     let vec_nodes = program.0;

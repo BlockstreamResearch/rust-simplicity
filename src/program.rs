@@ -24,8 +24,7 @@ use std::{cmp, fmt, sync::Arc};
 
 use crate::bititer::BitIter;
 use crate::core::types::{FinalType, TypedNode, TypedProgram};
-use crate::core::UntypedProgram;
-use crate::core::{types, LinearProgram, Term, Value};
+use crate::core::{LinearProgram, Term, UntypedProgram, Value};
 use crate::decode;
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
@@ -125,7 +124,7 @@ impl<App: Application> Program<App> {
 
     /// Decode a program from a stream of bits
     pub fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Program<App>, Error> {
-        let untyped_program = decode::decode_program_no_witness(iter)?;
+        let untyped_program = UntypedProgram::decode(iter)?;
         Program::<App>::from_untyped_program(untyped_program, iter)
     }
 
@@ -134,7 +133,7 @@ impl<App: Application> Program<App> {
         untyped_program: UntypedProgram<(), App>,
         iter: &mut BitIter<I>,
     ) -> Result<Program<App>, Error> {
-        let typed_program = types::type_check(untyped_program)?;
+        let typed_program = untyped_program.type_check()?;
         let witness = decode::decode_witness(&typed_program, iter)?;
         let witness_program = fill_witness_data(typed_program, witness)?;
         let finalized_program = compress_and_finalize(witness_program);

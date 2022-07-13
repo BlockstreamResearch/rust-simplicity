@@ -23,10 +23,14 @@
 //! This linear representation is meant for (de)serialization and execution of programs.
 //! To compose programs by hand, use the DAG representation of [`super::term_dag`].
 
+use crate::bititer::BitIter;
 use crate::core::iter::DagIterable;
+use crate::core::types;
+use crate::core::types::TypedProgram;
 use crate::core::LinearProgram;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
+use crate::{decode, Error};
 use std::collections::HashMap;
 use std::hash::Hash;
 
@@ -188,6 +192,13 @@ impl<Witness, App: Application> Term<Witness, App> {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct UntypedProgram<Witness, App: Application>(pub(crate) Vec<Term<Witness, App>>);
 
+impl<App: Application> UntypedProgram<(), App> {
+    /// Decode an untyped program from bits.
+    pub fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Self, Error> {
+        decode::decode_program_no_witness(iter)
+    }
+}
+
 impl<Witness, App: Application> UntypedProgram<Witness, App> {
     /// Return an iterator over the nodes of the program.
     pub fn iter(&self) -> impl Iterator<Item = &Term<Witness, App>> {
@@ -211,6 +222,11 @@ impl<Witness, App: Application> UntypedProgram<Witness, App> {
         }
 
         bottom == self.len()
+    }
+
+    /// Type-check the program and add metadata for the time of commitment.
+    pub fn type_check(self) -> Result<TypedProgram<Witness, App>, Error> {
+        types::type_check(self)
     }
 }
 
