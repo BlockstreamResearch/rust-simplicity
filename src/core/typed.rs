@@ -19,7 +19,9 @@ use crate::core::{types, Value};
 use crate::core::{LinearProgram, UntypedProgram};
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
-use crate::{decode, Error};
+use crate::merkle::imr;
+use crate::program::{Program, ProgramNode};
+use crate::{analysis, decode, Error};
 use std::fmt;
 use std::sync::Arc;
 
@@ -133,6 +135,27 @@ impl<App: Application> TypedProgram<Value, App> {
     pub fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Self, Error> {
         let program = TypedProgram::<(), App>::decode(iter)?;
         program.decode_witness(iter)
+    }
+
+    /// Add metadata for the time of redemption and return a finalized program.
+    ///
+    /// The typed program must already include the witness _(enforced through type system)_.
+    pub fn finalize(self) -> Program<App> {
+        let mut finalized_program = Vec::new();
+
+        for node in self.0 {
+            let finalized_node = ProgramNode {
+                imr: imr::compute_imr(&finalized_program, &node, node.index),
+                extra_cells_bound: analysis::compute_extra_cells_bound(&finalized_program, &node),
+                frame_count_bound: analysis::compute_frame_count_bound(&finalized_program, &node),
+                typed: node,
+            };
+            finalized_program.push(finalized_node)
+        }
+
+        Program {
+            nodes: finalized_program,
+        }
     }
 }
 

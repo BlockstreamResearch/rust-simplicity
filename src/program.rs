@@ -19,16 +19,14 @@
 //! data.
 //!
 
-use std::collections::HashMap;
-use std::{fmt, sync::Arc};
+use std::collections::{HashMap, HashSet};
+use std::fmt;
 
-use crate::analysis;
 use crate::bititer::BitIter;
 use crate::core::types::FinalType;
-use crate::core::{LinearProgram, Term, TypedNode, TypedProgram, UntypedProgram, Value};
+use crate::core::{LinearProgram, Term, TypedNode, UntypedProgram, Value};
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
-use crate::merkle::imr;
 use crate::merkle::imr::Imr;
 use crate::Error;
 
@@ -104,8 +102,86 @@ impl<App: Application> Program<App> {
     ) -> Result<Program<App>, Error> {
         let typed_program = untyped_program.type_check()?;
         let witness_program = typed_program.decode_witness(iter)?;
-        let finalized_program = compress_and_finalize(witness_program);
+        let finalized_program = witness_program.finalize();
         Ok(finalized_program)
+    }
+
+    /// Check if the program has maximal sharing.
+    ///
+    /// This imposes the following conditions:
+    /// 1. For hidden nodes, their hash must be unique in the program.
+    /// 2. For non-hidden nodes, the triple of their IMR, source type and target type
+    ///    must be unique in the program.
+    pub fn has_maximal_sharing(&self) -> bool {
+        let mut seen_hashes = HashSet::new();
+        let mut seen_keys = HashSet::new();
+
+        for node in &self.nodes {
+            if let Term::Hidden(h) = node.term() {
+                if seen_hashes.contains(h) {
+                    return false;
+                } else {
+                    seen_hashes.insert(h);
+                }
+            } else {
+                let primary_key = (node.imr, node.source_ty().clone(), node.target_ty().clone());
+
+                if seen_keys.contains(&primary_key) {
+                    return false;
+                } else {
+                    seen_keys.insert(primary_key);
+                }
+            }
+        }
+
+        true
+    }
+
+    /// Compress the program such that it has maximal sharing (see [`Self::has_maximal_sharing`]).
+    pub fn maximize_sharing(self) -> Self {
+        let mut shared_program = Vec::new();
+        let mut shared_idx = 0;
+
+        let mut primary_key_to_shared_idx = HashMap::new();
+        let mut hash_to_shared_idx = HashMap::new();
+        let mut unshared_to_shared_idx = HashMap::new();
+
+        for (unshared_idx, node) in self.nodes.into_iter().enumerate() {
+            if let Term::Hidden(h) = node.term() {
+                if let Some(previous_shared_idx) = hash_to_shared_idx.get(h) {
+                    unshared_to_shared_idx.insert(unshared_idx, *previous_shared_idx);
+                    continue;
+                }
+
+                hash_to_shared_idx.insert(*h, shared_idx);
+            } else {
+                let primary_key = (node.imr, node.source_ty().tmr, node.target_ty().tmr);
+
+                if let Some(previous_shared_idx) = primary_key_to_shared_idx.get(&primary_key) {
+                    unshared_to_shared_idx.insert(unshared_idx, *previous_shared_idx);
+                    continue;
+                }
+
+                primary_key_to_shared_idx.insert(primary_key, shared_idx);
+            }
+
+            unshared_to_shared_idx.insert(unshared_idx, shared_idx);
+
+            let mut shared_node = node;
+            shared_node.typed.term = shared_node.typed.term.into_shared(
+                unshared_idx,
+                shared_idx,
+                &unshared_to_shared_idx,
+            );
+            shared_node.typed.index = shared_idx;
+
+            shared_program.push(shared_node);
+            shared_idx += 1;
+        }
+
+        Program {
+            nodes: shared_program,
+        }
     }
 }
 
@@ -131,75 +207,6 @@ impl<App: Application> IntoIterator for Program<App> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.nodes.into_iter()
-    }
-}
-
-/// Primary key for non-hidden nodes in shared (typed) Simplicity DAGs.
-/// _[`Term::Hidden`] nodes have their hash as primary key_
-type PrimaryKey = (Imr, Arc<FinalType>, Arc<FinalType>);
-
-fn compress_and_finalize<App: Application>(
-    typed_program: TypedProgram<Value, App>,
-) -> Program<App> {
-    let mut shared_program = Vec::<ProgramNode<App>>::new();
-    let mut shared_idx = 0;
-
-    let mut primary_key_to_shared_idx: HashMap<PrimaryKey, usize> = HashMap::new();
-    let mut hash_to_shared_idx: HashMap<Cmr, usize> = HashMap::new();
-    let mut unshared_to_shared_idx: HashMap<usize, usize> = HashMap::new();
-
-    for (unshared_idx, typed_node) in typed_program.0.into_iter().enumerate() {
-        let shared_node = TypedNode {
-            term: typed_node
-                .term
-                .into_shared(unshared_idx, shared_idx, &unshared_to_shared_idx),
-            source_ty: typed_node.source_ty,
-            target_ty: typed_node.target_ty,
-            index: shared_idx,
-            cmr: typed_node.cmr,
-        };
-        let imr = imr::compute_imr(&shared_program, &shared_node, shared_idx);
-
-        if let Term::Hidden(h) = &shared_node.term {
-            if let Some(previous_shared_idx) = hash_to_shared_idx.get(h) {
-                unshared_to_shared_idx.insert(unshared_idx, *previous_shared_idx);
-                continue;
-            }
-
-            hash_to_shared_idx.insert(*h, shared_idx);
-        } else {
-            let primary_key = (
-                imr,
-                shared_node.source_ty.clone(),
-                shared_node.target_ty.clone(),
-            );
-
-            if let Some(previous_shared_idx) = primary_key_to_shared_idx.get(&primary_key) {
-                unshared_to_shared_idx.insert(unshared_idx, *previous_shared_idx);
-                continue;
-            }
-
-            primary_key_to_shared_idx.insert(primary_key, shared_idx);
-        }
-
-        unshared_to_shared_idx.insert(unshared_idx, shared_idx);
-
-        let extra_cells_bound = analysis::compute_extra_cells_bound(&shared_program, &shared_node);
-        let frame_count_bound = analysis::compute_frame_count_bound(&shared_program, &shared_node);
-
-        let finalized_node = ProgramNode {
-            typed: shared_node,
-            imr,
-            extra_cells_bound,
-            frame_count_bound,
-        };
-
-        shared_program.push(finalized_node);
-        shared_idx += 1;
-    }
-
-    Program {
-        nodes: shared_program,
     }
 }
 
@@ -291,11 +298,11 @@ mod tests {
         // Same combinator, same CMR
         let minimal = UntypedProgram(vec![Term::Unit, Term::InjR(1)]);
         let duplicate = UntypedProgram(vec![Term::Unit, Term::InjR(1), Term::Unit, Term::InjR(1)]);
-        assert!(equal_after_sharing(minimal.clone(), duplicate, &[0x00]));
+        assert!(equal_after_sharing(minimal.clone(), duplicate, Vec::new()));
 
         // Same combinator, different CMR
         let non_duplicate = UntypedProgram(vec![Term::Unit, Term::InjR(1), Term::InjR(1)]);
-        assert!(!equal_after_sharing(minimal, non_duplicate, &[0x00]));
+        assert!(!equal_after_sharing(minimal, non_duplicate, Vec::new()));
     }
 
     #[test]
@@ -306,14 +313,14 @@ mod tests {
             Term::Hidden(Cmr::from([0; 32])),
             Term::Hidden(Cmr::from([0; 32])),
         ]);
-        assert!(equal_after_sharing(minimal.clone(), duplicate, &[0x00]));
+        assert!(equal_after_sharing(minimal.clone(), duplicate, Vec::new()));
 
         // Different hidden payload
         let non_duplicate = UntypedProgram(vec![
             Term::Hidden(Cmr::from([0; 32])),
             Term::Hidden(Cmr::from([1; 32])),
         ]);
-        assert!(!equal_after_sharing(minimal, non_duplicate, &[0x00]));
+        assert!(!equal_after_sharing(minimal, non_duplicate, Vec::new()));
     }
 
     #[test]
@@ -342,32 +349,39 @@ mod tests {
             Term::Case(2, 1),
         ]);
 
-        // Witness [Value::u1(0), Value::u1(0)]: '1' + '100' + '00'
         assert!(equal_after_sharing(
             single_witness.clone(),
             double_witness.clone(),
-            &[0b_1_100_00_00]
+            vec![Value::u1(0), Value::u1(0)]
         ));
-        // Witness [Value::u1(0), Value::u1(1)]: '1' + '100' + '01'
         assert!(!equal_after_sharing(
-            single_witness,
-            double_witness,
-            &[0b_1_100_01_00]
+            single_witness.clone(),
+            double_witness.clone(),
+            vec![Value::u1(0), Value::u1(1)]
         ));
     }
 
     fn equal_after_sharing(
         left: UntypedProgram<(), Core>,
         right: UntypedProgram<(), Core>,
-        witness_bytes: &[u8],
+        witness: Vec<Value>,
     ) -> bool {
-        let shared_left =
-            Program::from_untyped_program(left, &mut BitIter::from(witness_bytes.iter().cloned()))
-                .unwrap();
-        let shared_right =
-            Program::from_untyped_program(right, &mut BitIter::from(witness_bytes.iter().cloned()))
-                .unwrap();
+        let unshared_left = left
+            .type_check()
+            .expect("type check")
+            .add_witness(witness.clone())
+            .expect("witness")
+            .finalize();
+        let unshared_right = right
+            .type_check()
+            .expect("type check")
+            .add_witness(witness)
+            .expect("witness")
+            .finalize();
+        assert_ne!(unshared_left, unshared_right);
 
+        let shared_left = unshared_left.maximize_sharing();
+        let shared_right = unshared_right.maximize_sharing();
         shared_left == shared_right
     }
 }
