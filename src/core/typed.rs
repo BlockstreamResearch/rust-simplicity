@@ -140,7 +140,22 @@ impl<App: Application> TypedProgram<Value, App> {
     /// Add metadata for the time of redemption and return a finalized program.
     ///
     /// The typed program must already include the witness _(enforced through type system)_.
-    pub fn finalize(self) -> Program<App> {
+    pub fn finalize(self) -> Result<Program<App>, Error> {
+        let program = self.finalize_insane();
+
+        if program.has_maximal_sharing() {
+            Ok(program)
+        } else {
+            Err(Error::SharingNotMaximal)
+        }
+    }
+
+    /// Add metadata for the time of redemption and return a finalized program.
+    ///
+    /// **Does not check if the resulting program has maximal sharing.**
+    ///
+    /// The typed program must already include the witness _(enforced through type system)_.
+    pub fn finalize_insane(self) -> Program<App> {
         let mut finalized_program = Vec::new();
 
         for node in self.0 {

@@ -89,10 +89,23 @@ impl<App: Application> Program<App> {
         self.nodes.iter()
     }
 
-    /// Decode a finalized program from bits
+    /// Decode a finalized program from bits.
     pub fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Self, Error> {
+        let program = Program::decode_insane(iter)?;
+
+        if program.has_maximal_sharing() {
+            Ok(program)
+        } else {
+            Err(Error::SharingNotMaximal)
+        }
+    }
+
+    /// Decode a finalized program from bits.
+    ///
+    /// **Does not check if the resulting program has maximal sharing.**
+    pub fn decode_insane<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Self, Error> {
         let typed_program = TypedProgram::<Value, App>::decode(iter)?;
-        let finalized_program = typed_program.finalize();
+        let finalized_program = typed_program.finalize_insane();
         Ok(finalized_program)
     }
 
@@ -261,7 +274,8 @@ mod tests {
             .expect("type check")
             .add_witness(Vec::new())
             .expect("witness")
-            .finalize();
+            .finalize()
+            .expect("finalize");
 
         let mut mac = BitMachine::for_program(&program);
         mac.input(&Value::prod(Value::u32(1), Value::u32(2)));
@@ -283,7 +297,8 @@ mod tests {
         .expect("type check")
         .add_witness(vec![Value::u32(1), Value::u32(2)])
         .expect("witness")
-        .finalize();
+        .finalize()
+        .expect("finalize");
 
         let mut mac = BitMachine::for_program(&program);
         let output = mac.exec(&program, &()).expect("execute");
@@ -369,13 +384,13 @@ mod tests {
             .expect("type check")
             .add_witness(witness.clone())
             .expect("witness")
-            .finalize();
+            .finalize_insane();
         let unshared_right = right
             .type_check()
             .expect("type check")
             .add_witness(witness)
             .expect("witness")
-            .finalize();
+            .finalize_insane();
         assert_ne!(unshared_left, unshared_right);
 
         let shared_left = unshared_left.maximize_sharing();

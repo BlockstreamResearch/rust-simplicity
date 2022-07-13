@@ -64,6 +64,8 @@ pub enum Error {
     ParseError(&'static str),
     /// Miniscript Error
     MiniscriptError(miniscript::Error),
+    /// Sharing of program is not maximal
+    SharingNotMaximal,
 }
 
 impl fmt::Display for Error {
@@ -89,6 +91,7 @@ impl fmt::Display for Error {
             }
             Error::ParseError(s) => write!(f, "Unrecognized node {}", s),
             Error::MiniscriptError(ref e) => fmt::Display::fmt(e, f),
+            Error::SharingNotMaximal => f.write_str("This program does not have maximal sharing"),
         }
     }
 }
