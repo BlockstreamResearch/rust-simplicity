@@ -24,7 +24,7 @@ use std::fmt;
 
 use crate::bititer::BitIter;
 use crate::core::types::FinalType;
-use crate::core::{LinearProgram, Term, TypedNode, UntypedProgram, Value};
+use crate::core::{LinearProgram, Term, TypedNode, TypedProgram, Value};
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
@@ -89,20 +89,10 @@ impl<App: Application> Program<App> {
         self.nodes.iter()
     }
 
-    /// Decode a program from a stream of bits
-    pub fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Program<App>, Error> {
-        let untyped_program = UntypedProgram::decode(iter)?;
-        Program::<App>::from_untyped_program(untyped_program, iter)
-    }
-
-    /// Decode a program from a stream of bits
-    pub fn from_untyped_program<I: Iterator<Item = u8>>(
-        untyped_program: UntypedProgram<(), App>,
-        iter: &mut BitIter<I>,
-    ) -> Result<Program<App>, Error> {
-        let typed_program = untyped_program.type_check()?;
-        let witness_program = typed_program.decode_witness(iter)?;
-        let finalized_program = witness_program.finalize();
+    /// Decode a finalized program from bits
+    pub fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Self, Error> {
+        let typed_program = TypedProgram::<Value, App>::decode(iter)?;
+        let finalized_program = typed_program.finalize();
         Ok(finalized_program)
     }
 
@@ -214,8 +204,10 @@ impl<App: Application> IntoIterator for Program<App> {
 mod tests {
     use super::*;
     use crate::bititer::BitIter;
+    use crate::core::UntypedProgram;
+    use crate::exec::BitMachine;
+    use crate::jet;
     use crate::jet::application::Core;
-    use crate::{exec, jet};
 
     #[test]
     fn simple_unit_prog() {
@@ -263,34 +255,40 @@ mod tests {
     }
 
     #[test]
-    fn encode_prog() {
-        let prog: UntypedProgram<(), Core> = UntypedProgram(vec![
-            Term::Jet(&jet::core::ADD32),
-            // Node::Case(0, 1),
-        ]);
+    fn execute_empty_witness() {
+        let program = UntypedProgram::<(), Core>(vec![Term::Jet(&jet::core::ADD32)])
+            .type_check()
+            .expect("type check")
+            .add_witness(Vec::new())
+            .expect("witness")
+            .finalize();
 
-        Program::from_untyped_program(prog, &mut BitIter::from(vec![0x00].into_iter())).unwrap();
+        let mut mac = BitMachine::for_program(&program);
+        mac.input(&Value::prod(Value::u32(1), Value::u32(2)));
+        let output = mac.exec(&program, &()).expect("execute");
+
+        assert_eq!(Value::prod(Value::u1(0), Value::u32(3)), output);
     }
 
     #[test]
-    fn witness_and() {
-        let prog: UntypedProgram<(), Core> = UntypedProgram(vec![
-            Term::Unit,
-            Term::InjR(1),
+    fn execute_non_empty_witness() {
+        let program: Program<Core> = UntypedProgram(vec![
             Term::Witness(()),
-            Term::Case(2, 1),
             Term::Witness(()),
-            Term::Comp(1, 2),
-        ]);
+            Term::Pair(2, 1),
+            Term::Jet(&jet::core::ADD32),
+            Term::Comp(2, 1),
+        ])
+        .type_check()
+        .expect("type check")
+        .add_witness(vec![Value::u32(1), Value::u32(2)])
+        .expect("witness")
+        .finalize();
 
-        // Witness [Value::u1(0), Value::Unit]: '1' + '10' + '0'
-        let mut iter = BitIter::from([0b_1_10_0_0000].iter().cloned());
-        let prog = Program::from_untyped_program(prog, &mut iter).unwrap();
+        let mut mac = BitMachine::for_program(&program);
+        let output = mac.exec(&program, &()).expect("execute");
 
-        let mut mac = exec::BitMachine::for_program(&prog);
-        let output = mac.exec(&prog, &()).unwrap();
-
-        println!("{}", output);
+        assert_eq!(Value::prod(Value::u1(0), Value::u32(3)), output);
     }
 
     #[test]
