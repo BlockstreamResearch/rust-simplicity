@@ -25,11 +25,11 @@ mod tests {
     use super::schnorr0::{SCHNORR0, SCHNORR0_CMR};
     use super::schnorr6::{SCHNORR6, SCHNORR6_CMR};
     use crate::bititer::BitIter;
-    use crate::core::LinearProgram;
+    use crate::core::{LinearProgram, Value};
     use crate::exec::BitMachine;
     use crate::jet::application::Core;
     use crate::merkle::common::MerkleRoot;
-    use crate::{Program, Value};
+    use crate::program::Program;
 
     // TODO: check IMR
     fn check_merkle_roots(prog: &[u8], cmr: [u8; 32]) {

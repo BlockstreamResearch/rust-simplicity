@@ -1,7 +1,7 @@
 //FIXME: Remove this later
 #![allow(dead_code)]
 
-use crate::core::LinearProgram;
+use crate::core::{LinearProgram, Term};
 use std::{cell::RefCell, cmp, fmt, mem, rc::Rc, sync::Arc};
 
 use crate::jet::type_name::TypeName;
@@ -9,7 +9,6 @@ use crate::jet::Application;
 use crate::merkle::common::{MerkleRoot, TypeMerkleRoot};
 use crate::merkle::tmr::Tmr;
 use crate::Error;
-use crate::Term;
 
 use super::term::UntypedProgram;
 

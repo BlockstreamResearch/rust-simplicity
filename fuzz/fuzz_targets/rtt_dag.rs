@@ -15,7 +15,7 @@
 extern crate simplicity;
 
 use simplicity::bititer::BitIter;
-use simplicity::core::term_dag::TermDag;
+use simplicity::core::TermDag;
 use simplicity::decode;
 use simplicity::jet::application::Core;
 

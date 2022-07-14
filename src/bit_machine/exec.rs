@@ -23,12 +23,10 @@ use std::error;
 use std::fmt;
 
 use crate::core::types::FinalTypeInner;
-use crate::core::LinearProgram;
+use crate::core::{LinearProgram, Term, Value};
 use crate::decode;
 use crate::jet::{AppError, Application};
-use crate::Program;
-use crate::Term;
-use crate::Value;
+use crate::program::Program;
 
 use super::frame::Frame;
 

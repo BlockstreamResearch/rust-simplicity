@@ -27,9 +27,9 @@
 //! For (de)serialization and execution, the DAG needs to be converted into a linear program.
 
 use crate::core::iter::DagIterable;
+use crate::core::{Term, UntypedProgram, Value};
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
-use crate::{Term, UntypedProgram, Value};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;

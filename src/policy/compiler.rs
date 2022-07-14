@@ -17,13 +17,14 @@
 //! between policy fragment and a simplicity program.
 
 use super::ast::Policy;
-use crate::core::term_dag::TermDag;
+use crate::core::TermDag;
+use crate::core::Value;
+use crate::jet;
 use crate::jet::application::Bitcoin;
 use crate::jet::Application;
 use crate::miniscript::MiniscriptKey;
 use crate::Error;
 use crate::PubkeyKey32;
-use crate::{jet, Value};
 use std::rc::Rc;
 
 /// Convert a single bit into u2 by pre-padding zeros

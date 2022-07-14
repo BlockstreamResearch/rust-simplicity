@@ -23,15 +23,15 @@ use std::collections::HashMap;
 use std::{cmp, fmt, sync::Arc};
 
 use crate::bititer::BitIter;
-use crate::core::term::UntypedProgram;
 use crate::core::types::{FinalType, TypedNode, TypedProgram};
-use crate::core::{types, LinearProgram};
+use crate::core::UntypedProgram;
+use crate::core::{types, LinearProgram, Term, Value};
 use crate::decode;
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::common::{MerkleRoot, TermMerkleRoot};
 use crate::merkle::imr::Imr;
-use crate::{Error, Term, Value};
+use crate::Error;
 
 /// Single, finalized Simplicity node.
 /// Includes witness data (encoded as [`Value`]).
@@ -388,7 +388,6 @@ mod tests {
     use super::*;
     use crate::bititer::BitIter;
     use crate::jet::application::Core;
-    use crate::Term;
     use crate::{exec, jet};
 
     #[test]

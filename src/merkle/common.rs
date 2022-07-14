@@ -15,9 +15,9 @@
 //! # Common traits and macros
 
 use crate::core::types::{FinalType, FinalTypeInner};
+use crate::core::{Term, Value};
 use crate::jet::Application;
 use crate::util::u64_to_array_be;
-use crate::{Term, Value};
 use bitcoin_hashes::sha256::Midstate;
 use bitcoin_hashes::{sha256, Hash, HashEngine};
 

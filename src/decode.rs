@@ -18,12 +18,11 @@
 //! Refer to [`crate::encode`] for information on the encoding.
 
 use crate::bititer::BitIter;
-use crate::core::term::UntypedProgram;
 use crate::core::types::{FinalType, FinalTypeInner, TypedProgram};
+use crate::core::{Term, UntypedProgram, Value};
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
-use crate::Value;
-use crate::{Error, Term};
+use crate::Error;
 
 /// Decode an untyped Simplicity program from bits.
 pub fn decode_program_no_witness<I: Iterator<Item = u8>, App: Application>(

@@ -29,7 +29,7 @@ use miniscript::expression;
 use miniscript::Error as msError;
 use miniscript::MiniscriptKey;
 
-use crate::core::term::UntypedProgram;
+use crate::core::UntypedProgram;
 use crate::jet::application::Bitcoin;
 use crate::Error;
 use crate::PubkeyKey32;
@@ -345,11 +345,11 @@ impl<Pk: MiniscriptKey> Policy<Pk> {
 mod tests {
     use super::*;
     use crate::bititer::BitIter;
+    use crate::core::Value;
     use crate::exec;
     use crate::jet::application::{Bitcoin, BitcoinEnv};
     use crate::program::Program;
     use crate::DummyKey;
-    use crate::Value;
     use std::str::FromStr;
 
     fn compile_and_exec(pol: &str, witness: Vec<u8>) {

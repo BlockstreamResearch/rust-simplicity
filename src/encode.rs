@@ -21,10 +21,8 @@
 
 use std::{io, mem};
 
-use crate::core::LinearProgram;
+use crate::core::{LinearProgram, Term, UntypedProgram, Value};
 use crate::jet::Application;
-use crate::Value;
-use crate::{Term, UntypedProgram};
 
 /// Bitwise writer formed by wrapping a bytewise [`io::Write`].
 /// Bits are written in big-endian order.
