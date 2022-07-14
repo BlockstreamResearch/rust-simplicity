@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
 use crate::bititer::BitIter;
-use crate::core::LinearProgram;
+use crate::core::{LinearProgram, Program};
 use crate::exec::BitMachine;
 use crate::jet::application::elements::{ElementsEnv, ElementsUtxo};
 use crate::jet::application::Elements;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::common::MerkleRoot;
-use crate::program::Program;
 use crate::test_progs::sighash_all;
 use bitcoin_hashes::sha256::Midstate;
 use bitcoin_hashes::{sha256, Hash};

@@ -31,7 +31,6 @@ pub mod jet;
 pub mod merkle;
 #[cfg(feature = "bitcoin")]
 pub mod policy;
-pub mod program;
 #[cfg(test)]
 mod test_progs;
 mod util;

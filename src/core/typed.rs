@@ -14,13 +14,10 @@
 
 use crate::bititer::BitIter;
 use crate::core::types::FinalType;
-use crate::core::Term;
-use crate::core::{types, Value};
-use crate::core::{LinearProgram, UntypedProgram};
+use crate::core::{types, LinearProgram, Program, ProgramNode, Term, UntypedProgram, Value};
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr;
-use crate::program::{Program, ProgramNode};
 use crate::{analysis, decode, Error};
 use std::fmt;
 use std::sync::Arc;

@@ -18,12 +18,11 @@
 //! In contrast to [`super::cmr`], `witness` data and both `disconnect` branches are included in the hash.
 //! The type of `witness` data is included in the hash via [`super::tmr`].
 
-use crate::core::{Term, TypedNode, Value};
+use crate::core::{ProgramNode, Term, TypedNode, Value};
 use crate::impl_midstate_wrapper;
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::common::{MerkleRoot, TermMerkleRoot};
-use crate::program::ProgramNode;
 use bitcoin_hashes::sha256::Midstate;
 
 /// Identity Merkle root

@@ -12,9 +12,8 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use crate::core::{Term, TypedNode, Value};
+use crate::core::{ProgramNode, Term, TypedNode, Value};
 use crate::jet::Application;
-use crate::program::ProgramNode;
 use std::cmp;
 
 /// Return an upper bound on the number of cells required by the given `node`

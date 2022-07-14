@@ -23,10 +23,9 @@ use std::error;
 use std::fmt;
 
 use crate::core::types::FinalTypeInner;
-use crate::core::{LinearProgram, Term, Value};
+use crate::core::{LinearProgram, Program, Term, Value};
 use crate::decode;
 use crate::jet::{AppError, Application};
-use crate::program::Program;
 
 use super::frame::Frame;
 
