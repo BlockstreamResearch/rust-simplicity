@@ -27,8 +27,8 @@ use crate::core::types::FinalType;
 use crate::core::{LinearProgram, Term, TypedNode, TypedProgram, UntypedProgram, Value};
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
-use crate::merkle::common::{MerkleRoot, TermMerkleRoot};
 use crate::merkle::imr::Imr;
+use crate::merkle::{cmr, imr};
 use crate::Error;
 
 /// Single, finalized Simplicity node.
@@ -179,18 +179,16 @@ fn compress_and_finalize<App: Application>(
     let mut unshared_to_shared_idx: HashMap<usize, usize> = HashMap::new();
 
     for (unshared_idx, typed_node) in typed_program.0.into_iter().enumerate() {
-        let shared_node =
-            typed_node
+        let shared_node = TypedNode {
+            term: typed_node
                 .term
-                .into_shared(unshared_idx, shared_idx, &unshared_to_shared_idx);
-        let imr = compute_imr(
-            &shared_program,
-            &shared_node,
-            shared_idx,
-            &typed_node.target_ty,
-        );
+                .into_shared(unshared_idx, shared_idx, &unshared_to_shared_idx),
+            source_ty: typed_node.source_ty,
+            target_ty: typed_node.target_ty,
+        };
+        let imr = imr::compute_imr(&shared_program, &shared_node, shared_idx);
 
-        if let Term::Hidden(h) = &shared_node {
+        if let Term::Hidden(h) = &shared_node.term {
             if let Some(previous_shared_idx) = hash_to_shared_idx.get(h) {
                 unshared_to_shared_idx.insert(unshared_idx, *previous_shared_idx);
                 continue;
@@ -200,8 +198,8 @@ fn compress_and_finalize<App: Application>(
         } else {
             let primary_key = (
                 imr,
-                typed_node.source_ty.clone(),
-                typed_node.target_ty.clone(),
+                shared_node.source_ty.clone(),
+                shared_node.target_ty.clone(),
             );
 
             if let Some(previous_shared_idx) = primary_key_to_shared_idx.get(&primary_key) {
@@ -214,22 +212,18 @@ fn compress_and_finalize<App: Application>(
 
         unshared_to_shared_idx.insert(unshared_idx, shared_idx);
 
-        let cmr = compute_cmr(&shared_program, &shared_node, shared_idx);
+        let cmr = cmr::compute_cmr(&shared_program, &shared_node.term, shared_idx);
         let extra_cells_bound = compute_extra_cells_bound(
             &shared_program,
-            &shared_node,
+            &shared_node.term,
             shared_idx,
-            typed_node.target_ty.bit_width(),
+            shared_node.target_ty.bit_width(),
         );
         let frame_count_bound =
-            compute_frame_count_bound(&shared_program, &shared_node, shared_idx);
+            compute_frame_count_bound(&shared_program, &shared_node.term, shared_idx);
 
         let finalized_node = ProgramNode {
-            typed: TypedNode {
-                term: shared_node,
-                source_ty: typed_node.source_ty,
-                target_ty: typed_node.target_ty,
-            },
+            typed: shared_node,
             index: shared_idx,
             cmr,
             imr,
@@ -243,54 +237,6 @@ fn compress_and_finalize<App: Application>(
 
     Program {
         nodes: shared_program,
-    }
-}
-
-fn compute_cmr<App: Application>(
-    program: &[ProgramNode<App>],
-    node: &Term<Value, App>,
-    idx: usize,
-) -> Cmr {
-    let cmr_iv = Cmr::get_iv(node);
-
-    match *node {
-        Term::Iden
-        | Term::Unit
-        | Term::Witness(..)
-        | Term::Fail(..)
-        | Term::Hidden(..)
-        | Term::Jet(..) => cmr_iv,
-        Term::InjL(i) | Term::InjR(i) | Term::Take(i) | Term::Drop(i) | Term::Disconnect(i, _) => {
-            cmr_iv.update_1(program[idx - i].cmr)
-        }
-        Term::Comp(i, j)
-        | Term::Case(i, j)
-        | Term::Pair(i, j)
-        | Term::AssertL(i, j)
-        | Term::AssertR(i, j) => cmr_iv.update(program[idx - i].cmr, program[idx - j].cmr),
-    }
-}
-
-fn compute_imr<App: Application>(
-    program: &[ProgramNode<App>],
-    node: &Term<Value, App>,
-    idx: usize,
-    target_ty: &FinalType,
-) -> Imr {
-    let imr_iv = Imr::get_iv(node);
-
-    match *node {
-        Term::Iden | Term::Unit | Term::Fail(..) | Term::Hidden(..) | Term::Jet(..) => imr_iv,
-        Term::InjL(i) | Term::InjR(i) | Term::Take(i) | Term::Drop(i) => {
-            imr_iv.update_1(program[idx - i].imr)
-        }
-        Term::Comp(i, j)
-        | Term::Case(i, j)
-        | Term::Pair(i, j)
-        | Term::AssertL(i, j)
-        | Term::AssertR(i, j)
-        | Term::Disconnect(i, j) => imr_iv.update(program[idx - i].imr, program[idx - j].imr),
-        Term::Witness(ref value) => imr_iv.update_value(value, target_ty),
     }
 }
 
