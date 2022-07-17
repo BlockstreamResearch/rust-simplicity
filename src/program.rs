@@ -23,15 +23,15 @@ use std::collections::HashMap;
 use std::{cmp, fmt, sync::Arc};
 
 use crate::bititer::BitIter;
-use crate::core::term::UntypedProgram;
-use crate::core::types;
 use crate::core::types::{FinalType, TypedNode, TypedProgram};
+use crate::core::UntypedProgram;
+use crate::core::{types, LinearProgram, Term, Value};
 use crate::decode;
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::common::{MerkleRoot, TermMerkleRoot};
 use crate::merkle::imr::Imr;
-use crate::{Error, Term, Value};
+use crate::Error;
 
 /// Single, finalized Simplicity node.
 /// Includes witness data (encoded as [`Value`]).
@@ -105,9 +105,9 @@ pub struct Program<App: Application> {
 }
 
 impl<App: Application> Program<App> {
-    /// Obtain the node representing the root of the program DAG
-    pub fn root_node(&self) -> &ProgramNode<App> {
-        &self.nodes[self.nodes.len() - 1]
+    /// Return an iterator over the nodes of the program.
+    pub fn iter(&self) -> impl Iterator<Item = &ProgramNode<App>> {
+        self.nodes.iter()
     }
 
     /// Decode a program from a stream of bits
@@ -127,56 +127,30 @@ impl<App: Application> Program<App> {
         let finalized_program = compress_and_finalize(witness_program);
         Ok(finalized_program)
     }
+}
 
-    /// Print out the program in a graphviz-parseable format
-    pub fn graph_print(&self) {
-        for node in &self.nodes {
-            println!(
-                "{} [label=\"{}\\n{}\\n{} → {}\"];",
-                node.index,
-                match &node.node {
-                    Term::Iden => "iden".to_owned(),
-                    Term::Unit => "unit".to_owned(),
-                    Term::InjL(..) => "injl".to_owned(),
-                    Term::InjR(..) => "injr".to_owned(),
-                    Term::Take(..) => "take".to_owned(),
-                    Term::Drop(..) => "drop".to_owned(),
-                    Term::Comp(..) => "comp".to_owned(),
-                    Term::Case(..) => "case".to_owned(),
-                    Term::AssertL(..) => "assertL".to_owned(),
-                    Term::AssertR(..) => "assertR".to_owned(),
-                    Term::Pair(..) => "pair".to_owned(),
-                    Term::Disconnect(..) => "disconnect".to_owned(),
-                    Term::Witness(..) => "witness".to_owned(),
-                    Term::Hidden(..) => "hidden".to_owned(),
-                    Term::Fail(..) => "fail".to_owned(),
-                    Term::Jet(j) => format!("[jet]{}", j),
-                },
-                node.index,
-                node.source_ty,
-                node.target_ty,
-            );
-            match node.node {
-                Term::Iden
-                | Term::Unit
-                | Term::Witness(..)
-                | Term::Hidden(..)
-                | Term::Fail(..)
-                | Term::Jet(..) => {}
-                Term::InjL(i) | Term::InjR(i) | Term::Take(i) | Term::Drop(i) => {
-                    println!("  {} -> {};", node.index, node.index - i);
-                }
-                Term::Comp(i, j)
-                | Term::Case(i, j)
-                | Term::AssertL(i, j)
-                | Term::AssertR(i, j)
-                | Term::Pair(i, j)
-                | Term::Disconnect(i, j) => {
-                    println!("  {} -> {} [color=red];", node.index, node.index - i);
-                    println!("  {} -> {} [color=blue];", node.index, node.index - j);
-                }
-            }
-        }
+impl<App: Application> LinearProgram for Program<App> {
+    type Node = ProgramNode<App>;
+
+    fn is_empty(&self) -> bool {
+        self.nodes.is_empty()
+    }
+
+    fn len(&self) -> usize {
+        self.nodes.len()
+    }
+
+    fn root(&self) -> &Self::Node {
+        &self.nodes[self.nodes.len() - 1]
+    }
+}
+
+impl<App: Application> IntoIterator for Program<App> {
+    type Item = ProgramNode<App>;
+    type IntoIter = std::vec::IntoIter<ProgramNode<App>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.nodes.into_iter()
     }
 }
 
@@ -364,7 +338,7 @@ fn compute_extra_cells_bound<App: Application>(
                 )
         }
         Term::Witness(..) => witness_target_width,
-        Term::Fail(..) => unimplemented!(),
+        Term::Fail(..) => 0,
         Term::Hidden(..) => 0,
         Term::Jet(..) => 0,
     }
@@ -403,7 +377,7 @@ fn compute_frame_count_bound<App: Application>(
             )
         }
         Term::Witness(..) => 0,
-        Term::Fail(..) => unimplemented!(),
+        Term::Fail(..) => 0,
         Term::Hidden(..) => 0,
         Term::Jet(..) => 0,
     }
@@ -414,7 +388,6 @@ mod tests {
     use super::*;
     use crate::bititer::BitIter;
     use crate::jet::application::Core;
-    use crate::Term;
     use crate::{exec, jet};
 
     #[test]
@@ -446,7 +419,6 @@ mod tests {
         let prog = Program::<Core>::decode(&mut BitIter::from(prog.into_iter()))
             .expect("decoding program");
 
-        prog.graph_print();
         assert_eq!(prog.nodes.len(), 2);
         assert_eq!(prog.nodes[0].node, Term::Unit);
         assert_eq!(prog.nodes[1].node, Term::InjL(1));
@@ -470,9 +442,7 @@ mod tests {
             // Node::Case(0, 1),
         ]);
 
-        let prog = Program::from_untyped_program(prog, &mut BitIter::from(vec![0x00].into_iter()))
-            .unwrap();
-        prog.graph_print();
+        Program::from_untyped_program(prog, &mut BitIter::from(vec![0x00].into_iter())).unwrap();
     }
 
     #[test]
@@ -489,7 +459,6 @@ mod tests {
         // Witness [Value::u1(0), Value::Unit]: '1' + '10' + '0'
         let mut iter = BitIter::from([0b_1_10_0_0000].iter().cloned());
         let prog = Program::from_untyped_program(prog, &mut iter).unwrap();
-        prog.graph_print();
 
         let mut mac = exec::BitMachine::for_program(&prog);
         let output = mac.exec(&prog, &()).unwrap();

@@ -36,10 +36,6 @@ mod test_progs;
 mod util;
 
 pub use crate::bit_machine::exec;
-pub use crate::core::term::Term;
-pub use crate::core::term::UntypedProgram;
-pub use crate::core::value::Value;
-pub use crate::program::Program;
 use miniscript::{DummyKey, MiniscriptKey};
 use std::fmt;
 

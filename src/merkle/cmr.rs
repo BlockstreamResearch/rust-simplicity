@@ -17,9 +17,10 @@
 //! Used at time of commitment.
 //! Importantly, `witness` data and right `disconnect` branches are _not_ included in the hash.
 
+use crate::core::Term;
+use crate::impl_midstate_wrapper;
 use crate::jet::Application;
 use crate::merkle::common::{MerkleRoot, TermMerkleRoot};
-use crate::{impl_midstate_wrapper, Term};
 use bitcoin_hashes::sha256::Midstate;
 
 /// Commitment Merkle root

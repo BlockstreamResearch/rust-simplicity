@@ -21,9 +21,8 @@
 
 use std::{io, mem};
 
+use crate::core::{LinearProgram, Term, UntypedProgram, Value};
 use crate::jet::Application;
-use crate::Value;
-use crate::{Term, UntypedProgram};
 
 /// Bitwise writer formed by wrapping a bytewise [`io::Write`].
 /// Bits are written in big-endian order.
@@ -233,7 +232,11 @@ fn encode_node<W: io::Write, Wit, App: Application>(
         Term::Unit => {
             w.write_bits_be(9, 5)?;
         }
-        Term::Fail(..) => unimplemented!(),
+        Term::Fail(left, right) => {
+            w.write_bits_be(10, 5)?;
+            encode_hash(left.as_ref(), w)?;
+            encode_hash(right.as_ref(), w)?;
+        }
         Term::Hidden(cmr) => {
             w.write_bits_be(6, 4)?;
             encode_hash(cmr.as_ref(), w)?;

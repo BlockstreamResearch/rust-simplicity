@@ -27,9 +27,9 @@
 //! For (de)serialization and execution, the DAG needs to be converted into a linear program.
 
 use crate::core::iter::DagIterable;
+use crate::core::{Term, UntypedProgram, Value};
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
-use crate::{Term, UntypedProgram};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -83,85 +83,231 @@ pub enum TermDag<Witness, App: Application> {
 }
 
 impl<Witness, App: Application> TermDag<Witness, App> {
-    /// Create a DAG with a single [`Self::Iden`] node
+    /// Create a DAG that computes the identity function.
+    ///
+    /// _Overall type: A → A_
     pub fn iden() -> Rc<Self> {
         Rc::new(TermDag::Iden)
     }
 
-    /// Create a DAG with a single [`Self::Unit`] node
+    /// Create a DAG that returns the unit constant.
+    ///
+    /// _Overall type: A → 1_
     pub fn unit() -> Rc<Self> {
         Rc::new(TermDag::Unit)
     }
 
-    /// Create a DAG with root [`Self::InjL`] and the given `child`
+    /// Create a DAG that computes the left injection of the given `child`.
+    ///
+    /// _Overall type: A → B + C where child: A → B_
     pub fn injl(child: Rc<Self>) -> Rc<Self> {
         Rc::new(TermDag::InjL(child))
     }
 
-    /// Create a DAG with root [`Self::InjR`] and the given `child`
+    /// Create a DAG that computes the right injection of the given `child`.
+    ///
+    /// _Overall type: A → B + C where child: A → C_
     pub fn injr(child: Rc<Self>) -> Rc<Self> {
         Rc::new(TermDag::InjR(child))
     }
 
-    /// Create a DAG with root [`Self::Take`] and the given `child`
+    /// Create a DAG with that computes _take_ of the given `child`.
+    ///
+    /// _Overall type: A × B → C where child: A → C_
     pub fn take(child: Rc<Self>) -> Rc<Self> {
         Rc::new(TermDag::Take(child))
     }
 
-    /// Create a DAG with root [`Self::Drop`] and the given `child`
+    /// Create a DAG with that computes _drop_ of the given `child`.
+    ///
+    /// _Overall type: A × B → C where child: B → C_
     pub fn drop(child: Rc<Self>) -> Rc<Self> {
         Rc::new(TermDag::Drop(child))
     }
 
-    /// Create a DAG with root [`Self::Comp`] and the given `left` and `right` child
+    /// Create a DAG that computes the composition of the given `left` and `right` child.
+    ///
+    /// _Overall type: A → C where left: A → B and right: B → C_
+    ///
+    /// _Type inference will fail if children are not of the correct type._
     pub fn comp(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
         Rc::new(TermDag::Comp(left, right))
     }
 
-    /// Create a DAG with root [`Self::Case`] and the given `left` and `right` child
+    /// Create a DAG that computes _case_ of the given `left` and `right` child.
+    ///
+    /// _Overall type: (A + B) × C → D where left: A × C → D and right: B × C → D_
+    ///
+    /// _Type inference will fail if children are not of the correct type._
     pub fn case(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
         Rc::new(TermDag::Case(left, right))
     }
 
-    /// Create a DAG with root [`Self::AssertL`] and the given `left` and `right` child
+    /// Create a DAG that computes the left assertion of the given `left` child.
+    /// The `right` child must be a hidden node.
+    ///
+    /// _Overall type: (A + B) × C → D where left: A × C → D_
+    ///
+    /// _Type inference will fail if children are not of the correct type._
     pub fn assertl(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
-        Rc::new(TermDag::AssertL(left, right))
+        if let TermDag::Hidden(_) = right.as_ref() {
+            Rc::new(TermDag::AssertL(left, right))
+        } else {
+            panic!("The right child of a left assertion must be a hidden node")
+        }
     }
 
-    /// Create a DAG with root [`Self::AssertR`] and the given `left` and `right` child
+    /// Create a DAG that computes the right assertion of the given `right` child.
+    /// The `left` child must be a hidden node.
+    ///
+    /// _Overall type: (A + B) × C → D where right: B × C → D_
+    ///
+    /// _Type inference will fail if children are not of the correct type._
     pub fn assertr(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
-        Rc::new(TermDag::AssertR(left, right))
+        if let TermDag::Hidden(_) = left.as_ref() {
+            Rc::new(TermDag::AssertR(left, right))
+        } else {
+            panic!("The left child of a right assertion must be a hidden node")
+        }
     }
 
-    /// Create a DAG with root [`Self::Pair`] and the given `left` and `right` child
+    /// Create a DAG that computes the pair of the given `left` and `right` child.
+    ///
+    /// _Overall type: A → B × C where left: A → B and right: A → C_
+    ///
+    /// _Type inference will fail if children are not of the correct type._
     pub fn pair(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
         Rc::new(TermDag::Pair(left, right))
     }
 
-    /// Create a DAG with root [`Self::Disconnect`] and the given `left` and `right` child
+    /// Create a DAG that computes _disconnect_ of the given `left` and `right` child.
+    ///
+    /// _Overall type: A → B × D where left: 2^256 × A → B × C and right: C → D_
+    ///
+    /// _Type inference will fail if children are not of the correct type._
     pub fn disconnect(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
         Rc::new(TermDag::Disconnect(left, right))
     }
 
-    /// Create a DAG with a single [`Self::Witness`] node that contains the given `value`
+    /// Create a DAG that returns the given witness `value` as constant.
+    ///
+    /// _Overall type: A → B where value: B_
+    ///
+    /// To construct a DAG at commitment time, set the value to empty `()`.
+    /// The target type of the witness node is inferred automatically
+    /// and the value is provided through the witness.
+    ///
+    /// _Overall type: A → B_
     pub fn witness(value: Witness) -> Rc<Self> {
         Rc::new(TermDag::Witness(value))
     }
 
-    /// Create a DAG with a single [`Self::Fail`] node that contains the given `left` and `right` hashes
+    /// Create a DAG that universally fails.
+    /// The given `left` and `right` hashes form a block for the CMR computation.
+    ///
+    /// _Overall type: A → B_
     pub fn fail(left: Cmr, right: Cmr) -> Rc<Self> {
         Rc::new(TermDag::Fail(left, right))
     }
 
-    /// Create a DAG with a single [`Self::Hidden`] node that contains the given `hash`
+    /// Create a hidden DAG that contains the given `hash` as its CMR.
+    ///
+    /// **This DAG must only be used as child for left or right assertions.**
+    ///
+    /// _The Bit Machine will crash upon seeing this node._
     pub fn hidden(hash: Cmr) -> Rc<Self> {
         Rc::new(TermDag::Hidden(hash))
     }
 
-    /// Create a DAG with a single [`Self::Jet`] node that contains the given `jet`
-    /// and performs some associated black-box execution
+    /// Create a DAG that computes some black-box function that is associated with the given `jet`.
+    ///
+    /// _Overall type: A → B where jet: A → B_
     pub fn jet(jet: &'static JetNode<App>) -> Rc<Self> {
         Rc::new(TermDag::Jet(jet))
+    }
+
+    /// Create a DAG that takes any input and returns `value` as constant output.
+    ///
+    /// _Overall type: A → B where value: B_
+    pub fn scribe(value: &Value) -> Rc<TermDag<Witness, App>> {
+        match value {
+            Value::Unit => TermDag::unit(),
+            Value::SumL(l) => {
+                let l = TermDag::scribe(l);
+                TermDag::injl(l)
+            }
+            Value::SumR(r) => {
+                let r = TermDag::scribe(r);
+                TermDag::injr(r)
+            }
+            Value::Prod(l, r) => {
+                let l = TermDag::scribe(l);
+                let r = TermDag::scribe(r);
+                TermDag::pair(l, r)
+            }
+        }
+    }
+
+    /// Create a DAG that takes any input and returns bit `0` as constant output.
+    ///
+    /// _Overall type: A → 2_
+    pub fn bit_false() -> Rc<Self> {
+        TermDag::injl(TermDag::unit())
+    }
+
+    /// Create a DAG that takes any input and returns bit `1` as constant output.
+    ///
+    /// _Overall type: A → 2_
+    pub fn bit_true() -> Rc<Self> {
+        TermDag::injr(TermDag::unit())
+    }
+
+    /// Create a DAG that takes a bit and an input,
+    /// such that the `left` child is evaluated on the input if the bit is `1` _(if branch)_
+    /// and the `right` child is evaluated on the input otherwise _(else branch)_.
+    ///
+    /// _Overall type: 2 × A → B where left: A → B and right: A → B_
+    ///
+    /// _Type inference will fail if children are not of the correct type._
+    pub fn cond(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
+        TermDag::case(TermDag::drop(right), TermDag::drop(left))
+    }
+
+    /// Create a DAG that computes Boolean _NOT_ of the `child`.
+    ///
+    /// _Overall type: A → 2 where child: A → 2_
+    ///
+    /// _Type inference will fail if children are not of the correct type._
+    #[allow(clippy::should_implement_trait)]
+    pub fn not(child: Rc<Self>) -> Rc<Self> {
+        TermDag::comp(
+            TermDag::pair(child, TermDag::unit()),
+            TermDag::cond(TermDag::bit_false(), TermDag::bit_true()),
+        )
+    }
+
+    /// Create a DAG that computes Boolean _AND_ of the `left` and `right` child.
+    ///
+    /// _Overall type: A → 2 where left: A → 2 and right: A → 2_
+    ///
+    /// _Type inference will fail if children are not of the correct type._
+    pub fn and(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
+        TermDag::comp(
+            TermDag::pair(left, TermDag::iden()),
+            TermDag::cond(right, TermDag::bit_false()),
+        )
+    }
+
+    /// Create a DAG that computes Boolean _OR_ of the `left` and `right`.
+    ///
+    /// _Overall type: A → 2 where left: A → 2 and right: A → 2_
+    ///
+    /// _Type inference will fail if children are not of the correct type._
+    pub fn or(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
+        TermDag::comp(
+            TermDag::pair(left, TermDag::iden()),
+            TermDag::cond(TermDag::bit_true(), right),
+        )
     }
 
     /// Return the left child of the given DAG root, if there is such a child.
@@ -256,7 +402,7 @@ where
     Witness: Clone,
 {
     /// Create a Simplicity DAG from a linear program.
-    pub fn from_untyped_program(program: &UntypedProgram<Witness, App>) -> Rc<Self> {
+    pub fn from_linear(program: &UntypedProgram<Witness, App>) -> Rc<Self> {
         assert!(!program.0.is_empty(), "Program must be non-empty");
         let mut dag_list: Vec<Rc<TermDag<_, _>>> = vec![];
         for (index, term) in program.0.iter().enumerate() {
@@ -298,7 +444,7 @@ where
     /// Convert a Simplicity DAG into a linear program.
     ///
     /// The program is guaranteed to be in canonical order.
-    pub fn to_untyped_program(&self) -> UntypedProgram<Witness, App> {
+    pub fn to_linear(&self) -> UntypedProgram<Witness, App> {
         let it_post_order = self.iter_post_order();
         let mut program = Vec::new();
         let mut dag_to_index = HashMap::new();

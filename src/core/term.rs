@@ -24,6 +24,7 @@
 //! To compose programs by hand, use the DAG representation of [`super::term_dag`].
 
 use crate::core::iter::DagIterable;
+use crate::core::LinearProgram;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
 use std::collections::HashMap;
@@ -187,19 +188,8 @@ impl<Witness, App: Application> Term<Witness, App> {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct UntypedProgram<Witness, App: Application>(pub(crate) Vec<Term<Witness, App>>);
 
-// TODO: move to trait that is common to all program types
 impl<Witness, App: Application> UntypedProgram<Witness, App> {
-    /// Whether this program is empty
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    /// Returns the number of terms in the program
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    /// Returns an iterator over the terms in the program
+    /// Return an iterator over the nodes of the program.
     pub fn iter(&self) -> impl Iterator<Item = &Term<Witness, App>> {
         self.0.iter()
     }
@@ -221,6 +211,31 @@ impl<Witness, App: Application> UntypedProgram<Witness, App> {
         }
 
         bottom == self.len()
+    }
+}
+
+impl<Witness, App: Application> LinearProgram for UntypedProgram<Witness, App> {
+    type Node = Term<Witness, App>;
+
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn root(&self) -> &Self::Node {
+        &self.0[self.0.len() - 1]
+    }
+}
+
+impl<Witness, App: Application> IntoIterator for UntypedProgram<Witness, App> {
+    type Item = Term<Witness, App>;
+    type IntoIter = std::vec::IntoIter<Term<Witness, App>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }
 

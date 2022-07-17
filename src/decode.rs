@@ -18,12 +18,11 @@
 //! Refer to [`crate::encode`] for information on the encoding.
 
 use crate::bititer::BitIter;
-use crate::core::term::UntypedProgram;
 use crate::core::types::{FinalType, FinalTypeInner, TypedProgram};
+use crate::core::{Term, UntypedProgram, Value};
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
-use crate::Value;
-use crate::{Error, Term};
+use crate::Error;
 
 /// Decode an untyped Simplicity program from bits.
 pub fn decode_program_no_witness<I: Iterator<Item = u8>, App: Application>(
@@ -162,7 +161,7 @@ fn decode_node<I: Iterator<Item = u8>, App: Application>(
         match subcode {
             0 => Term::Iden,
             1 => Term::Unit,
-            2 => return Err(Error::ParseError("01010 (fail code)")),
+            2 => Term::Fail(Cmr::from(decode_hash(iter)?), Cmr::from(decode_hash(iter)?)),
             3 => return Err(Error::ParseError("01011 (stop code)")),
             _ => unreachable!(),
         }

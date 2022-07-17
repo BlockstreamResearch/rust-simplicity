@@ -16,13 +16,12 @@
 //! Currently the policy compilation is one to one mapping
 //! between policy fragment and a simplicity program.
 
-use crate::core::term_dag::TermDag;
-use crate::util::slice_to_u32_be;
-use crate::Value;
-use crate::{jet, PubkeyKey32};
-
+use crate::core::TermDag;
+use crate::core::Value;
 use crate::jet::application::Bitcoin;
 use crate::jet::Application;
+use crate::util::slice_to_u32_be;
+use crate::{jet, PubkeyKey32};
 use bitcoin_hashes::{sha256, Hash};
 use miniscript::policy::Liftable;
 use miniscript::policy::Semantic;

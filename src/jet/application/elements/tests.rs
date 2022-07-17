@@ -1,13 +1,14 @@
 use std::sync::Arc;
 
 use crate::bititer::BitIter;
+use crate::core::LinearProgram;
 use crate::exec::BitMachine;
 use crate::jet::application::elements::{ElementsEnv, ElementsUtxo};
 use crate::jet::application::Elements;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::common::MerkleRoot;
+use crate::program::Program;
 use crate::test_progs::sighash_all;
-use crate::Program;
 use bitcoin_hashes::sha256::Midstate;
 use bitcoin_hashes::{sha256, Hash};
 use elements::secp256k1_zkp::Tweak;
@@ -24,7 +25,7 @@ fn sighash_all_cmr() {
         .into();
     let program = Program::<Elements>::decode(&mut bits).expect("decoding program");
     assert_eq!(
-        program.root_node().cmr.into_inner(),
+        program.root().cmr.into_inner(),
         sighash_all::SIGHASH_ALL_CMR
     );
     // TODO: check IMR
