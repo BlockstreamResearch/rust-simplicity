@@ -14,13 +14,14 @@
 
 use crate::bititer::BitIter;
 use crate::core::types::FinalType;
-use crate::core::{types, LinearProgram, Program, ProgramNode, Term, UntypedProgram, Value};
+use crate::core::{iter, types, LinearProgram, Program, ProgramNode, Term, UntypedProgram, Value};
+use crate::encode::BitWriter;
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr;
-use crate::{analysis, decode, Error};
-use std::fmt;
+use crate::{analysis, decode, encode, Error};
 use std::sync::Arc;
+use std::{fmt, io};
 
 /// Simplicity node with metadata for the time of commitment.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
@@ -74,12 +75,24 @@ impl<App: Application> TypedProgram<(), App> {
         let program = UntypedProgram::<(), App>::decode(iter)?;
         types::type_check(program)
     }
+
+    /// Encode the program into bits.
+    ///
+    /// Returns the number of written bits.
+    pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
+        encode::encode_program_no_witness(self.iter_terms(), w)
+    }
 }
 
 impl<Witness, App: Application> TypedProgram<Witness, App> {
     /// Return an iterator over the nodes of the program.
     pub fn iter(&self) -> impl ExactSizeIterator<Item = &TypedNode<Witness, App>> + Clone {
         self.0.iter()
+    }
+
+    /// Return an iterator over the terms of the program.
+    pub fn iter_terms(&self) -> impl ExactSizeIterator<Item = &Term<Witness, App>> + Clone {
+        self.0.iter().map(|x| &x.term)
     }
 
     // TODO: Return error instead of panicking upon witness that is too short or of wrong type
@@ -132,6 +145,15 @@ impl<App: Application> TypedProgram<Value, App> {
     pub fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Self, Error> {
         let program = TypedProgram::<(), App>::decode(iter)?;
         program.decode_witness(iter)
+    }
+
+    /// Encode the program into bits.
+    ///
+    /// Returns the number of written bits.
+    pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
+        let program_bits = encode::encode_program_no_witness(self.iter_terms(), w)?;
+        let witness_bits = encode::encode_witness(iter::into_witness(self.iter_terms()), w)?;
+        Ok(program_bits + witness_bits)
     }
 
     /// Add metadata for the time of redemption and return a finalized program.

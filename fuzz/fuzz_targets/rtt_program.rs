@@ -16,7 +16,6 @@ extern crate simplicity;
 
 use simplicity::bititer::BitIter;
 use simplicity::core::UntypedProgram;
-use simplicity::encode;
 use simplicity::encode::BitWriter;
 use simplicity::jet::application::Core;
 
@@ -29,7 +28,7 @@ fn do_test(data: &[u8]) {
 
         let mut sink = Vec::<u8>::new();
         let mut w = BitWriter::from(&mut sink);
-        encode::encode_program_no_witness(program.iter(), &mut w).expect("encoding to vector");
+        program.encode(&mut w).expect("encoding to vector");
         w.flush_all().expect("flushing");
         assert_eq!(w.n_total_written(), bit_len);
 

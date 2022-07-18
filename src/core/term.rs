@@ -26,13 +26,15 @@
 use crate::bititer::BitIter;
 use crate::core::iter::DagIterable;
 use crate::core::typed::TypedProgram;
-use crate::core::types;
-use crate::core::LinearProgram;
+use crate::core::{iter, LinearProgram};
+use crate::core::{types, Value};
+use crate::encode::BitWriter;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
-use crate::{decode, Error};
+use crate::{decode, encode, Error};
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::io;
 
 /// Simplicity term for some witness type and application.
 /// Terms in context of programs are called _nodes_,
@@ -196,6 +198,24 @@ impl<App: Application> UntypedProgram<(), App> {
     /// Decode an untyped program from bits.
     pub fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Self, Error> {
         decode::decode_program_no_witness(iter)
+    }
+
+    /// Encode the program into bits.
+    ///
+    /// Returns the number of written bits.
+    pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
+        encode::encode_program_no_witness(self.iter(), w)
+    }
+}
+
+impl<App: Application> UntypedProgram<Value, App> {
+    /// Encode the program into bits.
+    ///
+    /// Returns the number of written bits.
+    pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
+        let program_bits = encode::encode_program_no_witness(self.iter(), w)?;
+        let witness_bits = encode::encode_witness(iter::into_witness(self.iter()), w)?;
+        Ok(program_bits + witness_bits)
     }
 }
 

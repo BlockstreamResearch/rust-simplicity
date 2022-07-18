@@ -14,6 +14,8 @@
 
 //! Iterators over DAGs
 
+use crate::core::Term;
+use crate::jet::Application;
 use std::collections::HashSet;
 use std::hash::Hash;
 
@@ -93,4 +95,21 @@ impl<'a, D: DagIterable> Iterator for PostOrderIter<'a, D> {
             }
         }
     }
+}
+
+/// Convert the given iterator over [`Term`]s into an iterator over the contained `Witness` values.
+pub fn into_witness<'a, Witness, App: Application, I>(
+    iter: I,
+) -> impl Iterator<Item = &'a Witness> + Clone
+where
+    Witness: 'a,
+    I: Iterator<Item = &'a Term<Witness, App>> + Clone,
+{
+    iter.filter_map(|term| {
+        if let Term::Witness(value) = term {
+            Some(value)
+        } else {
+            None
+        }
+    })
 }
