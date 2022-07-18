@@ -21,7 +21,7 @@
 
 use std::{io, mem};
 
-use crate::core::{LinearProgram, Term, UntypedProgram, Value};
+use crate::core::{Term, Value};
 use crate::jet::Application;
 
 /// Bitwise writer formed by wrapping a bytewise [`io::Write`].
@@ -115,15 +115,19 @@ impl<W: io::Write> BitWriter<W> {
 /// Encode an untyped Simplicity program to bits.
 ///
 /// Returns the number of written bits.
-pub fn encode_program_no_witness<W: io::Write, App: Application>(
-    program: &UntypedProgram<(), App>,
+pub fn encode_program_no_witness<'a, W: io::Write, Witness, App: Application, I>(
+    program: I,
     w: &mut BitWriter<W>,
-) -> io::Result<usize> {
+) -> io::Result<usize>
+where
+    Witness: 'a,
+    I: ExactSizeIterator<Item = &'a Term<Witness, App>>,
+{
     let start_n = w.n_total_written();
 
     encode_natural(program.len(), w)?;
 
-    for term in program.iter() {
+    for term in program {
         encode_node(term, w)?;
     }
 
@@ -133,20 +137,21 @@ pub fn encode_program_no_witness<W: io::Write, App: Application>(
 /// Encode witness data to bits.
 ///
 /// Returns the number of written bits.
-pub fn encode_witness<W: io::Write>(witness: &[Value], w: &mut BitWriter<W>) -> io::Result<usize> {
+pub fn encode_witness<'a, W: io::Write, I>(witness: I, w: &mut BitWriter<W>) -> io::Result<usize>
+where
+    I: Iterator<Item = &'a Value> + Clone,
+{
     let start_n = w.n_total_written();
+    let mut witness = witness.peekable();
 
-    if witness.is_empty() {
+    if witness.peek().is_none() {
         w.write_bit(false)?;
     } else {
         w.write_bit(true)?;
-
-        let mut payload = Vec::new();
-        let mut payload_w = BitWriter::from(&mut payload);
         let mut bit_len = 0;
 
-        for value in witness {
-            bit_len += encode_value(value, &mut payload_w)?;
+        for value in witness.clone() {
+            bit_len += get_bit_len(value);
         }
 
         encode_natural(bit_len, w)?;
@@ -159,25 +164,35 @@ pub fn encode_witness<W: io::Write>(witness: &[Value], w: &mut BitWriter<W>) -> 
     Ok(w.n_total_written() - start_n)
 }
 
+/// Return the bit length of the given `value` when encoded.
+fn get_bit_len(value: &Value) -> usize {
+    match value {
+        Value::Unit => 0,
+        Value::SumL(left) => 1 + get_bit_len(left),
+        Value::SumR(right) => 1 + get_bit_len(right),
+        Value::Prod(left, right) => get_bit_len(left) + get_bit_len(right),
+    }
+}
+
 /// Encode a value to bits.
 ///
 /// Returns the number of written bits.
 pub fn encode_value<W: io::Write>(value: &Value, w: &mut BitWriter<W>) -> io::Result<usize> {
     let n_start = w.n_total_written();
 
-    match *value {
+    match value {
         Value::Unit => {}
-        Value::SumL(ref l) => {
+        Value::SumL(left) => {
             w.write_bit(false)?;
-            encode_value(l, w)?;
+            encode_value(left, w)?;
         }
-        Value::SumR(ref r) => {
+        Value::SumR(right) => {
             w.write_bit(true)?;
-            encode_value(r, w)?;
+            encode_value(right, w)?;
         }
-        Value::Prod(ref l, ref r) => {
-            encode_value(l, w)?;
-            encode_value(r, w)?;
+        Value::Prod(left, right) => {
+            encode_value(left, w)?;
+            encode_value(right, w)?;
         }
     }
 
@@ -185,8 +200,8 @@ pub fn encode_value<W: io::Write>(value: &Value, w: &mut BitWriter<W>) -> io::Re
 }
 
 /// Encode an untyped Simplicity term to bits.
-fn encode_node<W: io::Write, Wit, App: Application>(
-    node: &Term<Wit, App>,
+fn encode_node<W: io::Write, Witness, App: Application>(
+    node: &Term<Witness, App>,
     w: &mut BitWriter<W>,
 ) -> io::Result<()> {
     match *node {
@@ -281,7 +296,7 @@ pub fn encode_natural<W: io::Write>(n: usize, w: &mut BitWriter<W>) -> io::Resul
 mod test {
     use super::*;
     use crate::bititer::BitIter;
-    use crate::core::TypedProgram;
+    use crate::core::{TypedProgram, UntypedProgram};
     use crate::jet::application::Core;
     use crate::{decode, jet};
 
@@ -310,10 +325,11 @@ mod test {
 
         for n in 1..1000 {
             let witness = vec![Value::u64(n)];
+            let it = witness.iter();
 
             let mut sink = Vec::<u8>::new();
             let mut w = BitWriter::from(&mut sink);
-            encode_witness(&witness, &mut w).expect("encoding to vector");
+            encode_witness(it, &mut w).expect("encoding to vector");
             w.flush_all().expect("flushing");
 
             let decoded_witness =
