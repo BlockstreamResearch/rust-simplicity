@@ -40,6 +40,7 @@ pub trait DagIterable: Sized {
 /// Iterates over a DAG in _post order_.
 /// That means, left children appear before right ones, and children appear before their parent.
 /// Shared nodes appear only once at their leftmost position.
+#[derive(Clone, Debug)]
 pub struct PostOrderIter<'a, D: DagIterable> {
     dag: &'a D,
     stack: Vec<D::Node>,

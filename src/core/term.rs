@@ -201,7 +201,7 @@ impl<App: Application> UntypedProgram<(), App> {
 
 impl<Witness, App: Application> UntypedProgram<Witness, App> {
     /// Return an iterator over the nodes of the program.
-    pub fn iter(&self) -> impl Iterator<Item = &Term<Witness, App>> {
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = &Term<Witness, App>> + Clone {
         self.0.iter()
     }
 

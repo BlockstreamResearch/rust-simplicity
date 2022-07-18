@@ -44,7 +44,7 @@ use std::io::Write;
 
 /// Applications extend Simplicity by providing [`JetNode`]s
 /// with custom (de)serialization and execution.
-pub trait Application: Sized + 'static {
+pub trait Application: Clone + 'static {
     /// Environment for jets to read from
     type Environment;
     /// Custom application errors

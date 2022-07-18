@@ -85,7 +85,7 @@ pub struct Program<App: Application> {
 
 impl<App: Application> Program<App> {
     /// Return an iterator over the nodes of the program.
-    pub fn iter(&self) -> impl Iterator<Item = &ProgramNode<App>> {
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = &ProgramNode<App>> + Clone {
         self.nodes.iter()
     }
 

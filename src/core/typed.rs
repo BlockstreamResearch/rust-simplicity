@@ -78,7 +78,7 @@ impl<App: Application> TypedProgram<(), App> {
 
 impl<Witness, App: Application> TypedProgram<Witness, App> {
     /// Return an iterator over the nodes of the program.
-    pub fn iter(&self) -> impl Iterator<Item = &TypedNode<Witness, App>> {
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = &TypedNode<Witness, App>> + Clone {
         self.0.iter()
     }
 
