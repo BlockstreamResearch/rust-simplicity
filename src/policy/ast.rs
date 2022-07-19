@@ -36,31 +36,34 @@ use crate::PubkeyKey32;
 
 use super::compiler;
 
-/// Abstract policy which corresponds to the semantics of a Simplicity
-/// and which allows complex forms of analysis.
-
-// FIXME: Which hashes to support?
+/// Policy that expresses spending conditions for Simplicity.
+///
+/// The policy can be compiled into a Simplicity program and executed on the Bit Machine,
+/// given a witness.
+///
+/// Furthermore, the policy can be normalized and is amenable to semantic analysis.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Policy<Pk: MiniscriptKey> {
     /// Unsatisfiable
     Unsatisfiable,
     /// Trivially satisfiable
     Trivial,
-    /// Signature and public key matching a given hash is required
+    /// Provide a signature that matches the given public key and some given message hash
     Key(Pk),
-    /// A relative locktime restriction
+    /// Absolute timelock
     After(u32),
-    /// An absolute locktime restriction
+    /// Relative timelock
     Older(u32),
-    /// A SHA256 whose preimage must be provided to satisfy the descriptor
+    /// Provide the preimage of the given SHA256 hash image
     Sha256(sha256::Hash),
-    /// A list of sub-policies, all of which must be satisfied
+    /// Satisfy all of the given sub-policies
     And(Vec<Policy<Pk>>),
-    /// A list of sub-policies, one of which must be satisfied
+    /// Satisfy exactly one of the given sub-policies
     Or(Vec<Policy<Pk>>),
-    /// A set of sub-policies, satisfactions must be provided for `k` of them
+    /// Satisfy exactly `k` of the given sub-policies
     Threshold(usize, Vec<Policy<Pk>>),
 }
+
 impl<Pk: MiniscriptKey + PubkeyKey32> Policy<Pk> {
     /// Compile a policy into a simplicity frgament
     pub fn compile(&self) -> Result<UntypedProgram<(), Bitcoin>, Error> {
