@@ -18,10 +18,11 @@
 
 use crate::core::TermDag;
 use crate::core::Value;
+use crate::jet;
 use crate::jet::application::Bitcoin;
 use crate::jet::Application;
+use crate::policy::key::PublicKey32;
 use crate::util::slice_to_u32_be;
-use crate::{jet, PubkeyKey32};
 use bitcoin_hashes::{sha256, Hash};
 use miniscript::policy::Liftable;
 use miniscript::policy::Semantic;
@@ -61,7 +62,7 @@ where
                     (TermDag::Pair(key, w), TermDag::Jet(&jet::bitcoin::BIP_0340_VERIFY)) => {
                         let key_value = read_scribed_value(Rc::clone(&Rc::clone(key)));
                         let key_bytes = key_value.try_to_bytes().unwrap();
-                        let k = DummyKey::from_32_byte_pubkey(&key_bytes);
+                        let k = DummyKey::from_32_bytes(&key_bytes);
                         match &**w {
                             TermDag::Witness(..) => Semantic::KeyHash(k.to_pubkeyhash()),
                             _ => unimplemented!(),

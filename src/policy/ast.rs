@@ -31,8 +31,8 @@ use miniscript::MiniscriptKey;
 
 use crate::core::UntypedProgram;
 use crate::jet::application::Bitcoin;
+use crate::policy::key::PublicKey32;
 use crate::Error;
-use crate::PubkeyKey32;
 
 use super::compiler;
 
@@ -64,7 +64,7 @@ pub enum Policy<Pk: MiniscriptKey> {
     Threshold(usize, Vec<Policy<Pk>>),
 }
 
-impl<Pk: MiniscriptKey + PubkeyKey32> Policy<Pk> {
+impl<Pk: MiniscriptKey + PublicKey32> Policy<Pk> {
     /// Compile a policy into a simplicity frgament
     pub fn compile(&self) -> Result<UntypedProgram<(), Bitcoin>, Error> {
         let dag = compiler::compile(self)?;

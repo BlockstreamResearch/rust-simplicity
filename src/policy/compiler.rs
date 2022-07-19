@@ -23,8 +23,8 @@ use crate::jet;
 use crate::jet::application::Bitcoin;
 use crate::jet::Application;
 use crate::miniscript::MiniscriptKey;
+use crate::policy::key::PublicKey32;
 use crate::Error;
-use crate::PubkeyKey32;
 use std::rc::Rc;
 
 /// Convert a single bit into u2 by pre-padding zeros
@@ -53,14 +53,14 @@ fn u1_to_u32<App: Application>(s: Rc<TermDag<(), App>>) -> Rc<TermDag<(), App>> 
 }
 
 /// Compile the desired policy into a bitcoin simplicity program
-pub fn compile<Pk: MiniscriptKey + PubkeyKey32>(
+pub fn compile<Pk: MiniscriptKey + PublicKey32>(
     pol: &Policy<Pk>,
 ) -> Result<Rc<TermDag<(), Bitcoin>>, Error> {
     let frag = match pol {
         Policy::Unsatisfiable => unimplemented!(), //lookup  fail
         Policy::Trivial => TermDag::unit(),
         Policy::Key(ref pk) => {
-            let pk_value = Value::u256_from_slice(&pk.to_32_byte_pubkey());
+            let pk_value = Value::u256_from_slice(&pk.to_32_bytes());
             let scribe_pk = TermDag::scribe(&pk_value);
             let pk_sig_pair = TermDag::pair(scribe_pk, TermDag::witness(()));
             TermDag::comp(pk_sig_pair, TermDag::jet(&jet::bitcoin::BIP_0340_VERIFY))

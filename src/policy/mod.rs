@@ -27,4 +27,5 @@
 
 pub mod ast;
 pub mod compiler;
+pub mod key;
 pub mod lift;
