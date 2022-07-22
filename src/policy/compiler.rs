@@ -142,3 +142,240 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
 
     Ok(dag)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::TypedProgram;
+    use crate::exec::BitMachine;
+    use crate::jet::application::BitcoinEnv;
+    use bitcoin_hashes::{sha256, Hash};
+    use miniscript::DummyKey;
+
+    fn compile(policy: Policy<DummyKey>) -> (TypedProgram<(), Bitcoin>, BitcoinEnv) {
+        let typed = policy
+            .compile()
+            .expect("compile")
+            .type_check()
+            .expect("type check");
+        let env = BitcoinEnv::default();
+
+        (typed, env)
+    }
+
+    fn execute_successful(
+        typed: TypedProgram<(), Bitcoin>,
+        witness: Vec<Value>,
+        env: &BitcoinEnv,
+    ) -> bool {
+        let program = typed
+            .add_witness(witness)
+            .expect("witness")
+            .finalize_insane()
+            .maximize_sharing();
+        let mut mac = BitMachine::for_program(&program);
+
+        let success = match mac.exec(&program, &env) {
+            Ok(output) => output == Value::Unit,
+            Err(_) => false,
+        };
+        success
+    }
+
+    #[test]
+    fn execute_unsatisfiable() {
+        let (typed, env) = compile(Policy::Unsatisfiable);
+        assert!(!execute_successful(typed, vec![], &env));
+    }
+
+    #[test]
+    fn execute_trivial() {
+        let (typed, env) = compile(Policy::Trivial);
+        assert!(execute_successful(typed, vec![], &env));
+    }
+
+    // TODO: check execution once implemented
+    #[test]
+    fn compile_pk() {
+        let _ = compile(Policy::Key(DummyKey));
+    }
+
+    #[test]
+    fn execute_after() {
+        let (typed, mut env) = compile(Policy::After(42));
+
+        env.tx.lock_time = 42;
+        assert!(!execute_successful(typed.clone(), vec![], &env));
+
+        env.tx.lock_time = 43;
+        assert!(execute_successful(typed, vec![], &env));
+    }
+
+    // TODO: check execution once implemented
+    #[test]
+    fn compile_older() {
+        let _ = compile(Policy::Older(42));
+    }
+
+    #[test]
+    fn execute_sha256() {
+        let preimage = [1; 32];
+        let image = sha256::Hash::hash(&preimage);
+        let (typed, env) = compile(Policy::Sha256(image));
+
+        let valid_witness = vec![Value::u256_from_slice(&preimage)];
+        assert!(execute_successful(typed.clone(), valid_witness, &env));
+
+        let invalid_witness = vec![Value::u256_from_slice(&[0; 32])];
+        assert!(!execute_successful(typed, invalid_witness, &env));
+    }
+
+    #[test]
+    fn execute_and() {
+        let preimage0 = [1; 32];
+        let image0 = sha256::Hash::hash(&preimage0);
+        let preimage1 = [2; 32];
+        let image1 = sha256::Hash::hash(&preimage1);
+
+        let (typed, env) = compile(Policy::And(vec![
+            Policy::Sha256(image0),
+            Policy::Sha256(image1),
+        ]));
+
+        let valid_witness = vec![
+            Value::u256_from_slice(&preimage0),
+            Value::u256_from_slice(&preimage1),
+        ];
+        assert!(execute_successful(typed.clone(), valid_witness, &env));
+
+        let invalid_witness = vec![
+            Value::u256_from_slice(&preimage0),
+            Value::u256_from_slice(&[0; 32]),
+        ];
+        assert!(!execute_successful(typed.clone(), invalid_witness, &env));
+
+        let invalid_witness = vec![
+            Value::u256_from_slice(&[0; 32]),
+            Value::u256_from_slice(&preimage1),
+        ];
+        assert!(!execute_successful(typed, invalid_witness, &env));
+    }
+
+    #[test]
+    fn execute_or() {
+        let preimage0 = [1; 32];
+        let image0 = sha256::Hash::hash(&preimage0);
+        let preimage1 = [2; 32];
+        let image1 = sha256::Hash::hash(&preimage1);
+
+        let (typed, env) = compile(Policy::Or(vec![
+            Policy::Sha256(image0),
+            Policy::Sha256(image1),
+        ]));
+
+        let valid_witness = vec![
+            Value::u1(0),
+            Value::u256_from_slice(&preimage0),
+            Value::u256_from_slice(&[0; 32]),
+        ];
+        assert!(execute_successful(typed.clone(), valid_witness, &env));
+        let valid_witness = vec![
+            Value::u1(1),
+            Value::u256_from_slice(&[0; 32]),
+            Value::u256_from_slice(&preimage1),
+        ];
+        assert!(execute_successful(typed.clone(), valid_witness, &env));
+
+        let invalid_witness = vec![
+            Value::u1(0),
+            Value::u256_from_slice(&[0; 32]),
+            Value::u256_from_slice(&preimage1),
+        ];
+        assert!(!execute_successful(typed.clone(), invalid_witness, &env));
+        let invalid_witness = vec![
+            Value::u1(1),
+            Value::u256_from_slice(&preimage0),
+            Value::u256_from_slice(&[0; 32]),
+        ];
+        assert!(!execute_successful(typed, invalid_witness, &env));
+    }
+
+    #[test]
+    fn execute_threshold() {
+        let preimage0 = [1; 32];
+        let image0 = sha256::Hash::hash(&preimage0);
+        let preimage1 = [2; 32];
+        let image1 = sha256::Hash::hash(&preimage1);
+        let preimage2 = [3; 32];
+        let image2 = sha256::Hash::hash(&preimage2);
+
+        let (typed, env) = compile(Policy::Threshold(
+            2,
+            vec![
+                Policy::Sha256(image0),
+                Policy::Sha256(image1),
+                Policy::Sha256(image2),
+            ],
+        ));
+
+        let valid_witness = vec![
+            Value::u1(1),
+            Value::u256_from_slice(&preimage0),
+            Value::u1(1),
+            Value::u256_from_slice(&preimage1),
+            Value::u1(0),
+            Value::u256_from_slice(&[0; 32]),
+        ];
+        assert!(execute_successful(typed.clone(), valid_witness, &env));
+
+        let valid_witness = vec![
+            Value::u1(1),
+            Value::u256_from_slice(&preimage0),
+            Value::u1(0),
+            Value::u256_from_slice(&[0; 32]),
+            Value::u1(1),
+            Value::u256_from_slice(&preimage2),
+        ];
+        assert!(execute_successful(typed.clone(), valid_witness, &env));
+
+        let valid_witness = vec![
+            Value::u1(0),
+            Value::u256_from_slice(&[0; 32]),
+            Value::u1(1),
+            Value::u256_from_slice(&preimage1),
+            Value::u1(1),
+            Value::u256_from_slice(&preimage2),
+        ];
+        assert!(execute_successful(typed.clone(), valid_witness, &env));
+
+        let invalid_witness = vec![
+            Value::u1(1),
+            Value::u256_from_slice(&preimage0),
+            Value::u1(1),
+            Value::u256_from_slice(&preimage1),
+            Value::u1(1),
+            Value::u256_from_slice(&preimage2),
+        ];
+        assert!(!execute_successful(typed.clone(), invalid_witness, &env));
+
+        let invalid_witness = vec![
+            Value::u1(1),
+            Value::u256_from_slice(&preimage1),
+            Value::u1(1),
+            Value::u256_from_slice(&preimage0),
+            Value::u1(0),
+            Value::u256_from_slice(&[0; 32]),
+        ];
+        assert!(!execute_successful(typed.clone(), invalid_witness, &env));
+
+        let invalid_witness = vec![
+            Value::u1(1),
+            Value::u256_from_slice(&preimage0),
+            Value::u1(0),
+            Value::u256_from_slice(&[0; 32]),
+            Value::u1(0),
+            Value::u256_from_slice(&[0; 32]),
+        ];
+        assert!(!execute_successful(typed, invalid_witness, &env));
+    }
+}
