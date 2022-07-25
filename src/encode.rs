@@ -91,6 +91,7 @@ impl<W: io::Write> BitWriter<W> {
     pub fn flush_all(&mut self) -> io::Result<()> {
         self.w.write_all(&[self.cache])?;
         self.cache_len = 0;
+        self.cache = 0;
 
         io::Write::flush(&mut self.w)
     }
@@ -141,19 +142,17 @@ pub fn encode_witness<'a, W: io::Write, I>(witness: I, w: &mut BitWriter<W>) -> 
 where
     I: Iterator<Item = &'a Value> + Clone,
 {
+    let mut bit_len = 0;
     let start_n = w.n_total_written();
-    let mut witness = witness.peekable();
 
-    if witness.peek().is_none() {
+    for value in witness.clone() {
+        bit_len += get_bit_len(value);
+    }
+
+    if bit_len == 0 {
         w.write_bit(false)?;
     } else {
         w.write_bit(true)?;
-        let mut bit_len = 0;
-
-        for value in witness.clone() {
-            bit_len += get_bit_len(value);
-        }
-
         encode_natural(bit_len, w)?;
 
         for value in witness {
