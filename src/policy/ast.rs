@@ -341,60 +341,60 @@ impl<Pk: MiniscriptKey> Policy<Pk> {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::bititer::BitIter;
-    use crate::core::Value;
-    use crate::exec;
-    use crate::jet::application::{Bitcoin, BitcoinEnv};
-    use crate::program::Program;
-    use crate::DummyKey;
-    use std::str::FromStr;
-
-    fn compile_and_exec(pol: &str, witness: Vec<u8>) {
-        // A single pk compilation
-        let pol = Policy::<DummyKey>::from_str(pol).unwrap();
-        let prog: UntypedProgram<_, Bitcoin> = pol.compile().unwrap();
-
-        let prog =
-            Program::from_untyped_program(prog, &mut BitIter::from(witness.into_iter())).unwrap();
-        // prog.graph_print();
-
-        let env = BitcoinEnv::default();
-
-        let mut mac = exec::BitMachine::for_program(&prog);
-        let output = mac.exec(&prog, &env).unwrap();
-
-        assert_eq!(output, Value::Unit);
-    }
-
-    // TODO: rewrite with proper witness
-    #[ignore]
-    #[test]
-    fn basic_compile() {
-        // A single pk compilation
-        let mut witness = vec![0x80];
-        // Partial witness is consumed as sig. Since all sigs verify as of now
-        // we don't worry about the exact parsing of witness
-        witness.extend(vec![0x34; 64]);
-        compile_and_exec("pk()", witness);
-
-        // and compilation. We need to set the witness len here, but since it is not
-        // used in the current code, we are temparorily abusing it.
-        let mut witness = vec![0x80];
-        witness.extend(vec![0x34; 128]);
-        compile_and_exec("and(pk(),pk())", witness);
-
-        let mut witness = vec![0x80];
-        witness.extend(vec![0x34; 128]);
-        compile_and_exec("or(pk(),pk())", witness);
-
-        let mut witness = vec![0x80];
-        witness.extend(vec![0x34; 640]);
-        compile_and_exec(
-            "or(and(or(pk(),pk()),or(pk(),pk())),and(or(pk(),pk()),or(pk(),pk())))",
-            witness,
-        );
-    }
-}
+// TODO: rewrite with proper witness
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use crate::bititer::BitIter;
+//     use crate::exec;
+//     use crate::jet::application::{Bitcoin, BitcoinEnv};
+//     use crate::program::Program;
+//     use crate::DummyKey;
+//     use crate::Value;
+//     use std::str::FromStr;
+//
+//     fn compile_and_exec(pol: &str, witness: Vec<u8>) {
+//         // A single pk compilation
+//         let pol = Policy::<DummyKey>::from_str(pol).unwrap();
+//         let prog: UntypedProgram<_, Bitcoin> = pol.compile().unwrap();
+//
+//         let prog =
+//             Program::from_untyped_program(prog, &mut BitIter::from(witness.into_iter())).unwrap();
+//         // prog.graph_print();
+//
+//         let env = BitcoinEnv::default();
+//
+//         let mut mac = exec::BitMachine::for_program(&prog);
+//         let output = mac.exec(&prog, &env).unwrap();
+//
+//         assert_eq!(output, Value::Unit);
+//     }
+//
+//     #[ignore]
+//     #[test]
+//     fn basic_compile() {
+//         // A single pk compilation
+//         let mut witness = vec![0x80];
+//         // Partial witness is consumed as sig. Since all sigs verify as of now
+//         // we don't worry about the exact parsing of witness
+//         witness.extend(vec![0x34; 64]);
+//         compile_and_exec("pk()", witness);
+//
+//         // and compilation. We need to set the witness len here, but since it is not
+//         // used in the current code, we are temparorily abusing it.
+//         let mut witness = vec![0x80];
+//         witness.extend(vec![0x34; 128]);
+//         compile_and_exec("and(pk(),pk())", witness);
+//
+//         let mut witness = vec![0x80];
+//         witness.extend(vec![0x34; 128]);
+//         compile_and_exec("or(pk(),pk())", witness);
+//
+//         let mut witness = vec![0x80];
+//         witness.extend(vec![0x34; 640]);
+//         compile_and_exec(
+//             "or(and(or(pk(),pk()),or(pk(),pk())),and(or(pk(),pk()),or(pk(),pk())))",
+//             witness,
+//         );
+//     }
+// }

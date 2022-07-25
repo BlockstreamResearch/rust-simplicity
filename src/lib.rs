@@ -21,6 +21,7 @@ extern crate miniscript;
 #[macro_use]
 mod macros;
 
+mod analysis;
 pub mod bit_machine;
 pub mod bititer;
 pub mod core;
@@ -30,7 +31,6 @@ pub mod jet;
 pub mod merkle;
 #[cfg(feature = "bitcoin")]
 pub mod policy;
-pub mod program;
 #[cfg(test)]
 mod test_progs;
 mod util;
@@ -63,6 +63,8 @@ pub enum Error {
     ParseError(&'static str),
     /// Miniscript Error
     MiniscriptError(miniscript::Error),
+    /// Sharing of program is not maximal
+    SharingNotMaximal,
 }
 
 impl fmt::Display for Error {
@@ -88,6 +90,7 @@ impl fmt::Display for Error {
             }
             Error::ParseError(s) => write!(f, "Unrecognized node {}", s),
             Error::MiniscriptError(ref e) => fmt::Display::fmt(e, f),
+            Error::SharingNotMaximal => f.write_str("This program does not have maximal sharing"),
         }
     }
 }

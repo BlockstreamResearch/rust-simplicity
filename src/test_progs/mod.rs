@@ -25,17 +25,16 @@ mod tests {
     use super::schnorr0::{SCHNORR0, SCHNORR0_CMR};
     use super::schnorr6::{SCHNORR6, SCHNORR6_CMR};
     use crate::bititer::BitIter;
-    use crate::core::{LinearProgram, Value};
+    use crate::core::{LinearProgram, Program, Value};
     use crate::exec::BitMachine;
     use crate::jet::application::Core;
     use crate::merkle::common::MerkleRoot;
-    use crate::program::Program;
 
     // TODO: check IMR
     fn check_merkle_roots(prog: &[u8], cmr: [u8; 32]) {
         let mut bits: BitIter<_> = prog.iter().cloned().into();
         let program = Program::<Core>::decode(&mut bits).expect("decoding program");
-        assert_eq!(program.root().cmr.into_inner(), cmr);
+        assert_eq!(program.root().cmr().into_inner(), cmr);
     }
 
     fn exec_prog(prog: &[u8]) {

@@ -281,8 +281,7 @@ pub fn encode_natural<W: io::Write>(n: usize, w: &mut BitWriter<W>) -> io::Resul
 mod test {
     use super::*;
     use crate::bititer::BitIter;
-    use crate::core::types;
-    use crate::core::types::TypedProgram;
+    use crate::core::TypedProgram;
     use crate::jet::application::Core;
     use crate::{decode, jet};
 
@@ -301,11 +300,12 @@ mod test {
 
     #[test]
     fn encode_decode_witness() {
-        let program: TypedProgram<(), Core> = types::type_check(UntypedProgram(vec![
+        let program: TypedProgram<(), Core> = UntypedProgram(vec![
             Term::Witness(()),
             Term::Jet(&jet::core::ADD32),
             Term::Comp(2, 1),
-        ]))
+        ])
+        .type_check()
         .expect("type checking");
 
         for n in 1..1000 {

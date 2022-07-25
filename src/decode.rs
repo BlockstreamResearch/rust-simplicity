@@ -18,8 +18,8 @@
 //! Refer to [`crate::encode`] for information on the encoding.
 
 use crate::bititer::BitIter;
-use crate::core::types::{FinalType, FinalTypeInner, TypedProgram};
-use crate::core::{Term, UntypedProgram, Value};
+use crate::core::types::{FinalType, FinalTypeInner};
+use crate::core::{Term, TypedProgram, UntypedProgram, Value};
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
 use crate::Error;
@@ -63,7 +63,7 @@ pub fn decode_witness<Wit, App: Application, I: Iterator<Item = u8>>(
     let n_start = iter.n_total_read();
 
     for node in &program.0 {
-        if let Term::Witness(_old_witness) = &node.node {
+        if let Term::Witness(_old_witness) = &node.term {
             witness.push(decode_value(&node.target_ty, iter)?);
         }
     }

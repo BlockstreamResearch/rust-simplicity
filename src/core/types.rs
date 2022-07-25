@@ -1,11 +1,12 @@
 //FIXME: Remove this later
 #![allow(dead_code)]
 
-use crate::core::{LinearProgram, Term};
 use std::{cell::RefCell, cmp, fmt, mem, rc::Rc, sync::Arc};
 
+use crate::core::{Term, TypedNode, TypedProgram};
 use crate::jet::type_name::TypeName;
 use crate::jet::Application;
+use crate::merkle::cmr;
 use crate::merkle::common::{MerkleRoot, TypeMerkleRoot};
 use crate::merkle::tmr::Tmr;
 use crate::Error;
@@ -374,62 +375,6 @@ struct UnificationArrow {
     target: Rc<RefCell<UnificationVar>>,
 }
 
-/// Single, typed Simplicity node.
-/// May include Bitcoin/Elements extensions (see [`Term`]).
-///
-/// A node consists of a combinator, its payload (see [`Term`]),
-/// its source type and its target type.
-/// A list of nodes forms a typed Simplicity program,
-/// which represents a typed Simplicity DAG.
-///
-/// Nodes have no meaning without a program.
-/// The node representation is later used for executing Simplicity programs.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub struct TypedNode<Witness, App: Application> {
-    /// Combinator and payload
-    pub node: Term<Witness, App>,
-    /// Source type of combinator
-    pub source_ty: Arc<FinalType>,
-    /// Target type of combinator
-    pub target_ty: Arc<FinalType>,
-}
-
-/// Typed Simplicity program (see [`TypedNode`]).
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct TypedProgram<Witness, App: Application>(pub(crate) Vec<TypedNode<Witness, App>>);
-
-impl<Witness, App: Application> TypedProgram<Witness, App> {
-    /// Return an iterator over the nodes of the program.
-    pub fn iter(&self) -> impl Iterator<Item = &TypedNode<Witness, App>> {
-        self.0.iter()
-    }
-}
-
-impl<Witness, App: Application> LinearProgram for TypedProgram<Witness, App> {
-    type Node = TypedNode<Witness, App>;
-
-    fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    fn root(&self) -> &Self::Node {
-        &self.0[self.0.len() - 1]
-    }
-}
-
-impl<Witness, App: Application> IntoIterator for TypedProgram<Witness, App> {
-    type Item = TypedNode<Witness, App>;
-    type IntoIter = std::vec::IntoIter<TypedNode<Witness, App>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-
 // b'1' = 49
 // b'2' = 50
 // b'i' = 105
@@ -474,7 +419,7 @@ fn type_from_name(name: &TypeName, pow2s: &[RcVar]) -> Type {
 }
 
 /// Attach types to all nodes in a program
-pub fn type_check<Witness, App: Application>(
+pub(crate) fn type_check<Witness, App: Application>(
     program: UntypedProgram<Witness, App>,
 ) -> Result<TypedProgram<Witness, App>, Error> {
     let vec_nodes = program.0;
@@ -626,11 +571,13 @@ pub fn type_check<Witness, App: Application>(
 
     // Finalize, setting all unconstrained types to `Unit` and doing the
     // occurs check. (All the magic happens inside `FinalType::from_var`.)
-    for (idx, node) in vec_nodes.into_iter().enumerate() {
+    for (index, term) in vec_nodes.into_iter().enumerate() {
         finals.push(TypedNode {
-            node: node,
-            source_ty: FinalType::from_var(rcs[idx].source.clone())?,
-            target_ty: FinalType::from_var(rcs[idx].target.clone())?,
+            cmr: cmr::compute_cmr(&finals, &term, index),
+            term,
+            source_ty: FinalType::from_var(rcs[index].source.clone())?,
+            target_ty: FinalType::from_var(rcs[index].target.clone())?,
+            index,
         });
     }
 

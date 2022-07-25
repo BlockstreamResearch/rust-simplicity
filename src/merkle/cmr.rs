@@ -17,7 +17,7 @@
 //! Used at time of commitment.
 //! Importantly, `witness` data and right `disconnect` branches are _not_ included in the hash.
 
-use crate::core::Term;
+use crate::core::{Term, TypedNode};
 use crate::impl_midstate_wrapper;
 use crate::jet::Application;
 use crate::merkle::common::{MerkleRoot, TermMerkleRoot};
@@ -49,5 +49,32 @@ impl TermMerkleRoot for Cmr {
             Term::Hidden(h) => *h,
             Term::Jet(j) => j.cmr(),
         }
+    }
+}
+
+/// Compute the CMR of the given `node` that will be appended to the given `program`
+/// at the given `index`.
+pub(crate) fn compute_cmr<Witness, App: Application>(
+    program: &[TypedNode<Witness, App>],
+    node: &Term<Witness, App>,
+    index: usize,
+) -> Cmr {
+    let cmr_iv = Cmr::get_iv(node);
+
+    match *node {
+        Term::Iden
+        | Term::Unit
+        | Term::Witness(..)
+        | Term::Fail(..)
+        | Term::Hidden(..)
+        | Term::Jet(..) => cmr_iv,
+        Term::InjL(i) | Term::InjR(i) | Term::Take(i) | Term::Drop(i) | Term::Disconnect(i, _) => {
+            cmr_iv.update_1(program[index - i].cmr)
+        }
+        Term::Comp(i, j)
+        | Term::Case(i, j)
+        | Term::Pair(i, j)
+        | Term::AssertL(i, j)
+        | Term::AssertR(i, j) => cmr_iv.update(program[index - i].cmr, program[index - j].cmr),
     }
 }

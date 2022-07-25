@@ -23,10 +23,9 @@ use std::error;
 use std::fmt;
 
 use crate::core::types::FinalTypeInner;
-use crate::core::{LinearProgram, Term, Value};
+use crate::core::{LinearProgram, Program, Term, Value};
 use crate::decode;
 use crate::jet::{AppError, Application};
-use crate::program::Program;
 
 use super::frame::Frame;
 
@@ -48,7 +47,7 @@ impl BitMachine {
     /// the given program
     pub fn for_program<App: Application>(program: &Program<App>) -> BitMachine {
         let prog = program.root();
-        let io_width = prog.source_ty.bit_width() + prog.target_ty.bit_width();
+        let io_width = prog.source_ty().bit_width() + prog.target_ty().bit_width();
         BitMachine {
             data: vec![0; (io_width + prog.extra_cells_bound + 7) / 8],
             next_frame_start: 0,
@@ -283,7 +282,7 @@ impl BitMachine {
             Back(usize),
         }
 
-        let mut ip = program.root();
+        let mut ip = &program.root().typed;
         let mut call_stack = vec![];
         let mut iters = 0u64;
 
@@ -305,7 +304,7 @@ impl BitMachine {
                 println!("({:5} M) exec {}", iters / 1_000_000, ip);
             }
 
-            match ip.node {
+            match ip.term {
                 Term::Unit => {}
                 Term::Iden => self.copy(ip.source_ty.bit_width()),
                 Term::InjL(t) => {
@@ -333,7 +332,7 @@ impl BitMachine {
                     call_stack.push(CallStack::Goto(ip.index - s));
                 }
                 Term::Comp(s, t) => {
-                    let size = program.nodes[ip.index - s].target_ty.bit_width();
+                    let size = program.nodes[ip.index - s].target_ty().bit_width();
                     self.new_frame(size);
 
                     call_stack.push(CallStack::DropFrame);
@@ -343,14 +342,14 @@ impl BitMachine {
                 }
                 Term::Disconnect(s, t) => {
                     // Write `t`'s CMR followed by `s` input to a new read frame
-                    let size = program.nodes[ip.index - s].source_ty.bit_width();
+                    let size = program.nodes[ip.index - s].source_ty().bit_width();
                     assert!(size >= 256);
                     self.new_frame(size);
-                    self.write_bytes(program.nodes[ip.index - t].cmr.as_ref());
+                    self.write_bytes(program.nodes[ip.index - t].cmr().as_ref());
                     self.copy(size - 256);
                     self.move_frame();
 
-                    let s_target_size = program.nodes[ip.index - s].target_ty.bit_width();
+                    let s_target_size = program.nodes[ip.index - s].target_ty().bit_width();
                     self.new_frame(s_target_size);
                     // Then recurse. Remembering that call stack pushes are executed
                     // in reverse order:
@@ -358,7 +357,8 @@ impl BitMachine {
                     // 3. Delete the two frames we created, which have both moved to the read stack
                     call_stack.push(CallStack::DropFrame);
                     call_stack.push(CallStack::DropFrame);
-                    let b_size = s_target_size - program.nodes[ip.index - t].source_ty.bit_width();
+                    let b_size =
+                        s_target_size - program.nodes[ip.index - t].source_ty().bit_width();
                     // Back not required since we are dropping the frame anyways
                     // call_stack.push(CallStack::Back(b_size));
                     // 2. Copy the first half of `s`s output directly then execute `t` on the second half
@@ -413,7 +413,7 @@ impl BitMachine {
 
             ip = loop {
                 match call_stack.pop() {
-                    Some(CallStack::Goto(next)) => break &program.nodes[next],
+                    Some(CallStack::Goto(next)) => break &program.nodes[next].typed,
                     Some(CallStack::MoveFrame) => self.move_frame(),
                     Some(CallStack::DropFrame) => self.drop_frame(),
                     Some(CallStack::CopyFwd(n)) => {
@@ -430,7 +430,7 @@ impl BitMachine {
             let out_frame = self.write.last_mut().unwrap();
             out_frame.reset_cursor();
             decode::decode_value(
-                &program.root().target_ty,
+                program.root().target_ty(),
                 &mut out_frame.to_frame_data(&self.data),
             )
             .expect("decoding output value")
