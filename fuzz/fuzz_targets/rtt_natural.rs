@@ -22,6 +22,7 @@ fn do_test(data: &[u8]) {
     let mut iter = BitIter::new(data.iter().cloned());
 
     if let Ok(natural) = decode::decode_natural(&mut iter, None) {
+        // println!("{:?}", natural);
         let bit_len = iter.n_total_read();
 
         let mut sink = Vec::<u8>::new();

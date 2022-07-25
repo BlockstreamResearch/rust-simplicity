@@ -15,21 +15,22 @@
 extern crate simplicity;
 
 use simplicity::bititer::BitIter;
+use simplicity::core::UntypedProgram;
+use simplicity::encode;
 use simplicity::encode::BitWriter;
 use simplicity::jet::application::Core;
-use simplicity::{decode, encode};
 
 fn do_test(data: &[u8]) {
     let mut iter = BitIter::new(data.iter().cloned());
 
-    if let Ok(program) = decode::decode_program_no_witness::<_, Core>(&mut iter) {
+    if let Ok(program) = UntypedProgram::<_, Core>::decode(&mut iter) {
+        // println!("{:?}", program);
         let bit_len = iter.n_total_read();
 
         let mut sink = Vec::<u8>::new();
         let mut w = BitWriter::from(&mut sink);
         encode::encode_program_no_witness(program.iter(), &mut w).expect("encoding to vector");
         w.flush_all().expect("flushing");
-        // println!("{:?}", program);
         assert_eq!(w.n_total_written(), bit_len);
 
         // decode_program_no_witness() may stop reading `data` mid-byte:
