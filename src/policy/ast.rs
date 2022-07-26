@@ -20,21 +20,16 @@
 //! These policies can be compiled to Simplicity and also be lifted back up from
 //! Simplicity expressions to policy.
 
-use std::{fmt, str};
+use std::fmt;
 
-use bitcoin_hashes::hex::FromHex;
 use bitcoin_hashes::sha256;
-
-use miniscript::expression;
-use miniscript::Error as msError;
 use miniscript::MiniscriptKey;
 
 use crate::core::UntypedProgram;
 use crate::jet::application::Bitcoin;
+use crate::policy::compiler;
 use crate::policy::key::PublicKey32;
 use crate::Error;
-
-use super::compiler;
 
 /// Policy that expresses spending conditions for Simplicity.
 ///
@@ -106,176 +101,7 @@ impl<Pk: MiniscriptKey> Policy<Pk> {
             )),
         }
     }
-}
 
-impl<Pk: MiniscriptKey> fmt::Debug for Policy<Pk> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Policy::Unsatisfiable => f.write_str("UNSATISFIABLE()"),
-            Policy::Trivial => f.write_str("TRIVIAL()"),
-            Policy::Key(ref pk) => write!(f, "pk({:?})", pk),
-            Policy::After(n) => write!(f, "after({})", n),
-            Policy::Older(n) => write!(f, "older({})", n),
-            Policy::Sha256(h) => write!(f, "sha256({})", h),
-            Policy::And(ref subs) => {
-                f.write_str("and(")?;
-                if !subs.is_empty() {
-                    write!(f, "{:?}", subs[0])?;
-                    for sub in &subs[1..] {
-                        write!(f, ",{:?}", sub)?;
-                    }
-                }
-                f.write_str(")")
-            }
-            Policy::Or(ref subs) => {
-                f.write_str("or(")?;
-                if !subs.is_empty() {
-                    write!(f, "{:?}", subs[0])?;
-                    for sub in &subs[1..] {
-                        write!(f, ",{:?}", sub)?;
-                    }
-                }
-                f.write_str(")")
-            }
-            Policy::Threshold(k, ref subs) => {
-                write!(f, "thresh({}", k)?;
-                for sub in subs {
-                    write!(f, ",{:?}", sub)?;
-                }
-                f.write_str(")")
-            }
-        }
-    }
-}
-
-impl<Pk: MiniscriptKey> fmt::Display for Policy<Pk> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Policy::Unsatisfiable => f.write_str("UNSATISFIABLE"),
-            Policy::Trivial => f.write_str("TRIVIAL"),
-            Policy::Key(ref pk) => write!(f, "pk({})", pk),
-            Policy::After(n) => write!(f, "after({})", n),
-            Policy::Older(n) => write!(f, "older({})", n),
-            Policy::Sha256(h) => write!(f, "sha256({})", h),
-            Policy::And(ref subs) => {
-                f.write_str("and(")?;
-                if !subs.is_empty() {
-                    write!(f, "{}", subs[0])?;
-                    for sub in &subs[1..] {
-                        write!(f, ",{}", sub)?;
-                    }
-                }
-                f.write_str(")")
-            }
-            Policy::Or(ref subs) => {
-                f.write_str("or(")?;
-                if !subs.is_empty() {
-                    write!(f, "{}", subs[0])?;
-                    for sub in &subs[1..] {
-                        write!(f, ",{}", sub)?;
-                    }
-                }
-                f.write_str(")")
-            }
-            Policy::Threshold(k, ref subs) => {
-                write!(f, "thresh({}", k)?;
-                for sub in subs {
-                    write!(f, ",{}", sub)?;
-                }
-                f.write_str(")")
-            }
-        }
-    }
-}
-
-impl<Pk> str::FromStr for Policy<Pk>
-where
-    Pk: MiniscriptKey + str::FromStr,
-    <Pk as str::FromStr>::Err: ToString,
-{
-    type Err = miniscript::Error;
-
-    fn from_str(s: &str) -> Result<Policy<Pk>, miniscript::Error> {
-        for ch in s.as_bytes() {
-            if *ch < 20 || *ch > 127 {
-                return Err(miniscript::Error::Unprintable(*ch));
-            }
-        }
-
-        let tree = expression::Tree::from_str(s)?;
-        miniscript::expression::FromTree::from_tree(&tree)
-    }
-}
-
-// FIXME: export macro from miniscript, avoid code repeatation
-// miniscript::serde_string_impl_pk!(Policy, "a simplicity abstract policy");
-
-// FIXME: Make a generic module for parsing recusrive structure with it's own error type.
-impl<Pk> expression::FromTree for Policy<Pk>
-where
-    Pk: MiniscriptKey + str::FromStr,
-    <Pk as str::FromStr>::Err: ToString,
-{
-    fn from_tree(top: &expression::Tree) -> Result<Policy<Pk>, msError> {
-        use miniscript::policy::concrete::PolicyError as MsPolicyError;
-        match (top.name, top.args.len() as u32) {
-            ("UNSATISFIABLE", 0) => Ok(Policy::Unsatisfiable),
-            ("TRIVIAL", 0) => Ok(Policy::Trivial),
-            ("pk", 1) => expression::terminal(&top.args[0], |pk| Pk::from_str(pk).map(Policy::Key)),
-            ("after", 1) => expression::terminal(&top.args[0], |x| {
-                expression::parse_num(x).map(Policy::After)
-            }),
-            ("older", 1) => expression::terminal(&top.args[0], |x| {
-                expression::parse_num(x).map(Policy::Older)
-            }),
-            ("sha256", 1) => expression::terminal(&top.args[0], |x| {
-                sha256::Hash::from_hex(x).map(Policy::Sha256)
-            }),
-            ("and", _) => {
-                if top.args.len() != 2 {
-                    return Err(msError::PolicyError(MsPolicyError::NonBinaryArgAnd));
-                }
-                let mut subs = Vec::with_capacity(top.args.len());
-                for arg in &top.args {
-                    subs.push(Policy::from_tree(arg)?);
-                }
-                Ok(Policy::And(subs))
-            }
-            ("or", _) => {
-                if top.args.len() != 2 {
-                    return Err(msError::PolicyError(MsPolicyError::NonBinaryArgOr));
-                }
-                let mut subs = Vec::with_capacity(top.args.len());
-                for arg in &top.args {
-                    subs.push(Policy::from_tree(arg)?);
-                }
-                Ok(Policy::Or(subs))
-            }
-            ("thresh", nsubs) => {
-                if nsubs == 0 {
-                    return Err(msError::Unexpected("thresh without args".to_owned()));
-                }
-                if !top.args[0].args.is_empty() {
-                    return Err(msError::Unexpected(top.args[0].args[0].name.to_owned()));
-                }
-
-                let thresh = expression::parse_num(top.args[0].name)?;
-                if thresh >= nsubs {
-                    return Err(msError::Unexpected(top.args[0].name.to_owned()));
-                }
-
-                let mut subs = Vec::with_capacity(top.args.len() - 1);
-                for arg in &top.args[1..] {
-                    subs.push(Policy::from_tree(arg)?);
-                }
-                Ok(Policy::Threshold(thresh as usize, subs))
-            }
-            _ => Err(msError::Unexpected(top.name.to_owned())),
-        }
-    }
-}
-
-impl<Pk: MiniscriptKey> Policy<Pk> {
     /// Flatten out trees of `And`s and `Or`s; eliminate `Trivial` and
     /// `Unsatisfiable`s. Does not reorder any branches; use `.sort`.
     pub fn normalized(self) -> Policy<Pk> {
@@ -315,9 +141,7 @@ impl<Pk: MiniscriptKey> Policy<Pk> {
             x => x,
         }
     }
-}
 
-impl<Pk: MiniscriptKey> Policy<Pk> {
     /// "Sort" a policy to bring it into a canonical form to allow comparisons.
     /// Does **not** allow policies to be compared for functional equivalence;
     /// in general this appears to require Gröbner basis techniques that are not
@@ -341,5 +165,46 @@ impl<Pk: MiniscriptKey> Policy<Pk> {
             }
             x => x,
         }
+    }
+}
+
+impl<Pk: MiniscriptKey> fmt::Debug for Policy<Pk> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Policy::Unsatisfiable => f.write_str("UNSATISFIABLE()"),
+            Policy::Trivial => f.write_str("TRIVIAL()"),
+            Policy::Key(pk) => write!(f, "pk({:?})", pk),
+            Policy::After(n) => write!(f, "after({})", n),
+            Policy::Older(n) => write!(f, "older({})", n),
+            Policy::Sha256(h) => write!(f, "sha256({})", h),
+            Policy::And(sub_policies) | Policy::Or(sub_policies) => {
+                match self {
+                    Policy::And(_) => f.write_str("and(")?,
+                    Policy::Or(_) => f.write_str("or(")?,
+                    _ => unreachable!(),
+                }
+
+                if !sub_policies.is_empty() {
+                    write!(f, "{:?}", sub_policies[0])?;
+                    for sub in &sub_policies[1..] {
+                        write!(f, ",{:?}", sub)?;
+                    }
+                }
+                f.write_str(")")
+            }
+            Policy::Threshold(k, sub_policies) => {
+                write!(f, "thresh({}", k)?;
+                for sub in sub_policies {
+                    write!(f, ",{:?}", sub)?;
+                }
+                f.write_str(")")
+            }
+        }
+    }
+}
+
+impl<Pk: MiniscriptKey> fmt::Display for Policy<Pk> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
     }
 }
