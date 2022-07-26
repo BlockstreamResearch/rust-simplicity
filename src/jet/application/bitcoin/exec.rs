@@ -54,7 +54,8 @@ pub fn exec_jet(
         | BitcoinJetName::NumInputs
         | BitcoinJetName::TotalInputValue
         | BitcoinJetName::CurrentPrevOutpoint
-        | BitcoinJetName::ScriptCMR => {
+        | BitcoinJetName::ScriptCMR
+        | BitcoinJetName::SighashAll => {
             unimplemented!("Execute Bitcoin primitive")
         }
         x => {
