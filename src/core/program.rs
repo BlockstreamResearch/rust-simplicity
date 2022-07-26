@@ -20,15 +20,16 @@
 //!
 
 use std::collections::{HashMap, HashSet};
-use std::fmt;
+use std::{fmt, io};
 
 use crate::bititer::BitIter;
 use crate::core::types::FinalType;
-use crate::core::{LinearProgram, Term, TypedNode, TypedProgram, Value};
+use crate::core::{iter, LinearProgram, Term, TypedNode, TypedProgram, Value};
+use crate::encode::BitWriter;
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
-use crate::Error;
+use crate::{encode, Error};
 
 /// Simplicity node with full metadata for the time of redemption.
 /// This type of node is executed on the Bit Machine.
@@ -85,8 +86,13 @@ pub struct Program<App: Application> {
 
 impl<App: Application> Program<App> {
     /// Return an iterator over the nodes of the program.
-    pub fn iter(&self) -> impl Iterator<Item = &ProgramNode<App>> {
+    pub fn iter(&self) -> impl ExactSizeIterator<Item = &ProgramNode<App>> + Clone {
         self.nodes.iter()
+    }
+
+    /// Return an iterator over the terms of the program.
+    pub fn iter_terms(&self) -> impl ExactSizeIterator<Item = &Term<Value, App>> + Clone {
+        self.nodes.iter().map(|x| &x.typed.term)
     }
 
     /// Decode a finalized program from bits.
@@ -107,6 +113,15 @@ impl<App: Application> Program<App> {
         let typed_program = TypedProgram::<Value, App>::decode(iter)?;
         let finalized_program = typed_program.finalize_insane();
         Ok(finalized_program)
+    }
+
+    /// Encode the program into bits.
+    ///
+    /// Returns the number of written bits.
+    pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
+        let program_bits = encode::encode_program_no_witness(self.iter_terms(), w)?;
+        let witness_bits = encode::encode_witness(iter::into_witness(self.iter_terms()), w)?;
+        Ok(program_bits + witness_bits)
     }
 
     /// Check if the program has maximal sharing.

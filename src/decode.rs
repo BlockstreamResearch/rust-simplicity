@@ -68,9 +68,9 @@ pub fn decode_witness<Wit, App: Application, I: Iterator<Item = u8>>(
         }
     }
 
-    if iter.n_total_read() - n_start > bit_len {
+    if iter.n_total_read() - n_start != bit_len {
         Err(Error::ParseError(
-            "Witness bit string is longer than defined in its preamble!",
+            "Witness bit string has different length than defined in its preamble",
         ))
     } else {
         Ok(witness)

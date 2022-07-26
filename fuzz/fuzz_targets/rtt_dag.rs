@@ -15,14 +15,15 @@
 extern crate simplicity;
 
 use simplicity::bititer::BitIter;
-use simplicity::core::TermDag;
-use simplicity::decode;
+use simplicity::core::{TermDag, UntypedProgram};
 use simplicity::jet::application::Core;
 
 fn do_test(data: &[u8]) {
     let mut iter = BitIter::new(data.iter().cloned());
 
-    if let Ok(program) = decode::decode_program_no_witness::<_, Core>(&mut iter) {
+    if let Ok(program) = UntypedProgram::<_, Core>::decode(&mut iter) {
+        // println!("{:?}", program);
+
         let dag = TermDag::from_linear(&program);
         let program_from_dag = dag.to_linear();
         assert_eq!(program, program_from_dag);

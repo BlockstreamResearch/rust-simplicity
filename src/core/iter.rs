@@ -14,6 +14,8 @@
 
 //! Iterators over DAGs
 
+use crate::core::Term;
+use crate::jet::Application;
 use std::collections::HashSet;
 use std::hash::Hash;
 
@@ -40,6 +42,7 @@ pub trait DagIterable: Sized {
 /// Iterates over a DAG in _post order_.
 /// That means, left children appear before right ones, and children appear before their parent.
 /// Shared nodes appear only once at their leftmost position.
+#[derive(Clone, Debug)]
 pub struct PostOrderIter<'a, D: DagIterable> {
     dag: &'a D,
     stack: Vec<D::Node>,
@@ -92,4 +95,21 @@ impl<'a, D: DagIterable> Iterator for PostOrderIter<'a, D> {
             }
         }
     }
+}
+
+/// Convert the given iterator over [`Term`]s into an iterator over the contained `Witness` values.
+pub fn into_witness<'a, Witness, App: Application, I>(
+    iter: I,
+) -> impl Iterator<Item = &'a Witness> + Clone
+where
+    Witness: 'a,
+    I: Iterator<Item = &'a Term<Witness, App>> + Clone,
+{
+    iter.filter_map(|term| {
+        if let Term::Witness(value) = term {
+            Some(value)
+        } else {
+            None
+        }
+    })
 }
