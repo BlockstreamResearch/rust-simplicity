@@ -1,12 +1,14 @@
+use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 
 use bitcoin_hashes::hex::FromHex;
 use bitcoin_hashes::sha256;
-use miniscript::expression;
 use miniscript::Error as msError;
 use miniscript::MiniscriptKey;
+use miniscript::{expression, Miniscript, ScriptContext, Terminal};
 
 use crate::policy::ast::Policy;
+use crate::Error;
 
 impl<Pk> FromStr for Policy<Pk>
 where
@@ -91,6 +93,62 @@ where
                 Ok(Policy::Threshold(thresh as usize, subs))
             }
             _ => Err(msError::Unexpected(top.name.to_owned())),
+        }
+    }
+}
+
+impl<'a, Pk: MiniscriptKey, Ctx: ScriptContext> TryFrom<&'a Miniscript<Pk, Ctx>> for Policy<Pk> {
+    type Error = Error;
+
+    fn try_from(top: &Miniscript<Pk, Ctx>) -> Result<Self, Self::Error> {
+        match &top.node {
+            Terminal::True => Ok(Policy::Trivial),
+            Terminal::False => Ok(Policy::Unsatisfiable),
+            Terminal::PkK(key) => Ok(Policy::Key(key.clone())),
+            Terminal::PkH(_) => Err(Error::ParseError("Public key hashes are not supported")),
+            Terminal::After(n) => Ok(Policy::After(*n)),
+            Terminal::Older(n) => Ok(Policy::Older(*n)),
+            Terminal::Sha256(h) => Ok(Policy::Sha256(*h)),
+            Terminal::Hash256(_h) => Err(Error::ParseError("SHA256d is not supported")),
+            Terminal::Ripemd160(_) | Terminal::Hash160(_) => {
+                Err(Error::ParseError("RIPEMD160 is not supported"))
+            }
+            Terminal::AndV(x, y) | Terminal::AndB(x, y) => {
+                let inner = vec![x.as_ref().try_into()?, y.as_ref().try_into()?];
+                Ok(Policy::And(inner))
+            }
+            Terminal::AndOr(x, y, z) => {
+                let inner_and = vec![x.as_ref().try_into()?, y.as_ref().try_into()?];
+                let and = Policy::And(inner_and);
+                let inner_or = vec![and, z.as_ref().try_into()?];
+                Ok(Policy::Or(inner_or))
+            }
+            Terminal::OrB(x, y)
+            | Terminal::OrD(x, y)
+            | Terminal::OrC(x, y)
+            | Terminal::OrI(x, y) => {
+                let inner = vec![x.as_ref().try_into()?, y.as_ref().try_into()?];
+                Ok(Policy::Or(inner))
+            }
+            Terminal::Thresh(k, sub_policies) => {
+                let mut translated_sub_policies = Vec::with_capacity(sub_policies.len());
+
+                for sub in sub_policies {
+                    translated_sub_policies.push(sub.as_ref().try_into()?);
+                }
+
+                Ok(Policy::Threshold(*k, translated_sub_policies))
+            }
+            Terminal::Alt(x)
+            | Terminal::Swap(x)
+            | Terminal::Check(x)
+            | Terminal::DupIf(x)
+            | Terminal::Verify(x)
+            | Terminal::NonZero(x)
+            | Terminal::ZeroNotEqual(x) => x.as_ref().try_into(),
+            Terminal::Multi(_, _) | Terminal::MultiA(_, _) => {
+                Err(Error::ParseError("Multisig is not supported"))
+            }
         }
     }
 }
