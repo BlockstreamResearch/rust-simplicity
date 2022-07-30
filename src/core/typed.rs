@@ -14,12 +14,12 @@
 
 use crate::bititer::BitIter;
 use crate::core::types::FinalType;
-use crate::core::{iter, types, LinearProgram, Program, ProgramNode, Term, UntypedProgram, Value};
+use crate::core::{iter, LinearProgram, Program, ProgramNode, Term, UntypedProgram, Value};
 use crate::encode::BitWriter;
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr;
-use crate::{analysis, decode, encode, Error};
+use crate::{analysis, decode, encode, inference, Error};
 use std::sync::Arc;
 use std::{fmt, io};
 
@@ -73,7 +73,7 @@ impl<App: Application> TypedProgram<(), App> {
     /// Decode a typed program from bits.
     pub fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Self, Error> {
         let program = UntypedProgram::<(), App>::decode(iter)?;
-        types::type_check(program)
+        inference::type_check(program)
     }
 
     /// Encode the program into bits.
