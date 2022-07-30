@@ -1,5 +1,6 @@
 use crate::merkle::common::{MerkleRoot, TypeMerkleRoot};
 use crate::merkle::tmr::Tmr;
+use crate::util::replace_to_buffer;
 use std::collections::VecDeque;
 use std::iter::FromIterator;
 use std::{cell::RefCell, cmp, fmt, rc::Rc, sync::Arc};
@@ -128,6 +129,65 @@ pub(crate) enum VariableType {
     Product(RcVar, RcVar),
 }
 
+impl VariableType {
+    fn uncompressed_display<W: fmt::Write>(&self, w: &mut W) -> fmt::Result {
+        match self {
+            VariableType::Unit => w.write_str("1"),
+            VariableType::Sum(a, b) => {
+                w.write_str("(")?;
+                a.borrow().inner.uncompressed_display(w)?;
+                w.write_str(" + ")?;
+                b.borrow().inner.uncompressed_display(w)?;
+                w.write_str(")")
+            }
+            VariableType::Product(a, b) => {
+                w.write_str("(")?;
+                a.borrow().inner.uncompressed_display(w)?;
+                w.write_str(" × ")?;
+                b.borrow().inner.uncompressed_display(w)?;
+                w.write_str(")")
+            }
+            // Uncomment to use intermediate compression: more allocation of smaller strings
+            // VariableType::Sum(a, b) => write!(w, "({} + {})", a, b),
+            // VariableType::Product(a, b) => write!(w, "({} × {})", a, b),
+        }
+    }
+}
+
+fn into_compressed_display(mut buffer1: String) -> String {
+    let mut buffer2 = String::with_capacity(buffer1.len());
+
+    replace_to_buffer(&buffer1, &mut buffer2, "(1 + 1)", "2");
+    buffer1.clear();
+    replace_to_buffer(&buffer2, &mut buffer1, "(2 × 2)", "2^2");
+    buffer2.clear();
+    replace_to_buffer(&buffer1, &mut buffer2, "(2^2 × 2^2)", "2^4");
+    buffer1.clear();
+    replace_to_buffer(&buffer2, &mut buffer1, "(2^4 × 2^4)", "2^8");
+    buffer2.clear();
+    replace_to_buffer(&buffer1, &mut buffer2, "(2^8 × 2^8)", "2^16");
+    buffer1.clear();
+    replace_to_buffer(&buffer2, &mut buffer1, "(2^16 × 2^16)", "2^32");
+    buffer2.clear();
+    replace_to_buffer(&buffer1, &mut buffer2, "(2^32 × 2^32)", "2^64");
+    buffer1.clear();
+    replace_to_buffer(&buffer2, &mut buffer1, "(2^64 × 2^64)", "2^128");
+    buffer2.clear();
+    replace_to_buffer(&buffer1, &mut buffer2, "(2^128 × 2^128)", "2^256");
+
+    buffer2
+}
+
+impl fmt::Display for VariableType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut buffer1 = String::new();
+        self.uncompressed_display(&mut buffer1)?;
+        let buffer2 = into_compressed_display(buffer1);
+
+        write!(f, "{}", buffer2)
+    }
+}
+
 /// Variable that can be cheaply cloned and internally mutated
 pub(crate) type RcVar = Rc<RefCell<Variable>>;
 
@@ -182,6 +242,16 @@ impl fmt::Debug for Variable {
     }
 }
 
+impl fmt::Display for Variable {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut buffer1 = String::new();
+        self.inner.uncompressed_display(&mut buffer1)?;
+        let buffer2 = into_compressed_display(buffer1);
+
+        write!(f, "{}", buffer2)
+    }
+}
+
 /// Unification variable without metadata (see [`Variable`])
 #[derive(Clone)]
 pub(crate) enum VariableInner {
@@ -204,6 +274,19 @@ impl fmt::Debug for VariableInner {
             VariableInner::Bound(ty, b) => write!(f, "[{:?}/{}]", ty, b),
             VariableInner::EqualTo(parent) => write!(f, "={:?}", parent),
             VariableInner::Finalized(ty) => fmt::Debug::fmt(ty, f),
+        }
+    }
+}
+
+impl VariableInner {
+    fn uncompressed_display<W: fmt::Write>(&self, w: &mut W) -> fmt::Result {
+        match self {
+            VariableInner::Free(id) => w.write_str(id),
+            VariableInner::Bound(ty, _) => ty.uncompressed_display(w),
+            // Uncomment to use intermediate compression: more allocation of smaller strings
+            // VariableInner::Bound(ty, _) => write!(w, "{}", ty),
+            VariableInner::EqualTo(parent) => parent.borrow().inner.uncompressed_display(w),
+            VariableInner::Finalized(ty) => write!(w, "{}", ty),
         }
     }
 }

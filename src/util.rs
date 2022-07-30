@@ -65,3 +65,25 @@ pub(crate) fn bitvec_to_bytevec(bitvec: &[bool]) -> Vec<u8> {
     }
     ret
 }
+
+/// Replace all occurrences of a `pattern` in a `src` string with a `replacement` string,
+/// and write the result to a `dst` string.
+///
+/// This method does not allocate if `dst` is sufficiently long (e.g., as long as `src`).
+pub(crate) fn replace_to_buffer(src: &str, dst: &mut String, pattern: &str, replacement: &str) {
+    let mut last_index = 0;
+    let len = pattern.len();
+
+    for (index, _) in src.match_indices(pattern) {
+        if last_index < index {
+            dst.push_str(&src[last_index..index])
+        }
+
+        dst.push_str(replacement);
+        last_index = index + len;
+    }
+
+    if last_index < src.len() {
+        dst.push_str(&src[last_index..])
+    }
+}
