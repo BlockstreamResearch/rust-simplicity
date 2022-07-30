@@ -18,7 +18,7 @@
 //! Refer to [`crate::encode`] for information on the encoding.
 
 use crate::bititer::BitIter;
-use crate::core::types::{FinalType, FinalTypeInner};
+use crate::core::types::{Type, TypeInner};
 use crate::core::{Term, TypedProgram, UntypedProgram, Value};
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
@@ -78,18 +78,15 @@ pub fn decode_witness<Wit, App: Application, I: Iterator<Item = u8>>(
 }
 
 /// Decode a value from bits, based on the given type.
-pub fn decode_value<I: Iterator<Item = bool>>(
-    ty: &FinalType,
-    iter: &mut I,
-) -> Result<Value, Error> {
+pub fn decode_value<I: Iterator<Item = bool>>(ty: &Type, iter: &mut I) -> Result<Value, Error> {
     let value = match ty.ty {
-        FinalTypeInner::Unit => Value::Unit,
-        FinalTypeInner::Sum(ref l, ref r) => match iter.next() {
+        TypeInner::Unit => Value::Unit,
+        TypeInner::Sum(ref l, ref r) => match iter.next() {
             Some(false) => Value::SumL(Box::new(decode_value(l, iter)?)),
             Some(true) => Value::SumR(Box::new(decode_value(r, iter)?)),
             None => return Err(Error::EndOfStream),
         },
-        FinalTypeInner::Product(ref l, ref r) => Value::Prod(
+        TypeInner::Product(ref l, ref r) => Value::Prod(
             Box::new(decode_value(l, iter)?),
             Box::new(decode_value(r, iter)?),
         ),

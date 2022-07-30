@@ -16,8 +16,8 @@
 //!
 //! Source and target types of jet nodes need to be specified manually.
 
-use crate::core::types::RcVar;
-use crate::core::types::Type;
+use crate::core::types::VariableType;
+use crate::core::types::{RcVar, Variable};
 
 /// Byte-based specification of a Simplicity type.
 ///
@@ -47,28 +47,28 @@ impl TypeName {
     // b'h' = 104
     // b'+' = 43
     // b'*' = 42
-    /// Convert the [`TypeName`] into a [`Type`]
-    pub(crate) fn to_type(&self, pow2s: &[RcVar]) -> Type {
+    /// Convert the type name into a type.
+    pub(crate) fn to_type(&self, pow2s: &[RcVar]) -> VariableType {
         let it = self.0.iter().rev();
         let mut stack = Vec::new();
 
         for c in it {
             match c {
-                b'1' => stack.push(Type::Unit),
+                b'1' => stack.push(VariableType::Unit),
                 b'2' => {
-                    let unit = Type::Unit.into_rcvar();
-                    stack.push(Type::Sum(unit.clone(), unit))
+                    let unit = Variable::bound(VariableType::Unit);
+                    stack.push(VariableType::Sum(unit.clone(), unit))
                 }
-                b'i' => stack.push(Type::Product(pow2s[4].clone(), pow2s[4].clone())),
-                b'l' => stack.push(Type::Product(pow2s[5].clone(), pow2s[5].clone())),
-                b'h' => stack.push(Type::Product(pow2s[7].clone(), pow2s[7].clone())),
+                b'i' => stack.push(VariableType::Product(pow2s[4].clone(), pow2s[4].clone())),
+                b'l' => stack.push(VariableType::Product(pow2s[5].clone(), pow2s[5].clone())),
+                b'h' => stack.push(VariableType::Product(pow2s[7].clone(), pow2s[7].clone())),
                 b'+' | b'*' => {
-                    let left = stack.pop().expect("Illegal type name syntax!").into_rcvar();
-                    let right = stack.pop().expect("Illegal type name syntax!").into_rcvar();
+                    let left = Variable::bound(stack.pop().expect("Illegal type name syntax!"));
+                    let right = Variable::bound(stack.pop().expect("Illegal type name syntax!"));
 
                     match c {
-                        b'+' => stack.push(Type::Sum(left, right)),
-                        b'*' => stack.push(Type::Product(left, right)),
+                        b'+' => stack.push(VariableType::Sum(left, right)),
+                        b'*' => stack.push(VariableType::Product(left, right)),
                         _ => unreachable!(),
                     }
                 }

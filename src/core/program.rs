@@ -23,7 +23,7 @@ use std::collections::{HashMap, HashSet};
 use std::{fmt, io};
 
 use crate::bititer::BitIter;
-use crate::core::types::FinalType;
+use crate::core::types::Type;
 use crate::core::{iter, LinearProgram, Term, TypedNode, TypedProgram, Value};
 use crate::encode::BitWriter;
 use crate::jet::Application;
@@ -58,12 +58,12 @@ impl<App: Application> ProgramNode<App> {
     }
 
     /// Return the source type of the node.
-    pub fn source_ty(&self) -> &FinalType {
+    pub fn source_ty(&self) -> &Type {
         &self.typed.source_ty
     }
 
     /// Return the target type of the node.
-    pub fn target_ty(&self) -> &FinalType {
+    pub fn target_ty(&self) -> &Type {
         &self.typed.target_ty
     }
 

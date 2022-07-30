@@ -14,7 +14,7 @@
 
 //! # Common traits and macros
 
-use crate::core::types::{FinalType, FinalTypeInner};
+use crate::core::types::{Type, TypeInner};
 use crate::core::{Term, Value};
 use crate::jet::Application;
 use crate::util::u64_to_array_be;
@@ -70,7 +70,7 @@ pub trait MerkleRoot: From<[u8; 32]> + Into<[u8; 32]> {
     /// The hash `self` is taken as initial value,
     /// the hash of `value` and the TMR of `value_type` are combined to create a 512-bit block,
     /// and the compression is run once
-    fn update_value(self, value: &Value, value_type: &FinalType) -> Self {
+    fn update_value(self, value: &Value, value_type: &Type) -> Self {
         let (mut bytes, bit_length) = value.to_bytes_len();
 
         // 1 Bit-wise hash of `value`
@@ -132,13 +132,13 @@ pub trait TermMerkleRoot: MerkleRoot {
     fn get_iv<Witness, App: Application>(term: &Term<Witness, App>) -> Self;
 }
 
-/// Tagged SHA256 hash used for [`FinalType`]
+/// Tagged SHA256 hash used for [`Type`]
 pub trait TypeMerkleRoot: MerkleRoot {
-    /// Return the initial value for the given `final_type`.
+    /// Return the initial value for the given type.
     ///
-    /// Each [`FinalType::ty`] corresponds to some tag that is hashed
+    /// Each [`Type::ty`] corresponds to some tag that is hashed
     /// and returned as initial value
-    fn get_iv(ty: &FinalTypeInner) -> Self;
+    fn get_iv(ty: &TypeInner) -> Self;
 }
 
 /// Convenience macro for wrappers of `Midstate`.

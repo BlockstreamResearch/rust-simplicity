@@ -22,7 +22,7 @@ use std::cmp;
 use std::error;
 use std::fmt;
 
-use crate::core::types::FinalTypeInner;
+use crate::core::types::TypeInner;
 use crate::core::{LinearProgram, Program, Term, Value};
 use crate::decode;
 use crate::jet::{AppError, Application};
@@ -309,7 +309,7 @@ impl BitMachine {
                 Term::Iden => self.copy(ip.source_ty.bit_width),
                 Term::InjL(t) => {
                     self.write_bit(false);
-                    if let FinalTypeInner::Sum(ref a, _) = ip.target_ty.ty {
+                    if let TypeInner::Sum(ref a, _) = ip.target_ty.ty {
                         let aw = a.bit_width;
                         self.skip(ip.target_ty.bit_width - aw - 1);
                         call_stack.push(CallStack::Goto(ip.index - t));
@@ -319,7 +319,7 @@ impl BitMachine {
                 }
                 Term::InjR(t) => {
                     self.write_bit(true);
-                    if let FinalTypeInner::Sum(_, ref b) = ip.target_ty.ty {
+                    if let TypeInner::Sum(_, ref b) = ip.target_ty.ty {
                         let bw = b.bit_width;
                         self.skip(ip.target_ty.bit_width - bw - 1);
                         call_stack.push(CallStack::Goto(ip.index - t));
@@ -369,7 +369,7 @@ impl BitMachine {
                 }
                 Term::Take(t) => call_stack.push(CallStack::Goto(ip.index - t)),
                 Term::Drop(t) => {
-                    if let FinalTypeInner::Product(ref a, _) = ip.source_ty.ty {
+                    if let TypeInner::Product(ref a, _) = ip.source_ty.ty {
                         let aw = a.bit_width;
                         self.fwd(aw);
                         call_stack.push(CallStack::Back(aw));
@@ -382,8 +382,8 @@ impl BitMachine {
                     let sw = self.read[self.read.len() - 1].peek_bit(&self.data);
                     let aw;
                     let bw;
-                    if let FinalTypeInner::Product(ref a, _) = ip.source_ty.ty {
-                        if let FinalTypeInner::Sum(ref a, ref b) = a.ty {
+                    if let TypeInner::Product(ref a, _) = ip.source_ty.ty {
+                        if let TypeInner::Sum(ref a, ref b) = a.ty {
                             aw = a.bit_width;
                             bw = b.bit_width;
                         } else {

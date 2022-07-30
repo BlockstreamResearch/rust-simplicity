@@ -2,67 +2,63 @@ use crate::merkle::common::{MerkleRoot, TypeMerkleRoot};
 use crate::merkle::tmr::Tmr;
 use std::{cell::RefCell, cmp, fmt, rc::Rc, sync::Arc};
 
-#[derive(Clone, Debug)]
-pub(crate) enum Type {
-    Unit,
-    Sum(RcVar, RcVar),
-    Product(RcVar, RcVar),
-}
-
-impl Type {
-    pub(crate) fn into_rcvar(self) -> RcVar {
-        Rc::new(RefCell::new(UnificationVar::concrete(self)))
-    }
-}
-
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub enum FinalTypeInner {
-    Unit,
-    Sum(Arc<FinalType>, Arc<FinalType>),
-    Product(Arc<FinalType>, Arc<FinalType>),
-}
-
+/// Finalized Simplicity type.
+///
+/// _Unit_ is the base type and is for _unit_ values.
+///
+/// The _sum_ of types A and B is for values
+/// that are the _left sum_ of a value of type A or the _right sum_ of a value of type B.
+///
+/// The _product_ of types A and B is for values
+/// that are the _product_ of a value of type A and a value of type B.
+///
+/// _(see [`crate::core::Value`])_
 #[derive(Clone, PartialOrd, Ord, Debug)]
-pub struct FinalType {
-    pub ty: FinalTypeInner,
+pub struct Type {
+    /// Underlying type with references to sub-types
+    pub ty: TypeInner,
+    /// Bit width of the type
     pub bit_width: usize,
-    /// The annotated type merkle root of the type
+    /// Annotated Type Merkle root of the type
     pub tmr: Tmr,
-    /// cached display result in order to avoid repeat computation
+    /// Cached display result in order to avoid repeat computation
     pub display: String,
 }
 
-impl FinalType {
-    pub fn unit() -> Self {
-        let ty = FinalTypeInner::Unit;
+impl Type {
+    /// Return a unit type.
+    pub fn unit() -> Arc<Self> {
+        let ty = TypeInner::Unit;
 
-        Self {
+        Arc::new(Self {
             tmr: Tmr::get_iv(&ty),
             ty,
             bit_width: 0,
             display: "1".to_owned(),
-        }
+        })
     }
 
-    pub fn sum(a: Arc<Self>, b: Arc<Self>) -> Self {
-        let ty = FinalTypeInner::Sum(a.clone(), b.clone());
+    /// Return the sum of the given two types.
+    pub fn sum(a: Arc<Self>, b: Arc<Self>) -> Arc<Self> {
+        let ty = TypeInner::Sum(a.clone(), b.clone());
 
-        Self {
+        Arc::new(Self {
             tmr: Tmr::get_iv(&ty).update(a.tmr, b.tmr),
             ty,
             bit_width: 1 + cmp::max(a.bit_width, b.bit_width),
-            display: if a.ty == FinalTypeInner::Unit && b.ty == FinalTypeInner::Unit {
+            display: if a.ty == TypeInner::Unit && b.ty == TypeInner::Unit {
                 "2".to_owned()
             } else {
                 format!("({} + {})", a.display, b.display)
             },
-        }
+        })
     }
 
-    pub fn prod(a: Arc<Self>, b: Arc<Self>) -> Self {
-        let ty = FinalTypeInner::Product(a.clone(), b.clone());
+    /// Return the product of the given two types.
+    pub fn product(a: Arc<Self>, b: Arc<Self>) -> Arc<Self> {
+        let ty = TypeInner::Product(a.clone(), b.clone());
 
-        Self {
+        Arc::new(Self {
             tmr: Tmr::get_iv(&ty).update(a.tmr, b.tmr),
             ty,
             bit_width: a.bit_width + b.bit_width,
@@ -81,81 +77,131 @@ impl FinalType {
             } else {
                 format!("({} × {})", a.display, b.display)
             },
-        }
+        })
     }
 }
 
-impl fmt::Display for FinalType {
+impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.display)
+        f.write_str(&self.display)
     }
 }
 
-impl PartialEq for FinalType {
+impl PartialEq for Type {
     fn eq(&self, other: &Self) -> bool {
         self.tmr.eq(&other.tmr)
     }
 }
 
-impl Eq for FinalType {}
+impl Eq for Type {}
 
-impl std::hash::Hash for FinalType {
+impl std::hash::Hash for Type {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.tmr.hash(state)
     }
 }
 
+/// Finalized Simplicity type without metadata (see [`Type`])
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum TypeInner {
+    /// Unit type
+    Unit,
+    /// Sum of two types
+    Sum(Arc<Type>, Arc<Type>),
+    /// Product of two types
+    Product(Arc<Type>, Arc<Type>),
+}
+
+/// Variable Simplicity type.
+///
+/// In contrast to [`Type`],
+/// a [`VariableType`] contains variables that can be internally mutated.
+#[derive(Clone, Debug)]
+pub(crate) enum VariableType {
+    /// Unit type
+    Unit,
+    /// Sum of two types
+    Sum(RcVar, RcVar),
+    /// Product of two types
+    Product(RcVar, RcVar),
+}
+
+/// Variable that can be cheaply cloned and internally mutated
+pub(crate) type RcVar = Rc<RefCell<Variable>>;
+
+/// Unification variable
 #[derive(Clone)]
-pub(crate) enum Variable {
-    /// Free variable
-    Free,
-    /// Bound to some type (which may itself contain other free variables,
-    /// or not). Contains a boolean which is only used by the finalization
-    /// function, for the occurs-check
-    Bound(Type, bool),
-    /// Equal to another variable (the included `RcVar` is the "parent"
-    /// pointer in union-find terms)
-    EqualTo(RcVar),
-    /// Complete type has been set in place
-    Finalized(Arc<FinalType>),
+pub(crate) struct Variable {
+    /// Underlying variable
+    pub inner: VariableInner,
+    /// Rank for union-first algorithm
+    pub rank: usize,
+}
+
+impl Variable {
+    /// Return a free variable.
+    pub fn free() -> RcVar {
+        Rc::new(RefCell::new(Self {
+            inner: VariableInner::Free,
+            rank: 0,
+        }))
+    }
+
+    /// Return a variable that is bound to the given type.
+    pub fn bound(ty: VariableType) -> RcVar {
+        Rc::new(RefCell::new(Self {
+            inner: VariableInner::Bound(ty, false),
+            rank: 0,
+        }))
+    }
+
+    /// Return an array `pow2s` of types such that `pow2s[i] = 2^i` holds for 0 ≤ `i` < 9.
+    pub fn powers_of_two() -> [RcVar; 9] {
+        let two_0 = Variable::bound(VariableType::Unit);
+        let two_1 = Variable::bound(VariableType::Sum(two_0.clone(), two_0));
+        let two_2 = Variable::bound(VariableType::Product(two_1.clone(), two_1.clone()));
+        let two_4 = Variable::bound(VariableType::Product(two_2.clone(), two_2.clone()));
+        let two_8 = Variable::bound(VariableType::Product(two_4.clone(), two_4.clone()));
+        let two_16 = Variable::bound(VariableType::Product(two_8.clone(), two_8.clone()));
+        let two_32 = Variable::bound(VariableType::Product(two_16.clone(), two_16.clone()));
+        let two_64 = Variable::bound(VariableType::Product(two_32.clone(), two_32.clone()));
+        let two_128 = Variable::bound(VariableType::Product(two_64.clone(), two_64.clone()));
+        let two_256 = Variable::bound(VariableType::Product(two_128.clone(), two_128.clone()));
+
+        [
+            two_1, two_2, two_4, two_8, two_16, two_32, two_64, two_128, two_256,
+        ]
+    }
 }
 
 impl fmt::Debug for Variable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Variable::Free => f.write_str("?"),
-            Variable::Bound(ref ty, b) => write!(f, "[{:?}/{}]", ty, b),
-            Variable::EqualTo(ref other) => write!(f, "={:?}", other),
-            Variable::Finalized(..) => unimplemented!(),
-        }
+        write!(f, "[{}]{:?}", self.rank, self.inner)
     }
 }
 
-pub(crate) struct UnificationVar {
-    pub var: Variable,
-    pub rank: usize,
+/// Unification variable without metadata (see [`Variable`])
+#[derive(Clone)]
+pub(crate) enum VariableInner {
+    /// Free variable
+    Free,
+    /// Variable bound to some variable type.
+    /// Contains a Boolean to check if this variable already occurred _(occurs check)_
+    Bound(VariableType, bool),
+    /// Variable equal to another variable.
+    /// In the union-find algorithm, this is the _parent_
+    EqualTo(RcVar),
+    /// Variable bound to some finalized type
+    Finalized(Arc<Type>),
 }
 
-impl fmt::Debug for UnificationVar {
+impl fmt::Debug for VariableInner {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[{}]{:?}", self.rank, self.var)
-    }
-}
-
-pub(crate) type RcVar = Rc<RefCell<UnificationVar>>;
-
-impl UnificationVar {
-    pub fn free() -> UnificationVar {
-        UnificationVar {
-            var: Variable::Free,
-            rank: 0,
-        }
-    }
-
-    pub fn concrete(ty: Type) -> UnificationVar {
-        UnificationVar {
-            var: Variable::Bound(ty, false),
-            rank: 0,
+        match self {
+            VariableInner::Free => f.write_str("?"),
+            VariableInner::Bound(ty, b) => write!(f, "[{:?}/{}]", ty, b),
+            VariableInner::EqualTo(parent) => write!(f, "={:?}", parent),
+            VariableInner::Finalized(ty) => fmt::Debug::fmt(ty, f),
         }
     }
 }
