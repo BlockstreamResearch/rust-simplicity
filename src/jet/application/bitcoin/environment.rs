@@ -14,7 +14,7 @@
 
 /// Environment for Bitcoin Simplicity
 pub struct BitcoinEnv {
-    pub(super) tx: bitcoin::Transaction,
+    pub tx: bitcoin::Transaction,
 }
 
 impl BitcoinEnv {

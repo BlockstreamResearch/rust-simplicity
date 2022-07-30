@@ -162,9 +162,7 @@ impl Application for Core {
                 mac.write_bytes(&h.into_inner());
             }
             CoreJetName::Bip0340Verify => {
-                let _pubkey = mac.read_32bytes();
-                let _sig = mac.read_bytes(64);
-                // TODO: Check the signature here later
+                unimplemented!("BIP 340 Schnorr signature verification");
             }
         }
 

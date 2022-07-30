@@ -28,6 +28,7 @@ pub enum BitcoinJetName {
     OutputValue,
     OutputScriptHash,
     ScriptCMR,
+    SighashAll,
     // Core macros
     Add32,
     FullAdd32,
@@ -115,6 +116,17 @@ pub const CURRENT_INDEX: JetNode<Bitcoin> = JetNode {
     ])),
     source_ty: TypeName(b"1"),
     target_ty: TypeName(b"i"),
+};
+
+pub const SIGHASH_ALL: JetNode<Bitcoin> = JetNode {
+    name: BitcoinJetName::SighashAll,
+    cmr: Cmr(Midstate([
+        0x93, 0xfc, 0x7f, 0x9a, 0x3c, 0x97, 0xdf, 0x07, 0x3c, 0xc4, 0x95, 0x7f, 0x97, 0x80, 0xdf,
+        0x88, 0x65, 0x99, 0x63, 0xad, 0x4e, 0x4d, 0x37, 0xd1, 0x8b, 0x1a, 0xa5, 0x4a, 0x45, 0x57,
+        0x4a, 0x66,
+    ])),
+    source_ty: TypeName(b"1"),
+    target_ty: TypeName(b"h"),
 };
 
 // Core macros
@@ -224,7 +236,7 @@ pub const SHA256: JetNode<Bitcoin> = JetNode {
         0x08, 0xb5, 0x5d, 0x23, 0xaa, 0xa3, 0x92, 0xf4, 0xf3, 0xa7, 0xd0, 0x8c, 0x6c, 0xad, 0xb2,
         0xf8, 0xac,
     ])),
-    source_ty: TypeName(b"*hh"),
+    source_ty: TypeName(b"h"),
     target_ty: TypeName(b"h"),
 };
 
@@ -246,6 +258,6 @@ pub const BIP_0340_VERIFY: JetNode<Bitcoin> = JetNode {
         0x4a, 0x0f, 0xfe, 0xdd, 0xc2, 0x86, 0x46, 0xa9, 0x21, 0x4e, 0xea, 0xc8, 0xf9, 0x34, 0x1f,
         0x56, 0x4e,
     ])),
-    source_ty: TypeName(b"*h*hh"),
+    source_ty: TypeName(b"**hh*hh"),
     target_ty: TypeName(b"1"),
 };
