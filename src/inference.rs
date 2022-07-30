@@ -1,4 +1,4 @@
-use crate::core::types::{RcVar, Type, Variable, VariableInner, VariableType};
+use crate::core::types::{RcVar, Type, Variable, VariableFactory, VariableInner, VariableType};
 use crate::core::{Term, TypedNode, TypedProgram, UntypedProgram};
 use crate::jet::Application;
 use crate::merkle::cmr;
@@ -53,7 +53,7 @@ fn unify(mut alpha: RcVar, mut beta: RcVar) -> Result<(), Error> {
         mem::replace(&mut be_borr.inner, VariableInner::EqualTo(alpha.clone()))
     };
     match be_var {
-        VariableInner::Free => {} // nothing to do
+        VariableInner::Free(_) => {} // nothing to do
         VariableInner::Bound(be_type, _) => bind(&alpha, be_type)?,
         VariableInner::EqualTo(..) => unreachable!(),
         VariableInner::Finalized(..) => unreachable!(),
@@ -67,7 +67,7 @@ fn bind(rcvar: &RcVar, ty: VariableType) -> Result<(), Error> {
     // hold `Rc`s
     let self_var = rcvar.borrow().inner.clone();
     match self_var {
-        VariableInner::Free => {
+        VariableInner::Free(_) => {
             rcvar.borrow_mut().inner = VariableInner::Bound(ty, false);
             Ok(())
         }
@@ -109,7 +109,7 @@ fn finalize(var: RcVar) -> Result<Arc<Type>, Error> {
     let mut var_borr = var.borrow_mut();
 
     let existing_type = match var_borr.inner {
-        VariableInner::Free => VariableType::Unit,
+        VariableInner::Free(_) => VariableType::Unit,
         VariableInner::Bound(ref ty, ref mut occurs_check) => {
             if *occurs_check {
                 return Err(Error::OccursCheck);
@@ -137,7 +137,7 @@ fn finalize(var: RcVar) -> Result<Arc<Type>, Error> {
 
     let sub1_borr = sub1.borrow_mut();
     let final1 = match sub1_borr.inner {
-        VariableInner::Free => {
+        VariableInner::Free(_) => {
             drop(sub1_borr);
             Type::unit()
         }
@@ -155,7 +155,7 @@ fn finalize(var: RcVar) -> Result<Arc<Type>, Error> {
     // drop(sub1_borr);
     let sub2_borr = sub2.borrow_mut();
     let final2 = match sub2_borr.inner {
-        VariableInner::Free => {
+        VariableInner::Free(_) => {
             drop(sub2_borr);
             Type::unit()
         }
@@ -199,12 +199,13 @@ pub(crate) fn type_check<Witness, App: Application>(
     let mut rcs = Vec::<Rc<UnificationArrow>>::with_capacity(vec_nodes.len());
     let mut finals = Vec::<TypedNode<Witness, App>>::with_capacity(vec_nodes.len());
     let pow2s = Variable::powers_of_two();
+    let mut naming = VariableFactory::new();
 
     // Compute most general unifier for all types in the DAG
     for (idx, program_node) in vec_nodes.iter().enumerate() {
         let node = UnificationArrow {
-            source: Variable::free(),
-            target: Variable::free(),
+            source: naming.free_variable(),
+            target: naming.free_variable(),
         };
 
         match program_node {
@@ -213,25 +214,27 @@ pub(crate) fn type_check<Witness, App: Application>(
             Term::InjL(i) => {
                 let i = idx - i;
                 unify(node.source.clone(), rcs[i].source.clone())?;
-                let target_type = VariableType::Sum(rcs[i].target.clone(), Variable::free());
+                let target_type = VariableType::Sum(rcs[i].target.clone(), naming.free_variable());
                 bind(&node.target, target_type)?;
             }
             Term::InjR(i) => {
                 let i = idx - i;
                 unify(node.source.clone(), rcs[i].source.clone())?;
-                let target_type = VariableType::Sum(Variable::free(), rcs[i].target.clone());
+                let target_type = VariableType::Sum(naming.free_variable(), rcs[i].target.clone());
                 bind(&node.target, target_type)?;
             }
             Term::Take(i) => {
                 let i = idx - i;
                 unify(node.target.clone(), rcs[i].target.clone())?;
-                let target_type = VariableType::Product(rcs[i].source.clone(), Variable::free());
+                let target_type =
+                    VariableType::Product(rcs[i].source.clone(), naming.free_variable());
                 bind(&node.source, target_type)?;
             }
             Term::Drop(i) => {
                 let i = idx - i;
                 unify(node.target.clone(), rcs[i].target.clone())?;
-                let target_type = VariableType::Product(Variable::free(), rcs[i].source.clone());
+                let target_type =
+                    VariableType::Product(naming.free_variable(), rcs[i].source.clone());
                 bind(&node.source, target_type)?;
             }
             Term::Comp(i, j) => {
@@ -242,12 +245,12 @@ pub(crate) fn type_check<Witness, App: Application>(
             }
             Term::Case(i, j) | Term::AssertL(i, j) | Term::AssertR(i, j) => {
                 let (i, j) = (idx - i, idx - j);
-                let var1 = Variable::free();
-                let var2 = Variable::free();
-                let var3 = Variable::free();
+                let var1 = naming.free_variable();
+                let var2 = naming.free_variable();
+                let var3 = naming.free_variable();
 
                 let sum12_ty = VariableType::Sum(var1.clone(), var2.clone());
-                let sum12_var = Variable::free();
+                let sum12_var = naming.free_variable();
                 bind(&sum12_var, sum12_ty)?;
 
                 let source_ty = VariableType::Product(sum12_var, var3.clone());
@@ -282,10 +285,10 @@ pub(crate) fn type_check<Witness, App: Application>(
                 let (i, j) = (idx - i, idx - j);
                 // See chapter 6 (Delegation) of TR
                 // Be careful, this order changed! https://github.com/ElementsProject/simplicity/pull/46
-                let var_a = Variable::free();
-                let var_b = Variable::free();
-                let var_c = Variable::free();
-                let var_d = Variable::free();
+                let var_a = naming.free_variable();
+                let var_b = naming.free_variable();
+                let var_c = naming.free_variable();
+                let var_d = naming.free_variable();
 
                 let s_source =
                     Variable::bound(VariableType::Product(pow2s[8].clone(), var_a.clone()));

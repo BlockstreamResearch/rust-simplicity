@@ -1,5 +1,7 @@
 use crate::merkle::common::{MerkleRoot, TypeMerkleRoot};
 use crate::merkle::tmr::Tmr;
+use std::collections::VecDeque;
+use std::iter::FromIterator;
 use std::{cell::RefCell, cmp, fmt, rc::Rc, sync::Arc};
 
 /// Finalized Simplicity type.
@@ -140,9 +142,9 @@ pub(crate) struct Variable {
 
 impl Variable {
     /// Return a free variable.
-    pub fn free() -> RcVar {
+    pub fn free(id: String) -> RcVar {
         Rc::new(RefCell::new(Self {
-            inner: VariableInner::Free,
+            inner: VariableInner::Free(id),
             rank: 0,
         }))
     }
@@ -183,8 +185,8 @@ impl fmt::Debug for Variable {
 /// Unification variable without metadata (see [`Variable`])
 #[derive(Clone)]
 pub(crate) enum VariableInner {
-    /// Free variable
-    Free,
+    /// Free variable with some identifier
+    Free(String),
     /// Variable bound to some variable type.
     /// Contains a Boolean to check if this variable already occurred _(occurs check)_
     Bound(VariableType, bool),
@@ -198,10 +200,40 @@ pub(crate) enum VariableInner {
 impl fmt::Debug for VariableInner {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            VariableInner::Free => f.write_str("?"),
+            VariableInner::Free(id) => fmt::Debug::fmt(id, f),
             VariableInner::Bound(ty, b) => write!(f, "[{:?}/{}]", ty, b),
             VariableInner::EqualTo(parent) => write!(f, "={:?}", parent),
             VariableInner::Finalized(ty) => fmt::Debug::fmt(ty, f),
         }
+    }
+}
+
+/// Factory for creating free variables with fresh names.
+/// Identifiers are assigned sequentially as follows:
+/// `A`, `B`, `C`, ... `Z`, `AA`, `AB`, `AC`, ...
+pub(crate) struct VariableFactory {
+    next_id: usize,
+}
+
+impl VariableFactory {
+    /// Create a new factory.
+    pub fn new() -> Self {
+        Self { next_id: 1 }
+    }
+
+    /// Return a free variable with a fresh name.
+    pub fn free_variable(&mut self) -> RcVar {
+        let mut n = self.next_id;
+        self.next_id += 1;
+        let mut ascii_bytes = VecDeque::new();
+
+        while n / 26 > 0 {
+            ascii_bytes.push_front((n % 26) as u8 + 65);
+            n /= 26;
+        }
+
+        ascii_bytes.push_front((n % 26) as u8 + 64);
+        let id = String::from_utf8(Vec::from_iter(ascii_bytes.into_iter())).unwrap();
+        Variable::free(id)
     }
 }
