@@ -16,6 +16,9 @@
 //!
 //! Source and target types of jet nodes need to be specified manually.
 
+use crate::core::types::RcVar;
+use crate::core::types::Type;
+
 /// Byte-based specification of a Simplicity type.
 ///
 /// Because jets are black boxes, the type inference engine has no access to their
@@ -35,3 +38,48 @@
 ///
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct TypeName(pub(crate) &'static [u8]);
+
+impl TypeName {
+    // b'1' = 49
+    // b'2' = 50
+    // b'i' = 105
+    // b'l' = 108
+    // b'h' = 104
+    // b'+' = 43
+    // b'*' = 42
+    /// Convert the [`TypeName`] into a [`Type`]
+    pub(crate) fn to_type(&self, pow2s: &[RcVar]) -> Type {
+        let it = self.0.iter().rev();
+        let mut stack = Vec::new();
+
+        for c in it {
+            match c {
+                b'1' => stack.push(Type::Unit),
+                b'2' => {
+                    let unit = Type::Unit.into_rcvar();
+                    stack.push(Type::Sum(unit.clone(), unit))
+                }
+                b'i' => stack.push(Type::Product(pow2s[4].clone(), pow2s[4].clone())),
+                b'l' => stack.push(Type::Product(pow2s[5].clone(), pow2s[5].clone())),
+                b'h' => stack.push(Type::Product(pow2s[7].clone(), pow2s[7].clone())),
+                b'+' | b'*' => {
+                    let left = stack.pop().expect("Illegal type name syntax!").into_rcvar();
+                    let right = stack.pop().expect("Illegal type name syntax!").into_rcvar();
+
+                    match c {
+                        b'+' => stack.push(Type::Sum(left, right)),
+                        b'*' => stack.push(Type::Product(left, right)),
+                        _ => unreachable!(),
+                    }
+                }
+                _ => panic!("Illegal type name syntax!"),
+            }
+        }
+
+        if stack.len() == 1 {
+            stack.pop().unwrap()
+        } else {
+            panic!("Illegal type name syntax!")
+        }
+    }
+}

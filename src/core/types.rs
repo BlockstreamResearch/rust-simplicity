@@ -4,7 +4,6 @@
 use std::{cell::RefCell, cmp, fmt, mem, rc::Rc, sync::Arc};
 
 use crate::core::{Term, TypedNode, TypedProgram};
-use crate::jet::type_name::TypeName;
 use crate::jet::Application;
 use crate::merkle::cmr;
 use crate::merkle::common::{MerkleRoot, TypeMerkleRoot};
@@ -14,14 +13,14 @@ use crate::Error;
 use super::term::UntypedProgram;
 
 #[derive(Clone, Debug)]
-enum Type {
+pub(crate) enum Type {
     Unit,
     Sum(RcVar, RcVar),
     Product(RcVar, RcVar),
 }
 
 impl Type {
-    fn into_rcvar(self) -> RcVar {
+    pub(crate) fn into_rcvar(self) -> RcVar {
         Rc::new(RefCell::new(UnificationVar::concrete(self)))
     }
 }
@@ -218,7 +217,7 @@ impl FinalType {
 }
 
 #[derive(Clone)]
-enum Variable {
+pub(crate) enum Variable {
     /// Free variable
     Free,
     /// Bound to some type (which may itself contain other free variables,
@@ -243,7 +242,7 @@ impl fmt::Debug for Variable {
     }
 }
 
-struct UnificationVar {
+pub(crate) struct UnificationVar {
     var: Variable,
     rank: usize,
 }
@@ -254,7 +253,7 @@ impl fmt::Debug for UnificationVar {
     }
 }
 
-type RcVar = Rc<RefCell<UnificationVar>>;
+pub(crate) type RcVar = Rc<RefCell<UnificationVar>>;
 
 impl UnificationVar {
     fn free() -> UnificationVar {
@@ -373,49 +372,6 @@ fn unify(mut alpha: RcVar, mut beta: RcVar) -> Result<(), Error> {
 struct UnificationArrow {
     source: Rc<RefCell<UnificationVar>>,
     target: Rc<RefCell<UnificationVar>>,
-}
-
-// b'1' = 49
-// b'2' = 50
-// b'i' = 105
-// b'l' = 108
-// b'h' = 104
-// b'+' = 43
-// b'*' = 42
-/// Convert a [`TypeName`] into a [`Type`]
-fn type_from_name(name: &TypeName, pow2s: &[RcVar]) -> Type {
-    let it = name.0.iter().rev();
-    let mut stack = Vec::new();
-
-    for c in it {
-        match c {
-            b'1' => stack.push(Type::Unit),
-            b'2' => {
-                let unit = Type::Unit.into_rcvar();
-                stack.push(Type::Sum(unit.clone(), unit))
-            }
-            b'i' => stack.push(Type::Product(pow2s[4].clone(), pow2s[4].clone())),
-            b'l' => stack.push(Type::Product(pow2s[5].clone(), pow2s[5].clone())),
-            b'h' => stack.push(Type::Product(pow2s[7].clone(), pow2s[7].clone())),
-            b'+' | b'*' => {
-                let left = stack.pop().expect("Illegal type name syntax!").into_rcvar();
-                let right = stack.pop().expect("Illegal type name syntax!").into_rcvar();
-
-                match c {
-                    b'+' => stack.push(Type::Sum(left, right)),
-                    b'*' => stack.push(Type::Product(left, right)),
-                    _ => unreachable!(),
-                }
-            }
-            _ => panic!("Illegal type name syntax!"),
-        }
-    }
-
-    if stack.len() == 1 {
-        stack.pop().unwrap()
-    } else {
-        panic!("Illegal type name syntax!")
-    }
 }
 
 /// Attach types to all nodes in a program
@@ -557,9 +513,9 @@ pub(crate) fn type_check<Witness, App: Application>(
                 unify(rcs[j].target.clone(), var_d)?;
             }
             Term::Jet(jet) => {
-                bind(&node.source, type_from_name(&jet.source_ty, &pow2s[..]))?;
+                bind(&node.source, jet.source_ty.to_type(&pow2s[..]))?;
 
-                bind(&node.target, type_from_name(&jet.target_ty, &pow2s[..]))?;
+                bind(&node.target, jet.target_ty.to_type(&pow2s[..]))?;
             }
             Term::Witness(..) | Term::Hidden(..) | Term::Fail(..) => {
                 // No type constraints
