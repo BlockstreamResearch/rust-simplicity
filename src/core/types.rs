@@ -1,79 +1,67 @@
-//FIXME: Remove this later
-#![allow(dead_code)]
-
-use std::{cell::RefCell, cmp, fmt, mem, rc::Rc, sync::Arc};
-
-use crate::core::{Term, TypedNode, TypedProgram};
-use crate::jet::type_name::TypeName;
-use crate::jet::Application;
-use crate::merkle::cmr;
 use crate::merkle::common::{MerkleRoot, TypeMerkleRoot};
 use crate::merkle::tmr::Tmr;
-use crate::Error;
+use crate::util::replace_to_buffer;
+use std::collections::VecDeque;
+use std::iter::FromIterator;
+use std::{cell::RefCell, cmp, fmt, rc::Rc, sync::Arc};
 
-use super::term::UntypedProgram;
-
-#[derive(Clone, Debug)]
-enum Type {
-    Unit,
-    Sum(RcVar, RcVar),
-    Product(RcVar, RcVar),
-}
-
-impl Type {
-    fn into_rcvar(self) -> RcVar {
-        Rc::new(RefCell::new(UnificationVar::concrete(self)))
-    }
-}
-
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub enum FinalTypeInner {
-    Unit,
-    Sum(Arc<FinalType>, Arc<FinalType>),
-    Product(Arc<FinalType>, Arc<FinalType>),
-}
-
+/// Finalized Simplicity type.
+///
+/// _Unit_ is the base type and is for _unit_ values.
+///
+/// The _sum_ of types A and B is for values
+/// that are the _left sum_ of a value of type A or the _right sum_ of a value of type B.
+///
+/// The _product_ of types A and B is for values
+/// that are the _product_ of a value of type A and a value of type B.
+///
+/// _(see [`crate::core::Value`])_
 #[derive(Clone, PartialOrd, Ord, Debug)]
-pub struct FinalType {
-    pub ty: FinalTypeInner,
+pub struct Type {
+    /// Underlying type with references to sub-types
+    pub ty: TypeInner,
+    /// Bit width of the type
     pub bit_width: usize,
-    /// The annotated type merkle root of the type
+    /// Annotated Type Merkle root of the type
     pub tmr: Tmr,
-    /// cached display result in order to avoid repeat computation
+    /// Cached display result in order to avoid repeat computation
     pub display: String,
 }
 
-impl FinalType {
-    fn unit() -> Self {
-        let ty = FinalTypeInner::Unit;
+impl Type {
+    /// Return a unit type.
+    pub fn unit() -> Arc<Self> {
+        let ty = TypeInner::Unit;
 
-        Self {
+        Arc::new(Self {
             tmr: Tmr::get_iv(&ty),
             ty,
             bit_width: 0,
             display: "1".to_owned(),
-        }
+        })
     }
 
-    fn sum(a: Arc<Self>, b: Arc<Self>) -> Self {
-        let ty = FinalTypeInner::Sum(a.clone(), b.clone());
+    /// Return the sum of the given two types.
+    pub fn sum(a: Arc<Self>, b: Arc<Self>) -> Arc<Self> {
+        let ty = TypeInner::Sum(a.clone(), b.clone());
 
-        Self {
+        Arc::new(Self {
             tmr: Tmr::get_iv(&ty).update(a.tmr, b.tmr),
             ty,
             bit_width: 1 + cmp::max(a.bit_width, b.bit_width),
-            display: if a.ty == FinalTypeInner::Unit && b.ty == FinalTypeInner::Unit {
+            display: if a.ty == TypeInner::Unit && b.ty == TypeInner::Unit {
                 "2".to_owned()
             } else {
                 format!("({} + {})", a.display, b.display)
             },
-        }
+        })
     }
 
-    fn prod(a: Arc<Self>, b: Arc<Self>) -> Self {
-        let ty = FinalTypeInner::Product(a.clone(), b.clone());
+    /// Return the product of the given two types.
+    pub fn product(a: Arc<Self>, b: Arc<Self>) -> Arc<Self> {
+        let ty = TypeInner::Product(a.clone(), b.clone());
 
-        Self {
+        Arc::new(Self {
             tmr: Tmr::get_iv(&ty).update(a.tmr, b.tmr),
             ty,
             bit_width: a.bit_width + b.bit_width,
@@ -92,494 +80,243 @@ impl FinalType {
             } else {
                 format!("({} × {})", a.display, b.display)
             },
-        }
+        })
     }
 }
 
-pub(crate) fn pow2_types() -> [Arc<FinalType>; 11] {
-    let word0 = Arc::new(FinalType::unit());
-    let word1 = Arc::new(FinalType::sum(Arc::clone(&word0), Arc::clone(&word0)));
-    let word2 = Arc::new(FinalType::prod(Arc::clone(&word1), Arc::clone(&word1)));
-    let word4 = Arc::new(FinalType::prod(Arc::clone(&word2), Arc::clone(&word2)));
-    let word8 = Arc::new(FinalType::prod(Arc::clone(&word4), Arc::clone(&word4)));
-    let word16 = Arc::new(FinalType::prod(Arc::clone(&word8), Arc::clone(&word8)));
-    let word32 = Arc::new(FinalType::prod(Arc::clone(&word16), Arc::clone(&word16)));
-    let word64 = Arc::new(FinalType::prod(Arc::clone(&word32), Arc::clone(&word32)));
-    let word128 = Arc::new(FinalType::prod(Arc::clone(&word64), Arc::clone(&word64)));
-    let word256 = Arc::new(FinalType::prod(Arc::clone(&word128), Arc::clone(&word128)));
-    let word512 = Arc::new(FinalType::prod(Arc::clone(&word256), Arc::clone(&word256)));
-
-    [
-        word0, word1, word2, word4, word8, word16, word32, word64, word128, word256, word512,
-    ]
-}
-
-impl fmt::Display for FinalType {
+impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.display)
+        f.write_str(&self.display)
     }
 }
 
-impl PartialEq for FinalType {
+impl PartialEq for Type {
     fn eq(&self, other: &Self) -> bool {
         self.tmr.eq(&other.tmr)
     }
 }
 
-impl Eq for FinalType {}
+impl Eq for Type {}
 
-impl std::hash::Hash for FinalType {
+impl std::hash::Hash for Type {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.tmr.hash(state)
     }
 }
 
-impl FinalType {
-    pub fn bit_width(&self) -> usize {
-        self.bit_width
-    }
+/// Finalized Simplicity type without metadata (see [`Type`])
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum TypeInner {
+    /// Unit type
+    Unit,
+    /// Sum of two types
+    Sum(Arc<Type>, Arc<Type>),
+    /// Product of two types
+    Product(Arc<Type>, Arc<Type>),
+}
 
-    fn from_var(var: RcVar) -> Result<Arc<FinalType>, Error> {
-        let var = find_root(var);
-        let mut var_borr = var.borrow_mut();
+/// Variable Simplicity type.
+///
+/// In contrast to [`Type`],
+/// a [`VariableType`] contains variables that can be internally mutated.
+#[derive(Clone, Debug)]
+pub(crate) enum VariableType {
+    /// Unit type
+    Unit,
+    /// Sum of two types
+    Sum(RcVar, RcVar),
+    /// Product of two types
+    Product(RcVar, RcVar),
+}
 
-        let existing_type = match var_borr.var {
-            Variable::Free => Type::Unit,
-            Variable::Bound(ref ty, ref mut occurs_check) => {
-                if *occurs_check {
-                    return Err(Error::OccursCheck);
-                }
-                *occurs_check = true;
-                ty.clone()
+impl VariableType {
+    fn uncompressed_display<W: fmt::Write>(&self, w: &mut W) -> fmt::Result {
+        match self {
+            VariableType::Unit => w.write_str("1"),
+            VariableType::Sum(a, b) => {
+                w.write_str("(")?;
+                a.borrow().inner.uncompressed_display(w)?;
+                w.write_str(" + ")?;
+                b.borrow().inner.uncompressed_display(w)?;
+                w.write_str(")")
             }
-            Variable::EqualTo(..) => unreachable!(),
-            Variable::Finalized(ref done) => return Ok(done.clone()),
-        };
-
-        let (sub1, sub2) = match existing_type {
-            Type::Unit => {
-                let ret = Arc::new(FinalType::unit());
-                var_borr.var = Variable::Finalized(ret.clone());
-                return Ok(ret);
+            VariableType::Product(a, b) => {
+                w.write_str("(")?;
+                a.borrow().inner.uncompressed_display(w)?;
+                w.write_str(" × ")?;
+                b.borrow().inner.uncompressed_display(w)?;
+                w.write_str(")")
             }
-            Type::Sum(ref sub1, ref sub2) => (sub1.clone(), sub2.clone()),
-            Type::Product(ref sub1, ref sub2) => (sub1.clone(), sub2.clone()),
-        };
-        drop(var_borr);
-
-        let sub1 = find_root(sub1);
-        let sub2 = find_root(sub2);
-
-        let sub1_borr = sub1.borrow_mut();
-        let final1 = match sub1_borr.var {
-            Variable::Free => {
-                drop(sub1_borr);
-                Arc::new(FinalType::unit())
-            }
-            Variable::Bound(..) => {
-                drop(sub1_borr);
-                FinalType::from_var(sub1.clone())?
-            }
-            Variable::EqualTo(..) => unreachable!(),
-            Variable::Finalized(ref f1) => {
-                let ret = f1.clone();
-                drop(sub1_borr);
-                ret
-            }
-        };
-        // drop(sub1_borr);
-        let sub2_borr = sub2.borrow_mut();
-        let final2 = match sub2_borr.var {
-            Variable::Free => {
-                drop(sub2_borr);
-                Arc::new(FinalType::unit())
-            }
-            Variable::Bound(..) => {
-                drop(sub2_borr);
-                FinalType::from_var(sub2.clone())?
-            }
-            Variable::EqualTo(..) => unreachable!(),
-            Variable::Finalized(ref f2) => {
-                let ret = f2.clone();
-                drop(sub2_borr);
-                ret
-            }
-        };
-        // drop(sub2_borr);
-
-        let ret = match existing_type {
-            Type::Unit => unreachable!(),
-            Type::Sum(..) => Arc::new(FinalType::sum(final1, final2)),
-            Type::Product(..) => Arc::new(FinalType::prod(final1, final2)),
-        };
-        var.borrow_mut().var = Variable::Finalized(ret.clone());
-        Ok(ret)
+            // Uncomment to use intermediate compression: more allocation of smaller strings
+            // VariableType::Sum(a, b) => write!(w, "({} + {})", a, b),
+            // VariableType::Product(a, b) => write!(w, "({} × {})", a, b),
+        }
     }
 }
 
+fn into_compressed_display(mut buffer1: String) -> String {
+    let mut buffer2 = String::with_capacity(buffer1.len());
+
+    replace_to_buffer(&buffer1, &mut buffer2, "(1 + 1)", "2");
+    buffer1.clear();
+    replace_to_buffer(&buffer2, &mut buffer1, "(2 × 2)", "2^2");
+    buffer2.clear();
+    replace_to_buffer(&buffer1, &mut buffer2, "(2^2 × 2^2)", "2^4");
+    buffer1.clear();
+    replace_to_buffer(&buffer2, &mut buffer1, "(2^4 × 2^4)", "2^8");
+    buffer2.clear();
+    replace_to_buffer(&buffer1, &mut buffer2, "(2^8 × 2^8)", "2^16");
+    buffer1.clear();
+    replace_to_buffer(&buffer2, &mut buffer1, "(2^16 × 2^16)", "2^32");
+    buffer2.clear();
+    replace_to_buffer(&buffer1, &mut buffer2, "(2^32 × 2^32)", "2^64");
+    buffer1.clear();
+    replace_to_buffer(&buffer2, &mut buffer1, "(2^64 × 2^64)", "2^128");
+    buffer2.clear();
+    replace_to_buffer(&buffer1, &mut buffer2, "(2^128 × 2^128)", "2^256");
+
+    buffer2
+}
+
+impl fmt::Display for VariableType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut buffer1 = String::new();
+        self.uncompressed_display(&mut buffer1)?;
+        let buffer2 = into_compressed_display(buffer1);
+
+        write!(f, "{}", buffer2)
+    }
+}
+
+/// Variable that can be cheaply cloned and internally mutated
+pub(crate) type RcVar = Rc<RefCell<Variable>>;
+
+/// Unification variable
 #[derive(Clone)]
-enum Variable {
-    /// Free variable
-    Free,
-    /// Bound to some type (which may itself contain other free variables,
-    /// or not). Contains a boolean which is only used by the finalization
-    /// function, for the occurs-check
-    Bound(Type, bool),
-    /// Equal to another variable (the included `RcVar` is the "parent"
-    /// pointer in union-find terms)
-    EqualTo(RcVar),
-    /// Complete type has been set in place
-    Finalized(Arc<FinalType>),
+pub(crate) struct Variable {
+    /// Underlying variable
+    pub inner: VariableInner,
+    /// Rank for union-first algorithm
+    pub rank: usize,
+}
+
+impl Variable {
+    /// Return a free variable.
+    pub fn free(id: String) -> RcVar {
+        Rc::new(RefCell::new(Self {
+            inner: VariableInner::Free(id),
+            rank: 0,
+        }))
+    }
+
+    /// Return a variable that is bound to the given type.
+    pub fn bound(ty: VariableType) -> RcVar {
+        Rc::new(RefCell::new(Self {
+            inner: VariableInner::Bound(ty, false),
+            rank: 0,
+        }))
+    }
+
+    /// Return an array `pow2s` of types such that `pow2s[i] = 2^i` holds for 0 ≤ `i` < 9.
+    pub fn powers_of_two() -> [RcVar; 9] {
+        let two_0 = Variable::bound(VariableType::Unit);
+        let two_1 = Variable::bound(VariableType::Sum(two_0.clone(), two_0));
+        let two_2 = Variable::bound(VariableType::Product(two_1.clone(), two_1.clone()));
+        let two_4 = Variable::bound(VariableType::Product(two_2.clone(), two_2.clone()));
+        let two_8 = Variable::bound(VariableType::Product(two_4.clone(), two_4.clone()));
+        let two_16 = Variable::bound(VariableType::Product(two_8.clone(), two_8.clone()));
+        let two_32 = Variable::bound(VariableType::Product(two_16.clone(), two_16.clone()));
+        let two_64 = Variable::bound(VariableType::Product(two_32.clone(), two_32.clone()));
+        let two_128 = Variable::bound(VariableType::Product(two_64.clone(), two_64.clone()));
+        let two_256 = Variable::bound(VariableType::Product(two_128.clone(), two_128.clone()));
+
+        [
+            two_1, two_2, two_4, two_8, two_16, two_32, two_64, two_128, two_256,
+        ]
+    }
 }
 
 impl fmt::Debug for Variable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Variable::Free => f.write_str("?"),
-            Variable::Bound(ref ty, b) => write!(f, "[{:?}/{}]", ty, b),
-            Variable::EqualTo(ref other) => write!(f, "={:?}", other),
-            Variable::Finalized(..) => unimplemented!(),
-        }
+        write!(f, "[{}]{:?}", self.rank, self.inner)
     }
 }
 
-struct UnificationVar {
-    var: Variable,
-    rank: usize,
-}
-
-impl fmt::Debug for UnificationVar {
+impl fmt::Display for Variable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "[{}]{:?}", self.rank, self.var)
+        let mut buffer1 = String::new();
+        self.inner.uncompressed_display(&mut buffer1)?;
+        let buffer2 = into_compressed_display(buffer1);
+
+        write!(f, "{}", buffer2)
     }
 }
 
-type RcVar = Rc<RefCell<UnificationVar>>;
+/// Unification variable without metadata (see [`Variable`])
+#[derive(Clone)]
+pub(crate) enum VariableInner {
+    /// Free variable with some identifier
+    Free(String),
+    /// Variable bound to some variable type.
+    /// Contains a Boolean to check if this variable already occurred _(occurs check)_
+    Bound(VariableType, bool),
+    /// Variable equal to another variable.
+    /// In the union-find algorithm, this is the _parent_
+    EqualTo(RcVar),
+    /// Variable bound to some finalized type
+    Finalized(Arc<Type>),
+}
 
-impl UnificationVar {
-    fn free() -> UnificationVar {
-        UnificationVar {
-            var: Variable::Free,
-            rank: 0,
+impl fmt::Debug for VariableInner {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            VariableInner::Free(id) => fmt::Debug::fmt(id, f),
+            VariableInner::Bound(ty, b) => write!(f, "[{:?}/{}]", ty, b),
+            VariableInner::EqualTo(parent) => write!(f, "={:?}", parent),
+            VariableInner::Finalized(ty) => fmt::Debug::fmt(ty, f),
         }
     }
+}
 
-    fn concrete(ty: Type) -> UnificationVar {
-        UnificationVar {
-            var: Variable::Bound(ty, false),
-            rank: 0,
+impl VariableInner {
+    fn uncompressed_display<W: fmt::Write>(&self, w: &mut W) -> fmt::Result {
+        match self {
+            VariableInner::Free(id) => w.write_str(id),
+            VariableInner::Bound(ty, _) => ty.uncompressed_display(w),
+            // Uncomment to use intermediate compression: more allocation of smaller strings
+            // VariableInner::Bound(ty, _) => write!(w, "{}", ty),
+            VariableInner::EqualTo(parent) => parent.borrow().inner.uncompressed_display(w),
+            VariableInner::Finalized(ty) => write!(w, "{}", ty),
         }
     }
 }
 
-fn bind(rcvar: &RcVar, ty: Type) -> Result<(), Error> {
-    // Cloning a `Variable` is cheap, as the nontrivial variants merely
-    // hold `Rc`s
-    let self_var = rcvar.borrow().var.clone();
-    match self_var {
-        Variable::Free => {
-            rcvar.borrow_mut().var = Variable::Bound(ty, false);
-            Ok(())
+/// Factory for creating free variables with fresh names.
+/// Identifiers are assigned sequentially as follows:
+/// `A`, `B`, `C`, ... `Z`, `AA`, `AB`, `AC`, ...
+pub(crate) struct VariableFactory {
+    next_id: usize,
+}
+
+impl VariableFactory {
+    /// Create a new factory.
+    pub fn new() -> Self {
+        Self { next_id: 1 }
+    }
+
+    /// Return a free variable with a fresh name.
+    pub fn free_variable(&mut self) -> RcVar {
+        let mut n = self.next_id;
+        self.next_id += 1;
+        let mut ascii_bytes = VecDeque::new();
+
+        while n / 26 > 0 {
+            ascii_bytes.push_front((n % 26) as u8 + 65);
+            n /= 26;
         }
-        Variable::EqualTo(..) => unreachable!(
-            "Tried to bind unification variable which was not \
-             the representative of its equivalence class"
-        ),
-        Variable::Finalized(..) => unreachable!(),
-        Variable::Bound(self_ty, _) => match (self_ty, ty) {
-            (Type::Unit, Type::Unit) => Ok(()),
-            (Type::Sum(al1, al2), Type::Sum(be1, be2))
-            | (Type::Product(al1, al2), Type::Product(be1, be2)) => {
-                unify(al1, be1)?;
-                unify(al2, be2)
-            }
-            // FIXME output a sane error
-            _ => {
-                //            (a, b) => {
-                /*
-                let self_s = match a {
-                    Type::Unit => "unit",
-                    Type::Sum(..) => "sum",
-                    Type::Product(..) => "prod",
-                };
-                let b_s = match b {
-                    Type::Unit => "unit",
-                    Type::Sum(..) => "sum",
-                    Type::Product(..) => "prod",
-                };
-                */
-                Err(Error::TypeCheck)
-            }
-        },
+
+        ascii_bytes.push_front((n % 26) as u8 + 64);
+        let id = String::from_utf8(Vec::from_iter(ascii_bytes.into_iter())).unwrap();
+        Variable::free(id)
     }
-}
-
-fn find_root(mut node: RcVar) -> RcVar {
-    loop {
-        // Double-assignment needed for pre-NLL borrowck reasons
-        let parent = match node.borrow().var {
-            Variable::EqualTo(ref parent) => Some(parent.clone()),
-            _ => None,
-        };
-        let parent = match parent {
-            Some(x) => x,
-            _ => break node,
-        };
-
-        // Extra scope for pre-NLL borrowck reasons
-        {
-            let parent_borr = parent.borrow();
-            if let Variable::EqualTo(ref grandparent) = parent_borr.var {
-                node.borrow_mut().var = Variable::EqualTo(grandparent.clone());
-            }
-        }
-        node = parent;
-    }
-}
-
-fn unify(mut alpha: RcVar, mut beta: RcVar) -> Result<(), Error> {
-    alpha = find_root(alpha);
-    beta = find_root(beta);
-
-    // Already unified, done
-    if Rc::ptr_eq(&alpha, &beta) {
-        return Ok(());
-    }
-
-    // Adjust ranks for union-find path halving
-    let rank_ord = { alpha.borrow().rank.cmp(&beta.borrow().rank) };
-    match rank_ord {
-        cmp::Ordering::Less => mem::swap(&mut alpha, &mut beta),
-        cmp::Ordering::Equal => alpha.borrow_mut().rank += 1,
-        _ => {}
-    }
-
-    // Do the unification
-    let be_var = {
-        let mut be_borr = beta.borrow_mut();
-        mem::replace(&mut be_borr.var, Variable::EqualTo(alpha.clone()))
-    };
-    match be_var {
-        Variable::Free => {} // nothing to do
-        Variable::Bound(be_type, _) => bind(&alpha, be_type)?,
-        Variable::EqualTo(..) => unreachable!(),
-        Variable::Finalized(..) => unreachable!(),
-    }
-
-    Ok(())
-}
-
-#[derive(Clone, Debug)]
-struct UnificationArrow {
-    source: Rc<RefCell<UnificationVar>>,
-    target: Rc<RefCell<UnificationVar>>,
-}
-
-// b'1' = 49
-// b'2' = 50
-// b'i' = 105
-// b'l' = 108
-// b'h' = 104
-// b'+' = 43
-// b'*' = 42
-/// Convert a [`TypeName`] into a [`Type`]
-fn type_from_name(name: &TypeName, pow2s: &[RcVar]) -> Type {
-    let it = name.0.iter().rev();
-    let mut stack = Vec::new();
-
-    for c in it {
-        match c {
-            b'1' => stack.push(Type::Unit),
-            b'2' => {
-                let unit = Type::Unit.into_rcvar();
-                stack.push(Type::Sum(unit.clone(), unit))
-            }
-            b'i' => stack.push(Type::Product(pow2s[4].clone(), pow2s[4].clone())),
-            b'l' => stack.push(Type::Product(pow2s[5].clone(), pow2s[5].clone())),
-            b'h' => stack.push(Type::Product(pow2s[7].clone(), pow2s[7].clone())),
-            b'+' | b'*' => {
-                let left = stack.pop().expect("Illegal type name syntax!").into_rcvar();
-                let right = stack.pop().expect("Illegal type name syntax!").into_rcvar();
-
-                match c {
-                    b'+' => stack.push(Type::Sum(left, right)),
-                    b'*' => stack.push(Type::Product(left, right)),
-                    _ => unreachable!(),
-                }
-            }
-            _ => panic!("Illegal type name syntax!"),
-        }
-    }
-
-    if stack.len() == 1 {
-        stack.pop().unwrap()
-    } else {
-        panic!("Illegal type name syntax!")
-    }
-}
-
-/// Attach types to all nodes in a program
-pub(crate) fn type_check<Witness, App: Application>(
-    program: UntypedProgram<Witness, App>,
-) -> Result<TypedProgram<Witness, App>, Error> {
-    let vec_nodes = program.0;
-    if vec_nodes.is_empty() {
-        return Ok(TypedProgram(vec![]));
-    }
-
-    let two_0 = Type::Unit.into_rcvar();
-    let two_1 = Type::Sum(two_0.clone(), two_0).into_rcvar();
-    let two_2 = Type::Product(two_1.clone(), two_1.clone()).into_rcvar();
-    let two_4 = Type::Product(two_2.clone(), two_2.clone()).into_rcvar();
-    let two_8 = Type::Product(two_4.clone(), two_4.clone()).into_rcvar();
-    let two_16 = Type::Product(two_8.clone(), two_8.clone()).into_rcvar();
-    let two_32 = Type::Product(two_16.clone(), two_16.clone()).into_rcvar();
-    let two_64 = Type::Product(two_32.clone(), two_32.clone()).into_rcvar();
-    let two_128 = Type::Product(two_64.clone(), two_64.clone()).into_rcvar();
-    let two_256 = Type::Product(two_128.clone(), two_128.clone()).into_rcvar();
-    // pow2s[i] = 2^(2^i)
-    let pow2s = [
-        two_1, two_2, two_4, two_8, two_16, two_32, two_64, two_128, two_256,
-    ];
-
-    let mut rcs = Vec::<Rc<UnificationArrow>>::with_capacity(vec_nodes.len());
-    let mut finals = Vec::<TypedNode<Witness, App>>::with_capacity(vec_nodes.len());
-
-    // Compute most general unifier for all types in the DAG
-    for (idx, program_node) in vec_nodes.iter().enumerate() {
-        let node = UnificationArrow {
-            source: Rc::new(RefCell::new(UnificationVar::free())),
-            target: Rc::new(RefCell::new(UnificationVar::free())),
-        };
-
-        match program_node {
-            Term::Iden => unify(node.source.clone(), node.target.clone())?,
-            Term::Unit => bind(&node.target, Type::Unit)?,
-            Term::InjL(i) => {
-                let i = idx - i;
-                unify(node.source.clone(), rcs[i].source.clone())?;
-                let target_type = Type::Sum(
-                    rcs[i].target.clone(),
-                    Rc::new(RefCell::new(UnificationVar::free())),
-                );
-                bind(&node.target, target_type)?;
-            }
-            Term::InjR(i) => {
-                let i = idx - i;
-                unify(node.source.clone(), rcs[i].source.clone())?;
-                let target_type = Type::Sum(
-                    Rc::new(RefCell::new(UnificationVar::free())),
-                    rcs[i].target.clone(),
-                );
-                bind(&node.target, target_type)?;
-            }
-            Term::Take(i) => {
-                let i = idx - i;
-                unify(node.target.clone(), rcs[i].target.clone())?;
-                let target_type = Type::Product(
-                    rcs[i].source.clone(),
-                    Rc::new(RefCell::new(UnificationVar::free())),
-                );
-                bind(&node.source, target_type)?;
-            }
-            Term::Drop(i) => {
-                let i = idx - i;
-                unify(node.target.clone(), rcs[i].target.clone())?;
-                let target_type = Type::Product(
-                    Rc::new(RefCell::new(UnificationVar::free())),
-                    rcs[i].source.clone(),
-                );
-                bind(&node.source, target_type)?;
-            }
-            Term::Comp(i, j) => {
-                let (i, j) = (idx - i, idx - j);
-                unify(node.source.clone(), rcs[i].source.clone())?;
-                unify(rcs[i].target.clone(), rcs[j].source.clone())?;
-                unify(node.target.clone(), rcs[j].target.clone())?;
-            }
-            Term::Case(i, j) | Term::AssertL(i, j) | Term::AssertR(i, j) => {
-                let (i, j) = (idx - i, idx - j);
-                let var1 = Rc::new(RefCell::new(UnificationVar::free()));
-                let var2 = Rc::new(RefCell::new(UnificationVar::free()));
-                let var3 = Rc::new(RefCell::new(UnificationVar::free()));
-
-                let sum12_ty = Type::Sum(var1.clone(), var2.clone());
-                let sum12_var = Rc::new(RefCell::new(UnificationVar::free()));
-                bind(&sum12_var, sum12_ty)?;
-
-                let source_ty = Type::Product(sum12_var, var3.clone());
-                bind(&node.source, source_ty)?;
-                if let Term::Hidden(..) = vec_nodes[i] {
-                } else {
-                    bind(
-                        &find_root(rcs[i].source.clone()),
-                        Type::Product(var1.clone(), var3.clone()),
-                    )?;
-                    unify(node.target.clone(), rcs[i].target.clone())?;
-                }
-                if let Term::Hidden(..) = vec_nodes[j] {
-                } else {
-                    bind(
-                        &find_root(rcs[j].source.clone()),
-                        Type::Product(var2.clone(), var3.clone()),
-                    )?;
-                    unify(node.target.clone(), rcs[j].target.clone())?;
-                }
-            }
-            Term::Pair(i, j) => {
-                let (i, j) = (idx - i, idx - j);
-                unify(node.source.clone(), rcs[i].source.clone())?;
-                unify(node.source.clone(), rcs[j].source.clone())?;
-                bind(
-                    &node.target,
-                    Type::Product(rcs[i].target.clone(), rcs[j].target.clone()),
-                )?;
-            }
-            Term::Disconnect(i, j) => {
-                let (i, j) = (idx - i, idx - j);
-                // See chapter 6 (Delegation) of TR
-                // Be careful, this order changed! https://github.com/ElementsProject/simplicity/pull/46
-                let var_a = Rc::new(RefCell::new(UnificationVar::free()));
-                let var_b = Rc::new(RefCell::new(UnificationVar::free()));
-                let var_c = Rc::new(RefCell::new(UnificationVar::free()));
-                let var_d = Rc::new(RefCell::new(UnificationVar::free()));
-
-                let s_source = Type::Product(pow2s[8].clone(), var_a.clone()).into_rcvar();
-                let s_target = Type::Product(var_b.clone(), var_c.clone()).into_rcvar();
-                unify(rcs[i].source.clone(), s_source)?;
-                unify(rcs[i].target.clone(), s_target)?;
-
-                let node_target = Type::Product(var_b, var_d.clone()).into_rcvar();
-                unify(node.source.clone(), var_a)?;
-                unify(node.target.clone(), node_target)?;
-
-                unify(rcs[j].source.clone(), var_c)?;
-                unify(rcs[j].target.clone(), var_d)?;
-            }
-            Term::Jet(jet) => {
-                bind(&node.source, type_from_name(&jet.source_ty, &pow2s[..]))?;
-
-                bind(&node.target, type_from_name(&jet.target_ty, &pow2s[..]))?;
-            }
-            Term::Witness(..) | Term::Hidden(..) | Term::Fail(..) => {
-                // No type constraints
-            }
-        };
-        rcs.push(Rc::new(node));
-        // dbg!(&rcs);
-    }
-
-    // Finalize, setting all unconstrained types to `Unit` and doing the
-    // occurs check. (All the magic happens inside `FinalType::from_var`.)
-    for (index, term) in vec_nodes.into_iter().enumerate() {
-        finals.push(TypedNode {
-            cmr: cmr::compute_cmr(&finals, &term, index),
-            term,
-            source_ty: FinalType::from_var(rcs[index].source.clone())?,
-            target_ty: FinalType::from_var(rcs[index].target.clone())?,
-            index,
-        });
-    }
-
-    Ok(TypedProgram(finals))
 }

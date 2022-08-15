@@ -26,12 +26,11 @@
 use crate::bititer::BitIter;
 use crate::core::iter::DagIterable;
 use crate::core::typed::TypedProgram;
-use crate::core::{iter, LinearProgram};
-use crate::core::{types, Value};
+use crate::core::{iter, LinearProgram, Value};
 use crate::encode::BitWriter;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
-use crate::{decode, encode, Error};
+use crate::{decode, encode, inference, Error};
 use std::collections::HashMap;
 use std::hash::Hash;
 use std::io;
@@ -246,7 +245,7 @@ impl<Witness, App: Application> UntypedProgram<Witness, App> {
 
     /// Type-check the program and add metadata for the time of commitment.
     pub fn type_check(self) -> Result<TypedProgram<Witness, App>, Error> {
-        types::type_check(self)
+        inference::type_check(self)
     }
 }
 

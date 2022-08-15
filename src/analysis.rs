@@ -28,7 +28,7 @@ pub(crate) fn compute_extra_cells_bound<App: Application>(
             program[node.index - i].extra_cells_bound
         }
         Term::Comp(i, j) => {
-            program[node.index - i].target_ty().bit_width()
+            program[node.index - i].target_ty().bit_width
                 + cmp::max(
                     program[node.index - i].extra_cells_bound,
                     program[node.index - j].extra_cells_bound,
@@ -41,8 +41,8 @@ pub(crate) fn compute_extra_cells_bound<App: Application>(
             )
         }
         Term::Disconnect(i, j) => {
-            program[node.index - i].source_ty().bit_width()
-                + program[node.index - i].target_ty().bit_width()
+            program[node.index - i].source_ty().bit_width
+                + program[node.index - i].target_ty().bit_width
                 + cmp::max(
                     program[node.index - i].extra_cells_bound,
                     program[node.index - j].extra_cells_bound,

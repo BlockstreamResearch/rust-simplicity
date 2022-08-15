@@ -13,13 +13,13 @@
 //
 
 use crate::bititer::BitIter;
-use crate::core::types::FinalType;
-use crate::core::{iter, types, LinearProgram, Program, ProgramNode, Term, UntypedProgram, Value};
+use crate::core::types::Type;
+use crate::core::{iter, LinearProgram, Program, ProgramNode, Term, UntypedProgram, Value};
 use crate::encode::BitWriter;
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr;
-use crate::{analysis, decode, encode, Error};
+use crate::{analysis, decode, encode, inference, Error};
 use std::sync::Arc;
 use std::{fmt, io};
 
@@ -29,9 +29,9 @@ pub struct TypedNode<Witness, App: Application> {
     /// Underlying term
     pub term: Term<Witness, App>,
     /// Source type of the node
-    pub source_ty: Arc<FinalType>,
+    pub source_ty: Arc<Type>,
     /// Target type of the node
-    pub target_ty: Arc<FinalType>,
+    pub target_ty: Arc<Type>,
     /// Index of the node inside the surrounding program
     pub index: usize,
     /// Commitment Merkle root of the node
@@ -73,7 +73,7 @@ impl<App: Application> TypedProgram<(), App> {
     /// Decode a typed program from bits.
     pub fn decode<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<Self, Error> {
         let program = UntypedProgram::<(), App>::decode(iter)?;
-        types::type_check(program)
+        inference::type_check(program)
     }
 
     /// Encode the program into bits.
@@ -127,7 +127,7 @@ impl<Witness, App: Application> TypedProgram<Witness, App> {
     }
 
     /// Return a vector of the types of values that make up a valid witness for the program.
-    pub fn get_witness_types(&self) -> Vec<&FinalType> {
+    pub fn get_witness_types(&self) -> Vec<&Type> {
         let mut witness_types = Vec::new();
 
         for node in &self.0 {

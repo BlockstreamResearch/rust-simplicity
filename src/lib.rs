@@ -27,6 +27,7 @@ pub mod bititer;
 pub mod core;
 pub mod decode;
 pub mod encode;
+mod inference;
 pub mod jet;
 pub mod merkle;
 #[cfg(feature = "bitcoin")]

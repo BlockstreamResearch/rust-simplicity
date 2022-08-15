@@ -17,7 +17,7 @@
 //! Used at time of redemption (see [`super::imr`]).
 //! Uniquely identifies the tree structure of a Simplicity type.
 
-use crate::core::types::FinalTypeInner;
+use crate::core::types::TypeInner;
 use crate::impl_midstate_wrapper;
 use crate::merkle::common::{MerkleRoot, TypeMerkleRoot};
 use bitcoin_hashes::sha256::Midstate;
@@ -29,11 +29,11 @@ pub struct Tmr(Midstate);
 impl_midstate_wrapper!(Tmr);
 
 impl TypeMerkleRoot for Tmr {
-    fn get_iv(ty: &FinalTypeInner) -> Self {
+    fn get_iv(ty: &TypeInner) -> Self {
         match ty {
-            FinalTypeInner::Unit => Tmr::tag_iv(b"Simplicity-Draft\x1fType\x1fone"),
-            FinalTypeInner::Sum(..) => Tmr::tag_iv(b"Simplicity-Draft\x1fType\x1fsum"),
-            FinalTypeInner::Product(..) => Tmr::tag_iv(b"Simplicity-Draft\x1fType\x1fprod"),
+            TypeInner::Unit => Tmr::tag_iv(b"Simplicity-Draft\x1fType\x1fone"),
+            TypeInner::Sum(..) => Tmr::tag_iv(b"Simplicity-Draft\x1fType\x1fsum"),
+            TypeInner::Product(..) => Tmr::tag_iv(b"Simplicity-Draft\x1fType\x1fprod"),
         }
     }
 }
