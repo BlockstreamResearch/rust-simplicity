@@ -34,11 +34,11 @@ pub mod type_name;
 
 use crate::bititer::BitIter;
 use crate::encode::BitWriter;
+use crate::exec::BitMachine;
 use crate::jet::type_name::TypeName;
 use crate::merkle::cmr::Cmr;
-// use crate::merkle::common::MerkleRoot;
-// use crate::merkle::imr::Imr;
-use crate::exec::BitMachine;
+use crate::merkle::common::MerkleRoot;
+use crate::merkle::imr::Imr;
 use std::hash::Hash;
 use std::io::Write;
 
@@ -105,7 +105,6 @@ impl<App: Application> JetNode<App> {
         self.cmr
     }
 
-    /*
     /// Return the IMR of the jet.
     ///
     /// A jet's CMR equals its IMR.
@@ -113,7 +112,6 @@ impl<App: Application> JetNode<App> {
     pub fn imr(&self) -> Imr {
         self.cmr.into_inner().into()
     }
-    */
 }
 
 impl<App: Application> std::fmt::Display for JetNode<App> {
