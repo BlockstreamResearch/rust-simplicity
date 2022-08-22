@@ -63,14 +63,18 @@ pub enum Error {
     CaseMultipleHiddenChildren,
     /// Bitstream ended early   
     EndOfStream,
+    /// Program must not be empty
+    EmptyProgram,
     /// Tried to allocate too many nodes in a program
     TooManyNodes(usize),
     /// Unrecognized node
     ParseError(&'static str),
+    /// Program has different length than defined in its preamble
+    InconsistentProgramLength,
+    /// Witness has different length than defined in its preamble
+    InconsistentWitnessLength,
     /// Miniscript Error
     MiniscriptError(miniscript::Error),
-    /// Sharing of program is not maximal
-    SharingNotMaximal,
 }
 
 impl fmt::Display for Error {
@@ -91,12 +95,18 @@ impl fmt::Display for Error {
                 f.write_str("'case' nodes may have at most one hidden child")
             }
             Error::EndOfStream => f.write_str("Bitstream ended early"),
+            Error::EmptyProgram => f.write_str("Program must not be empty"),
             Error::TooManyNodes(k) => {
                 write!(f, "Tried to allocate too many nodes in a program: {}", k)
             }
             Error::ParseError(s) => write!(f, "Unrecognized node {}", s),
+            Error::InconsistentProgramLength => {
+                f.write_str("Program has different length than defined in its preamble")
+            }
+            Error::InconsistentWitnessLength => {
+                f.write_str("Witness has different length than defined in its preamble")
+            }
             Error::MiniscriptError(ref e) => fmt::Display::fmt(e, f),
-            Error::SharingNotMaximal => f.write_str("This program does not have maximal sharing"),
         }
     }
 }
