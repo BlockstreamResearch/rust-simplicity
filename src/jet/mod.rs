@@ -22,23 +22,23 @@
 //! This speeds up evaluation tremendously.
 //! Equivalence of C and Simplicity is proved using the _Verified Software Toolchain_.
 
-pub mod application;
-mod init;
+// pub mod application;
+// mod init;
 pub mod type_name;
 
-#[cfg(feature = "bitcoin")]
-pub use init::bitcoin;
-pub use init::core;
-#[cfg(feature = "elements")]
-pub use init::elements;
+// #[cfg(feature = "bitcoin")]
+// pub use init::bitcoin;
+// pub use init::core;
+// #[cfg(feature = "elements")]
+// pub use init::elements;
 
 use crate::bititer::BitIter;
 use crate::encode::BitWriter;
-use crate::exec::BitMachine;
 use crate::jet::type_name::TypeName;
 use crate::merkle::cmr::Cmr;
-use crate::merkle::common::MerkleRoot;
-use crate::merkle::imr::Imr;
+// use crate::merkle::common::MerkleRoot;
+// use crate::merkle::imr::Imr;
+use crate::exec::BitMachine;
 use std::hash::Hash;
 use std::io::Write;
 
@@ -105,6 +105,7 @@ impl<App: Application> JetNode<App> {
         self.cmr
     }
 
+    /*
     /// Return the IMR of the jet.
     ///
     /// A jet's CMR equals its IMR.
@@ -112,6 +113,7 @@ impl<App: Application> JetNode<App> {
     pub fn imr(&self) -> Imr {
         self.cmr.into_inner().into()
     }
+    */
 }
 
 impl<App: Application> std::fmt::Display for JetNode<App> {

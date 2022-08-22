@@ -14,10 +14,9 @@
 
 //! # Common traits and macros
 
-use crate::core::types::{Type, TypeInner};
-use crate::core::{Term, Value};
+// use crate::core::types::{Type, TypeInner};
+use crate::core::commit::CommitNodeInner;
 use crate::jet::Application;
-use crate::util::u64_to_array_be;
 use bitcoin_hashes::sha256::Midstate;
 use bitcoin_hashes::{sha256, Hash, HashEngine};
 
@@ -65,6 +64,7 @@ pub trait MerkleRoot: From<[u8; 32]> + Into<[u8; 32]> {
         Self::from(engine.midstate().into_inner())
     }
 
+    /*
     /// Extend the given tagged hash by the hash of the given `value` and the TMR of its `value_type`.
     ///
     /// The hash `self` is taken as initial value,
@@ -116,6 +116,7 @@ pub trait MerkleRoot: From<[u8; 32]> + Into<[u8; 32]> {
         engine.input(value_type.tmr.as_ref());
         Self::from(engine.midstate().into_inner())
     }
+    */
 
     /// Converts the given tagged hash into a byte array
     fn into_inner(self) -> [u8; 32] {
@@ -123,15 +124,16 @@ pub trait MerkleRoot: From<[u8; 32]> + Into<[u8; 32]> {
     }
 }
 
-/// Tagged SHA256 hash used for [`Term`]
-pub trait TermMerkleRoot: MerkleRoot {
-    /// Return the initial value for the given `term`.
+/// Tagged SHA256 hash used for [`crate::core::CommitNode`]
+pub trait CommitMerkleRoot: MerkleRoot {
+    /// Return the initial value for the given `node`.
     ///
-    /// Each [`Term`] corresponds to some tag that is hashed
+    /// Each [`CommitNodeInner`] corresponds to some tag that is hashed
     /// and returned as initial value
-    fn get_iv<Witness, App: Application>(term: &Term<Witness, App>) -> Self;
+    fn get_iv<Witness, App: Application>(node: &CommitNodeInner<Witness, App>) -> Self;
 }
 
+/*
 /// Tagged SHA256 hash used for [`Type`]
 pub trait TypeMerkleRoot: MerkleRoot {
     /// Return the initial value for the given type.
@@ -140,6 +142,7 @@ pub trait TypeMerkleRoot: MerkleRoot {
     /// and returned as initial value
     fn get_iv(ty: &TypeInner) -> Self;
 }
+*/
 
 /// Convenience macro for wrappers of `Midstate`.
 ///

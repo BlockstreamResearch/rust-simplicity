@@ -18,16 +18,11 @@
 //! frame management optimizations which can be used to great benefit.
 //!
 
-use std::cmp;
+use super::frame::Frame;
+use crate::core::Value;
+use crate::jet::AppError;
 use std::error;
 use std::fmt;
-
-use crate::core::types::TypeInner;
-use crate::core::{LinearProgram, Program, Term, Value};
-use crate::decode;
-use crate::jet::{AppError, Application};
-
-use super::frame::Frame;
 
 /// An execution context for a Simplicity program
 pub struct BitMachine {
@@ -43,6 +38,7 @@ pub struct BitMachine {
 }
 
 impl BitMachine {
+    /*
     /// Construct a Bit Machine with enough space to execute
     /// the given program
     pub fn for_program<App: Application>(program: &Program<App>) -> BitMachine {
@@ -56,6 +52,7 @@ impl BitMachine {
             write: Vec::with_capacity(prog.frame_count_bound + 1),
         }
     }
+    */
 
     /// Push a new frame of given size onto the write frame stack
     fn new_frame(&mut self, len: usize) {
@@ -268,6 +265,7 @@ impl BitMachine {
         self.move_frame();
     }
 
+    /*
     /// Execute a program in the Bit Machine
     pub fn exec<'a, App: Application>(
         &mut self,
@@ -438,6 +436,7 @@ impl BitMachine {
         };
         Ok(res)
     }
+    */
 }
 
 /// Errors related to simplicity Execution

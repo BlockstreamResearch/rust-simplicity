@@ -19,6 +19,8 @@
 
 // pub mod iter;
 // pub mod types;
+pub mod commit;
 mod value;
 
+pub use commit::CommitNode;
 pub use value::Value;
