@@ -16,8 +16,8 @@
 //!
 //! Source and target types of jet nodes need to be specified manually.
 
-// use crate::core::types::VariableType;
-// use crate::core::types::{RcVar, Variable};
+use crate::core::types::VariableType;
+use crate::core::types::{RcVar, Variable};
 
 /// Byte-based specification of a Simplicity type.
 ///
@@ -39,7 +39,6 @@
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct TypeName(pub(crate) &'static [u8]);
 
-/*
 impl TypeName {
     // b'1' = 49
     // b'2' = 50
@@ -84,4 +83,3 @@ impl TypeName {
         }
     }
 }
-*/

@@ -31,7 +31,8 @@ pub mod core;
 pub mod decode;
 #[allow(dead_code)]
 pub mod encode;
-// mod inference;
+#[allow(dead_code)]
+mod inference;
 pub mod jet;
 pub mod merkle;
 // #[cfg(feature = "bitcoin")]
