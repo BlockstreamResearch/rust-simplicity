@@ -13,11 +13,15 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use crate::core::Value;
-use crate::impl_ref_wrapper;
+use crate::core::iter::DagIterable;
+use crate::core::node::NodeInner;
+use crate::core::{Node, Value};
+use crate::decode::WitnessIterator;
 use crate::jet::{Application, JetNode};
-use crate::merkle::cmr;
 use crate::merkle::cmr::Cmr;
+use crate::merkle::{cmr, imr};
+use crate::{analysis, impl_ref_wrapper, inference, Error};
+use std::collections::HashMap;
 use std::rc::Rc;
 
 /// Underlying combinator of a [`CommitNode`].
@@ -357,6 +361,82 @@ impl<Witness, App: Application> CommitNode<Witness, App> {
             | CommitNodeInner::Pair(_, r)
             | CommitNodeInner::Disconnect(_, r) => Some(r),
         }
+    }
+
+    /// Create a new DAG, enriched with the witness and computed metadata.
+    pub fn finalize<W: WitnessIterator>(
+        &self,
+        mut witness: W,
+    ) -> Result<Rc<Node<Value, App>>, Error> {
+        let root = RefWrapper(self);
+        let post_order_it = root.iter_post_order();
+        let arrows = inference::get_arrows(post_order_it.clone())?;
+        let mut to_finalized: HashMap<RefWrapper<Witness, App>, Rc<Node<Value, App>>> =
+            HashMap::new();
+
+        for commit in post_order_it {
+            let left = commit.get_left().map(|x| {
+                to_finalized
+                    .get(&x)
+                    .expect("Children come before parent in post order")
+                    .clone()
+            });
+            let right = commit.get_right().map(|x| {
+                to_finalized
+                    .get(&x)
+                    .expect("Children come before parent in post order")
+                    .clone()
+            });
+
+            let ty = arrows.finalize(&commit)?;
+            let value = if let CommitNodeInner::Witness(_) = commit.0.inner {
+                Some(witness.next(&ty.target)?)
+            } else {
+                None
+            };
+            let imr = imr::compute_imr(
+                &commit.0.inner,
+                left.clone(),
+                right.clone(),
+                value.as_ref(),
+                &ty,
+            );
+            let bounds = analysis::compute_bounds(commit.0, left.clone(), right.clone(), &ty);
+
+            // Verbose but necessary thanks to Rust
+            let inner = match commit.0.inner {
+                CommitNodeInner::Iden => NodeInner::Iden,
+                CommitNodeInner::Unit => NodeInner::Unit,
+                CommitNodeInner::InjL(_) => NodeInner::InjL(left.unwrap()),
+                CommitNodeInner::InjR(_) => NodeInner::InjR(left.unwrap()),
+                CommitNodeInner::Take(_) => NodeInner::Take(left.unwrap()),
+                CommitNodeInner::Drop(_) => NodeInner::Drop(left.unwrap()),
+                CommitNodeInner::Comp(_, _) => NodeInner::Comp(left.unwrap(), right.unwrap()),
+                CommitNodeInner::Case(_, _) => NodeInner::Case(left.unwrap(), right.unwrap()),
+                CommitNodeInner::AssertL(_, _) => NodeInner::AssertL(left.unwrap(), right.unwrap()),
+                CommitNodeInner::AssertR(_, _) => NodeInner::AssertR(left.unwrap(), right.unwrap()),
+                CommitNodeInner::Pair(_, _) => NodeInner::Pair(left.unwrap(), right.unwrap()),
+                CommitNodeInner::Disconnect(_, _) => {
+                    NodeInner::Disconnect(left.unwrap(), right.unwrap())
+                }
+                CommitNodeInner::Witness(_) => NodeInner::Witness(value.unwrap()),
+                CommitNodeInner::Fail(hl, hr) => NodeInner::Fail(hl, hr),
+                CommitNodeInner::Hidden(h) => NodeInner::Hidden(h),
+                CommitNodeInner::Jet(jet) => NodeInner::Jet(jet),
+            };
+            let node = Node {
+                inner,
+                cmr: commit.0.cmr,
+                imr,
+                ty,
+                bounds,
+            };
+
+            to_finalized.insert(commit, Rc::new(node));
+        }
+
+        witness.finish()?;
+        Ok(to_finalized.get(&root).unwrap().clone())
     }
 }
 
