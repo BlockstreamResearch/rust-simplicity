@@ -17,8 +17,8 @@
 //!
 //! Defines Simplicity terms, values, types, DAGs and programs.
 
-// pub mod iter;
 pub mod commit;
+pub mod iter;
 pub mod node;
 #[allow(dead_code)]
 pub mod types;

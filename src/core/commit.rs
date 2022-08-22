@@ -14,6 +14,7 @@
 //
 
 use crate::core::Value;
+use crate::impl_ref_wrapper;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr;
 use crate::merkle::cmr::Cmr;
@@ -358,3 +359,9 @@ impl<Witness, App: Application> CommitNode<Witness, App> {
         }
     }
 }
+
+/// Wrapper of references to [`CommitNode`].
+#[derive(Debug)]
+pub struct RefWrapper<'a, Witness, App: Application>(pub &'a CommitNode<Witness, App>);
+
+impl_ref_wrapper!(RefWrapper);

@@ -13,6 +13,7 @@
 //
 
 use crate::core::types::Type;
+use crate::impl_ref_wrapper;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
@@ -142,3 +143,9 @@ impl<Witness, App: Application> Node<Witness, App> {
         }
     }
 }
+
+/// Wrapper of references to [`Node`].
+#[derive(Debug)]
+pub struct RefWrapper<'a, Witness, App: Application>(pub &'a Node<Witness, App>);
+
+impl_ref_wrapper!(RefWrapper);
