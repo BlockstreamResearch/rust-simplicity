@@ -12,11 +12,14 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
+use crate::bititer::BitIter;
 use crate::core::types::Type;
-use crate::impl_ref_wrapper;
+use crate::core::{CommitNode, Value};
+use crate::decode::WitnessDecoder;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
+use crate::{impl_ref_wrapper, Error};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -141,6 +144,15 @@ impl<Witness, App: Application> Node<Witness, App> {
             | NodeInner::Pair(_, r)
             | NodeInner::Disconnect(_, r) => Some(r),
         }
+    }
+}
+
+impl<App: Application> Node<Value, App> {
+    /// Decode a Simplicity program from bits.
+    pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Rc<Self>, Error> {
+        let commit = CommitNode::decode(bits).expect("decode program");
+        let witness = WitnessDecoder::new(bits).expect("decode witness");
+        commit.finalize(witness)
     }
 }
 

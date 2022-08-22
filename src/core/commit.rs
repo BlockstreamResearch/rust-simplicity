@@ -13,6 +13,7 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
+use crate::bititer::BitIter;
 use crate::core::iter::DagIterable;
 use crate::core::node::NodeInner;
 use crate::core::{Node, Value};
@@ -20,7 +21,7 @@ use crate::decode::WitnessIterator;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
 use crate::merkle::{cmr, imr};
-use crate::{analysis, impl_ref_wrapper, inference, Error};
+use crate::{analysis, decode, impl_ref_wrapper, inference, Error};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -437,6 +438,13 @@ impl<Witness, App: Application> CommitNode<Witness, App> {
 
         witness.finish()?;
         Ok(to_finalized.get(&root).unwrap().clone())
+    }
+}
+
+impl<App: Application> CommitNode<(), App> {
+    /// Decode a Simplicity program from bits.
+    pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Rc<Self>, Error> {
+        decode::decode_program_no_witness(bits)
     }
 }
 
