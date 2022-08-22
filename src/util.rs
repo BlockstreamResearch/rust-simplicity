@@ -43,7 +43,6 @@ macro_rules! define_be_to_array {
 }
 
 define_slice_to_be!(slice_to_u64_be, u64);
-define_slice_to_be!(slice_to_u32_be, u32);
 define_be_to_array!(u64_to_array_be, u64, 8);
 
 // handy function for converting bit vector to vec[u8]

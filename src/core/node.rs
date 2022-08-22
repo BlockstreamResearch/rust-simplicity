@@ -63,7 +63,6 @@ pub enum NodeInner<Witness, App: Application> {
     Jet(&'static JetNode<App>),
 }
 
-#[allow(dead_code)]
 /// Source and target type of a node
 #[derive(Debug)]
 pub struct NodeType {

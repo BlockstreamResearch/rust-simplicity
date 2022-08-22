@@ -20,7 +20,6 @@
 pub mod commit;
 pub mod iter;
 pub mod node;
-#[allow(dead_code)]
 pub mod types;
 mod value;
 

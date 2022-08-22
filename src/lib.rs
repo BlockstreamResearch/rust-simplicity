@@ -18,20 +18,16 @@ extern crate bitcoin_hashes;
 extern crate byteorder;
 extern crate miniscript;
 
-#[allow(unused_macros)]
 #[macro_use]
 mod macros;
 
-#[allow(dead_code)]
 mod analysis;
 pub mod bit_machine;
 pub mod bititer;
 pub mod core;
-#[allow(dead_code)]
 pub mod decode;
 #[allow(dead_code)]
 pub mod encode;
-#[allow(dead_code)]
 mod inference;
 pub mod jet;
 pub mod merkle;
@@ -39,7 +35,6 @@ pub mod merkle;
 pub mod policy;
 #[cfg(test)]
 mod test_progs;
-#[allow(dead_code)]
 mod util;
 
 pub use crate::bit_machine::exec;

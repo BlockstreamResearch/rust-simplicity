@@ -46,7 +46,6 @@ impl CommitMerkleRoot for Imr {
     }
 }
 
-#[allow(dead_code)]
 /// Compute the IMR of the given node (once finalized).
 ///
 /// Nodes with left children require their finalized left child,
