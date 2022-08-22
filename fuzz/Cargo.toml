@@ -21,19 +21,3 @@ members = ["."]
 [[bin]]
 name = "rtt_natural"
 path = "fuzz_targets/rtt_natural.rs"
-
-[[bin]]
-name = "rtt_program"
-path = "fuzz_targets/rtt_program.rs"
-
-[[bin]]
-name = "rtt_witness"
-path = "fuzz_targets/rtt_witness.rs"
-
-[[bin]]
-name = "rtt_program_witness"
-path = "fuzz_targets/rtt_program_witness.rs"
-
-[[bin]]
-name = "rtt_dag"
-path = "fuzz_targets/rtt_dag.rs"
