@@ -21,11 +21,12 @@
 //! Simplicity expressions to policy.
 
 use std::fmt;
+use std::rc::Rc;
 
 use bitcoin_hashes::sha256;
 use miniscript::MiniscriptKey;
 
-use crate::core::UntypedProgram;
+use crate::core::CommitNode;
 use crate::jet::application::Bitcoin;
 use crate::policy::compiler;
 use crate::policy::key::PublicKey32;
@@ -60,10 +61,9 @@ pub enum Policy<Pk: MiniscriptKey> {
 }
 
 impl<Pk: MiniscriptKey + PublicKey32> Policy<Pk> {
-    /// Compile a policy into a simplicity frgament
-    pub fn compile(&self) -> Result<UntypedProgram<(), Bitcoin>, Error> {
-        let dag = compiler::compile(self)?;
-        Ok(dag.to_linear())
+    /// Compile the policy into a Simplicity program
+    pub fn compile(&self) -> Result<Rc<CommitNode<(), Bitcoin>>, Error> {
+        compiler::compile(self)
     }
 }
 
