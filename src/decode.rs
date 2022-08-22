@@ -18,12 +18,9 @@
 //! Refer to [`crate::encode`] for information on the encoding.
 
 use crate::bititer::BitIter;
-use crate::core::types::{Type, TypeInner};
-use crate::core::{Term, TypedProgram, UntypedProgram, Value};
-use crate::jet::Application;
-use crate::merkle::cmr::Cmr;
 use crate::Error;
 
+/*
 /// Decode an untyped Simplicity program from bits.
 pub fn decode_program_no_witness<I: Iterator<Item = u8>, App: Application>(
     iter: &mut BitIter<I>,
@@ -185,6 +182,7 @@ fn decode_jet<I: Iterator<Item = u8>, App: Application>(
     program.push(node);
     Ok(())
 }
+*/
 
 /// Decode a 256-bit hash from bits.
 fn decode_hash<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<[u8; 32], Error> {

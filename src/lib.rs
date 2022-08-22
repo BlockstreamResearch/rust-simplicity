@@ -18,25 +18,29 @@ extern crate bitcoin_hashes;
 extern crate byteorder;
 extern crate miniscript;
 
+#[allow(unused_macros)]
 #[macro_use]
 mod macros;
 
-mod analysis;
-pub mod bit_machine;
+// mod analysis;
+// pub mod bit_machine;
 pub mod bititer;
 pub mod core;
+#[allow(dead_code)]
 pub mod decode;
+#[allow(dead_code)]
 pub mod encode;
-mod inference;
-pub mod jet;
-pub mod merkle;
-#[cfg(feature = "bitcoin")]
-pub mod policy;
-#[cfg(test)]
-mod test_progs;
+// mod inference;
+// pub mod jet;
+// pub mod merkle;
+// #[cfg(feature = "bitcoin")]
+// pub mod policy;
+// #[cfg(test)]
+// mod test_progs;
+#[allow(dead_code)]
 mod util;
 
-pub use crate::bit_machine::exec;
+// pub use crate::bit_machine::exec;
 use std::fmt;
 
 /// Error type for simplicity

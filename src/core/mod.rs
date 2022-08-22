@@ -17,18 +17,8 @@
 //!
 //! Defines Simplicity terms, values, types, DAGs and programs.
 
-mod common;
-pub mod iter;
-mod program;
-mod term;
-mod term_dag;
-mod typed;
-pub mod types;
+// pub mod iter;
+// pub mod types;
 mod value;
 
-pub use common::LinearProgram;
-pub use program::{Program, ProgramNode};
-pub use term::{Term, UntypedProgram};
-pub use term_dag::{RefWrapper, TermDag};
-pub use typed::{TypedNode, TypedProgram};
 pub use value::Value;
