@@ -22,7 +22,8 @@ extern crate miniscript;
 #[macro_use]
 mod macros;
 
-// mod analysis;
+#[allow(dead_code)]
+mod analysis;
 pub mod bit_machine;
 pub mod bititer;
 pub mod core;
