@@ -19,10 +19,13 @@
 //!
 
 use super::frame::Frame;
-use crate::core::Value;
-use crate::jet::AppError;
-use std::error;
+use crate::core::node::NodeInner;
+use crate::core::types::TypeInner;
+use crate::core::{Node, Value};
+use crate::decode;
+use crate::jet::{AppError, Application};
 use std::fmt;
+use std::{cmp, error};
 
 /// An execution context for a Simplicity program
 pub struct BitMachine {
@@ -38,21 +41,18 @@ pub struct BitMachine {
 }
 
 impl BitMachine {
-    /*
-    /// Construct a Bit Machine with enough space to execute
-    /// the given program
-    pub fn for_program<App: Application>(program: &Program<App>) -> BitMachine {
-        let prog = program.root();
-        let io_width = prog.source_ty().bit_width + prog.target_ty().bit_width;
-        BitMachine {
-            data: vec![0; (io_width + prog.extra_cells_bound + 7) / 8],
+    /// Construct a Bit Machine with enough space to execute the given program.
+    pub fn for_program<App: Application>(program: &Node<Value, App>) -> Self {
+        let io_width = program.ty.source.bit_width + program.ty.target.bit_width;
+
+        Self {
+            data: vec![0; (io_width + program.bounds.extra_cells + 7) / 8],
             next_frame_start: 0,
-            // +1's for input and output; these are used only for nontrivial
-            read: Vec::with_capacity(prog.frame_count_bound + 1),
-            write: Vec::with_capacity(prog.frame_count_bound + 1),
+            // +1 for input and output frame
+            read: Vec::with_capacity(program.bounds.frame_count + 1),
+            write: Vec::with_capacity(program.bounds.frame_count + 1),
         }
     }
-    */
 
     /// Push a new frame of given size onto the write frame stack
     fn new_frame(&mut self, len: usize) {
@@ -265,152 +265,160 @@ impl BitMachine {
         self.move_frame();
     }
 
-    /*
-    /// Execute a program in the Bit Machine
-    pub fn exec<'a, App: Application>(
+    /// Execute the given program on the Bit Machine, using the given environment.
+    ///
+    /// Make sure the Bit Machine has enough space by constructing it via [`Self::for_program()`].
+    pub fn exec<'a, App: Application + std::fmt::Debug>(
         &mut self,
-        program: &'a Program<App>,
+        program: &'a Node<Value, App>,
         env: &App::Environment,
     ) -> Result<Value, ExecutionError<'a>> {
-        enum CallStack {
-            Goto(usize),
+        // Rust cannot use `App` from parent function
+        enum CallStack<'a, App: Application> {
+            Goto(&'a Node<Value, App>),
             MoveFrame,
             DropFrame,
             CopyFwd(usize),
             Back(usize),
         }
 
-        let mut ip = &program.root().typed;
+        let mut ip = program;
         let mut call_stack = vec![];
-        let mut iters = 0u64;
+        let mut iterations = 0u64;
 
-        let input_width = ip.source_ty.bit_width;
+        let input_width = ip.ty.source.bit_width;
+        // TODO: convert into crate::Error
         if input_width > 0 && self.read.is_empty() {
-            panic!(
-                "Pleas call `Program::input` to add an input value for this program {}",
-                ip
-            );
+            panic!("Program requires a non-empty input to execute");
         }
-        let output_width = ip.target_ty.bit_width;
+        let output_width = ip.ty.target.bit_width;
         if output_width > 0 {
             self.new_frame(output_width);
         }
 
         'main_loop: loop {
-            iters += 1;
-            if iters % 1_000_000_000 == 0 {
-                println!("({:5} M) exec {}", iters / 1_000_000, ip);
+            iterations += 1;
+            if iterations % 1_000_000_000 == 0 {
+                println!("({:5} M) exec {:?}", iterations / 1_000_000, ip);
             }
 
-            match ip.term {
-                Term::Unit => {}
-                Term::Iden => self.copy(ip.source_ty.bit_width),
-                Term::InjL(t) => {
+            match &ip.inner {
+                NodeInner::Unit => {}
+                NodeInner::Iden => {
+                    let size_a = ip.ty.source.bit_width;
+                    self.copy(size_a);
+                }
+                NodeInner::InjL(left) => {
+                    let padl_b_c = if let TypeInner::Sum(b, _) = &ip.ty.target.ty {
+                        ip.ty.target.bit_width - b.bit_width - 1
+                    } else {
+                        unreachable!()
+                    };
+
                     self.write_bit(false);
-                    if let TypeInner::Sum(ref a, _) = ip.target_ty.ty {
-                        let aw = a.bit_width;
-                        self.skip(ip.target_ty.bit_width - aw - 1);
-                        call_stack.push(CallStack::Goto(ip.index - t));
-                    } else {
-                        panic!("type error")
-                    }
+                    self.skip(padl_b_c);
+                    call_stack.push(CallStack::Goto(left));
                 }
-                Term::InjR(t) => {
+                NodeInner::InjR(left) => {
+                    let padr_b_c = if let TypeInner::Sum(_, c) = &ip.ty.target.ty {
+                        ip.ty.target.bit_width - c.bit_width - 1
+                    } else {
+                        unreachable!()
+                    };
+
                     self.write_bit(true);
-                    if let TypeInner::Sum(_, ref b) = ip.target_ty.ty {
-                        let bw = b.bit_width;
-                        self.skip(ip.target_ty.bit_width - bw - 1);
-                        call_stack.push(CallStack::Goto(ip.index - t));
-                    } else {
-                        panic!("type error")
-                    }
+                    self.skip(padr_b_c);
+                    call_stack.push(CallStack::Goto(left));
                 }
-                Term::Pair(s, t) => {
-                    call_stack.push(CallStack::Goto(ip.index - t));
-                    call_stack.push(CallStack::Goto(ip.index - s));
+                NodeInner::Pair(left, right) => {
+                    call_stack.push(CallStack::Goto(right));
+                    call_stack.push(CallStack::Goto(left));
                 }
-                Term::Comp(s, t) => {
-                    let size = program.nodes[ip.index - s].target_ty().bit_width;
-                    self.new_frame(size);
+                NodeInner::Comp(left, right) => {
+                    let size_b = left.ty.target.bit_width;
 
+                    self.new_frame(size_b);
                     call_stack.push(CallStack::DropFrame);
-                    call_stack.push(CallStack::Goto(ip.index - t));
+                    call_stack.push(CallStack::Goto(right));
                     call_stack.push(CallStack::MoveFrame);
-                    call_stack.push(CallStack::Goto(ip.index - s));
+                    call_stack.push(CallStack::Goto(left));
                 }
-                Term::Disconnect(s, t) => {
-                    // Write `t`'s CMR followed by `s` input to a new read frame
-                    let size = program.nodes[ip.index - s].source_ty().bit_width;
-                    assert!(size >= 256);
-                    self.new_frame(size);
-                    self.write_bytes(program.nodes[ip.index - t].cmr().as_ref());
-                    self.copy(size - 256);
+                NodeInner::Disconnect(left, right) => {
+                    let size_prod_256_a = left.ty.source.bit_width;
+                    let size_a = size_prod_256_a - 256;
+                    let size_prod_b_c = left.ty.target.bit_width;
+                    let size_b = size_prod_b_c - right.ty.source.bit_width;
+
+                    self.new_frame(size_prod_256_a);
+                    self.write_bytes(right.cmr.as_ref());
+                    self.copy(size_a);
                     self.move_frame();
+                    self.new_frame(size_prod_b_c);
 
-                    let s_target_size = program.nodes[ip.index - s].target_ty().bit_width;
-                    self.new_frame(s_target_size);
-                    // Then recurse. Remembering that call stack pushes are executed
-                    // in reverse order:
-
-                    // 3. Delete the two frames we created, which have both moved to the read stack
+                    // Remember that call stack pushes are executed in reverse order
                     call_stack.push(CallStack::DropFrame);
                     call_stack.push(CallStack::DropFrame);
-                    let b_size = s_target_size - program.nodes[ip.index - t].source_ty().bit_width;
-                    // Back not required since we are dropping the frame anyways
-                    // call_stack.push(CallStack::Back(b_size));
-                    // 2. Copy the first half of `s`s output directly then execute `t` on the second half
-                    call_stack.push(CallStack::Goto(ip.index - t));
-                    call_stack.push(CallStack::CopyFwd(b_size));
-                    // 1. Execute `s` then move the write frame to the read frame for `t`
+                    call_stack.push(CallStack::Goto(right));
+                    call_stack.push(CallStack::CopyFwd(size_b));
                     call_stack.push(CallStack::MoveFrame);
-                    call_stack.push(CallStack::Goto(ip.index - s));
+                    call_stack.push(CallStack::Goto(left));
                 }
-                Term::Take(t) => call_stack.push(CallStack::Goto(ip.index - t)),
-                Term::Drop(t) => {
-                    if let TypeInner::Product(ref a, _) = ip.source_ty.ty {
-                        let aw = a.bit_width;
-                        self.fwd(aw);
-                        call_stack.push(CallStack::Back(aw));
-                        call_stack.push(CallStack::Goto(ip.index - t));
+                NodeInner::Take(left) => call_stack.push(CallStack::Goto(left)),
+                NodeInner::Drop(left) => {
+                    let size_a = if let TypeInner::Product(a, _) = &ip.ty.source.ty {
+                        a.bit_width
                     } else {
-                        panic!("type error")
-                    }
+                        unreachable!()
+                    };
+
+                    self.fwd(size_a);
+                    call_stack.push(CallStack::Back(size_a));
+                    call_stack.push(CallStack::Goto(left));
                 }
-                Term::Case(s, t) | Term::AssertL(s, t) | Term::AssertR(s, t) => {
-                    let sw = self.read[self.read.len() - 1].peek_bit(&self.data);
-                    let aw;
-                    let bw;
-                    if let TypeInner::Product(ref a, _) = ip.source_ty.ty {
-                        if let TypeInner::Sum(ref a, ref b) = a.ty {
-                            aw = a.bit_width;
-                            bw = b.bit_width;
+                NodeInner::Case(left, right)
+                | NodeInner::AssertL(left, right)
+                | NodeInner::AssertR(left, right) => {
+                    let choice_bit = self.read[self.read.len() - 1].peek_bit(&self.data);
+
+                    let (size_a, size_b) = if let TypeInner::Product(sum_a_b, _c) = &ip.ty.source.ty
+                    {
+                        if let TypeInner::Sum(a, b) = &sum_a_b.ty {
+                            (a.bit_width, b.bit_width)
                         } else {
-                            panic!("type error");
+                            unreachable!()
                         }
                     } else {
-                        panic!("type error");
-                    }
+                        unreachable!()
+                    };
 
-                    if sw {
-                        self.fwd(1 + cmp::max(aw, bw) - bw);
-                        call_stack.push(CallStack::Back(1 + cmp::max(aw, bw) - bw));
-                        call_stack.push(CallStack::Goto(ip.index - t));
+                    if choice_bit {
+                        let padr_a_b = cmp::max(size_a, size_b) - size_b;
+                        self.fwd(1 + padr_a_b);
+                        call_stack.push(CallStack::Back(1 + padr_a_b));
+                        call_stack.push(CallStack::Goto(right));
                     } else {
-                        self.fwd(1 + cmp::max(aw, bw) - aw);
-                        call_stack.push(CallStack::Back(1 + cmp::max(aw, bw) - aw));
-                        call_stack.push(CallStack::Goto(ip.index - s));
+                        let padl_a_b = cmp::max(size_a, size_b) - size_a;
+                        self.fwd(1 + padl_a_b);
+                        call_stack.push(CallStack::Back(1 + padl_a_b));
+                        call_stack.push(CallStack::Goto(left));
                     }
                 }
-                Term::Witness(ref value) => self.write_value(value),
-                Term::Hidden(ref h) => panic!("Hit hidden node {} at iter {}: {}", ip, iters, h),
-                Term::Jet(j) => App::exec_jet(j, self, env)
+                NodeInner::Witness(value) => self.write_value(value),
+                NodeInner::Hidden(h) => {
+                    // TODO: Convert into crate::Error
+                    panic!(
+                        "Hit hidden node {:?} at iteration {}: {}",
+                        ip, iterations, h
+                    )
+                }
+                NodeInner::Jet(j) => App::exec_jet(j, self, env)
                     .map_err(|x| ExecutionError::AppError(Box::new(x)))?,
-                Term::Fail(..) => return Err(ExecutionError::ReachedFailNode),
+                NodeInner::Fail(..) => return Err(ExecutionError::ReachedFailNode),
             }
 
             ip = loop {
                 match call_stack.pop() {
-                    Some(CallStack::Goto(next)) => break &program.nodes[next].typed,
+                    Some(CallStack::Goto(next)) => break next,
                     Some(CallStack::MoveFrame) => self.move_frame(),
                     Some(CallStack::DropFrame) => self.drop_frame(),
                     Some(CallStack::CopyFwd(n)) => {
@@ -423,20 +431,18 @@ impl BitMachine {
             };
         }
 
-        let res = if output_width > 0 {
+        if output_width > 0 {
             let out_frame = self.write.last_mut().unwrap();
             out_frame.reset_cursor();
-            decode::decode_value(
-                program.root().target_ty(),
-                &mut out_frame.to_frame_data(&self.data),
-            )
-            .expect("decoding output value")
+            let value =
+                decode::decode_value(&program.ty.target, &mut out_frame.to_frame_data(&self.data))
+                    .expect("Decode value of output frame");
+
+            Ok(value)
         } else {
-            Value::Unit
-        };
-        Ok(res)
+            Ok(Value::Unit)
+        }
     }
-    */
 }
 
 /// Errors related to simplicity Execution
