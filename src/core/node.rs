@@ -15,13 +15,13 @@
 use crate::bititer::BitIter;
 use crate::core::iter::DagIterable;
 use crate::core::types::Type;
-use crate::core::{iter, CommitNode, Value};
+use crate::core::{iter, Value};
 use crate::decode::WitnessDecoder;
 use crate::encode::BitWriter;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
-use crate::{encode, impl_ref_wrapper, sharing, Error};
+use crate::{decode, encode, impl_ref_wrapper, sharing, Error};
 use std::io;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -163,7 +163,7 @@ impl<Witness, App: Application> Node<Witness, App> {
 impl<App: Application> Node<Value, App> {
     /// Decode a Simplicity program from bits, including the witness data.
     pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Rc<Self>, Error> {
-        let commit = CommitNode::decode(bits)?;
+        let commit = decode::decode_program_exact_witness(bits)?;
         let witness = WitnessDecoder::new(bits)?;
         let program = commit.finalize(witness)?;
 

@@ -28,9 +28,29 @@ use crate::Error;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-/// Decode a Simplicity program from bits, without witness data.
-pub fn decode_program_no_witness<I: Iterator<Item = u8>, App: Application>(
+/// Decode a Simplicity program from bits where witness data follows.
+///
+/// The number of decoded witness nodes corresponds exactly to the witness data.
+pub(crate) fn decode_program_exact_witness<I: Iterator<Item = u8>, App: Application>(
     bits: &mut BitIter<I>,
+) -> Result<Rc<CommitNode<(), App>>, Error> {
+    decode_program(bits, false)
+}
+
+/// Decode a Simplicity program from bits where there is no witness data.
+///
+/// Witness nodes are made fresh, i.e., each witness node has at most one parent.
+/// This increases the number of witness nodes and hence the length of the required witness data.
+pub(crate) fn decode_program_fresh_witness<I: Iterator<Item = u8>, App: Application>(
+    bits: &mut BitIter<I>,
+) -> Result<Rc<CommitNode<(), App>>, Error> {
+    decode_program(bits, true)
+}
+
+/// Decode a Simplicity program from bits, without the witness data.
+fn decode_program<I: Iterator<Item = u8>, App: Application>(
+    bits: &mut BitIter<I>,
+    fresh_witness: bool,
 ) -> Result<Rc<CommitNode<(), App>>, Error> {
     let len = decode_natural(bits, None)?;
 
@@ -42,20 +62,29 @@ pub fn decode_program_no_witness<I: Iterator<Item = u8>, App: Application>(
         return Err(Error::TooManyNodes(len));
     }
 
+    let mut new_index = 0;
     let mut index_to_node = HashMap::new();
+    let mut new_index_to_node = HashMap::new();
 
     for index in 0..len {
-        decode_node(bits, index, &mut index_to_node)?;
+        new_index = decode_node(
+            bits,
+            index,
+            new_index,
+            &mut index_to_node,
+            &mut new_index_to_node,
+            fresh_witness,
+        )?;
     }
 
-    let root_index = len - 1;
-    let root = index_to_node.get(&root_index).unwrap().clone();
+    let new_root_index = new_index - 1;
+    let root = new_index_to_node.get(&new_root_index).unwrap().clone();
     let mut it = RefWrapper(&root).iter_post_order();
 
-    // len ≥ RefWrapper(&root).iter_post_order().count()
-    for index in 0..len {
+    // new_len ≥ RefWrapper(&root).iter_post_order().count()
+    for new_index in 0..=new_root_index {
         let connected_node = it.next().ok_or(Error::NotInCanonicalOrder)?;
-        let indexed_node = RefWrapper(index_to_node.get(&index).unwrap());
+        let indexed_node = RefWrapper(new_index_to_node.get(&new_index).unwrap());
 
         if connected_node != indexed_node {
             return Err(Error::NotInCanonicalOrder);
@@ -67,18 +96,32 @@ pub fn decode_program_no_witness<I: Iterator<Item = u8>, App: Application>(
 
 /// Decode a single Simplicity node from bits and
 /// insert it into a hash map at its index for future reference by ancestor nodes.
+///
+/// If witness nodes are made fresh, then the program grows and its indices change.
+/// This is why `index` is the node's index in the serialized program,
+/// while `new_index` is its index in the deserialized program.
+///
+/// Returns the next `new_index`
+/// because fresh witness nodes may be added to the deserialized program.
 fn decode_node<I: Iterator<Item = u8>, App: Application>(
     bits: &mut BitIter<I>,
     index: usize,
+    mut new_index: usize,
     index_to_node: &mut HashMap<usize, Rc<CommitNode<(), App>>>,
-) -> Result<(), Error> {
+    new_index_to_node: &mut HashMap<usize, Rc<CommitNode<(), App>>>,
+    fresh_witness: bool,
+) -> Result<usize, Error> {
     match bits.next() {
         None => return Err(Error::EndOfStream),
         Some(true) => {
             let node = CommitNode::jet(App::decode_jet(bits)?);
+
             debug_assert!(!index_to_node.contains_key(&index));
-            index_to_node.insert(index, node);
-            return Ok(());
+            debug_assert!(!new_index_to_node.contains_key(&new_index));
+            index_to_node.insert(index, node.clone());
+            new_index_to_node.insert(new_index, node);
+
+            return Ok(new_index + 1);
         }
         Some(false) => {}
     };
@@ -93,11 +136,12 @@ fn decode_node<I: Iterator<Item = u8>, App: Application>(
     };
     let node = if code <= 1 {
         let i_abs = index - decode_natural(bits, Some(index))?;
-        let left = get_child_from_index(i_abs, index_to_node);
+        let left = get_child_from_index(i_abs, &mut new_index, index_to_node, new_index_to_node);
 
         if code == 0 {
             let j_abs = index - decode_natural(bits, Some(index))?;
-            let right = get_child_from_index(j_abs, index_to_node);
+            let right =
+                get_child_from_index(j_abs, &mut new_index, index_to_node, new_index_to_node);
 
             match subcode {
                 0 => CommitNode::comp(left, right),
@@ -141,6 +185,7 @@ fn decode_node<I: Iterator<Item = u8>, App: Application>(
     } else if code == 3 {
         match subcode {
             0 => CommitNode::hidden(Cmr::from(decode_hash(bits)?)),
+            1 if fresh_witness => return Ok(index),
             1 => CommitNode::witness(()),
             _ => unimplemented!(),
         }
@@ -149,20 +194,35 @@ fn decode_node<I: Iterator<Item = u8>, App: Application>(
     };
 
     debug_assert!(!index_to_node.contains_key(&index));
-    index_to_node.insert(index, node);
-    Ok(())
+    debug_assert!(!new_index_to_node.contains_key(&new_index));
+    index_to_node.insert(index, node.clone());
+    new_index_to_node.insert(new_index, node);
+
+    Ok(new_index + 1)
 }
 
 /// Return the child node at the given index from a hash map.
+///
+/// A fresh witness node is returned as child and inserted into the program
+/// if witness nodes should be made fresh.
+/// The parent index and index hash maps are updated accordingly.
 fn get_child_from_index<App: Application>(
-    index: usize,
+    child_index: usize,
+    new_parent_index: &mut usize,
     index_to_node: &HashMap<usize, Rc<CommitNode<(), App>>>,
+    new_index_to_node: &mut HashMap<usize, Rc<CommitNode<(), App>>>,
 ) -> Rc<CommitNode<(), App>> {
-    index_to_node
-        .get(&index)
-        .expect("Children come before parent in post order")
-        .clone()
-    // TODO: Return fresh witness once sharing of unpopulated witness nodes is implemented
+    match index_to_node.get(&child_index) {
+        Some(child) => child.clone(),
+        // Absence of child means that child is a skipped witness node
+        None => {
+            let child = CommitNode::witness(());
+            debug_assert!(!new_index_to_node.contains_key(new_parent_index));
+            new_index_to_node.insert(*new_parent_index, child.clone());
+            *new_parent_index += 1;
+            child
+        }
+    }
 }
 
 /// Iterator over witness values that asks for the value type on each iteration.

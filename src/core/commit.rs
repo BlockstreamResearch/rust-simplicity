@@ -18,11 +18,13 @@ use crate::core::iter::DagIterable;
 use crate::core::node::NodeInner;
 use crate::core::{Node, Value};
 use crate::decode::WitnessIterator;
+use crate::encode::BitWriter;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
 use crate::merkle::{cmr, imr};
 use crate::{analysis, decode, impl_ref_wrapper, inference, Error};
 use std::collections::HashMap;
+use std::io;
 use std::rc::Rc;
 
 /// Underlying combinator of a [`CommitNode`].
@@ -443,8 +445,28 @@ impl<Witness, App: Application> CommitNode<Witness, App> {
 
 impl<App: Application> CommitNode<(), App> {
     /// Decode a Simplicity program from bits, without the witness data.
+    ///
+    /// # Usage
+    ///
+    /// Use this method only if the serialization **does not** include the witness data.
+    /// This means, the program simply has no witness during commitment,
+    /// or the witness is provided by other means.
+    ///
+    /// If the serialization contains the witness data, then use [`Node::decode()`].
     pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Rc<Self>, Error> {
-        decode::decode_program_no_witness(bits)
+        decode::decode_program_fresh_witness(bits)
+    }
+
+    /// Encode a Simplicity program to bits, without witness data.
+    ///
+    /// # Usage
+    ///
+    /// Use this method only if the program has no witness data.
+    /// Otherwise, add the witness via [`Self::finalize()`] and use [`Node::encode()`].
+    pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
+        let empty_witness = std::iter::repeat(Value::Unit);
+        let program = self.finalize(empty_witness).expect("finalize");
+        program.encode(w)
     }
 }
 
