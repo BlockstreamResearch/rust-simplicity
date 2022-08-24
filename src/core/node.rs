@@ -13,11 +13,11 @@
 //
 
 use crate::bititer::BitIter;
+use crate::bitwriter::BitWriter;
 use crate::core::iter::DagIterable;
 use crate::core::types::Type;
 use crate::core::{iter, Value};
 use crate::decode::WitnessDecoder;
-use crate::encode::BitWriter;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;

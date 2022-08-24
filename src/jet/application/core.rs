@@ -13,7 +13,7 @@
 //
 
 use crate::bititer::BitIter;
-use crate::encode::BitWriter;
+use crate::bitwriter::BitWriter;
 use crate::exec::BitMachine;
 use crate::jet;
 use crate::jet::core::CoreJetName;

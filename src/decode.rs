@@ -19,7 +19,7 @@
 
 use crate::bititer::BitIter;
 use crate::core::commit::{CommitNodeInner, RefWrapper};
-use crate::core::iter::DagIterable;
+use crate::core::iter::{DagIterable, WitnessIterator};
 use crate::core::types::{Type, TypeInner};
 use crate::core::{CommitNode, Value};
 use crate::jet::Application;
@@ -31,7 +31,7 @@ use std::rc::Rc;
 /// Decode a Simplicity program from bits where witness data follows.
 ///
 /// The number of decoded witness nodes corresponds exactly to the witness data.
-pub(crate) fn decode_program_exact_witness<I: Iterator<Item = u8>, App: Application>(
+pub fn decode_program_exact_witness<I: Iterator<Item = u8>, App: Application>(
     bits: &mut BitIter<I>,
 ) -> Result<Rc<CommitNode<(), App>>, Error> {
     decode_program(bits, false)
@@ -41,7 +41,7 @@ pub(crate) fn decode_program_exact_witness<I: Iterator<Item = u8>, App: Applicat
 ///
 /// Witness nodes are made fresh, i.e., each witness node has at most one parent.
 /// This increases the number of witness nodes and hence the length of the required witness data.
-pub(crate) fn decode_program_fresh_witness<I: Iterator<Item = u8>, App: Application>(
+pub fn decode_program_fresh_witness<I: Iterator<Item = u8>, App: Application>(
     bits: &mut BitIter<I>,
 ) -> Result<Rc<CommitNode<(), App>>, Error> {
     decode_program(bits, true)
@@ -225,25 +225,6 @@ fn get_child_from_index<App: Application>(
     }
 }
 
-/// Iterator over witness values that asks for the value type on each iteration.
-pub trait WitnessIterator {
-    /// Return the next witness value of the given type.
-    fn next(&mut self, ty: &Type) -> Result<Value, Error>;
-
-    /// Consume the iterator and check the total witness length.
-    fn finish(self) -> Result<(), Error>;
-}
-
-impl<I: Iterator<Item = Value>> WitnessIterator for I {
-    fn next(&mut self, _ty: &Type) -> Result<Value, Error> {
-        Iterator::next(self).ok_or(Error::EndOfStream)
-    }
-
-    fn finish(self) -> Result<(), Error> {
-        Ok(())
-    }
-}
-
 /// Implementation of [`WitnessIterator`] for an underlying [`BitIter`].
 #[derive(Debug)]
 pub struct WitnessDecoder<'a, I: Iterator<Item = u8>> {
@@ -253,7 +234,10 @@ pub struct WitnessDecoder<'a, I: Iterator<Item = u8>> {
 
 impl<'a, I: Iterator<Item = u8>> WitnessDecoder<'a, I> {
     /// Create a new witness decoder for the given bit iterator.
-    /// To work, this method must be used **after** [`decode_program_no_witness()`]!
+    ///
+    /// # Usage
+    ///
+    /// This method must be used **after** the program serialization has been read by the iterator.
     pub fn new(bits: &'a mut BitIter<I>) -> Result<Self, Error> {
         let bit_len = match bits.next() {
             Some(false) => 0,
@@ -302,7 +286,7 @@ pub fn decode_value<I: Iterator<Item = bool>>(ty: &Type, iter: &mut I) -> Result
 }
 
 /// Decode a 256-bit hash from bits.
-fn decode_hash<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<[u8; 32], Error> {
+pub fn decode_hash<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<[u8; 32], Error> {
     let mut h = [0; 32];
 
     for b in &mut h {
@@ -362,8 +346,8 @@ pub fn decode_natural<I: Iterator<Item = bool>>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bitwriter::BitWriter;
     use crate::encode;
-    use crate::encode::BitWriter;
 
     #[test]
     fn decode_fixed() {

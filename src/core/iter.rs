@@ -15,7 +15,10 @@
 //! Iterators over DAGs
 
 use crate::core::node::{NodeInner, RefWrapper};
+use crate::core::types::Type;
+use crate::core::Value;
 use crate::jet::Application;
+use crate::Error;
 use std::collections::HashSet;
 use std::hash::Hash;
 
@@ -156,4 +159,23 @@ where
             None
         }
     })
+}
+
+/// Iterator over witness values that asks for the value type on each iteration.
+pub trait WitnessIterator {
+    /// Return the next witness value of the given type.
+    fn next(&mut self, ty: &Type) -> Result<Value, Error>;
+
+    /// Consume the iterator and check the total witness length.
+    fn finish(self) -> Result<(), Error>;
+}
+
+impl<I: Iterator<Item = Value>> WitnessIterator for I {
+    fn next(&mut self, _ty: &Type) -> Result<Value, Error> {
+        Iterator::next(self).ok_or(Error::EndOfStream)
+    }
+
+    fn finish(self) -> Result<(), Error> {
+        Ok(())
+    }
 }

@@ -24,10 +24,16 @@ mod macros;
 mod analysis;
 pub mod bit_machine;
 pub mod bititer;
+pub mod bitwriter;
 pub mod core;
+#[cfg(fuzzing)]
 pub mod decode;
-#[allow(dead_code)]
+#[cfg(not(fuzzing))]
+mod decode;
+#[cfg(fuzzing)]
 pub mod encode;
+#[cfg(not(fuzzing))]
+mod encode;
 mod inference;
 pub mod jet;
 pub mod merkle;

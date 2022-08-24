@@ -20,7 +20,7 @@ mod exec;
 // mod tests;
 
 use crate::bititer::BitIter;
-use crate::encode::BitWriter;
+use crate::bitwriter::BitWriter;
 use crate::exec::BitMachine;
 use crate::jet::application::{Core, CoreError};
 use crate::jet::elements::ElementsJetName;

@@ -14,11 +14,10 @@
 //
 
 use crate::bititer::BitIter;
-use crate::core::iter::DagIterable;
+use crate::bitwriter::BitWriter;
+use crate::core::iter::{DagIterable, WitnessIterator};
 use crate::core::node::NodeInner;
 use crate::core::{Node, Value};
-use crate::decode::WitnessIterator;
-use crate::encode::BitWriter;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
 use crate::merkle::{cmr, imr};

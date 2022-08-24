@@ -33,7 +33,7 @@ pub use init::core;
 pub use init::elements;
 
 use crate::bititer::BitIter;
-use crate::encode::BitWriter;
+use crate::bitwriter::BitWriter;
 use crate::exec::BitMachine;
 use crate::jet::type_name::TypeName;
 use crate::merkle::cmr::Cmr;

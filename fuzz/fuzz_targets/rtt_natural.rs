@@ -15,7 +15,7 @@
 extern crate simplicity;
 
 use simplicity::bititer::BitIter;
-use simplicity::encode::BitWriter;
+use simplicity::bitwriter::BitWriter;
 use simplicity::{decode, encode};
 
 fn do_test(data: &[u8]) {
@@ -85,6 +85,9 @@ mod tests {
 
     #[test]
     fn duplicate_crash() {
+        #[cfg(not(fuzzing))]
+        compile_error!("To build this target or run the unit tests you must set RUSTFLAGS=--cfg=fuzzing");
+
         let mut a = Vec::new();
         extend_vec_from_hex("00", &mut a);
         super::do_test(&a);
