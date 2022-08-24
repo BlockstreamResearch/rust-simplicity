@@ -14,6 +14,8 @@
 
 //! Iterators over DAGs
 
+use crate::core::node::{NodeInner, RefWrapper};
+use crate::jet::Application;
 use std::collections::HashSet;
 use std::hash::Hash;
 
@@ -138,21 +140,20 @@ macro_rules! impl_ref_wrapper {
     };
 }
 
-/*
-/// Convert the given iterator over [`Term`]s into an iterator over the contained `Witness` values.
+/// Convert the given iterator over [`RefWrapper`]s
+/// into an iterator over the contained `Witness` values.
 pub fn into_witness<'a, Witness, App: Application, I>(
     iter: I,
 ) -> impl Iterator<Item = &'a Witness> + Clone
 where
     Witness: 'a,
-    I: Iterator<Item = &'a Term<Witness, App>> + Clone,
+    I: Iterator<Item = RefWrapper<'a, Witness, App>> + Clone,
 {
-    iter.filter_map(|term| {
-        if let Term::Witness(value) = term {
+    iter.filter_map(|node| {
+        if let NodeInner::Witness(value) = &node.0.inner {
             Some(value)
         } else {
             None
         }
     })
 }
-*/

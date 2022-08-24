@@ -15,12 +15,14 @@
 use crate::bititer::BitIter;
 use crate::core::iter::DagIterable;
 use crate::core::types::Type;
-use crate::core::{CommitNode, Value};
+use crate::core::{iter, CommitNode, Value};
 use crate::decode::WitnessDecoder;
+use crate::encode::BitWriter;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
-use crate::{impl_ref_wrapper, sharing, Error};
+use crate::{encode, impl_ref_wrapper, sharing, Error};
+use std::io;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -145,6 +147,17 @@ impl<Witness, App: Application> Node<Witness, App> {
             | NodeInner::Disconnect(_, r) => Some(r),
         }
     }
+
+    /// Return an iterator over the types of values that make up a valid witness for the program.
+    pub fn get_witness_types(&self) -> impl Iterator<Item = &Type> {
+        RefWrapper(self).iter_post_order().filter_map(|node| {
+            if let NodeInner::Witness(_) = &node.0.inner {
+                Some(node.0.ty.target.as_ref())
+            } else {
+                None
+            }
+        })
+    }
 }
 
 impl<App: Application> Node<Value, App> {
@@ -159,6 +172,14 @@ impl<App: Application> Node<Value, App> {
         } else {
             Err(Error::SharingNotMaximal)
         }
+    }
+
+    /// Encode a Simplicity program to bits, including the witness data.
+    pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
+        let program = RefWrapper(self).iter_post_order();
+        let program_bits = encode::encode_program(program.clone(), w)?;
+        let witness_bits = encode::encode_witness(iter::into_witness(program), w)?;
+        Ok(program_bits + witness_bits)
     }
 }
 

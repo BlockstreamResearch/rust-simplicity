@@ -15,7 +15,7 @@
 use crate::core::iter::PostOrderIter;
 use crate::core::node::{NodeInner, RefWrapper};
 use crate::jet::Application;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 /// Check whether the given program has maximal sharing.
 ///
@@ -48,4 +48,45 @@ pub(crate) fn check_maximal_sharing<Witness, App: Application>(
     }
 
     true
+}
+
+/// Compute a maximal sharing for the given program.
+///
+/// Return a mapping of node references to their shared index,
+/// and the total length of the shared program.
+///
+/// # See
+/// [`check_maximal_sharing()`]
+pub(crate) fn compute_maximal_sharing<Witness, App: Application>(
+    program: PostOrderIter<RefWrapper<Witness, App>>,
+) -> (HashMap<RefWrapper<Witness, App>, usize>, usize) {
+    let mut node_to_index = HashMap::new();
+    let mut index = 0;
+    let mut hash_to_node = HashMap::new();
+    let mut primary_key_to_node = HashMap::new();
+
+    for node in program {
+        debug_assert!(!node_to_index.contains_key(&node));
+
+        if let NodeInner::Hidden(h) = node.0.inner {
+            if let Some(shared_node) = hash_to_node.get(&h) {
+                node_to_index.insert(node, *node_to_index.get(shared_node).unwrap());
+            } else {
+                hash_to_node.insert(h, node);
+                node_to_index.insert(node, index);
+                index += 1;
+            }
+        } else {
+            let primary_key = (node.0.imr, node.0.ty.source.tmr, node.0.ty.target.tmr);
+            if let Some(shared_node) = primary_key_to_node.get(&primary_key) {
+                node_to_index.insert(node, *node_to_index.get(shared_node).unwrap());
+            } else {
+                primary_key_to_node.insert(primary_key, node);
+                node_to_index.insert(node, index);
+                index += 1;
+            }
+        }
+    }
+
+    (node_to_index, index)
 }
