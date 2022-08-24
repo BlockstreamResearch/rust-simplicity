@@ -82,6 +82,24 @@ impl Type {
             },
         })
     }
+
+    /// Return an array `pow2s` of types such that `pow2s[i] = 2^i` holds for 0 ≤ `i` < 9.
+    pub fn powers_of_two() -> [Arc<Type>; 9] {
+        let two_0 = Type::unit();
+        let two_1 = Type::sum(two_0.clone(), two_0);
+        let two_2 = Type::product(two_1.clone(), two_1.clone());
+        let two_4 = Type::product(two_2.clone(), two_2.clone());
+        let two_8 = Type::product(two_4.clone(), two_4.clone());
+        let two_16 = Type::product(two_8.clone(), two_8.clone());
+        let two_32 = Type::product(two_16.clone(), two_16.clone());
+        let two_64 = Type::product(two_32.clone(), two_32.clone());
+        let two_128 = Type::product(two_64.clone(), two_64.clone());
+        let two_256 = Type::product(two_128.clone(), two_128.clone());
+
+        [
+            two_1, two_2, two_4, two_8, two_16, two_32, two_64, two_128, two_256,
+        ]
+    }
 }
 
 impl fmt::Display for Type {
