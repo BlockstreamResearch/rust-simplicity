@@ -19,7 +19,8 @@ use crate::core::types::Type;
 use crate::core::Value;
 use crate::jet::Application;
 use crate::Error;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::hash::Hash;
 
 /// Structure that can be iterated like a DAG _(directed acyclic graph)_.
@@ -36,6 +37,47 @@ pub trait DagIterable: Copy + Eq + Hash {
     /// Return a post-order iterator over the DAG.
     fn iter_post_order(&self) -> PostOrderIter<Self> {
         PostOrderIter::new(self)
+    }
+
+    /// Display the DAG as an indexed list in post order.
+    ///
+    /// `display_body()` formats the node body in front of the node indices.
+    /// `display_aux()` formats auxiliary items after the node indices.
+    fn display<F, G>(
+        &self,
+        f: &mut fmt::Formatter<'_>,
+        display_body: F,
+        display_aux: G,
+    ) -> fmt::Result
+    where
+        F: Fn(Self, &mut fmt::Formatter<'_>) -> fmt::Result,
+        G: Fn(Self, &mut fmt::Formatter<'_>) -> fmt::Result,
+    {
+        let it = self.iter_post_order();
+        let mut node_to_index = HashMap::new();
+
+        for (index, node) in it.enumerate() {
+            write!(f, "{}: ", index)?;
+            display_body(node, f)?;
+
+            if let Some(left) = node.get_left() {
+                let i_abs = node_to_index.get(&left).unwrap();
+
+                if let Some(right) = node.get_right() {
+                    let j_abs = node_to_index.get(&right).unwrap();
+
+                    write!(f, "({}, {})", i_abs, j_abs)?;
+                } else {
+                    write!(f, "({})", i_abs)?;
+                }
+            }
+
+            display_aux(node, f)?;
+            f.write_str("\n")?;
+            node_to_index.insert(node, index);
+        }
+
+        Ok(())
     }
 }
 

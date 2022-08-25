@@ -22,9 +22,9 @@ use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
 use crate::{decode, encode, impl_ref_wrapper, sharing, Error};
-use std::io;
 use std::rc::Rc;
 use std::sync::Arc;
+use std::{fmt, io};
 
 /// Underlying combinator of a [`Node`].
 ///
@@ -66,6 +66,29 @@ pub enum NodeInner<Witness, App: Application> {
     Jet(&'static JetNode<App>),
 }
 
+impl<Witness: fmt::Display, App: Application> fmt::Display for NodeInner<Witness, App> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            NodeInner::Iden => f.write_str("iden"),
+            NodeInner::Unit => f.write_str("unit"),
+            NodeInner::InjL(_) => f.write_str("injl"),
+            NodeInner::InjR(_) => f.write_str("injr"),
+            NodeInner::Take(_) => f.write_str("take"),
+            NodeInner::Drop(_) => f.write_str("drop"),
+            NodeInner::Comp(_, _) => f.write_str("comp"),
+            NodeInner::Case(_, _) => f.write_str("case"),
+            NodeInner::AssertL(_, _) => f.write_str("assertl"),
+            NodeInner::AssertR(_, _) => f.write_str("assertr"),
+            NodeInner::Pair(_, _) => f.write_str("pair"),
+            NodeInner::Disconnect(_, _) => f.write_str("disconnect"),
+            NodeInner::Witness(_) => f.write_str("witness"),
+            NodeInner::Fail(hl, hr) => write!(f, "fail({}, {})", hl, hr),
+            NodeInner::Hidden(h) => write!(f, "hidden({})", h),
+            NodeInner::Jet(jet) => write!(f, "jet({})", jet.name),
+        }
+    }
+}
+
 /// Source and target type of a node
 #[derive(Debug)]
 pub struct NodeType {
@@ -73,6 +96,12 @@ pub struct NodeType {
     pub(crate) source: Arc<Type>,
     /// Target type of the node
     pub(crate) target: Arc<Type>,
+}
+
+impl fmt::Display for NodeType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} → {}", self.source, self.target)
+    }
 }
 
 /// Bounds on the resources required by a node during execution on the Bit Machine
@@ -180,6 +209,16 @@ impl<App: Application> Node<Value, App> {
         let program_bits = encode::encode_program(program.clone(), w)?;
         let witness_bits = encode::encode_witness(iter::into_witness(program), w)?;
         Ok(program_bits + witness_bits)
+    }
+}
+
+impl<Witness: fmt::Display, App: Application> fmt::Display for Node<Witness, App> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        RefWrapper(self).display(
+            f,
+            |node, f| fmt::Display::fmt(&node.0.inner, f),
+            |node, f| write!(f, ": {}", node.0.ty),
+        )
     }
 }
 

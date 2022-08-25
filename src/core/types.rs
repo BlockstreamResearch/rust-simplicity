@@ -16,7 +16,7 @@ use std::{cell::RefCell, cmp, fmt, rc::Rc, sync::Arc};
 /// that are the _product_ of a value of type A and a value of type B.
 ///
 /// _(see [`crate::core::Value`])_
-#[derive(Clone, PartialOrd, Ord, Debug)]
+#[derive(Clone, PartialOrd, Ord)]
 pub struct Type {
     /// Underlying type with references to sub-types
     pub inner: TypeInner,
@@ -99,6 +99,16 @@ impl Type {
         [
             two_1, two_2, two_4, two_8, two_16, two_32, two_64, two_128, two_256,
         ]
+    }
+}
+
+impl fmt::Debug for Type {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Type")
+            .field("display", &self.display)
+            .field("bit_width", &self.bit_width)
+            .field("tmr", &self.tmr)
+            .finish()
     }
 }
 

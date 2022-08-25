@@ -23,8 +23,8 @@ use crate::merkle::cmr::Cmr;
 use crate::merkle::{cmr, imr};
 use crate::{analysis, decode, impl_ref_wrapper, inference, Error};
 use std::collections::HashMap;
-use std::io;
 use std::rc::Rc;
+use std::{fmt, io};
 
 /// Underlying combinator of a [`CommitNode`].
 /// May contain references to children, witness data, hash payloads or jets.
@@ -62,6 +62,29 @@ pub enum CommitNodeInner<Witness, App: Application> {
     Hidden(Cmr),
     /// Application jet
     Jet(&'static JetNode<App>),
+}
+
+impl<Witness, App: Application> fmt::Display for CommitNodeInner<Witness, App> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CommitNodeInner::Iden => f.write_str("iden"),
+            CommitNodeInner::Unit => f.write_str("unit"),
+            CommitNodeInner::InjL(_) => f.write_str("injl"),
+            CommitNodeInner::InjR(_) => f.write_str("injr"),
+            CommitNodeInner::Take(_) => f.write_str("take"),
+            CommitNodeInner::Drop(_) => f.write_str("drop"),
+            CommitNodeInner::Comp(_, _) => f.write_str("comp"),
+            CommitNodeInner::Case(_, _) => f.write_str("case"),
+            CommitNodeInner::AssertL(_, _) => f.write_str("assertl"),
+            CommitNodeInner::AssertR(_, _) => f.write_str("assertr"),
+            CommitNodeInner::Pair(_, _) => f.write_str("pair"),
+            CommitNodeInner::Disconnect(_, _) => f.write_str("disconnect"),
+            CommitNodeInner::Witness(_) => f.write_str("witness"),
+            CommitNodeInner::Fail(hl, hr) => write!(f, "fail({}, {})", hl, hr),
+            CommitNodeInner::Hidden(h) => write!(f, "hidden({})", h),
+            CommitNodeInner::Jet(jet) => write!(f, "jet({})", jet.name),
+        }
+    }
 }
 
 /// Root node of a Simplicity DAG for some witness type and application.
@@ -466,6 +489,16 @@ impl<App: Application> CommitNode<(), App> {
         let empty_witness = std::iter::repeat(Value::Unit);
         let program = self.finalize(empty_witness).expect("finalize");
         program.encode(w)
+    }
+}
+
+impl<Witness, App: Application> fmt::Display for CommitNode<Witness, App> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        RefWrapper(self).display(
+            f,
+            |node, f| fmt::Display::fmt(&node.0.inner, f),
+            |_, _| Ok(()),
+        )
     }
 }
 
