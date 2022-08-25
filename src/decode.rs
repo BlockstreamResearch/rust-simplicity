@@ -219,7 +219,7 @@ impl<'a, I: Iterator<Item = u8>> WitnessIterator for WitnessDecoder<'a, I> {
 
 /// Decode a value from bits, based on the given type.
 pub fn decode_value<I: Iterator<Item = bool>>(ty: &Type, iter: &mut I) -> Result<Value, Error> {
-    let value = match ty.ty {
+    let value = match ty.inner {
         TypeInner::Unit => Value::Unit,
         TypeInner::Sum(ref l, ref r) => match iter.next() {
             Some(false) => Value::SumL(Box::new(decode_value(l, iter)?)),

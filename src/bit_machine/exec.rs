@@ -309,7 +309,7 @@ impl BitMachine {
                     self.copy(size_a);
                 }
                 NodeInner::InjL(left) => {
-                    let padl_b_c = if let TypeInner::Sum(b, _) = &ip.ty.target.ty {
+                    let padl_b_c = if let TypeInner::Sum(b, _) = &ip.ty.target.inner {
                         ip.ty.target.bit_width - b.bit_width - 1
                     } else {
                         unreachable!()
@@ -320,7 +320,7 @@ impl BitMachine {
                     call_stack.push(CallStack::Goto(left));
                 }
                 NodeInner::InjR(left) => {
-                    let padr_b_c = if let TypeInner::Sum(_, c) = &ip.ty.target.ty {
+                    let padr_b_c = if let TypeInner::Sum(_, c) = &ip.ty.target.inner {
                         ip.ty.target.bit_width - c.bit_width - 1
                     } else {
                         unreachable!()
@@ -365,7 +365,7 @@ impl BitMachine {
                 }
                 NodeInner::Take(left) => call_stack.push(CallStack::Goto(left)),
                 NodeInner::Drop(left) => {
-                    let size_a = if let TypeInner::Product(a, _) = &ip.ty.source.ty {
+                    let size_a = if let TypeInner::Product(a, _) = &ip.ty.source.inner {
                         a.bit_width
                     } else {
                         unreachable!()
@@ -380,16 +380,16 @@ impl BitMachine {
                 | NodeInner::AssertR(left, right) => {
                     let choice_bit = self.read[self.read.len() - 1].peek_bit(&self.data);
 
-                    let (size_a, size_b) = if let TypeInner::Product(sum_a_b, _c) = &ip.ty.source.ty
-                    {
-                        if let TypeInner::Sum(a, b) = &sum_a_b.ty {
-                            (a.bit_width, b.bit_width)
+                    let (size_a, size_b) =
+                        if let TypeInner::Product(sum_a_b, _c) = &ip.ty.source.inner {
+                            if let TypeInner::Sum(a, b) = &sum_a_b.inner {
+                                (a.bit_width, b.bit_width)
+                            } else {
+                                unreachable!()
+                            }
                         } else {
                             unreachable!()
-                        }
-                    } else {
-                        unreachable!()
-                    };
+                        };
 
                     if choice_bit {
                         let padr_a_b = cmp::max(size_a, size_b) - size_b;
