@@ -17,10 +17,10 @@
 //! Used at time of commitment.
 //! Importantly, `witness` data and right `disconnect` branches are _not_ included in the hash.
 
-use crate::core::{Term, TypedNode};
+use crate::core::commit::CommitNodeInner;
 use crate::impl_midstate_wrapper;
 use crate::jet::Application;
-use crate::merkle::common::{MerkleRoot, TermMerkleRoot};
+use crate::merkle::common::{CommitMerkleRoot, MerkleRoot};
 use bitcoin_hashes::sha256::Midstate;
 
 /// Commitment Merkle root
@@ -29,52 +29,55 @@ pub struct Cmr(pub(crate) Midstate);
 
 impl_midstate_wrapper!(Cmr);
 
-impl TermMerkleRoot for Cmr {
-    fn get_iv<Witness, App: Application>(term: &Term<Witness, App>) -> Self {
-        match term {
-            Term::Iden => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1fiden"),
-            Term::Unit => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1funit"),
-            Term::InjL(..) => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1finjl"),
-            Term::InjR(..) => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1finjr"),
-            Term::Take(..) => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1ftake"),
-            Term::Drop(..) => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1fdrop"),
-            Term::Comp(..) => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1fcomp"),
-            Term::Case(..) | Term::AssertL(..) | Term::AssertR(..) => {
+impl CommitMerkleRoot for Cmr {
+    fn get_iv<Witness, App: Application>(node: &CommitNodeInner<Witness, App>) -> Self {
+        match node {
+            CommitNodeInner::Iden => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1fiden"),
+            CommitNodeInner::Unit => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1funit"),
+            CommitNodeInner::InjL(_) => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1finjl"),
+            CommitNodeInner::InjR(_) => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1finjr"),
+            CommitNodeInner::Take(_) => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1ftake"),
+            CommitNodeInner::Drop(_) => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1fdrop"),
+            CommitNodeInner::Comp(_, _) => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1fcomp"),
+            CommitNodeInner::Case(_, _)
+            | CommitNodeInner::AssertL(_, _)
+            | CommitNodeInner::AssertR(_, _) => {
                 Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1fcase")
             }
-            Term::Pair(..) => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1fpair"),
-            Term::Disconnect(..) => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1fdisconnect"),
-            Term::Witness(..) => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1fwitness"),
-            Term::Fail(..) => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1ffail"),
-            Term::Hidden(h) => *h,
-            Term::Jet(j) => j.cmr(),
+            CommitNodeInner::Pair(_, _) => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1fpair"),
+            CommitNodeInner::Disconnect(_, _) => {
+                Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1fdisconnect")
+            }
+            CommitNodeInner::Witness(_) => {
+                Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1fwitness")
+            }
+            CommitNodeInner::Fail(_, _) => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1ffail"),
+            CommitNodeInner::Hidden(h) => *h,
+            CommitNodeInner::Jet(jet) => jet.cmr(),
         }
     }
 }
 
-/// Compute the CMR of the given `node` that will be appended to the given `program`
-/// at the given `index`.
-pub(crate) fn compute_cmr<Witness, App: Application>(
-    program: &[TypedNode<Witness, App>],
-    node: &Term<Witness, App>,
-    index: usize,
-) -> Cmr {
+/// Compute the CMR of the given `node`.
+pub(crate) fn compute_cmr<Witness, App: Application>(node: &CommitNodeInner<Witness, App>) -> Cmr {
     let cmr_iv = Cmr::get_iv(node);
 
-    match *node {
-        Term::Iden
-        | Term::Unit
-        | Term::Witness(..)
-        | Term::Fail(..)
-        | Term::Hidden(..)
-        | Term::Jet(..) => cmr_iv,
-        Term::InjL(i) | Term::InjR(i) | Term::Take(i) | Term::Drop(i) | Term::Disconnect(i, _) => {
-            cmr_iv.update_1(program[index - i].cmr)
-        }
-        Term::Comp(i, j)
-        | Term::Case(i, j)
-        | Term::Pair(i, j)
-        | Term::AssertL(i, j)
-        | Term::AssertR(i, j) => cmr_iv.update(program[index - i].cmr, program[index - j].cmr),
+    match node {
+        CommitNodeInner::Iden
+        | CommitNodeInner::Unit
+        | CommitNodeInner::Witness(..)
+        | CommitNodeInner::Fail(..)
+        | CommitNodeInner::Hidden(..)
+        | CommitNodeInner::Jet(..) => cmr_iv,
+        CommitNodeInner::InjL(l)
+        | CommitNodeInner::InjR(l)
+        | CommitNodeInner::Take(l)
+        | CommitNodeInner::Drop(l)
+        | CommitNodeInner::Disconnect(l, _) => cmr_iv.update_1(l.cmr),
+        CommitNodeInner::Comp(l, r)
+        | CommitNodeInner::Case(l, r)
+        | CommitNodeInner::Pair(l, r)
+        | CommitNodeInner::AssertL(l, r)
+        | CommitNodeInner::AssertR(l, r) => cmr_iv.update(l.cmr, r.cmr),
     }
 }

@@ -12,78 +12,106 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use crate::core::{ProgramNode, Term, TypedNode, Value};
+use crate::core::commit::CommitNodeInner;
+use crate::core::node::{NodeBounds, NodeType};
+use crate::core::Value;
+use crate::core::{CommitNode, Node};
 use crate::jet::Application;
 use std::cmp;
+use std::rc::Rc;
 
-/// Return an upper bound on the number of cells required by the given `node`
-/// inside the given `program` during execution on the Bit Machine.
-pub(crate) fn compute_extra_cells_bound<App: Application>(
-    program: &[ProgramNode<App>],
-    node: &TypedNode<Value, App>,
-) -> usize {
-    match node.term {
-        Term::Iden | Term::Unit | Term::Fail(..) | Term::Hidden(..) | Term::Jet(..) => 0,
-        Term::InjL(i) | Term::InjR(i) | Term::Take(i) | Term::Drop(i) => {
-            program[node.index - i].extra_cells_bound
-        }
-        Term::Comp(i, j) => {
-            program[node.index - i].target_ty().bit_width
-                + cmp::max(
-                    program[node.index - i].extra_cells_bound,
-                    program[node.index - j].extra_cells_bound,
-                )
-        }
-        Term::Case(i, j) | Term::AssertL(i, j) | Term::AssertR(i, j) | Term::Pair(i, j) => {
-            cmp::max(
-                program[node.index - i].extra_cells_bound,
-                program[node.index - j].extra_cells_bound,
-            )
-        }
-        Term::Disconnect(i, j) => {
-            program[node.index - i].source_ty().bit_width
-                + program[node.index - i].target_ty().bit_width
-                + cmp::max(
-                    program[node.index - i].extra_cells_bound,
-                    program[node.index - j].extra_cells_bound,
-                )
-        }
-        Term::Witness(..) => node.target_ty.bit_width,
+/// Return the bounds for the given node, once finalized.
+///
+/// Nodes with left children require their finalized left child,
+/// while nodes with right children require their finalized right child.
+/// Witness nodes require their node type.
+pub(crate) fn compute_bounds<Witness, App: Application>(
+    untyped_node: &CommitNode<Witness, App>,
+    left: Option<Rc<Node<Value, App>>>,
+    right: Option<Rc<Node<Value, App>>>,
+    ty: &NodeType,
+) -> NodeBounds {
+    NodeBounds {
+        extra_cells: compute_extra_cells_bound(untyped_node, left.clone(), right.clone(), ty),
+        frame_count: compute_frame_count_bound(untyped_node, left, right),
     }
 }
 
-/// Return an upper bound on the number of frames required by the given `node`
-/// inside the given `program` during execution on the Bit Machine.
-pub(crate) fn compute_frame_count_bound<App: Application>(
-    program: &[ProgramNode<App>],
-    node: &TypedNode<Value, App>,
+/// Return an upper bound on the number of cells required
+/// by the given node during execution on the Bit Machine.
+fn compute_extra_cells_bound<Witness, App: Application>(
+    untyped_node: &CommitNode<Witness, App>,
+    left: Option<Rc<Node<Value, App>>>,
+    right: Option<Rc<Node<Value, App>>>,
+    ty: &NodeType,
 ) -> usize {
-    match node.term {
-        Term::Iden
-        | Term::Unit
-        | Term::Witness(..)
-        | Term::Fail(..)
-        | Term::Hidden(..)
-        | Term::Jet(..) => 0,
-        Term::InjL(i) | Term::InjR(i) | Term::Take(i) | Term::Drop(i) => {
-            program[node.index - i].frame_count_bound
+    match untyped_node.inner {
+        CommitNodeInner::Iden
+        | CommitNodeInner::Unit
+        | CommitNodeInner::Fail(_, _)
+        | CommitNodeInner::Hidden(_)
+        | CommitNodeInner::Jet(_) => 0,
+        CommitNodeInner::InjL(_)
+        | CommitNodeInner::InjR(_)
+        | CommitNodeInner::Take(_)
+        | CommitNodeInner::Drop(_) => left.unwrap().bounds.extra_cells,
+        CommitNodeInner::Comp(_, _) => {
+            let left = left.unwrap();
+            left.ty.target.bit_width
+                + cmp::max(left.bounds.extra_cells, right.unwrap().bounds.extra_cells)
         }
-        Term::Comp(i, j) => {
+        CommitNodeInner::Case(_, _)
+        | CommitNodeInner::AssertL(_, _)
+        | CommitNodeInner::AssertR(_, _)
+        | CommitNodeInner::Pair(_, _) => cmp::max(
+            left.unwrap().bounds.extra_cells,
+            right.unwrap().bounds.extra_cells,
+        ),
+        CommitNodeInner::Disconnect(_, _) => {
+            let left = left.unwrap();
+            left.ty.source.bit_width
+                + left.ty.target.bit_width
+                + cmp::max(left.bounds.extra_cells, right.unwrap().bounds.extra_cells)
+        }
+        CommitNodeInner::Witness(_) => ty.target.bit_width,
+    }
+}
+
+/// Return an upper bound on the number of frames required
+/// by the given node during execution on the Bit Machine.
+fn compute_frame_count_bound<Witness, App: Application>(
+    untyped_node: &CommitNode<Witness, App>,
+    left: Option<Rc<Node<Value, App>>>,
+    right: Option<Rc<Node<Value, App>>>,
+) -> usize {
+    match untyped_node.inner {
+        CommitNodeInner::Iden
+        | CommitNodeInner::Unit
+        | CommitNodeInner::Witness(_)
+        | CommitNodeInner::Fail(_, _)
+        | CommitNodeInner::Hidden(_)
+        | CommitNodeInner::Jet(_) => 0,
+        CommitNodeInner::InjL(_)
+        | CommitNodeInner::InjR(_)
+        | CommitNodeInner::Take(_)
+        | CommitNodeInner::Drop(_) => left.unwrap().bounds.frame_count,
+        CommitNodeInner::Comp(_, _) => {
             1 + cmp::max(
-                program[node.index - i].frame_count_bound,
-                program[node.index - j].frame_count_bound,
+                left.unwrap().bounds.frame_count,
+                right.unwrap().bounds.frame_count,
             )
         }
-        Term::Case(i, j) | Term::AssertL(i, j) | Term::AssertR(i, j) | Term::Pair(i, j) => {
-            cmp::max(
-                program[node.index - i].frame_count_bound,
-                program[node.index - j].frame_count_bound,
-            )
-        }
-        Term::Disconnect(i, j) => {
+        CommitNodeInner::Case(_, _)
+        | CommitNodeInner::AssertL(_, _)
+        | CommitNodeInner::AssertR(_, _)
+        | CommitNodeInner::Pair(_, _) => cmp::max(
+            left.unwrap().bounds.frame_count,
+            right.unwrap().bounds.frame_count,
+        ),
+        CommitNodeInner::Disconnect(_, _) => {
             2 + cmp::max(
-                program[node.index - i].frame_count_bound,
-                program[node.index - j].frame_count_bound,
+                left.unwrap().bounds.frame_count,
+                right.unwrap().bounds.frame_count,
             )
         }
     }

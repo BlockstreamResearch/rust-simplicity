@@ -19,7 +19,7 @@ use std::{cell::RefCell, cmp, fmt, rc::Rc, sync::Arc};
 #[derive(Clone, PartialOrd, Ord, Debug)]
 pub struct Type {
     /// Underlying type with references to sub-types
-    pub ty: TypeInner,
+    pub inner: TypeInner,
     /// Bit width of the type
     pub bit_width: usize,
     /// Annotated Type Merkle root of the type
@@ -31,11 +31,11 @@ pub struct Type {
 impl Type {
     /// Return a unit type.
     pub fn unit() -> Arc<Self> {
-        let ty = TypeInner::Unit;
+        let inner = TypeInner::Unit;
 
         Arc::new(Self {
-            tmr: Tmr::get_iv(&ty),
-            ty,
+            tmr: Tmr::get_iv(&inner),
+            inner,
             bit_width: 0,
             display: "1".to_owned(),
         })
@@ -43,13 +43,13 @@ impl Type {
 
     /// Return the sum of the given two types.
     pub fn sum(a: Arc<Self>, b: Arc<Self>) -> Arc<Self> {
-        let ty = TypeInner::Sum(a.clone(), b.clone());
+        let inner = TypeInner::Sum(a.clone(), b.clone());
 
         Arc::new(Self {
-            tmr: Tmr::get_iv(&ty).update(a.tmr, b.tmr),
-            ty,
+            tmr: Tmr::get_iv(&inner).update(a.tmr, b.tmr),
+            inner,
             bit_width: 1 + cmp::max(a.bit_width, b.bit_width),
-            display: if a.ty == TypeInner::Unit && b.ty == TypeInner::Unit {
+            display: if a.inner == TypeInner::Unit && b.inner == TypeInner::Unit {
                 "2".to_owned()
             } else {
                 format!("({} + {})", a.display, b.display)
@@ -59,11 +59,11 @@ impl Type {
 
     /// Return the product of the given two types.
     pub fn product(a: Arc<Self>, b: Arc<Self>) -> Arc<Self> {
-        let ty = TypeInner::Product(a.clone(), b.clone());
+        let inner = TypeInner::Product(a.clone(), b.clone());
 
         Arc::new(Self {
-            tmr: Tmr::get_iv(&ty).update(a.tmr, b.tmr),
-            ty,
+            tmr: Tmr::get_iv(&inner).update(a.tmr, b.tmr),
+            inner,
             bit_width: a.bit_width + b.bit_width,
             display: if a.display == b.display {
                 match a.display.as_str() {

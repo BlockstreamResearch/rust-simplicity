@@ -18,12 +18,15 @@
 //! In contrast to [`super::cmr`], `witness` data and both `disconnect` branches are included in the hash.
 //! The type of `witness` data is included in the hash via [`super::tmr`].
 
-use crate::core::{ProgramNode, Term, TypedNode, Value};
+use crate::core::commit::CommitNodeInner;
+use crate::core::node::NodeType;
+use crate::core::{Node, Value};
 use crate::impl_midstate_wrapper;
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
-use crate::merkle::common::{MerkleRoot, TermMerkleRoot};
+use crate::merkle::common::{CommitMerkleRoot, MerkleRoot};
 use bitcoin_hashes::sha256::Midstate;
+use std::rc::Rc;
 
 /// Identity Merkle root
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -31,36 +34,48 @@ pub struct Imr(Midstate);
 
 impl_midstate_wrapper!(Imr);
 
-impl TermMerkleRoot for Imr {
-    fn get_iv<Witness, App: Application>(term: &Term<Witness, App>) -> Self {
-        match term {
-            Term::Disconnect(..) => Imr::tag_iv(b"Simplicity-Draft\x1fIdentity\x1fdisconnect"),
-            Term::Witness(..) => Imr::tag_iv(b"Simplicity-Draft\x1fIdentity\x1fwitness"),
-            _ => Cmr::get_iv(term).into_inner().into(),
+impl CommitMerkleRoot for Imr {
+    fn get_iv<Witness, App: Application>(node: &CommitNodeInner<Witness, App>) -> Self {
+        match node {
+            CommitNodeInner::Disconnect(_, _) => {
+                Imr::tag_iv(b"Simplicity-Draft\x1fIdentity\x1fdisconnect")
+            }
+            CommitNodeInner::Witness(_) => Imr::tag_iv(b"Simplicity-Draft\x1fIdentity\x1fwitness"),
+            _ => Cmr::get_iv(node).into_inner().into(),
         }
     }
 }
 
-/// Compute the IMR of the given `node` that will be appended to the given `program`
-/// at the given `index`.
-pub(crate) fn compute_imr<App: Application>(
-    program: &[ProgramNode<App>],
-    node: &TypedNode<Value, App>,
-    index: usize,
+/// Compute the IMR of the given node (once finalized).
+///
+/// Nodes with left children require their finalized left child,
+/// while nodes with right children require their finalized right child.
+/// Witness nodes require their value and node type.
+pub(crate) fn compute_imr<Witness, App: Application>(
+    node: &CommitNodeInner<Witness, App>,
+    left: Option<Rc<Node<Value, App>>>,
+    right: Option<Rc<Node<Value, App>>>,
+    value: Option<&Value>,
+    ty: &NodeType,
 ) -> Imr {
-    let imr_iv = Imr::get_iv(&node.term);
+    let imr_iv = Imr::get_iv(node);
 
-    match node.term {
-        Term::Iden | Term::Unit | Term::Fail(..) | Term::Hidden(..) | Term::Jet(..) => imr_iv,
-        Term::InjL(i) | Term::InjR(i) | Term::Take(i) | Term::Drop(i) => {
-            imr_iv.update_1(program[index - i].imr)
-        }
-        Term::Comp(i, j)
-        | Term::Case(i, j)
-        | Term::Pair(i, j)
-        | Term::AssertL(i, j)
-        | Term::AssertR(i, j)
-        | Term::Disconnect(i, j) => imr_iv.update(program[index - i].imr, program[index - j].imr),
-        Term::Witness(ref value) => imr_iv.update_value(value, &node.target_ty),
+    match node {
+        CommitNodeInner::Iden
+        | CommitNodeInner::Unit
+        | CommitNodeInner::Fail(..)
+        | CommitNodeInner::Hidden(..)
+        | CommitNodeInner::Jet(..) => imr_iv,
+        CommitNodeInner::InjL(_)
+        | CommitNodeInner::InjR(_)
+        | CommitNodeInner::Take(_)
+        | CommitNodeInner::Drop(_)
+        | CommitNodeInner::Disconnect(_, _) => imr_iv.update_1(left.unwrap().imr),
+        CommitNodeInner::Comp(_, _)
+        | CommitNodeInner::Case(_, _)
+        | CommitNodeInner::Pair(_, _)
+        | CommitNodeInner::AssertL(_, _)
+        | CommitNodeInner::AssertR(_, _) => imr_iv.update(left.unwrap().imr, right.unwrap().imr),
+        CommitNodeInner::Witness(_) => imr_iv.update_value(value.unwrap(), ty.target.as_ref()),
     }
 }

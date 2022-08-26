@@ -23,6 +23,7 @@
 
 /// Bitwise iterator formed from a wrapped bytewise iterator. Bytes are
 /// interpreted big-endian, i.e. MSB is returned first
+#[derive(Debug)]
 pub struct BitIter<I: Iterator<Item = u8>> {
     /// Byte iterator
     iter: I,

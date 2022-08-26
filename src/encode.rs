@@ -19,10 +19,8 @@
 //! so given a hex dump of a program it is not generally possible
 //! to read it visually the way you can with Bitcoin Script.
 
+use crate::core::Value;
 use std::{io, mem};
-
-use crate::core::{Term, Value};
-use crate::jet::Application;
 
 /// Bitwise writer formed by wrapping a bytewise [`io::Write`].
 /// Bits are written in big-endian order.
@@ -113,6 +111,7 @@ impl<W: io::Write> BitWriter<W> {
     }
 }
 
+/*
 /// Encode an untyped Simplicity program to bits.
 ///
 /// Returns the number of written bits.
@@ -162,6 +161,7 @@ where
 
     Ok(w.n_total_written() - start_n)
 }
+*/
 
 /// Return the bit length of the given `value` when encoded.
 fn get_bit_len(value: &Value) -> usize {
@@ -198,6 +198,7 @@ pub fn encode_value<W: io::Write>(value: &Value, w: &mut BitWriter<W>) -> io::Re
     Ok(w.n_total_written() - n_start)
 }
 
+/*
 /// Encode an untyped Simplicity term to bits.
 fn encode_node<W: io::Write, Witness, App: Application>(
     node: &Term<Witness, App>,
@@ -265,6 +266,7 @@ fn encode_node<W: io::Write, Witness, App: Application>(
 
     Ok(())
 }
+*/
 
 /// Encode a hash to bits.
 fn encode_hash<W: io::Write>(h: &[u8], w: &mut BitWriter<W>) -> io::Result<()> {
@@ -295,9 +297,7 @@ pub fn encode_natural<W: io::Write>(n: usize, w: &mut BitWriter<W>) -> io::Resul
 mod test {
     use super::*;
     use crate::bititer::BitIter;
-    use crate::core::{TypedProgram, UntypedProgram};
-    use crate::jet::application::Core;
-    use crate::{decode, jet};
+    use crate::decode;
 
     #[test]
     fn encode_decode_natural() {
@@ -312,6 +312,7 @@ mod test {
         }
     }
 
+    /*
     #[test]
     fn encode_decode_witness() {
         let program: TypedProgram<(), Core> = UntypedProgram(vec![
@@ -337,4 +338,5 @@ mod test {
             assert_eq!(witness, decoded_witness);
         }
     }
+    */
 }

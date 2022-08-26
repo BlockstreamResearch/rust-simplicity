@@ -14,8 +14,9 @@
 
 //! # Common traits and macros
 
+use crate::core::commit::CommitNodeInner;
 use crate::core::types::{Type, TypeInner};
-use crate::core::{Term, Value};
+use crate::core::Value;
 use crate::jet::Application;
 use crate::util::u64_to_array_be;
 use bitcoin_hashes::sha256::Midstate;
@@ -123,13 +124,13 @@ pub trait MerkleRoot: From<[u8; 32]> + Into<[u8; 32]> {
     }
 }
 
-/// Tagged SHA256 hash used for [`Term`]
-pub trait TermMerkleRoot: MerkleRoot {
-    /// Return the initial value for the given `term`.
+/// Tagged SHA256 hash used for [`crate::core::CommitNode`]
+pub trait CommitMerkleRoot: MerkleRoot {
+    /// Return the initial value for the given `node`.
     ///
-    /// Each [`Term`] corresponds to some tag that is hashed
+    /// Each [`CommitNodeInner`] corresponds to some tag that is hashed
     /// and returned as initial value
-    fn get_iv<Witness, App: Application>(term: &Term<Witness, App>) -> Self;
+    fn get_iv<Witness, App: Application>(node: &CommitNodeInner<Witness, App>) -> Self;
 }
 
 /// Tagged SHA256 hash used for [`Type`]

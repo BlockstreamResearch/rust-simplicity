@@ -1,8 +1,10 @@
+use crate::core::commit::{CommitNodeInner, RefWrapper};
+use crate::core::iter::{DagIterable, PostOrderIter};
+use crate::core::node::NodeType;
 use crate::core::types::{RcVar, Type, Variable, VariableFactory, VariableInner, VariableType};
-use crate::core::{Term, TypedNode, TypedProgram, UntypedProgram};
 use crate::jet::Application;
-use crate::merkle::cmr;
 use crate::Error;
+use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
 use std::{cmp, mem};
@@ -133,140 +135,178 @@ struct UnificationArrow {
     target: RcVar,
 }
 
-/// Attach types to all nodes in a program
-pub(crate) fn type_check<Witness, App: Application>(
-    program: UntypedProgram<Witness, App>,
-) -> Result<TypedProgram<Witness, App>, Error> {
-    let nodes = program.0;
-    if nodes.is_empty() {
-        return Ok(TypedProgram(vec![]));
-    }
+// TODO: Remove once local type checking is implemented
+/// Storage of the unification arrows for each node of a Simplicity DAG.
+#[derive(Debug)]
+pub(crate) struct Arrows<'a, Witness, App: Application> {
+    node_to_arrow: HashMap<RefWrapper<'a, Witness, App>, UnificationArrow>,
+}
 
-    let mut arrows: Vec<UnificationArrow> = Vec::with_capacity(nodes.len());
+impl<'a, Witness, App: Application> Arrows<'a, Witness, App> {
+    /// Return the finalized type of the given node.
+    /// To work, this method must be called on nodes in post order!
+    pub fn finalize(&self, node: &RefWrapper<'a, Witness, App>) -> Result<NodeType, Error> {
+        let arrow = self
+            .node_to_arrow
+            .get(node)
+            .expect("Type finalizer was not initialized to include the given node");
+        let source_ty = match finalize(arrow.source.clone()) {
+            Ok(ty) => ty,
+            Err(error) => return Err(error),
+        };
+        let target_ty = match finalize(arrow.target.clone()) {
+            Ok(ty) => ty,
+            Err(error) => return Err(error),
+        };
+
+        Ok(NodeType {
+            source: source_ty,
+            target: target_ty,
+        })
+    }
+}
+
+/// Return the initialized unification arrows of a Simplicity DAG.
+pub(crate) fn get_arrows<Witness, App: Application>(
+    it: PostOrderIter<RefWrapper<Witness, App>>,
+) -> Result<Arrows<Witness, App>, Error> {
+    let mut node_to_arrow: HashMap<RefWrapper<Witness, App>, UnificationArrow> = HashMap::new();
     let pow2s = Variable::powers_of_two();
     let mut naming = VariableFactory::new();
 
-    for (idx, node) in nodes.iter().enumerate() {
+    for untyped_node in it {
         let arrow = UnificationArrow {
             source: naming.free_variable(),
             target: naming.free_variable(),
         };
 
-        match node {
-            Term::Iden => unify(arrow.source.clone(), arrow.target.clone())?,
-            Term::Unit => bind(&arrow.target, VariableType::Unit)?,
-            Term::InjL(i) => {
-                let i = idx - i;
-                unify(arrow.source.clone(), arrows[i].source.clone())?;
-                let sum_b_c = VariableType::Sum(arrows[i].target.clone(), naming.free_variable());
-                bind(&arrow.target, sum_b_c)?;
-            }
-            Term::InjR(i) => {
-                let i = idx - i;
-                unify(arrow.source.clone(), arrows[i].source.clone())?;
-                let sum_b_c = VariableType::Sum(naming.free_variable(), arrows[i].target.clone());
-                bind(&arrow.target, sum_b_c)?;
-            }
-            Term::Take(i) => {
-                let i = idx - i;
-                unify(arrow.target.clone(), arrows[i].target.clone())?;
-                let prod_a_b =
-                    VariableType::Product(arrows[i].source.clone(), naming.free_variable());
-                bind(&arrow.source, prod_a_b)?;
-            }
-            Term::Drop(i) => {
-                let i = idx - i;
-                unify(arrow.target.clone(), arrows[i].target.clone())?;
-                let prod_a_b =
-                    VariableType::Product(naming.free_variable(), arrows[i].source.clone());
-                bind(&arrow.source, prod_a_b)?;
-            }
-            Term::Comp(i, j) => {
-                let (i, j) = (idx - i, idx - j);
-                unify(arrow.source.clone(), arrows[i].source.clone())?;
-                unify(arrows[i].target.clone(), arrows[j].source.clone())?;
-                unify(arrow.target.clone(), arrows[j].target.clone())?;
-            }
-            Term::Case(i, j) | Term::AssertL(i, j) | Term::AssertR(i, j) => {
-                let (i, j) = (idx - i, idx - j);
-                let a = naming.free_variable();
-                let b = naming.free_variable();
-                let c = naming.free_variable();
+        if let Some(left) = untyped_node.get_left() {
+            let left_arrow = node_to_arrow.get(&left).unwrap();
 
-                let sum_a_b = VariableType::Sum(a.clone(), b.clone());
-                let prod_sum_a_b_c = VariableType::Product(Variable::bound(sum_a_b), c.clone());
-                bind(&arrow.source, prod_sum_a_b_c)?;
+            if let Some(right) = untyped_node.get_right() {
+                let right_arrow = node_to_arrow.get(&right).unwrap();
 
-                if let Term::AssertR(..) = node {
-                } else {
-                    bind(
-                        &find_root(arrows[i].source.clone()),
-                        VariableType::Product(a.clone(), c.clone()),
-                    )?;
-                    unify(arrow.target.clone(), arrows[i].target.clone())?;
+                match &untyped_node.0.inner {
+                    CommitNodeInner::Comp(_, _) => {
+                        unify(arrow.source.clone(), left_arrow.source.clone())?;
+                        unify(left_arrow.target.clone(), right_arrow.source.clone())?;
+                        unify(arrow.target.clone(), right_arrow.target.clone())?;
+                    }
+                    CommitNodeInner::Case(_, _)
+                    | CommitNodeInner::AssertL(_, _)
+                    | CommitNodeInner::AssertR(_, _) => {
+                        let a = naming.free_variable();
+                        let b = naming.free_variable();
+                        let c = naming.free_variable();
+
+                        let sum_a_b = VariableType::Sum(a.clone(), b.clone());
+                        let prod_sum_a_b_c =
+                            VariableType::Product(Variable::bound(sum_a_b), c.clone());
+                        bind(&arrow.source, prod_sum_a_b_c)?;
+
+                        if let CommitNodeInner::AssertR(_, _) = &untyped_node.0.inner {
+                        } else {
+                            bind(
+                                &find_root(left_arrow.source.clone()),
+                                VariableType::Product(a.clone(), c.clone()),
+                            )?;
+                            unify(arrow.target.clone(), left_arrow.target.clone())?;
+                        }
+                        if let CommitNodeInner::AssertL(_, _) = &untyped_node.0.inner {
+                        } else {
+                            bind(
+                                &find_root(right_arrow.source.clone()),
+                                VariableType::Product(b.clone(), c.clone()),
+                            )?;
+                            unify(arrow.target.clone(), right_arrow.target.clone())?;
+                        }
+                    }
+                    CommitNodeInner::Pair(_, _) => {
+                        unify(arrow.source.clone(), left_arrow.source.clone())?;
+                        unify(arrow.source.clone(), right_arrow.source.clone())?;
+                        bind(
+                            &arrow.target,
+                            VariableType::Product(
+                                left_arrow.target.clone(),
+                                right_arrow.target.clone(),
+                            ),
+                        )?;
+                    }
+                    CommitNodeInner::Disconnect(_, _) => {
+                        let a = naming.free_variable();
+                        let b = naming.free_variable();
+                        let c = naming.free_variable();
+                        let d = naming.free_variable();
+
+                        let prod_256_a =
+                            Variable::bound(VariableType::Product(pow2s[8].clone(), a.clone()));
+                        let prod_b_c = Variable::bound(VariableType::Product(b.clone(), c.clone()));
+                        unify(left_arrow.source.clone(), prod_256_a)?;
+                        unify(left_arrow.target.clone(), prod_b_c)?;
+                        unify(right_arrow.source.clone(), c)?;
+                        unify(right_arrow.target.clone(), d.clone())?;
+
+                        let prod_b_d = Variable::bound(VariableType::Product(b, d));
+                        unify(arrow.source.clone(), a)?;
+                        unify(arrow.target.clone(), prod_b_d)?;
+                    }
+                    _ => unreachable!(),
                 }
-                if let Term::AssertL(..) = node {
-                } else {
-                    bind(
-                        &find_root(arrows[j].source.clone()),
-                        VariableType::Product(b.clone(), c.clone()),
-                    )?;
-                    unify(arrow.target.clone(), arrows[j].target.clone())?;
+            } else {
+                match &untyped_node.0.inner {
+                    CommitNodeInner::InjL(_) => {
+                        unify(arrow.source.clone(), left_arrow.source.clone())?;
+                        let sum_b_c =
+                            VariableType::Sum(left_arrow.target.clone(), naming.free_variable());
+                        bind(&arrow.target, sum_b_c)?;
+                    }
+                    CommitNodeInner::InjR(_) => {
+                        unify(arrow.source.clone(), left_arrow.source.clone())?;
+                        let sum_b_c =
+                            VariableType::Sum(naming.free_variable(), left_arrow.target.clone());
+                        bind(&arrow.target, sum_b_c)?;
+                    }
+                    CommitNodeInner::Take(_) => {
+                        unify(arrow.target.clone(), left_arrow.target.clone())?;
+                        let prod_a_b = VariableType::Product(
+                            left_arrow.source.clone(),
+                            naming.free_variable(),
+                        );
+                        bind(&arrow.source, prod_a_b)?;
+                    }
+                    CommitNodeInner::Drop(_) => {
+                        unify(arrow.target.clone(), left_arrow.target.clone())?;
+                        let prod_a_b = VariableType::Product(
+                            naming.free_variable(),
+                            left_arrow.source.clone(),
+                        );
+                        bind(&arrow.source, prod_a_b)?;
+                    }
+                    _ => unreachable!(),
                 }
             }
-            Term::Pair(i, j) => {
-                let (i, j) = (idx - i, idx - j);
-                unify(arrow.source.clone(), arrows[i].source.clone())?;
-                unify(arrow.source.clone(), arrows[j].source.clone())?;
-                bind(
-                    &arrow.target,
-                    VariableType::Product(arrows[i].target.clone(), arrows[j].target.clone()),
-                )?;
-            }
-            Term::Disconnect(i, j) => {
-                let (i, j) = (idx - i, idx - j);
-                let a = naming.free_variable();
-                let b = naming.free_variable();
-                let c = naming.free_variable();
-                let d = naming.free_variable();
-
-                let prod_256_a =
-                    Variable::bound(VariableType::Product(pow2s[8].clone(), a.clone()));
-                let prod_b_c = Variable::bound(VariableType::Product(b.clone(), c.clone()));
-                unify(arrows[i].source.clone(), prod_256_a)?;
-                unify(arrows[i].target.clone(), prod_b_c)?;
-                unify(arrows[j].source.clone(), c)?;
-                unify(arrows[j].target.clone(), d.clone())?;
-
-                let prod_b_d = Variable::bound(VariableType::Product(b, d));
-                unify(arrow.source.clone(), a)?;
-                unify(arrow.target.clone(), prod_b_d)?;
-            }
-            Term::Jet(jet) => {
-                bind(&arrow.source, jet.source_ty.to_type(&pow2s))?;
-                bind(&arrow.target, jet.target_ty.to_type(&pow2s))?;
-            }
-            Term::Witness(..) | Term::Hidden(..) | Term::Fail(..) => {
-                // No type constraints
+        } else {
+            match &untyped_node.0.inner {
+                CommitNodeInner::Iden => unify(arrow.source.clone(), arrow.target.clone())?,
+                CommitNodeInner::Unit => bind(&arrow.target, VariableType::Unit)?,
+                CommitNodeInner::Witness(_)
+                | CommitNodeInner::Fail(_, _)
+                | CommitNodeInner::Hidden(_) => {
+                    // no type constraints
+                }
+                CommitNodeInner::Jet(jet) => {
+                    bind(&arrow.source, jet.source_ty.to_type(&pow2s))?;
+                    bind(&arrow.target, jet.target_ty.to_type(&pow2s))?;
+                }
+                _ => unreachable!(),
             }
         }
 
-        arrows.push(arrow);
+        debug_assert!(!node_to_arrow.contains_key(&untyped_node));
+        node_to_arrow.insert(untyped_node, arrow);
     }
 
-    let mut typed_nodes = Vec::with_capacity(nodes.len());
-
-    for (index, term) in nodes.into_iter().enumerate() {
-        typed_nodes.push(TypedNode {
-            cmr: cmr::compute_cmr(&typed_nodes, &term, index),
-            term,
-            source_ty: finalize(arrows[index].source.clone())?,
-            target_ty: finalize(arrows[index].target.clone())?,
-            index,
-        });
-    }
-
-    Ok(TypedProgram(typed_nodes))
+    Ok(Arrows { node_to_arrow })
 }
 
 #[cfg(test)]

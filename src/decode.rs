@@ -18,68 +18,208 @@
 //! Refer to [`crate::encode`] for information on the encoding.
 
 use crate::bititer::BitIter;
+use crate::core::commit::{CommitNodeInner, RefWrapper};
+use crate::core::iter::DagIterable;
 use crate::core::types::{Type, TypeInner};
-use crate::core::{Term, TypedProgram, UntypedProgram, Value};
+use crate::core::{CommitNode, Value};
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
 use crate::Error;
+use std::collections::HashMap;
+use std::rc::Rc;
 
-/// Decode an untyped Simplicity program from bits.
+/// Decode a Simplicity program from bits, without witness data.
 pub fn decode_program_no_witness<I: Iterator<Item = u8>, App: Application>(
-    iter: &mut BitIter<I>,
-) -> Result<UntypedProgram<(), App>, Error> {
-    let prog_len = decode_natural(iter, None)?;
+    bits: &mut BitIter<I>,
+) -> Result<Rc<CommitNode<(), App>>, Error> {
+    let len = decode_natural(bits, None)?;
 
+    if len == 0 {
+        return Err(Error::EmptyProgram);
+    }
     // FIXME: check maximum length of DAG that is allowed by consensus
-    if prog_len > 1_000_000 {
-        return Err(Error::TooManyNodes(prog_len));
+    if len > 1_000_000 {
+        return Err(Error::TooManyNodes(len));
     }
 
-    let mut program = Vec::with_capacity(prog_len);
-    for _ in 0..prog_len {
-        decode_node(&mut program, iter)?;
+    let mut index_to_node = HashMap::new();
+
+    for index in 0..len {
+        decode_node(bits, index, &mut index_to_node)?;
     }
 
-    let program = UntypedProgram(program);
+    let root_index = len - 1;
+    let root = index_to_node.get(&root_index).unwrap().clone();
+    let connected_len = RefWrapper(&root).iter_post_order().count();
 
-    if program.has_canonical_order() {
-        Ok(program)
+    if connected_len != len {
+        return Err(Error::InconsistentProgramLength);
+    }
+
+    Ok(root)
+}
+
+/// Decode a single Simplicity node from bits and
+/// insert it into a hash map at its index for future reference by ancestor nodes.
+fn decode_node<I: Iterator<Item = u8>, App: Application>(
+    bits: &mut BitIter<I>,
+    index: usize,
+    index_to_node: &mut HashMap<usize, Rc<CommitNode<(), App>>>,
+) -> Result<(), Error> {
+    match bits.next() {
+        None => return Err(Error::EndOfStream),
+        Some(true) => {
+            let node = CommitNode::jet(App::decode_jet(bits)?);
+            debug_assert!(!index_to_node.contains_key(&index));
+            index_to_node.insert(index, node);
+            return Ok(());
+        }
+        Some(false) => {}
+    };
+
+    let code = match bits.read_bits_be(2) {
+        Some(n) => n,
+        None => return Err(Error::EndOfStream),
+    };
+    let subcode = match bits.read_bits_be(if code < 3 { 2 } else { 1 }) {
+        Some(n) => n,
+        None => return Err(Error::EndOfStream),
+    };
+    let node = if code <= 1 {
+        let i_abs = index - decode_natural(bits, Some(index))?;
+        let left = get_child_from_index(i_abs, index_to_node);
+
+        if code == 0 {
+            let j_abs = index - decode_natural(bits, Some(index))?;
+            let right = get_child_from_index(j_abs, index_to_node);
+
+            match subcode {
+                0 => CommitNode::comp(left, right),
+                1 => {
+                    if let CommitNodeInner::Hidden(..) = left.inner {
+                        if let CommitNodeInner::Hidden(..) = right.inner {
+                            return Err(Error::CaseMultipleHiddenChildren);
+                        }
+                    }
+
+                    if let CommitNodeInner::Hidden(..) = right.inner {
+                        CommitNode::assertl(left, right)
+                    } else if let CommitNodeInner::Hidden(..) = left.inner {
+                        CommitNode::assertr(left, right)
+                    } else {
+                        CommitNode::case(left, right)
+                    }
+                }
+                2 => CommitNode::pair(left, right),
+                3 => CommitNode::disconnect(left, right),
+                // TODO: convert into crate::Error::ParseError
+                _ => unimplemented!(),
+            }
+        } else {
+            match subcode {
+                0 => CommitNode::injl(left),
+                1 => CommitNode::injr(left),
+                2 => CommitNode::take(left),
+                3 => CommitNode::drop(left),
+                _ => unimplemented!(),
+            }
+        }
+    } else if code == 2 {
+        match subcode {
+            0 => CommitNode::iden(),
+            1 => CommitNode::unit(),
+            2 => CommitNode::fail(Cmr::from(decode_hash(bits)?), Cmr::from(decode_hash(bits)?)),
+            3 => return Err(Error::ParseError("01011 (stop code)")),
+            _ => unimplemented!(),
+        }
+    } else if code == 3 {
+        match subcode {
+            0 => CommitNode::hidden(Cmr::from(decode_hash(bits)?)),
+            1 => CommitNode::witness(()),
+            _ => unimplemented!(),
+        }
     } else {
-        Err(Error::ParseError("Program is not in canonical order!"))
+        unimplemented!()
+    };
+
+    debug_assert!(!index_to_node.contains_key(&index));
+    index_to_node.insert(index, node);
+    Ok(())
+}
+
+/// Return the child node at the given index from a hash map.
+fn get_child_from_index<App: Application>(
+    index: usize,
+    index_to_node: &HashMap<usize, Rc<CommitNode<(), App>>>,
+) -> Rc<CommitNode<(), App>> {
+    index_to_node
+        .get(&index)
+        .expect("Children come before parent in post order")
+        .clone()
+    // TODO: Return fresh witness once sharing of unpopulated witness nodes is implemented
+}
+
+/// Iterator over witness values that asks for the value type on each iteration.
+pub trait WitnessIterator {
+    /// Return the next witness value of the given type.
+    fn next(&mut self, ty: &Type) -> Result<Value, Error>;
+
+    /// Consume the iterator and check the total witness length.
+    fn finish(self) -> Result<(), Error>;
+}
+
+impl<I: Iterator<Item = Value>> WitnessIterator for I {
+    fn next(&mut self, _ty: &Type) -> Result<Value, Error> {
+        Iterator::next(self).ok_or(Error::EndOfStream)
+    }
+
+    fn finish(self) -> Result<(), Error> {
+        Ok(())
     }
 }
 
-/// Decode witness data from bits.
-pub fn decode_witness<Wit, App: Application, I: Iterator<Item = u8>>(
-    program: &TypedProgram<Wit, App>,
-    iter: &mut BitIter<I>,
-) -> Result<Vec<Value>, Error> {
-    let bit_len = match iter.next() {
-        Some(false) => 0,
-        Some(true) => decode_natural(iter, None)?,
-        None => return Err(Error::EndOfStream),
-    };
-    let mut witness = Vec::new();
-    let n_start = iter.n_total_read();
+/// Implementation of [`WitnessIterator`] for an underlying [`BitIter`].
+#[derive(Debug)]
+pub struct WitnessDecoder<'a, I: Iterator<Item = u8>> {
+    bits: &'a mut BitIter<I>,
+    max_n: usize,
+}
 
-    for node in &program.0 {
-        if let Term::Witness(_old_witness) = &node.term {
-            witness.push(decode_value(&node.target_ty, iter)?);
-        }
+impl<'a, I: Iterator<Item = u8>> WitnessDecoder<'a, I> {
+    /// Create a new witness decoder for the given bit iterator.
+    /// To work, this method must be used **after** [`decode_program_no_witness()`]!
+    pub fn new(bits: &'a mut BitIter<I>) -> Result<Self, Error> {
+        let bit_len = match bits.next() {
+            Some(false) => 0,
+            Some(true) => decode_natural(bits, None)?,
+            None => return Err(Error::EndOfStream),
+        };
+        let n_start = bits.n_total_read();
+
+        Ok(Self {
+            bits,
+            max_n: n_start + bit_len,
+        })
+    }
+}
+
+impl<'a, I: Iterator<Item = u8>> WitnessIterator for WitnessDecoder<'a, I> {
+    fn next(&mut self, ty: &Type) -> Result<Value, Error> {
+        decode_value(ty, self.bits)
     }
 
-    if iter.n_total_read() - n_start != bit_len {
-        Err(Error::ParseError(
-            "Witness bit string has different length than defined in its preamble",
-        ))
-    } else {
-        Ok(witness)
+    fn finish(self) -> Result<(), Error> {
+        if self.bits.n_total_read() != self.max_n {
+            Err(Error::InconsistentWitnessLength)
+        } else {
+            Ok(())
+        }
     }
 }
 
 /// Decode a value from bits, based on the given type.
 pub fn decode_value<I: Iterator<Item = bool>>(ty: &Type, iter: &mut I) -> Result<Value, Error> {
-    let value = match ty.ty {
+    let value = match ty.inner {
         TypeInner::Unit => Value::Unit,
         TypeInner::Sum(ref l, ref r) => match iter.next() {
             Some(false) => Value::SumL(Box::new(decode_value(l, iter)?)),
@@ -93,97 +233,6 @@ pub fn decode_value<I: Iterator<Item = bool>>(ty: &Type, iter: &mut I) -> Result
     };
 
     Ok(value)
-}
-
-/// Decode an untyped Simplicity term from bits and add it to the given program.
-fn decode_node<I: Iterator<Item = u8>, App: Application>(
-    program: &mut Vec<Term<(), App>>,
-    iter: &mut BitIter<I>,
-) -> Result<(), Error> {
-    match iter.next() {
-        None => return Err(Error::EndOfStream),
-        Some(true) => return decode_jet(program, iter),
-        Some(false) => {}
-    };
-
-    let code = match iter.read_bits_be(2) {
-        Some(n) => n,
-        None => return Err(Error::EndOfStream),
-    };
-    let subcode = match iter.read_bits_be(if code < 3 { 2 } else { 1 }) {
-        Some(n) => n,
-        None => return Err(Error::EndOfStream),
-    };
-    let node = if code <= 1 {
-        let idx = program.len();
-        let i = decode_natural(iter, Some(idx))?;
-
-        if code == 0 {
-            let j = decode_natural(iter, Some(idx))?;
-
-            match subcode {
-                0 => Term::Comp(i, j),
-                1 => {
-                    let mut node = Term::Case(i, j);
-                    let mut left_hidden = false;
-
-                    if let Term::Hidden(..) = program[idx - i] {
-                        node = Term::AssertR(i, j);
-                        left_hidden = true;
-                    }
-                    if let Term::Hidden(..) = program[idx - j] {
-                        if left_hidden {
-                            return Err(Error::CaseMultipleHiddenChildren);
-                        }
-
-                        node = Term::AssertL(i, j);
-                    }
-
-                    node
-                }
-                2 => Term::Pair(i, j),
-                3 => Term::Disconnect(i, j),
-                _ => unreachable!(),
-            }
-        } else {
-            match subcode {
-                0 => Term::InjL(i),
-                1 => Term::InjR(i),
-                2 => Term::Take(i),
-                3 => Term::Drop(i),
-                _ => unreachable!(),
-            }
-        }
-    } else if code == 2 {
-        match subcode {
-            0 => Term::Iden,
-            1 => Term::Unit,
-            2 => Term::Fail(Cmr::from(decode_hash(iter)?), Cmr::from(decode_hash(iter)?)),
-            3 => return Err(Error::ParseError("01011 (stop code)")),
-            _ => unreachable!(),
-        }
-    } else if code == 3 {
-        match subcode {
-            0 => Term::Hidden(Cmr::from(decode_hash(iter)?)),
-            1 => Term::Witness(()),
-            _ => unreachable!(),
-        }
-    } else {
-        unreachable!()
-    };
-
-    program.push(node);
-    Ok(())
-}
-
-/// Decode a Simplicity jet from bits.
-fn decode_jet<I: Iterator<Item = u8>, App: Application>(
-    program: &mut Vec<Term<(), App>>,
-    iter: &mut BitIter<I>,
-) -> Result<(), Error> {
-    let node = Term::Jet(App::decode_jet(iter)?);
-    program.push(node);
-    Ok(())
 }
 
 /// Decode a 256-bit hash from bits.
