@@ -21,3 +21,7 @@ members = ["."]
 [[bin]]
 name = "rtt_natural"
 path = "fuzz_targets/rtt_natural.rs"
+
+[[bin]]
+name = "decode_program"
+path = "fuzz_targets/decode_program.rs"
