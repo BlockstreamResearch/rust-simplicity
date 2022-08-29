@@ -15,10 +15,9 @@
 
 /// Test programs for simplicity.
 pub(crate) mod hashblock;
-// FIXME: Schnorr and SIGHASH_ALL programs have left assertions whose children are not a hidden node
-// pub(crate) mod schnorr0;
-// pub(crate) mod schnorr6;
-// pub(crate) mod sighash_all;
+pub(crate) mod schnorr0;
+pub(crate) mod schnorr6;
+pub(crate) mod sighash_all;
 
 #[cfg(test)]
 mod tests {
@@ -28,6 +27,8 @@ mod tests {
     use crate::exec::BitMachine;
     use crate::jet::application::Core;
     use crate::merkle::common::MerkleRoot;
+    use crate::test_progs::schnorr0::{SCHNORR0, SCHNORR0_CMR};
+    use crate::test_progs::schnorr6::{SCHNORR6, SCHNORR6_CMR};
 
     // TODO: check IMR
     fn check_merkle_roots(bytes: &[u8], cmr: [u8; 32]) {
@@ -36,7 +37,6 @@ mod tests {
         assert_eq!(commit.cmr.into_inner(), cmr);
     }
 
-    /*
     fn exec_prog(bytes: &[u8]) {
         let mut bits = BitIter::new(bytes.iter().cloned());
         let program = Node::<_, Core>::decode(&mut bits).expect("decode");
@@ -44,13 +44,12 @@ mod tests {
         let mut mac = BitMachine::for_program(&program);
         mac.exec(&program, &()).unwrap();
     }
-    */
 
     #[test]
     fn progs_cmr() {
         check_merkle_roots(&HASHBLOCK, HASHBLOCK_CMR);
-        // check_merkle_roots(&SCHNORR0, SCHNORR0_CMR);
-        // check_merkle_roots(&SCHNORR6, SCHNORR6_CMR);
+        check_merkle_roots(&SCHNORR0, SCHNORR0_CMR);
+        check_merkle_roots(&SCHNORR6, SCHNORR6_CMR);
     }
 
     #[test]
@@ -84,7 +83,6 @@ mod tests {
         assert_eq!(output.try_to_bytes().unwrap(), hash);
     }
 
-    /*
     #[test]
     #[ignore] // too expensive to run. Run with -- --ignored and --release to run this
     #[should_panic]
@@ -97,5 +95,4 @@ mod tests {
     fn schnorr0() {
         exec_prog(&SCHNORR0);
     }
-    */
 }
