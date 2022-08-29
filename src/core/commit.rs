@@ -442,7 +442,7 @@ impl<Witness, App: Application> CommitNode<Witness, App> {
 }
 
 impl<App: Application> CommitNode<(), App> {
-    /// Decode a Simplicity program from bits.
+    /// Decode a Simplicity program from bits, without the witness data.
     pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Rc<Self>, Error> {
         decode::decode_program_no_witness(bits)
     }

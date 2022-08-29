@@ -50,10 +50,16 @@ pub fn decode_program_no_witness<I: Iterator<Item = u8>, App: Application>(
 
     let root_index = len - 1;
     let root = index_to_node.get(&root_index).unwrap().clone();
-    let connected_len = RefWrapper(&root).iter_post_order().count();
+    let mut it = RefWrapper(&root).iter_post_order();
 
-    if connected_len != len {
-        return Err(Error::InconsistentProgramLength);
+    // len ≥ RefWrapper(&root).iter_post_order().count()
+    for index in 0..len {
+        let connected_node = it.next().ok_or(Error::NotInCanonicalOrder)?;
+        let indexed_node = RefWrapper(index_to_node.get(&index).unwrap());
+
+        if connected_node != indexed_node {
+            return Err(Error::NotInCanonicalOrder);
+        }
     }
 
     Ok(root)

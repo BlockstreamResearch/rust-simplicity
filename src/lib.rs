@@ -33,6 +33,7 @@ pub mod jet;
 pub mod merkle;
 #[cfg(feature = "bitcoin")]
 pub mod policy;
+mod sharing;
 #[cfg(test)]
 mod test_progs;
 mod util;
@@ -64,10 +65,12 @@ pub enum Error {
     TooManyNodes(usize),
     /// Unrecognized node
     ParseError(&'static str),
-    /// Program has different length than defined in its preamble
-    InconsistentProgramLength,
+    /// Program is not in canonical order
+    NotInCanonicalOrder,
     /// Witness has different length than defined in its preamble
     InconsistentWitnessLength,
+    /// Program does not have maximal sharing
+    SharingNotMaximal,
     /// Miniscript Error
     MiniscriptError(miniscript::Error),
 }
@@ -95,12 +98,11 @@ impl fmt::Display for Error {
                 write!(f, "Tried to allocate too many nodes in a program: {}", k)
             }
             Error::ParseError(s) => write!(f, "Unrecognized node {}", s),
-            Error::InconsistentProgramLength => {
-                f.write_str("Program has different length than defined in its preamble")
-            }
+            Error::NotInCanonicalOrder => f.write_str("Program is not in canonical order"),
             Error::InconsistentWitnessLength => {
                 f.write_str("Witness has different length than defined in its preamble")
             }
+            Error::SharingNotMaximal => f.write_str("Decoded programs must have maximal sharing"),
             Error::MiniscriptError(ref e) => fmt::Display::fmt(e, f),
         }
     }

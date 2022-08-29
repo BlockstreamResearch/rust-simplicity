@@ -13,13 +13,14 @@
 //
 
 use crate::bititer::BitIter;
+use crate::core::iter::DagIterable;
 use crate::core::types::Type;
 use crate::core::{CommitNode, Value};
 use crate::decode::WitnessDecoder;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
-use crate::{impl_ref_wrapper, Error};
+use crate::{impl_ref_wrapper, sharing, Error};
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -147,11 +148,17 @@ impl<Witness, App: Application> Node<Witness, App> {
 }
 
 impl<App: Application> Node<Value, App> {
-    /// Decode a Simplicity program from bits.
+    /// Decode a Simplicity program from bits, including the witness data.
     pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Rc<Self>, Error> {
-        let commit = CommitNode::decode(bits).expect("decode program");
-        let witness = WitnessDecoder::new(bits).expect("decode witness");
-        commit.finalize(witness)
+        let commit = CommitNode::decode(bits)?;
+        let witness = WitnessDecoder::new(bits)?;
+        let program = commit.finalize(witness)?;
+
+        if sharing::check_maximal_sharing(RefWrapper(&program).iter_post_order()) {
+            Ok(program)
+        } else {
+            Err(Error::SharingNotMaximal)
+        }
     }
 }
 
