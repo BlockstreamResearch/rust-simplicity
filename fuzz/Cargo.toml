@@ -19,8 +19,8 @@ simplicity = { path = ".." }
 members = ["."]
 
 [[bin]]
-name = "rtt_natural"
-path = "fuzz_targets/rtt_natural.rs"
+name = "decode_natural"
+path = "fuzz_targets/decode_natural.rs"
 
 [[bin]]
 name = "decode_program"
