@@ -228,8 +228,8 @@ fn get_child_from_index<App: Application>(
 /// Implementation of [`WitnessIterator`] for an underlying [`BitIter`].
 #[derive(Debug)]
 pub struct WitnessDecoder<'a, I: Iterator<Item = u8>> {
-    bits: &'a mut BitIter<I>,
-    max_n: usize,
+    pub bits: &'a mut BitIter<I>,
+    pub max_n: usize,
 }
 
 impl<'a, I: Iterator<Item = u8>> WitnessDecoder<'a, I> {
