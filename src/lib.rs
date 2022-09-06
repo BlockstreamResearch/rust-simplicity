@@ -45,6 +45,7 @@ mod test_progs;
 mod util;
 
 pub use crate::bit_machine::exec;
+pub use crate::core::{CommitNode, RedeemNode};
 use std::fmt;
 
 /// Error type for simplicity
