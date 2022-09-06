@@ -16,13 +16,13 @@ extern crate simplicity;
 
 use simplicity::bititer::BitIter;
 use simplicity::bitwriter::BitWriter;
-use simplicity::core::{RedeemNode, Value};
+use simplicity::core::RedeemNode;
 use simplicity::jet::application::Core;
 
 fn do_test(data: &[u8]) {
     let mut iter = BitIter::new(data.iter().cloned());
 
-    if let Ok(program) = RedeemNode::<Value, Core>::decode(&mut iter) {
+    if let Ok(program) = RedeemNode::<Core>::decode(&mut iter) {
         let bit_len = iter.n_total_read();
 
         let mut sink = Vec::<u8>::new();

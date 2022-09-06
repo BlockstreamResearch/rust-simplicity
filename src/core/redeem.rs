@@ -31,33 +31,33 @@ use std::{fmt, io};
 /// # See
 /// [`crate::core::commit::CommitNodeInner`]
 #[derive(Debug)]
-pub enum RedeemNodeInner<Witness, App: Application> {
+pub enum RedeemNodeInner<App: Application> {
     /// Identity
     Iden,
     /// Unit constant
     Unit,
     /// Left injection of some child
-    InjL(Rc<RedeemNode<Witness, App>>),
+    InjL(Rc<RedeemNode<App>>),
     /// Right injection of some child
-    InjR(Rc<RedeemNode<Witness, App>>),
+    InjR(Rc<RedeemNode<App>>),
     /// Take of some child
-    Take(Rc<RedeemNode<Witness, App>>),
+    Take(Rc<RedeemNode<App>>),
     /// Drop of some child
-    Drop(Rc<RedeemNode<Witness, App>>),
+    Drop(Rc<RedeemNode<App>>),
     /// Composition of a left and right child
-    Comp(Rc<RedeemNode<Witness, App>>, Rc<RedeemNode<Witness, App>>),
+    Comp(Rc<RedeemNode<App>>, Rc<RedeemNode<App>>),
     /// Case of a left and right child
-    Case(Rc<RedeemNode<Witness, App>>, Rc<RedeemNode<Witness, App>>),
+    Case(Rc<RedeemNode<App>>, Rc<RedeemNode<App>>),
     /// Left assertion of a left and right child.
-    AssertL(Rc<RedeemNode<Witness, App>>, Rc<RedeemNode<Witness, App>>),
+    AssertL(Rc<RedeemNode<App>>, Rc<RedeemNode<App>>),
     /// Right assertion of a left and right child.
-    AssertR(Rc<RedeemNode<Witness, App>>, Rc<RedeemNode<Witness, App>>),
+    AssertR(Rc<RedeemNode<App>>, Rc<RedeemNode<App>>),
     /// Pair of a left and right child
-    Pair(Rc<RedeemNode<Witness, App>>, Rc<RedeemNode<Witness, App>>),
+    Pair(Rc<RedeemNode<App>>, Rc<RedeemNode<App>>),
     /// Disconnect of a left and right child
-    Disconnect(Rc<RedeemNode<Witness, App>>, Rc<RedeemNode<Witness, App>>),
+    Disconnect(Rc<RedeemNode<App>>, Rc<RedeemNode<App>>),
     /// Witness data
-    Witness(Witness),
+    Witness(Value),
     /// Universal fail
     Fail(Cmr, Cmr),
     /// Hidden CMR
@@ -66,7 +66,7 @@ pub enum RedeemNodeInner<Witness, App: Application> {
     Jet(&'static JetNode<App>),
 }
 
-impl<Witness: fmt::Display, App: Application> fmt::Display for RedeemNodeInner<Witness, App> {
+impl<App: Application> fmt::Display for RedeemNodeInner<App> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RedeemNodeInner::Iden => f.write_str("iden"),
@@ -119,9 +119,9 @@ pub struct NodeBounds {
 /// # See
 /// [`crate::core::CommitNode`]
 #[derive(Debug)]
-pub struct RedeemNode<Witness, App: Application> {
+pub struct RedeemNode<App: Application> {
     /// Underlying combinator of the node
-    pub inner: RedeemNodeInner<Witness, App>,
+    pub inner: RedeemNodeInner<App>,
     /// Commitment Merkle root of the node
     pub cmr: Cmr,
     /// Identity Merkle root of the node
@@ -132,7 +132,7 @@ pub struct RedeemNode<Witness, App: Application> {
     pub bounds: NodeBounds,
 }
 
-impl<Witness, App: Application> RedeemNode<Witness, App> {
+impl<App: Application> RedeemNode<App> {
     /// Return the left child of the node, if there is such a child.
     pub fn get_left(&self) -> Option<&Self> {
         match &self.inner {
@@ -187,9 +187,7 @@ impl<Witness, App: Application> RedeemNode<Witness, App> {
             }
         })
     }
-}
 
-impl<App: Application> RedeemNode<Value, App> {
     /// Decode a Simplicity program from bits, including the witness data.
     pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Rc<Self>, Error> {
         let commit = decode::decode_program_exact_witness(bits)?;
@@ -212,7 +210,7 @@ impl<App: Application> RedeemNode<Value, App> {
     }
 }
 
-impl<Witness: fmt::Display, App: Application> fmt::Display for RedeemNode<Witness, App> {
+impl<App: Application> fmt::Display for RedeemNode<App> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         RefWrapper(self).display(
             f,
@@ -224,6 +222,6 @@ impl<Witness: fmt::Display, App: Application> fmt::Display for RedeemNode<Witnes
 
 /// Wrapper of references to [`Node`].
 #[derive(Debug)]
-pub struct RefWrapper<'a, Witness, App: Application>(pub &'a RedeemNode<Witness, App>);
+pub struct RefWrapper<'a, App: Application>(pub &'a RedeemNode<App>);
 
 impl_ref_wrapper!(RefWrapper);

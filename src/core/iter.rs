@@ -138,38 +138,36 @@ impl<D: DagIterable> Iterator for PostOrderIter<D> {
 }
 
 /// Convenience macro for wrappers of references to structures over
-/// `<Witness, App: Application>`.
+/// `<App: Application>`.
 ///
 /// Implements `Clone`, `Copy`, `Eq` and `Hash` using pointers.
 /// Implements [`DagIterable`] using `self.0.get_left()` and `self.0.get_right()`.
 #[macro_export]
 macro_rules! impl_ref_wrapper {
     ($wrapper:ident) => {
-        impl<'a, Witness, App: Application> Clone for $wrapper<'a, Witness, App> {
+        impl<'a, App: Application> Clone for $wrapper<'a, App> {
             fn clone(&self) -> Self {
                 $wrapper(&(self.0).clone())
             }
         }
 
-        impl<'a, Witness, App: Application> Copy for $wrapper<'a, Witness, App> {}
+        impl<'a, App: Application> Copy for $wrapper<'a, App> {}
 
-        impl<'a, Witness, App: Application> PartialEq for $wrapper<'a, Witness, App> {
+        impl<'a, App: Application> PartialEq for $wrapper<'a, App> {
             fn eq(&self, other: &Self) -> bool {
                 std::ptr::eq(self.0, other.0)
             }
         }
 
-        impl<'a, Witness, App: Application> Eq for $wrapper<'a, Witness, App> {}
+        impl<'a, App: Application> Eq for $wrapper<'a, App> {}
 
-        impl<'a, Witness, App: Application> std::hash::Hash for $wrapper<'a, Witness, App> {
+        impl<'a, App: Application> std::hash::Hash for $wrapper<'a, App> {
             fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
                 std::ptr::hash(self.0, state)
             }
         }
 
-        impl<'a, Witness, App: Application> $crate::core::iter::DagIterable
-            for $wrapper<'a, Witness, App>
-        {
+        impl<'a, App: Application> $crate::core::iter::DagIterable for $wrapper<'a, App> {
             fn root(self) -> Option<Self> {
                 Some(self)
             }
@@ -187,12 +185,9 @@ macro_rules! impl_ref_wrapper {
 
 /// Convert the given iterator over [`RefWrapper`]s
 /// into an iterator over the contained `Witness` values.
-pub fn into_witness<'a, Witness, App: Application, I>(
-    iter: I,
-) -> impl Iterator<Item = &'a Witness> + Clone
+pub fn into_witness<'a, App: Application, I>(iter: I) -> impl Iterator<Item = &'a Value> + Clone
 where
-    Witness: 'a,
-    I: Iterator<Item = RefWrapper<'a, Witness, App>> + Clone,
+    I: Iterator<Item = RefWrapper<'a, App>> + Clone,
 {
     iter.filter_map(|node| {
         if let RedeemNodeInner::Witness(value) = &node.0.inner {

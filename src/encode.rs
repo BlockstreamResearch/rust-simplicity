@@ -31,8 +31,8 @@ use std::{io, mem};
 /// Encode a Simplicity program to bits, without witness data.
 ///
 /// Returns the number of written bits.
-pub fn encode_program<W: io::Write, Witness, App: Application>(
-    program: PostOrderIter<RefWrapper<Witness, App>>,
+pub fn encode_program<W: io::Write, App: Application>(
+    program: PostOrderIter<RefWrapper<App>>,
     w: &mut BitWriter<W>,
 ) -> io::Result<usize> {
     let (node_to_index, len) = sharing::compute_maximal_sharing(program.clone());
@@ -54,10 +54,10 @@ pub fn encode_program<W: io::Write, Witness, App: Application>(
 }
 
 /// Encode a node to bits.
-fn encode_node<W: io::Write, Witness, App: Application>(
-    node: RefWrapper<Witness, App>,
+fn encode_node<W: io::Write, App: Application>(
+    node: RefWrapper<App>,
     index: usize,
-    node_to_index: &HashMap<RefWrapper<Witness, App>, usize>,
+    node_to_index: &HashMap<RefWrapper<App>, usize>,
     w: &mut BitWriter<W>,
 ) -> io::Result<()> {
     if let Some(left) = node.get_left() {

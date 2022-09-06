@@ -22,7 +22,7 @@ fn sighash_all_cmr() {
         .iter()
         .cloned()
         .into();
-    let program = RedeemNode::<_, Elements>::decode(&mut bits).expect("decoding program");
+    let program = RedeemNode::<Elements>::decode(&mut bits).expect("decoding program");
 
     assert_eq!(program.cmr.into_inner(), sighash_all::SIGHASH_ALL_CMR);
     // TODO: check IMR
@@ -134,7 +134,7 @@ fn exec_sighash_all() {
         .iter()
         .cloned()
         .into();
-    let program = RedeemNode::<_, Elements>::decode(&mut bits).expect("decoding program");
+    let program = RedeemNode::<Elements>::decode(&mut bits).expect("decoding program");
 
     let mut mac = BitMachine::for_program(&program);
     mac.exec(&program, &env).unwrap();

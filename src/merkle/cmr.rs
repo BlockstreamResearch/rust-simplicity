@@ -30,7 +30,7 @@ pub struct Cmr(pub(crate) Midstate);
 impl_midstate_wrapper!(Cmr);
 
 impl CommitMerkleRoot for Cmr {
-    fn get_iv<Witness, App: Application>(node: &CommitNodeInner<Witness, App>) -> Self {
+    fn get_iv<App: Application>(node: &CommitNodeInner<App>) -> Self {
         match node {
             CommitNodeInner::Iden => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1fiden"),
             CommitNodeInner::Unit => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1funit"),
@@ -48,9 +48,7 @@ impl CommitMerkleRoot for Cmr {
             CommitNodeInner::Disconnect(_, _) => {
                 Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1fdisconnect")
             }
-            CommitNodeInner::Witness(_) => {
-                Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1fwitness")
-            }
+            CommitNodeInner::Witness => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1fwitness"),
             CommitNodeInner::Fail(_, _) => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1ffail"),
             CommitNodeInner::Hidden(h) => *h,
             CommitNodeInner::Jet(jet) => jet.cmr(),
@@ -59,13 +57,13 @@ impl CommitMerkleRoot for Cmr {
 }
 
 /// Compute the CMR of the given `node`.
-pub(crate) fn compute_cmr<Witness, App: Application>(node: &CommitNodeInner<Witness, App>) -> Cmr {
+pub(crate) fn compute_cmr<App: Application>(node: &CommitNodeInner<App>) -> Cmr {
     let cmr_iv = Cmr::get_iv(node);
 
     match node {
         CommitNodeInner::Iden
         | CommitNodeInner::Unit
-        | CommitNodeInner::Witness(..)
+        | CommitNodeInner::Witness
         | CommitNodeInner::Fail(..)
         | CommitNodeInner::Hidden(..)
         | CommitNodeInner::Jet(..) => cmr_iv,

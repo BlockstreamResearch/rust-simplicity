@@ -33,7 +33,7 @@ use std::rc::Rc;
 /// The number of decoded witness nodes corresponds exactly to the witness data.
 pub fn decode_program_exact_witness<I: Iterator<Item = u8>, App: Application>(
     bits: &mut BitIter<I>,
-) -> Result<Rc<CommitNode<(), App>>, Error> {
+) -> Result<Rc<CommitNode<App>>, Error> {
     decode_program(bits, false)
 }
 
@@ -43,7 +43,7 @@ pub fn decode_program_exact_witness<I: Iterator<Item = u8>, App: Application>(
 /// This increases the number of witness nodes and hence the length of the required witness data.
 pub fn decode_program_fresh_witness<I: Iterator<Item = u8>, App: Application>(
     bits: &mut BitIter<I>,
-) -> Result<Rc<CommitNode<(), App>>, Error> {
+) -> Result<Rc<CommitNode<App>>, Error> {
     decode_program(bits, true)
 }
 
@@ -51,7 +51,7 @@ pub fn decode_program_fresh_witness<I: Iterator<Item = u8>, App: Application>(
 fn decode_program<I: Iterator<Item = u8>, App: Application>(
     bits: &mut BitIter<I>,
     fresh_witness: bool,
-) -> Result<Rc<CommitNode<(), App>>, Error> {
+) -> Result<Rc<CommitNode<App>>, Error> {
     let len = decode_natural(bits, None)?;
 
     if len == 0 {
@@ -107,8 +107,8 @@ fn decode_node<I: Iterator<Item = u8>, App: Application>(
     bits: &mut BitIter<I>,
     index: usize,
     mut new_index: usize,
-    index_to_node: &mut HashMap<usize, Rc<CommitNode<(), App>>>,
-    new_index_to_node: &mut HashMap<usize, Rc<CommitNode<(), App>>>,
+    index_to_node: &mut HashMap<usize, Rc<CommitNode<App>>>,
+    new_index_to_node: &mut HashMap<usize, Rc<CommitNode<App>>>,
     fresh_witness: bool,
 ) -> Result<usize, Error> {
     match bits.next() {
@@ -186,7 +186,7 @@ fn decode_node<I: Iterator<Item = u8>, App: Application>(
         match subcode {
             0 => CommitNode::hidden(Cmr::from(decode_hash(bits)?)),
             1 if fresh_witness => return Ok(index),
-            1 => CommitNode::witness(()),
+            1 => CommitNode::witness(),
             _ => unimplemented!(),
         }
     } else {
@@ -209,14 +209,14 @@ fn decode_node<I: Iterator<Item = u8>, App: Application>(
 fn get_child_from_index<App: Application>(
     child_index: usize,
     new_parent_index: &mut usize,
-    index_to_node: &HashMap<usize, Rc<CommitNode<(), App>>>,
-    new_index_to_node: &mut HashMap<usize, Rc<CommitNode<(), App>>>,
-) -> Rc<CommitNode<(), App>> {
+    index_to_node: &HashMap<usize, Rc<CommitNode<App>>>,
+    new_index_to_node: &mut HashMap<usize, Rc<CommitNode<App>>>,
+) -> Rc<CommitNode<App>> {
     match index_to_node.get(&child_index) {
         Some(child) => child.clone(),
         // Absence of child means that child is a skipped witness node
         None => {
-            let child = CommitNode::witness(());
+            let child = CommitNode::witness();
             debug_assert!(!new_index_to_node.contains_key(new_parent_index));
             new_index_to_node.insert(*new_parent_index, child.clone());
             *new_parent_index += 1;

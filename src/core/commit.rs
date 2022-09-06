@@ -27,35 +27,35 @@ use std::rc::Rc;
 use std::{fmt, io};
 
 /// Underlying combinator of a [`CommitNode`].
-/// May contain references to children, witness data, hash payloads or jets.
+/// May contain references to children, hash payloads or jets.
 #[derive(Debug)]
-pub enum CommitNodeInner<Witness, App: Application> {
+pub enum CommitNodeInner<App: Application> {
     /// Identity
     Iden,
     /// Unit constant
     Unit,
     /// Left injection of some child
-    InjL(Rc<CommitNode<Witness, App>>),
+    InjL(Rc<CommitNode<App>>),
     /// Right injection of some child
-    InjR(Rc<CommitNode<Witness, App>>),
+    InjR(Rc<CommitNode<App>>),
     /// Take of some child
-    Take(Rc<CommitNode<Witness, App>>),
+    Take(Rc<CommitNode<App>>),
     /// Drop of some child
-    Drop(Rc<CommitNode<Witness, App>>),
+    Drop(Rc<CommitNode<App>>),
     /// Composition of a left and right child
-    Comp(Rc<CommitNode<Witness, App>>, Rc<CommitNode<Witness, App>>),
+    Comp(Rc<CommitNode<App>>, Rc<CommitNode<App>>),
     /// Case of a left and right child
-    Case(Rc<CommitNode<Witness, App>>, Rc<CommitNode<Witness, App>>),
+    Case(Rc<CommitNode<App>>, Rc<CommitNode<App>>),
     /// Left assertion of a left and right child.
-    AssertL(Rc<CommitNode<Witness, App>>, Rc<CommitNode<Witness, App>>),
+    AssertL(Rc<CommitNode<App>>, Rc<CommitNode<App>>),
     /// Right assertion of a left and right child.
-    AssertR(Rc<CommitNode<Witness, App>>, Rc<CommitNode<Witness, App>>),
+    AssertR(Rc<CommitNode<App>>, Rc<CommitNode<App>>),
     /// Pair of a left and right child
-    Pair(Rc<CommitNode<Witness, App>>, Rc<CommitNode<Witness, App>>),
+    Pair(Rc<CommitNode<App>>, Rc<CommitNode<App>>),
     /// Disconnect of a left and right child
-    Disconnect(Rc<CommitNode<Witness, App>>, Rc<CommitNode<Witness, App>>),
-    /// Witness data
-    Witness(Witness),
+    Disconnect(Rc<CommitNode<App>>, Rc<CommitNode<App>>),
+    /// Witness data (missing during commitment, inserted during redemption)
+    Witness,
     /// Universal fail
     Fail(Cmr, Cmr),
     /// Hidden CMR
@@ -64,7 +64,7 @@ pub enum CommitNodeInner<Witness, App: Application> {
     Jet(&'static JetNode<App>),
 }
 
-impl<Witness, App: Application> fmt::Display for CommitNodeInner<Witness, App> {
+impl<App: Application> fmt::Display for CommitNodeInner<App> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             CommitNodeInner::Iden => f.write_str("iden"),
@@ -79,7 +79,7 @@ impl<Witness, App: Application> fmt::Display for CommitNodeInner<Witness, App> {
             CommitNodeInner::AssertR(_, _) => f.write_str("assertr"),
             CommitNodeInner::Pair(_, _) => f.write_str("pair"),
             CommitNodeInner::Disconnect(_, _) => f.write_str("disconnect"),
-            CommitNodeInner::Witness(_) => f.write_str("witness"),
+            CommitNodeInner::Witness => f.write_str("witness"),
             CommitNodeInner::Fail(hl, hr) => write!(f, "fail({}, {})", hl, hr),
             CommitNodeInner::Hidden(h) => write!(f, "hidden({})", h),
             CommitNodeInner::Jet(jet) => write!(f, "jet({})", jet.name),
@@ -87,7 +87,7 @@ impl<Witness, App: Application> fmt::Display for CommitNodeInner<Witness, App> {
     }
 }
 
-/// Root node of a Simplicity DAG for some witness type and application.
+/// Root node of a Simplicity DAG for some application.
 /// The DAG contains metadata for committing to it via its Merkle root.
 ///
 /// We also refer to DAGs as _(Simplicity) programs_.
@@ -100,16 +100,16 @@ impl<Witness, App: Application> fmt::Display for CommitNodeInner<Witness, App> {
 /// Nodes refer to other nodes via reference-counted pointers to heap memory.
 /// If possible, duplicate DAGs make use of this fact and reference the same memory.
 #[derive(Debug)]
-pub struct CommitNode<Witness, App: Application> {
+pub struct CommitNode<App: Application> {
     /// Underlying combinator of the node
-    pub inner: CommitNodeInner<Witness, App>,
+    pub inner: CommitNodeInner<App>,
     /// Commitment Merkle root of the node
     pub cmr: Cmr,
 }
 
-impl<Witness, App: Application> CommitNode<Witness, App> {
+impl<App: Application> CommitNode<App> {
     /// Create a node from its underlying combinator.
-    fn from_inner(inner: CommitNodeInner<Witness, App>) -> Rc<Self> {
+    fn from_inner(inner: CommitNodeInner<App>) -> Rc<Self> {
         // TODO: Do local type checking once implemented
         Rc::new(CommitNode {
             cmr: cmr::compute_cmr(&inner),
@@ -223,17 +223,12 @@ impl<Witness, App: Application> CommitNode<Witness, App> {
         Self::from_inner(CommitNodeInner::Disconnect(left, right))
     }
 
-    /// Create a DAG that returns the given witness `value` as constant.
-    ///
-    /// _Overall type: A → B where value: B_
-    ///
-    /// To construct a DAG at commitment time, set the value to empty `()`.
-    /// The target type of the witness node is inferred automatically
-    /// and the value is provided through the witness.
+    /// Create a DAG that returns a given witness value as constant.
+    /// The value is missing during commitment and inserted during redemption.
     ///
     /// _Overall type: A → B_
-    pub fn witness(value: Witness) -> Rc<Self> {
-        Self::from_inner(CommitNodeInner::Witness(value))
+    pub fn witness() -> Rc<Self> {
+        Self::from_inner(CommitNodeInner::Witness)
     }
 
     /// Create a DAG that universally fails.
@@ -263,7 +258,7 @@ impl<Witness, App: Application> CommitNode<Witness, App> {
     /// Create a DAG that takes any input and returns `value` as constant output.
     ///
     /// _Overall type: A → B where value: B_
-    pub fn scribe(value: &Value) -> Rc<CommitNode<Witness, App>> {
+    pub fn scribe(value: &Value) -> Rc<CommitNode<App>> {
         match value {
             Value::Unit => CommitNode::unit(),
             Value::SumL(l) => {
@@ -349,7 +344,7 @@ impl<Witness, App: Application> CommitNode<Witness, App> {
         match &self.inner {
             CommitNodeInner::Iden
             | CommitNodeInner::Unit
-            | CommitNodeInner::Witness(_)
+            | CommitNodeInner::Witness
             | CommitNodeInner::Fail(_, _)
             | CommitNodeInner::Hidden(_)
             | CommitNodeInner::Jet(_) => None,
@@ -371,7 +366,7 @@ impl<Witness, App: Application> CommitNode<Witness, App> {
         match &self.inner {
             CommitNodeInner::Iden
             | CommitNodeInner::Unit
-            | CommitNodeInner::Witness(_)
+            | CommitNodeInner::Witness
             | CommitNodeInner::Fail(_, _)
             | CommitNodeInner::Hidden(_)
             | CommitNodeInner::Jet(_)
@@ -392,12 +387,11 @@ impl<Witness, App: Application> CommitNode<Witness, App> {
     pub fn finalize<W: WitnessIterator>(
         &self,
         mut witness: W,
-    ) -> Result<Rc<RedeemNode<Value, App>>, Error> {
+    ) -> Result<Rc<RedeemNode<App>>, Error> {
         let root = RefWrapper(self);
         let post_order_it = root.iter_post_order();
         let arrows = inference::get_arrows(post_order_it.clone())?;
-        let mut to_finalized: HashMap<RefWrapper<Witness, App>, Rc<RedeemNode<Value, App>>> =
-            HashMap::new();
+        let mut to_finalized: HashMap<RefWrapper<App>, Rc<RedeemNode<App>>> = HashMap::new();
 
         for commit in post_order_it {
             let left = commit.get_left().map(|x| {
@@ -414,7 +408,7 @@ impl<Witness, App: Application> CommitNode<Witness, App> {
             });
 
             let ty = arrows.finalize(&commit)?;
-            let value = if let CommitNodeInner::Witness(_) = commit.0.inner {
+            let value = if let CommitNodeInner::Witness = commit.0.inner {
                 Some(witness.next(&ty.target)?)
             } else {
                 None
@@ -448,7 +442,7 @@ impl<Witness, App: Application> CommitNode<Witness, App> {
                 CommitNodeInner::Disconnect(_, _) => {
                     RedeemNodeInner::Disconnect(left.unwrap(), right.unwrap())
                 }
-                CommitNodeInner::Witness(_) => RedeemNodeInner::Witness(value.unwrap()),
+                CommitNodeInner::Witness => RedeemNodeInner::Witness(value.unwrap()),
                 CommitNodeInner::Fail(hl, hr) => RedeemNodeInner::Fail(hl, hr),
                 CommitNodeInner::Hidden(h) => RedeemNodeInner::Hidden(h),
                 CommitNodeInner::Jet(jet) => RedeemNodeInner::Jet(jet),
@@ -467,9 +461,7 @@ impl<Witness, App: Application> CommitNode<Witness, App> {
         witness.finish()?;
         Ok(to_finalized.get(&root).unwrap().clone())
     }
-}
 
-impl<App: Application> CommitNode<(), App> {
     /// Decode a Simplicity program from bits, without the witness data.
     ///
     /// # Usage
@@ -496,7 +488,7 @@ impl<App: Application> CommitNode<(), App> {
     }
 }
 
-impl<Witness, App: Application> fmt::Display for CommitNode<Witness, App> {
+impl<App: Application> fmt::Display for CommitNode<App> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         RefWrapper(self).display(
             f,
@@ -508,6 +500,6 @@ impl<Witness, App: Application> fmt::Display for CommitNode<Witness, App> {
 
 /// Wrapper of references to [`CommitNode`].
 #[derive(Debug)]
-pub struct RefWrapper<'a, Witness, App: Application>(pub &'a CommitNode<Witness, App>);
+pub struct RefWrapper<'a, App: Application>(pub &'a CommitNode<App>);
 
 impl_ref_wrapper!(RefWrapper);
