@@ -137,7 +137,7 @@ pub trait CommitMerkleRoot: MerkleRoot {
 pub trait TypeMerkleRoot: MerkleRoot {
     /// Return the initial value for the given type.
     ///
-    /// Each [`Type::ty`] corresponds to some tag that is hashed
+    /// Each [`Type::inner`] corresponds to some tag that is hashed
     /// and returned as initial value
     fn get_iv(ty: &TypeInner) -> Self;
 }

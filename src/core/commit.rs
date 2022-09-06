@@ -470,7 +470,7 @@ impl<App: Application> CommitNode<App> {
     /// This means, the program simply has no witness during commitment,
     /// or the witness is provided by other means.
     ///
-    /// If the serialization contains the witness data, then use [`Node::decode()`].
+    /// If the serialization contains the witness data, then use [`RedeemNode::decode()`].
     pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Rc<Self>, Error> {
         decode::decode_program_fresh_witness(bits)
     }
@@ -480,7 +480,7 @@ impl<App: Application> CommitNode<App> {
     /// # Usage
     ///
     /// Use this method only if the program has no witness data.
-    /// Otherwise, add the witness via [`Self::finalize()`] and use [`Node::encode()`].
+    /// Otherwise, add the witness via [`Self::finalize()`] and use [`RedeemNode::encode()`].
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
         let empty_witness = std::iter::repeat(Value::Unit);
         let program = self.finalize(empty_witness).expect("finalize");
