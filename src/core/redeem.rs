@@ -220,7 +220,8 @@ impl<App: Application> fmt::Display for RedeemNode<App> {
     }
 }
 
-/// Wrapper of references to [`Node`].
+/// Wrapper of references to [`RedeemNode`].
+/// Zero-cost implementation of `Copy`, `Eq` and `Hash` via pointer equality.
 #[derive(Debug)]
 pub struct RefWrapper<'a, App: Application>(pub &'a RedeemNode<App>);
 

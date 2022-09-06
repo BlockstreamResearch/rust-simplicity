@@ -499,6 +499,7 @@ impl<App: Application> fmt::Display for CommitNode<App> {
 }
 
 /// Wrapper of references to [`CommitNode`].
+/// Zero-cost implementation of `Copy`, `Eq` and `Hash` via pointer equality.
 #[derive(Debug)]
 pub struct RefWrapper<'a, App: Application>(pub &'a CommitNode<App>);
 
