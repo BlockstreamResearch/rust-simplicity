@@ -12,7 +12,7 @@ pub(super) fn encode_primitive<W: Write>(
     match jet.name {
         BitcoinJetName::Version => w.write_bits_be(64 + 0, 7),
         BitcoinJetName::LockTime => w.write_bits_be(64 + 1, 7),
-        BitcoinJetName::InputsHash => w.write_bits_be(32 + 1, 6),
+        BitcoinJetName::SighashAll => w.write_bits_be(32 + 1, 6),
         BitcoinJetName::OutputsHash => w.write_bits_be(32 + 2, 6),
         BitcoinJetName::NumInputs => w.write_bits_be(32 + 3, 6),
         BitcoinJetName::TotalInputValue => w.write_bits_be(32 + 4, 6),

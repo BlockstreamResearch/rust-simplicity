@@ -14,7 +14,7 @@ pub(super) fn decode_primitive<I: Iterator<Item = u8>>(
             Some(true) => Ok(&jet::bitcoin::LOCK_TIME),
             None => Err(Error::EndOfStream),
         },
-        1 => Ok(&jet::bitcoin::INPUTS_HASH),
+        1 => Ok(&jet::bitcoin::SIGHASH_ALL),
         2 => Ok(&jet::bitcoin::OUTPUTS_HASH),
         6 => Ok(&jet::bitcoin::CURRENT_VALUE),
         7 => Ok(&jet::bitcoin::CURRENT_SEQUENCE),
