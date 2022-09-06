@@ -86,7 +86,9 @@ mod tests {
     #[test]
     fn duplicate_crash() {
         #[cfg(not(fuzzing))]
-        compile_error!("To build this target or run the unit tests you must set RUSTFLAGS=--cfg=fuzzing");
+        compile_error!(
+            "To build this target or run the unit tests you must set RUSTFLAGS=--cfg=fuzzing"
+        );
 
         let mut a = Vec::new();
         extend_vec_from_hex("00", &mut a);
