@@ -13,9 +13,9 @@
 //
 
 use crate::core::commit::CommitNodeInner;
-use crate::core::node::{NodeBounds, NodeType};
+use crate::core::redeem::{NodeBounds, NodeType};
 use crate::core::Value;
-use crate::core::{CommitNode, Node};
+use crate::core::{CommitNode, RedeemNode};
 use crate::jet::Application;
 use std::cmp;
 use std::rc::Rc;
@@ -27,8 +27,8 @@ use std::rc::Rc;
 /// Witness nodes require their node type.
 pub(crate) fn compute_bounds<Witness, App: Application>(
     untyped_node: &CommitNode<Witness, App>,
-    left: Option<Rc<Node<Value, App>>>,
-    right: Option<Rc<Node<Value, App>>>,
+    left: Option<Rc<RedeemNode<Value, App>>>,
+    right: Option<Rc<RedeemNode<Value, App>>>,
     ty: &NodeType,
 ) -> NodeBounds {
     NodeBounds {
@@ -41,8 +41,8 @@ pub(crate) fn compute_bounds<Witness, App: Application>(
 /// by the given node during execution on the Bit Machine.
 fn compute_extra_cells_bound<Witness, App: Application>(
     untyped_node: &CommitNode<Witness, App>,
-    left: Option<Rc<Node<Value, App>>>,
-    right: Option<Rc<Node<Value, App>>>,
+    left: Option<Rc<RedeemNode<Value, App>>>,
+    right: Option<Rc<RedeemNode<Value, App>>>,
     ty: &NodeType,
 ) -> usize {
     match untyped_node.inner {
@@ -81,8 +81,8 @@ fn compute_extra_cells_bound<Witness, App: Application>(
 /// by the given node during execution on the Bit Machine.
 fn compute_frame_count_bound<Witness, App: Application>(
     untyped_node: &CommitNode<Witness, App>,
-    left: Option<Rc<Node<Value, App>>>,
-    right: Option<Rc<Node<Value, App>>>,
+    left: Option<Rc<RedeemNode<Value, App>>>,
+    right: Option<Rc<RedeemNode<Value, App>>>,
 ) -> usize {
     match untyped_node.inner {
         CommitNodeInner::Iden

@@ -16,8 +16,8 @@
 use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
 use crate::core::iter::{DagIterable, WitnessIterator};
-use crate::core::node::NodeInner;
-use crate::core::{Node, Value};
+use crate::core::redeem::RedeemNodeInner;
+use crate::core::{RedeemNode, Value};
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
 use crate::merkle::{cmr, imr};
@@ -392,11 +392,11 @@ impl<Witness, App: Application> CommitNode<Witness, App> {
     pub fn finalize<W: WitnessIterator>(
         &self,
         mut witness: W,
-    ) -> Result<Rc<Node<Value, App>>, Error> {
+    ) -> Result<Rc<RedeemNode<Value, App>>, Error> {
         let root = RefWrapper(self);
         let post_order_it = root.iter_post_order();
         let arrows = inference::get_arrows(post_order_it.clone())?;
-        let mut to_finalized: HashMap<RefWrapper<Witness, App>, Rc<Node<Value, App>>> =
+        let mut to_finalized: HashMap<RefWrapper<Witness, App>, Rc<RedeemNode<Value, App>>> =
             HashMap::new();
 
         for commit in post_order_it {
@@ -430,26 +430,30 @@ impl<Witness, App: Application> CommitNode<Witness, App> {
 
             // Verbose but necessary thanks to Rust
             let inner = match commit.0.inner {
-                CommitNodeInner::Iden => NodeInner::Iden,
-                CommitNodeInner::Unit => NodeInner::Unit,
-                CommitNodeInner::InjL(_) => NodeInner::InjL(left.unwrap()),
-                CommitNodeInner::InjR(_) => NodeInner::InjR(left.unwrap()),
-                CommitNodeInner::Take(_) => NodeInner::Take(left.unwrap()),
-                CommitNodeInner::Drop(_) => NodeInner::Drop(left.unwrap()),
-                CommitNodeInner::Comp(_, _) => NodeInner::Comp(left.unwrap(), right.unwrap()),
-                CommitNodeInner::Case(_, _) => NodeInner::Case(left.unwrap(), right.unwrap()),
-                CommitNodeInner::AssertL(_, _) => NodeInner::AssertL(left.unwrap(), right.unwrap()),
-                CommitNodeInner::AssertR(_, _) => NodeInner::AssertR(left.unwrap(), right.unwrap()),
-                CommitNodeInner::Pair(_, _) => NodeInner::Pair(left.unwrap(), right.unwrap()),
-                CommitNodeInner::Disconnect(_, _) => {
-                    NodeInner::Disconnect(left.unwrap(), right.unwrap())
+                CommitNodeInner::Iden => RedeemNodeInner::Iden,
+                CommitNodeInner::Unit => RedeemNodeInner::Unit,
+                CommitNodeInner::InjL(_) => RedeemNodeInner::InjL(left.unwrap()),
+                CommitNodeInner::InjR(_) => RedeemNodeInner::InjR(left.unwrap()),
+                CommitNodeInner::Take(_) => RedeemNodeInner::Take(left.unwrap()),
+                CommitNodeInner::Drop(_) => RedeemNodeInner::Drop(left.unwrap()),
+                CommitNodeInner::Comp(_, _) => RedeemNodeInner::Comp(left.unwrap(), right.unwrap()),
+                CommitNodeInner::Case(_, _) => RedeemNodeInner::Case(left.unwrap(), right.unwrap()),
+                CommitNodeInner::AssertL(_, _) => {
+                    RedeemNodeInner::AssertL(left.unwrap(), right.unwrap())
                 }
-                CommitNodeInner::Witness(_) => NodeInner::Witness(value.unwrap()),
-                CommitNodeInner::Fail(hl, hr) => NodeInner::Fail(hl, hr),
-                CommitNodeInner::Hidden(h) => NodeInner::Hidden(h),
-                CommitNodeInner::Jet(jet) => NodeInner::Jet(jet),
+                CommitNodeInner::AssertR(_, _) => {
+                    RedeemNodeInner::AssertR(left.unwrap(), right.unwrap())
+                }
+                CommitNodeInner::Pair(_, _) => RedeemNodeInner::Pair(left.unwrap(), right.unwrap()),
+                CommitNodeInner::Disconnect(_, _) => {
+                    RedeemNodeInner::Disconnect(left.unwrap(), right.unwrap())
+                }
+                CommitNodeInner::Witness(_) => RedeemNodeInner::Witness(value.unwrap()),
+                CommitNodeInner::Fail(hl, hr) => RedeemNodeInner::Fail(hl, hr),
+                CommitNodeInner::Hidden(h) => RedeemNodeInner::Hidden(h),
+                CommitNodeInner::Jet(jet) => RedeemNodeInner::Jet(jet),
             };
-            let node = Node {
+            let node = RedeemNode {
                 inner,
                 cmr: commit.0.cmr,
                 imr,

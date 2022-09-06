@@ -19,8 +19,8 @@
 //! The type of `witness` data is included in the hash via [`super::tmr`].
 
 use crate::core::commit::CommitNodeInner;
-use crate::core::node::NodeType;
-use crate::core::{Node, Value};
+use crate::core::redeem::NodeType;
+use crate::core::{RedeemNode, Value};
 use crate::impl_midstate_wrapper;
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
@@ -53,8 +53,8 @@ impl CommitMerkleRoot for Imr {
 /// Witness nodes require their value and node type.
 pub(crate) fn compute_imr<Witness, App: Application>(
     node: &CommitNodeInner<Witness, App>,
-    left: Option<Rc<Node<Value, App>>>,
-    right: Option<Rc<Node<Value, App>>>,
+    left: Option<Rc<RedeemNode<Value, App>>>,
+    right: Option<Rc<RedeemNode<Value, App>>>,
     value: Option<&Value>,
     ty: &NodeType,
 ) -> Imr {

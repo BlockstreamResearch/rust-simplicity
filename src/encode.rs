@@ -21,7 +21,7 @@
 
 use crate::bitwriter::BitWriter;
 use crate::core::iter::{DagIterable, PostOrderIter};
-use crate::core::node::{NodeInner, RefWrapper};
+use crate::core::redeem::{RedeemNodeInner, RefWrapper};
 use crate::core::Value;
 use crate::jet::Application;
 use crate::sharing;
@@ -71,16 +71,18 @@ fn encode_node<W: io::Write, Witness, App: Application>(
             let j = index - j_abs;
 
             match &node.0.inner {
-                NodeInner::Comp(_, _) => {
+                RedeemNodeInner::Comp(_, _) => {
                     w.write_bits_be(0, 5)?;
                 }
-                NodeInner::Case(_, _) | NodeInner::AssertL(_, _) | NodeInner::AssertR(_, _) => {
+                RedeemNodeInner::Case(_, _)
+                | RedeemNodeInner::AssertL(_, _)
+                | RedeemNodeInner::AssertR(_, _) => {
                     w.write_bits_be(1, 5)?;
                 }
-                NodeInner::Pair(_, _) => {
+                RedeemNodeInner::Pair(_, _) => {
                     w.write_bits_be(2, 5)?;
                 }
-                NodeInner::Disconnect(_, _) => {
+                RedeemNodeInner::Disconnect(_, _) => {
                     w.write_bits_be(3, 5)?;
                 }
                 _ => unreachable!(),
@@ -90,16 +92,16 @@ fn encode_node<W: io::Write, Witness, App: Application>(
             encode_natural(j, w)?;
         } else {
             match &node.0.inner {
-                NodeInner::InjL(_) => {
+                RedeemNodeInner::InjL(_) => {
                     w.write_bits_be(4, 5)?;
                 }
-                NodeInner::InjR(_) => {
+                RedeemNodeInner::InjR(_) => {
                     w.write_bits_be(5, 5)?;
                 }
-                NodeInner::Take(_) => {
+                RedeemNodeInner::Take(_) => {
                     w.write_bits_be(6, 5)?;
                 }
-                NodeInner::Drop(_) => {
+                RedeemNodeInner::Drop(_) => {
                     w.write_bits_be(7, 5)?;
                 }
                 _ => unreachable!(),
@@ -109,25 +111,25 @@ fn encode_node<W: io::Write, Witness, App: Application>(
         }
     } else {
         match &node.0.inner {
-            NodeInner::Iden => {
+            RedeemNodeInner::Iden => {
                 w.write_bits_be(8, 5)?;
             }
-            NodeInner::Unit => {
+            RedeemNodeInner::Unit => {
                 w.write_bits_be(9, 5)?;
             }
-            NodeInner::Fail(hl, hr) => {
+            RedeemNodeInner::Fail(hl, hr) => {
                 w.write_bits_be(10, 5)?;
                 encode_hash(hl.as_ref(), w)?;
                 encode_hash(hr.as_ref(), w)?;
             }
-            NodeInner::Hidden(h) => {
+            RedeemNodeInner::Hidden(h) => {
                 w.write_bits_be(6, 4)?;
                 encode_hash(h.as_ref(), w)?;
             }
-            NodeInner::Witness(_) => {
+            RedeemNodeInner::Witness(_) => {
                 w.write_bits_be(7, 4)?;
             }
-            NodeInner::Jet(jet) => {
+            RedeemNodeInner::Jet(jet) => {
                 App::encode_jet(jet, w)?;
             }
             _ => unreachable!(),

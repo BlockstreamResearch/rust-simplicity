@@ -16,13 +16,13 @@ extern crate simplicity;
 
 use simplicity::bititer::BitIter;
 use simplicity::bitwriter::BitWriter;
-use simplicity::core::{Node, Value};
+use simplicity::core::{RedeemNode, Value};
 use simplicity::jet::application::Core;
 
 fn do_test(data: &[u8]) {
     let mut iter = BitIter::new(data.iter().cloned());
 
-    if let Ok(program) = Node::<Value, Core>::decode(&mut iter) {
+    if let Ok(program) = RedeemNode::<Value, Core>::decode(&mut iter) {
         let bit_len = iter.n_total_read();
 
         let mut sink = Vec::<u8>::new();
@@ -31,7 +31,7 @@ fn do_test(data: &[u8]) {
         w.flush_all().expect("flushing");
         assert_eq!(w.n_total_written(), bit_len);
 
-        // Node::<Value, Core>::decode() may stop reading `data` mid-byte:
+        // RedeemNode::<Value, Core>::decode() may stop reading `data` mid-byte:
         // copy trailing bits from `data` to `sink`
         if bit_len % 8 != 0 {
             let mask = !(1u8 << (8 - (bit_len % 8)));

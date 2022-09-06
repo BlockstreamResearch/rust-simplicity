@@ -1,6 +1,6 @@
 use crate::core::commit::{CommitNodeInner, RefWrapper};
 use crate::core::iter::{DagIterable, PostOrderIter};
-use crate::core::node::NodeType;
+use crate::core::redeem::NodeType;
 use crate::core::types::{RcVar, Type, Variable, VariableFactory, VariableInner, VariableType};
 use crate::jet::Application;
 use crate::Error;

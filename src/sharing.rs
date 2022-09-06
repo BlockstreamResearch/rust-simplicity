@@ -13,7 +13,7 @@
 //
 
 use crate::core::iter::PostOrderIter;
-use crate::core::node::{NodeInner, RefWrapper};
+use crate::core::redeem::{RedeemNodeInner, RefWrapper};
 use crate::jet::Application;
 use std::collections::{HashMap, HashSet};
 
@@ -30,7 +30,7 @@ pub(crate) fn check_maximal_sharing<Witness, App: Application>(
     let mut seen_keys = HashSet::new();
 
     for node in program {
-        if let NodeInner::Hidden(h) = node.0.inner {
+        if let RedeemNodeInner::Hidden(h) = node.0.inner {
             if seen_hashes.contains(&h) {
                 return false;
             } else {
@@ -68,7 +68,7 @@ pub(crate) fn compute_maximal_sharing<Witness, App: Application>(
     for node in program {
         debug_assert!(!node_to_index.contains_key(&node));
 
-        if let NodeInner::Hidden(h) = node.0.inner {
+        if let RedeemNodeInner::Hidden(h) = node.0.inner {
             if let Some(shared_node) = hash_to_node.get(&h) {
                 node_to_index.insert(node, *node_to_index.get(shared_node).unwrap());
             } else {

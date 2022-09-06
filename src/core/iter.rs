@@ -14,7 +14,7 @@
 
 //! Iterators over DAGs
 
-use crate::core::node::{NodeInner, RefWrapper};
+use crate::core::redeem::{RedeemNodeInner, RefWrapper};
 use crate::core::types::Type;
 use crate::core::Value;
 use crate::jet::Application;
@@ -195,7 +195,7 @@ where
     I: Iterator<Item = RefWrapper<'a, Witness, App>> + Clone,
 {
     iter.filter_map(|node| {
-        if let NodeInner::Witness(value) = &node.0.inner {
+        if let RedeemNodeInner::Witness(value) = &node.0.inner {
             Some(value)
         } else {
             None
