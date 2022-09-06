@@ -16,11 +16,11 @@ mod decode;
 mod encode;
 mod environment;
 mod exec;
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
 
 use crate::bititer::BitIter;
-use crate::encode::BitWriter;
+use crate::bitwriter::BitWriter;
 use crate::exec::BitMachine;
 use crate::jet::application::{Core, CoreError};
 use crate::jet::elements::ElementsJetName;

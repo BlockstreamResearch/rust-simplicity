@@ -14,7 +14,13 @@
 
 //! Iterators over DAGs
 
-use std::collections::HashSet;
+use crate::core::node::{NodeInner, RefWrapper};
+use crate::core::types::Type;
+use crate::core::Value;
+use crate::jet::Application;
+use crate::Error;
+use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::hash::Hash;
 
 /// Structure that can be iterated like a DAG _(directed acyclic graph)_.
@@ -31,6 +37,47 @@ pub trait DagIterable: Copy + Eq + Hash {
     /// Return a post-order iterator over the DAG.
     fn iter_post_order(&self) -> PostOrderIter<Self> {
         PostOrderIter::new(self)
+    }
+
+    /// Display the DAG as an indexed list in post order.
+    ///
+    /// `display_body()` formats the node body in front of the node indices.
+    /// `display_aux()` formats auxiliary items after the node indices.
+    fn display<F, G>(
+        &self,
+        f: &mut fmt::Formatter<'_>,
+        display_body: F,
+        display_aux: G,
+    ) -> fmt::Result
+    where
+        F: Fn(Self, &mut fmt::Formatter<'_>) -> fmt::Result,
+        G: Fn(Self, &mut fmt::Formatter<'_>) -> fmt::Result,
+    {
+        let it = self.iter_post_order();
+        let mut node_to_index = HashMap::new();
+
+        for (index, node) in it.enumerate() {
+            write!(f, "{}: ", index)?;
+            display_body(node, f)?;
+
+            if let Some(left) = node.get_left() {
+                let i_abs = node_to_index.get(&left).unwrap();
+
+                if let Some(right) = node.get_right() {
+                    let j_abs = node_to_index.get(&right).unwrap();
+
+                    write!(f, "({}, {})", i_abs, j_abs)?;
+                } else {
+                    write!(f, "({})", i_abs)?;
+                }
+            }
+
+            display_aux(node, f)?;
+            f.write_str("\n")?;
+            node_to_index.insert(node, index);
+        }
+
+        Ok(())
     }
 }
 
@@ -138,21 +185,39 @@ macro_rules! impl_ref_wrapper {
     };
 }
 
-/*
-/// Convert the given iterator over [`Term`]s into an iterator over the contained `Witness` values.
+/// Convert the given iterator over [`RefWrapper`]s
+/// into an iterator over the contained `Witness` values.
 pub fn into_witness<'a, Witness, App: Application, I>(
     iter: I,
 ) -> impl Iterator<Item = &'a Witness> + Clone
 where
     Witness: 'a,
-    I: Iterator<Item = &'a Term<Witness, App>> + Clone,
+    I: Iterator<Item = RefWrapper<'a, Witness, App>> + Clone,
 {
-    iter.filter_map(|term| {
-        if let Term::Witness(value) = term {
+    iter.filter_map(|node| {
+        if let NodeInner::Witness(value) = &node.0.inner {
             Some(value)
         } else {
             None
         }
     })
 }
-*/
+
+/// Iterator over witness values that asks for the value type on each iteration.
+pub trait WitnessIterator {
+    /// Return the next witness value of the given type.
+    fn next(&mut self, ty: &Type) -> Result<Value, Error>;
+
+    /// Consume the iterator and check the total witness length.
+    fn finish(self) -> Result<(), Error>;
+}
+
+impl<I: Iterator<Item = Value>> WitnessIterator for I {
+    fn next(&mut self, _ty: &Type) -> Result<Value, Error> {
+        Iterator::next(self).ok_or(Error::EndOfStream)
+    }
+
+    fn finish(self) -> Result<(), Error> {
+        Ok(())
+    }
+}

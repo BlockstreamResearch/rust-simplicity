@@ -18,7 +18,7 @@ mod environment;
 mod exec;
 
 use crate::bititer::BitIter;
-use crate::encode::BitWriter;
+use crate::bitwriter::BitWriter;
 use crate::exec::BitMachine;
 use crate::jet::application::core::CoreError;
 use crate::jet::application::Core;

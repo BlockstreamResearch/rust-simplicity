@@ -1,4 +1,4 @@
-use crate::encode::BitWriter;
+use crate::bitwriter::BitWriter;
 use crate::jet::application::Elements;
 use crate::jet::elements::ElementsJetName;
 use crate::jet::JetNode;

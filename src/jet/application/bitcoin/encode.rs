@@ -1,4 +1,4 @@
-use crate::encode::BitWriter;
+use crate::bitwriter::BitWriter;
 use crate::jet::application::Bitcoin;
 use crate::jet::bitcoin::BitcoinJetName;
 use crate::jet::JetNode;

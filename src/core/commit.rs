@@ -14,16 +14,17 @@
 //
 
 use crate::bititer::BitIter;
-use crate::core::iter::DagIterable;
+use crate::bitwriter::BitWriter;
+use crate::core::iter::{DagIterable, WitnessIterator};
 use crate::core::node::NodeInner;
 use crate::core::{Node, Value};
-use crate::decode::WitnessIterator;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
 use crate::merkle::{cmr, imr};
 use crate::{analysis, decode, impl_ref_wrapper, inference, Error};
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::{fmt, io};
 
 /// Underlying combinator of a [`CommitNode`].
 /// May contain references to children, witness data, hash payloads or jets.
@@ -61,6 +62,29 @@ pub enum CommitNodeInner<Witness, App: Application> {
     Hidden(Cmr),
     /// Application jet
     Jet(&'static JetNode<App>),
+}
+
+impl<Witness, App: Application> fmt::Display for CommitNodeInner<Witness, App> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            CommitNodeInner::Iden => f.write_str("iden"),
+            CommitNodeInner::Unit => f.write_str("unit"),
+            CommitNodeInner::InjL(_) => f.write_str("injl"),
+            CommitNodeInner::InjR(_) => f.write_str("injr"),
+            CommitNodeInner::Take(_) => f.write_str("take"),
+            CommitNodeInner::Drop(_) => f.write_str("drop"),
+            CommitNodeInner::Comp(_, _) => f.write_str("comp"),
+            CommitNodeInner::Case(_, _) => f.write_str("case"),
+            CommitNodeInner::AssertL(_, _) => f.write_str("assertl"),
+            CommitNodeInner::AssertR(_, _) => f.write_str("assertr"),
+            CommitNodeInner::Pair(_, _) => f.write_str("pair"),
+            CommitNodeInner::Disconnect(_, _) => f.write_str("disconnect"),
+            CommitNodeInner::Witness(_) => f.write_str("witness"),
+            CommitNodeInner::Fail(hl, hr) => write!(f, "fail({}, {})", hl, hr),
+            CommitNodeInner::Hidden(h) => write!(f, "hidden({})", h),
+            CommitNodeInner::Jet(jet) => write!(f, "jet({})", jet.name),
+        }
+    }
 }
 
 /// Root node of a Simplicity DAG for some witness type and application.
@@ -442,9 +466,39 @@ impl<Witness, App: Application> CommitNode<Witness, App> {
 }
 
 impl<App: Application> CommitNode<(), App> {
-    /// Decode a Simplicity program from bits.
+    /// Decode a Simplicity program from bits, without the witness data.
+    ///
+    /// # Usage
+    ///
+    /// Use this method only if the serialization **does not** include the witness data.
+    /// This means, the program simply has no witness during commitment,
+    /// or the witness is provided by other means.
+    ///
+    /// If the serialization contains the witness data, then use [`Node::decode()`].
     pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Rc<Self>, Error> {
-        decode::decode_program_no_witness(bits)
+        decode::decode_program_fresh_witness(bits)
+    }
+
+    /// Encode a Simplicity program to bits, without witness data.
+    ///
+    /// # Usage
+    ///
+    /// Use this method only if the program has no witness data.
+    /// Otherwise, add the witness via [`Self::finalize()`] and use [`Node::encode()`].
+    pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
+        let empty_witness = std::iter::repeat(Value::Unit);
+        let program = self.finalize(empty_witness).expect("finalize");
+        program.encode(w)
+    }
+}
+
+impl<Witness, App: Application> fmt::Display for CommitNode<Witness, App> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        RefWrapper(self).display(
+            f,
+            |node, f| fmt::Display::fmt(&node.0.inner, f),
+            |_, _| Ok(()),
+        )
     }
 }
 
