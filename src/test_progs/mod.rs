@@ -23,7 +23,7 @@ pub(crate) mod sighash_all;
 mod tests {
     use super::hashblock::{HASHBLOCK, HASHBLOCK_CMR};
     use crate::bititer::BitIter;
-    use crate::core::{CommitNode, Node, Value};
+    use crate::core::{CommitNode, RedeemNode, Value};
     use crate::exec::BitMachine;
     use crate::jet::application::Core;
     use crate::merkle::common::MerkleRoot;
@@ -33,13 +33,13 @@ mod tests {
     // TODO: check IMR
     fn check_merkle_roots(bytes: &[u8], cmr: [u8; 32]) {
         let mut bits = BitIter::new(bytes.iter().cloned());
-        let commit = CommitNode::<_, Core>::decode(&mut bits).expect("decoding program");
+        let commit = CommitNode::<Core>::decode(&mut bits).expect("decoding program");
         assert_eq!(commit.cmr.into_inner(), cmr);
     }
 
     fn exec_prog(bytes: &[u8]) {
         let mut bits = BitIter::new(bytes.iter().cloned());
-        let program = Node::<_, Core>::decode(&mut bits).expect("decode");
+        let program = RedeemNode::<Core>::decode(&mut bits).expect("decode");
 
         let mut mac = BitMachine::for_program(&program);
         mac.exec(&program, &()).unwrap();
@@ -55,7 +55,7 @@ mod tests {
     #[test]
     fn exec_hashblock() {
         let mut bits = BitIter::new(HASHBLOCK.iter().cloned());
-        let program = Node::<_, Core>::decode(&mut bits).expect("decoding program");
+        let program = RedeemNode::<Core>::decode(&mut bits).expect("decoding program");
 
         let state = Value::u256_from_slice(&[
             0x6a, 0x09, 0xe6, 0x67, 0xbb, 0x67, 0xae, 0x85, 0x3c, 0x6e, 0xf3, 0x72, 0xa5, 0x4f,

@@ -30,7 +30,7 @@ use std::rc::Rc;
 /// Compile the given policy into a Simplicity program.
 pub fn compile<Pk: MiniscriptKey + PublicKey32>(
     policy: &Policy<Pk>,
-) -> Result<Rc<CommitNode<(), Bitcoin>>, Error> {
+) -> Result<Rc<CommitNode<Bitcoin>>, Error> {
     let dag = match policy {
         // TODO: Choose specific Merkle roots for unsatisfiable policies
         Policy::Unsatisfiable => CommitNode::fail(Cmr::from([0; 32]), Cmr::from([0; 32])),
@@ -41,7 +41,7 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
                 CommitNode::scribe(&key_value),
                 CommitNode::jet(&jet::bitcoin::SIGHASH_ALL),
             );
-            let pair_key_msg_sig = CommitNode::pair(pair_key_msg, CommitNode::witness(()));
+            let pair_key_msg_sig = CommitNode::pair(pair_key_msg, CommitNode::witness());
             CommitNode::comp(
                 pair_key_msg_sig,
                 CommitNode::jet(&jet::bitcoin::BIP_0340_VERIFY),
@@ -66,7 +66,7 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
         Policy::Sha256(hash) => {
             let hash_value = Value::u256_from_slice(hash);
             let computed_hash = CommitNode::comp(
-                CommitNode::witness(()),
+                CommitNode::witness(),
                 CommitNode::jet(&jet::bitcoin::SHA256),
             );
             let pair_hash_computed_hash =
@@ -90,7 +90,7 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
             let right = compile(&sub_policies[1])?;
             // Cannot use commitNode::cond lest the witness is in reverse order
             let cond_left_right = CommitNode::case(CommitNode::drop(left), CommitNode::drop(right));
-            let selector = CommitNode::pair(CommitNode::witness(()), CommitNode::unit());
+            let selector = CommitNode::pair(CommitNode::witness(), CommitNode::unit());
             CommitNode::comp(selector, cond_left_right)
         }
         Policy::Threshold(k, sub_policies) => {
@@ -102,7 +102,7 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
             // 1 -> 1
             let child = compile(&sub_policies[0])?;
             // 1 -> 2 x 1
-            let selector = CommitNode::pair(CommitNode::witness(()), CommitNode::unit());
+            let selector = CommitNode::pair(CommitNode::witness(), CommitNode::unit());
             // 1 -> 2^32
             let child_one = CommitNode::comp(child, CommitNode::scribe(&Value::u32(1)));
             // 2 x 1 -> 2^32
@@ -114,7 +114,7 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
                 // 1 -> 1
                 let child = compile(sub)?;
                 // 1 -> 2 x 1
-                let selector = CommitNode::pair(CommitNode::witness(()), CommitNode::unit());
+                let selector = CommitNode::pair(CommitNode::witness(), CommitNode::unit());
                 // 1 -> 2^32
                 let child_one = CommitNode::comp(child, CommitNode::scribe(&Value::u32(1)));
                 // 2 x 1 -> 2^32
@@ -154,7 +154,7 @@ mod tests {
     use bitcoin_hashes::{sha256, Hash};
     use miniscript::DummyKey;
 
-    fn compile(policy: Policy<DummyKey>) -> (Rc<CommitNode<(), Bitcoin>>, BitcoinEnv) {
+    fn compile(policy: Policy<DummyKey>) -> (Rc<CommitNode<Bitcoin>>, BitcoinEnv) {
         let commit = super::compile(&policy).expect("compile");
         let env = BitcoinEnv::default();
 
@@ -162,7 +162,7 @@ mod tests {
     }
 
     fn execute_successful(
-        commit: &CommitNode<(), Bitcoin>,
+        commit: &CommitNode<Bitcoin>,
         witness: Vec<Value>,
         env: &BitcoinEnv,
     ) -> bool {

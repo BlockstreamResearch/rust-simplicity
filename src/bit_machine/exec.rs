@@ -19,9 +19,9 @@
 //!
 
 use super::frame::Frame;
-use crate::core::node::NodeInner;
+use crate::core::redeem::RedeemNodeInner;
 use crate::core::types::TypeInner;
-use crate::core::{Node, Value};
+use crate::core::{RedeemNode, Value};
 use crate::decode;
 use crate::jet::{AppError, Application};
 use std::fmt;
@@ -42,7 +42,7 @@ pub struct BitMachine {
 
 impl BitMachine {
     /// Construct a Bit Machine with enough space to execute the given program.
-    pub fn for_program<App: Application>(program: &Node<Value, App>) -> Self {
+    pub fn for_program<App: Application>(program: &RedeemNode<App>) -> Self {
         let io_width = program.ty.source.bit_width + program.ty.target.bit_width;
 
         Self {
@@ -270,12 +270,12 @@ impl BitMachine {
     /// Make sure the Bit Machine has enough space by constructing it via [`Self::for_program()`].
     pub fn exec<'a, App: Application + std::fmt::Debug>(
         &mut self,
-        program: &'a Node<Value, App>,
+        program: &'a RedeemNode<App>,
         env: &App::Environment,
     ) -> Result<Value, ExecutionError<'a>> {
         // Rust cannot use `App` from parent function
         enum CallStack<'a, App: Application> {
-            Goto(&'a Node<Value, App>),
+            Goto(&'a RedeemNode<App>),
             MoveFrame,
             DropFrame,
             CopyFwd(usize),
@@ -303,12 +303,12 @@ impl BitMachine {
             }
 
             match &ip.inner {
-                NodeInner::Unit => {}
-                NodeInner::Iden => {
+                RedeemNodeInner::Unit => {}
+                RedeemNodeInner::Iden => {
                     let size_a = ip.ty.source.bit_width;
                     self.copy(size_a);
                 }
-                NodeInner::InjL(left) => {
+                RedeemNodeInner::InjL(left) => {
                     let padl_b_c = if let TypeInner::Sum(b, _) = &ip.ty.target.inner {
                         ip.ty.target.bit_width - b.bit_width - 1
                     } else {
@@ -319,7 +319,7 @@ impl BitMachine {
                     self.skip(padl_b_c);
                     call_stack.push(CallStack::Goto(left));
                 }
-                NodeInner::InjR(left) => {
+                RedeemNodeInner::InjR(left) => {
                     let padr_b_c = if let TypeInner::Sum(_, c) = &ip.ty.target.inner {
                         ip.ty.target.bit_width - c.bit_width - 1
                     } else {
@@ -330,11 +330,11 @@ impl BitMachine {
                     self.skip(padr_b_c);
                     call_stack.push(CallStack::Goto(left));
                 }
-                NodeInner::Pair(left, right) => {
+                RedeemNodeInner::Pair(left, right) => {
                     call_stack.push(CallStack::Goto(right));
                     call_stack.push(CallStack::Goto(left));
                 }
-                NodeInner::Comp(left, right) => {
+                RedeemNodeInner::Comp(left, right) => {
                     let size_b = left.ty.target.bit_width;
 
                     self.new_frame(size_b);
@@ -343,7 +343,7 @@ impl BitMachine {
                     call_stack.push(CallStack::MoveFrame);
                     call_stack.push(CallStack::Goto(left));
                 }
-                NodeInner::Disconnect(left, right) => {
+                RedeemNodeInner::Disconnect(left, right) => {
                     let size_prod_256_a = left.ty.source.bit_width;
                     let size_a = size_prod_256_a - 256;
                     let size_prod_b_c = left.ty.target.bit_width;
@@ -363,8 +363,8 @@ impl BitMachine {
                     call_stack.push(CallStack::MoveFrame);
                     call_stack.push(CallStack::Goto(left));
                 }
-                NodeInner::Take(left) => call_stack.push(CallStack::Goto(left)),
-                NodeInner::Drop(left) => {
+                RedeemNodeInner::Take(left) => call_stack.push(CallStack::Goto(left)),
+                RedeemNodeInner::Drop(left) => {
                     let size_a = if let TypeInner::Product(a, _) = &ip.ty.source.inner {
                         a.bit_width
                     } else {
@@ -375,9 +375,9 @@ impl BitMachine {
                     call_stack.push(CallStack::Back(size_a));
                     call_stack.push(CallStack::Goto(left));
                 }
-                NodeInner::Case(left, right)
-                | NodeInner::AssertL(left, right)
-                | NodeInner::AssertR(left, right) => {
+                RedeemNodeInner::Case(left, right)
+                | RedeemNodeInner::AssertL(left, right)
+                | RedeemNodeInner::AssertR(left, right) => {
                     let choice_bit = self.read[self.read.len() - 1].peek_bit(&self.data);
 
                     let (size_a, size_b) =
@@ -403,17 +403,17 @@ impl BitMachine {
                         call_stack.push(CallStack::Goto(left));
                     }
                 }
-                NodeInner::Witness(value) => self.write_value(value),
-                NodeInner::Hidden(h) => {
+                RedeemNodeInner::Witness(value) => self.write_value(value),
+                RedeemNodeInner::Hidden(h) => {
                     // TODO: Convert into crate::Error
                     panic!(
                         "Hit hidden node {:?} at iteration {}: {}",
                         ip, iterations, h
                     )
                 }
-                NodeInner::Jet(j) => App::exec_jet(j, self, env)
+                RedeemNodeInner::Jet(j) => App::exec_jet(j, self, env)
                     .map_err(|x| ExecutionError::AppError(Box::new(x)))?,
-                NodeInner::Fail(..) => return Err(ExecutionError::ReachedFailNode),
+                RedeemNodeInner::Fail(..) => return Err(ExecutionError::ReachedFailNode),
             }
 
             ip = loop {

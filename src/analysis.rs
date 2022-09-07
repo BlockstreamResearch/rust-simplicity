@@ -13,9 +13,8 @@
 //
 
 use crate::core::commit::CommitNodeInner;
-use crate::core::node::{NodeBounds, NodeType};
-use crate::core::Value;
-use crate::core::{CommitNode, Node};
+use crate::core::redeem::{NodeBounds, NodeType};
+use crate::core::{CommitNode, RedeemNode};
 use crate::jet::Application;
 use std::cmp;
 use std::rc::Rc;
@@ -25,10 +24,10 @@ use std::rc::Rc;
 /// Nodes with left children require their finalized left child,
 /// while nodes with right children require their finalized right child.
 /// Witness nodes require their node type.
-pub(crate) fn compute_bounds<Witness, App: Application>(
-    untyped_node: &CommitNode<Witness, App>,
-    left: Option<Rc<Node<Value, App>>>,
-    right: Option<Rc<Node<Value, App>>>,
+pub(crate) fn compute_bounds<App: Application>(
+    untyped_node: &CommitNode<App>,
+    left: Option<Rc<RedeemNode<App>>>,
+    right: Option<Rc<RedeemNode<App>>>,
     ty: &NodeType,
 ) -> NodeBounds {
     NodeBounds {
@@ -39,10 +38,10 @@ pub(crate) fn compute_bounds<Witness, App: Application>(
 
 /// Return an upper bound on the number of cells required
 /// by the given node during execution on the Bit Machine.
-fn compute_extra_cells_bound<Witness, App: Application>(
-    untyped_node: &CommitNode<Witness, App>,
-    left: Option<Rc<Node<Value, App>>>,
-    right: Option<Rc<Node<Value, App>>>,
+fn compute_extra_cells_bound<App: Application>(
+    untyped_node: &CommitNode<App>,
+    left: Option<Rc<RedeemNode<App>>>,
+    right: Option<Rc<RedeemNode<App>>>,
     ty: &NodeType,
 ) -> usize {
     match untyped_node.inner {
@@ -73,21 +72,21 @@ fn compute_extra_cells_bound<Witness, App: Application>(
                 + left.ty.target.bit_width
                 + cmp::max(left.bounds.extra_cells, right.unwrap().bounds.extra_cells)
         }
-        CommitNodeInner::Witness(_) => ty.target.bit_width,
+        CommitNodeInner::Witness => ty.target.bit_width,
     }
 }
 
 /// Return an upper bound on the number of frames required
 /// by the given node during execution on the Bit Machine.
-fn compute_frame_count_bound<Witness, App: Application>(
-    untyped_node: &CommitNode<Witness, App>,
-    left: Option<Rc<Node<Value, App>>>,
-    right: Option<Rc<Node<Value, App>>>,
+fn compute_frame_count_bound<App: Application>(
+    untyped_node: &CommitNode<App>,
+    left: Option<Rc<RedeemNode<App>>>,
+    right: Option<Rc<RedeemNode<App>>>,
 ) -> usize {
     match untyped_node.inner {
         CommitNodeInner::Iden
         | CommitNodeInner::Unit
-        | CommitNodeInner::Witness(_)
+        | CommitNodeInner::Witness
         | CommitNodeInner::Fail(_, _)
         | CommitNodeInner::Hidden(_)
         | CommitNodeInner::Jet(_) => 0,

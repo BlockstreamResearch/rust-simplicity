@@ -1,6 +1,6 @@
 use crate::core::commit::{CommitNodeInner, RefWrapper};
 use crate::core::iter::{DagIterable, PostOrderIter};
-use crate::core::node::NodeType;
+use crate::core::redeem::NodeType;
 use crate::core::types::{RcVar, Type, Variable, VariableFactory, VariableInner, VariableType};
 use crate::jet::Application;
 use crate::Error;
@@ -138,14 +138,14 @@ struct UnificationArrow {
 // TODO: Remove once local type checking is implemented
 /// Storage of the unification arrows for each node of a Simplicity DAG.
 #[derive(Debug)]
-pub(crate) struct Arrows<'a, Witness, App: Application> {
-    node_to_arrow: HashMap<RefWrapper<'a, Witness, App>, UnificationArrow>,
+pub(crate) struct Arrows<'a, App: Application> {
+    node_to_arrow: HashMap<RefWrapper<'a, App>, UnificationArrow>,
 }
 
-impl<'a, Witness, App: Application> Arrows<'a, Witness, App> {
+impl<'a, App: Application> Arrows<'a, App> {
     /// Return the finalized type of the given node.
     /// To work, this method must be called on nodes in post order!
-    pub fn finalize(&self, node: &RefWrapper<'a, Witness, App>) -> Result<NodeType, Error> {
+    pub fn finalize(&self, node: &RefWrapper<'a, App>) -> Result<NodeType, Error> {
         let arrow = self
             .node_to_arrow
             .get(node)
@@ -167,10 +167,10 @@ impl<'a, Witness, App: Application> Arrows<'a, Witness, App> {
 }
 
 /// Return the initialized unification arrows of a Simplicity DAG.
-pub(crate) fn get_arrows<Witness, App: Application>(
-    it: PostOrderIter<RefWrapper<Witness, App>>,
-) -> Result<Arrows<Witness, App>, Error> {
-    let mut node_to_arrow: HashMap<RefWrapper<Witness, App>, UnificationArrow> = HashMap::new();
+pub(crate) fn get_arrows<App: Application>(
+    it: PostOrderIter<RefWrapper<App>>,
+) -> Result<Arrows<App>, Error> {
+    let mut node_to_arrow: HashMap<RefWrapper<App>, UnificationArrow> = HashMap::new();
     let pow2s = Variable::powers_of_two();
     let mut naming = VariableFactory::new();
 
@@ -289,7 +289,7 @@ pub(crate) fn get_arrows<Witness, App: Application>(
             match &untyped_node.0.inner {
                 CommitNodeInner::Iden => unify(arrow.source.clone(), arrow.target.clone())?,
                 CommitNodeInner::Unit => bind(&arrow.target, VariableType::Unit)?,
-                CommitNodeInner::Witness(_)
+                CommitNodeInner::Witness
                 | CommitNodeInner::Fail(_, _)
                 | CommitNodeInner::Hidden(_) => {
                     // no type constraints

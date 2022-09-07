@@ -26,38 +26,38 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::{fmt, io};
 
-/// Underlying combinator of a [`Node`].
+/// Underlying combinator of a [`RedeemNode`].
 ///
 /// # See
-/// - [`crate::core::commit::CommitNodeInner`]
+/// [`crate::core::commit::CommitNodeInner`]
 #[derive(Debug)]
-pub enum NodeInner<Witness, App: Application> {
+pub enum RedeemNodeInner<App: Application> {
     /// Identity
     Iden,
     /// Unit constant
     Unit,
     /// Left injection of some child
-    InjL(Rc<Node<Witness, App>>),
+    InjL(Rc<RedeemNode<App>>),
     /// Right injection of some child
-    InjR(Rc<Node<Witness, App>>),
+    InjR(Rc<RedeemNode<App>>),
     /// Take of some child
-    Take(Rc<Node<Witness, App>>),
+    Take(Rc<RedeemNode<App>>),
     /// Drop of some child
-    Drop(Rc<Node<Witness, App>>),
+    Drop(Rc<RedeemNode<App>>),
     /// Composition of a left and right child
-    Comp(Rc<Node<Witness, App>>, Rc<Node<Witness, App>>),
+    Comp(Rc<RedeemNode<App>>, Rc<RedeemNode<App>>),
     /// Case of a left and right child
-    Case(Rc<Node<Witness, App>>, Rc<Node<Witness, App>>),
+    Case(Rc<RedeemNode<App>>, Rc<RedeemNode<App>>),
     /// Left assertion of a left and right child.
-    AssertL(Rc<Node<Witness, App>>, Rc<Node<Witness, App>>),
+    AssertL(Rc<RedeemNode<App>>, Rc<RedeemNode<App>>),
     /// Right assertion of a left and right child.
-    AssertR(Rc<Node<Witness, App>>, Rc<Node<Witness, App>>),
+    AssertR(Rc<RedeemNode<App>>, Rc<RedeemNode<App>>),
     /// Pair of a left and right child
-    Pair(Rc<Node<Witness, App>>, Rc<Node<Witness, App>>),
+    Pair(Rc<RedeemNode<App>>, Rc<RedeemNode<App>>),
     /// Disconnect of a left and right child
-    Disconnect(Rc<Node<Witness, App>>, Rc<Node<Witness, App>>),
+    Disconnect(Rc<RedeemNode<App>>, Rc<RedeemNode<App>>),
     /// Witness data
-    Witness(Witness),
+    Witness(Value),
     /// Universal fail
     Fail(Cmr, Cmr),
     /// Hidden CMR
@@ -66,25 +66,25 @@ pub enum NodeInner<Witness, App: Application> {
     Jet(&'static JetNode<App>),
 }
 
-impl<Witness: fmt::Display, App: Application> fmt::Display for NodeInner<Witness, App> {
+impl<App: Application> fmt::Display for RedeemNodeInner<App> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            NodeInner::Iden => f.write_str("iden"),
-            NodeInner::Unit => f.write_str("unit"),
-            NodeInner::InjL(_) => f.write_str("injl"),
-            NodeInner::InjR(_) => f.write_str("injr"),
-            NodeInner::Take(_) => f.write_str("take"),
-            NodeInner::Drop(_) => f.write_str("drop"),
-            NodeInner::Comp(_, _) => f.write_str("comp"),
-            NodeInner::Case(_, _) => f.write_str("case"),
-            NodeInner::AssertL(_, _) => f.write_str("assertl"),
-            NodeInner::AssertR(_, _) => f.write_str("assertr"),
-            NodeInner::Pair(_, _) => f.write_str("pair"),
-            NodeInner::Disconnect(_, _) => f.write_str("disconnect"),
-            NodeInner::Witness(_) => f.write_str("witness"),
-            NodeInner::Fail(hl, hr) => write!(f, "fail({}, {})", hl, hr),
-            NodeInner::Hidden(h) => write!(f, "hidden({})", h),
-            NodeInner::Jet(jet) => write!(f, "jet({})", jet.name),
+            RedeemNodeInner::Iden => f.write_str("iden"),
+            RedeemNodeInner::Unit => f.write_str("unit"),
+            RedeemNodeInner::InjL(_) => f.write_str("injl"),
+            RedeemNodeInner::InjR(_) => f.write_str("injr"),
+            RedeemNodeInner::Take(_) => f.write_str("take"),
+            RedeemNodeInner::Drop(_) => f.write_str("drop"),
+            RedeemNodeInner::Comp(_, _) => f.write_str("comp"),
+            RedeemNodeInner::Case(_, _) => f.write_str("case"),
+            RedeemNodeInner::AssertL(_, _) => f.write_str("assertl"),
+            RedeemNodeInner::AssertR(_, _) => f.write_str("assertr"),
+            RedeemNodeInner::Pair(_, _) => f.write_str("pair"),
+            RedeemNodeInner::Disconnect(_, _) => f.write_str("disconnect"),
+            RedeemNodeInner::Witness(_) => f.write_str("witness"),
+            RedeemNodeInner::Fail(hl, hr) => write!(f, "fail({}, {})", hl, hr),
+            RedeemNodeInner::Hidden(h) => write!(f, "hidden({})", h),
+            RedeemNodeInner::Jet(jet) => write!(f, "jet({})", jet.name),
         }
     }
 }
@@ -117,11 +117,11 @@ pub struct NodeBounds {
 /// The DAG contains full metadata, including the witness, for redeeming it.
 ///
 /// # See
-/// - [`crate::core::CommitNode`]
+/// [`crate::core::CommitNode`]
 #[derive(Debug)]
-pub struct Node<Witness, App: Application> {
+pub struct RedeemNode<App: Application> {
     /// Underlying combinator of the node
-    pub inner: NodeInner<Witness, App>,
+    pub inner: RedeemNodeInner<App>,
     /// Commitment Merkle root of the node
     pub cmr: Cmr,
     /// Identity Merkle root of the node
@@ -132,64 +132,62 @@ pub struct Node<Witness, App: Application> {
     pub bounds: NodeBounds,
 }
 
-impl<Witness, App: Application> Node<Witness, App> {
+impl<App: Application> RedeemNode<App> {
     /// Return the left child of the node, if there is such a child.
     pub fn get_left(&self) -> Option<&Self> {
         match &self.inner {
-            NodeInner::Iden
-            | NodeInner::Unit
-            | NodeInner::Witness(_)
-            | NodeInner::Fail(_, _)
-            | NodeInner::Hidden(_)
-            | NodeInner::Jet(_) => None,
-            NodeInner::InjL(l)
-            | NodeInner::InjR(l)
-            | NodeInner::Take(l)
-            | NodeInner::Drop(l)
-            | NodeInner::Comp(l, _)
-            | NodeInner::Case(l, _)
-            | NodeInner::AssertL(l, _)
-            | NodeInner::AssertR(l, _)
-            | NodeInner::Pair(l, _)
-            | NodeInner::Disconnect(l, _) => Some(l),
+            RedeemNodeInner::Iden
+            | RedeemNodeInner::Unit
+            | RedeemNodeInner::Witness(_)
+            | RedeemNodeInner::Fail(_, _)
+            | RedeemNodeInner::Hidden(_)
+            | RedeemNodeInner::Jet(_) => None,
+            RedeemNodeInner::InjL(l)
+            | RedeemNodeInner::InjR(l)
+            | RedeemNodeInner::Take(l)
+            | RedeemNodeInner::Drop(l)
+            | RedeemNodeInner::Comp(l, _)
+            | RedeemNodeInner::Case(l, _)
+            | RedeemNodeInner::AssertL(l, _)
+            | RedeemNodeInner::AssertR(l, _)
+            | RedeemNodeInner::Pair(l, _)
+            | RedeemNodeInner::Disconnect(l, _) => Some(l),
         }
     }
 
     /// Return the right child of the node, if there is such a child.
     pub fn get_right(&self) -> Option<&Self> {
         match &self.inner {
-            NodeInner::Iden
-            | NodeInner::Unit
-            | NodeInner::Witness(_)
-            | NodeInner::Fail(_, _)
-            | NodeInner::Hidden(_)
-            | NodeInner::Jet(_)
-            | NodeInner::InjL(_)
-            | NodeInner::InjR(_)
-            | NodeInner::Take(_)
-            | NodeInner::Drop(_) => None,
-            NodeInner::Comp(_, r)
-            | NodeInner::Case(_, r)
-            | NodeInner::AssertL(_, r)
-            | NodeInner::AssertR(_, r)
-            | NodeInner::Pair(_, r)
-            | NodeInner::Disconnect(_, r) => Some(r),
+            RedeemNodeInner::Iden
+            | RedeemNodeInner::Unit
+            | RedeemNodeInner::Witness(_)
+            | RedeemNodeInner::Fail(_, _)
+            | RedeemNodeInner::Hidden(_)
+            | RedeemNodeInner::Jet(_)
+            | RedeemNodeInner::InjL(_)
+            | RedeemNodeInner::InjR(_)
+            | RedeemNodeInner::Take(_)
+            | RedeemNodeInner::Drop(_) => None,
+            RedeemNodeInner::Comp(_, r)
+            | RedeemNodeInner::Case(_, r)
+            | RedeemNodeInner::AssertL(_, r)
+            | RedeemNodeInner::AssertR(_, r)
+            | RedeemNodeInner::Pair(_, r)
+            | RedeemNodeInner::Disconnect(_, r) => Some(r),
         }
     }
 
     /// Return an iterator over the types of values that make up a valid witness for the program.
     pub fn get_witness_types(&self) -> impl Iterator<Item = &Type> {
         RefWrapper(self).iter_post_order().filter_map(|node| {
-            if let NodeInner::Witness(_) = &node.0.inner {
+            if let RedeemNodeInner::Witness(_) = &node.0.inner {
                 Some(node.0.ty.target.as_ref())
             } else {
                 None
             }
         })
     }
-}
 
-impl<App: Application> Node<Value, App> {
     /// Decode a Simplicity program from bits, including the witness data.
     pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Rc<Self>, Error> {
         let commit = decode::decode_program_exact_witness(bits)?;
@@ -212,7 +210,7 @@ impl<App: Application> Node<Value, App> {
     }
 }
 
-impl<Witness: fmt::Display, App: Application> fmt::Display for Node<Witness, App> {
+impl<App: Application> fmt::Display for RedeemNode<App> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         RefWrapper(self).display(
             f,
@@ -222,8 +220,9 @@ impl<Witness: fmt::Display, App: Application> fmt::Display for Node<Witness, App
     }
 }
 
-/// Wrapper of references to [`Node`].
+/// Wrapper of references to [`RedeemNode`].
+/// Zero-cost implementation of `Copy`, `Eq` and `Hash` via pointer equality.
 #[derive(Debug)]
-pub struct RefWrapper<'a, Witness, App: Application>(pub &'a Node<Witness, App>);
+pub struct RefWrapper<'a, App: Application>(pub &'a RedeemNode<App>);
 
 impl_ref_wrapper!(RefWrapper);

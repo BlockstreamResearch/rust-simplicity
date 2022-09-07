@@ -13,7 +13,7 @@
 //
 
 use crate::core::iter::PostOrderIter;
-use crate::core::node::{NodeInner, RefWrapper};
+use crate::core::redeem::{RedeemNodeInner, RefWrapper};
 use crate::jet::Application;
 use std::collections::{HashMap, HashSet};
 
@@ -23,14 +23,14 @@ use std::collections::{HashMap, HashSet};
 /// 1. For hidden nodes, their hash must be unique in the program.
 /// 2. For non-hidden nodes, the triple of their IMR, source type TMR and target type TMR
 ///    must be unique in the program.
-pub(crate) fn check_maximal_sharing<Witness, App: Application>(
-    program: PostOrderIter<RefWrapper<Witness, App>>,
+pub(crate) fn check_maximal_sharing<App: Application>(
+    program: PostOrderIter<RefWrapper<App>>,
 ) -> bool {
     let mut seen_hashes = HashSet::new();
     let mut seen_keys = HashSet::new();
 
     for node in program {
-        if let NodeInner::Hidden(h) = node.0.inner {
+        if let RedeemNodeInner::Hidden(h) = node.0.inner {
             if seen_hashes.contains(&h) {
                 return false;
             } else {
@@ -57,9 +57,9 @@ pub(crate) fn check_maximal_sharing<Witness, App: Application>(
 ///
 /// # See
 /// [`check_maximal_sharing()`]
-pub(crate) fn compute_maximal_sharing<Witness, App: Application>(
-    program: PostOrderIter<RefWrapper<Witness, App>>,
-) -> (HashMap<RefWrapper<Witness, App>, usize>, usize) {
+pub(crate) fn compute_maximal_sharing<App: Application>(
+    program: PostOrderIter<RefWrapper<App>>,
+) -> (HashMap<RefWrapper<App>, usize>, usize) {
     let mut node_to_index = HashMap::new();
     let mut index = 0;
     let mut hash_to_node = HashMap::new();
@@ -68,7 +68,7 @@ pub(crate) fn compute_maximal_sharing<Witness, App: Application>(
     for node in program {
         debug_assert!(!node_to_index.contains_key(&node));
 
-        if let NodeInner::Hidden(h) = node.0.inner {
+        if let RedeemNodeInner::Hidden(h) = node.0.inner {
             if let Some(shared_node) = hash_to_node.get(&h) {
                 node_to_index.insert(node, *node_to_index.get(shared_node).unwrap());
             } else {

@@ -19,10 +19,10 @@
 
 pub mod commit;
 pub mod iter;
-pub mod node;
+pub mod redeem;
 pub mod types;
 mod value;
 
 pub use commit::CommitNode;
-pub use node::Node;
+pub use redeem::RedeemNode;
 pub use value::Value;

@@ -19,8 +19,8 @@
 //! The type of `witness` data is included in the hash via [`super::tmr`].
 
 use crate::core::commit::CommitNodeInner;
-use crate::core::node::NodeType;
-use crate::core::{Node, Value};
+use crate::core::redeem::NodeType;
+use crate::core::{RedeemNode, Value};
 use crate::impl_midstate_wrapper;
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
@@ -35,12 +35,12 @@ pub struct Imr(Midstate);
 impl_midstate_wrapper!(Imr);
 
 impl CommitMerkleRoot for Imr {
-    fn get_iv<Witness, App: Application>(node: &CommitNodeInner<Witness, App>) -> Self {
+    fn get_iv<App: Application>(node: &CommitNodeInner<App>) -> Self {
         match node {
             CommitNodeInner::Disconnect(_, _) => {
                 Imr::tag_iv(b"Simplicity-Draft\x1fIdentity\x1fdisconnect")
             }
-            CommitNodeInner::Witness(_) => Imr::tag_iv(b"Simplicity-Draft\x1fIdentity\x1fwitness"),
+            CommitNodeInner::Witness => Imr::tag_iv(b"Simplicity-Draft\x1fIdentity\x1fwitness"),
             _ => Cmr::get_iv(node).into_inner().into(),
         }
     }
@@ -51,10 +51,10 @@ impl CommitMerkleRoot for Imr {
 /// Nodes with left children require their finalized left child,
 /// while nodes with right children require their finalized right child.
 /// Witness nodes require their value and node type.
-pub(crate) fn compute_imr<Witness, App: Application>(
-    node: &CommitNodeInner<Witness, App>,
-    left: Option<Rc<Node<Value, App>>>,
-    right: Option<Rc<Node<Value, App>>>,
+pub(crate) fn compute_imr<App: Application>(
+    node: &CommitNodeInner<App>,
+    left: Option<Rc<RedeemNode<App>>>,
+    right: Option<Rc<RedeemNode<App>>>,
     value: Option<&Value>,
     ty: &NodeType,
 ) -> Imr {
@@ -76,6 +76,6 @@ pub(crate) fn compute_imr<Witness, App: Application>(
         | CommitNodeInner::Pair(_, _)
         | CommitNodeInner::AssertL(_, _)
         | CommitNodeInner::AssertR(_, _) => imr_iv.update(left.unwrap().imr, right.unwrap().imr),
-        CommitNodeInner::Witness(_) => imr_iv.update_value(value.unwrap(), ty.target.as_ref()),
+        CommitNodeInner::Witness => imr_iv.update_value(value.unwrap(), ty.target.as_ref()),
     }
 }

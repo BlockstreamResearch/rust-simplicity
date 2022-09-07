@@ -130,14 +130,14 @@ pub trait CommitMerkleRoot: MerkleRoot {
     ///
     /// Each [`CommitNodeInner`] corresponds to some tag that is hashed
     /// and returned as initial value
-    fn get_iv<Witness, App: Application>(node: &CommitNodeInner<Witness, App>) -> Self;
+    fn get_iv<App: Application>(node: &CommitNodeInner<App>) -> Self;
 }
 
 /// Tagged SHA256 hash used for [`Type`]
 pub trait TypeMerkleRoot: MerkleRoot {
     /// Return the initial value for the given type.
     ///
-    /// Each [`Type::ty`] corresponds to some tag that is hashed
+    /// Each [`Type::inner`] corresponds to some tag that is hashed
     /// and returned as initial value
     fn get_iv(ty: &TypeInner) -> Self;
 }

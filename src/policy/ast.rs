@@ -62,7 +62,7 @@ pub enum Policy<Pk: MiniscriptKey> {
 
 impl<Pk: MiniscriptKey + PublicKey32> Policy<Pk> {
     /// Compile the policy into a Simplicity program
-    pub fn compile(&self) -> Result<Rc<CommitNode<(), Bitcoin>>, Error> {
+    pub fn compile(&self) -> Result<Rc<CommitNode<Bitcoin>>, Error> {
         compiler::compile(self)
     }
 }
