@@ -77,21 +77,36 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
             )
         }
         Policy::And(sub_policies) => {
-            assert_eq!(2, sub_policies.len());
+            assert_eq!(
+                2,
+                sub_policies.len(),
+                "Conjunctions must have exactly two sub-policies"
+            );
+
+            if let Policy::Trivial = sub_policies[0] {
+                return compile(&sub_policies[1]);
+            }
+            if let Policy::Trivial = sub_policies[1] {
+                return compile(&sub_policies[0]);
+            }
 
             let left = compile(&sub_policies[0])?;
             let right = compile(&sub_policies[1])?;
             CommitNode::comp(left, right)
         }
         Policy::Or(sub_policies) => {
-            assert_eq!(2, sub_policies.len());
+            assert_eq!(
+                2,
+                sub_policies.len(),
+                "Disjunctions must have exactly two sub-policies"
+            );
 
             let left = compile(&sub_policies[0])?;
             let right = compile(&sub_policies[1])?;
-            // Cannot use commitNode::cond lest the witness is in reverse order
-            let cond_left_right = CommitNode::case(CommitNode::drop(left), CommitNode::drop(right));
+
+            let cond_right_left = CommitNode::cond(right, left);
             let selector = CommitNode::pair(CommitNode::witness(), CommitNode::unit());
-            CommitNode::comp(selector, cond_left_right)
+            CommitNode::comp(selector, cond_right_left)
         }
         Policy::Threshold(k, sub_policies) => {
             assert!(
@@ -252,6 +267,20 @@ mod tests {
             Value::u256_from_slice(&[0; 32]),
             Value::u256_from_slice(&preimage1),
         ];
+        assert!(!execute_successful(&commit, invalid_witness, &env));
+    }
+
+    #[test]
+    fn execute_and_true() {
+        let preimage0 = [1; 32];
+        let image0 = sha256::Hash::hash(&preimage0);
+
+        let (commit, env) = compile(Policy::And(vec![Policy::Sha256(image0), Policy::Trivial]));
+
+        let valid_witness = vec![Value::u256_from_slice(&preimage0)];
+        assert!(execute_successful(&commit, valid_witness, &env));
+
+        let invalid_witness = vec![Value::u256_from_slice(&[0; 32])];
         assert!(!execute_successful(&commit, invalid_witness, &env));
     }
 
