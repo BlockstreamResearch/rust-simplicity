@@ -302,6 +302,23 @@ impl<App: Application> CommitNode<App> {
         CommitNode::case(CommitNode::drop(right), CommitNode::drop(left))
     }
 
+    /// Create a DAG that asserts that its child returns `true`, and fails otherwise.
+    ///
+    /// _Overall type: A → 1 where child: A → 2_
+    ///
+    /// _Type inference will fail if children are not of the correct type._
+    pub fn assert(child: Rc<Self>) -> Rc<Self> {
+        let fail_zeroes_cmr = Cmr::from([
+            177, 133, 253, 158, 70, 96, 76, 160, 2, 45, 209, 68, 83, 153, 159, 186, 164, 51, 151,
+            174, 72, 121, 107, 12, 64, 35, 186, 249, 151, 31, 21, 102,
+        ]);
+
+        CommitNode::comp(
+            CommitNode::pair(child, CommitNode::unit()),
+            CommitNode::assertr(CommitNode::hidden(fail_zeroes_cmr), CommitNode::unit()),
+        )
+    }
+
     /// Create a DAG that computes Boolean _NOT_ of the `child`.
     ///
     /// _Overall type: A → 2 where child: A → 2_
