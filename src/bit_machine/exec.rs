@@ -404,13 +404,7 @@ impl BitMachine {
                     }
                 }
                 RedeemNodeInner::Witness(value) => self.write_value(value),
-                RedeemNodeInner::Hidden(h) => {
-                    // TODO: Convert into crate::Error
-                    panic!(
-                        "Hit hidden node {:?} at iteration {}: {}",
-                        ip, iterations, h
-                    )
-                }
+                RedeemNodeInner::Hidden(..) => return Err(ExecutionError::ReachedPrunedBranch),
                 RedeemNodeInner::Jet(j) => App::exec_jet(j, self, env)
                     .map_err(|x| ExecutionError::AppError(Box::new(x)))?,
                 RedeemNodeInner::Fail(..) => return Err(ExecutionError::ReachedFailNode),
@@ -450,6 +444,8 @@ impl BitMachine {
 pub enum ExecutionError<'a> {
     /// Reached a fail node
     ReachedFailNode,
+    /// Reached a pruned branch
+    ReachedPrunedBranch,
     /// Application-related error
     AppError(Box<dyn AppError + 'a>),
 }
@@ -457,7 +453,8 @@ pub enum ExecutionError<'a> {
 impl<'a> fmt::Display for ExecutionError<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ExecutionError::ReachedFailNode => write!(f, "Encountered fail node"),
+            ExecutionError::ReachedFailNode => f.write_str("Execution reached a fail node"),
+            ExecutionError::ReachedPrunedBranch => f.write_str("Execution reached a pruned branch"),
             ExecutionError::AppError(e) => e.fmt(f),
         }
     }
