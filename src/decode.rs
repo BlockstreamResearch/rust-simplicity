@@ -100,91 +100,89 @@ fn decode_node<I: Iterator<Item = u8>, App: Application>(
 ) -> Result<(), Error> {
     debug_assert!(index == index_dag.len());
 
-    match bits.next() {
+    let (maybe_code, subcode) = match bits.next() {
         None => return Err(Error::EndOfStream),
-        Some(true) => {
-            let node = CommitNode::jet(App::decode_jet(bits)?);
-
-            debug_assert!(!index_to_node.contains_key(&index));
-            index_to_node.insert(index, node);
-            index_dag.push((None, None));
-
-            return Ok(());
+        Some(true) => (None, u64::default()),
+        Some(false) => {
+            let code = bits.read_bits_be(2).ok_or(Error::EndOfStream)?;
+            let subcode = bits
+                .read_bits_be(if code < 3 { 2 } else { 1 })
+                .ok_or(Error::EndOfStream)?;
+            (Some(code), subcode)
         }
-        Some(false) => {}
     };
 
-    let code = match bits.read_bits_be(2) {
-        Some(n) => n,
-        None => return Err(Error::EndOfStream),
-    };
-    let subcode = match bits.read_bits_be(if code < 3 { 2 } else { 1 }) {
-        Some(n) => n,
-        None => return Err(Error::EndOfStream),
-    };
-    let node = if code <= 1 {
-        let i_abs = index - decode_natural(bits, Some(index))?;
-        let left = get_child_from_index(i_abs, index_to_node);
+    let node = match maybe_code {
+        Some(code) if code < 2 => {
+            let i_abs = index - decode_natural(bits, Some(index))?;
+            let left = get_child_from_index(i_abs, index_to_node);
 
-        if code == 0 {
-            let j_abs = index - decode_natural(bits, Some(index))?;
-            let right = get_child_from_index(j_abs, index_to_node);
-            index_dag.push((Some(i_abs), Some(j_abs)));
+            match code {
+                0 => {
+                    let j_abs = index - decode_natural(bits, Some(index))?;
+                    let right = get_child_from_index(j_abs, index_to_node);
+                    index_dag.push((Some(i_abs), Some(j_abs)));
 
-            match subcode {
-                0 => CommitNode::comp(left, right),
-                1 => {
-                    if let CommitNodeInner::Hidden(..) = left.inner {
-                        if let CommitNodeInner::Hidden(..) = right.inner {
-                            return Err(Error::CaseMultipleHiddenChildren);
+                    match subcode {
+                        0 => CommitNode::comp(left, right),
+                        1 => {
+                            if let CommitNodeInner::Hidden(..) = left.inner {
+                                if let CommitNodeInner::Hidden(..) = right.inner {
+                                    return Err(Error::CaseMultipleHiddenChildren);
+                                }
+                            }
+
+                            if let CommitNodeInner::Hidden(..) = right.inner {
+                                CommitNode::assertl(left, right)
+                            } else if let CommitNodeInner::Hidden(..) = left.inner {
+                                CommitNode::assertr(left, right)
+                            } else {
+                                CommitNode::case(left, right)
+                            }
                         }
-                    }
-
-                    if let CommitNodeInner::Hidden(..) = right.inner {
-                        CommitNode::assertl(left, right)
-                    } else if let CommitNodeInner::Hidden(..) = left.inner {
-                        CommitNode::assertr(left, right)
-                    } else {
-                        CommitNode::case(left, right)
+                        2 => CommitNode::pair(left, right),
+                        3 => CommitNode::disconnect(left, right),
+                        _ => unreachable!("2-bit subcode"),
                     }
                 }
-                2 => CommitNode::pair(left, right),
-                3 => CommitNode::disconnect(left, right),
-                // TODO: convert into crate::Error::ParseError
-                _ => unimplemented!(),
-            }
-        } else {
-            index_dag.push((Some(i_abs), None));
+                1 => {
+                    index_dag.push((Some(i_abs), None));
 
-            match subcode {
-                0 => CommitNode::injl(left),
-                1 => CommitNode::injr(left),
-                2 => CommitNode::take(left),
-                3 => CommitNode::drop(left),
-                _ => unimplemented!(),
+                    match subcode {
+                        0 => CommitNode::injl(left),
+                        1 => CommitNode::injr(left),
+                        2 => CommitNode::take(left),
+                        3 => CommitNode::drop(left),
+                        _ => unreachable!("2-bit subcode"),
+                    }
+                }
+                _ => unreachable!("code < 2"),
             }
         }
-    } else if code == 2 {
-        index_dag.push((None, None));
+        _ => {
+            index_dag.push((None, None));
 
-        match subcode {
-            0 => CommitNode::iden(),
-            1 => CommitNode::unit(),
-            2 => CommitNode::fail(Cmr::from(decode_hash(bits)?), Cmr::from(decode_hash(bits)?)),
-            3 => return Err(Error::ParseError("01011 (stop code)")),
-            _ => unimplemented!(),
+            match maybe_code {
+                None => CommitNode::jet(App::decode_jet(bits)?),
+                Some(2) => match subcode {
+                    0 => CommitNode::iden(),
+                    1 => CommitNode::unit(),
+                    2 => CommitNode::fail(
+                        Cmr::from(decode_hash(bits)?),
+                        Cmr::from(decode_hash(bits)?),
+                    ),
+                    3 => return Err(Error::ParseError("01011 (stop code)")),
+                    _ => unreachable!("2-bit subcode"),
+                },
+                Some(3) => match subcode {
+                    0 => CommitNode::hidden(Cmr::from(decode_hash(bits)?)),
+                    1 if fresh_witness => return Ok(()),
+                    1 => CommitNode::witness(),
+                    _ => unreachable!("1-bit subcode"),
+                },
+                Some(_) => unreachable!("2-bit code"),
+            }
         }
-    } else if code == 3 {
-        index_dag.push((None, None));
-
-        match subcode {
-            0 => CommitNode::hidden(Cmr::from(decode_hash(bits)?)),
-            1 if fresh_witness => return Ok(()),
-            1 => CommitNode::witness(),
-            _ => unimplemented!(),
-        }
-    } else {
-        unimplemented!()
     };
 
     debug_assert!(!index_to_node.contains_key(&index));
