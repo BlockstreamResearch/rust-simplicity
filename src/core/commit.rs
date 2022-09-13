@@ -80,8 +80,8 @@ impl<App: Application> fmt::Display for CommitNodeInner<App> {
             CommitNodeInner::Pair(_, _) => f.write_str("pair"),
             CommitNodeInner::Disconnect(_, _) => f.write_str("disconnect"),
             CommitNodeInner::Witness => f.write_str("witness"),
-            CommitNodeInner::Fail(hl, hr) => write!(f, "fail({}, {})", hl, hr),
-            CommitNodeInner::Hidden(h) => write!(f, "hidden({})", h),
+            CommitNodeInner::Fail(..) => f.write_str("fail"),
+            CommitNodeInner::Hidden(..) => f.write_str("hidden"),
             CommitNodeInner::Jet(jet) => write!(f, "jet({})", jet.name),
         }
     }
