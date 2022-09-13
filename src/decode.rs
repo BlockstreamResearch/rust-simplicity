@@ -18,8 +18,8 @@
 //! Refer to [`crate::encode`] for information on the encoding.
 
 use crate::bititer::BitIter;
-use crate::core::commit::{CommitNodeInner, RefWrapper};
-use crate::core::iter::{DagIterable, WitnessIterator};
+use crate::core::commit::CommitNodeInner;
+use crate::core::iter::{DagIterable, IndexDag, IndexNode, WitnessIterator};
 use crate::core::types::{Type, TypeInner};
 use crate::core::{CommitNode, Value};
 use crate::jet::Application;
@@ -62,66 +62,54 @@ fn decode_program<I: Iterator<Item = u8>, App: Application>(
         return Err(Error::TooManyNodes(len));
     }
 
-    let mut new_index = 0;
     let mut index_to_node = HashMap::new();
-    let mut new_index_to_node = HashMap::new();
+    let mut index_dag = Vec::new();
 
     for index in 0..len {
-        new_index = decode_node(
+        decode_node(
             bits,
             index,
-            new_index,
             &mut index_to_node,
-            &mut new_index_to_node,
+            &mut index_dag,
             fresh_witness,
         )?;
     }
 
-    let new_root_index = new_index - 1;
-    let root = new_index_to_node.get(&new_root_index).unwrap().clone();
-    let mut it = RefWrapper(&root).iter_post_order();
+    // If witnesses are made fresh, then the deserialized program grows and its indices change.
+    // We must check the canonical order of the serialized program
+    let node = IndexNode(usize::default(), &index_dag);
+    let connected_it = node.iter_post_order();
+    let indexed_it = (0..index_dag.len()).map(|index| IndexNode(index, &index_dag));
 
-    // new_len ≥ RefWrapper(&root).iter_post_order().count()
-    for new_index in 0..=new_root_index {
-        let connected_node = it.next().ok_or(Error::NotInCanonicalOrder)?;
-        let indexed_node = RefWrapper(new_index_to_node.get(&new_index).unwrap());
-
-        if connected_node != indexed_node {
-            return Err(Error::NotInCanonicalOrder);
-        }
+    if !Iterator::eq(connected_it, indexed_it) {
+        return Err(Error::NotInCanonicalOrder);
     }
 
-    Ok(root)
+    let root = index_to_node.get(&(len - 1)).unwrap();
+    Ok(root.clone())
 }
 
 /// Decode a single Simplicity node from bits and
 /// insert it into a hash map at its index for future reference by ancestor nodes.
-///
-/// If witness nodes are made fresh, then the program grows and its indices change.
-/// This is why `index` is the node's index in the serialized program,
-/// while `new_index` is its index in the deserialized program.
-///
-/// Returns the next `new_index`
-/// because fresh witness nodes may be added to the deserialized program.
 fn decode_node<I: Iterator<Item = u8>, App: Application>(
     bits: &mut BitIter<I>,
     index: usize,
-    mut new_index: usize,
     index_to_node: &mut HashMap<usize, Rc<CommitNode<App>>>,
-    new_index_to_node: &mut HashMap<usize, Rc<CommitNode<App>>>,
+    index_dag: &mut IndexDag,
     fresh_witness: bool,
-) -> Result<usize, Error> {
+) -> Result<(), Error> {
+    debug_assert!(index == index_dag.len());
+
     match bits.next() {
         None => return Err(Error::EndOfStream),
         Some(true) => {
             let node = CommitNode::jet(App::decode_jet(bits)?);
 
             debug_assert!(!index_to_node.contains_key(&index));
-            debug_assert!(!new_index_to_node.contains_key(&new_index));
-            index_to_node.insert(index, node.clone());
-            new_index_to_node.insert(new_index, node);
+            index_to_node.insert(index, node);
+            index_dag.push((None, None));
 
-            return Ok(new_index + 1);
+            return Ok(());
         }
         Some(false) => {}
     };
@@ -136,12 +124,12 @@ fn decode_node<I: Iterator<Item = u8>, App: Application>(
     };
     let node = if code <= 1 {
         let i_abs = index - decode_natural(bits, Some(index))?;
-        let left = get_child_from_index(i_abs, &mut new_index, index_to_node, new_index_to_node);
+        let left = get_child_from_index(i_abs, index_to_node);
 
         if code == 0 {
             let j_abs = index - decode_natural(bits, Some(index))?;
-            let right =
-                get_child_from_index(j_abs, &mut new_index, index_to_node, new_index_to_node);
+            let right = get_child_from_index(j_abs, index_to_node);
+            index_dag.push((Some(i_abs), Some(j_abs)));
 
             match subcode {
                 0 => CommitNode::comp(left, right),
@@ -166,6 +154,8 @@ fn decode_node<I: Iterator<Item = u8>, App: Application>(
                 _ => unimplemented!(),
             }
         } else {
+            index_dag.push((Some(i_abs), None));
+
             match subcode {
                 0 => CommitNode::injl(left),
                 1 => CommitNode::injr(left),
@@ -175,6 +165,8 @@ fn decode_node<I: Iterator<Item = u8>, App: Application>(
             }
         }
     } else if code == 2 {
+        index_dag.push((None, None));
+
         match subcode {
             0 => CommitNode::iden(),
             1 => CommitNode::unit(),
@@ -183,9 +175,11 @@ fn decode_node<I: Iterator<Item = u8>, App: Application>(
             _ => unimplemented!(),
         }
     } else if code == 3 {
+        index_dag.push((None, None));
+
         match subcode {
             0 => CommitNode::hidden(Cmr::from(decode_hash(bits)?)),
-            1 if fresh_witness => return Ok(index),
+            1 if fresh_witness => return Ok(()),
             1 => CommitNode::witness(),
             _ => unimplemented!(),
         }
@@ -194,34 +188,22 @@ fn decode_node<I: Iterator<Item = u8>, App: Application>(
     };
 
     debug_assert!(!index_to_node.contains_key(&index));
-    debug_assert!(!new_index_to_node.contains_key(&new_index));
-    index_to_node.insert(index, node.clone());
-    new_index_to_node.insert(new_index, node);
+    index_to_node.insert(index, node);
 
-    Ok(new_index + 1)
+    Ok(())
 }
 
 /// Return the child node at the given index from a hash map.
 ///
-/// A fresh witness node is returned as child and inserted into the program
-/// if witness nodes should be made fresh.
-/// The parent index and index hash maps are updated accordingly.
+/// A fresh witness node is returned as child if witness nodes should be made fresh.
 fn get_child_from_index<App: Application>(
-    child_index: usize,
-    new_parent_index: &mut usize,
+    index: usize,
     index_to_node: &HashMap<usize, Rc<CommitNode<App>>>,
-    new_index_to_node: &mut HashMap<usize, Rc<CommitNode<App>>>,
 ) -> Rc<CommitNode<App>> {
-    match index_to_node.get(&child_index) {
+    match index_to_node.get(&index) {
         Some(child) => child.clone(),
         // Absence of child means that child is a skipped witness node
-        None => {
-            let child = CommitNode::witness();
-            debug_assert!(!new_index_to_node.contains_key(new_parent_index));
-            new_index_to_node.insert(*new_parent_index, child.clone());
-            *new_parent_index += 1;
-            child
-        }
+        None => CommitNode::witness(),
     }
 }
 
