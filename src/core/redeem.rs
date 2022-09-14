@@ -81,9 +81,9 @@ impl<App: Application> fmt::Display for RedeemNodeInner<App> {
             RedeemNodeInner::AssertR(_, _) => f.write_str("assertr"),
             RedeemNodeInner::Pair(_, _) => f.write_str("pair"),
             RedeemNodeInner::Disconnect(_, _) => f.write_str("disconnect"),
-            RedeemNodeInner::Witness(_) => f.write_str("witness"),
-            RedeemNodeInner::Fail(hl, hr) => write!(f, "fail({}, {})", hl, hr),
-            RedeemNodeInner::Hidden(h) => write!(f, "hidden({})", h),
+            RedeemNodeInner::Witness(..) => f.write_str("witness"),
+            RedeemNodeInner::Fail(..) => f.write_str("fail"),
+            RedeemNodeInner::Hidden(..) => f.write_str("hidden"),
             RedeemNodeInner::Jet(jet) => write!(f, "jet({})", jet.name),
         }
     }
