@@ -51,10 +51,9 @@ use std::fmt;
 /// Error type for simplicity
 #[derive(Debug)]
 pub enum Error {
-    /// Unable to unify types in a DAG
-    TypeCheck,
-    /// A recursive type was inferred, violating the "occurs check" of the
-    /// type inference engine
+    /// A type cannot be unified with another type
+    TypeCheck(&'static str),
+    /// A type is recursive (i.e., occurs within itself), violating the "occurs check"
     OccursCheck,
     /// Node made a back-reference past the beginning of the program
     BadIndex,
@@ -85,10 +84,8 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Error::TypeCheck => f.write_str("Unable to unify types in a DAG"),
-            Error::OccursCheck => f.write_str(
-                "A recursive type was inferred, violating the of the type inference engine",
-            ),
+            Error::TypeCheck(s) => write!(f, "Type checking failed. Hint: {}", s),
+            Error::OccursCheck => f.write_str("A type is recursive (i.e., occurs within itself)"),
             Error::BadIndex => {
                 f.write_str("Node made a back-reference past the beginning of the program")
             }
