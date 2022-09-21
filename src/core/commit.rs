@@ -64,6 +64,52 @@ pub enum CommitNodeInner<App: Application> {
     Jet(&'static JetNode<App>),
 }
 
+impl<App: Application> CommitNodeInner<App> {
+    /// Return the left child of the node, if there is such a child.
+    pub fn get_left(&self) -> Option<&CommitNode<App>> {
+        match self {
+            CommitNodeInner::Iden
+            | CommitNodeInner::Unit
+            | CommitNodeInner::Witness
+            | CommitNodeInner::Fail(_, _)
+            | CommitNodeInner::Hidden(_)
+            | CommitNodeInner::Jet(_) => None,
+            CommitNodeInner::InjL(l)
+            | CommitNodeInner::InjR(l)
+            | CommitNodeInner::Take(l)
+            | CommitNodeInner::Drop(l)
+            | CommitNodeInner::Comp(l, _)
+            | CommitNodeInner::Case(l, _)
+            | CommitNodeInner::AssertL(l, _)
+            | CommitNodeInner::AssertR(l, _)
+            | CommitNodeInner::Pair(l, _)
+            | CommitNodeInner::Disconnect(l, _) => Some(l),
+        }
+    }
+
+    /// Return the right child of the node, if there is such a child.
+    pub fn get_right(&self) -> Option<&CommitNode<App>> {
+        match self {
+            CommitNodeInner::Iden
+            | CommitNodeInner::Unit
+            | CommitNodeInner::Witness
+            | CommitNodeInner::Fail(_, _)
+            | CommitNodeInner::Hidden(_)
+            | CommitNodeInner::Jet(_)
+            | CommitNodeInner::InjL(_)
+            | CommitNodeInner::InjR(_)
+            | CommitNodeInner::Take(_)
+            | CommitNodeInner::Drop(_) => None,
+            CommitNodeInner::Comp(_, r)
+            | CommitNodeInner::Case(_, r)
+            | CommitNodeInner::AssertL(_, r)
+            | CommitNodeInner::AssertR(_, r)
+            | CommitNodeInner::Pair(_, r)
+            | CommitNodeInner::Disconnect(_, r) => Some(r),
+        }
+    }
+}
+
 impl<App: Application> fmt::Display for CommitNodeInner<App> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -358,46 +404,12 @@ impl<App: Application> CommitNode<App> {
 
     /// Return the left child of the node, if there is such a child.
     pub fn get_left(&self) -> Option<&Self> {
-        match &self.inner {
-            CommitNodeInner::Iden
-            | CommitNodeInner::Unit
-            | CommitNodeInner::Witness
-            | CommitNodeInner::Fail(_, _)
-            | CommitNodeInner::Hidden(_)
-            | CommitNodeInner::Jet(_) => None,
-            CommitNodeInner::InjL(l)
-            | CommitNodeInner::InjR(l)
-            | CommitNodeInner::Take(l)
-            | CommitNodeInner::Drop(l)
-            | CommitNodeInner::Comp(l, _)
-            | CommitNodeInner::Case(l, _)
-            | CommitNodeInner::AssertL(l, _)
-            | CommitNodeInner::AssertR(l, _)
-            | CommitNodeInner::Pair(l, _)
-            | CommitNodeInner::Disconnect(l, _) => Some(l),
-        }
+        self.inner.get_left()
     }
 
     /// Return the right child of the node, if there is such a child.
     pub fn get_right(&self) -> Option<&Self> {
-        match &self.inner {
-            CommitNodeInner::Iden
-            | CommitNodeInner::Unit
-            | CommitNodeInner::Witness
-            | CommitNodeInner::Fail(_, _)
-            | CommitNodeInner::Hidden(_)
-            | CommitNodeInner::Jet(_)
-            | CommitNodeInner::InjL(_)
-            | CommitNodeInner::InjR(_)
-            | CommitNodeInner::Take(_)
-            | CommitNodeInner::Drop(_) => None,
-            CommitNodeInner::Comp(_, r)
-            | CommitNodeInner::Case(_, r)
-            | CommitNodeInner::AssertL(_, r)
-            | CommitNodeInner::AssertR(_, r)
-            | CommitNodeInner::Pair(_, r)
-            | CommitNodeInner::Disconnect(_, r) => Some(r),
-        }
+        self.inner.get_right()
     }
 
     /// Create a new DAG, enriched with the witness and computed metadata.
