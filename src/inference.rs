@@ -86,7 +86,7 @@ fn bind(x: &RcVar, ty: VariableType, hint: &'static str) -> Result<(), Error> {
                 unify(x1, y1, hint)?;
                 unify(x2, y2, hint)
             }
-            _ => Err(Error::TypeCheck(hint)),
+            _ => Err(Error::Unification(hint)),
         },
         VariableInner::EqualTo(..) => unreachable!("Can only bind root nodes"),
         VariableInner::Finalized(..) => unreachable!("No finalized types at this stage"),

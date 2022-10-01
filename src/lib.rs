@@ -46,15 +46,27 @@ mod util;
 
 pub use crate::bit_machine::exec;
 pub use crate::core::{CommitNode, RedeemNode};
+use crate::inference::UnificationArrow;
 use std::fmt;
 
 /// Error type for simplicity
 #[derive(Debug)]
 pub enum Error {
     /// A type cannot be unified with another type
-    TypeCheck(&'static str),
+    Unification(&'static str),
     /// A type is recursive (i.e., occurs within itself), violating the "occurs check"
     OccursCheck,
+    /// A DAG cannot be created because the children of the root cannot be unified
+    TypeCheck {
+        /// Hint why unification failed
+        unification_hint: &'static str,
+        /// Hint why root type does not match children types
+        root_hint: &'static str,
+        /// Unification arrow of left child, if it exists
+        left: Option<UnificationArrow>,
+        /// Unification arrow of right child, if it exists
+        right: Option<UnificationArrow>,
+    },
     /// Node made a back-reference past the beginning of the program
     BadIndex,
     /// Number exceeded 32 bits
@@ -87,9 +99,37 @@ pub enum Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::TypeCheck(s) => write!(f, "Type checking failed. Hint: {}", s),
+        match self {
+            Error::Unification(s) => write!(f, "Unification failed. Hint: {}", s),
             Error::OccursCheck => f.write_str("A type is recursive (i.e., occurs within itself)"),
+            Error::TypeCheck {
+                unification_hint,
+                root_hint,
+                left,
+                right,
+            } => {
+                if let Some(left) = left {
+                    if let Some(right) = right {
+                        write!(
+                            f,
+                            "Type checking failed. Hint: {}\n{}\nActual left  child: {}\nActual right child: {}",
+                            unification_hint, root_hint, left, right
+                        )
+                    } else {
+                        write!(
+                            f,
+                            "Type checking failed. Hint: {}\n{}\nActual child: {}",
+                            unification_hint, root_hint, left
+                        )
+                    }
+                } else {
+                    write!(
+                        f,
+                        "Type checking failed. Hint: {}\n{}",
+                        unification_hint, root_hint
+                    )
+                }
+            }
             Error::BadIndex => {
                 f.write_str("Node made a back-reference past the beginning of the program")
             }
