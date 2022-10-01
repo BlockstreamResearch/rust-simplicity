@@ -50,7 +50,6 @@ use crate::inference::UnificationArrow;
 use std::fmt;
 
 /// Error type for simplicity
-#[derive(Debug)]
 pub enum Error {
     /// A type cannot be unified with another type
     Unification(&'static str),
@@ -97,7 +96,7 @@ pub enum Error {
     MiniscriptError(miniscript::Error),
 }
 
-impl fmt::Display for Error {
+impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Error::Unification(s) => write!(f, "Unification failed. Hint: {}", s),
@@ -159,6 +158,12 @@ impl fmt::Display for Error {
             Error::SharingNotMaximal => f.write_str("Decoded programs must have maximal sharing"),
             Error::MiniscriptError(ref e) => fmt::Display::fmt(e, f),
         }
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
     }
 }
 
