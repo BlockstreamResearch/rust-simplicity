@@ -63,6 +63,10 @@ pub enum Error {
     NonCaseHiddenChild,
     /// 'case' nodes may have at most one hidden child
     CaseMultipleHiddenChildren,
+    /// Right child of left assertion must be hidden
+    RightChildNotHidden,
+    /// Left child of right assertion must be hidden
+    LeftChildNotHidden,
     /// Bitstream ended early   
     EndOfStream,
     /// Program must not be empty
@@ -95,6 +99,12 @@ impl fmt::Display for Error {
             }
             Error::CaseMultipleHiddenChildren => {
                 f.write_str("'case' nodes may have at most one hidden child")
+            }
+            Error::RightChildNotHidden => {
+                f.write_str("The right child of a left assertion must be a hidden node")
+            }
+            Error::LeftChildNotHidden => {
+                f.write_str("The left child of a right assertion must be a hidden node")
             }
             Error::EndOfStream => f.write_str("Bitstream ended early"),
             Error::EmptyProgram => f.write_str("Program must not be empty"),
