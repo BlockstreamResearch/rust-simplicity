@@ -45,7 +45,6 @@ mod tests {
         mac.exec(&program, &()).unwrap();
     }
 
-    #[ignore]
     #[test]
     fn progs_cmr() {
         check_merkle_roots(&HASHBLOCK, HASHBLOCK_CMR);
@@ -53,7 +52,6 @@ mod tests {
         check_merkle_roots(&SCHNORR6, SCHNORR6_CMR);
     }
 
-    #[ignore]
     #[test]
     fn exec_hashblock() {
         let mut bits = BitIter::new(HASHBLOCK.iter().cloned());
