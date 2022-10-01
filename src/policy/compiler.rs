@@ -191,12 +191,14 @@ mod tests {
         success
     }
 
+    #[ignore]
     #[test]
     fn execute_unsatisfiable() {
         let (commit, env) = compile(Policy::Unsatisfiable);
         assert!(!execute_successful(&commit, vec![], &env));
     }
 
+    #[ignore]
     #[test]
     fn execute_trivial() {
         let (commit, env) = compile(Policy::Trivial);
@@ -204,11 +206,13 @@ mod tests {
     }
 
     // TODO: check execution once implemented
+    #[ignore]
     #[test]
     fn compile_pk() {
         let _ = compile(Policy::Key(DummyKey));
     }
 
+    #[ignore]
     #[test]
     fn execute_after() {
         let (commit, mut env) = compile(Policy::After(42));
@@ -221,11 +225,13 @@ mod tests {
     }
 
     // TODO: check execution once implemented
+    #[ignore]
     #[test]
     fn compile_older() {
         let _ = compile(Policy::Older(42));
     }
 
+    #[ignore]
     #[test]
     fn execute_sha256() {
         let preimage = [1; 32];
@@ -239,6 +245,7 @@ mod tests {
         assert!(!execute_successful(&commit, invalid_witness, &env));
     }
 
+    #[ignore]
     #[test]
     fn execute_and() {
         let preimage0 = [1; 32];
@@ -270,6 +277,7 @@ mod tests {
         assert!(!execute_successful(&commit, invalid_witness, &env));
     }
 
+    #[ignore]
     #[test]
     fn execute_and_true() {
         let preimage0 = [1; 32];
@@ -284,6 +292,7 @@ mod tests {
         assert!(!execute_successful(&commit, invalid_witness, &env));
     }
 
+    #[ignore]
     #[test]
     fn execute_or() {
         let preimage0 = [1; 32];
@@ -323,6 +332,7 @@ mod tests {
         assert!(!execute_successful(&commit, invalid_witness, &env));
     }
 
+    #[ignore]
     #[test]
     fn execute_threshold() {
         let preimage0 = [1; 32];

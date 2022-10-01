@@ -57,6 +57,7 @@ impl CommitMerkleRoot for Cmr {
 }
 
 /// Compute the CMR of the given `node`.
+#[allow(dead_code)]
 pub(crate) fn compute_cmr<App: Application>(node: &CommitNodeInner<App>) -> Cmr {
     let cmr_iv = Cmr::get_iv(node);
 

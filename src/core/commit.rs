@@ -16,13 +16,15 @@
 use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
 use crate::core::iter::{DagIterable, WitnessIterator};
-use crate::core::redeem::RedeemNodeInner;
+use crate::core::redeem::{NodeType, RedeemNodeInner};
 use crate::core::{RedeemNode, Value};
+use crate::inference::UnificationArrow;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
-use crate::merkle::{cmr, imr};
-use crate::{analysis, decode, impl_ref_wrapper, inference, Error};
+use crate::merkle::imr;
+use crate::{analysis, decode, impl_ref_wrapper, Error};
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::rc::Rc;
 use std::{fmt, io};
 
@@ -151,16 +153,14 @@ pub struct CommitNode<App: Application> {
     pub inner: CommitNodeInner<App>,
     /// Commitment Merkle root of the node
     pub cmr: Cmr,
+    /// Unification arrow of the node
+    pub arrow: UnificationArrow,
 }
 
 impl<App: Application> CommitNode<App> {
     /// Create a node from its underlying combinator.
-    fn from_inner(inner: CommitNodeInner<App>) -> Rc<Self> {
-        // TODO: Do local type checking once implemented
-        Rc::new(CommitNode {
-            cmr: cmr::compute_cmr(&inner),
-            inner,
-        })
+    fn from_inner(_inner: CommitNodeInner<App>) -> Rc<Self> {
+        todo!()
     }
 
     /// Create a DAG that computes the identity function.
@@ -419,7 +419,6 @@ impl<App: Application> CommitNode<App> {
     ) -> Result<Rc<RedeemNode<App>>, Error> {
         let root = RefWrapper(self);
         let post_order_it = root.iter_post_order();
-        let arrows = inference::get_arrows(post_order_it.clone())?;
         let mut to_finalized: HashMap<RefWrapper<App>, Rc<RedeemNode<App>>> = HashMap::new();
 
         for commit in post_order_it {
@@ -436,7 +435,7 @@ impl<App: Application> CommitNode<App> {
                     .clone()
             });
 
-            let ty = arrows.finalize(&commit)?;
+            let ty = NodeType::try_from(commit.0)?;
             let value = if let CommitNodeInner::Witness = commit.0.inner {
                 Some(witness.next(&ty.target)?)
             } else {

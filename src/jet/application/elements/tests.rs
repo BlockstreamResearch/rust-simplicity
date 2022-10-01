@@ -16,6 +16,7 @@ use elements::{
     TxOutWitness,
 };
 
+#[ignore]
 #[test]
 fn sighash_all_cmr() {
     let mut bits: BitIter<_> = sighash_all::ELEMENTS_CHECK_SIGHASH_ALL
