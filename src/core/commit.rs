@@ -695,3 +695,33 @@ impl<App: Application> fmt::Display for CommitNode<App> {
 pub struct RefWrapper<'a, App: Application>(pub &'a CommitNode<App>);
 
 impl_ref_wrapper!(RefWrapper);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::jet::application::Core;
+
+    #[test]
+    fn occurs_check_error() {
+        let mut context = Context::<Core>::new();
+        let iden = CommitNode::iden(&mut context).unwrap();
+        let node = CommitNode::disconnect(&mut context, iden.clone(), iden).unwrap();
+
+        if let Err(Error::OccursCheck) = node.finalize(std::iter::empty()) {
+        } else {
+            panic!("Expected occurs check error")
+        }
+    }
+
+    #[test]
+    fn type_check_error() {
+        let mut context = Context::<Core>::new();
+        let unit = CommitNode::unit(&mut context).unwrap();
+        let case = CommitNode::case(&mut context, unit.clone(), unit.clone()).unwrap();
+
+        if let Err(Error::TypeCheck { .. }) = CommitNode::disconnect(&mut context, case, unit) {
+        } else {
+            panic!("Expected type check error")
+        }
+    }
+}
