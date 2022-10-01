@@ -163,7 +163,6 @@ impl<App: Application> TryFrom<&CommitNode<App>> for NodeType {
 }
 
 /// Return a unification arrow that is initialized for the given `node`.
-#[allow(dead_code)]
 pub(crate) fn get_arrow<App: Application>(
     node: &CommitNodeInner<App>,
     naming: &mut VariableFactory,

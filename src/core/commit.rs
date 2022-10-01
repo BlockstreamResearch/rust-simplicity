@@ -17,12 +17,12 @@ use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
 use crate::core::iter::{DagIterable, WitnessIterator};
 use crate::core::redeem::{NodeType, RedeemNodeInner};
-use crate::core::{RedeemNode, Value};
+use crate::core::{Context, RedeemNode, Value};
 use crate::inference::UnificationArrow;
 use crate::jet::{Application, JetNode};
 use crate::merkle::cmr::Cmr;
-use crate::merkle::imr;
-use crate::{analysis, decode, impl_ref_wrapper, Error};
+use crate::merkle::{cmr, imr};
+use crate::{analysis, decode, impl_ref_wrapper, inference, Error};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::rc::Rc;
@@ -159,130 +159,257 @@ pub struct CommitNode<App: Application> {
 
 impl<App: Application> CommitNode<App> {
     /// Create a node from its underlying combinator.
-    fn from_inner(_inner: CommitNodeInner<App>) -> Rc<Self> {
-        todo!()
+    fn node_from_inner(
+        context: &mut Context<App>,
+        inner: CommitNodeInner<App>,
+        left: Option<Rc<CommitNode<App>>>,
+        right: Option<Rc<CommitNode<App>>>,
+        hint: &'static str,
+    ) -> Result<Rc<CommitNode<App>>, Error> {
+        match inference::get_arrow(&inner, &mut context.naming) {
+            Ok(arrow) => Ok(Rc::new(CommitNode {
+                cmr: cmr::compute_cmr(&inner),
+                inner,
+                arrow,
+            })),
+            Err(Error::Unification(unification_hint)) => Err(Error::TypeCheck {
+                unification_hint,
+                root_hint: hint,
+                left: left.map(|l| l.arrow.clone()),
+                right: right.map(|r| r.arrow.clone()),
+            }),
+            Err(error) => Err(error),
+        }
     }
 
     /// Create a DAG that computes the identity function.
     ///
     /// _Overall type: A → A_
-    pub fn iden() -> Rc<Self> {
-        Self::from_inner(CommitNodeInner::Iden)
+    pub fn iden(context: &mut Context<App>) -> Result<Rc<Self>, Error> {
+        Self::node_from_inner(
+            context,
+            CommitNodeInner::Iden,
+            None,
+            None,
+            "Iden is of type A → A",
+        )
     }
 
     /// Create a DAG that returns the unit constant.
     ///
     /// _Overall type: A → 1_
-    pub fn unit() -> Rc<Self> {
-        Self::from_inner(CommitNodeInner::Unit)
+    pub fn unit(context: &mut Context<App>) -> Result<Rc<Self>, Error> {
+        Self::node_from_inner(
+            context,
+            CommitNodeInner::Unit,
+            None,
+            None,
+            "Unit is of type A → 1",
+        )
     }
 
     /// Create a DAG that computes the left injection of the given `child`.
     ///
-    /// _Overall type: A → B + C where child: A → B_
-    pub fn injl(child: Rc<Self>) -> Rc<Self> {
-        Self::from_inner(CommitNodeInner::InjL(child))
+    /// _Overall type: A → B + C where `child`: A → B_
+    pub fn injl(context: &mut Context<App>, child: Rc<Self>) -> Result<Rc<Self>, Error> {
+        Self::node_from_inner(
+            context,
+            CommitNodeInner::InjL(child.clone()),
+            Some(child),
+            None,
+            "Injl is of type A → B + C where `child`: A → B",
+        )
     }
 
     /// Create a DAG that computes the right injection of the given `child`.
     ///
-    /// _Overall type: A → B + C where child: A → C_
-    pub fn injr(child: Rc<Self>) -> Rc<Self> {
-        Self::from_inner(CommitNodeInner::InjR(child))
+    /// _Overall type: A → B + C where `child`: A → C_
+    pub fn injr(context: &mut Context<App>, child: Rc<Self>) -> Result<Rc<Self>, Error> {
+        Self::node_from_inner(
+            context,
+            CommitNodeInner::InjR(child.clone()),
+            Some(child),
+            None,
+            "Injr is of type A → B + C where `child`: A → C",
+        )
     }
 
     /// Create a DAG with that computes _take_ of the given `child`.
     ///
-    /// _Overall type: A × B → C where child: A → C_
-    pub fn take(child: Rc<Self>) -> Rc<Self> {
-        Self::from_inner(CommitNodeInner::Take(child))
+    /// _Overall type: A × B → C where `child`: A → C_
+    pub fn take(context: &mut Context<App>, child: Rc<Self>) -> Result<Rc<Self>, Error> {
+        Self::node_from_inner(
+            context,
+            CommitNodeInner::Take(child.clone()),
+            Some(child),
+            None,
+            "Take is of type A × B → C where `child`: A → C",
+        )
     }
 
     /// Create a DAG with that computes _drop_ of the given `child`.
     ///
-    /// _Overall type: A × B → C where child: B → C_
-    pub fn drop(child: Rc<Self>) -> Rc<Self> {
-        Self::from_inner(CommitNodeInner::Drop(child))
+    /// _Overall type: A × B → C where `child`: B → C_
+    pub fn drop(context: &mut Context<App>, child: Rc<Self>) -> Result<Rc<Self>, Error> {
+        Self::node_from_inner(
+            context,
+            CommitNodeInner::Drop(child.clone()),
+            Some(child),
+            None,
+            "Drop is of type A × B → C where `child`: B → C",
+        )
     }
 
     /// Create a DAG that computes the composition of the given `left` and `right` child.
     ///
-    /// _Overall type: A → C where left: A → B and right: B → C_
+    /// _Overall type: A → C where `left`: A → B and `right`: B → C_
     ///
     /// _Type inference will fail if children are not of the correct type._
-    pub fn comp(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
-        Self::from_inner(CommitNodeInner::Comp(left, right))
+    pub fn comp(
+        context: &mut Context<App>,
+        left: Rc<Self>,
+        right: Rc<Self>,
+    ) -> Result<Rc<Self>, Error> {
+        Self::node_from_inner(
+            context,
+            CommitNodeInner::Comp(left.clone(), right.clone()),
+            Some(left),
+            Some(right),
+            "Comp is of type A → C where `left`: A → B and `right`: B → C",
+        )
     }
 
     /// Create a DAG that computes _case_ of the given `left` and `right` child.
     ///
-    /// _Overall type: (A + B) × C → D where left: A × C → D and right: B × C → D_
+    /// _Overall type: (A + B) × C → D where `left`: A × C → D and `right`: B × C → D_
     ///
     /// _Type inference will fail if children are not of the correct type._
-    pub fn case(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
-        Self::from_inner(CommitNodeInner::Case(left, right))
+    pub fn case(
+        context: &mut Context<App>,
+        left: Rc<Self>,
+        right: Rc<Self>,
+    ) -> Result<Rc<Self>, Error> {
+        Self::node_from_inner(
+            context,
+            CommitNodeInner::Case(left.clone(), right.clone()),
+            Some(left),
+            Some(right),
+            "Case is of type (A + B) × C → D where `left`: A × C → D and `right`: B × C → D",
+        )
     }
 
     /// Create a DAG that computes the left assertion of the given `left` child.
     /// The `right` child must be a hidden node.
     ///
-    /// _Overall type: (A + B) × C → D where left: A × C → D_
+    /// _Overall type: (A + B) × C → D where `left`: A × C → D_
     ///
     /// _Type inference will fail if children are not of the correct type._
-    pub fn assertl(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
+    pub fn assertl(
+        context: &mut Context<App>,
+        left: Rc<Self>,
+        right: Rc<Self>,
+    ) -> Result<Rc<Self>, Error> {
         if let CommitNodeInner::Hidden(_) = right.inner {
-            Self::from_inner(CommitNodeInner::AssertL(left, right))
+            Self::node_from_inner(
+                context,
+                CommitNodeInner::AssertL(left.clone(), right.clone()),
+                Some(left),
+                Some(right),
+                "Assertl is of type (A + B) × C → D where `left`: A × C → D",
+            )
         } else {
-            panic!("The right child of a left assertion must be a hidden node")
+            Err(Error::RightChildNotHidden)
         }
     }
 
     /// Create a DAG that computes the right assertion of the given `right` child.
     /// The `left` child must be a hidden node.
     ///
-    /// _Overall type: (A + B) × C → D where right: B × C → D_
+    /// _Overall type: (A + B) × C → D where `right`: B × C → D_
     ///
     /// _Type inference will fail if children are not of the correct type._
-    pub fn assertr(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
+    pub fn assertr(
+        context: &mut Context<App>,
+        left: Rc<Self>,
+        right: Rc<Self>,
+    ) -> Result<Rc<Self>, Error> {
         if let CommitNodeInner::Hidden(_) = left.inner {
-            Self::from_inner(CommitNodeInner::AssertR(left, right))
+            Self::node_from_inner(
+                context,
+                CommitNodeInner::AssertR(left.clone(), right.clone()),
+                Some(left),
+                Some(right),
+                "Assertr is of type (A + B) × C → D where `right`: B × C → D",
+            )
         } else {
-            panic!("The left child of a right assertion must be a hidden node")
+            Err(Error::LeftChildNotHidden)
         }
     }
 
     /// Create a DAG that computes the pair of the given `left` and `right` child.
     ///
-    /// _Overall type: A → B × C where left: A → B and right: A → C_
+    /// _Overall type: A → B × C where `left`: A → B and `right`: A → C_
     ///
     /// _Type inference will fail if children are not of the correct type._
-    pub fn pair(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
-        Self::from_inner(CommitNodeInner::Pair(left, right))
+    pub fn pair(
+        context: &mut Context<App>,
+        left: Rc<Self>,
+        right: Rc<Self>,
+    ) -> Result<Rc<Self>, Error> {
+        Self::node_from_inner(
+            context,
+            CommitNodeInner::Pair(left.clone(), right.clone()),
+            Some(left),
+            Some(right),
+            "Pair is of type A → B × C where `left`: A → B and `right`: A → C",
+        )
     }
 
     /// Create a DAG that computes _disconnect_ of the given `left` and `right` child.
     ///
-    /// _Overall type: A → B × D where left: 2^256 × A → B × C and right: C → D_
+    /// _Overall type: A → B × D where `left`: 2^256 × A → B × C and `right`: C → D_
     ///
     /// _Type inference will fail if children are not of the correct type._
-    pub fn disconnect(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
-        Self::from_inner(CommitNodeInner::Disconnect(left, right))
+    pub fn disconnect(
+        context: &mut Context<App>,
+        left: Rc<Self>,
+        right: Rc<Self>,
+    ) -> Result<Rc<Self>, Error> {
+        Self::node_from_inner(
+            context,
+            CommitNodeInner::Disconnect(left.clone(), right.clone()),
+            Some(left),
+            Some(right),
+            "Disconnect is of type A → B × D where `left`: 2^256 × A → B × C and `right`: C → D",
+        )
     }
 
     /// Create a DAG that returns a given witness value as constant.
     /// The value is missing during commitment and inserted during redemption.
     ///
     /// _Overall type: A → B_
-    pub fn witness() -> Rc<Self> {
-        Self::from_inner(CommitNodeInner::Witness)
+    pub fn witness(context: &mut Context<App>) -> Result<Rc<Self>, Error> {
+        Self::node_from_inner(
+            context,
+            CommitNodeInner::Witness,
+            None,
+            None,
+            "Witness is of type A → B",
+        )
     }
 
     /// Create a DAG that universally fails.
     /// The given `left` and `right` hashes form a block for the CMR computation.
     ///
     /// _Overall type: A → B_
-    pub fn fail(left: Cmr, right: Cmr) -> Rc<Self> {
-        Self::from_inner(CommitNodeInner::Fail(left, right))
+    pub fn fail(context: &mut Context<App>, left: Cmr, right: Cmr) -> Result<Rc<Self>, Error> {
+        Self::node_from_inner(
+            context,
+            CommitNodeInner::Fail(left, right),
+            None,
+            None,
+            "Fail is of type A → B",
+        )
     }
 
     /// Create a hidden DAG that contains the given `hash` as its CMR.
@@ -290,35 +417,46 @@ impl<App: Application> CommitNode<App> {
     /// **This DAG must only be used as child for left or right assertions.**
     ///
     /// _The Bit Machine will crash upon seeing this node._
-    pub fn hidden(hash: Cmr) -> Rc<Self> {
-        Self::from_inner(CommitNodeInner::Hidden(hash))
+    pub fn hidden(context: &mut Context<App>, hash: Cmr) -> Result<Rc<Self>, Error> {
+        Self::node_from_inner(
+            context,
+            CommitNodeInner::Hidden(hash),
+            None,
+            None,
+            "Hidden is of type A → B",
+        )
     }
 
     /// Create a DAG that computes some black-box function that is associated with the given `jet`.
     ///
     /// _Overall type: A → B where jet: A → B_
-    pub fn jet(jet: &'static JetNode<App>) -> Rc<Self> {
-        Self::from_inner(CommitNodeInner::Jet(jet))
+    pub fn jet(context: &mut Context<App>, jet: &'static JetNode<App>) -> Result<Rc<Self>, Error> {
+        Self::node_from_inner(context,
+            CommitNodeInner::Jet(jet),
+            None,
+            None,
+            "Jet is of type A → B where `jet`: A → B. Check the jet definition for its source and target type.",
+        )
     }
 
     /// Create a DAG that takes any input and returns `value` as constant output.
     ///
     /// _Overall type: A → B where value: B_
-    pub fn scribe(value: &Value) -> Rc<CommitNode<App>> {
+    pub fn scribe(context: &mut Context<App>, value: &Value) -> Result<Rc<CommitNode<App>>, Error> {
         match value {
-            Value::Unit => CommitNode::unit(),
+            Value::Unit => CommitNode::unit(context),
             Value::SumL(l) => {
-                let l = CommitNode::scribe(l);
-                CommitNode::injl(l)
+                let l = CommitNode::scribe(context, l)?;
+                CommitNode::injl(context, l)
             }
             Value::SumR(r) => {
-                let r = CommitNode::scribe(r);
-                CommitNode::injr(r)
+                let r = CommitNode::scribe(context, r)?;
+                CommitNode::injr(context, r)
             }
             Value::Prod(l, r) => {
-                let l = CommitNode::scribe(l);
-                let r = CommitNode::scribe(r);
-                CommitNode::pair(l, r)
+                let l = CommitNode::scribe(context, l)?;
+                let r = CommitNode::scribe(context, r)?;
+                CommitNode::pair(context, l, r)
             }
         }
     }
@@ -326,80 +464,105 @@ impl<App: Application> CommitNode<App> {
     /// Create a DAG that takes any input and returns bit `0` as constant output.
     ///
     /// _Overall type: A → 2_
-    pub fn bit_false() -> Rc<Self> {
-        CommitNode::injl(CommitNode::unit())
+    pub fn bit_false(context: &mut Context<App>) -> Result<Rc<Self>, Error> {
+        let unit = Self::unit(context)?;
+        Self::injl(context, unit)
     }
 
     /// Create a DAG that takes any input and returns bit `1` as constant output.
     ///
     /// _Overall type: A → 2_
-    pub fn bit_true() -> Rc<Self> {
-        CommitNode::injr(CommitNode::unit())
+    pub fn bit_true(context: &mut Context<App>) -> Result<Rc<Self>, Error> {
+        let unit = Self::unit(context)?;
+        Self::injr(context, unit)
     }
 
     /// Create a DAG that takes a bit and an input,
     /// such that the `left` child is evaluated on the input if the bit is `1` _(if branch)_
     /// and the `right` child is evaluated on the input otherwise _(else branch)_.
     ///
-    /// _Overall type: 2 × A → B where left: A → B and right: A → B_
+    /// _Overall type: 2 × A → B where `left`: A → B and `right`: A → B_
     ///
     /// _Type inference will fail if children are not of the correct type._
-    pub fn cond(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
-        CommitNode::case(CommitNode::drop(right), CommitNode::drop(left))
+    pub fn cond(
+        context: &mut Context<App>,
+        left: Rc<Self>,
+        right: Rc<Self>,
+    ) -> Result<Rc<Self>, Error> {
+        let drop_left = Self::drop(context, left)?;
+        let drop_right = Self::drop(context, right)?;
+        Self::case(context, drop_right, drop_left)
     }
 
     /// Create a DAG that asserts that its child returns `true`, and fails otherwise.
     ///
-    /// _Overall type: A → 1 where child: A → 2_
+    /// _Overall type: A → 1 where `child`: A → 2_
     ///
     /// _Type inference will fail if children are not of the correct type._
-    pub fn assert(child: Rc<Self>) -> Rc<Self> {
+    pub fn assert(context: &mut Context<App>, child: Rc<Self>) -> Result<Rc<Self>, Error> {
         let fail_zeroes_cmr = Cmr::from([
             177, 133, 253, 158, 70, 96, 76, 160, 2, 45, 209, 68, 83, 153, 159, 186, 164, 51, 151,
             174, 72, 121, 107, 12, 64, 35, 186, 249, 151, 31, 21, 102,
         ]);
+        let unit = Self::unit(context)?;
+        let pair_child_unit = Self::pair(context, child, unit)?;
+        let hidden = Self::hidden(context, fail_zeroes_cmr)?;
+        let unit = Self::unit(context)?;
+        let assertr_hidden_unit = Self::assertr(context, hidden, unit)?;
 
-        CommitNode::comp(
-            CommitNode::pair(child, CommitNode::unit()),
-            CommitNode::assertr(CommitNode::hidden(fail_zeroes_cmr), CommitNode::unit()),
-        )
+        Self::comp(context, pair_child_unit, assertr_hidden_unit)
     }
 
     /// Create a DAG that computes Boolean _NOT_ of the `child`.
     ///
-    /// _Overall type: A → 2 where child: A → 2_
+    /// _Overall type: A → 2 where `child`: A → 2_
     ///
     /// _Type inference will fail if children are not of the correct type._
     #[allow(clippy::should_implement_trait)]
-    pub fn not(child: Rc<Self>) -> Rc<Self> {
-        CommitNode::comp(
-            CommitNode::pair(child, CommitNode::unit()),
-            CommitNode::cond(CommitNode::bit_false(), CommitNode::bit_true()),
-        )
+    pub fn not(context: &mut Context<App>, child: Rc<Self>) -> Result<Rc<Self>, Error> {
+        let unit = Self::unit(context)?;
+        let pair_child_unit = Self::pair(context, child, unit)?;
+        let bit_false = Self::bit_false(context)?;
+        let bit_true = Self::bit_true(context)?;
+        let cond_false_true = Self::cond(context, bit_false, bit_true)?;
+
+        Self::comp(context, pair_child_unit, cond_false_true)
     }
 
     /// Create a DAG that computes Boolean _AND_ of the `left` and `right` child.
     ///
-    /// _Overall type: A → 2 where left: A → 2 and right: A → 2_
+    /// _Overall type: A → 2 where `left`: A → 2 and `right`: A → 2_
     ///
     /// _Type inference will fail if children are not of the correct type._
-    pub fn and(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
-        CommitNode::comp(
-            CommitNode::pair(left, CommitNode::iden()),
-            CommitNode::cond(right, CommitNode::bit_false()),
-        )
+    pub fn and(
+        context: &mut Context<App>,
+        left: Rc<Self>,
+        right: Rc<Self>,
+    ) -> Result<Rc<Self>, Error> {
+        let iden = Self::iden(context)?;
+        let pair_left_iden = Self::pair(context, left, iden)?;
+        let bit_false = Self::bit_false(context)?;
+        let cond_right_false = Self::cond(context, right, bit_false)?;
+
+        Self::comp(context, pair_left_iden, cond_right_false)
     }
 
     /// Create a DAG that computes Boolean _OR_ of the `left` and `right`.
     ///
-    /// _Overall type: A → 2 where left: A → 2 and right: A → 2_
+    /// _Overall type: A → 2 where `left`: A → 2 and `right`: A → 2_
     ///
     /// _Type inference will fail if children are not of the correct type._
-    pub fn or(left: Rc<Self>, right: Rc<Self>) -> Rc<Self> {
-        CommitNode::comp(
-            CommitNode::pair(left, CommitNode::iden()),
-            CommitNode::cond(CommitNode::bit_true(), right),
-        )
+    pub fn or(
+        context: &mut Context<App>,
+        left: Rc<Self>,
+        right: Rc<Self>,
+    ) -> Result<Rc<Self>, Error> {
+        let iden = Self::iden(context)?;
+        let pair_left_iden = Self::pair(context, left, iden)?;
+        let bit_true = Self::bit_true(context)?;
+        let cond_true_right = Self::cond(context, bit_true, right)?;
+
+        Self::comp(context, pair_left_iden, cond_true_right)
     }
 
     /// Return the left child of the node, if there is such a child.

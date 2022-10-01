@@ -26,7 +26,7 @@ use std::rc::Rc;
 use bitcoin_hashes::sha256;
 use miniscript::MiniscriptKey;
 
-use crate::core::CommitNode;
+use crate::core::{CommitNode, Context};
 use crate::jet::application::Bitcoin;
 use crate::policy::compiler;
 use crate::policy::key::PublicKey32;
@@ -62,8 +62,11 @@ pub enum Policy<Pk: MiniscriptKey> {
 
 impl<Pk: MiniscriptKey + PublicKey32> Policy<Pk> {
     /// Compile the policy into a Simplicity program
-    pub fn compile(&self) -> Result<Rc<CommitNode<Bitcoin>>, Error> {
-        compiler::compile(self)
+    pub fn compile(
+        &self,
+        context: &mut Context<Bitcoin>,
+    ) -> Result<Rc<CommitNode<Bitcoin>>, Error> {
+        compiler::compile(context, self)
     }
 }
 
