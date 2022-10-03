@@ -66,6 +66,52 @@ pub enum RedeemNodeInner<App: Application> {
     Jet(&'static JetNode<App>),
 }
 
+impl<App: Application> RedeemNodeInner<App> {
+    /// Return the left child of the node, if there is such a child.
+    pub fn get_left(&self) -> Option<&RedeemNode<App>> {
+        match self {
+            RedeemNodeInner::Iden
+            | RedeemNodeInner::Unit
+            | RedeemNodeInner::Witness(..)
+            | RedeemNodeInner::Fail(..)
+            | RedeemNodeInner::Hidden(..)
+            | RedeemNodeInner::Jet(..) => None,
+            RedeemNodeInner::InjL(l)
+            | RedeemNodeInner::InjR(l)
+            | RedeemNodeInner::Take(l)
+            | RedeemNodeInner::Drop(l)
+            | RedeemNodeInner::Comp(l, _)
+            | RedeemNodeInner::Case(l, _)
+            | RedeemNodeInner::AssertL(l, _)
+            | RedeemNodeInner::AssertR(l, _)
+            | RedeemNodeInner::Pair(l, _)
+            | RedeemNodeInner::Disconnect(l, _) => Some(l),
+        }
+    }
+
+    /// Return the right child of the node, if there is such a child.
+    pub fn get_right(&self) -> Option<&RedeemNode<App>> {
+        match self {
+            RedeemNodeInner::Iden
+            | RedeemNodeInner::Unit
+            | RedeemNodeInner::Witness(..)
+            | RedeemNodeInner::Fail(..)
+            | RedeemNodeInner::Hidden(..)
+            | RedeemNodeInner::Jet(..)
+            | RedeemNodeInner::InjL(_)
+            | RedeemNodeInner::InjR(_)
+            | RedeemNodeInner::Take(_)
+            | RedeemNodeInner::Drop(_) => None,
+            RedeemNodeInner::Comp(_, r)
+            | RedeemNodeInner::Case(_, r)
+            | RedeemNodeInner::AssertL(_, r)
+            | RedeemNodeInner::AssertR(_, r)
+            | RedeemNodeInner::Pair(_, r)
+            | RedeemNodeInner::Disconnect(_, r) => Some(r),
+        }
+    }
+}
+
 impl<App: Application> fmt::Display for RedeemNodeInner<App> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -135,46 +181,12 @@ pub struct RedeemNode<App: Application> {
 impl<App: Application> RedeemNode<App> {
     /// Return the left child of the node, if there is such a child.
     pub fn get_left(&self) -> Option<&Self> {
-        match &self.inner {
-            RedeemNodeInner::Iden
-            | RedeemNodeInner::Unit
-            | RedeemNodeInner::Witness(_)
-            | RedeemNodeInner::Fail(_, _)
-            | RedeemNodeInner::Hidden(_)
-            | RedeemNodeInner::Jet(_) => None,
-            RedeemNodeInner::InjL(l)
-            | RedeemNodeInner::InjR(l)
-            | RedeemNodeInner::Take(l)
-            | RedeemNodeInner::Drop(l)
-            | RedeemNodeInner::Comp(l, _)
-            | RedeemNodeInner::Case(l, _)
-            | RedeemNodeInner::AssertL(l, _)
-            | RedeemNodeInner::AssertR(l, _)
-            | RedeemNodeInner::Pair(l, _)
-            | RedeemNodeInner::Disconnect(l, _) => Some(l),
-        }
+        self.inner.get_left()
     }
 
     /// Return the right child of the node, if there is such a child.
     pub fn get_right(&self) -> Option<&Self> {
-        match &self.inner {
-            RedeemNodeInner::Iden
-            | RedeemNodeInner::Unit
-            | RedeemNodeInner::Witness(_)
-            | RedeemNodeInner::Fail(_, _)
-            | RedeemNodeInner::Hidden(_)
-            | RedeemNodeInner::Jet(_)
-            | RedeemNodeInner::InjL(_)
-            | RedeemNodeInner::InjR(_)
-            | RedeemNodeInner::Take(_)
-            | RedeemNodeInner::Drop(_) => None,
-            RedeemNodeInner::Comp(_, r)
-            | RedeemNodeInner::Case(_, r)
-            | RedeemNodeInner::AssertL(_, r)
-            | RedeemNodeInner::AssertR(_, r)
-            | RedeemNodeInner::Pair(_, r)
-            | RedeemNodeInner::Disconnect(_, r) => Some(r),
-        }
+        self.inner.get_right()
     }
 
     /// Return an iterator over the types of values that make up a valid witness for the program.

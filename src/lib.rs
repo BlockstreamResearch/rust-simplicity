@@ -46,16 +46,26 @@ mod util;
 
 pub use crate::bit_machine::exec;
 pub use crate::core::{CommitNode, RedeemNode};
+use crate::inference::UnificationArrow;
 use std::fmt;
 
 /// Error type for simplicity
-#[derive(Debug)]
 pub enum Error {
-    /// Unable to unify types in a DAG
-    TypeCheck,
-    /// A recursive type was inferred, violating the "occurs check" of the
-    /// type inference engine
+    /// A type cannot be unified with another type
+    Unification(&'static str),
+    /// A type is recursive (i.e., occurs within itself), violating the "occurs check"
     OccursCheck,
+    /// A DAG cannot be created because the children of the root cannot be unified
+    TypeCheck {
+        /// Hint why unification failed
+        unification_hint: &'static str,
+        /// Hint why root type does not match children types
+        root_hint: &'static str,
+        /// Unification arrow of left child, if it exists
+        left: Option<UnificationArrow>,
+        /// Unification arrow of right child, if it exists
+        right: Option<UnificationArrow>,
+    },
     /// Node made a back-reference past the beginning of the program
     BadIndex,
     /// Number exceeded 32 bits
@@ -64,6 +74,10 @@ pub enum Error {
     NonCaseHiddenChild,
     /// 'case' nodes may have at most one hidden child
     CaseMultipleHiddenChildren,
+    /// Right child of left assertion must be hidden
+    RightChildNotHidden,
+    /// Left child of right assertion must be hidden
+    LeftChildNotHidden,
     /// Bitstream ended early   
     EndOfStream,
     /// Program must not be empty
@@ -82,13 +96,39 @@ pub enum Error {
     MiniscriptError(miniscript::Error),
 }
 
-impl fmt::Display for Error {
+impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::TypeCheck => f.write_str("Unable to unify types in a DAG"),
-            Error::OccursCheck => f.write_str(
-                "A recursive type was inferred, violating the of the type inference engine",
-            ),
+        match self {
+            Error::Unification(s) => write!(f, "Unification failed. Hint: {}", s),
+            Error::OccursCheck => f.write_str("A type is recursive (i.e., occurs within itself)"),
+            Error::TypeCheck {
+                unification_hint,
+                root_hint,
+                left,
+                right,
+            } => {
+                if let Some(left) = left {
+                    if let Some(right) = right {
+                        write!(
+                            f,
+                            "Type checking failed. Hint: {}\n{}\nActual left  child: {}\nActual right child: {}",
+                            unification_hint, root_hint, left, right
+                        )
+                    } else {
+                        write!(
+                            f,
+                            "Type checking failed. Hint: {}\n{}\nActual child: {}",
+                            unification_hint, root_hint, left
+                        )
+                    }
+                } else {
+                    write!(
+                        f,
+                        "Type checking failed. Hint: {}\n{}",
+                        unification_hint, root_hint
+                    )
+                }
+            }
             Error::BadIndex => {
                 f.write_str("Node made a back-reference past the beginning of the program")
             }
@@ -98,6 +138,12 @@ impl fmt::Display for Error {
             }
             Error::CaseMultipleHiddenChildren => {
                 f.write_str("'case' nodes may have at most one hidden child")
+            }
+            Error::RightChildNotHidden => {
+                f.write_str("The right child of a left assertion must be a hidden node")
+            }
+            Error::LeftChildNotHidden => {
+                f.write_str("The left child of a right assertion must be a hidden node")
             }
             Error::EndOfStream => f.write_str("Bitstream ended early"),
             Error::EmptyProgram => f.write_str("Program must not be empty"),
@@ -112,6 +158,12 @@ impl fmt::Display for Error {
             Error::SharingNotMaximal => f.write_str("Decoded programs must have maximal sharing"),
             Error::MiniscriptError(ref e) => fmt::Display::fmt(e, f),
         }
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(self, f)
     }
 }
 

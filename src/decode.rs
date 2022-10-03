@@ -21,7 +21,7 @@ use crate::bititer::BitIter;
 use crate::core::commit::CommitNodeInner;
 use crate::core::iter::{DagIterable, IndexDag, IndexNode, WitnessIterator};
 use crate::core::types::{Type, TypeInner};
-use crate::core::{CommitNode, Value};
+use crate::core::{CommitNode, Context, Value};
 use crate::jet::Application;
 use crate::merkle::cmr::Cmr;
 use crate::Error;
@@ -64,10 +64,12 @@ fn decode_program<I: Iterator<Item = u8>, App: Application>(
 
     let mut index_to_node = HashMap::new();
     let mut index_dag = Vec::new();
+    let mut context = Context::new();
 
     for index in 0..len {
         decode_node(
             bits,
+            &mut context,
             index,
             &mut index_to_node,
             &mut index_dag,
@@ -93,6 +95,7 @@ fn decode_program<I: Iterator<Item = u8>, App: Application>(
 /// insert it into a hash map at its index for future reference by ancestor nodes.
 fn decode_node<I: Iterator<Item = u8>, App: Application>(
     bits: &mut BitIter<I>,
+    context: &mut Context<App>,
     index: usize,
     index_to_node: &mut HashMap<usize, Rc<CommitNode<App>>>,
     index_dag: &mut IndexDag,
@@ -115,16 +118,16 @@ fn decode_node<I: Iterator<Item = u8>, App: Application>(
     let node = match maybe_code {
         Some(code) if code < 2 => {
             let i_abs = index - decode_natural(bits, Some(index))?;
-            let left = get_child_from_index(i_abs, index_to_node);
+            let left = get_child_from_index(context, i_abs, index_to_node);
 
             match code {
                 0 => {
                     let j_abs = index - decode_natural(bits, Some(index))?;
-                    let right = get_child_from_index(j_abs, index_to_node);
+                    let right = get_child_from_index(context, j_abs, index_to_node);
                     index_dag.push((Some(i_abs), Some(j_abs)));
 
                     match subcode {
-                        0 => CommitNode::comp(left, right),
+                        0 => CommitNode::comp(context, left, right),
                         1 => {
                             if let CommitNodeInner::Hidden(..) = left.inner {
                                 if let CommitNodeInner::Hidden(..) = right.inner {
@@ -133,15 +136,15 @@ fn decode_node<I: Iterator<Item = u8>, App: Application>(
                             }
 
                             if let CommitNodeInner::Hidden(..) = right.inner {
-                                CommitNode::assertl(left, right)
+                                CommitNode::assertl(context, left, right)
                             } else if let CommitNodeInner::Hidden(..) = left.inner {
-                                CommitNode::assertr(left, right)
+                                CommitNode::assertr(context, left, right)
                             } else {
-                                CommitNode::case(left, right)
+                                CommitNode::case(context, left, right)
                             }
                         }
-                        2 => CommitNode::pair(left, right),
-                        3 => CommitNode::disconnect(left, right),
+                        2 => CommitNode::pair(context, left, right),
+                        3 => CommitNode::disconnect(context, left, right),
                         _ => unreachable!("2-bit subcode"),
                     }
                 }
@@ -149,10 +152,10 @@ fn decode_node<I: Iterator<Item = u8>, App: Application>(
                     index_dag.push((Some(i_abs), None));
 
                     match subcode {
-                        0 => CommitNode::injl(left),
-                        1 => CommitNode::injr(left),
-                        2 => CommitNode::take(left),
-                        3 => CommitNode::drop(left),
+                        0 => CommitNode::injl(context, left),
+                        1 => CommitNode::injr(context, left),
+                        2 => CommitNode::take(context, left),
+                        3 => CommitNode::drop(context, left),
                         _ => unreachable!("2-bit subcode"),
                     }
                 }
@@ -163,11 +166,12 @@ fn decode_node<I: Iterator<Item = u8>, App: Application>(
             index_dag.push((None, None));
 
             match maybe_code {
-                None => CommitNode::jet(App::decode_jet(bits)?),
+                None => CommitNode::jet(context, App::decode_jet(bits)?),
                 Some(2) => match subcode {
-                    0 => CommitNode::iden(),
-                    1 => CommitNode::unit(),
+                    0 => CommitNode::iden(context),
+                    1 => CommitNode::unit(context),
                     2 => CommitNode::fail(
+                        context,
                         Cmr::from(decode_hash(bits)?),
                         Cmr::from(decode_hash(bits)?),
                     ),
@@ -175,15 +179,15 @@ fn decode_node<I: Iterator<Item = u8>, App: Application>(
                     _ => unreachable!("2-bit subcode"),
                 },
                 Some(3) => match subcode {
-                    0 => CommitNode::hidden(Cmr::from(decode_hash(bits)?)),
+                    0 => CommitNode::hidden(context, Cmr::from(decode_hash(bits)?)),
                     1 if fresh_witness => return Ok(()),
-                    1 => CommitNode::witness(),
+                    1 => CommitNode::witness(context),
                     _ => unreachable!("1-bit subcode"),
                 },
                 Some(_) => unreachable!("2-bit code"),
             }
         }
-    };
+    }?;
 
     debug_assert!(!index_to_node.contains_key(&index));
     index_to_node.insert(index, node);
@@ -195,13 +199,14 @@ fn decode_node<I: Iterator<Item = u8>, App: Application>(
 ///
 /// A fresh witness node is returned as child if witness nodes should be made fresh.
 fn get_child_from_index<App: Application>(
+    context: &mut Context<App>,
     index: usize,
     index_to_node: &HashMap<usize, Rc<CommitNode<App>>>,
 ) -> Rc<CommitNode<App>> {
     match index_to_node.get(&index) {
         Some(child) => child.clone(),
         // Absence of child means that child is a skipped witness node
-        None => CommitNode::witness(),
+        None => CommitNode::witness(context).unwrap(),
     }
 }
 
