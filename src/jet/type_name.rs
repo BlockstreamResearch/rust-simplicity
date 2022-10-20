@@ -32,6 +32,8 @@ use crate::core::types::{RcVar, Variable};
 /// |------|--------------|
 /// | `1`  | unit         |
 /// | `2`  | single bit   |
+/// | `c`  | 8-bit word   |
+/// | `s`  | 16-bit word  |
 /// | `i`  | 32-bit word  |
 /// | `l`  | 64-bit word  |
 /// | `h`  | 256-bit word |
@@ -42,6 +44,8 @@ pub struct TypeName(pub(crate) &'static [u8]);
 impl TypeName {
     // b'1' = 49
     // b'2' = 50
+    // b'c' = 99
+    // b's' = 115
     // b'i' = 105
     // b'l' = 108
     // b'h' = 104
@@ -59,6 +63,8 @@ impl TypeName {
                     let unit = Variable::bound(VariableType::Unit);
                     stack.push(VariableType::Sum(unit.clone(), unit))
                 }
+                b'c' => stack.push(VariableType::Product(pow2s[2].clone(), pow2s[2].clone())),
+                b's' => stack.push(VariableType::Product(pow2s[3].clone(), pow2s[3].clone())),
                 b'i' => stack.push(VariableType::Product(pow2s[4].clone(), pow2s[4].clone())),
                 b'l' => stack.push(VariableType::Product(pow2s[5].clone(), pow2s[5].clone())),
                 b'h' => stack.push(VariableType::Product(pow2s[7].clone(), pow2s[7].clone())),
