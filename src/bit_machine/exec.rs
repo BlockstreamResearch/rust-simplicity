@@ -32,7 +32,7 @@ pub struct BitMachine {
     /// Space for bytes that read and write frames point to.
     /// (De)allocation happens LIFO from left to right
     pub(crate) data: Vec<u8>,
-    /// Top of data stack; index of first non-allocated byte
+    /// Top of data stack; index of first unused bit
     pub(crate) next_frame_start: usize,
     /// Read frame stack
     pub(crate) read: Vec<Frame>,
