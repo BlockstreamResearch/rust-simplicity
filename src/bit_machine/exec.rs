@@ -55,8 +55,14 @@ impl BitMachine {
 
     /// Push a new frame of given size onto the write frame stack
     fn new_frame(&mut self, len: usize) {
-        // assert!(self.next_pos as usize + len < self.data.len() * 8);
-        // assert!(self.write.len() + self.read.len() < self.read.capacity());
+        debug_assert!(
+            self.next_frame_start + len <= self.data.len() * 8,
+            "Data out of bounds: number of cells"
+        );
+        debug_assert!(
+            self.write.len() + self.read.len() < self.read.capacity(),
+            "Stacks out of bounds: number of frames"
+        );
 
         self.write.push(Frame::new(self.next_frame_start, len));
         self.next_frame_start += len;
