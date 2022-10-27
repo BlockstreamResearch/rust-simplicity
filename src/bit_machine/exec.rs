@@ -48,9 +48,8 @@ impl BitMachine {
         Self {
             data: vec![0; (io_width + program.bounds.extra_cells + 7) / 8],
             next_frame_start: 0,
-            // +1 for input and output frame
-            read: Vec::with_capacity(program.bounds.frame_count + 1),
-            write: Vec::with_capacity(program.bounds.frame_count + 1),
+            read: Vec::with_capacity(program.bounds.extra_frames + 2),
+            write: Vec::with_capacity(program.bounds.extra_frames + 2),
         }
     }
 
