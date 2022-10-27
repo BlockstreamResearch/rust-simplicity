@@ -22,8 +22,8 @@ use super::frame::Frame;
 use crate::core::redeem::RedeemNodeInner;
 use crate::core::types::TypeInner;
 use crate::core::{RedeemNode, Value};
-use crate::decode;
 use crate::jet::{AppError, Application};
+use crate::{analysis, decode};
 use std::fmt;
 use std::{cmp, error};
 
@@ -48,8 +48,8 @@ impl BitMachine {
         Self {
             data: vec![0; (io_width + program.bounds.extra_cells + 7) / 8],
             next_frame_start: 0,
-            read: Vec::with_capacity(program.bounds.extra_frames + 2),
-            write: Vec::with_capacity(program.bounds.extra_frames + 2),
+            read: Vec::with_capacity(program.bounds.extra_frames + analysis::IO_EXTRA_FRAMES),
+            write: Vec::with_capacity(program.bounds.extra_frames + analysis::IO_EXTRA_FRAMES),
         }
     }
 

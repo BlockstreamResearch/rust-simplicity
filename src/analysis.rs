@@ -19,6 +19,9 @@ use crate::jet::Application;
 use std::cmp;
 use std::rc::Rc;
 
+/// Number of frames required for the input and output of a Simplicity expression
+pub(crate) const IO_EXTRA_FRAMES: usize = 2;
+
 /// Return the bounds for the given node, once finalized.
 ///
 /// Nodes with left children require their finalized left child,
