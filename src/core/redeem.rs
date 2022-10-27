@@ -156,7 +156,7 @@ pub struct NodeBounds {
     /// Upper bound on the required number of cells
     pub extra_cells: usize,
     /// Upper bound on the required number of frames
-    pub frame_count: usize,
+    pub extra_frames: usize,
 }
 
 /// Root node of a Simplicity DAG for some application.
