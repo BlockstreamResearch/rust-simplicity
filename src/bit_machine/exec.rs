@@ -22,8 +22,8 @@ use super::frame::Frame;
 use crate::core::redeem::RedeemNodeInner;
 use crate::core::types::TypeInner;
 use crate::core::{RedeemNode, Value};
-use crate::decode;
 use crate::jet::{AppError, Application};
+use crate::{analysis, decode};
 use std::fmt;
 use std::{cmp, error};
 
@@ -32,7 +32,7 @@ pub struct BitMachine {
     /// Space for bytes that read and write frames point to.
     /// (De)allocation happens LIFO from left to right
     pub(crate) data: Vec<u8>,
-    /// Top of data stack; index of first non-allocated byte
+    /// Top of data stack; index of first unused bit
     pub(crate) next_frame_start: usize,
     /// Read frame stack
     pub(crate) read: Vec<Frame>,
@@ -48,16 +48,21 @@ impl BitMachine {
         Self {
             data: vec![0; (io_width + program.bounds.extra_cells + 7) / 8],
             next_frame_start: 0,
-            // +1 for input and output frame
-            read: Vec::with_capacity(program.bounds.frame_count + 1),
-            write: Vec::with_capacity(program.bounds.frame_count + 1),
+            read: Vec::with_capacity(program.bounds.extra_frames + analysis::IO_EXTRA_FRAMES),
+            write: Vec::with_capacity(program.bounds.extra_frames + analysis::IO_EXTRA_FRAMES),
         }
     }
 
     /// Push a new frame of given size onto the write frame stack
     fn new_frame(&mut self, len: usize) {
-        // assert!(self.next_pos as usize + len < self.data.len() * 8);
-        // assert!(self.write.len() + self.read.len() < self.read.capacity());
+        debug_assert!(
+            self.next_frame_start + len <= self.data.len() * 8,
+            "Data out of bounds: number of cells"
+        );
+        debug_assert!(
+            self.write.len() + self.read.len() < self.read.capacity(),
+            "Stacks out of bounds: number of frames"
+        );
 
         self.write.push(Frame::new(self.next_frame_start, len));
         self.next_frame_start += len;

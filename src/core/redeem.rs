@@ -153,10 +153,12 @@ impl fmt::Display for NodeType {
 /// Bounds on the resources required by a node during execution on the Bit Machine
 #[derive(Debug)]
 pub struct NodeBounds {
-    /// Upper bound on the required number of cells
+    /// Upper bound on the required number of cells (bits).
+    /// The root additionally requires the bit width of its source and target type (input, output)
     pub extra_cells: usize,
-    /// Upper bound on the required number of frames
-    pub frame_count: usize,
+    /// Upper bound on the required number of frames (sum of read and write frames).
+    /// The root additionally requires two frames (input, output)
+    pub extra_frames: usize,
 }
 
 /// Root node of a Simplicity DAG for some application.

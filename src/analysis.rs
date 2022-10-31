@@ -19,6 +19,9 @@ use crate::jet::Application;
 use std::cmp;
 use std::rc::Rc;
 
+/// Number of frames required for the input and output of a Simplicity expression
+pub(crate) const IO_EXTRA_FRAMES: usize = 2;
+
 /// Return the bounds for the given node, once finalized.
 ///
 /// Nodes with left children require their finalized left child,
@@ -32,7 +35,7 @@ pub(crate) fn compute_bounds<App: Application>(
 ) -> NodeBounds {
     NodeBounds {
         extra_cells: compute_extra_cells_bound(untyped_node, left.clone(), right.clone(), ty),
-        frame_count: compute_frame_count_bound(untyped_node, left, right),
+        extra_frames: compute_extra_frames_bound(untyped_node, left, right),
     }
 }
 
@@ -78,7 +81,7 @@ fn compute_extra_cells_bound<App: Application>(
 
 /// Return an upper bound on the number of frames required
 /// by the given node during execution on the Bit Machine.
-fn compute_frame_count_bound<App: Application>(
+fn compute_extra_frames_bound<App: Application>(
     untyped_node: &CommitNode<App>,
     left: Option<Rc<RedeemNode<App>>>,
     right: Option<Rc<RedeemNode<App>>>,
@@ -93,24 +96,24 @@ fn compute_frame_count_bound<App: Application>(
         CommitNodeInner::InjL(_)
         | CommitNodeInner::InjR(_)
         | CommitNodeInner::Take(_)
-        | CommitNodeInner::Drop(_) => left.unwrap().bounds.frame_count,
+        | CommitNodeInner::Drop(_) => left.unwrap().bounds.extra_frames,
         CommitNodeInner::Comp(_, _) => {
             1 + cmp::max(
-                left.unwrap().bounds.frame_count,
-                right.unwrap().bounds.frame_count,
+                left.unwrap().bounds.extra_frames,
+                right.unwrap().bounds.extra_frames,
             )
         }
         CommitNodeInner::Case(_, _)
         | CommitNodeInner::AssertL(_, _)
         | CommitNodeInner::AssertR(_, _)
         | CommitNodeInner::Pair(_, _) => cmp::max(
-            left.unwrap().bounds.frame_count,
-            right.unwrap().bounds.frame_count,
+            left.unwrap().bounds.extra_frames,
+            right.unwrap().bounds.extra_frames,
         ),
         CommitNodeInner::Disconnect(_, _) => {
             2 + cmp::max(
-                left.unwrap().bounds.frame_count,
-                right.unwrap().bounds.frame_count,
+                left.unwrap().bounds.extra_frames,
+                right.unwrap().bounds.extra_frames,
             )
         }
     }
