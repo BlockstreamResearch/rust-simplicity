@@ -98,7 +98,7 @@ pub trait MerkleRoot: From<[u8; 32]> + Into<[u8; 32]> {
 
         // 1.3 Append bit_length as 64-bit bit-endian integer
         let bit_length_bytes = u64_to_array_be(bit_length as u64);
-        bytes.extend(&bit_length_bytes);
+        bytes.extend(bit_length_bytes.iter());
         debug_assert!(bytes.len() % 16 == 0);
 
         // 1.4 Compute hash of `value` normally since bytes.len() is multiple of 64
