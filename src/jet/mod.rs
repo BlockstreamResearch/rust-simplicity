@@ -24,7 +24,6 @@
 //! Equivalence of C and Simplicity is proved using the _Verified Software Toolchain_.
 //! Programs are also smaller in size because jets replace large, equivalent Simplicity DAGs.
 
-pub mod application;
 mod init;
 pub mod type_name;
 
