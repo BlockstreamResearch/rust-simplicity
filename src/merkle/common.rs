@@ -17,7 +17,7 @@
 use crate::core::commit::CommitNodeInner;
 use crate::core::types::{Type, TypeInner};
 use crate::core::Value;
-use crate::jet::Application;
+use crate::jet::Jet;
 use crate::util::u64_to_array_be;
 use bitcoin_hashes::sha256::Midstate;
 use bitcoin_hashes::{sha256, Hash, HashEngine};
@@ -130,7 +130,7 @@ pub trait CommitMerkleRoot: MerkleRoot {
     ///
     /// Each [`CommitNodeInner`] corresponds to some tag that is hashed
     /// and returned as initial value
-    fn get_iv<App: Application>(node: &CommitNodeInner<App>) -> Self;
+    fn get_iv<App: Jet>(node: &CommitNodeInner<App>) -> Self;
 }
 
 /// Tagged SHA256 hash used for [`Type`]

@@ -22,7 +22,7 @@ use super::frame::Frame;
 use crate::core::redeem::RedeemNodeInner;
 use crate::core::types::TypeInner;
 use crate::core::{RedeemNode, Value};
-use crate::jet::{Application, JetFailed};
+use crate::jet::{Jet, JetFailed};
 use crate::{analysis, decode};
 use std::fmt;
 use std::{cmp, error};
@@ -42,7 +42,7 @@ pub struct BitMachine {
 
 impl BitMachine {
     /// Construct a Bit Machine with enough space to execute the given program.
-    pub fn for_program<App: Application>(program: &RedeemNode<App>) -> Self {
+    pub fn for_program<App: Jet>(program: &RedeemNode<App>) -> Self {
         let io_width = program.ty.source.bit_width + program.ty.target.bit_width;
 
         Self {
@@ -273,13 +273,13 @@ impl BitMachine {
     /// Execute the given program on the Bit Machine, using the given environment.
     ///
     /// Make sure the Bit Machine has enough space by constructing it via [`Self::for_program()`].
-    pub fn exec<'a, App: Application + std::fmt::Debug>(
+    pub fn exec<'a, App: Jet + std::fmt::Debug>(
         &mut self,
         program: &'a RedeemNode<App>,
         env: &App::Environment,
     ) -> Result<Value, ExecutionError> {
         // Rust cannot use `App` from parent function
-        enum CallStack<'a, App: Application> {
+        enum CallStack<'a, App: Jet> {
             Goto(&'a RedeemNode<App>),
             MoveFrame,
             DropFrame,
@@ -410,9 +410,7 @@ impl BitMachine {
                 }
                 RedeemNodeInner::Witness(value) => self.write_value(value),
                 RedeemNodeInner::Hidden(..) => return Err(ExecutionError::ReachedPrunedBranch),
-                RedeemNodeInner::Jet(j) => {
-                    App::exec_jet(j, self, env).map_err(ExecutionError::from)?
-                }
+                RedeemNodeInner::Jet(jet) => jet.exec()(self, env)?,
                 RedeemNodeInner::Fail(..) => return Err(ExecutionError::ReachedFailNode),
             }
 

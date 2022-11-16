@@ -22,7 +22,7 @@ use crate::core::commit::CommitNodeInner;
 use crate::core::redeem::NodeType;
 use crate::core::{RedeemNode, Value};
 use crate::impl_midstate_wrapper;
-use crate::jet::Application;
+use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::common::{CommitMerkleRoot, MerkleRoot};
 use bitcoin_hashes::sha256::Midstate;
@@ -35,7 +35,7 @@ pub struct Imr(Midstate);
 impl_midstate_wrapper!(Imr);
 
 impl CommitMerkleRoot for Imr {
-    fn get_iv<App: Application>(node: &CommitNodeInner<App>) -> Self {
+    fn get_iv<App: Jet>(node: &CommitNodeInner<App>) -> Self {
         match node {
             CommitNodeInner::Disconnect(_, _) => {
                 Imr::tag_iv(b"Simplicity-Draft\x1fIdentity\x1fdisconnect")
@@ -51,7 +51,7 @@ impl CommitMerkleRoot for Imr {
 /// Nodes with left children require their finalized left child,
 /// while nodes with right children require their finalized right child.
 /// Witness nodes require their value and node type.
-pub(crate) fn compute_imr<App: Application>(
+pub(crate) fn compute_imr<App: Jet>(
     node: &CommitNodeInner<App>,
     left: Option<Rc<RedeemNode<App>>>,
     right: Option<Rc<RedeemNode<App>>>,

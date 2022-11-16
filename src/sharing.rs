@@ -14,7 +14,7 @@
 
 use crate::core::iter::PostOrderIter;
 use crate::core::redeem::{RedeemNodeInner, RefWrapper};
-use crate::jet::Application;
+use crate::jet::Jet;
 use std::collections::{HashMap, HashSet};
 
 /// Check whether the given program has maximal sharing.
@@ -23,9 +23,7 @@ use std::collections::{HashMap, HashSet};
 /// 1. For hidden nodes, their hash must be unique in the program.
 /// 2. For non-hidden nodes, the triple of their IMR, source type TMR and target type TMR
 ///    must be unique in the program.
-pub(crate) fn check_maximal_sharing<App: Application>(
-    program: PostOrderIter<RefWrapper<App>>,
-) -> bool {
+pub(crate) fn check_maximal_sharing<App: Jet>(program: PostOrderIter<RefWrapper<App>>) -> bool {
     let mut seen_hashes = HashSet::new();
     let mut seen_keys = HashSet::new();
 
@@ -57,7 +55,7 @@ pub(crate) fn check_maximal_sharing<App: Application>(
 ///
 /// # See
 /// [`check_maximal_sharing()`]
-pub(crate) fn compute_maximal_sharing<App: Application>(
+pub(crate) fn compute_maximal_sharing<App: Jet>(
     program: PostOrderIter<RefWrapper<App>>,
 ) -> (HashMap<RefWrapper<App>, usize>, usize) {
     let mut node_to_index = HashMap::new();

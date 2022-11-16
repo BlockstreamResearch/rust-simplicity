@@ -18,7 +18,7 @@ use crate::core::iter::DagIterable;
 use crate::core::types::Type;
 use crate::core::{iter, Value};
 use crate::decode::WitnessDecoder;
-use crate::jet::{Application, JetNode};
+use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
 use crate::{decode, encode, impl_ref_wrapper, sharing, Error};
@@ -31,7 +31,7 @@ use std::{fmt, io};
 /// # See
 /// [`crate::core::commit::CommitNodeInner`]
 #[derive(Debug)]
-pub enum RedeemNodeInner<App: Application> {
+pub enum RedeemNodeInner<App: Jet> {
     /// Identity
     Iden,
     /// Unit constant
@@ -63,10 +63,10 @@ pub enum RedeemNodeInner<App: Application> {
     /// Hidden CMR
     Hidden(Cmr),
     /// Application jet
-    Jet(&'static JetNode<App>),
+    Jet(App),
 }
 
-impl<App: Application> RedeemNodeInner<App> {
+impl<App: Jet> RedeemNodeInner<App> {
     /// Return the left child of the node, if there is such a child.
     pub fn get_left(&self) -> Option<&RedeemNode<App>> {
         match self {
@@ -112,7 +112,7 @@ impl<App: Application> RedeemNodeInner<App> {
     }
 }
 
-impl<App: Application> fmt::Display for RedeemNodeInner<App> {
+impl<App: Jet> fmt::Display for RedeemNodeInner<App> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RedeemNodeInner::Iden => f.write_str("iden"),
@@ -130,7 +130,7 @@ impl<App: Application> fmt::Display for RedeemNodeInner<App> {
             RedeemNodeInner::Witness(..) => f.write_str("witness"),
             RedeemNodeInner::Fail(..) => f.write_str("fail"),
             RedeemNodeInner::Hidden(..) => f.write_str("hidden"),
-            RedeemNodeInner::Jet(jet) => write!(f, "jet({})", jet.name),
+            RedeemNodeInner::Jet(jet) => write!(f, "jet({})", jet),
         }
     }
 }
@@ -167,7 +167,7 @@ pub struct NodeBounds {
 /// # See
 /// [`crate::core::CommitNode`]
 #[derive(Debug)]
-pub struct RedeemNode<App: Application> {
+pub struct RedeemNode<App: Jet> {
     /// Underlying combinator of the node
     pub inner: RedeemNodeInner<App>,
     /// Commitment Merkle root of the node
@@ -180,7 +180,7 @@ pub struct RedeemNode<App: Application> {
     pub bounds: NodeBounds,
 }
 
-impl<App: Application> RedeemNode<App> {
+impl<App: Jet> RedeemNode<App> {
     /// Return the left child of the node, if there is such a child.
     pub fn get_left(&self) -> Option<&Self> {
         self.inner.get_left()
@@ -224,7 +224,7 @@ impl<App: Application> RedeemNode<App> {
     }
 }
 
-impl<App: Application> fmt::Display for RedeemNode<App> {
+impl<App: Jet> fmt::Display for RedeemNode<App> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         RefWrapper(self).display(
             f,
@@ -237,6 +237,6 @@ impl<App: Application> fmt::Display for RedeemNode<App> {
 /// Wrapper of references to [`RedeemNode`].
 /// Zero-cost implementation of `Copy`, `Eq` and `Hash` via pointer equality.
 #[derive(Debug)]
-pub struct RefWrapper<'a, App: Application>(pub &'a RedeemNode<App>);
+pub struct RefWrapper<'a, App: Jet>(pub &'a RedeemNode<App>);
 
 impl_ref_wrapper!(RefWrapper);

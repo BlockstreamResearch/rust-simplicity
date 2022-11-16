@@ -19,7 +19,7 @@ use crate::core::iter::{DagIterable, WitnessIterator};
 use crate::core::redeem::{NodeType, RedeemNodeInner};
 use crate::core::{Context, RedeemNode, Value};
 use crate::inference::UnificationArrow;
-use crate::jet::{Application, JetNode};
+use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::{cmr, imr};
 use crate::{analysis, decode, impl_ref_wrapper, inference, Error};
@@ -31,7 +31,7 @@ use std::{fmt, io};
 /// Underlying combinator of a [`CommitNode`].
 /// May contain references to children, hash payloads or jets.
 #[derive(Debug)]
-pub enum CommitNodeInner<App: Application> {
+pub enum CommitNodeInner<App: Jet> {
     /// Identity
     Iden,
     /// Unit constant
@@ -63,10 +63,10 @@ pub enum CommitNodeInner<App: Application> {
     /// Hidden CMR
     Hidden(Cmr),
     /// Application jet
-    Jet(&'static JetNode<App>),
+    Jet(App),
 }
 
-impl<App: Application> CommitNodeInner<App> {
+impl<App: Jet> CommitNodeInner<App> {
     /// Return the left child of the node, if there is such a child.
     pub fn get_left(&self) -> Option<&CommitNode<App>> {
         match self {
@@ -112,7 +112,7 @@ impl<App: Application> CommitNodeInner<App> {
     }
 }
 
-impl<App: Application> fmt::Display for CommitNodeInner<App> {
+impl<App: Jet> fmt::Display for CommitNodeInner<App> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             CommitNodeInner::Iden => f.write_str("iden"),
@@ -130,7 +130,7 @@ impl<App: Application> fmt::Display for CommitNodeInner<App> {
             CommitNodeInner::Witness => f.write_str("witness"),
             CommitNodeInner::Fail(..) => f.write_str("fail"),
             CommitNodeInner::Hidden(..) => f.write_str("hidden"),
-            CommitNodeInner::Jet(jet) => write!(f, "jet({})", jet.name),
+            CommitNodeInner::Jet(jet) => write!(f, "jet({})", jet),
         }
     }
 }
@@ -148,7 +148,7 @@ impl<App: Application> fmt::Display for CommitNodeInner<App> {
 /// Nodes refer to other nodes via reference-counted pointers to heap memory.
 /// If possible, duplicate DAGs make use of this fact and reference the same memory.
 #[derive(Debug)]
-pub struct CommitNode<App: Application> {
+pub struct CommitNode<App: Jet> {
     /// Underlying combinator of the node
     pub inner: CommitNodeInner<App>,
     /// Commitment Merkle root of the node
@@ -157,7 +157,7 @@ pub struct CommitNode<App: Application> {
     pub arrow: UnificationArrow,
 }
 
-impl<App: Application> CommitNode<App> {
+impl<App: Jet> CommitNode<App> {
     /// Create a node from its underlying combinator.
     fn node_from_inner(
         context: &mut Context<App>,
@@ -430,7 +430,7 @@ impl<App: Application> CommitNode<App> {
     /// Create a DAG that computes some black-box function that is associated with the given `jet`.
     ///
     /// _Overall type: A → B where jet: A → B_
-    pub fn jet(context: &mut Context<App>, jet: &'static JetNode<App>) -> Result<Rc<Self>, Error> {
+    pub fn jet(context: &mut Context<App>, jet: App) -> Result<Rc<Self>, Error> {
         Self::node_from_inner(context,
             CommitNodeInner::Jet(jet),
             None,
@@ -679,7 +679,7 @@ impl<App: Application> CommitNode<App> {
     }
 }
 
-impl<App: Application> fmt::Display for CommitNode<App> {
+impl<App: Jet> fmt::Display for CommitNode<App> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         RefWrapper(self).display(
             f,
@@ -692,7 +692,7 @@ impl<App: Application> fmt::Display for CommitNode<App> {
 /// Wrapper of references to [`CommitNode`].
 /// Zero-cost implementation of `Copy`, `Eq` and `Hash` via pointer equality.
 #[derive(Debug)]
-pub struct RefWrapper<'a, App: Application>(pub &'a CommitNode<App>);
+pub struct RefWrapper<'a, App: Jet>(pub &'a CommitNode<App>);
 
 impl_ref_wrapper!(RefWrapper);
 

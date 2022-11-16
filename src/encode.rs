@@ -23,7 +23,7 @@ use crate::bitwriter::BitWriter;
 use crate::core::iter::{DagIterable, PostOrderIter};
 use crate::core::redeem::{RedeemNodeInner, RefWrapper};
 use crate::core::Value;
-use crate::jet::Application;
+use crate::jet::Jet;
 use crate::sharing;
 use std::collections::HashMap;
 use std::{io, mem};
@@ -31,7 +31,7 @@ use std::{io, mem};
 /// Encode a Simplicity program to bits, without witness data.
 ///
 /// Returns the number of written bits.
-pub fn encode_program<W: io::Write, App: Application>(
+pub fn encode_program<W: io::Write, App: Jet>(
     program: PostOrderIter<RefWrapper<App>>,
     w: &mut BitWriter<W>,
 ) -> io::Result<usize> {
@@ -54,7 +54,7 @@ pub fn encode_program<W: io::Write, App: Application>(
 }
 
 /// Encode a node to bits.
-fn encode_node<W: io::Write, App: Application>(
+fn encode_node<W: io::Write, App: Jet>(
     node: RefWrapper<App>,
     index: usize,
     node_to_index: &HashMap<RefWrapper<App>, usize>,
@@ -130,7 +130,8 @@ fn encode_node<W: io::Write, App: Application>(
                 w.write_bits_be(7, 4)?;
             }
             RedeemNodeInner::Jet(jet) => {
-                App::encode_jet(jet, w)?;
+                w.write_bit(true)?;
+                jet.encode(w)?;
             }
             _ => unreachable!(),
         }

@@ -15,7 +15,7 @@
 use crate::core::commit::CommitNodeInner;
 use crate::core::redeem::{NodeBounds, NodeType};
 use crate::core::{CommitNode, RedeemNode};
-use crate::jet::Application;
+use crate::jet::Jet;
 use std::cmp;
 use std::rc::Rc;
 
@@ -27,7 +27,7 @@ pub(crate) const IO_EXTRA_FRAMES: usize = 2;
 /// Nodes with left children require their finalized left child,
 /// while nodes with right children require their finalized right child.
 /// Witness nodes require their node type.
-pub(crate) fn compute_bounds<App: Application>(
+pub(crate) fn compute_bounds<App: Jet>(
     untyped_node: &CommitNode<App>,
     left: Option<Rc<RedeemNode<App>>>,
     right: Option<Rc<RedeemNode<App>>>,
@@ -41,7 +41,7 @@ pub(crate) fn compute_bounds<App: Application>(
 
 /// Return an upper bound on the number of cells required
 /// by the given node during execution on the Bit Machine.
-fn compute_extra_cells_bound<App: Application>(
+fn compute_extra_cells_bound<App: Jet>(
     untyped_node: &CommitNode<App>,
     left: Option<Rc<RedeemNode<App>>>,
     right: Option<Rc<RedeemNode<App>>>,
@@ -81,7 +81,7 @@ fn compute_extra_cells_bound<App: Application>(
 
 /// Return an upper bound on the number of frames required
 /// by the given node during execution on the Bit Machine.
-fn compute_extra_frames_bound<App: Application>(
+fn compute_extra_frames_bound<App: Jet>(
     untyped_node: &CommitNode<App>,
     left: Option<Rc<RedeemNode<App>>>,
     right: Option<Rc<RedeemNode<App>>>,
