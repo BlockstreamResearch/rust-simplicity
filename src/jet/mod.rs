@@ -47,8 +47,6 @@ use std::io::Write;
 pub trait Application: Clone + 'static {
     /// Environment for jets to read from
     type Environment;
-    /// Custom application errors
-    type Error: AppError;
     /// Enumeration of all jet names
     type JetName: Clone + Eq + Ord + std::hash::Hash + std::fmt::Debug + std::fmt::Display;
 
@@ -73,11 +71,22 @@ pub trait Application: Clone + 'static {
         jet: &JetNode<Self>,
         mac: &mut BitMachine,
         env: &Self::Environment,
-    ) -> Result<(), Self::Error>;
+    ) -> Result<(), JetFailed>;
 }
 
-/// Application error
-pub trait AppError: std::error::Error {}
+/// Generic error that a jet failed during its execution.
+///
+/// Failure could be due to a failed assertion, an illegal input, etc.
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+pub struct JetFailed;
+
+impl std::fmt::Display for JetFailed {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("Jet failed during execution")
+    }
+}
+
+impl std::error::Error for JetFailed {}
 
 /// Jet node that belongs to some [`Application`].
 ///
