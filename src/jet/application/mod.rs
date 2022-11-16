@@ -17,14 +17,14 @@
 //! Applications provide jets to Simplicity.
 //! Their implementation usually requires certain features to be enabled.
 
-#[cfg(feature = "bitcoin")]
-mod bitcoin;
-mod core;
-#[cfg(feature = "elements")]
-mod elements;
+// #[cfg(feature = "bitcoin")]
+// mod bitcoin;
+// mod core;
+// #[cfg(feature = "elements")]
+// mod elements;
 
-#[cfg(feature = "bitcoin")]
-pub use self::bitcoin::{Bitcoin, BitcoinEnv, BitcoinError};
-pub use self::core::{Core, CoreError};
-#[cfg(feature = "elements")]
-pub use self::elements::{Elements, ElementsEnv, ElementsError, ElementsUtxo};
+// #[cfg(feature = "bitcoin")]
+// pub use self::bitcoin::{Bitcoin, BitcoinEnv, BitcoinError};
+// pub use self::core::{Core, CoreError};
+// #[cfg(feature = "elements")]
+// pub use self::elements::{Elements, ElementsEnv, ElementsError, ElementsUtxo};

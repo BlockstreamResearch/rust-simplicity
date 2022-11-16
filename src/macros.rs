@@ -1,3 +1,4 @@
+/*
 macro_rules! matches {
     ($expression:expr, $($pattern:tt)+) => {
         match $expression {
@@ -6,6 +7,7 @@ macro_rules! matches {
         }
     }
 }
+*/
 
 // Code from rust 1.45.0 for assert_matches
 // Handy for testing Results or other enums

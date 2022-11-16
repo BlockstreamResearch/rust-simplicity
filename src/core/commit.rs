@@ -696,6 +696,7 @@ pub struct RefWrapper<'a, App: Application>(pub &'a CommitNode<App>);
 
 impl_ref_wrapper!(RefWrapper);
 
+/*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -725,3 +726,4 @@ mod tests {
         }
     }
 }
+*/

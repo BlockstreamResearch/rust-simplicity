@@ -26,11 +26,11 @@ pub mod application;
 mod init;
 pub mod type_name;
 
-#[cfg(feature = "bitcoin")]
-pub use init::bitcoin;
-pub use init::core;
-#[cfg(feature = "elements")]
-pub use init::elements;
+// #[cfg(feature = "bitcoin")]
+// pub use init::bitcoin;
+// pub use init::core;
+// #[cfg(feature = "elements")]
+// pub use init::elements;
 
 use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
