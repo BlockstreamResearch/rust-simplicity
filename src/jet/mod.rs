@@ -24,12 +24,14 @@
 //! Equivalence of C and Simplicity is proved using the _Verified Software Toolchain_.
 //! Programs are also smaller in size because jets replace large, equivalent Simplicity DAGs.
 
+#[cfg(feature = "bitcoin")]
+pub mod bitcoin;
 pub mod core;
 mod init;
 pub mod type_name;
 
-// #[cfg(feature = "bitcoin")]
-// pub use init::bitcoin;
+#[cfg(feature = "bitcoin")]
+pub use init::bitcoin::Bitcoin;
 pub use init::core::Core;
 // #[cfg(feature = "elements")]
 // pub use init::elements;
