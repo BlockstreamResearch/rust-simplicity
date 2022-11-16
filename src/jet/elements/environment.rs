@@ -13,7 +13,7 @@
 //
 
 use crate::exec::BitMachine;
-use crate::jet::application::elements::ElementsError;
+use crate::jet::JetFailed;
 use crate::merkle::cmr::Cmr;
 use bitcoin_hashes::{sha256, Hash, HashEngine};
 use byteorder::{BigEndian, LittleEndian, WriteBytesExt};
@@ -93,7 +93,7 @@ impl ElementsEnv {
 pub(super) trait SimplicityEncodable {
     // write the simplicity encoding of `self` on bitmachine
     // at the current write cursor.
-    fn simplicity_encode(self, mac: &mut BitMachine) -> Result<(), ElementsError>;
+    fn simplicity_encode(self, mac: &mut BitMachine) -> Result<(), JetFailed>;
 }
 
 // Write an confidential asset to write frame, advancing the cursor 258
@@ -102,9 +102,9 @@ pub(super) trait SimplicityEncodable {
 // The Simplicity representation of a confidential asset is:
 //    ((is_explicit, is_odd), [u8; 32])
 impl SimplicityEncodable for confidential::Asset {
-    fn simplicity_encode(self, mac: &mut BitMachine) -> Result<(), ElementsError> {
+    fn simplicity_encode(self, mac: &mut BitMachine) -> Result<(), JetFailed> {
         match self {
-            Asset::Null => return Err(ElementsError::NullAssetEncoding),
+            Asset::Null => return Err(JetFailed),
             Asset::Explicit(asset_id) => {
                 mac.write_bit(true);
                 mac.skip(1);
@@ -128,9 +128,9 @@ impl SimplicityEncodable for confidential::Asset {
 // The Simplicity representation of a confidential value is:
 //     ((is_explicit, is_odd), [u8; 32])
 impl SimplicityEncodable for confidential::Value {
-    fn simplicity_encode(self, mac: &mut BitMachine) -> Result<(), ElementsError> {
+    fn simplicity_encode(self, mac: &mut BitMachine) -> Result<(), JetFailed> {
         match self {
-            Value::Null => return Err(ElementsError::NullAssetEncoding),
+            Value::Null => return Err(JetFailed),
             Value::Explicit(data) => {
                 mac.write_bit(true);
                 mac.skip(1 + 256 - 64);
@@ -153,7 +153,7 @@ impl SimplicityEncodable for confidential::Value {
 // The Simplicity representation of a confidential nonce is:
 //     ((is_not_null, is_explicit, is_odd), [u8; 32])
 impl SimplicityEncodable for confidential::Nonce {
-    fn simplicity_encode(self, mac: &mut BitMachine) -> Result<(), ElementsError> {
+    fn simplicity_encode(self, mac: &mut BitMachine) -> Result<(), JetFailed> {
         // all paths should write 259 bits
         match self {
             Nonce::Null => {

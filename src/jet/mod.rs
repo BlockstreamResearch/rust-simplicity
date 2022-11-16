@@ -27,14 +27,16 @@
 #[cfg(feature = "bitcoin")]
 pub mod bitcoin;
 pub mod core;
+#[cfg(feature = "elements")]
+pub mod elements;
 mod init;
 pub mod type_name;
 
 #[cfg(feature = "bitcoin")]
 pub use init::bitcoin::Bitcoin;
 pub use init::core::Core;
-// #[cfg(feature = "elements")]
-// pub use init::elements;
+#[cfg(feature = "elements")]
+pub use init::elements::Elements;
 
 use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
