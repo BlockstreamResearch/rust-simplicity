@@ -20,3 +20,20 @@ macro_rules! assert_matches {
         }
     }
 }
+
+#[macro_export]
+macro_rules! decode_bits {
+    ($bits:ident, {}) => {
+        Err(Error::ParseError("Illegal jet"))
+    };
+    ($bits:ident, {$jet:path}) => {
+        Ok($jet)
+    };
+    ($bits:ident, { 0 => $false_branch:tt, 1 => $true_branch:tt }) => {
+        match $bits.next() {
+            None => Err(Error::EndOfStream),
+            Some(false) => decode_bits!($bits, $false_branch),
+            Some(true) => decode_bits!($bits, $true_branch),
+        }
+    };
+}
