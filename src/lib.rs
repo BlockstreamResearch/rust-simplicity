@@ -37,11 +37,11 @@ mod encode;
 mod inference;
 pub mod jet;
 pub mod merkle;
-// #[cfg(feature = "bitcoin")]
-// pub mod policy;
+#[cfg(feature = "bitcoin")]
+pub mod policy;
 mod sharing;
-// #[cfg(test)]
-// mod test_progs;
+#[cfg(test)]
+mod test_progs;
 mod util;
 
 pub use crate::bit_machine::exec;

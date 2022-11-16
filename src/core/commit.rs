@@ -696,11 +696,10 @@ pub struct RefWrapper<'a, App: Jet>(pub &'a CommitNode<App>);
 
 impl_ref_wrapper!(RefWrapper);
 
-/*
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::jet::application::Core;
+    use crate::jet::Core;
 
     #[test]
     fn occurs_check_error() {
@@ -726,4 +725,3 @@ mod tests {
         }
     }
 }
-*/

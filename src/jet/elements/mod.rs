@@ -14,8 +14,8 @@
 
 mod environment;
 mod exec;
-// #[cfg(test)]
-// mod tests;
+#[cfg(test)]
+mod tests;
 
 use crate::jet::Elements;
 pub use environment::{ElementsEnv, ElementsUtxo};

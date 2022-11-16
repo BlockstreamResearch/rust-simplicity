@@ -14,15 +14,12 @@
 
 extern crate simplicity;
 
-/*
 use simplicity::bititer::BitIter;
 use simplicity::bitwriter::BitWriter;
 use simplicity::core::RedeemNode;
-use simplicity::jet::application::Core;
-*/
+use simplicity::jet::Core;
 
-fn do_test(_data: &[u8]) {
-    /*
+fn do_test(data: &[u8]) {
     let mut iter = BitIter::new(data.iter().cloned());
 
     if let Ok(program) = RedeemNode::<Core>::decode(&mut iter) {
@@ -43,7 +40,6 @@ fn do_test(_data: &[u8]) {
         }
         assert_eq!(sink, &data[0..sink.len()]);
     }
-    */
 }
 
 #[cfg(feature = "afl")]
