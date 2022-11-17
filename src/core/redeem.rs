@@ -31,44 +31,44 @@ use std::{fmt, io};
 /// # See
 /// [`crate::core::commit::CommitNodeInner`]
 #[derive(Debug)]
-pub enum RedeemNodeInner<App: Jet> {
+pub enum RedeemNodeInner<J: Jet> {
     /// Identity
     Iden,
     /// Unit constant
     Unit,
     /// Left injection of some child
-    InjL(Rc<RedeemNode<App>>),
+    InjL(Rc<RedeemNode<J>>),
     /// Right injection of some child
-    InjR(Rc<RedeemNode<App>>),
+    InjR(Rc<RedeemNode<J>>),
     /// Take of some child
-    Take(Rc<RedeemNode<App>>),
+    Take(Rc<RedeemNode<J>>),
     /// Drop of some child
-    Drop(Rc<RedeemNode<App>>),
+    Drop(Rc<RedeemNode<J>>),
     /// Composition of a left and right child
-    Comp(Rc<RedeemNode<App>>, Rc<RedeemNode<App>>),
+    Comp(Rc<RedeemNode<J>>, Rc<RedeemNode<J>>),
     /// Case of a left and right child
-    Case(Rc<RedeemNode<App>>, Rc<RedeemNode<App>>),
+    Case(Rc<RedeemNode<J>>, Rc<RedeemNode<J>>),
     /// Left assertion of a left and right child.
-    AssertL(Rc<RedeemNode<App>>, Rc<RedeemNode<App>>),
+    AssertL(Rc<RedeemNode<J>>, Rc<RedeemNode<J>>),
     /// Right assertion of a left and right child.
-    AssertR(Rc<RedeemNode<App>>, Rc<RedeemNode<App>>),
+    AssertR(Rc<RedeemNode<J>>, Rc<RedeemNode<J>>),
     /// Pair of a left and right child
-    Pair(Rc<RedeemNode<App>>, Rc<RedeemNode<App>>),
+    Pair(Rc<RedeemNode<J>>, Rc<RedeemNode<J>>),
     /// Disconnect of a left and right child
-    Disconnect(Rc<RedeemNode<App>>, Rc<RedeemNode<App>>),
+    Disconnect(Rc<RedeemNode<J>>, Rc<RedeemNode<J>>),
     /// Witness data
     Witness(Value),
     /// Universal fail
     Fail(Cmr, Cmr),
     /// Hidden CMR
     Hidden(Cmr),
-    /// Application jet
-    Jet(App),
+    /// Jlication jet
+    Jet(J),
 }
 
-impl<App: Jet> RedeemNodeInner<App> {
+impl<J: Jet> RedeemNodeInner<J> {
     /// Return the left child of the node, if there is such a child.
-    pub fn get_left(&self) -> Option<&RedeemNode<App>> {
+    pub fn get_left(&self) -> Option<&RedeemNode<J>> {
         match self {
             RedeemNodeInner::Iden
             | RedeemNodeInner::Unit
@@ -90,7 +90,7 @@ impl<App: Jet> RedeemNodeInner<App> {
     }
 
     /// Return the right child of the node, if there is such a child.
-    pub fn get_right(&self) -> Option<&RedeemNode<App>> {
+    pub fn get_right(&self) -> Option<&RedeemNode<J>> {
         match self {
             RedeemNodeInner::Iden
             | RedeemNodeInner::Unit
@@ -112,7 +112,7 @@ impl<App: Jet> RedeemNodeInner<App> {
     }
 }
 
-impl<App: Jet> fmt::Display for RedeemNodeInner<App> {
+impl<J: Jet> fmt::Display for RedeemNodeInner<J> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RedeemNodeInner::Iden => f.write_str("iden"),
@@ -167,9 +167,9 @@ pub struct NodeBounds {
 /// # See
 /// [`crate::core::CommitNode`]
 #[derive(Debug)]
-pub struct RedeemNode<App: Jet> {
+pub struct RedeemNode<J: Jet> {
     /// Underlying combinator of the node
-    pub inner: RedeemNodeInner<App>,
+    pub inner: RedeemNodeInner<J>,
     /// Commitment Merkle root of the node
     pub cmr: Cmr,
     /// Identity Merkle root of the node
@@ -180,7 +180,7 @@ pub struct RedeemNode<App: Jet> {
     pub bounds: NodeBounds,
 }
 
-impl<App: Jet> RedeemNode<App> {
+impl<J: Jet> RedeemNode<J> {
     /// Return the left child of the node, if there is such a child.
     pub fn get_left(&self) -> Option<&Self> {
         self.inner.get_left()
@@ -224,7 +224,7 @@ impl<App: Jet> RedeemNode<App> {
     }
 }
 
-impl<App: Jet> fmt::Display for RedeemNode<App> {
+impl<J: Jet> fmt::Display for RedeemNode<J> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         RefWrapper(self).display(
             f,
@@ -237,6 +237,6 @@ impl<App: Jet> fmt::Display for RedeemNode<App> {
 /// Wrapper of references to [`RedeemNode`].
 /// Zero-cost implementation of `Copy`, `Eq` and `Hash` via pointer equality.
 #[derive(Debug)]
-pub struct RefWrapper<'a, App: Jet>(pub &'a RedeemNode<App>);
+pub struct RefWrapper<'a, J: Jet>(pub &'a RedeemNode<J>);
 
 impl_ref_wrapper!(RefWrapper);

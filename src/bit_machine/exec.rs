@@ -42,7 +42,7 @@ pub struct BitMachine {
 
 impl BitMachine {
     /// Construct a Bit Machine with enough space to execute the given program.
-    pub fn for_program<App: Jet>(program: &RedeemNode<App>) -> Self {
+    pub fn for_program<J: Jet>(program: &RedeemNode<J>) -> Self {
         let io_width = program.ty.source.bit_width + program.ty.target.bit_width;
 
         Self {
@@ -273,14 +273,14 @@ impl BitMachine {
     /// Execute the given program on the Bit Machine, using the given environment.
     ///
     /// Make sure the Bit Machine has enough space by constructing it via [`Self::for_program()`].
-    pub fn exec<'a, App: Jet + std::fmt::Debug>(
+    pub fn exec<'a, J: Jet + std::fmt::Debug>(
         &mut self,
-        program: &'a RedeemNode<App>,
-        env: &App::Environment,
+        program: &'a RedeemNode<J>,
+        env: &J::Environment,
     ) -> Result<Value, ExecutionError> {
-        // Rust cannot use `App` from parent function
-        enum CallStack<'a, App: Jet> {
-            Goto(&'a RedeemNode<App>),
+        // Rust cannot use `J` from parent function
+        enum CallStack<'a, J: Jet> {
+            Goto(&'a RedeemNode<J>),
             MoveFrame,
             DropFrame,
             CopyFwd(usize),

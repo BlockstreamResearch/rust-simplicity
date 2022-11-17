@@ -4,22 +4,22 @@ use std::marker::PhantomData;
 
 /// Context for constructing a Simplicity program
 #[allow(dead_code)]
-pub struct Context<App: Jet> {
+pub struct Context<J: Jet> {
     pub(crate) naming: VariableFactory,
-    _application: PhantomData<App>,
+    _jet: PhantomData<J>,
 }
 
-impl<App: Jet> Context<App> {
+impl<J: Jet> Context<J> {
     /// Create a new context.
     pub fn new() -> Self {
         Self {
             naming: VariableFactory::new(),
-            _application: PhantomData,
+            _jet: PhantomData,
         }
     }
 }
 
-impl<App: Jet> Default for Context<App> {
+impl<J: Jet> Default for Context<J> {
     fn default() -> Self {
         Self::new()
     }

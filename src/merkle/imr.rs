@@ -35,7 +35,7 @@ pub struct Imr(Midstate);
 impl_midstate_wrapper!(Imr);
 
 impl CommitMerkleRoot for Imr {
-    fn get_iv<App: Jet>(node: &CommitNodeInner<App>) -> Self {
+    fn get_iv<J: Jet>(node: &CommitNodeInner<J>) -> Self {
         match node {
             CommitNodeInner::Disconnect(_, _) => {
                 Imr::tag_iv(b"Simplicity-Draft\x1fIdentity\x1fdisconnect")
@@ -51,10 +51,10 @@ impl CommitMerkleRoot for Imr {
 /// Nodes with left children require their finalized left child,
 /// while nodes with right children require their finalized right child.
 /// Witness nodes require their value and node type.
-pub(crate) fn compute_imr<App: Jet>(
-    node: &CommitNodeInner<App>,
-    left: Option<Rc<RedeemNode<App>>>,
-    right: Option<Rc<RedeemNode<App>>>,
+pub(crate) fn compute_imr<J: Jet>(
+    node: &CommitNodeInner<J>,
+    left: Option<Rc<RedeemNode<J>>>,
+    right: Option<Rc<RedeemNode<J>>>,
     value: Option<&Value>,
     ty: &NodeType,
 ) -> Imr {

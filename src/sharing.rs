@@ -23,7 +23,7 @@ use std::collections::{HashMap, HashSet};
 /// 1. For hidden nodes, their hash must be unique in the program.
 /// 2. For non-hidden nodes, the triple of their IMR, source type TMR and target type TMR
 ///    must be unique in the program.
-pub(crate) fn check_maximal_sharing<App: Jet>(program: PostOrderIter<RefWrapper<App>>) -> bool {
+pub(crate) fn check_maximal_sharing<J: Jet>(program: PostOrderIter<RefWrapper<J>>) -> bool {
     let mut seen_hashes = HashSet::new();
     let mut seen_keys = HashSet::new();
 
@@ -55,9 +55,9 @@ pub(crate) fn check_maximal_sharing<App: Jet>(program: PostOrderIter<RefWrapper<
 ///
 /// # See
 /// [`check_maximal_sharing()`]
-pub(crate) fn compute_maximal_sharing<App: Jet>(
-    program: PostOrderIter<RefWrapper<App>>,
-) -> (HashMap<RefWrapper<App>, usize>, usize) {
+pub(crate) fn compute_maximal_sharing<J: Jet>(
+    program: PostOrderIter<RefWrapper<J>>,
+) -> (HashMap<RefWrapper<J>, usize>, usize) {
     let mut node_to_index = HashMap::new();
     let mut index = 0;
     let mut hash_to_node = HashMap::new();

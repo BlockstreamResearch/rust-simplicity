@@ -130,7 +130,7 @@ pub trait CommitMerkleRoot: MerkleRoot {
     ///
     /// Each [`CommitNodeInner`] corresponds to some tag that is hashed
     /// and returned as initial value
-    fn get_iv<App: Jet>(node: &CommitNodeInner<App>) -> Self;
+    fn get_iv<J: Jet>(node: &CommitNodeInner<J>) -> Self;
 }
 
 /// Tagged SHA256 hash used for [`Type`]

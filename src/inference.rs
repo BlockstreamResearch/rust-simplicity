@@ -140,12 +140,12 @@ impl fmt::Display for UnificationArrow {
     }
 }
 
-impl<App: Jet> TryFrom<&CommitNode<App>> for NodeType {
+impl<J: Jet> TryFrom<&CommitNode<J>> for NodeType {
     type Error = Error;
 
     /// Return the finalized type of the given `node`.
     /// To work, this method must be called on nodes in post order!
-    fn try_from(node: &CommitNode<App>) -> Result<Self, Self::Error> {
+    fn try_from(node: &CommitNode<J>) -> Result<Self, Self::Error> {
         let source_ty = match finalize(node.arrow.source.clone()) {
             Ok(ty) => ty,
             Err(error) => return Err(error),
@@ -163,8 +163,8 @@ impl<App: Jet> TryFrom<&CommitNode<App>> for NodeType {
 }
 
 /// Return a unification arrow that is initialized for the given `node`.
-pub(crate) fn get_arrow<App: Jet>(
-    node: &CommitNodeInner<App>,
+pub(crate) fn get_arrow<J: Jet>(
+    node: &CommitNodeInner<J>,
     naming: &mut VariableFactory,
 ) -> Result<UnificationArrow, Error> {
     let arrow = UnificationArrow {
