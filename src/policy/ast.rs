@@ -27,7 +27,7 @@ use bitcoin_hashes::sha256;
 use miniscript::MiniscriptKey;
 
 use crate::core::{CommitNode, Context};
-use crate::jet::application::Bitcoin;
+use crate::jet::Bitcoin;
 use crate::policy::compiler;
 use crate::policy::key::PublicKey32;
 use crate::Error;

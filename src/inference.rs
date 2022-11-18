@@ -1,7 +1,7 @@
 use crate::core::commit::CommitNodeInner;
 use crate::core::redeem::NodeType;
 use crate::core::types::{RcVar, Type, Variable, VariableFactory, VariableInner, VariableType};
-use crate::jet::Application;
+use crate::jet::Jet;
 use crate::{CommitNode, Error};
 use std::convert::TryFrom;
 use std::rc::Rc;
@@ -140,12 +140,12 @@ impl fmt::Display for UnificationArrow {
     }
 }
 
-impl<App: Application> TryFrom<&CommitNode<App>> for NodeType {
+impl<J: Jet> TryFrom<&CommitNode<J>> for NodeType {
     type Error = Error;
 
     /// Return the finalized type of the given `node`.
     /// To work, this method must be called on nodes in post order!
-    fn try_from(node: &CommitNode<App>) -> Result<Self, Self::Error> {
+    fn try_from(node: &CommitNode<J>) -> Result<Self, Self::Error> {
         let source_ty = match finalize(node.arrow.source.clone()) {
             Ok(ty) => ty,
             Err(error) => return Err(error),
@@ -163,8 +163,8 @@ impl<App: Application> TryFrom<&CommitNode<App>> for NodeType {
 }
 
 /// Return a unification arrow that is initialized for the given `node`.
-pub(crate) fn get_arrow<App: Application>(
-    node: &CommitNodeInner<App>,
+pub(crate) fn get_arrow<J: Jet>(
+    node: &CommitNodeInner<J>,
     naming: &mut VariableFactory,
 ) -> Result<UnificationArrow, Error> {
     let arrow = UnificationArrow {
@@ -340,8 +340,16 @@ pub(crate) fn get_arrow<App: Application>(
             }
             CommitNodeInner::Jet(jet) => {
                 let pow2s = Variable::powers_of_two();
-                bind(&arrow.source, jet.source_ty.to_type(&pow2s), "Cannot fail")?;
-                bind(&arrow.target, jet.target_ty.to_type(&pow2s), "Cannot fail")?;
+                bind(
+                    &arrow.source,
+                    jet.source_ty().to_type(&pow2s),
+                    "Cannot fail",
+                )?;
+                bind(
+                    &arrow.target,
+                    jet.target_ty().to_type(&pow2s),
+                    "Cannot fail",
+                )?;
             }
             _ => unreachable!(),
         }

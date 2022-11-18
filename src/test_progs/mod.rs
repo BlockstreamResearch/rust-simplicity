@@ -25,7 +25,7 @@ mod tests {
     use crate::bititer::BitIter;
     use crate::core::{CommitNode, RedeemNode, Value};
     use crate::exec::BitMachine;
-    use crate::jet::application::Core;
+    use crate::jet::Core;
     use crate::merkle::common::MerkleRoot;
     use crate::test_progs::schnorr0::{SCHNORR0, SCHNORR0_CMR};
     use crate::test_progs::schnorr6::{SCHNORR6, SCHNORR6_CMR};

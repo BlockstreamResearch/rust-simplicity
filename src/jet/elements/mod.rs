@@ -12,19 +12,17 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-//! # Simplicity applications
-//!
-//! Applications provide jets to Simplicity.
-//! Their implementation usually requires certain features to be enabled.
+mod environment;
+mod exec;
+#[cfg(test)]
+mod tests;
 
-#[cfg(feature = "bitcoin")]
-mod bitcoin;
-mod core;
-#[cfg(feature = "elements")]
-mod elements;
+use crate::jet::Elements;
+pub use environment::{ElementsEnv, ElementsUtxo};
+pub(crate) use exec::*;
 
-#[cfg(feature = "bitcoin")]
-pub use self::bitcoin::{Bitcoin, BitcoinEnv, BitcoinError};
-pub use self::core::{Core, CoreError};
-#[cfg(feature = "elements")]
-pub use self::elements::{Elements, ElementsEnv, ElementsError, ElementsUtxo};
+impl std::fmt::Display for Elements {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        std::fmt::Debug::fmt(self, f)
+    }
+}

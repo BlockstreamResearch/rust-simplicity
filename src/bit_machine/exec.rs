@@ -22,7 +22,7 @@ use super::frame::Frame;
 use crate::core::redeem::RedeemNodeInner;
 use crate::core::types::TypeInner;
 use crate::core::{RedeemNode, Value};
-use crate::jet::{AppError, Application};
+use crate::jet::{Jet, JetFailed};
 use crate::{analysis, decode};
 use std::fmt;
 use std::{cmp, error};
@@ -42,7 +42,7 @@ pub struct BitMachine {
 
 impl BitMachine {
     /// Construct a Bit Machine with enough space to execute the given program.
-    pub fn for_program<App: Application>(program: &RedeemNode<App>) -> Self {
+    pub fn for_program<J: Jet>(program: &RedeemNode<J>) -> Self {
         let io_width = program.ty.source.bit_width + program.ty.target.bit_width;
 
         Self {
@@ -273,14 +273,14 @@ impl BitMachine {
     /// Execute the given program on the Bit Machine, using the given environment.
     ///
     /// Make sure the Bit Machine has enough space by constructing it via [`Self::for_program()`].
-    pub fn exec<'a, App: Application + std::fmt::Debug>(
+    pub fn exec<'a, J: Jet + std::fmt::Debug>(
         &mut self,
-        program: &'a RedeemNode<App>,
-        env: &App::Environment,
-    ) -> Result<Value, ExecutionError<'a>> {
-        // Rust cannot use `App` from parent function
-        enum CallStack<'a, App: Application> {
-            Goto(&'a RedeemNode<App>),
+        program: &'a RedeemNode<J>,
+        env: &J::Environment,
+    ) -> Result<Value, ExecutionError> {
+        // Rust cannot use `J` from parent function
+        enum CallStack<'a, J: Jet> {
+            Goto(&'a RedeemNode<J>),
             MoveFrame,
             DropFrame,
             CopyFwd(usize),
@@ -410,8 +410,7 @@ impl BitMachine {
                 }
                 RedeemNodeInner::Witness(value) => self.write_value(value),
                 RedeemNodeInner::Hidden(..) => return Err(ExecutionError::ReachedPrunedBranch),
-                RedeemNodeInner::Jet(j) => App::exec_jet(j, self, env)
-                    .map_err(|x| ExecutionError::AppError(Box::new(x)))?,
+                RedeemNodeInner::Jet(jet) => jet.exec()(self, env)?,
                 RedeemNodeInner::Fail(..) => return Err(ExecutionError::ReachedFailNode),
             }
 
@@ -446,29 +445,29 @@ impl BitMachine {
 
 /// Errors related to simplicity Execution
 #[derive(Debug)]
-pub enum ExecutionError<'a> {
+pub enum ExecutionError {
     /// Reached a fail node
     ReachedFailNode,
     /// Reached a pruned branch
     ReachedPrunedBranch,
-    /// Application-related error
-    AppError(Box<dyn AppError + 'a>),
+    /// Jet failed during execution
+    JetFailed(JetFailed),
 }
 
-impl<'a> fmt::Display for ExecutionError<'a> {
+impl fmt::Display for ExecutionError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ExecutionError::ReachedFailNode => f.write_str("Execution reached a fail node"),
             ExecutionError::ReachedPrunedBranch => f.write_str("Execution reached a pruned branch"),
-            ExecutionError::AppError(e) => e.fmt(f),
+            ExecutionError::JetFailed(jet_failed) => fmt::Display::fmt(jet_failed, f),
         }
     }
 }
 
-impl<'a> error::Error for ExecutionError<'a> {}
+impl error::Error for ExecutionError {}
 
-impl<'a, E: AppError + 'a> From<E> for ExecutionError<'a> {
-    fn from(error: E) -> Self {
-        ExecutionError::AppError(Box::new(error))
+impl From<JetFailed> for ExecutionError {
+    fn from(jet_failed: JetFailed) -> Self {
+        ExecutionError::JetFailed(jet_failed)
     }
 }

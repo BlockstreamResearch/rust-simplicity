@@ -17,7 +17,7 @@ extern crate simplicity;
 use simplicity::bititer::BitIter;
 use simplicity::bitwriter::BitWriter;
 use simplicity::core::RedeemNode;
-use simplicity::jet::application::Core;
+use simplicity::jet::Core;
 
 fn do_test(data: &[u8]) {
     let mut iter = BitIter::new(data.iter().cloned());

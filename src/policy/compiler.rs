@@ -19,8 +19,7 @@
 use super::ast::Policy;
 use crate::core::commit::CommitNode;
 use crate::core::{Context, Value};
-use crate::jet;
-use crate::jet::application::Bitcoin;
+use crate::jet::Bitcoin;
 use crate::merkle::cmr::Cmr;
 use crate::miniscript::MiniscriptKey;
 use crate::policy::key::PublicKey32;
@@ -39,29 +38,29 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
         Policy::Key(key) => {
             let key_value = Value::u256_from_slice(&key.to_32_bytes());
             let scribe_key = CommitNode::scribe(context, &key_value)?;
-            let sighash_all = CommitNode::jet(context, &jet::bitcoin::SIGHASH_ALL)?;
+            let sighash_all = CommitNode::jet(context, Bitcoin::SighashAll)?;
             let pair_key_msg = CommitNode::pair(context, scribe_key, sighash_all)?;
             let witness = CommitNode::witness(context)?;
             let pair_key_msg_sig = CommitNode::pair(context, pair_key_msg, witness)?;
-            let bip_0340_verify = CommitNode::jet(context, &jet::bitcoin::BIP_0340_VERIFY)?;
+            let bip_0340_verify = CommitNode::jet(context, Bitcoin::Bip0340Verify)?;
 
             CommitNode::comp(context, pair_key_msg_sig, bip_0340_verify)
         }
         Policy::After(n) => {
             let n_value = Value::u32(*n);
             let scribe_n = CommitNode::scribe(context, &n_value)?;
-            let lock_time = CommitNode::jet(context, &jet::bitcoin::LOCK_TIME)?;
+            let lock_time = CommitNode::jet(context, Bitcoin::LockTime)?;
             let pair_n_locktime = CommitNode::pair(context, scribe_n, lock_time)?;
-            let lt32_verify = CommitNode::jet(context, &jet::bitcoin::LT32_VERIFY)?;
+            let lt32_verify = CommitNode::jet(context, Bitcoin::Lt32Verify)?;
 
             CommitNode::comp(context, pair_n_locktime, lt32_verify)
         }
         Policy::Older(n) => {
             let n_value = Value::u32(*n);
             let scribe_n = CommitNode::scribe(context, &n_value)?;
-            let current_sequence = CommitNode::jet(context, &jet::bitcoin::CURRENT_SEQUENCE)?;
+            let current_sequence = CommitNode::jet(context, Bitcoin::CurrentSequence)?;
             let pair_n_sequence = CommitNode::pair(context, scribe_n, current_sequence)?;
-            let lt32_verify = CommitNode::jet(context, &jet::bitcoin::LT32_VERIFY)?;
+            let lt32_verify = CommitNode::jet(context, Bitcoin::Lt32Verify)?;
 
             CommitNode::comp(context, pair_n_sequence, lt32_verify)
         }
@@ -69,10 +68,10 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
             let hash_value = Value::u256_from_slice(hash);
             let scribe_hash = CommitNode::scribe(context, &hash_value)?;
             let witness = CommitNode::witness(context)?;
-            let sha256 = CommitNode::jet(context, &jet::bitcoin::SHA256)?;
+            let sha256 = CommitNode::jet(context, Bitcoin::Sha256)?;
             let computed_hash = CommitNode::comp(context, witness, sha256)?;
             let pair_hash_computed_hash = CommitNode::pair(context, scribe_hash, computed_hash)?;
-            let eq256_verify = CommitNode::jet(context, &jet::bitcoin::EQ256_VERIFY)?;
+            let eq256_verify = CommitNode::jet(context, Bitcoin::Eq256Verify)?;
 
             CommitNode::comp(context, pair_hash_computed_hash, eq256_verify)
         }
@@ -148,7 +147,7 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
                 // 1 → 2^32 × 2^32
                 let pair_sum_summand = CommitNode::pair(context, sum, summand)?;
                 // 2^32 × 2^32 → 2 × 2^32
-                let add32 = CommitNode::jet(context, &jet::bitcoin::ADD32)?;
+                let add32 = CommitNode::jet(context, Bitcoin::Add32)?;
                 // 1 → 2 x 2^32
                 let full_sum = CommitNode::comp(context, pair_sum_summand, add32)?;
                 // 2^32 → 2^32
@@ -167,7 +166,7 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
             // 1 → 2^32 × 2^32
             let pair_k_sum = CommitNode::pair(context, scribe_k, sum)?;
             // 2^32 × 2^32 → 1
-            let eq32_verify = CommitNode::jet(context, &jet::bitcoin::EQ32_VERIFY)?;
+            let eq32_verify = CommitNode::jet(context, Bitcoin::Eq32Verify)?;
 
             // 1 → 1
             CommitNode::comp(context, pair_k_sum, eq32_verify)
@@ -179,7 +178,7 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
 mod tests {
     use super::*;
     use crate::exec::BitMachine;
-    use crate::jet::application::BitcoinEnv;
+    use crate::jet::bitcoin::BitcoinEnv;
     use bitcoin_hashes::{sha256, Hash};
     use miniscript::DummyKey;
 

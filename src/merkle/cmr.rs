@@ -19,7 +19,7 @@
 
 use crate::core::commit::CommitNodeInner;
 use crate::impl_midstate_wrapper;
-use crate::jet::Application;
+use crate::jet::Jet;
 use crate::merkle::common::{CommitMerkleRoot, MerkleRoot};
 use bitcoin_hashes::sha256::Midstate;
 
@@ -30,7 +30,7 @@ pub struct Cmr(pub(crate) Midstate);
 impl_midstate_wrapper!(Cmr);
 
 impl CommitMerkleRoot for Cmr {
-    fn get_iv<App: Application>(node: &CommitNodeInner<App>) -> Self {
+    fn get_iv<J: Jet>(node: &CommitNodeInner<J>) -> Self {
         match node {
             CommitNodeInner::Iden => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1fiden"),
             CommitNodeInner::Unit => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1funit"),
@@ -57,7 +57,7 @@ impl CommitMerkleRoot for Cmr {
 }
 
 /// Compute the CMR of the given `node`.
-pub(crate) fn compute_cmr<App: Application>(node: &CommitNodeInner<App>) -> Cmr {
+pub(crate) fn compute_cmr<J: Jet>(node: &CommitNodeInner<J>) -> Cmr {
     let cmr_iv = Cmr::get_iv(node);
 
     match node {

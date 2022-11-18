@@ -14,23 +14,29 @@
 
 //! # Simplicity jets
 //!
-//! [`Application`]s extend Simplicity by [`JetNode`]s, i.e., special nodes that read a value,
-//! process it internally, and write an output value.  This jet evaluation happens in a black-box
-//! manner:  In terms of the Bit Machine, it is a one-step process.
+//! Jets are special nodes that read a value,
+//! process it internally, and write an output value.
+//! This evaluation happens in a black-box manner:
+//! In terms of the Bit Machine, it is a one-step process.
 //!
 //! In practice, jets call foreign C code that is equivalent to some Simplicity DAG.
 //! This speeds up evaluation tremendously.
 //! Equivalence of C and Simplicity is proved using the _Verified Software Toolchain_.
+//! Programs are also smaller in size because jets replace large, equivalent Simplicity DAGs.
 
-pub mod application;
+#[cfg(feature = "bitcoin")]
+pub mod bitcoin;
+pub mod core;
+#[cfg(feature = "elements")]
+pub mod elements;
 mod init;
 pub mod type_name;
 
 #[cfg(feature = "bitcoin")]
-pub use init::bitcoin;
-pub use init::core;
+pub use init::bitcoin::Bitcoin;
+pub use init::core::Core;
 #[cfg(feature = "elements")]
-pub use init::elements;
+pub use init::elements::Elements;
 
 use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
@@ -39,83 +45,56 @@ use crate::jet::type_name::TypeName;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::common::MerkleRoot;
 use crate::merkle::imr::Imr;
+use crate::Error;
 use std::hash::Hash;
 use std::io::Write;
 
-/// Applications extend Simplicity by providing [`JetNode`]s
-/// with custom (de)serialization and execution.
-pub trait Application: Clone + 'static {
-    /// Environment for jets to read from
-    type Environment;
-    /// Custom application errors
-    type Error: AppError;
-    /// Enumeration of all jet names
-    type JetName: Clone + Eq + Ord + std::hash::Hash + std::fmt::Debug + std::fmt::Display;
+/// Generic error that a jet failed during its execution.
+///
+/// Failure could be due to a failed assertion, an illegal input, etc.
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+pub struct JetFailed;
 
-    /// Decode a jet from bits.
-    ///
-    /// Every jet has a unique serialization _in context of its application_.
-    /// Two jets of _different_ applications may share the same serialization.
-    fn decode_jet<I: Iterator<Item = u8>>(
-        iter: &mut BitIter<I>,
-    ) -> Result<&'static JetNode<Self>, crate::Error>;
-
-    /// Encode a jet as bits.
-    ///
-    /// Encoding is the reverse of decoding, and vice versa.
-    /// Returns the number of written bits.
-    fn encode_jet<W: Write>(jet: &JetNode<Self>, w: &mut BitWriter<W>) -> std::io::Result<usize>;
-
-    /// Execute a jet on the Bit Machine.
-    ///
-    /// During its execution, the jet may read from the environment and throw custom errors.
-    fn exec_jet(
-        jet: &JetNode<Self>,
-        mac: &mut BitMachine,
-        env: &Self::Environment,
-    ) -> Result<(), Self::Error>;
+impl std::fmt::Display for JetFailed {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.write_str("Jet failed during execution")
+    }
 }
 
-/// Application error
-pub trait AppError: std::error::Error {}
+impl std::error::Error for JetFailed {}
 
-/// Jet node that belongs to some [`Application`].
+/// Family of jets that share an encoding scheme and execution environment.
 ///
 /// Jets are single nodes that read an input,
 /// process it internally using foreign C code _(black box)_,
 /// and produce an output.
-/// Jets may read values from an _environment_.
+/// Jets may read values from their _environment_.
 ///
-/// Jets are **always** leaf nodes in a Simplicity DAG.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct JetNode<App: Application> {
-    pub(crate) name: App::JetName,
-    cmr: Cmr,
-    pub(crate) source_ty: TypeName,
-    pub(crate) target_ty: TypeName,
-}
+/// Jets are **always** leaves in a Simplicity DAG.
+pub trait Jet: Copy + Eq + Ord + Hash + std::fmt::Debug + std::fmt::Display {
+    /// Environment for jet to read from
+    type Environment;
 
-impl<App: Application> JetNode<App> {
     /// Return the CMR of the jet.
-    ///
-    /// Every jet has a CMR that is _usually_ unique.
-    /// Jet primitives commit to their application name and to their jet name in their CMR.
-    /// Jet macros commit to their DAG's root CMR _(usually unique)_ and to their cost.
-    pub fn cmr(&self) -> Cmr {
-        self.cmr
-    }
+    fn cmr(&self) -> Cmr;
 
     /// Return the IMR of the jet.
-    ///
-    /// A jet's CMR equals its IMR.
-    /// Jets may not include `witness` or `disconnect` nodes as a result.
-    pub fn imr(&self) -> Imr {
-        self.cmr.into_inner().into()
+    fn imr(&self) -> Imr {
+        self.cmr().into_inner().into()
     }
-}
 
-impl<App: Application> std::fmt::Display for JetNode<App> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        std::fmt::Display::fmt(&self.name, f)
-    }
+    /// Return the source type of the jet.
+    fn source_ty(&self) -> TypeName;
+
+    /// Return the target type of the jet.
+    fn target_ty(&self) -> TypeName;
+
+    /// Encode the jet to bits.
+    fn encode<W: Write>(&self, w: &mut BitWriter<W>) -> std::io::Result<usize>;
+
+    /// Decode a jet from bits.
+    fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Self, Error>;
+
+    /// Execute the jet on the Bit Machine, using the given environment.
+    fn exec(&self) -> fn(&mut BitMachine, &Self::Environment) -> Result<(), JetFailed>;
 }

@@ -22,7 +22,7 @@ use crate::core::commit::CommitNodeInner;
 use crate::core::iter::{DagIterable, IndexDag, IndexNode, WitnessIterator};
 use crate::core::types::{Type, TypeInner};
 use crate::core::{CommitNode, Context, Value};
-use crate::jet::Application;
+use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::Error;
 use std::collections::HashMap;
@@ -31,9 +31,9 @@ use std::rc::Rc;
 /// Decode a Simplicity program from bits where witness data follows.
 ///
 /// The number of decoded witness nodes corresponds exactly to the witness data.
-pub fn decode_program_exact_witness<I: Iterator<Item = u8>, App: Application>(
+pub fn decode_program_exact_witness<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
-) -> Result<Rc<CommitNode<App>>, Error> {
+) -> Result<Rc<CommitNode<J>>, Error> {
     decode_program(bits, false)
 }
 
@@ -41,17 +41,17 @@ pub fn decode_program_exact_witness<I: Iterator<Item = u8>, App: Application>(
 ///
 /// Witness nodes are made fresh, i.e., each witness node has at most one parent.
 /// This increases the number of witness nodes and hence the length of the required witness data.
-pub fn decode_program_fresh_witness<I: Iterator<Item = u8>, App: Application>(
+pub fn decode_program_fresh_witness<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
-) -> Result<Rc<CommitNode<App>>, Error> {
+) -> Result<Rc<CommitNode<J>>, Error> {
     decode_program(bits, true)
 }
 
 /// Decode a Simplicity program from bits, without the witness data.
-fn decode_program<I: Iterator<Item = u8>, App: Application>(
+fn decode_program<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
     fresh_witness: bool,
-) -> Result<Rc<CommitNode<App>>, Error> {
+) -> Result<Rc<CommitNode<J>>, Error> {
     let len = decode_natural(bits, None)?;
 
     if len == 0 {
@@ -93,11 +93,11 @@ fn decode_program<I: Iterator<Item = u8>, App: Application>(
 
 /// Decode a single Simplicity node from bits and
 /// insert it into a hash map at its index for future reference by ancestor nodes.
-fn decode_node<I: Iterator<Item = u8>, App: Application>(
+fn decode_node<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
-    context: &mut Context<App>,
+    context: &mut Context<J>,
     index: usize,
-    index_to_node: &mut HashMap<usize, Rc<CommitNode<App>>>,
+    index_to_node: &mut HashMap<usize, Rc<CommitNode<J>>>,
     index_dag: &mut IndexDag,
     fresh_witness: bool,
 ) -> Result<(), Error> {
@@ -166,7 +166,7 @@ fn decode_node<I: Iterator<Item = u8>, App: Application>(
             index_dag.push((None, None));
 
             match maybe_code {
-                None => CommitNode::jet(context, App::decode_jet(bits)?),
+                None => CommitNode::jet(context, J::decode(bits)?),
                 Some(2) => match subcode {
                     0 => CommitNode::iden(context),
                     1 => CommitNode::unit(context),
@@ -198,11 +198,11 @@ fn decode_node<I: Iterator<Item = u8>, App: Application>(
 /// Return the child node at the given index from a hash map.
 ///
 /// A fresh witness node is returned as child if witness nodes should be made fresh.
-fn get_child_from_index<App: Application>(
-    context: &mut Context<App>,
+fn get_child_from_index<J: Jet>(
+    context: &mut Context<J>,
     index: usize,
-    index_to_node: &HashMap<usize, Rc<CommitNode<App>>>,
-) -> Rc<CommitNode<App>> {
+    index_to_node: &HashMap<usize, Rc<CommitNode<J>>>,
+) -> Rc<CommitNode<J>> {
     match index_to_node.get(&index) {
         Some(child) => child.clone(),
         // Absence of child means that child is a skipped witness node

@@ -17,7 +17,7 @@
 use crate::core::redeem::{RedeemNodeInner, RefWrapper};
 use crate::core::types::Type;
 use crate::core::Value;
-use crate::jet::Application;
+use crate::jet::Jet;
 use crate::Error;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
@@ -138,36 +138,36 @@ impl<D: DagIterable> Iterator for PostOrderIter<D> {
 }
 
 /// Convenience macro for wrappers of references to structures over
-/// `<App: Application>`.
+/// `<J: Jet>`.
 ///
 /// Implements `Clone`, `Copy`, `Eq` and `Hash` using pointers.
 /// Implements [`DagIterable`] using `self.0.get_left()` and `self.0.get_right()`.
 #[macro_export]
 macro_rules! impl_ref_wrapper {
     ($wrapper:ident) => {
-        impl<'a, App: Application> Clone for $wrapper<'a, App> {
+        impl<'a, J: Jet> Clone for $wrapper<'a, J> {
             fn clone(&self) -> Self {
                 $wrapper(&(self.0).clone())
             }
         }
 
-        impl<'a, App: Application> Copy for $wrapper<'a, App> {}
+        impl<'a, J: Jet> Copy for $wrapper<'a, J> {}
 
-        impl<'a, App: Application> PartialEq for $wrapper<'a, App> {
+        impl<'a, J: Jet> PartialEq for $wrapper<'a, J> {
             fn eq(&self, other: &Self) -> bool {
                 std::ptr::eq(self.0, other.0)
             }
         }
 
-        impl<'a, App: Application> Eq for $wrapper<'a, App> {}
+        impl<'a, J: Jet> Eq for $wrapper<'a, J> {}
 
-        impl<'a, App: Application> std::hash::Hash for $wrapper<'a, App> {
+        impl<'a, J: Jet> std::hash::Hash for $wrapper<'a, J> {
             fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
                 std::ptr::hash(self.0, state)
             }
         }
 
-        impl<'a, App: Application> $crate::core::iter::DagIterable for $wrapper<'a, App> {
+        impl<'a, J: Jet> $crate::core::iter::DagIterable for $wrapper<'a, J> {
             fn root(self) -> Option<Self> {
                 Some(self)
             }
@@ -185,9 +185,9 @@ macro_rules! impl_ref_wrapper {
 
 /// Convert the given iterator over [`RefWrapper`]s
 /// into an iterator over the contained `Witness` values.
-pub fn into_witness<'a, App: Application, I>(iter: I) -> impl Iterator<Item = &'a Value> + Clone
+pub fn into_witness<'a, J: Jet + 'a, I>(iter: I) -> impl Iterator<Item = &'a Value> + Clone
 where
-    I: Iterator<Item = RefWrapper<'a, App>> + Clone,
+    I: Iterator<Item = RefWrapper<'a, J>> + Clone,
 {
     iter.filter_map(|node| {
         if let RedeemNodeInner::Witness(value) = &node.0.inner {

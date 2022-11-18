@@ -23,7 +23,7 @@ use crate::bitwriter::BitWriter;
 use crate::core::iter::{DagIterable, PostOrderIter};
 use crate::core::redeem::{RedeemNodeInner, RefWrapper};
 use crate::core::Value;
-use crate::jet::Application;
+use crate::jet::Jet;
 use crate::sharing;
 use std::collections::HashMap;
 use std::{io, mem};
@@ -31,8 +31,8 @@ use std::{io, mem};
 /// Encode a Simplicity program to bits, without witness data.
 ///
 /// Returns the number of written bits.
-pub fn encode_program<W: io::Write, App: Application>(
-    program: PostOrderIter<RefWrapper<App>>,
+pub fn encode_program<W: io::Write, J: Jet>(
+    program: PostOrderIter<RefWrapper<J>>,
     w: &mut BitWriter<W>,
 ) -> io::Result<usize> {
     let (node_to_index, len) = sharing::compute_maximal_sharing(program.clone());
@@ -54,10 +54,10 @@ pub fn encode_program<W: io::Write, App: Application>(
 }
 
 /// Encode a node to bits.
-fn encode_node<W: io::Write, App: Application>(
-    node: RefWrapper<App>,
+fn encode_node<W: io::Write, J: Jet>(
+    node: RefWrapper<J>,
     index: usize,
-    node_to_index: &HashMap<RefWrapper<App>, usize>,
+    node_to_index: &HashMap<RefWrapper<J>, usize>,
     w: &mut BitWriter<W>,
 ) -> io::Result<()> {
     if let Some(left) = node.get_left() {
@@ -130,7 +130,8 @@ fn encode_node<W: io::Write, App: Application>(
                 w.write_bits_be(7, 4)?;
             }
             RedeemNodeInner::Jet(jet) => {
-                App::encode_jet(jet, w)?;
+                w.write_bit(true)?;
+                jet.encode(w)?;
             }
             _ => unreachable!(),
         }
