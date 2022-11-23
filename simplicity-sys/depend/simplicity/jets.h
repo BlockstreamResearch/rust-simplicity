@@ -21,14 +21,34 @@ typedef struct txEnv txEnv;
  */
 typedef bool (*jet_ptr)(frameItem* dst, frameItem src, const txEnv* env);
 
+bool verify(frameItem* dst, frameItem src, const txEnv* env);
+bool low_32(frameItem* dst, frameItem src, const txEnv* env);
+bool one_32(frameItem* dst, frameItem src, const txEnv* env);
+bool eq_32(frameItem* dst, frameItem src, const txEnv* env);
+bool eq_256(frameItem* dst, frameItem src, const txEnv* env);
 bool add_32(frameItem* dst, frameItem src, const txEnv* env);
 bool full_add_32(frameItem* dst, frameItem src, const txEnv* env);
 bool subtract_32(frameItem* dst, frameItem src, const txEnv* env);
 bool full_subtract_32(frameItem* dst, frameItem src, const txEnv* env);
 bool multiply_32(frameItem* dst, frameItem src, const txEnv* env);
 bool full_multiply_32(frameItem* dst, frameItem src, const txEnv* env);
+bool le_32(frameItem* dst, frameItem src, const txEnv* env);
 
+bool sha_256_iv(frameItem* dst, frameItem src, const txEnv* env);
 bool sha_256_block(frameItem* dst, frameItem src, const txEnv* env);
+bool sha_256_ctx_8_init(frameItem* dst, frameItem src, const txEnv* env);
+bool sha_256_ctx_8_add_1(frameItem* dst, frameItem src, const txEnv* env);
+bool sha_256_ctx_8_add_2(frameItem* dst, frameItem src, const txEnv* env);
+bool sha_256_ctx_8_add_4(frameItem* dst, frameItem src, const txEnv* env);
+bool sha_256_ctx_8_add_8(frameItem* dst, frameItem src, const txEnv* env);
+bool sha_256_ctx_8_add_16(frameItem* dst, frameItem src, const txEnv* env);
+bool sha_256_ctx_8_add_32(frameItem* dst, frameItem src, const txEnv* env);
+bool sha_256_ctx_8_add_64(frameItem* dst, frameItem src, const txEnv* env);
+bool sha_256_ctx_8_add_128(frameItem* dst, frameItem src, const txEnv* env);
+bool sha_256_ctx_8_add_256(frameItem* dst, frameItem src, const txEnv* env);
+bool sha_256_ctx_8_add_512(frameItem* dst, frameItem src, const txEnv* env);
+bool sha_256_ctx_8_add_buffer_511(frameItem* dst, frameItem src, const txEnv* env);
+bool sha_256_ctx_8_finalize(frameItem* dst, frameItem src, const txEnv* env);
 
 bool fe_normalize(frameItem* dst, frameItem src, const txEnv* env);
 bool fe_negate(frameItem* dst, frameItem src, const txEnv* env);
@@ -68,6 +88,11 @@ bool linear_combination_1(frameItem* dst, frameItem src, const txEnv* env);
 bool linear_verify_1(frameItem* dst, frameItem src, const txEnv* env);
 bool decompress(frameItem* dst, frameItem src, const txEnv* env);
 bool point_verify_1(frameItem* dst, frameItem src, const txEnv* env);
+
+bool check_sig_verify(frameItem* dst, frameItem src, const txEnv* env);
 bool bip_0340_verify(frameItem* dst, frameItem src, const txEnv* env);
+
+bool parse_lock(frameItem* dst, frameItem src, const txEnv* env);
+bool parse_sequence(frameItem* dst, frameItem src, const txEnv* env);
 
 #endif

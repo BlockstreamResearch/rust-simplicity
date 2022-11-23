@@ -47,7 +47,7 @@ typedef struct confidential {
  * When 'prefix' is either 'EVEN_Y' or 'ODD_Y' then 'confidential' contains the x-coordinate of the point on the secp256k1 curve
  * representing the blinded value.
  * When 'prefix' is 'EXPLICIT' then 'explicit' is the unblinded 256-bit hash.
- * When 'prefix' is 'NONE' the value is "NULL" and the 'confidential' and 'explicit' fields are unused.
+ * invariant: 'prefix' != 'NONE'
  */
 typedef struct confAmount {
   union {
@@ -151,7 +151,7 @@ typedef enum issuanceType {
  * 'tokenRangeProofHash' is the SHA-256 hash of the token amount's range proof.
  *
  * Invariant: If 'type == NEW_ISSUANCE' then 'contractHash' and 'tokenAmt' are active;
- *            If 'type == REISSUANCE' then 'entropy' and 'blindingNonce' are active;
+ *            If 'type == REISSUANCE' then 'blindingNonce' is active;
  */
 typedef struct assetIssuance {
   union {
@@ -160,51 +160,85 @@ typedef struct assetIssuance {
       confAmount tokenAmt;
     };
     struct {
-      sha256_midstate entropy;
       sha256_midstate blindingNonce;
     };
   };
+  sha256_midstate entropy;
   sha256_midstate assetRangeProofHash;
   sha256_midstate tokenRangeProofHash;
+  sha256_midstate assetId; /* Cached asset ID calculation. */
+  sha256_midstate tokenId; /* Cached token ID calculation. */
   confAmount assetAmt;
   issuanceType type;
 } assetIssuance;
 
 /* A structure representing data from one input from an Elements transaction along with the utxo data of the output being redeemed.
- * When 'isPegin' then the 'prevOutpoint' represents an outpoint of another chain.
+ * When 'hasAnnex' then 'annexHash' is a cache of the hash of the input's segwit annex.
+ * When 'isPegin' then the 'prevOutpoint' represents an outpoint of another chain
+ * and 'pegin' contains the hash of the parent chain's genesis block.
  */
 typedef struct sigInput {
+  sha256_midstate annexHash;
+  sha256_midstate pegin;
+  sha256_midstate scriptSigHash;
   outpoint prevOutpoint;
   utxo txo;
   uint_fast32_t sequence;
   assetIssuance issuance;
+  bool hasAnnex;
   bool isPegin;
 } sigInput;
 
 /* A structure representing data from an Elements transaction (along with the utxo data of the outputs being redeemed).
- * 'inputsHash' and 'outputsHash' are a cache of the hash of the input and output data respectively.
+ * Includes a variety of cached hash values that are used in signature hash jets.
  */
 typedef struct transaction {
   const sigInput* input;
   const sigOutput* output;
-  sha256_midstate inputsHash;
+  sha256_midstate outputAssetAmountsHash;
+  sha256_midstate outputNoncesHash;
+  sha256_midstate outputScriptsHash;
+  sha256_midstate outputRangeProofsHash;
+  sha256_midstate outputSurjectionProofsHash;
   sha256_midstate outputsHash;
+  sha256_midstate inputOutpointsHash;
+  sha256_midstate inputAssetAmountsHash;
+  sha256_midstate inputScriptsHash;
+  sha256_midstate inputUTXOsHash;
+  sha256_midstate inputSequencesHash;
+  sha256_midstate inputAnnexesHash;
+  sha256_midstate inputScriptSigsHash;
+  sha256_midstate inputsHash;
+  sha256_midstate issuanceAssetAmountsHash;
+  sha256_midstate issuanceTokenAmountsHash;
+  sha256_midstate issuanceRangeProofsHash;
+  sha256_midstate issuanceBlindingEntropyHash;
+  sha256_midstate issuancesHash;
+  sha256_midstate txHash;
   uint_fast32_t numInputs;
   uint_fast32_t numOutputs;
   uint_fast32_t version;
   uint_fast32_t lockTime;
+  /* lockDuration and lockDistance values are set even when the version is 0 or 1.
+   * This is similar to lockTime whose value is also set, even when the transaction is final.
+   */
+  uint_fast16_t lockDistance;
+  uint_fast16_t lockDuration; /* Units of 512 seconds */
+  bool isFinal;
 } transaction;
 
 /* A structure representing taproot spending data from an Elements transaction.
- * 'annexHash' is a cache of the hash of the annex.
  *
  * Invariant: branchLen <= 128
  *            sha256_midstate branch[branchLen];
  */
 typedef struct tapEnv {
-  const sha256_midstate *annexHash;
   const sha256_midstate *branch;
+  sha256_midstate tapLeafHash;
+  sha256_midstate tapbranchHash;
+  sha256_midstate tapEnvHash;
   sha256_midstate internalKey;
+  sha256_midstate scriptCMR;
   unsigned char branchLen;
   unsigned char leafVersion;
 } tapEnv;
@@ -214,13 +248,24 @@ typedef struct tapEnv {
  * It includes
  * + the transaction data, which may be shared when Simplicity expressions are used for multiple inputs in the same transaction),
  * + the input index under consideration,
- * + and the commitment Merkle root of the Simplicity expression being executed.
+ * + the hash of the genesis block for the chain,
  */
 typedef struct txEnv {
   const transaction* tx;
   const tapEnv* taproot;
-  const uint32_t* scriptCMR;
+  sha256_midstate genesisHash;
+  sha256_midstate sigAllHash;
   uint_fast32_t ix;
 } txEnv;
+
+/* Contstruct a txEnv structure from its components.
+ * This function will precompute any cached values.
+ *
+ * Precondition: NULL != tx
+ *               NULL != taproot
+ *               NULL != genesisHash
+ *               ix < tx->numInputs
+ */
+txEnv build_txEnv(const transaction* tx, const tapEnv* taproot, const sha256_midstate* genesisHash, uint_fast32_t ix);
 
 #endif
