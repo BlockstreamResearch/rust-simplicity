@@ -17,6 +17,7 @@ fn main() {
         "type.c",
         "typeInference.c",
         "primitive/elements/env.c",
+        "primitive/elements/ops.c",
         "primitive/elements/exec.c",
         "primitive/elements/jets.c",
         "primitive/elements/primitive.c",
@@ -37,8 +38,11 @@ fn main() {
     let include = simplicity_path.join("include");
 
     cc::Build::new()
+        .flag_if_supported("-fno-inline-functions")
         .files(files)
         .files(test_files)
+        .file(Path::new("depend/wrapper.c"))
+        .file(Path::new("depend/env.c"))
         .include(include)
-        .compile("simplicity");
+        .compile("simplicity.a");
 }

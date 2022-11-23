@@ -9,7 +9,6 @@
 #include "../../tag.h"
 #include "../../unreachable.h"
 
-#define PRIMITIVE_TAG(s) SIMPLICITY_PREFIX "\x1F" "Primitive\x1F" "Elements\x1F" s
 #define JET_TAG SIMPLICITY_PREFIX "\x1F" "Jet"
 
 /* An enumeration of all the types we need to construct to specify the input and output types of all jets created by 'decodeJet'. */
@@ -56,13 +55,6 @@ typedef enum jetName
   NUMBER_OF_JET_NAMES
 } jetName;
 
-static int32_t either(jetName* result, jetName a, jetName b, bitstream* stream) {
-  int32_t bit = getBit(stream);
-  if (bit < 0) return bit;
-  *result = bit ? b : a;
-  return 0;
-}
-
 /* Decode an Elements specific jet name from 'stream' into 'result'.
  * All jets begin with a bit prefix of '1' which needs to have already been consumed from the 'stream'.
  * Returns 'SIMPLICITY_ERR_DATA_OUT_OF_RANGE' if the stream's prefix doesn't match any valid code for a jet.
@@ -78,47 +70,7 @@ static int32_t decodePrimitive(jetName* result, bitstream* stream) {
   int32_t bit = getBit(stream);
   if (bit < 0) return bit;
   if (!bit) {
-    int32_t code = getNBits(5, stream);
-    if (code < 0) return code;
-
-    switch (code) {
-     case 0x0: return either(result, VERSION, LOCK_TIME, stream);
-     case 0x1: *result = INPUT_IS_PEGIN; return 0;
-     case 0x2: return either(result, INPUT_PREV_OUTPOINT, INPUT_ASSET, stream);
-     case 0x3: *result = INPUT_AMOUNT; return 0;
-     case 0x4: return either(result, INPUT_SCRIPT_HASH, INPUT_SEQUENCE, stream);
-     case 0x5: *result = INPUT_ISSUANCE_BLINDING; return 0;
-     case 0x6: return either(result, INPUT_ISSUANCE_CONTRACT, INPUT_ISSUANCE_ENTROPY, stream);
-     case 0x7: *result = INPUT_ISSUANCE_ASSET_AMT; return 0;
-     case 0x8: return either(result, INPUT_ISSUANCE_TOKEN_AMT, INPUT_ISSUANCE_ASSET_PROOF, stream);
-     case 0x9: *result = INPUT_ISSUANCE_TOKEN_PROOF; return 0;
-     case 0xa: return either(result, OUTPUT_ASSET, OUTPUT_AMOUNT, stream);
-     case 0xb: *result = OUTPUT_NONCE; return 0;
-     case 0xc: return either(result, OUTPUT_SCRIPT_HASH, OUTPUT_NULL_DATUM, stream);
-     case 0xd: *result = OUTPUT_SURJECTION_PROOF; return 0;
-     case 0xe: *result = OUTPUT_RANGE_PROOF; return 0;
-     case 0xf: *result = SCRIPT_CMR; return 0;
-     case 0x10: return either(result, CURRENT_INDEX, CURRENT_IS_PEGIN, stream);
-     case 0x11: *result = CURRENT_PREV_OUTPOINT; return 0;
-     case 0x12: return either(result, CURRENT_ASSET, CURRENT_AMOUNT, stream);
-     case 0x13: *result = CURRENT_SCRIPT_HASH; return 0;
-     case 0x14: return either(result, CURRENT_SEQUENCE, CURRENT_ISSUANCE_BLINDING, stream);
-     case 0x15: *result = CURRENT_ISSUANCE_CONTRACT; return 0;
-     case 0x16: return either(result, CURRENT_ISSUANCE_ENTROPY, CURRENT_ISSUANCE_ASSET_AMT, stream);
-     case 0x17: *result = CURRENT_ISSUANCE_TOKEN_AMT; return 0;
-     case 0x18: return either(result, CURRENT_ISSUANCE_ASSET_PROOF, CURRENT_ISSUANCE_TOKEN_PROOF, stream);
-     case 0x19: *result = TAPLEAF_VERSION; return 0;
-     case 0x1a: return either(result, TAPBRANCH, INTERNAL_KEY,stream);
-     case 0x1b: *result = ANNEX_HASH; return 0;
-     case 0x1c: return either(result, INPUTS_HASH, OUTPUTS_HASH, stream);
-     case 0x1d: *result = NUM_INPUTS; return 0;
-     case 0x1e: *result = NUM_OUTPUTS; return 0;
-     case 0x1f:
-      /* FEE is not yet implemented.  Disable it. */
-      *result = FEE; return SIMPLICITY_ERR_DATA_OUT_OF_RANGE;
-    }
-    assert(false);
-    UNREACHABLE;
+    return SIMPLICITY_ERR_DATA_OUT_OF_RANGE;
   } else {
     bit = getBit(stream);
     if (bit < 0) return bit;
@@ -128,11 +80,41 @@ static int32_t decodePrimitive(jetName* result, bitstream* stream) {
       if (code < 0) return code;
 
       switch (code) {
+       case 1: /* Word jets chapter */
+        code = decodeUptoMaxInt(stream);
+        if (code < 0) return code;
+        switch (code) {
+         case 1: /* Verify */
+          *result = VERIFY; return 0;
+         case 2: /* Low */
+          code = decodeUptoMaxInt(stream);
+          if (code < 0) return code;
+          switch (code) {
+           case 5: *result = LOW_32; return 0;
+          }
+          break;
+         case 13: /* Eq */
+          code = decodeUptoMaxInt(stream);
+          if (code < 0) return code;
+          switch (code) {
+           case 5: *result = EQ_32; return 0;
+           case 8: *result = EQ_256; return 0;
+          }
+          break;
+        }
+        break;
        case 2: /* Arith jets chapter */
         code = decodeUptoMaxInt(stream);
         if (code < 0) return code;
 
         switch (code) {
+         case 1: /* One */
+          code = decodeUptoMaxInt(stream);
+          if (code < 0) return code;
+          switch (code) {
+           case 5: *result = ONE_32; return 0;
+          }
+          break;
          case 2: /* FullAdd */
           code = decodeUptoMaxInt(stream);
           if (code < 0) return code;
@@ -175,6 +157,13 @@ static int32_t decodePrimitive(jetName* result, bitstream* stream) {
            case 5: *result = MULTIPLY_32; return 0;
           }
           break;
+         case 16: /* Le */
+          code = decodeUptoMaxInt(stream);
+          if (code < 0) return code;
+          switch (code) {
+           case 5: *result = LE_32; return 0;
+          }
+          break;
         }
         break;
        case 3: /* Hash jets chapter */
@@ -186,6 +175,26 @@ static int32_t decodePrimitive(jetName* result, bitstream* stream) {
           if (code < 0) return code;
           switch (code) {
            case 1: *result = SHA_256_BLOCK; return 0;
+           case 2: *result = SHA_256_IV; return 0;
+           case 3: /* SHA-256-CTX-8-ADD-n subsection */
+             code = decodeUptoMaxInt(stream);
+             if (code < 0) return code;
+             switch (code) {
+               case 1: *result = SHA_256_CTX_8_ADD_1; return 0;
+               case 2: *result = SHA_256_CTX_8_ADD_2; return 0;
+               case 3: *result = SHA_256_CTX_8_ADD_4; return 0;
+               case 4: *result = SHA_256_CTX_8_ADD_8; return 0;
+               case 5: *result = SHA_256_CTX_8_ADD_16; return 0;
+               case 6: *result = SHA_256_CTX_8_ADD_32; return 0;
+               case 7: *result = SHA_256_CTX_8_ADD_64; return 0;
+               case 8: *result = SHA_256_CTX_8_ADD_128; return 0;
+               case 9: *result = SHA_256_CTX_8_ADD_256; return 0;
+               case 10: *result = SHA_256_CTX_8_ADD_512; return 0;
+             }
+             break;
+           case 4: *result = SHA_256_CTX_8_ADD_BUFFER_511; return 0;
+           case 5: *result = SHA_256_CTX_8_FINALIZE; return 0;
+           case 6: *result = SHA_256_CTX_8_INIT; return 0;
           }
           break;
         }
@@ -258,14 +267,145 @@ static int32_t decodePrimitive(jetName* result, bitstream* stream) {
         code = decodeUptoMaxInt(stream);
         if (code < 0) return code;
         switch (code) {
-         case 1: *result = BIP_0340_VERIFY; return 0;
+         case 1: *result = CHECK_SIG_VERIFY; return 0;
+         case 2: *result = BIP_0340_VERIFY; return 0;
+        }
+        break;
+       case 7: /* Bitcoin jets chapter */
+        code = decodeUptoMaxInt(stream);
+        if (code < 0) return code;
+        switch (code) {
+         case 1: *result = PARSE_LOCK; return 0;
+         case 2: *result = PARSE_SEQUENCE; return 0;
         }
         break;
       }
       return SIMPLICITY_ERR_DATA_OUT_OF_RANGE;
-
     } else {
-      /* Elements specific jets go here */
+      /* Elements jets */
+      int32_t code = decodeUptoMaxInt(stream);
+      if (code < 0) return code;
+      switch (code) {
+       case 1: /* SigHash jets chapter */
+        code = decodeUptoMaxInt(stream);
+        if (code < 0) return code;
+        switch (code) {
+         case 1: *result = SIG_ALL_HASH; return 0;
+         case 2: *result = TX_HASH; return 0;
+         case 3: *result = TAP_ENV_HASH; return 0;
+         case 4: *result = INPUTS_HASH; return 0;
+         case 5: *result = OUTPUTS_HASH; return 0;
+         case 6: *result = ISSUANCES_HASH; return 0;
+         case 7: *result = INPUT_UTXOS_HASH; return 0;
+         case 8: *result = OUTPUT_AMOUNTS_HASH; return 0;
+         case 9: *result = OUTPUT_SCRIPTS_HASH; return 0;
+         case 10: *result = OUTPUT_NONCES_HASH; return 0;
+         case 11: *result = OUTPUT_RANGE_PROOFS_HASH; return 0;
+         case 12: *result = OUTPUT_SURJECTION_PROOFS_HASH; return 0;
+         case 13: *result = INPUT_OUTPOINTS_HASH; return 0;
+         case 14: *result = INPUT_SEQUENCES_HASH; return 0;
+         case 15: *result = INPUT_ANNEXES_HASH; return 0;
+         case 16: *result = INPUT_SCRIPT_SIGS_HASH; return 0;
+         case 17: *result = ISSUANCE_ASSET_AMOUNTS_HASH; return 0;
+         case 18: *result = ISSUANCE_TOKEN_AMOUNTS_HASH; return 0;
+         case 19: *result = ISSUANCE_RANGE_PROOFS_HASH; return 0;
+         case 20: *result = ISSUANCE_BLINDING_ENTROPY_HASH; return 0;
+         case 21: *result = INPUT_AMOUNTS_HASH; return 0;
+         case 22: *result = INPUT_SCRIPTS_HASH; return 0;
+         case 23: *result = TAPLEAF_HASH; return 0;
+         case 24: *result = TAPBRANCH_HASH; return 0;
+         case 25: *result = OUTPOINT_HASH; return 0;
+         case 26: *result = ASSET_AMOUNT_HASH; return 0;
+         case 27: *result = NONCE_HASH; return 0;
+         case 28: *result = ANNEX_HASH; return 0;
+         case 29: *result = BUILD_TAPLEAF_SIMPLICITY; return 0;
+         case 30: *result = BUILD_TAPBRANCH; return 0;
+        }
+        break;
+       case 2: /* Timelock jets chapter */
+        code = decodeUptoMaxInt(stream);
+        if (code < 0) return code;
+        switch (code) {
+         case 1: *result = CHECK_LOCK_HEIGHT; return 0;
+         case 2: *result = CHECK_LOCK_TIME; return 0;
+         case 3: *result = CHECK_LOCK_DISTANCE; return 0;
+         case 4: *result = CHECK_LOCK_DURATION; return 0;
+         case 5: *result = TX_LOCK_HEIGHT; return 0;
+         case 6: *result = TX_LOCK_TIME; return 0;
+         case 7: *result = TX_LOCK_DISTANCE; return 0;
+         case 8: *result = TX_LOCK_DURATION; return 0;
+         case 9: *result = TX_IS_FINAL; return 0;
+        }
+        break;
+       case 3: /* Issuance jets chapter */
+        code = decodeUptoMaxInt(stream);
+        if (code < 0) return code;
+        switch (code) {
+         case 1: *result = ISSUANCE; return 0;
+         case 2: *result = ISSUANCE_ASSET; return 0;
+         case 3: *result = ISSUANCE_TOKEN; return 0;
+         case 4: *result = ISSUANCE_ENTROPY; return 0;
+         case 5: *result = CALCULATE_ISSUANCE_ENTROPY; return 0;
+         case 6: *result = CALCULATE_ASSET; return 0;
+         case 7: *result = CALCULATE_EXPLICIT_TOKEN; return 0;
+         case 8: *result = CALCULATE_CONFIDENTIAL_TOKEN; return 0;
+        }
+        break;
+       case 4: /* Transaction jets chapter */
+        code = decodeUptoMaxInt(stream);
+        if (code < 0) return code;
+        switch (code) {
+         case 1: *result = SCRIPT_CMR; return 0;
+         case 2: *result = INTERNAL_KEY; return 0;
+         case 3: *result = CURRENT_INDEX; return 0;
+         case 4: *result = NUM_INPUTS; return 0;
+         case 5: *result = NUM_OUTPUTS; return 0;
+         case 6: *result = LOCK_TIME; return 0;
+         case 7: *result = OUTPUT_ASSET; return 0;
+         case 8: *result = OUTPUT_AMOUNT; return 0;
+         case 9: *result = OUTPUT_NONCE; return 0;
+         case 10: *result = OUTPUT_SCRIPT_HASH; return 0;
+         case 11: *result = OUTPUT_NULL_DATUM; return 0;
+         case 12: *result = OUTPUT_SURJECTION_PROOF; return 0;
+         case 13: *result = OUTPUT_RANGE_PROOF; return 0;
+         /* case 14: *result = TOTAL_FEE; return 0; */
+         case 15: *result = CURRENT_PEGIN; return 0;
+         case 16: *result = CURRENT_PREV_OUTPOINT; return 0;
+         case 17: *result = CURRENT_ASSET; return 0;
+         case 18: *result = CURRENT_AMOUNT; return 0;
+         case 19: *result = CURRENT_SCRIPT_HASH; return 0;
+         case 20: *result = CURRENT_SEQUENCE; return 0;
+         case 21: *result = CURRENT_ANNEX_HASH; return 0;
+         case 22: *result = CURRENT_SCRIPT_SIG_HASH; return 0;
+         case 23: *result = CURRENT_REISSUANCE_BLINDING; return 0;
+         case 24: *result = CURRENT_NEW_ISSUANCE_CONTRACT; return 0;
+         case 25: *result = CURRENT_REISSUANCE_ENTROPY; return 0;
+         case 26: *result = CURRENT_ISSUANCE_ASSET_AMOUNT; return 0;
+         case 27: *result = CURRENT_ISSUANCE_TOKEN_AMOUNT; return 0;
+         case 28: *result = CURRENT_ISSUANCE_ASSET_PROOF; return 0;
+         case 29: *result = CURRENT_ISSUANCE_TOKEN_PROOF; return 0;
+         case 30: *result = INPUT_PEGIN; return 0;
+         case 31: *result = INPUT_PREV_OUTPOINT; return 0;
+         case 32: *result = INPUT_ASSET; return 0;
+         case 33: *result = INPUT_AMOUNT; return 0;
+         case 34: *result = INPUT_SCRIPT_HASH; return 0;
+         case 35: *result = INPUT_SEQUENCE; return 0;
+         case 36: *result = INPUT_ANNEX_HASH; return 0;
+         case 37: *result = INPUT_SCRIPT_SIG_HASH; return 0;
+         case 38: *result = REISSUANCE_BLINDING; return 0;
+         case 39: *result = NEW_ISSUANCE_CONTRACT; return 0;
+         case 40: *result = REISSUANCE_ENTROPY; return 0;
+         case 41: *result = ISSUANCE_ASSET_AMOUNT; return 0;
+         case 42: *result = ISSUANCE_TOKEN_AMOUNT; return 0;
+         case 43: *result = ISSUANCE_ASSET_PROOF; return 0;
+         case 44: *result = ISSUANCE_TOKEN_PROOF; return 0;
+         case 45: *result = TAPLEAF_VERSION; return 0;
+         case 46: *result = TAPBRANCH; return 0;
+         case 47: *result = VERSION; return 0;
+         case 48: *result = GENESIS_BLOCK_HASH; return 0;
+        }
+        break;
+      }
       return SIMPLICITY_ERR_DATA_OUT_OF_RANGE;
     }
   }
@@ -281,7 +421,7 @@ static dag_node jet_node[] = {
 static void static_initialize(void) {
   {
     sha256_midstate jet_iv;
-    MK_TAG(&jet_iv, JET_TAG);
+    MK_TAG(jet_iv.s, JET_TAG);
 
 #define MK_JET(name, h0, h1, h2, h3, h4, h5, h6, h7) \
   do { \
@@ -294,7 +434,6 @@ static void static_initialize(void) {
 #undef MK_JET
 
   }
-#include "primitiveInitPrim.inc"
 }
 
 /* Return a copy of the Simplicity node corresponding to the given Elements specific jet 'name'.

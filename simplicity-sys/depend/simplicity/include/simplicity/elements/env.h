@@ -34,9 +34,11 @@ typedef struct rawOutput {
   rawBuffer rangeProof;
 } rawOutput;
 
-/* A structure representing data for one input from an Elements transaction, plus the TXO data of the output being redeemed.
+/* A structure representing data for one input from an Elements transaction, plus the TXO data of the output being redeemed,
+ * plus all the segwit annexes.
  *
  * Invariant: unsigned char prevTxid[32];
+ *            unsigned char pegin[32] or pegin == NULL;
  *            unsigned char issuance.blindingNonce[32] or (issuance.amount == NULL and issuance.inflationKeys == NULL);
  *            unsigned char issuance.assetEntropy[32] or (issuance.amount == NULL and issuance.inflationKeys == NULL);
  *            unsigned char issuance.amount[issuance.amount[0] == 1 ? 9 : 33] or issuance.amount == NULL;
@@ -45,7 +47,9 @@ typedef struct rawOutput {
  *            unsigned char txo.value[txo.value[0] == 1 ? 9 : 33] or txo.value == NULL;
  */
 typedef struct rawInput {
+  const rawBuffer* annex;
   const unsigned char* prevTxid;
+  const unsigned char* pegin;
   struct {
     const unsigned char* blindingNonce;
     const unsigned char* assetEntropy;
@@ -59,9 +63,9 @@ typedef struct rawInput {
     const unsigned char* value;
     rawBuffer scriptPubKey;
   } txo;
+  rawBuffer scriptSig;
   uint32_t prevIx;
   uint32_t sequence;
-  bool isPegin;
 } rawInput;
 
 /* A structure representing data for an Elements transaction, including the TXO data of each output being redeemed.
@@ -88,14 +92,14 @@ typedef struct transaction transaction;
  */
 extern transaction* elements_simplicity_mallocTransaction(const rawTransaction* rawTx);
 
-/* A structure representing taproot spending data for an Elements transaction, including the taproot annex.
+/* A structure representing taproot spending data for an Elements transaction.
  *
  * Invariant: branchLen <= 128;
  *            unsigned char controlBlock[33+branchLen*32];
  */
 typedef struct rawTapEnv {
-  const rawBuffer* annex;
   const unsigned char* controlBlock;
+  const unsigned char* scriptCMR;
   unsigned char branchLen;
 } rawTapEnv;
 
