@@ -43,6 +43,8 @@ fn main() {
         .flag_if_supported("-fno-inline-functions")
         .files(files)
         .files(test_files)
+        .file(Path::new("depend/wrapper.c"))
+        .file(Path::new("depend/env.c"))
         .include(include)
         .compile("simplicity.a");
 }
