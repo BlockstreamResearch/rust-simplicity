@@ -23,6 +23,7 @@ use crate::core::redeem::RedeemNodeInner;
 use crate::core::types::TypeInner;
 use crate::core::{RedeemNode, Value};
 use crate::jet::{Jet, JetFailed};
+use crate::merkle::cmr::Cmr;
 use crate::{analysis, decode};
 use std::fmt;
 use std::{cmp, error};
@@ -409,9 +410,13 @@ impl BitMachine {
                     }
                 }
                 RedeemNodeInner::Witness(value) => self.write_value(value),
-                RedeemNodeInner::Hidden(..) => return Err(ExecutionError::ReachedPrunedBranch),
+                RedeemNodeInner::Hidden(hash) => {
+                    return Err(ExecutionError::ReachedPrunedBranch(*hash))
+                }
                 RedeemNodeInner::Jet(jet) => jet.exec()(self, env)?,
-                RedeemNodeInner::Fail(..) => return Err(ExecutionError::ReachedFailNode),
+                RedeemNodeInner::Fail(left, right) => {
+                    return Err(ExecutionError::ReachedFailNode(*left, *right))
+                }
             }
 
             ip = loop {
@@ -447,9 +452,9 @@ impl BitMachine {
 #[derive(Debug)]
 pub enum ExecutionError {
     /// Reached a fail node
-    ReachedFailNode,
+    ReachedFailNode(Cmr, Cmr),
     /// Reached a pruned branch
-    ReachedPrunedBranch,
+    ReachedPrunedBranch(Cmr),
     /// Jet failed during execution
     JetFailed(JetFailed),
 }
@@ -457,8 +462,12 @@ pub enum ExecutionError {
 impl fmt::Display for ExecutionError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ExecutionError::ReachedFailNode => f.write_str("Execution reached a fail node"),
-            ExecutionError::ReachedPrunedBranch => f.write_str("Execution reached a pruned branch"),
+            ExecutionError::ReachedFailNode(left, right) => {
+                write!(f, "Execution reached a fail node: {} {}", left, right)
+            }
+            ExecutionError::ReachedPrunedBranch(hash) => {
+                write!(f, "Execution reached a pruned branch: {}", hash)
+            }
             ExecutionError::JetFailed(jet_failed) => fmt::Display::fmt(jet_failed, f),
         }
     }

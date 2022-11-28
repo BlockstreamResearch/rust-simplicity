@@ -25,7 +25,7 @@ use bitcoin_hashes::sha256::Midstate;
 
 /// Commitment Merkle root
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Cmr(pub(crate) Midstate);
+pub struct Cmr(pub Midstate);
 
 impl_midstate_wrapper!(Cmr);
 

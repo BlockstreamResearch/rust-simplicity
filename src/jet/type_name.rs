@@ -39,7 +39,7 @@ use crate::core::types::{RcVar, Variable};
 /// | `h`  | 256-bit word |
 ///
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct TypeName(pub(crate) &'static [u8]);
+pub struct TypeName(pub &'static [u8]);
 
 impl TypeName {
     // b'1' = 49

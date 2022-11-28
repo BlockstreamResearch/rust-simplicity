@@ -495,18 +495,15 @@ impl<J: Jet> CommitNode<J> {
     }
 
     /// Create a DAG that asserts that its child returns `true`, and fails otherwise.
+    /// The `hash` identifies the assertion and is returned upon failure.
     ///
     /// _Overall type: A → 1 where `child`: A → 2_
     ///
     /// _Type inference will fail if children are not of the correct type._
-    pub fn assert(context: &mut Context<J>, child: Rc<Self>) -> Result<Rc<Self>, Error> {
-        let fail_zeroes_cmr = Cmr::from([
-            177, 133, 253, 158, 70, 96, 76, 160, 2, 45, 209, 68, 83, 153, 159, 186, 164, 51, 151,
-            174, 72, 121, 107, 12, 64, 35, 186, 249, 151, 31, 21, 102,
-        ]);
+    pub fn assert(context: &mut Context<J>, child: Rc<Self>, hash: Cmr) -> Result<Rc<Self>, Error> {
         let unit = Self::unit(context)?;
         let pair_child_unit = Self::pair(context, child, unit)?;
-        let hidden = Self::hidden(context, fail_zeroes_cmr)?;
+        let hidden = Self::hidden(context, hash)?;
         let unit = Self::unit(context)?;
         let assertr_hidden_unit = Self::assertr(context, hidden, unit)?;
 
@@ -522,11 +519,11 @@ impl<J: Jet> CommitNode<J> {
     pub fn not(context: &mut Context<J>, child: Rc<Self>) -> Result<Rc<Self>, Error> {
         let unit = Self::unit(context)?;
         let pair_child_unit = Self::pair(context, child, unit)?;
-        let bit_false = Self::bit_false(context)?;
         let bit_true = Self::bit_true(context)?;
-        let cond_false_true = Self::cond(context, bit_false, bit_true)?;
+        let bit_false = Self::bit_false(context)?;
+        let case_true_false = Self::case(context, bit_true, bit_false)?;
 
-        Self::comp(context, pair_child_unit, cond_false_true)
+        Self::comp(context, pair_child_unit, case_true_false)
     }
 
     /// Create a DAG that computes Boolean _AND_ of the `left` and `right` child.
@@ -542,9 +539,10 @@ impl<J: Jet> CommitNode<J> {
         let iden = Self::iden(context)?;
         let pair_left_iden = Self::pair(context, left, iden)?;
         let bit_false = Self::bit_false(context)?;
-        let cond_right_false = Self::cond(context, right, bit_false)?;
+        let drop_right = Self::drop(context, right)?;
+        let case_false_right = Self::case(context, bit_false, drop_right)?;
 
-        Self::comp(context, pair_left_iden, cond_right_false)
+        Self::comp(context, pair_left_iden, case_false_right)
     }
 
     /// Create a DAG that computes Boolean _OR_ of the `left` and `right`.
@@ -559,10 +557,11 @@ impl<J: Jet> CommitNode<J> {
     ) -> Result<Rc<Self>, Error> {
         let iden = Self::iden(context)?;
         let pair_left_iden = Self::pair(context, left, iden)?;
+        let drop_right = Self::drop(context, right)?;
         let bit_true = Self::bit_true(context)?;
-        let cond_true_right = Self::cond(context, bit_true, right)?;
+        let case_right_true = Self::case(context, drop_right, bit_true)?;
 
-        Self::comp(context, pair_left_iden, cond_true_right)
+        Self::comp(context, pair_left_iden, case_right_true)
     }
 
     /// Return the left child of the node, if there is such a child.

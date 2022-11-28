@@ -241,9 +241,9 @@ pub(crate) fn get_arrow<J: Jet>(
                         "Cannot fail",
                     )?;
                     unify(
-                        arrow.source.clone(),
+                        left_arrow.source.clone(),
                         right_arrow.source.clone(),
-                        "Cannot fail",
+                        "Pair: Left source = Right source",
                     )?;
                     bind(
                         &arrow.target,
@@ -251,7 +251,7 @@ pub(crate) fn get_arrow<J: Jet>(
                             left_arrow.target.clone(),
                             right_arrow.target.clone(),
                         ),
-                        "Pair: Left source = right source",
+                        "Cannot fail",
                     )?;
                 }
                 CommitNodeInner::Disconnect(_, _) => {
@@ -268,6 +268,8 @@ pub(crate) fn get_arrow<J: Jet>(
 
                     unify(arrow.source.clone(), a, "Cannot fail")?;
                     unify(arrow.target.clone(), prod_b_d, "Cannot fail")?;
+                    unify(right_arrow.source.clone(), c, "Cannot fail")?;
+                    unify(right_arrow.target.clone(), d, "Cannot fail")?;
 
                     unify(
                         left_arrow.source.clone(),
@@ -279,8 +281,6 @@ pub(crate) fn get_arrow<J: Jet>(
                         prod_b_c,
                         "Disconnect: Left target = B × C",
                     )?;
-                    unify(right_arrow.source.clone(), c, "Cannot fail")?;
-                    unify(right_arrow.target.clone(), d, "Cannot fail")?;
                 }
                 _ => unreachable!(),
             }
