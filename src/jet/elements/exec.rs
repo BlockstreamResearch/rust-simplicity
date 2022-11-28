@@ -101,8 +101,8 @@ pub(crate) fn input_script_hash(mac: &mut BitMachine, env: &ElementsEnv) -> Resu
     mac.write_bit(is_valid_idx);
 
     if is_valid_idx {
-        let script_pubkey = env.utxos[idx].script_pubkey;
-        mac.write_bytes(&script_pubkey);
+        let script_pubkey = &env.utxos[idx].script_pubkey;
+        mac.write_bytes(script_pubkey.as_bytes());
     } else {
         // 256 bits for hash.
         mac.skip(256);
@@ -340,7 +340,7 @@ pub(crate) fn current_script_hash(
     let curr_idx = env.ix as usize;
     let curr_utxo = &env.utxos[curr_idx];
     // TODO: cache these while creating utxo
-    mac.write_bytes(&curr_utxo.script_pubkey);
+    mac.write_bytes(&curr_utxo.script_pubkey.as_bytes());
     Ok(())
 }
 

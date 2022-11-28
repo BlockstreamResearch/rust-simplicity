@@ -55,7 +55,7 @@ impl BitMachine {
     }
 
     /// Push a new frame of given size onto the write frame stack
-    fn new_frame(&mut self, len: usize) {
+    pub(crate) fn new_frame(&mut self, len: usize) {
         debug_assert!(
             self.next_frame_start + len <= self.data.len() * 8,
             "Data out of bounds: number of cells"
@@ -70,14 +70,14 @@ impl BitMachine {
     }
 
     /// Move the active write frame to the read frame stack
-    fn move_frame(&mut self) {
+    pub(crate) fn move_frame(&mut self) {
         let mut _active_write_frame = self.write.pop().unwrap();
         _active_write_frame.reset_cursor();
         self.read.push(_active_write_frame);
     }
 
     /// Drop the active read frame
-    fn drop_frame(&mut self) {
+    pub(crate) fn drop_frame(&mut self) {
         let active_read_frame = self.read.pop().unwrap();
         self.next_frame_start -= active_read_frame.len;
         assert_eq!(self.next_frame_start, active_read_frame.start);
@@ -243,7 +243,7 @@ impl BitMachine {
     }
 
     /// Write a value to the current write frame
-    fn write_value(&mut self, val: &Value) {
+    pub(crate) fn write_value(&mut self, val: &Value) {
         // FIXME don't recurse
         match *val {
             Value::Unit => {}
@@ -413,7 +413,7 @@ impl BitMachine {
                 RedeemNodeInner::Hidden(hash) => {
                     return Err(ExecutionError::ReachedPrunedBranch(*hash))
                 }
-                RedeemNodeInner::Jet(jet) => jet.exec()(self, env)?,
+                RedeemNodeInner::Jet(jet) => jet.exec(self, env)?,
                 RedeemNodeInner::Fail(left, right) => {
                     return Err(ExecutionError::ReachedFailNode(*left, *right))
                 }
@@ -478,5 +478,17 @@ impl error::Error for ExecutionError {}
 impl From<JetFailed> for ExecutionError {
     fn from(jet_failed: JetFailed) -> Self {
         ExecutionError::JetFailed(jet_failed)
+    }
+}
+
+#[cfg(test)]
+impl BitMachine {
+    /// Push a new frame of given size onto the write frame stack
+    /// without checking any assertions on IO. This is really handy when
+    /// we want to construct a BitMachine for testing purposes.
+    /// DO NOT USE THIS WITH REAL PROGRAMS. IT WILL FAIL.
+    pub(crate) fn new_frame_unchecked(&mut self, len: usize) {
+        self.write.push(Frame::new(self.next_frame_start, len));
+        self.next_frame_start += len;
     }
 }
