@@ -12,17 +12,27 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
+mod c_env;
 mod environment;
+#[allow(dead_code)]
 mod exec;
 #[cfg(test)]
 mod tests;
 
 use crate::jet::Elements;
 pub use environment::{ElementsEnv, ElementsUtxo};
-pub(crate) use exec::*;
+use simplicity_sys::c_jets::c_env::CTxEnv;
+
+use super::JetEnvironment;
 
 impl std::fmt::Display for Elements {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         std::fmt::Debug::fmt(self, f)
+    }
+}
+
+impl JetEnvironment for ElementsEnv {
+    fn c_tx_env(&self) -> Option<&CTxEnv> {
+        Some(ElementsEnv::c_tx_env(&self))
     }
 }

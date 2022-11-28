@@ -101,8 +101,8 @@ pub(crate) fn input_script_hash(mac: &mut BitMachine, env: &ElementsEnv) -> Resu
     mac.write_bit(is_valid_idx);
 
     if is_valid_idx {
-        let script_pubkey = env.utxos[idx].script_pubkey;
-        mac.write_bytes(&script_pubkey);
+        let script_pubkey = &env.utxos[idx].script_pubkey;
+        mac.write_bytes(script_pubkey.as_bytes());
     } else {
         // 256 bits for hash.
         mac.skip(256);
@@ -340,7 +340,7 @@ pub(crate) fn current_script_hash(
     let curr_idx = env.ix as usize;
     let curr_utxo = &env.utxos[curr_idx];
     // TODO: cache these while creating utxo
-    mac.write_bytes(&curr_utxo.script_pubkey);
+    mac.write_bytes(&curr_utxo.script_pubkey.as_bytes());
     Ok(())
 }
 
@@ -419,19 +419,19 @@ pub(crate) fn current_issuance_token_amount(
     }
 }
 
-pub(crate) fn inputs_hash(mac: &mut BitMachine, env: &ElementsEnv) -> Result<(), JetFailed> {
-    /*
-    inputHash(l) :=
-    BE256(LE[prevOutpoint.txid]),LE32(prevOutpoint.vout),LE32(sequence),encIssuance(l[issuance])
-    */
-    mac.write_bytes(&env.inputs_hash);
-    Ok(())
-}
+// pub(crate) fn inputs_hash(mac: &mut BitMachine, env: &ElementsEnv) -> Result<(), JetFailed> {
+//     /*
+//     inputHash(l) :=
+//     BE256(LE[prevOutpoint.txid]),LE32(prevOutpoint.vout),LE32(sequence),encIssuance(l[issuance])
+//     */
+//     mac.write_bytes(&env.inputs_hash);
+//     Ok(())
+// }
 
-pub(crate) fn outputs_hash(mac: &mut BitMachine, env: &ElementsEnv) -> Result<(), JetFailed> {
-    mac.write_bytes(&env.outputs_hash);
-    Ok(())
-}
+// pub(crate) fn outputs_hash(mac: &mut BitMachine, env: &ElementsEnv) -> Result<(), JetFailed> {
+//     mac.write_bytes(&env.outputs_hash);
+//     Ok(())
+// }
 
 pub(crate) fn num_inputs(mac: &mut BitMachine, env: &ElementsEnv) -> Result<(), JetFailed> {
     mac.write_u32(env.tx.input.len() as u32);
