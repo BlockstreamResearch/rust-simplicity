@@ -3,6 +3,8 @@ extern crate cc;
 use std::path::Path;
 
 fn main() {
+    // rerun if changes to the C code
+    println!("cargo:rerun-if-changed=depend");
     let simplicity_path = Path::new("depend/simplicity");
     let files: Vec<_> = vec![
         "bitstream.c",
