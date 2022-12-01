@@ -11,9 +11,9 @@ use elements::{
 };
 use simplicity_sys::c_jets::c_env::{
     c_set_rawInput, c_set_rawOutput, c_set_rawTapEnv, c_set_rawTransaction, c_set_txEnv,
-    elements_simplicity_mallocTapEnv, elements_simplicity_mallocTransaction, CRawBuffer, CRawInput,
-    CRawInputData, CRawOutput, CRawOutputData, CRawTapEnv, CRawTransaction, CRawTransactionData,
-    CTapEnv, CTransaction, CTxEnv,
+    elements_simplicity_mallocTapEnv, elements_simplicity_mallocTransaction, CElementsTxEnv,
+    CRawBuffer, CRawInput, CRawInputData, CRawOutput, CRawOutputData, CRawTapEnv, CRawTransaction,
+    CRawTransactionData, CTapEnv, CTransaction,
 };
 
 use crate::merkle::cmr::Cmr;
@@ -151,9 +151,9 @@ pub(super) fn new_tx_env(
     taproot: *const CTapEnv,
     genesis_hash: elements::BlockHash,
     ix: u32,
-) -> CTxEnv {
+) -> CElementsTxEnv {
     let res = unsafe {
-        let mut tx_env = std::mem::MaybeUninit::<CTxEnv>::uninit();
+        let mut tx_env = std::mem::MaybeUninit::<CElementsTxEnv>::uninit();
         c_set_txEnv(tx_env.as_mut_ptr(), tx, taproot, genesis_hash.as_ptr(), ix);
         tx_env.assume_init()
     };

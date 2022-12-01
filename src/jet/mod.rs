@@ -37,9 +37,9 @@ pub use init::bitcoin::Bitcoin;
 pub use init::core::Core;
 #[cfg(feature = "elements")]
 pub use init::elements::Elements;
-use simplicity_sys::c_jets::c_env::CTxEnv;
 use simplicity_sys::c_jets::c_frame::ffi_bytes_size;
 use simplicity_sys::c_jets::frame_ffi::{c_readBit, c_writeBit, CFrameItem};
+use simplicity_sys::c_jets::CTxEnv;
 
 use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
@@ -100,7 +100,7 @@ pub trait Jet: Copy + Eq + Ord + Hash + std::fmt::Debug + std::fmt::Display {
     fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Self, Error>;
 
     /// Obtain the FFI C pointer for the jet.
-    fn c_jet_ptr(&self) -> &'static dyn Fn(&mut CFrameItem, CFrameItem, *const CTxEnv) -> bool;
+    fn c_jet_ptr(&self) -> &'static dyn Fn(&mut CFrameItem, CFrameItem, &CTxEnv) -> bool;
 
     /// Execute the jet on the Bit Machine, using the given environment.
     fn exec(&self, mac: &mut BitMachine, env: &Self::Environment) -> Result<(), JetFailed> {
@@ -139,10 +139,8 @@ pub trait Jet: Copy + Eq + Ord + Hash + std::fmt::Debug + std::fmt::Display {
         let mut dst_frame = CFrameItem::new_write(target_ty.bit_width, dst_ptr_end);
         let jet_fn = self.c_jet_ptr();
         let c_env = env.c_tx_env();
-        let res = match c_env {
-            Some(env) => jet_fn(&mut dst_frame, src_frame, env),
-            None => jet_fn(&mut dst_frame, src_frame, std::ptr::null()),
-        };
+        let res = jet_fn(&mut dst_frame, src_frame, &c_env);
+
         if !res {
             return Err(JetFailed);
         }
@@ -159,8 +157,8 @@ pub trait Jet: Copy + Eq + Ord + Hash + std::fmt::Debug + std::fmt::Display {
 }
 
 pub trait JetEnvironment {
-    fn c_tx_env(&self) -> Option<&CTxEnv> {
-        None
+    fn c_tx_env(&self) -> CTxEnv {
+        CTxEnv::Null
     }
 }
 

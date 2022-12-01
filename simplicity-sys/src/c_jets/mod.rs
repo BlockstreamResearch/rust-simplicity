@@ -10,7 +10,7 @@ pub mod frame_ffi;
 pub mod jets_ffi;
 pub mod jets_wrapper;
 
-pub use c_env::{CTapEnv, CTransaction, CTxEnv};
+pub use c_env::{CElementsTxEnv, CTapEnv, CTransaction};
 pub use c_frame::{ffi_bytes_size, round_u_word};
 pub use frame_ffi::CFrameItem;
 
@@ -38,9 +38,25 @@ pub fn sanity_checks() -> bool {
         if std::mem::size_of::<CRawTransaction>() != c_env::c_sizeof_rawTransaction {
             return false;
         }
-        if std::mem::size_of::<CTxEnv>() != c_env::c_sizeof_txEnv {
+        if std::mem::size_of::<CElementsTxEnv>() != c_env::c_sizeof_txEnv {
             return false;
         }
     }
     true
+}
+
+#[derive(Debug)]
+pub enum CTxEnv<'a> {
+    Null,
+    ElementsTxEnv(&'a CElementsTxEnv),
+}
+
+impl CTxEnv<'_> {
+    /// Unwraps elements tx env
+    pub fn unwrap_elements_tx_env(&self) -> *const CElementsTxEnv {
+        match self {
+            CTxEnv::Null => panic!("ElementsEnv must not be null"),
+            CTxEnv::ElementsTxEnv(env) => *env,
+        }
+    }
 }

@@ -20,7 +20,7 @@ use byteorder::{BigEndian, LittleEndian, WriteBytesExt};
 use elements::confidential::{Asset, Nonce, Value};
 use elements::taproot::ControlBlock;
 use elements::{confidential, AssetIssuance, BlockHash};
-use simplicity_sys::c_jets::c_env::CTxEnv;
+use simplicity_sys::c_jets::c_env::CElementsTxEnv;
 use std::sync::Arc;
 
 use super::c_env;
@@ -53,7 +53,7 @@ pub struct ElementsUtxo {
 // an Arc: we'd have a lifetime parameter <'a> that would cause us trouble.
 pub struct ElementsEnv {
     /// The CTxEnv struct
-    pub(super) c_tx_env: CTxEnv,
+    pub(super) c_tx_env: CElementsTxEnv,
     /// The elements transaction
     pub(super) tx: Arc<elements::Transaction>,
     /// The input utxo information corresponding to outpoint being spent.
@@ -96,7 +96,7 @@ impl ElementsEnv {
     }
 
     /// Obtains the FFI compatible CTxEnv from self
-    pub fn c_tx_env(&self) -> &CTxEnv {
+    pub fn c_tx_env(&self) -> &CElementsTxEnv {
         &self.c_tx_env
     }
 

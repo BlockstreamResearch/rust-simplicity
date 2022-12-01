@@ -9,7 +9,7 @@ use crate::merkle::cmr::Cmr;
 use crate::{decode_bits, Error};
 use bitcoin_hashes::sha256::Midstate;
 use simplicity_sys::c_jets::frame_ffi::CFrameItem;
-use simplicity_sys::CTxEnv;
+use simplicity_sys::c_jets::CTxEnv;
 use std::io::Write;
 
 /// Bitcoin jet family
@@ -379,7 +379,7 @@ impl Jet for Bitcoin {
         })
     }
 
-    fn c_jet_ptr(&self) -> &'static dyn Fn(&mut CFrameItem, CFrameItem, *const CTxEnv) -> bool {
+    fn c_jet_ptr(&self) -> &'static dyn Fn(&mut CFrameItem, CFrameItem, &CTxEnv) -> bool {
         // TODO: Figure out How to do bitcoin jets here?
         unimplemented!("Undefined bitcoin jets")
     }

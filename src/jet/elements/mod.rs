@@ -21,7 +21,7 @@ mod tests;
 
 use crate::jet::Elements;
 pub use environment::{ElementsEnv, ElementsUtxo};
-use simplicity_sys::c_jets::c_env::CTxEnv;
+use simplicity_sys::c_jets::CTxEnv;
 
 use super::JetEnvironment;
 
@@ -32,7 +32,7 @@ impl std::fmt::Display for Elements {
 }
 
 impl JetEnvironment for ElementsEnv {
-    fn c_tx_env(&self) -> Option<&CTxEnv> {
-        Some(ElementsEnv::c_tx_env(&self))
+    fn c_tx_env(&self) -> CTxEnv {
+        CTxEnv::ElementsTxEnv(self.c_tx_env())
     }
 }

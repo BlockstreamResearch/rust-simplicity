@@ -114,7 +114,7 @@ pub struct CSha256 {
 
 #[derive(Debug)]
 #[repr(C)]
-pub struct CTxEnv {
+pub struct CElementsTxEnv {
     tx: *const CTransaction,
     taproot: *const CTapEnv,
     genesis_hash: CSha256,
@@ -179,7 +179,7 @@ extern "C" {
         scriptCMR: *const c_uchar,
     );
     pub fn c_set_txEnv(
-        result: *mut CTxEnv,
+        result: *mut CElementsTxEnv,
         tx: *const CTransaction,
         taproot: *const CTapEnv,
         genesisHash: *const c_uchar,
@@ -194,7 +194,7 @@ extern "C" {
 }
 
 // Pointer must be manually free after dropping
-impl Drop for CTxEnv {
+impl Drop for CElementsTxEnv {
     fn drop(&mut self) {
         unsafe {
             c_free_transaction(self.tx as *mut CTransaction);
@@ -227,7 +227,7 @@ mod tests {
             assert_eq!(size_of::<CRawInput>(), c_sizeof_rawInput);
             assert_eq!(size_of::<CRawOutput>(), c_sizeof_rawOutput);
             assert_eq!(size_of::<CRawTransaction>(), c_sizeof_rawTransaction);
-            assert_eq!(size_of::<CTxEnv>(), c_sizeof_txEnv);
+            assert_eq!(size_of::<CElementsTxEnv>(), c_sizeof_txEnv);
         }
     }
 }

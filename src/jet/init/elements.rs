@@ -8,7 +8,8 @@ use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::{decode_bits, Error};
 use bitcoin_hashes::sha256::Midstate;
-use simplicity_sys::{CFrameItem, CTxEnv};
+use simplicity_sys::c_jets::CTxEnv;
+use simplicity_sys::CFrameItem;
 use std::io::Write;
 
 /// Elements jet family
@@ -633,7 +634,7 @@ impl Jet for Elements {
         })
     }
 
-    fn c_jet_ptr(&self) -> &'static dyn Fn(&mut CFrameItem, CFrameItem, *const CTxEnv) -> bool {
+    fn c_jet_ptr(&self) -> &'static dyn Fn(&mut CFrameItem, CFrameItem, &CTxEnv) -> bool {
         match self {
             Elements::Version => unimplemented!(),
             Elements::LockTime => &simplicity_sys::c_jets::jets_wrapper::lock_time,
