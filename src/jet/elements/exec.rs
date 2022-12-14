@@ -340,7 +340,7 @@ pub(crate) fn current_script_hash(
     let curr_idx = env.ix as usize;
     let curr_utxo = &env.utxos[curr_idx];
     // TODO: cache these while creating utxo
-    mac.write_bytes(&curr_utxo.script_pubkey.as_bytes());
+    mac.write_bytes(curr_utxo.script_pubkey.as_bytes());
     Ok(())
 }
 

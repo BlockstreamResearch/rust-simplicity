@@ -69,7 +69,7 @@ impl Jet for Elements {
     type CJetEnvironment = CElementsTxEnv;
 
     fn c_jet_env<'env>(&self, env: &'env Self::Environment) -> &'env Self::CJetEnvironment {
-        &env.c_tx_env()
+        env.c_tx_env()
     }
 
     fn cmr(&self) -> Cmr {

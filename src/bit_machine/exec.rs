@@ -274,9 +274,9 @@ impl BitMachine {
     /// Execute the given program on the Bit Machine, using the given environment.
     ///
     /// Make sure the Bit Machine has enough space by constructing it via [`Self::for_program()`].
-    pub fn exec<'a, J: Jet + std::fmt::Debug>(
+    pub fn exec<J: Jet + std::fmt::Debug>(
         &mut self,
-        program: &'a RedeemNode<J>,
+        program: &RedeemNode<J>,
         env: &J::Environment,
     ) -> Result<Value, ExecutionError> {
         // Rust cannot use `J` from parent function

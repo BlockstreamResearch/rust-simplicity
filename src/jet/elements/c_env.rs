@@ -152,12 +152,11 @@ pub(super) fn new_tx_env(
     genesis_hash: elements::BlockHash,
     ix: u32,
 ) -> CElementsTxEnv {
-    let res = unsafe {
+    unsafe {
         let mut tx_env = std::mem::MaybeUninit::<CElementsTxEnv>::uninit();
         c_set_txEnv(tx_env.as_mut_ptr(), tx, taproot, genesis_hash.as_ptr(), ix);
         tx_env.assume_init()
-    };
-    res
+    }
 }
 
 fn asset_ptr(asset: confidential::Asset, data: &[u8]) -> *const c_uchar {
@@ -193,7 +192,7 @@ fn opt_ptr<T>(t: Option<&T>) -> *const T {
 }
 
 fn script_ptr(script: &elements::Script) -> CRawBuffer {
-    CRawBuffer::new(&script.as_bytes())
+    CRawBuffer::new(script.as_bytes())
 }
 
 fn annex_ptr(annex: &Option<Vec<c_uchar>>) -> Option<CRawBuffer> {
@@ -201,20 +200,23 @@ fn annex_ptr(annex: &Option<Vec<c_uchar>>) -> Option<CRawBuffer> {
 }
 
 fn surjection_proof_ptr(surjection_proof: &[c_uchar]) -> CRawBuffer {
-    CRawBuffer::new(&surjection_proof)
+    CRawBuffer::new(surjection_proof)
 }
 
 fn range_proof_ptr(rangeproof: &[c_uchar]) -> CRawBuffer {
-    CRawBuffer::new(&rangeproof)
+    CRawBuffer::new(rangeproof)
 }
 
 fn serialize_rangeproof(rangeproof: &Option<Box<RangeProof>>) -> Vec<c_uchar> {
-    rangeproof.as_ref().map(|x| x.serialize()).unwrap_or(vec![])
+    rangeproof
+        .as_ref()
+        .map(|x| x.serialize())
+        .unwrap_or_default()
 }
 
 fn serialize_surjection_proof(surjection_proof: &Option<Box<SurjectionProof>>) -> Vec<c_uchar> {
     surjection_proof
         .as_ref()
         .map(|x| x.serialize())
-        .unwrap_or(vec![])
+        .unwrap_or_default()
 }

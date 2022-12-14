@@ -156,7 +156,7 @@ pub trait Jet: Copy + Eq + Ord + Hash + std::fmt::Debug + std::fmt::Display {
         let mut dst_frame = unsafe { CFrameItem::new_write(target_ty.bit_width, dst_ptr_end) };
         let jet_fn = self.c_jet_ptr();
         let c_env = self.c_jet_env(env);
-        let res = jet_fn(&mut dst_frame, src_frame, &c_env);
+        let res = jet_fn(&mut dst_frame, src_frame, c_env);
 
         if !res {
             return Err(JetFailed);
