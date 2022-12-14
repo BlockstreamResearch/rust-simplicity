@@ -419,20 +419,6 @@ pub(crate) fn current_issuance_token_amount(
     }
 }
 
-pub(crate) fn inputs_hash(mac: &mut BitMachine, env: &ElementsEnv) -> Result<(), JetFailed> {
-    /*
-    inputHash(l) :=
-    BE256(LE[prevOutpoint.txid]),LE32(prevOutpoint.vout),LE32(sequence),encIssuance(l[issuance])
-    */
-    mac.write_bytes(&env.inputs_hash);
-    Ok(())
-}
-
-pub(crate) fn outputs_hash(mac: &mut BitMachine, env: &ElementsEnv) -> Result<(), JetFailed> {
-    mac.write_bytes(&env.outputs_hash);
-    Ok(())
-}
-
 pub(crate) fn num_inputs(mac: &mut BitMachine, env: &ElementsEnv) -> Result<(), JetFailed> {
     mac.write_u32(env.tx.input.len() as u32);
     Ok(())

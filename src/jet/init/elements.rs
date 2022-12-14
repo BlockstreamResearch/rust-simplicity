@@ -669,8 +669,8 @@ impl Jet for Elements {
             Elements::CurrentIssuanceTokenAmount => {
                 crate::jet::elements::current_issuance_token_amount
             }
-            Elements::InputsHash => crate::jet::elements::inputs_hash,
-            Elements::OutputsHash => crate::jet::elements::outputs_hash,
+            Elements::InputsHash => unimplemented!("Removed"),
+            Elements::OutputsHash => unimplemented!("Removed"),
             Elements::NumInputs => crate::jet::elements::num_inputs,
             Elements::NumOutputs => crate::jet::elements::num_outputs,
             Elements::Add32 => crate::jet::elements::add_32,
