@@ -14,6 +14,8 @@
 
 mod bitstream;
 mod bitstring;
+pub mod c_jets;
+pub use c_jets::{CElementsTxEnv, CFrameItem, CTapEnv, CTransaction};
 pub mod dag;
 pub mod error;
 pub mod test;
