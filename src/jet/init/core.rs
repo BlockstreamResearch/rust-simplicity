@@ -2,12 +2,12 @@
 
 use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
-use crate::exec::BitMachine;
 use crate::jet::type_name::TypeName;
-use crate::jet::{Jet, JetFailed};
+use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::{decode_bits, Error};
 use bitcoin_hashes::sha256::Midstate;
+use simplicity_sys::CFrameItem;
 use std::io::Write;
 
 /// Core jet family
@@ -29,6 +29,11 @@ pub enum Core {
 
 impl Jet for Core {
     type Environment = ();
+    type CJetEnvironment = ();
+
+    fn c_jet_env<'env>(&self, env: &'env Self::Environment) -> &'env Self::CJetEnvironment {
+        env
+    }
 
     fn cmr(&self) -> Cmr {
         let bytes = match self {
@@ -203,20 +208,22 @@ impl Jet for Core {
         })
     }
 
-    fn exec(&self) -> fn(&mut BitMachine, &Self::Environment) -> Result<(), JetFailed> {
+    fn c_jet_ptr(
+        &self,
+    ) -> &'static dyn Fn(&mut CFrameItem, CFrameItem, &Self::Environment) -> bool {
         match self {
-            Core::Add32 => crate::jet::core::add_32,
-            Core::FullAdd32 => crate::jet::core::full_add_32,
-            Core::Sub32 => crate::jet::core::sub_32,
-            Core::FullSub32 => crate::jet::core::full_sub_32,
-            Core::Mul32 => crate::jet::core::mul_32,
-            Core::FullMul32 => crate::jet::core::full_mul_32,
-            Core::Eq32Verify => crate::jet::core::eq_32_verify,
-            Core::Eq256Verify => crate::jet::core::eq_256_verify,
-            Core::Lt32Verify => crate::jet::core::lt_32_verify,
-            Core::Sha256 => crate::jet::core::sha256,
-            Core::Sha256Block => crate::jet::core::sha256_block,
-            Core::Bip0340Verify => unimplemented!("Unknown jet execution"),
+            Core::Add32 => &simplicity_sys::c_jets::jets_wrapper::add_32,
+            Core::FullAdd32 => todo!(),
+            Core::Sub32 => todo!(),
+            Core::FullSub32 => todo!(),
+            Core::Mul32 => todo!(),
+            Core::FullMul32 => todo!(),
+            Core::Eq32Verify => todo!(),
+            Core::Eq256Verify => todo!(),
+            Core::Lt32Verify => todo!(),
+            Core::Sha256 => todo!(),
+            Core::Sha256Block => todo!(),
+            Core::Bip0340Verify => todo!(),
         }
     }
 }

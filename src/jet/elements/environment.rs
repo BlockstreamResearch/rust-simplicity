@@ -18,15 +18,19 @@ use crate::merkle::cmr::Cmr;
 use bitcoin_hashes::{sha256, Hash, HashEngine};
 use byteorder::{BigEndian, LittleEndian, WriteBytesExt};
 use elements::confidential::{Asset, Nonce, Value};
-use elements::{confidential, AssetIssuance};
+use elements::taproot::ControlBlock;
+use elements::{confidential, AssetIssuance, BlockHash};
+use simplicity_sys::c_jets::c_env::CElementsTxEnv;
 use std::sync::Arc;
+
+use super::c_env;
 
 /// An Elements UTXO
 // This is not a complete TxOut as it does not contain the nonce that
 // is sent to the recipient.
 pub struct ElementsUtxo {
     /// The 'scriptpubkey' (hash of Simplicity program)
-    pub script_pubkey: sha256::Hash,
+    pub script_pubkey: elements::Script,
     /// The explicit or confidential asset
     pub asset: confidential::Asset,
     /// The explict or confidential value
@@ -48,6 +52,8 @@ pub struct ElementsUtxo {
 // Similar story if we tried to use a &'a elements::Transaction rather than
 // an Arc: we'd have a lifetime parameter <'a> that would cause us trouble.
 pub struct ElementsEnv {
+    /// The CTxEnv struct
+    pub(super) c_tx_env: CElementsTxEnv,
     /// The elements transaction
     pub(super) tx: Arc<elements::Transaction>,
     /// The input utxo information corresponding to outpoint being spent.
@@ -56,10 +62,12 @@ pub struct ElementsEnv {
     pub(super) ix: u32,
     /// Commitment merkle root of the script being executed
     pub(super) script_cmr: Cmr,
-    /// cached InputHash
-    pub(super) inputs_hash: sha256::Hash,
-    /// cached OutputHash
-    pub(super) outputs_hash: sha256::Hash,
+    /// Control block used to spend this leaf script
+    pub(super) control_block: ControlBlock,
+    /// Optional Annex.
+    pub(super) annex: Option<Vec<u8>>,
+    /// Genesis block hash
+    pub(super) genesis_hash: BlockHash,
 }
 
 impl ElementsEnv {
@@ -68,23 +76,43 @@ impl ElementsEnv {
         utxos: Vec<ElementsUtxo>,
         ix: u32,
         script_cmr: Cmr,
+        control_block: ControlBlock,
+        annex: Option<Vec<u8>>,
+        genesis_hash: BlockHash,
     ) -> Self {
-        let mut inp_eng = sha256::Hash::engine();
-        let mut output_eng = sha256::Hash::engine();
-
-        tx.input.simplicity_hash(&mut inp_eng);
-        tx.output.simplicity_hash(&mut output_eng);
-        let inputs_hash = sha256::Hash::from_engine(inp_eng);
-        let outputs_hash = sha256::Hash::from_engine(output_eng);
-
+        let c_tx = c_env::new_tx(&tx, &utxos);
+        let c_tap_env = c_env::new_tap_env(&control_block, script_cmr);
+        let c_tx_env = c_env::new_tx_env(c_tx, c_tap_env, genesis_hash, ix);
         ElementsEnv {
+            c_tx_env,
             tx,
             utxos,
             ix,
             script_cmr,
-            inputs_hash,
-            outputs_hash,
+            control_block,
+            annex,
+            genesis_hash,
         }
+    }
+
+    /// Obtains the FFI compatible CTxEnv from self
+    pub fn c_tx_env(&self) -> &CElementsTxEnv {
+        &self.c_tx_env
+    }
+
+    /// Returns a reference to the control block of this [`ElementsEnv`].
+    pub fn control_block(&self) -> &ControlBlock {
+        &self.control_block
+    }
+
+    /// Returns the annex of this [`ElementsEnv`].
+    pub fn annex(&self) -> Option<&Vec<u8>> {
+        self.annex.as_ref()
+    }
+
+    /// Returns the genesis hash of this [`ElementsEnv`].
+    pub fn genesis_hash(&self) -> BlockHash {
+        self.genesis_hash
     }
 }
 

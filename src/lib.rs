@@ -37,8 +37,8 @@ mod encode;
 mod inference;
 pub mod jet;
 pub mod merkle;
-#[cfg(feature = "bitcoin")]
-pub mod policy;
+// #[cfg(feature = "bitcoin")]
+// pub mod policy;
 mod sharing;
 #[cfg(test)]
 mod test_progs;
@@ -78,7 +78,7 @@ pub enum Error {
     RightChildNotHidden,
     /// Left child of right assertion must be hidden
     LeftChildNotHidden,
-    /// Bitstream ended early   
+    /// Bitstream ended early
     EndOfStream,
     /// Program must not be empty
     EmptyProgram,

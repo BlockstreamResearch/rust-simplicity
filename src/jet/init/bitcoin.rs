@@ -2,13 +2,13 @@
 
 use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
-use crate::exec::BitMachine;
 use crate::jet::bitcoin::BitcoinEnv;
 use crate::jet::type_name::TypeName;
-use crate::jet::{Jet, JetFailed};
+use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::{decode_bits, Error};
 use bitcoin_hashes::sha256::Midstate;
+use simplicity_sys::c_jets::frame_ffi::CFrameItem;
 use std::io::Write;
 
 /// Bitcoin jet family
@@ -49,6 +49,11 @@ pub enum Bitcoin {
 
 impl Jet for Bitcoin {
     type Environment = BitcoinEnv;
+    type CJetEnvironment = ();
+
+    fn c_jet_env<'env>(&self, _env: &'env Self::Environment) -> &'env Self::CJetEnvironment {
+        unimplemented!("Unspecified CJetEnvironment for Bitcoin jets")
+    }
 
     fn cmr(&self) -> Cmr {
         let bytes = match self {
@@ -378,39 +383,10 @@ impl Jet for Bitcoin {
         })
     }
 
-    fn exec(&self) -> fn(&mut BitMachine, &Self::Environment) -> Result<(), JetFailed> {
-        match self {
-            Bitcoin::Version => crate::jet::bitcoin::version,
-            Bitcoin::LockTime => crate::jet::bitcoin::lock_time,
-            Bitcoin::InputsHash => crate::jet::bitcoin::inputs_hash,
-            Bitcoin::OutputsHash => crate::jet::bitcoin::outputs_hash,
-            Bitcoin::CurrentValue => crate::jet::bitcoin::current_value,
-            Bitcoin::CurrentIndex => crate::jet::bitcoin::current_index,
-            Bitcoin::Add32 => crate::jet::bitcoin::add_32,
-            Bitcoin::FullAdd32 => crate::jet::bitcoin::full_add_32,
-            Bitcoin::Sub32 => crate::jet::bitcoin::sub_32,
-            Bitcoin::FullSub32 => crate::jet::bitcoin::full_sub_32,
-            Bitcoin::Mul32 => crate::jet::bitcoin::mul_32,
-            Bitcoin::FullMul32 => crate::jet::bitcoin::full_mul_32,
-            Bitcoin::Eq32Verify => crate::jet::bitcoin::eq_32_verify,
-            Bitcoin::Eq256Verify => crate::jet::bitcoin::eq_256_verify,
-            Bitcoin::Lt32Verify => crate::jet::bitcoin::lt_32_verify,
-            Bitcoin::Sha256 => crate::jet::bitcoin::sha256,
-            Bitcoin::Sha256Block => crate::jet::bitcoin::sha256_block,
-            Bitcoin::NumInputs
-            | Bitcoin::TotalInputValue
-            | Bitcoin::CurrentPrevOutpoint
-            | Bitcoin::CurrentSequence
-            | Bitcoin::InputPrevOutpoint
-            | Bitcoin::InputValue
-            | Bitcoin::InputSequence
-            | Bitcoin::NumOutputs
-            | Bitcoin::TotalOutputValue
-            | Bitcoin::OutputValue
-            | Bitcoin::OutputScriptHash
-            | Bitcoin::ScriptCMR
-            | Bitcoin::SighashAll
-            | Bitcoin::Bip0340Verify => unimplemented!("Undefined jet execution"),
-        }
+    fn c_jet_ptr(
+        &self,
+    ) -> &'static dyn Fn(&mut CFrameItem, CFrameItem, &Self::CJetEnvironment) -> bool {
+        // TODO: Figure out How to do bitcoin jets here?
+        unimplemented!("Undefined bitcoin jets")
     }
 }

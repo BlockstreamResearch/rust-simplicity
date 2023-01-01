@@ -2,13 +2,13 @@
 
 use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
-use crate::exec::BitMachine;
 use crate::jet::elements::ElementsEnv;
 use crate::jet::type_name::TypeName;
-use crate::jet::{Jet, JetFailed};
+use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::{decode_bits, Error};
 use bitcoin_hashes::sha256::Midstate;
+use simplicity_sys::{CElementsTxEnv, CFrameItem};
 use std::io::Write;
 
 /// Elements jet family
@@ -66,6 +66,11 @@ pub enum Elements {
 
 impl Jet for Elements {
     type Environment = ElementsEnv;
+    type CJetEnvironment = CElementsTxEnv;
+
+    fn c_jet_env<'env>(&self, env: &'env Self::Environment) -> &'env Self::CJetEnvironment {
+        env.c_tx_env()
+    }
 
     fn cmr(&self) -> Cmr {
         let bytes = match self {
@@ -633,60 +638,58 @@ impl Jet for Elements {
         })
     }
 
-    fn exec(&self) -> fn(&mut BitMachine, &Self::Environment) -> Result<(), JetFailed> {
+    fn c_jet_ptr(
+        &self,
+    ) -> &'static dyn Fn(&mut CFrameItem, CFrameItem, &Self::CJetEnvironment) -> bool {
         match self {
-            Elements::Version => crate::jet::elements::version,
-            Elements::LockTime => crate::jet::elements::lock_time,
-            Elements::InputIsPegin => crate::jet::elements::input_is_pegin,
-            Elements::InputPrevOutpoint => crate::jet::elements::input_prev_outpoint,
-            Elements::InputAsset => crate::jet::elements::input_asset,
-            Elements::InputAmount => crate::jet::elements::input_amount,
-            Elements::InputScriptHash => crate::jet::elements::input_script_hash,
-            Elements::InputSequence => crate::jet::elements::input_sequence,
-            Elements::InputIssuanceBlinding => crate::jet::elements::input_issuance_blinding,
-            Elements::InputIssuanceContract => crate::jet::elements::input_issuance_contract,
-            Elements::InputIssuanceEntropy => crate::jet::elements::input_issuance_entropy,
-            Elements::InputIssuanceAssetAmount => crate::jet::elements::input_issuance_asset_amount,
-            Elements::InputIssuanceTokenAmount => crate::jet::elements::input_issuance_token_amount,
-            Elements::OutputAsset => crate::jet::elements::output_asset,
-            Elements::OutputAmount => crate::jet::elements::output_amount,
-            Elements::OutputNonce => crate::jet::elements::output_nonce,
-            Elements::OutputScriptHash => crate::jet::elements::output_script_hash,
-            Elements::ScriptCmr => crate::jet::elements::script_cmr,
-            Elements::CurrentIndex => crate::jet::elements::current_index,
-            Elements::CurrentIsPegin => crate::jet::elements::current_is_pegin,
-            Elements::CurrentPrevOutpoint => crate::jet::elements::current_prev_outpoint,
-            Elements::CurrentAsset => crate::jet::elements::current_asset,
-            Elements::CurrentAmount => crate::jet::elements::current_amount,
-            Elements::CurrentScriptHash => crate::jet::elements::current_script_hash,
-            Elements::CurrentSequence => crate::jet::elements::current_sequence,
-            Elements::CurrentIssuanceBlinding => crate::jet::elements::current_issuance_blinding,
-            Elements::CurrentIssuanceContract => crate::jet::elements::current_issuance_contract,
-            Elements::CurrentIssuanceEntropy => crate::jet::elements::current_issuance_entropy,
-            Elements::CurrentIssuanceAssetAmount => {
-                crate::jet::elements::current_issuance_asset_amount
-            }
-            Elements::CurrentIssuanceTokenAmount => {
-                crate::jet::elements::current_issuance_token_amount
-            }
-            Elements::InputsHash => crate::jet::elements::inputs_hash,
-            Elements::OutputsHash => crate::jet::elements::outputs_hash,
-            Elements::NumInputs => crate::jet::elements::num_inputs,
-            Elements::NumOutputs => crate::jet::elements::num_outputs,
-            Elements::Add32 => crate::jet::elements::add_32,
-            Elements::FullAdd32 => crate::jet::elements::full_add_32,
-            Elements::Sub32 => crate::jet::elements::sub_32,
-            Elements::FullSub32 => crate::jet::elements::full_sub_32,
-            Elements::Mul32 => crate::jet::elements::mul_32,
-            Elements::FullMul32 => crate::jet::elements::full_mul_32,
-            Elements::Eq32Verify => crate::jet::elements::eq_32_verify,
-            Elements::Eq256Verify => crate::jet::elements::eq_256_verify,
-            Elements::Lt32Verify => crate::jet::elements::lt_32_verify,
-            Elements::Sha256 => crate::jet::elements::sha256,
-            Elements::Sha256Block => crate::jet::elements::sha256_block,
-            Elements::OutputNullDatum | Elements::Fee | Elements::Bip0340Verify => {
-                unimplemented!("Undefined jet execution")
-            }
+            Elements::Version => unimplemented!(),
+            Elements::LockTime => &simplicity_sys::c_jets::jets_wrapper::lock_time,
+            Elements::InputIsPegin => unimplemented!(),
+            Elements::InputPrevOutpoint => unimplemented!(),
+            Elements::InputAsset => unimplemented!(),
+            Elements::InputAmount => unimplemented!(),
+            Elements::InputScriptHash => unimplemented!(),
+            Elements::InputSequence => unimplemented!(),
+            Elements::InputIssuanceBlinding => unimplemented!(),
+            Elements::InputIssuanceContract => unimplemented!(),
+            Elements::InputIssuanceEntropy => unimplemented!(),
+            Elements::InputIssuanceAssetAmount => unimplemented!(),
+            Elements::InputIssuanceTokenAmount => unimplemented!(),
+            Elements::OutputAsset => unimplemented!(),
+            Elements::OutputAmount => unimplemented!(),
+            Elements::OutputNonce => unimplemented!(),
+            Elements::OutputScriptHash => unimplemented!(),
+            Elements::OutputNullDatum => unimplemented!(),
+            Elements::ScriptCmr => unimplemented!(),
+            Elements::CurrentIndex => unimplemented!(),
+            Elements::CurrentIsPegin => unimplemented!(),
+            Elements::CurrentPrevOutpoint => unimplemented!(),
+            Elements::CurrentAsset => unimplemented!(),
+            Elements::CurrentAmount => unimplemented!(),
+            Elements::CurrentScriptHash => unimplemented!(),
+            Elements::CurrentSequence => unimplemented!(),
+            Elements::CurrentIssuanceBlinding => unimplemented!(),
+            Elements::CurrentIssuanceContract => unimplemented!(),
+            Elements::CurrentIssuanceEntropy => unimplemented!(),
+            Elements::CurrentIssuanceAssetAmount => unimplemented!(),
+            Elements::CurrentIssuanceTokenAmount => unimplemented!(),
+            Elements::InputsHash => unimplemented!(),
+            Elements::OutputsHash => unimplemented!(),
+            Elements::NumInputs => unimplemented!(),
+            Elements::NumOutputs => unimplemented!(),
+            Elements::Fee => unimplemented!(),
+            Elements::Add32 => unimplemented!(),
+            Elements::FullAdd32 => unimplemented!(),
+            Elements::Sub32 => unimplemented!(),
+            Elements::FullSub32 => unimplemented!(),
+            Elements::Mul32 => unimplemented!(),
+            Elements::FullMul32 => unimplemented!(),
+            Elements::Eq32Verify => unimplemented!(),
+            Elements::Eq256Verify => unimplemented!(),
+            Elements::Lt32Verify => unimplemented!(),
+            Elements::Sha256 => unimplemented!(),
+            Elements::Sha256Block => unimplemented!(),
+            Elements::Bip0340Verify => unimplemented!(),
         }
     }
 }

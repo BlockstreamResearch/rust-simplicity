@@ -342,12 +342,12 @@ pub(crate) fn get_arrow<J: Jet>(
                 let pow2s = Variable::powers_of_two();
                 bind(
                     &arrow.source,
-                    jet.source_ty().to_type(&pow2s),
+                    jet.source_ty().to_variable_type(&pow2s),
                     "Cannot fail",
                 )?;
                 bind(
                     &arrow.target,
-                    jet.target_ty().to_type(&pow2s),
+                    jet.target_ty().to_variable_type(&pow2s),
                     "Cannot fail",
                 )?;
             }
