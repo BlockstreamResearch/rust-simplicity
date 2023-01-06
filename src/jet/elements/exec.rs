@@ -27,7 +27,7 @@ pub(crate) fn version(mac: &mut BitMachine, env: &ElementsEnv) -> Result<(), Jet
 }
 
 pub(crate) fn lock_time(mac: &mut BitMachine, env: &ElementsEnv) -> Result<(), JetFailed> {
-    mac.write_u32(env.tx.lock_time);
+    mac.write_u32(env.tx.lock_time.0);
     Ok(())
 }
 
@@ -118,7 +118,7 @@ pub(crate) fn input_sequence(mac: &mut BitMachine, env: &ElementsEnv) -> Result<
 
     if is_valid_idx {
         let seq = env.tx.input[idx].sequence;
-        mac.write_u32(seq);
+        mac.write_u32(seq.0);
     } else {
         // 32 bits for sequence.
         mac.skip(32);
@@ -347,7 +347,7 @@ pub(crate) fn current_script_hash(
 pub(crate) fn current_sequence(mac: &mut BitMachine, env: &ElementsEnv) -> Result<(), JetFailed> {
     let curr_idx = env.ix as usize;
     let curr_inp = &env.tx.input[curr_idx];
-    mac.write_u32(curr_inp.sequence);
+    mac.write_u32(curr_inp.sequence.0);
     Ok(())
 }
 
@@ -358,7 +358,7 @@ pub(crate) fn current_issuance_blinding(
     let curr_idx = env.ix as usize;
     let curr_inp = &env.tx.input[curr_idx];
 
-    if curr_inp.has_issuance {
+    if curr_inp.has_issuance() {
         blinding_issuance(mac, &curr_inp.asset_issuance);
         Ok(())
     } else {
@@ -373,7 +373,7 @@ pub(crate) fn current_issuance_contract(
     let curr_idx = env.ix as usize;
     let curr_inp = &env.tx.input[curr_idx];
 
-    if curr_inp.has_issuance {
+    if curr_inp.has_issuance() {
         contract_issuance(mac, &curr_inp.asset_issuance);
         Ok(())
     } else {
@@ -388,7 +388,7 @@ pub(crate) fn current_issuance_entropy(
     let curr_idx = env.ix as usize;
     let curr_inp = &env.tx.input[curr_idx];
 
-    if curr_inp.has_issuance {
+    if curr_inp.has_issuance() {
         entropy_issuance(mac, &curr_inp.asset_issuance);
         Ok(())
     } else {
@@ -412,7 +412,7 @@ pub(crate) fn current_issuance_token_amount(
     let curr_idx = env.ix as usize;
     let curr_inp = &env.tx.input[curr_idx];
 
-    if curr_inp.has_issuance {
+    if curr_inp.has_issuance() {
         inflation_amt_issuance(mac, &curr_inp.asset_issuance)
     } else {
         Err(JetFailed)

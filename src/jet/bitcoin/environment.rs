@@ -12,6 +12,8 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
+use bitcoin::PackedLockTime;
+
 /// Environment for Bitcoin Simplicity
 pub struct BitcoinEnv {
     pub tx: bitcoin::Transaction,
@@ -28,7 +30,7 @@ impl Default for BitcoinEnv {
         // FIXME: Review and check if the defaults make sense
         BitcoinEnv::new(bitcoin::Transaction {
             version: 2,
-            lock_time: 0,
+            lock_time: PackedLockTime::ZERO,
             input: vec![],
             output: vec![],
         })

@@ -43,24 +43,43 @@ fn new_raw_input(
 ) -> CRawInput {
     unsafe {
         let mut raw_input = std::mem::MaybeUninit::<CRawInput>::uninit();
+
+        let (issue_nonce_ptr, issue_entropy_ptr, issue_amt_ptr, issue_infl_key_ptr) =
+            if inp.has_issuance() {
+                (
+                    inp.asset_issuance.asset_blinding_nonce.as_ptr(),
+                    inp.asset_issuance.asset_entropy.as_ptr(),
+                    value_ptr(inp.asset_issuance.amount, &inp_data.issuance_amount),
+                    value_ptr(
+                        inp.asset_issuance.inflation_keys,
+                        &inp_data.issuance_inflation_keys,
+                    ),
+                )
+            } else {
+                (
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                    std::ptr::null(),
+                )
+            };
         c_set_rawInput(
             raw_input.as_mut_ptr(),
-            opt_ptr(annex_ptr(&inp_data.annex).as_ref()), // FIXME: ACTUALLY STORE ANNEX
-            std::ptr::null(),                             // FIXME: ACTUALLY STORE PEGIN
+            opt_ptr(annex_ptr(&inp_data.annex).as_ref()),
+            inp.pegin_data()
+                .map(|x| x.genesis_hash.as_ptr())
+                .unwrap_or(std::ptr::null()),
             &script_ptr(&inp.script_sig),
             inp.previous_output.txid.as_ptr(),
             inp.previous_output.vout as c_uint,
             asset_ptr(in_utxo.asset, &inp_data.asset),
             value_ptr(in_utxo.value, &inp_data.value),
             &script_ptr(&in_utxo.script_pubkey),
-            inp.sequence as c_uint,
-            inp.asset_issuance.asset_blinding_nonce.as_ptr(), // FIXME: CHECK ASSET ISSUANCE IS NOT NULL. EASIER WITH NEW ELEMENTS VERSION.
-            inp.asset_issuance.asset_entropy.as_ptr(),
-            value_ptr(inp.asset_issuance.amount, &inp_data.issuance_amount),
-            value_ptr(
-                inp.asset_issuance.inflation_keys,
-                &inp_data.issuance_inflation_keys,
-            ),
+            inp.sequence.0 as c_uint,
+            issue_nonce_ptr, // FIXME: CHECK ASSET ISSUANCE IS NOT NULL. EASIER WITH NEW ELEMENTS VERSION.
+            issue_entropy_ptr,
+            issue_amt_ptr,
+            issue_infl_key_ptr,
             &range_proof_ptr(&inp_data.amount_range_proof),
             &range_proof_ptr(&inp_data.inflation_keys_range_proof),
         );
@@ -125,7 +144,7 @@ pub(super) fn new_tx(tx: &elements::Transaction, in_utxos: &[ElementsUtxo]) -> *
             raw_inputs.len() as c_uint,
             raw_outputs.as_ptr(),
             raw_outputs.len() as c_uint,
-            tx.lock_time as c_uint,
+            tx.lock_time.0 as c_uint,
         );
         let raw_tx = raw_tx.assume_init();
         elements_simplicity_mallocTransaction(&raw_tx)
