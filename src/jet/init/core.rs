@@ -208,9 +208,7 @@ impl Jet for Core {
         })
     }
 
-    fn c_jet_ptr(
-        &self,
-    ) -> &'static dyn Fn(&mut CFrameItem, CFrameItem, &Self::Environment) -> bool {
+    fn c_jet_ptr(&self) -> &dyn Fn(&mut CFrameItem, CFrameItem, &Self::Environment) -> bool {
         match self {
             Core::Add32 => &simplicity_sys::c_jets::jets_wrapper::add_32,
             Core::FullAdd32 => todo!(),
