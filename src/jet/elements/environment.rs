@@ -312,7 +312,7 @@ impl SimplicityHash for elements::TxIn {
         eng.input(&self.previous_output.txid);
         eng.write_u32::<LittleEndian>(self.previous_output.vout)
             .unwrap();
-        eng.write_u32::<LittleEndian>(self.sequence).unwrap();
+        eng.write_u32::<LittleEndian>(self.sequence.0).unwrap();
         if self.has_issuance() {
             self.asset_issuance.simplicity_hash(eng);
         } else {

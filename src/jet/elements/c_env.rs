@@ -53,7 +53,7 @@ fn new_raw_input(
             asset_ptr(in_utxo.asset, &inp_data.asset),
             value_ptr(in_utxo.value, &inp_data.value),
             &script_ptr(&in_utxo.script_pubkey),
-            inp.sequence as c_uint,
+            inp.sequence.0 as c_uint,
             inp.asset_issuance.asset_blinding_nonce.as_ptr(), // FIXME: CHECK ASSET ISSUANCE IS NOT NULL. EASIER WITH NEW ELEMENTS VERSION.
             inp.asset_issuance.asset_entropy.as_ptr(),
             value_ptr(inp.asset_issuance.amount, &inp_data.issuance_amount),
@@ -125,7 +125,7 @@ pub(super) fn new_tx(tx: &elements::Transaction, in_utxos: &[ElementsUtxo]) -> *
             raw_inputs.len() as c_uint,
             raw_outputs.as_ptr(),
             raw_outputs.len() as c_uint,
-            tx.lock_time as c_uint,
+            tx.lock_time.0 as c_uint,
         );
         let raw_tx = raw_tx.assume_init();
         elements_simplicity_mallocTransaction(&raw_tx)

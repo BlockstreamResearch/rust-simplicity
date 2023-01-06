@@ -13,8 +13,8 @@ use bitcoin_hashes::Hash;
 use elements::secp256k1_zkp::Tweak;
 use elements::taproot::ControlBlock;
 use elements::{
-    confidential, AssetId, AssetIssuance, BlockHash, OutPoint, Transaction, TxIn, TxInWitness,
-    TxOut, TxOutWitness,
+    confidential, AssetId, AssetIssuance, BlockHash, OutPoint, PackedLockTime, Sequence,
+    Transaction, TxIn, TxInWitness, TxOut, TxOutWitness,
 };
 
 #[test]
@@ -81,15 +81,14 @@ fn exec_sighash_all() {
     let asset = confidential::Asset::Explicit(AssetId::from_inner(Midstate::from_inner(asset)));
     let tx = Transaction {
         version: 2,
-        lock_time: 0,
+        lock_time: PackedLockTime::ZERO,
         input: vec![TxIn {
             previous_output: OutPoint {
                 txid: elements::Txid::from_inner(tx_id),
                 vout: 0,
             },
-            sequence: 0xfffffffe,
+            sequence: Sequence::ENABLE_LOCKTIME_NO_RBF,
             is_pegin: false,
-            has_issuance: false,
             // perhaps make this an option in elements upstream?
             asset_issuance: AssetIssuance {
                 asset_blinding_nonce: Tweak::from_inner([0; 32]).expect("tweak from inner"),
@@ -142,7 +141,7 @@ fn exec_sighash_all() {
         script_cmr,
         ctrl_block,
         None,
-        BlockHash::default(),
+        BlockHash::all_zeros(),
     );
 
     let mut bits: BitIter<_> = sighash_all::ELEMENTS_CHECK_SIGHASH_ALL
@@ -175,15 +174,14 @@ fn test_ffi_env() {
     let asset = confidential::Asset::Explicit(AssetId::from_inner(Midstate::from_inner(asset)));
     let tx = Transaction {
         version: 2,
-        lock_time: 100,
+        lock_time: PackedLockTime(100),
         input: vec![TxIn {
             previous_output: OutPoint {
                 txid: elements::Txid::from_inner(tx_id),
                 vout: 0,
             },
-            sequence: 0xfffffffe,
+            sequence: Sequence::ENABLE_LOCKTIME_NO_RBF,
             is_pegin: false,
-            has_issuance: false,
             // perhaps make this an option in elements upstream?
             asset_issuance: AssetIssuance {
                 asset_blinding_nonce: Tweak::from_inner([0; 32]).expect("tweak from inner"),
@@ -236,7 +234,7 @@ fn test_ffi_env() {
         script_cmr,
         ctrl_block,
         None,
-        BlockHash::default(),
+        BlockHash::all_zeros(),
     );
 
     let mut mac = BitMachine {

@@ -11,7 +11,7 @@ pub(crate) fn version(mac: &mut BitMachine, env: &BitcoinEnv) -> Result<(), JetF
 }
 
 pub(crate) fn lock_time(mac: &mut BitMachine, env: &BitcoinEnv) -> Result<(), JetFailed> {
-    mac.write_u32(env.tx.lock_time);
+    mac.write_u32(env.tx.lock_time.0);
     Ok(())
 }
 
@@ -22,7 +22,7 @@ pub(crate) fn inputs_hash(mac: &mut BitMachine, env: &BitcoinEnv) -> Result<(), 
         eng.write_u32::<LittleEndian>(input.previous_output.vout)
             .unwrap();
         eng.write_u64::<LittleEndian>(99_998_000).unwrap(); // value FIXME
-        eng.write_u32::<LittleEndian>(input.sequence).unwrap();
+        eng.write_u32::<LittleEndian>(input.sequence.0).unwrap();
     }
     mac.write_bytes(&sha256::Hash::from_engine(eng)[..]);
     Ok(())
