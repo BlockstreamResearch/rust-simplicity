@@ -383,9 +383,7 @@ impl Jet for Bitcoin {
         })
     }
 
-    fn c_jet_ptr(
-        &self,
-    ) -> &'static dyn Fn(&mut CFrameItem, CFrameItem, &Self::CJetEnvironment) -> bool {
+    fn c_jet_ptr(&self) -> &dyn Fn(&mut CFrameItem, CFrameItem, &Self::CJetEnvironment) -> bool {
         // TODO: Figure out How to do bitcoin jets here?
         unimplemented!("Undefined bitcoin jets")
     }

@@ -638,9 +638,7 @@ impl Jet for Elements {
         })
     }
 
-    fn c_jet_ptr(
-        &self,
-    ) -> &'static dyn Fn(&mut CFrameItem, CFrameItem, &Self::CJetEnvironment) -> bool {
+    fn c_jet_ptr(&self) -> &dyn Fn(&mut CFrameItem, CFrameItem, &Self::CJetEnvironment) -> bool {
         match self {
             Elements::Version => unimplemented!(),
             Elements::LockTime => &simplicity_sys::c_jets::jets_wrapper::lock_time,
