@@ -7,12 +7,13 @@
 pub mod c_env;
 pub mod c_frame;
 pub mod frame_ffi;
-pub mod jets_ffi;
-pub mod jets_wrapper;
+#[rustfmt::skip] pub mod jets_ffi;
+#[rustfmt::skip] pub mod jets_wrapper;
 
 pub use c_env::{CElementsTxEnv, CTapEnv, CTransaction};
 pub use c_frame::{ffi_bytes_size, round_u_word};
 pub use frame_ffi::CFrameItem;
+pub use jets_ffi as elements_ffi;
 
 use crate::c_jets::c_env::{CRawBuffer, CRawInput, CRawOutput, CRawTapEnv, CRawTransaction};
 
