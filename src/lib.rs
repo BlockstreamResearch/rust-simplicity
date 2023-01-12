@@ -47,6 +47,7 @@ mod util;
 pub use crate::bit_machine::exec;
 pub use crate::core::{CommitNode, RedeemNode};
 use crate::inference::UnificationArrow;
+pub use simplicity_sys as ffi;
 use std::fmt;
 
 /// Error type for simplicity
