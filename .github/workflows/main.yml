@@ -53,6 +53,26 @@ jobs:
           echo "No default features" && cargo test --no-default-features
           echo "All features" && cargo test --all-features
 
+  ignored:
+    name: Ignored Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - stable
+    steps:
+      - name: Checkout Crate
+        uses: actions/checkout@v2
+      - name: Checkout Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+      - name: Running cargo test
+        run: |
+          cargo test -- --ignored
+
   clippy:
     name: Clippy
     runs-on: ubuntu-latest

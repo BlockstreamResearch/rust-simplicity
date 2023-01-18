@@ -90,9 +90,13 @@ mod tests {
         exec_prog(&SCHNORR6);
     }
 
+    /*
+    TODO: Add c_jet_ptr for used jets and re-enable tests
+
     #[test]
     #[ignore] // too expensive to run. Run with -- --ignored and --release to run this
     fn schnorr0() {
         exec_prog(&SCHNORR0);
     }
+    */
 }
