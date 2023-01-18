@@ -5,7 +5,7 @@ use crate::bitwriter::BitWriter;
 use crate::jet::type_name::TypeName;
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
-use crate::{decode_bits, Error};
+use crate::Error;
 use bitcoin_hashes::sha256::Midstate;
 use simplicity_sys::CFrameItem;
 use std::io::Write;
@@ -141,71 +141,11 @@ impl Jet for Core {
     }
 
     fn encode<W: Write>(&self, w: &mut BitWriter<W>) -> std::io::Result<usize> {
-        let (n, len) = match self {
-            Core::Add32 => (16, 5),
-            Core::FullAdd32 => (20, 5),
-            Core::Sub32 => (17, 5),
-            Core::FullSub32 => (21, 5),
-            Core::Mul32 => (9, 4),
-            Core::FullMul32 => (11, 4),
-            Core::Eq32Verify => (116, 7),
-            Core::Eq256Verify => (113, 7),
-            Core::Lt32Verify => (115, 7),
-            Core::Sha256 => (114, 7),
-            Core::Sha256Block => (6, 3),
-            Core::Bip0340Verify => (112, 7),
-        };
-
-        w.write_bits_be(n, len)
+        self.encode_manual(w)
     }
 
     fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Self, Error> {
-        decode_bits!(bits, {
-            0 => {},
-            1 => {
-                0 => {
-                    0 => {
-                        0 => {
-                            0 => {Core::Add32},
-                            1 => {Core::Sub32}
-                        },
-                        1 => {Core::Mul32}
-                    },
-                    1 => {
-                        0 => {
-                            0 => {Core::FullAdd32},
-                            1 => {Core::FullSub32}
-                        },
-                        1 => {Core::FullMul32}
-                    }
-                },
-                1 => {
-                    0 => {Core::Sha256Block},
-                    1 => {
-                        0 => {
-                            0 => {
-                                0 => {
-                                    0 => {Core::Bip0340Verify},
-                                    1 => {Core::Eq256Verify}
-                                },
-                                1 => {
-                                    0 => {Core::Sha256},
-                                    1 => {Core::Lt32Verify}
-                                }
-                            },
-                            1 => {
-                                0 => {
-                                    0 => {Core::Eq32Verify},
-                                    1 => {}
-                                },
-                                1 => {}
-                            }
-                        },
-                        1 => {}
-                    }
-                }
-            }
-        })
+        Self::decode_manual(bits)
     }
 
     fn c_jet_ptr(&self) -> &dyn Fn(&mut CFrameItem, CFrameItem, &Self::Environment) -> bool {

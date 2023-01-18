@@ -6,7 +6,7 @@ use crate::jet::bitcoin::BitcoinEnv;
 use crate::jet::type_name::TypeName;
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
-use crate::{decode_bits, Error};
+use crate::Error;
 use bitcoin_hashes::sha256::Midstate;
 use simplicity_sys::c_jets::frame_ffi::CFrameItem;
 use std::io::Write;
@@ -246,141 +246,11 @@ impl Jet for Bitcoin {
     }
 
     fn encode<W: Write>(&self, w: &mut BitWriter<W>) -> std::io::Result<usize> {
-        let (n, len) = match self {
-            Bitcoin::Version => (0, 6),
-            Bitcoin::LockTime => (1, 6),
-            Bitcoin::InputsHash => unimplemented!("Undefined jet encoding"),
-            Bitcoin::OutputsHash => (2, 5),
-            Bitcoin::NumInputs => (3, 5),
-            Bitcoin::TotalInputValue => (4, 5),
-            Bitcoin::CurrentPrevOutpoint => (5, 5),
-            Bitcoin::CurrentValue => (6, 5),
-            Bitcoin::CurrentSequence => (7, 5),
-            Bitcoin::CurrentIndex => (16, 6),
-            Bitcoin::InputPrevOutpoint => (17, 6),
-            Bitcoin::InputValue => (9, 5),
-            Bitcoin::InputSequence => (10, 5),
-            Bitcoin::NumOutputs => (11, 5),
-            Bitcoin::TotalOutputValue => (12, 5),
-            Bitcoin::OutputValue => (13, 5),
-            Bitcoin::OutputScriptHash => (14, 5),
-            Bitcoin::ScriptCMR => (15, 5),
-            Bitcoin::SighashAll => (1, 5),
-            Bitcoin::Add32 => (16, 5),
-            Bitcoin::FullAdd32 => (20, 5),
-            Bitcoin::Sub32 => (17, 5),
-            Bitcoin::FullSub32 => (21, 5),
-            Bitcoin::Mul32 => (9, 4),
-            Bitcoin::FullMul32 => (11, 4),
-            Bitcoin::Eq32Verify => (116, 7),
-            Bitcoin::Eq256Verify => (113, 7),
-            Bitcoin::Lt32Verify => (115, 7),
-            Bitcoin::Sha256 => (114, 7),
-            Bitcoin::Sha256Block => (6, 3),
-            Bitcoin::Bip0340Verify => (112, 7),
-        };
-
-        w.write_bits_be(n, len)
+        self.encode_manual(w)
     }
 
     fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Self, Error> {
-        decode_bits!(bits, {
-            0 => {
-                0 => {
-                    0 => {
-                        0 => {
-                            0 => {
-                                0 => {Bitcoin::Version},
-                                1 => {Bitcoin::LockTime}
-                            },
-                            1 => {Bitcoin::SighashAll}
-                        },
-                        1 => {
-                            0 => {Bitcoin::OutputsHash},
-                            1 => {Bitcoin::NumInputs}
-                        }
-                    },
-                    1 => {
-                        0 => {
-                            0 => {Bitcoin::TotalInputValue},
-                            1 => {Bitcoin::CurrentPrevOutpoint}
-                        },
-                        1 => {
-                            0 => {Bitcoin::CurrentValue},
-                            1 => {Bitcoin::CurrentSequence}
-                        }
-                    }
-                },
-                1 => {
-                    0 => {
-                        0 => {
-                            0 => {
-                                0 => {Bitcoin::CurrentIndex},
-                                1 => {Bitcoin::InputPrevOutpoint}
-                            },
-                            1 => {Bitcoin::InputValue}
-                        },
-                        1 => {
-                            0 => {Bitcoin::InputSequence},
-                            1 => {Bitcoin::NumOutputs}
-                        }
-                    },
-                    1 => {
-                        0 => {
-                            0 => {Bitcoin::TotalOutputValue},
-                            1 => {Bitcoin::OutputValue}
-                        },
-                        1 => {
-                            0 => {Bitcoin::OutputScriptHash},
-                            1 => {Bitcoin::ScriptCMR}
-                        }
-                    }
-                }
-            },
-            1 => {
-                0 => {
-                    0 => {
-                        0 => {
-                            0 => {Bitcoin::Add32},
-                            1 => {Bitcoin::Sub32}
-                        },
-                        1 => {Bitcoin::Mul32}
-                    },
-                    1 => {
-                        0 => {
-                            0 => {Bitcoin::FullAdd32},
-                            1 => {Bitcoin::FullSub32}
-                        },
-                        1 => {Bitcoin::FullMul32}
-                    }
-                },
-                1 => {
-                    0 => {Bitcoin::Sha256Block},
-                    1 => {
-                        0 => {
-                            0 => {
-                                0 => {
-                                    0 => {Bitcoin::Bip0340Verify},
-                                    1 => {Bitcoin::Eq256Verify}
-                                },
-                                1 => {
-                                    0 => {Bitcoin::Sha256},
-                                    1 => {Bitcoin::Lt32Verify}
-                                }
-                            },
-                            1 => {
-                                0 => {
-                                    0 => {Bitcoin::Eq32Verify},
-                                    1 => {}
-                                },
-                                1 => {}
-                            }
-                        },
-                        1 => {}
-                    }
-                }
-            }
-        })
+        Self::decode_manual(bits)
     }
 
     fn c_jet_ptr(&self) -> &dyn Fn(&mut CFrameItem, CFrameItem, &Self::CJetEnvironment) -> bool {
