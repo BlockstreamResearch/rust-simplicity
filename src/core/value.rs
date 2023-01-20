@@ -137,6 +137,32 @@ impl Value {
         )
     }
 
+    /// Execute function `f` on each bit of the encoding of the value.
+    pub fn do_each_bit<F>(&self, mut f: F)
+    where
+        F: FnMut(bool),
+    {
+        let mut value_stack = vec![self];
+
+        while let Some(value) = value_stack.pop() {
+            match value {
+                Value::Unit => {}
+                Value::SumL(l) => {
+                    f(false);
+                    value_stack.push(l);
+                }
+                Value::SumR(r) => {
+                    f(true);
+                    value_stack.push(r);
+                }
+                Value::Prod(l, r) => {
+                    value_stack.push(r);
+                    value_stack.push(l);
+                }
+            }
+        }
+    }
+
     /// Encode value as big-endian byte string.
     /// Fails if underlying bit string has length not divisible by 8
     pub fn try_to_bytes(&self) -> Result<Vec<u8>, &str> {
@@ -155,31 +181,16 @@ impl Value {
     pub fn to_bytes_len(&self) -> (Vec<u8>, usize) {
         let mut bytes = vec![];
         let mut unfinished_byte = Vec::with_capacity(8);
-        let mut value_stack = vec![self];
-
-        while let Some(value) = value_stack.pop() {
-            match value {
-                Value::Unit => {}
-                Value::SumL(l) => {
-                    unfinished_byte.push(false);
-                    value_stack.push(l);
-                }
-                Value::SumR(r) => {
-                    unfinished_byte.push(true);
-                    value_stack.push(r);
-                }
-                Value::Prod(l, r) => {
-                    value_stack.push(r);
-                    value_stack.push(l);
-                }
-            }
+        let update_bytes = |bit: bool| {
+            unfinished_byte.push(bit);
 
             if unfinished_byte.len() == 8 {
                 bytes.push(unfinished_byte.iter().fold(0, |acc, &b| acc * 2 + b as u8));
                 unfinished_byte.clear();
             }
-        }
+        };
 
+        self.do_each_bit(update_bytes);
         let bit_length = bytes.len() * 8 + unfinished_byte.len();
 
         if !unfinished_byte.is_empty() {
