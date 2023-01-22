@@ -21,6 +21,7 @@ use crate::core::{Context, RedeemNode, Value};
 use crate::inference::UnificationArrow;
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
+use crate::merkle::imr::Imr;
 use crate::merkle::{cmr, imr};
 use crate::{analysis, decode, impl_ref_wrapper, inference, Error};
 use std::collections::HashMap;
@@ -579,6 +580,37 @@ impl<J: Jet> CommitNode<J> {
         let root = RefWrapper(self);
         let post_order_it = root.iter_post_order();
         let mut to_finalized: HashMap<RefWrapper<J>, Rc<RedeemNode<J>>> = HashMap::new();
+        // Iterate through the DAG again to calculate the value of IMR in the first pass.
+        // Unfortunately, we cannot directly mutate the nodes here, because they are RC
+        // and we cannot have multiple mutable references to the same object.
+        // It is possible to overcome this with Rc<RefCell> as we do in type computation,
+        // but that would leak, Rc<RefCell> everywhere through out the code.
+        // We also cache Value and NodeType that are needed in the second pass.
+        let mut first_pass: HashMap<RefWrapper<J>, (Imr, Option<Value>, NodeType)> = HashMap::new();
+
+        for commit in post_order_it.clone() {
+            let left_imr = commit.get_left().map(|x| {
+                first_pass
+                    .get(&x)
+                    .expect("Children come before parent in post order")
+                    .0
+            });
+            let right_imr = commit.get_right().map(|x| {
+                first_pass
+                    .get(&x)
+                    .expect("Children come before parent in post order")
+                    .0
+            });
+            let ty = NodeType::try_from(commit.0)?;
+            let value = if let CommitNodeInner::Witness = commit.0.inner {
+                let v = witness.next(&ty.target)?;
+                Some(v)
+            } else {
+                None
+            };
+            let imr = imr::compute_imr(&commit.0.inner, left_imr, right_imr, value.as_ref(), &ty);
+            first_pass.insert(commit, (imr, value, ty));
+        }
 
         for commit in post_order_it {
             let left = commit.get_left().map(|x| {
@@ -593,20 +625,9 @@ impl<J: Jet> CommitNode<J> {
                     .expect("Children come before parent in post order")
                     .clone()
             });
-
-            let ty = NodeType::try_from(commit.0)?;
-            let value = if let CommitNodeInner::Witness = commit.0.inner {
-                Some(witness.next(&ty.target)?)
-            } else {
-                None
-            };
-            let imr = imr::compute_imr(
-                &commit.0.inner,
-                left.clone(),
-                right.clone(),
-                value.as_ref(),
-                &ty,
-            );
+            // The value must exist, and we get ownership by removing it
+            let (first_pass_imr, value, ty) = first_pass.remove(&commit).unwrap();
+            let imr = Imr::compute_imr_pass2(first_pass_imr, &commit.0.inner, &ty);
             let bounds = analysis::compute_bounds(commit.0, left.clone(), right.clone(), &ty);
 
             // Verbose but necessary thanks to Rust
