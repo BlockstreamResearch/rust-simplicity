@@ -47,7 +47,7 @@ jobs:
           override: true
       - name: Running cargo test
         env:
-          FEATURES: bitcoin elements
+          FEATURES: bitcoin elements test-utils
         run: |
           for f in $FEATURES; do echo "Features: $f" && cargo test --no-default-features --features="$f"; done
           echo "No default features" && cargo test --no-default-features
