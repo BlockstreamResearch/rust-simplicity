@@ -41,7 +41,12 @@ impl<W: io::Write> From<W> for BitWriter<W> {
 
 impl<W: io::Write> io::Write for BitWriter<W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        self.w.write(buf)
+        for b in buf {
+            for i in 0..8 {
+                self.write_bit((b & (1 << (7 - i))) != 0)?;
+            }
+        }
+        Ok(buf.len())
     }
 
     /// Does **not** write out cached bits
