@@ -7,8 +7,8 @@
 pub mod c_env;
 pub mod c_frame;
 pub mod frame_ffi;
-pub mod jets_ffi;
-pub mod jets_wrapper;
+#[rustfmt::skip] pub mod jets_ffi;
+#[rustfmt::skip] pub mod jets_wrapper;
 
 pub use c_env::{CElementsTxEnv, CTapEnv, CTransaction};
 pub use c_frame::{ffi_bytes_size, round_u_word};
