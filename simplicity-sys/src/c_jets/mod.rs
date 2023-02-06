@@ -14,6 +14,9 @@ pub use c_env::{CElementsTxEnv, CTapEnv, CTransaction};
 pub use c_frame::{ffi_bytes_size, round_u_word};
 pub use frame_ffi::CFrameItem;
 
+// The bindings use elements_ffi instead of jets_ffi.
+pub use jets_ffi as elements_ffi;
+
 use crate::c_jets::c_env::{CRawBuffer, CRawInput, CRawOutput, CRawTapEnv, CRawTransaction};
 
 /// sanity checks for using the types.
