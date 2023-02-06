@@ -246,11 +246,11 @@ impl Jet for Bitcoin {
     }
 
     fn encode<W: Write>(&self, w: &mut BitWriter<W>) -> std::io::Result<usize> {
-        self.encode_manual(w)
+        todo!()
     }
 
     fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Self, Error> {
-        Self::decode_manual(bits)
+        todo!()
     }
 
     fn c_jet_ptr(&self) -> &dyn Fn(&mut CFrameItem, CFrameItem, &Self::CJetEnvironment) -> bool {
