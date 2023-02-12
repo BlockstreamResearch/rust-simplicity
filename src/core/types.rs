@@ -110,6 +110,30 @@ impl Type {
             }
         }
     }
+
+    /// Return an array `pow2s` of types such that `pow2s[i] = 2^i` holds for 0 ≤ `i` < n.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `n` is greater than 16
+    pub fn powers_of_two_vec(n: usize) -> Vec<Arc<Type>> {
+        assert!(n < 16);
+        let two_0 = Type::unit();
+        let two_1 = Type::sum(two_0.clone(), Arc::clone(&two_0));
+        let mut rv = Vec::with_capacity(n + 1);
+        rv.push(Arc::clone(&two_0));
+        rv.push(Arc::clone(&two_1));
+        let mut two_pow_i_minus_1 = Arc::clone(&rv[1]);
+        for _ in 2..(n + 1) {
+            let two_pow_i = Type::product(
+                Arc::clone(&two_pow_i_minus_1),
+                Arc::clone(&two_pow_i_minus_1),
+            );
+            rv.push(Arc::clone(&two_pow_i));
+            two_pow_i_minus_1 = two_pow_i;
+        }
+        rv
+    }
 }
 
 impl fmt::Debug for Type {
