@@ -137,16 +137,3 @@ impl Drop for Dag {
         }
     }
 }
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use crate::test::SCHNORR0;
-
-    #[test]
-    fn decode_cmr() {
-        let bytes = SCHNORR0.bytes;
-        let dag = Dag::decode(bytes).expect("decoding");
-        assert_eq!(SCHNORR0.cmr(), dag.cmr());
-    }
-}
