@@ -4,53 +4,45 @@
 #include <limits.h>
 #include <stdlib.h>
 
-/* Ensure a non-zero amount of bits are 'available'.
- * If no more bits are available in the 'stream', returns 'SIMPLICITY_ERR_BISTREAM_EOF'.
- * If an I/O error occurs when reading from the 'stream', 'SIMPLICITY_ERR_BISTRING_ERROR' is returned.
- * Returns 0 if successful.
+/* Closes a bitstream by consuming all remaining bits.
+ * Returns false if CHAR_BIT or more bits remain in the stream or if any remaining bits are non-zero.
  *
  * Precondition: NULL != stream
  */
-static int32_t ensureBuffer(bitstream* stream) {
-  if (stream->available <= 0) {
-    int ch = fgetc(stream->file);
-    if (ch == EOF) {
-      if (ferror(stream->file)) return SIMPLICITY_ERR_BITSTREAM_ERROR;
-      if (feof(stream->file)) return SIMPLICITY_ERR_BITSTREAM_EOF;
-    }
-    stream->byte = (unsigned char)ch;
-    stream->available = CHAR_BIT;
-  }
-  return 0;
+bool closeBitstream(bitstream* stream) {
+  if (1 < stream->len) return false; /* If there is more than one byte remaining. */
+  if (1 == stream->len &&                                  /* If there is one byte remaining */
+      (0 == stream->offset ||                              /* and either no bits have been consumed */
+       0 != (*stream->arr & (UCHAR_MAX >> stream->offset)) /* or any of the unconsumed bits are non-zero */
+     )) return false;
+  /* Otherwise there are either 0 bits remaining or there are between 1 and CHAR_BITS-1 bits remaining and they are all zero. */
+  *stream = (bitstream){0};
+  return true;
 }
 
 /* Fetches up to 31 bits from 'stream' as the 'n' least significant bits of return value.
  * The 'n' bits are set from the MSB to the LSB.
  * Returns 'SIMPLICITY_ERR_BITSTREAM_EOF' if not enough bits are available.
- * Returns 'SIMPLICITY_ERR_BITSTREAM_ERROR' if an I/O error occurs when reading from the 'stream'.
  *
  * Precondition: 0 <= n < 32
  *               NULL != stream
  */
-int32_t getNBits(int n, bitstream* stream) {
-  if (0 < n) {
-    int32_t err = ensureBuffer(stream);
-    if (err < 0) return err;
-  } else {
-    return 0;
-  }
-  assert(n < 32);
+int32_t readNBits(int n, bitstream* stream) {
+  assert(0 <= n && n < 32);
 
   uint32_t result = 0;
-  while (stream->available < n) {
-    n -= stream->available;
-    result |= (stream->byte & (((uint32_t)1 << stream->available) - 1)) << n;
-    stream->available = 0;
-    int32_t err = ensureBuffer(stream);
-    if (err < 0) return err;
+  while (CHAR_BIT <= stream->offset + n) {
+    if (!stream->len) return SIMPLICITY_ERR_BITSTREAM_EOF;
+    n -= CHAR_BIT - stream->offset;
+    result |= (uint32_t)(*stream->arr & (UCHAR_MAX >> stream->offset)) << n;
+    stream->arr++; stream->len--; stream->offset = 0;
   }
-  stream->available -= n;
-  result |= (uint32_t)(stream->byte >> stream->available) & (((uint32_t)1 << n) - 1);
+  /* stream->offset + n < CHAR_BIT */
+  if (n) {
+    if (!stream->len) return SIMPLICITY_ERR_BITSTREAM_EOF;
+    stream->offset += (unsigned char)n;
+    result |= (*stream->arr >> (CHAR_BIT - stream->offset)) & ((UCHAR_MAX >> (CHAR_BIT - n)));
+  }
   return (int32_t)result;
 }
 /* Decode an encoded bitstring up to length 1.
@@ -65,14 +57,14 @@ int32_t getNBits(int n, bitstream* stream) {
  *               NULL != stream
  */
 static int32_t decodeUpto1Bit(int32_t* result, bitstream* stream) {
-  *result = getBit(stream);
+  *result = read1Bit(stream);
   if (*result <= 0) return *result;
 
-  *result = getBit(stream);
+  *result = read1Bit(stream);
   if (*result < 0) return *result;
   if (0 != *result) return SIMPLICITY_ERR_DATA_OUT_OF_RANGE;
 
-  *result = getBit(stream);
+  *result = read1Bit(stream);
   if (*result < 0) return *result;
   return 1;
 }
@@ -105,7 +97,7 @@ static int32_t decodeUpto3(bitstream* stream) {
  *               NULL != stream
  */
 static int32_t decodeUpto3Bits(int32_t* result, bitstream* stream) {
-  int32_t bit = getBit(stream);
+  int32_t bit = read1Bit(stream);
   if (bit < 0) return bit;
 
   *result = 0;
@@ -114,7 +106,7 @@ static int32_t decodeUpto3Bits(int32_t* result, bitstream* stream) {
   } else {
     int32_t n = decodeUpto3(stream);
     if (0 <= n) {
-      *result = getNBits(n, stream);
+      *result = readNBits(n, stream);
       if (*result < 0) return *result;
     }
     return n;
@@ -149,7 +141,7 @@ static int32_t decodeUpto15(bitstream* stream) {
  *               NULL != stream
  */
 static int32_t decodeUpto15Bits(int32_t* result, bitstream* stream) {
-  int32_t bit = getBit(stream);
+  int32_t bit = read1Bit(stream);
   if (bit < 0) return bit;
 
   *result = 0;
@@ -158,7 +150,7 @@ static int32_t decodeUpto15Bits(int32_t* result, bitstream* stream) {
   } else {
     int32_t n = decodeUpto15(stream);
     if (0 <= n) {
-      *result = getNBits(n, stream);
+      *result = readNBits(n, stream);
       if (*result < 0) return *result;
     }
     return n;
@@ -190,7 +182,7 @@ static int32_t decodeUpto65535(bitstream* stream) {
  * Precondition: NULL != stream
  */
 int32_t decodeUptoMaxInt(bitstream* stream) {
-  int32_t bit = getBit(stream);
+  int32_t bit = read1Bit(stream);
   if (bit < 0) return bit;
   if (0 == bit) {
     return 1;
@@ -199,66 +191,40 @@ int32_t decodeUptoMaxInt(bitstream* stream) {
     if (n < 0) return n;
     if (30 < n) return SIMPLICITY_ERR_DATA_OUT_OF_RANGE;
     {
-      int32_t result = getNBits(n, stream);
+      int32_t result = readNBits(n, stream);
       if (result < 0) return result;
       return ((1 << n) | result);
     }
   }
 }
 
-/* Allocates a 'bitstring' containing 'n' bits from 'stream'.
+/* Fills a 'bitstring' containing 'n' bits from 'stream'.
  * Returns 'SIMPLICITY_ERR_BITSTREAM_EOF' if not enough bits are available.
- * Returns 'SIMPLICITY_ERR_BITSTREAM_ERROR' if an I/O error occurs when reading from the 'stream'.
- * Returns 'SIMPLICITY_ERR_MALLOC' if malloc fails.
- * If successful, '*result' is set to a bitstring with 'n' bits read from 'stream',
- *                '*allocation' points to memory allocated for this bitstring,
- *                and 0 is returned.
+ * If successful, '*result' is set to a bitstring with 'n' bits read from 'stream' and 0 is returned.
  *
- * If an error is returned '*allocation' is set to 'NULL' and '*result' might be modified.
+ * If an error is returned '*result' might be modified.
  *
- * Precondition: NULL != allocation
- *               NULL != result;
- *               NULL != stream;
- *
- * Postcondition: if the function returns '0'
- *                  '*result' represents a some bitstring with 'result->len' = n
- *                   and '*allocation' points to allocated memory sufficient for at least the 'result->arr' array.
- *                       (Note that '*allocation' may be 'NULL' if 'n == 0')
- *                if the function returns a negative value then '*allocation == NULL'
+ * Precondition: NULL != result
+ *               n <= 2^31
+ *               NULL != stream
  */
-int32_t getMallocBitstring(void** allocation, bitstring* result, size_t n, bitstream* stream) {
-  *allocation = NULL;
-
-  if (0 == n) {
-    *result = (bitstring){0};
-    return 0;
-  } else {
-    int32_t err = ensureBuffer(stream);
-    if (err < 0) return err;
-  }
-
-  size_t offset = (size_t)(CHAR_BIT - stream->available);
-  size_t arrayLen = (n - 1 + offset) / CHAR_BIT + 1;
-  unsigned char* arr = malloc(arrayLen);
-  if (!arr) return SIMPLICITY_ERR_MALLOC;
-
-  arr[0] = stream->byte;
-  size_t charRead = fread(arr + 1, 1, arrayLen - 1, stream->file);
-  if (charRead != arrayLen - 1) {
-    free(arr);
-    return ferror(stream->file) ? SIMPLICITY_ERR_BITSTREAM_ERROR : SIMPLICITY_ERR_BITSTREAM_EOF;
-  }
-
-  /* Rebuild 'stream's structure as if we read 'n' bits from the stream */
-  stream->byte = arr[arrayLen - 1];
-  /* Set stream->available to (stream->available - n) mod CHAR_BIT. */
-  stream->available = (stream->available + CHAR_BIT - 1 - (int)((n - 1) % CHAR_BIT)) % CHAR_BIT;
-
-  *allocation = arr;
+int32_t readBitstring(bitstring* result, size_t n, bitstream* stream) {
+  static_assert(0x8000u + 2*(CHAR_BIT - 1) <= SIZE_MAX, "size_t needs to be at least 32-bits");
+  assert(n <= 0x8000u);
+  size_t total_offset = n + stream->offset;
+  /* |= stream->len * CHAR_BIT < total_offset iff stream->len < (total_offset + (CHAR_BIT - 1)) / CHAR_BIT */
+  if (stream->len < (total_offset + (CHAR_BIT - 1)) / CHAR_BIT) return SIMPLICITY_ERR_BITSTREAM_EOF;
+  /* total_offset <= stream->len * CHAR_BIT */
   *result = (bitstring)
-          { .arr = arr
-          , .offset = offset
+          { .arr = stream->arr
+          , .offset = stream->offset
           , .len = n
           };
+  {
+    size_t delta = total_offset / CHAR_BIT;
+    stream->arr += delta; stream->len -= delta;
+    stream->offset = total_offset % CHAR_BIT;
+    /* Note that if 0 == stream->len then 0 == stream->offset. */
+  }
   return 0;
 }
