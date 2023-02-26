@@ -2,13 +2,13 @@
 
 #include <assert.h>
 #include <limits.h>
+#include <stdlib.h>
 #include "primitive.h"
 #include "unreachable.h"
 
 /* Fetches 'len' 'uint32_t's from 'stream' into 'result'.
  * The bits in each 'uint32_t' are set from the MSB to the LSB and the 'uint32_t's of 'result' are set from 0 up to 'len'.
  * Returns 'SIMPLICITY_ERR_BITSTREAM_EOF' if not enough bits are available ('result' may be modified).
- * Returns 'SIMPLICITY_ERR_BITSTREAM_ERROR' if an I/O error occurs when reading from the 'stream' ('result' may be modified).
  * Returns 0 if successful.
  *
  * Precondition: uint32_t result[len];
@@ -16,11 +16,11 @@
  */
 static int32_t getWord32Array(uint32_t* result, const size_t len, bitstream* stream) {
   for (size_t i = 0; i < len; ++i) {
-    /* Due to error codes, getNBits cannot fetch 32 bits at once. Instead we fetch two groups of 16 bits. */
-    int32_t bits16 = getNBits(16, stream);
+    /* Due to error codes, readNBits cannot fetch 32 bits at once. Instead we fetch two groups of 16 bits. */
+    int32_t bits16 = readNBits(16, stream);
     if (bits16 < 0) return bits16;
     result[i] = (uint32_t)bits16 << 16;
-    bits16 = getNBits(16, stream);
+    bits16 = readNBits(16, stream);
     if (bits16 < 0) return bits16;
     result[i] |= (uint32_t)bits16;
   }
@@ -29,7 +29,6 @@ static int32_t getWord32Array(uint32_t* result, const size_t len, bitstream* str
 
 /* Fetches a 256-bit hash value from 'stream' into 'result'.
  * Returns 'SIMPLICITY_ERR_BITSTREAM_EOF' if not enough bits are available ('result' may be modified).
- * Returns 'SIMPLICITY_ERR_BITSTREAM_ERROR' if an I/O error occurs when reading from the 'stream' ('result' may be modified).
  * Returns 0 if successful.
  *
  * Precondition: NULL != result
@@ -46,9 +45,9 @@ static int32_t getHash(sha256_midstate* result, bitstream* stream) {
  * Returns 'SIMPLICITY_ERR_STOP_CODE' if the encoding of a stop tag is encountered.
  * Returns 'SIMPLICITY_ERR_HIDDEN' if the decoded node has illegal HIDDEN children.
  * Returns 'SIMPLICITY_ERR_DATA_OUT_OF_RANGE' if the node's child isn't a reference to one of the preceding nodes.
- *                                            or some encoding for a non-existent jet is encountered.
+ *                                            or some encoding for a non-existent jet is encountered
+ *                                            or the size of a WORD encoding is greater than 2^31 bits.
  * Returns 'SIMPLICITY_ERR_BITSTRING_EOF' if not enough bits are available in the 'stream'.
- * Returns 'SIMPLICITY_ERR_BITSTREAM_ERROR' if an I/O error occurs when reading from the 'stream'.
  * In the above error cases, 'dag' may be modified.
  * Returns 0 if successful.
  *
@@ -57,15 +56,31 @@ static int32_t getHash(sha256_midstate* result, bitstream* stream) {
  *               NULL != stream
  */
 static int32_t decodeNode(dag_node* dag, size_t i, bitstream* stream) {
-  int32_t bit = getBit(stream);
+  int32_t bit = read1Bit(stream);
   if (bit < 0) return bit;
   dag[i] = (dag_node){0};
   if (bit) {
-    return decodeJet(&dag[i], stream);
+    bit = read1Bit(stream);
+    if (bit < 0) return bit;
+    if (bit) {
+      return decodeJet(&dag[i], stream);
+    } else {
+      /* Decode WORD. */
+      int32_t depth = decodeUptoMaxInt(stream);
+      if (depth < 0) return depth;
+      if (32 < depth) return SIMPLICITY_ERR_DATA_OUT_OF_RANGE;
+      {
+        int32_t result = readBitstring(&dag[i].compactValue, (size_t)1 << (depth - 1), stream);
+        if (result < 0) return result;
+      }
+      dag[i].tag = WORD;
+      dag[i].targetIx = (size_t)depth;
+      dag[i].cmr = computeWordCMR(&dag[i].compactValue, (size_t)(depth - 1));
+    }
   } else {
-    int32_t code = getNBits(2, stream);
+    int32_t code = readNBits(2, stream);
     if (code < 0) return code;
-    int32_t subcode = getNBits(code < 3 ? 2 : 1, stream);
+    int32_t subcode = readNBits(code < 3 ? 2 : 1, stream);
     if (subcode < 0) return subcode;
     for (int32_t j = 0; j < 2 - code; ++j) {
       int32_t ix = decodeUptoMaxInt(stream);
@@ -120,9 +135,8 @@ static int32_t decodeNode(dag_node* dag, size_t i, bitstream* stream) {
     }
 
     computeCommitmentMerkleRoot(dag, i);
-
-    return 0;
   }
+  return 0;
 }
 
 /* Decode a Simplicity DAG consisting of 'len' nodes from 'stream' into 'dag'.
@@ -132,7 +146,6 @@ static int32_t decodeNode(dag_node* dag, size_t i, bitstream* stream) {
  * Returns 'SIMPLICITY_ERR_STOP_CODE' if the encoding of a stop tag is encountered.
  * Returns 'SIMPLICITY_ERR_HIDDEN' if there are illegal HIDDEN children in the DAG.
  * Returns 'SIMPLICITY_ERR_BITSTRING_EOF' if not enough bits are available in the 'stream'.
- * Returns 'SIMPLICITY_ERR_BITSTREAM_ERROR' if an I/O error occurs when reading from the 'stream'.
  * In the above error cases, 'dag' may be modified.
  * Returns 0 if successful.
  *
@@ -158,7 +171,6 @@ static int32_t decodeDag(dag_node* dag, const size_t len, combinator_counters* c
  * Returns 'SIMPLICITY_ERR_STOP_CODE' if the encoding of a stop tag is encountered.
  * Returns 'SIMPLICITY_ERR_HIDDEN' if there are illegal HIDDEN children in the DAG.
  * Returns 'SIMPLICITY_ERR_BITSTRING_EOF' if not enough bits are available in the 'stream'.
- * Returns 'SIMPLICITY_ERR_BITSTREAM_ERROR' if an I/O error occurs when reading from the 'stream'.
  * Returns 'SIMPLICITY_ERR_MALLOC' if malloc fails.
  * In the above error cases, '*dag' is set to NULL.
  * If successful, returns a positive value equal to the length of an allocated array of (*dag).
@@ -201,32 +213,19 @@ int32_t decodeMallocDag(dag_node** dag, combinator_counters* census, bitstream* 
  * This is the format in which the data for 'WITNESS' nodes are encoded.
  * Returns 'SIMPLICITY_ERR_DATA_OUT_OF_RANGE' if the encoded string of bits exceeds this decoder's limits.
  * Returns 'SIMPLICITY_ERR_BITSTRING_EOF' if not enough bits are available in the 'stream'.
- * Returns 'SIMPLICITY_ERR_BITSTREAM_ERROR' if an I/O error occurs when reading from the 'stream'.
- * Returns 'SIMPLICITY_ERR_MALLOC' if malloc fails.
  * If successful, '*witness' is set to the decoded bitstring,
- *                '*allocation' points to memory allocated for this bitstring,
  *                and 0 is returned.
  *
- * If an error is returned '*allocation' is set to 'NULL' and '*witness' might be modified.
+ * If an error is returned '*witness' might be modified.
  *
- * Precondition: NULL != allocation;
- *               NULL != witness;
+ * Precondition: NULL != witness;
  *               NULL != stream;
- *
- * Postcondition: if the function returns '0'
- *                  '*witness' represents a some bitstring
- *                   and '*allocation' points to allocated memory sufficient for at least the 'witness->arr' array.
- *                       (Note that '*allocation' may be 'NULL' if 'n == 0')
- *                if the function returns a negative value then '*allocation == NULL'
  */
-int32_t decodeMallocWitnessData(void** allocation, bitstring* witness, bitstream* stream) {
-  *allocation = NULL;
-  int32_t witnessLen = getBit(stream);
+int32_t decodeWitnessData(bitstring* witness, bitstream* stream) {
+  int32_t witnessLen = read1Bit(stream);
   if (witnessLen < 0) return witnessLen;
   if (0 < witnessLen) witnessLen = decodeUptoMaxInt(stream);
   if (witnessLen < 0) return witnessLen;
-  /* :TODO: A consensus parameter limiting the maximum length of the witness data blob needs to be enforced here */
-  if (PTRDIFF_MAX - 1 <= (size_t)witnessLen / CHAR_BIT) return SIMPLICITY_ERR_DATA_OUT_OF_RANGE;
 
-  return getMallocBitstring(allocation, witness, (size_t)witnessLen, stream);
+  return readBitstring(witness, (size_t)witnessLen, stream);
 }

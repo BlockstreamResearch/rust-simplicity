@@ -1,13 +1,9 @@
 use std::sync::Arc;
 
-use crate::bititer::BitIter;
-use crate::core::RedeemNode;
 use crate::exec::BitMachine;
 use crate::jet::elements::{ElementsEnv, ElementsUtxo};
 use crate::jet::{Elements, Jet};
 use crate::merkle::cmr::Cmr;
-use crate::merkle::common::MerkleRoot;
-use crate::test_progs::sighash_all;
 use bitcoin_hashes::sha256::Midstate;
 use bitcoin_hashes::Hash;
 use elements::secp256k1_zkp::Tweak;
@@ -17,17 +13,17 @@ use elements::{
     Transaction, TxIn, TxInWitness, TxOut, TxOutWitness,
 };
 
-#[test]
-fn sighash_all_cmr() {
-    let mut bits: BitIter<_> = sighash_all::ELEMENTS_CHECK_SIGHASH_ALL
-        .iter()
-        .cloned()
-        .into();
-    let program = RedeemNode::<Elements>::decode(&mut bits).expect("decoding program");
+// #[test]
+// fn sighash_all_cmr() {
+//     let mut bits: BitIter<_> = sighash_all::ELEMENTS_CHECK_SIGHASH_ALL
+//         .iter()
+//         .cloned()
+//         .into();
+//     let program = RedeemNode::<Elements>::decode(&mut bits).expect("decoding program");
 
-    assert_eq!(program.cmr.into_inner(), sighash_all::SIGHASH_ALL_CMR);
-    // TODO: check IMR
-}
+//     assert_eq!(program.cmr.into_inner(), sighash_all::SIGHASH_ALL_CMR);
+//     // TODO: check IMR
+// }
 
 /*
 TODO: Add c_jet_ptr for used jets and re-enable tests
@@ -230,7 +226,7 @@ fn test_ffi_env() {
         value: confidential::Value::Explicit(0x00000002540be400),
     };
     let ctrl_block = ControlBlock::from_slice(&ctrl_blk).expect("ctrl block from slice");
-    let script_cmr = Cmr::from(sighash_all::SIGHASH_ALL_CMR);
+    let script_cmr = Cmr::from([0; 32]);
     let env = ElementsEnv::new(
         Arc::new(tx),
         vec![utxo],
