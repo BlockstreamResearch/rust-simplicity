@@ -10,3 +10,6 @@ cc = "1.0"
 
 [dependencies]
 libc = "0.2"
+
+[features]
+test-utils = []

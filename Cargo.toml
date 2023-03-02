@@ -8,6 +8,7 @@ edition = "2018"
 
 [features]
 default = [ "bitcoin", "elements" ]
+test-utils = ["simplicity_sys/test-utils"]
 
 [lib]
 name = "simplicity"
@@ -20,3 +21,6 @@ byteorder = "1.3"
 elements = { version = "0.21.1", optional = true }
 miniscript = "9.0.0"
 simplicity_sys = { version = "0.1.0", path = "./simplicity-sys" }
+
+[dev-dependencies]
+simplicity_sys = { version = "0.1.0", path = "./simplicity-sys", features = ["test-utils"] }

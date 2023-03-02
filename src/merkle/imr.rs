@@ -20,13 +20,12 @@
 
 use crate::core::commit::CommitNodeInner;
 use crate::core::redeem::NodeType;
-use crate::core::{RedeemNode, Value};
+use crate::core::Value;
 use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::common::{CommitMerkleRoot, MerkleRoot};
 use bitcoin_hashes::sha256::Midstate;
-use std::rc::Rc;
 
 /// Identity Merkle root
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -46,6 +45,37 @@ impl CommitMerkleRoot for Imr {
     }
 }
 
+impl Imr {
+    /// The IV used in the second pass of IMR computation.
+    fn pass_two_iv<J: Jet>(node: &CommitNodeInner<J>) -> Self {
+        match node {
+            CommitNodeInner::Hidden(_) => Imr::tag_iv(b"Simplicity-Draft\x1fHidden"),
+            _ => Imr::tag_iv(b"Simplicity-Draft\x1fIdentity"),
+        }
+    }
+
+    /// Do the second pass of the IMR computation. This must be called on the result
+    /// of first pass.
+    //
+    // TODO: None of the fields in [`RedeemNode`] should be pub.
+    pub(crate) fn compute_imr_pass2<J: Jet>(
+        self, // The IMR computed in the first pass.
+        node: &CommitNodeInner<J>,
+        ty: &NodeType,
+    ) -> Imr {
+        let first_pass = self;
+        let iv = Imr::pass_two_iv(node);
+        if let CommitNodeInner::Hidden(_) = node {
+            iv.update_1(first_pass)
+        } else {
+            iv.update_1(first_pass).update(
+                Imr::from(<[u8; 32]>::from(ty.source.tmr)),
+                Imr::from(<[u8; 32]>::from(ty.target.tmr)),
+            )
+        }
+    }
+}
+
 /// Compute the IMR of the given node (once finalized).
 ///
 /// Nodes with left children require their finalized left child,
@@ -53,8 +83,8 @@ impl CommitMerkleRoot for Imr {
 /// Witness nodes require their value and node type.
 pub(crate) fn compute_imr<J: Jet>(
     node: &CommitNodeInner<J>,
-    left: Option<Rc<RedeemNode<J>>>,
-    right: Option<Rc<RedeemNode<J>>>,
+    left: Option<Imr>,
+    right: Option<Imr>,
     value: Option<&Value>,
     ty: &NodeType,
 ) -> Imr {
@@ -70,12 +100,12 @@ pub(crate) fn compute_imr<J: Jet>(
         | CommitNodeInner::InjR(_)
         | CommitNodeInner::Take(_)
         | CommitNodeInner::Drop(_)
-        | CommitNodeInner::Disconnect(_, _) => imr_iv.update_1(left.unwrap().imr),
+        | CommitNodeInner::Disconnect(_, _) => imr_iv.update_1(left.unwrap()),
         CommitNodeInner::Comp(_, _)
         | CommitNodeInner::Case(_, _)
         | CommitNodeInner::Pair(_, _)
         | CommitNodeInner::AssertL(_, _)
-        | CommitNodeInner::AssertR(_, _) => imr_iv.update(left.unwrap().imr, right.unwrap().imr),
+        | CommitNodeInner::AssertR(_, _) => imr_iv.update(left.unwrap(), right.unwrap()),
         CommitNodeInner::Witness => imr_iv.update_value(value.unwrap(), ty.target.as_ref()),
     }
 }

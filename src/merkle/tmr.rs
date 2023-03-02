@@ -31,7 +31,7 @@ impl_midstate_wrapper!(Tmr);
 impl TypeMerkleRoot for Tmr {
     fn get_iv(ty: &TypeInner) -> Self {
         match ty {
-            TypeInner::Unit => Tmr::tag_iv(b"Simplicity-Draft\x1fType\x1fone"),
+            TypeInner::Unit => Tmr::tag_iv(b"Simplicity-Draft\x1fType\x1funit"),
             TypeInner::Sum(..) => Tmr::tag_iv(b"Simplicity-Draft\x1fType\x1fsum"),
             TypeInner::Product(..) => Tmr::tag_iv(b"Simplicity-Draft\x1fType\x1fprod"),
         }

@@ -19,6 +19,9 @@ pub use jets_ffi as elements_ffi;
 
 use crate::c_jets::c_env::{CRawBuffer, CRawInput, CRawOutput, CRawTapEnv, CRawTransaction};
 
+#[cfg(feature = "test-utils")]
+pub mod exec_ffi;
+
 /// sanity checks for using the types.
 /// We are not using the internal representation of the types at all, but
 /// we do care about the size and alignments of the types.
