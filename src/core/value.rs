@@ -116,6 +116,12 @@ impl Value {
         Value::Prod(Box::new(Value::u32(w0)), Box::new(Value::u32(w1)))
     }
 
+    pub fn u128(n: u128) -> Value {
+        let w0 = (n >> 64) as u64;
+        let w1 = n as u64; // Cast safety: picking last 64 bits
+        Value::Prod(Box::new(Value::u64(w0)), Box::new(Value::u64(w1)))
+    }
+
     /// Encode a 32 byte number into value. Useful for encoding 32 pubkeys/hashes
     pub fn u256_from_slice(v: &[u8]) -> Value {
         assert!(v.len() == 32);

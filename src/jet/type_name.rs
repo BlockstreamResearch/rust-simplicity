@@ -93,7 +93,7 @@ impl TypeName {
 
     // TODO: In future commit change to return Type instead of Arc.
     // Would require some refactors internally.
-    pub(crate) fn to_type(&self, pow2s: &[Arc<Type>]) -> Arc<Type> {
+    pub fn to_type(&self, pow2s: &[Arc<Type>]) -> Arc<Type> {
         let it = self.0.iter().rev();
         let mut stack = Vec::new();
 
