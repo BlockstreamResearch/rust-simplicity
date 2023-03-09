@@ -1,8 +1,6 @@
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 
-use bitcoin_hashes::hex::FromHex;
-use bitcoin_hashes::sha256;
 use miniscript::Error as msError;
 use miniscript::MiniscriptKey;
 use miniscript::{expression, Miniscript, ScriptContext, Terminal};
@@ -13,7 +11,9 @@ use crate::Error;
 impl<Pk> FromStr for Policy<Pk>
 where
     Pk: MiniscriptKey + FromStr,
+    Pk::Sha256: FromStr,
     <Pk as FromStr>::Err: ToString,
+    <Pk::Sha256 as FromStr>::Err: ToString,
 {
     type Err = miniscript::Error;
 
@@ -36,7 +36,9 @@ where
 impl<Pk> expression::FromTree for Policy<Pk>
 where
     Pk: MiniscriptKey + FromStr,
+    Pk::Sha256: FromStr,
     <Pk as FromStr>::Err: ToString,
+    <Pk::Sha256 as FromStr>::Err: ToString,
 {
     fn from_tree(top: &expression::Tree) -> Result<Policy<Pk>, msError> {
         use miniscript::policy::concrete::PolicyError as MsPolicyError;
@@ -51,7 +53,7 @@ where
                 expression::parse_num(x).map(Policy::Older)
             }),
             ("sha256", 1) => expression::terminal(&top.args[0], |x| {
-                sha256::Hash::from_hex(x).map(Policy::Sha256)
+                Pk::Sha256::from_str(x).map(Policy::Sha256)
             }),
             ("and", _) => {
                 if top.args.len() != 2 {
@@ -105,10 +107,12 @@ impl<'a, Pk: MiniscriptKey, Ctx: ScriptContext> TryFrom<&'a Miniscript<Pk, Ctx>>
             Terminal::True => Ok(Policy::Trivial),
             Terminal::False => Ok(Policy::Unsatisfiable),
             Terminal::PkK(key) => Ok(Policy::Key(key.clone())),
-            Terminal::PkH(_) => Err(Error::ParseError("Public key hashes are not supported")),
-            Terminal::After(n) => Ok(Policy::After(*n)),
-            Terminal::Older(n) => Ok(Policy::Older(*n)),
-            Terminal::Sha256(h) => Ok(Policy::Sha256(*h)),
+            Terminal::PkH(_) | Terminal::RawPkH(_) => {
+                Err(Error::ParseError("Public key hashes are not supported"))
+            }
+            Terminal::After(n) => Ok(Policy::After(n.0)),
+            Terminal::Older(n) => Ok(Policy::Older(n.0)),
+            Terminal::Sha256(h) => Ok(Policy::Sha256(h.clone())),
             Terminal::Hash256(_h) => Err(Error::ParseError("SHA256d is not supported")),
             Terminal::Ripemd160(_) | Terminal::Hash160(_) => {
                 Err(Error::ParseError("RIPEMD160 is not supported"))
