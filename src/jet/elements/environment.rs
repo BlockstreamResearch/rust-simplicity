@@ -100,6 +100,16 @@ impl ElementsEnv {
         &self.c_tx_env
     }
 
+    /// Returns the transaction of this environment
+    pub fn tx(&self) -> &elements::Transaction {
+        &self.tx
+    }
+
+    /// Returns the input index of this environment
+    pub fn ix(&self) -> u32 {
+        self.ix
+    }
+
     /// Returns a reference to the control block of this [`ElementsEnv`].
     pub fn control_block(&self) -> &ControlBlock {
         &self.control_block
