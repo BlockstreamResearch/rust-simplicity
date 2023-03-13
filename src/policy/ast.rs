@@ -23,11 +23,10 @@
 use std::fmt;
 use std::rc::Rc;
 
-use bitcoin_hashes::sha256;
-use miniscript::MiniscriptKey;
+use miniscript::{MiniscriptKey, Translator};
 
 use crate::core::{CommitNode, Context};
-use crate::jet::Bitcoin;
+use crate::jet::Elements;
 use crate::policy::compiler;
 use crate::policy::key::PublicKey32;
 use crate::Error;
@@ -51,7 +50,7 @@ pub enum Policy<Pk: MiniscriptKey> {
     /// Relative timelock
     Older(u32),
     /// Provide the preimage of the given SHA256 hash image
-    Sha256(sha256::Hash),
+    Sha256(Pk::Sha256),
     /// Satisfy all of the given sub-policies
     And(Vec<Policy<Pk>>),
     /// Satisfy exactly one of the given sub-policies
@@ -64,8 +63,8 @@ impl<Pk: MiniscriptKey + PublicKey32> Policy<Pk> {
     /// Compile the policy into a Simplicity program
     pub fn compile(
         &self,
-        context: &mut Context<Bitcoin>,
-    ) -> Result<Rc<CommitNode<Bitcoin>>, Error> {
+        context: &mut Context<Elements>,
+    ) -> Result<Rc<CommitNode<Elements>>, Error> {
         compiler::compile(context, self)
     }
 }
@@ -73,33 +72,31 @@ impl<Pk: MiniscriptKey + PublicKey32> Policy<Pk> {
 impl<Pk: MiniscriptKey> Policy<Pk> {
     /// Convert a policy using one kind of public key to another
     /// type of public key
-    pub fn translate<Fpk, Q, E>(&self, mut translatefpk: Fpk) -> Result<Policy<Q>, E>
+    pub fn translate<T, Q, E>(&self, translator: &mut T) -> Result<Policy<Q>, E>
     where
-        Fpk: FnMut(&Pk) -> Result<Q, E>,
+        T: Translator<Pk, Q, E>,
         Q: MiniscriptKey,
     {
         match *self {
             Policy::Unsatisfiable => Ok(Policy::Unsatisfiable),
             Policy::Trivial => Ok(Policy::Trivial),
-            Policy::Key(ref pk) => translatefpk(pk).map(Policy::Key),
-            Policy::Sha256(ref h) => Ok(Policy::Sha256(*h)),
+            Policy::Key(ref pk) => translator.pk(pk).map(Policy::Key),
+            Policy::Sha256(ref h) => translator.sha256(h).map(Policy::Sha256),
             Policy::After(n) => Ok(Policy::After(n)),
             Policy::Older(n) => Ok(Policy::Older(n)),
             Policy::Threshold(k, ref subs) => {
-                let new_subs: Result<Vec<Policy<Q>>, _> = subs
-                    .iter()
-                    .map(|sub| sub.translate(&mut translatefpk))
-                    .collect();
+                let new_subs: Result<Vec<Policy<Q>>, _> =
+                    subs.iter().map(|sub| sub.translate(translator)).collect();
                 new_subs.map(|ok| Policy::Threshold(k, ok))
             }
             Policy::And(ref subs) => Ok(Policy::And(
                 subs.iter()
-                    .map(|sub| sub.translate(&mut translatefpk))
+                    .map(|sub| sub.translate(translator))
                     .collect::<Result<Vec<Policy<Q>>, E>>()?,
             )),
             Policy::Or(ref subs) => Ok(Policy::Or(
                 subs.iter()
-                    .map(|sub| sub.translate(&mut translatefpk))
+                    .map(|sub| sub.translate(translator))
                     .collect::<Result<Vec<Policy<Q>>, E>>()?,
             )),
         }
