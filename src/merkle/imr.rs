@@ -66,6 +66,40 @@ impl Imr {
         }
     }
 
+    /// Compute the IMR of the given node (once finalized).
+    ///
+    /// Nodes with left children require their finalized left child,
+    /// while nodes with right children require their finalized right child.
+    /// Witness nodes require their value and node type.
+    pub(crate) fn compute<J: Jet>(
+        node: &CommitNodeInner<J>,
+        left: Option<Imr>,
+        right: Option<Imr>,
+        value: Option<&Value>,
+        ty: &NodeType,
+    ) -> Imr {
+        let imr_iv = Imr::get_iv(node);
+
+        match *node {
+            CommitNodeInner::Iden
+            | CommitNodeInner::Unit
+            | CommitNodeInner::Hidden(..)
+            | CommitNodeInner::Jet(..) => imr_iv,
+            CommitNodeInner::Fail(left, right) => imr_iv.update(left.into(), right.into()),
+            CommitNodeInner::InjL(_)
+            | CommitNodeInner::InjR(_)
+            | CommitNodeInner::Take(_)
+            | CommitNodeInner::Drop(_) => imr_iv.update_1(left.unwrap()),
+            CommitNodeInner::Comp(_, _)
+            | CommitNodeInner::Case(_, _)
+            | CommitNodeInner::Pair(_, _)
+            | CommitNodeInner::AssertL(_, _)
+            | CommitNodeInner::AssertR(_, _)
+            | CommitNodeInner::Disconnect(_, _) => imr_iv.update(left.unwrap(), right.unwrap()),
+            CommitNodeInner::Witness => imr_iv.update_value(value.unwrap(), ty.target.as_ref()),
+        }
+    }
+
     /// Do the second pass of the IMR computation. This must be called on the result
     /// of first pass.
     //
@@ -85,39 +119,5 @@ impl Imr {
                 Imr::from(<[u8; 32]>::from(ty.target.tmr)),
             )
         }
-    }
-}
-
-/// Compute the IMR of the given node (once finalized).
-///
-/// Nodes with left children require their finalized left child,
-/// while nodes with right children require their finalized right child.
-/// Witness nodes require their value and node type.
-pub(crate) fn compute_imr<J: Jet>(
-    node: &CommitNodeInner<J>,
-    left: Option<Imr>,
-    right: Option<Imr>,
-    value: Option<&Value>,
-    ty: &NodeType,
-) -> Imr {
-    let imr_iv = Imr::get_iv(node);
-
-    match *node {
-        CommitNodeInner::Iden
-        | CommitNodeInner::Unit
-        | CommitNodeInner::Hidden(..)
-        | CommitNodeInner::Jet(..) => imr_iv,
-        CommitNodeInner::Fail(left, right) => imr_iv.update(left.into(), right.into()),
-        CommitNodeInner::InjL(_)
-        | CommitNodeInner::InjR(_)
-        | CommitNodeInner::Take(_)
-        | CommitNodeInner::Drop(_) => imr_iv.update_1(left.unwrap()),
-        CommitNodeInner::Comp(_, _)
-        | CommitNodeInner::Case(_, _)
-        | CommitNodeInner::Pair(_, _)
-        | CommitNodeInner::AssertL(_, _)
-        | CommitNodeInner::AssertR(_, _)
-        | CommitNodeInner::Disconnect(_, _) => imr_iv.update(left.unwrap(), right.unwrap()),
-        CommitNodeInner::Witness => imr_iv.update_value(value.unwrap(), ty.target.as_ref()),
     }
 }

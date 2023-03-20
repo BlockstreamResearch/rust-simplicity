@@ -23,7 +23,6 @@ use crate::jet::Jet;
 use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
-use crate::merkle::{cmr, imr};
 use crate::{analysis, decode, impl_ref_wrapper, inference, Error};
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -170,7 +169,7 @@ impl<J: Jet> CommitNode<J> {
     ) -> Result<Rc<CommitNode<J>>, Error> {
         match inference::get_arrow(&inner, &mut context.naming) {
             Ok(arrow) => Ok(Rc::new(CommitNode {
-                cmr: cmr::compute_cmr(&inner),
+                cmr: Cmr::compute(&inner),
                 inner,
                 arrow,
             })),
@@ -609,7 +608,7 @@ impl<J: Jet> CommitNode<J> {
             } else {
                 None
             };
-            let imr = imr::compute_imr(&commit.0.inner, left_imr, right_imr, value.as_ref(), &ty);
+            let imr = Imr::compute(&commit.0.inner, left_imr, right_imr, value.as_ref(), &ty);
             first_pass.insert(commit, (imr, value, ty));
         }
 
