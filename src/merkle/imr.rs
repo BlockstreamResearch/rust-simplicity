@@ -111,13 +111,13 @@ pub(crate) fn compute_imr<J: Jet>(
         CommitNodeInner::InjL(_)
         | CommitNodeInner::InjR(_)
         | CommitNodeInner::Take(_)
-        | CommitNodeInner::Drop(_)
-        | CommitNodeInner::Disconnect(_, _) => imr_iv.update_1(left.unwrap()),
+        | CommitNodeInner::Drop(_) => imr_iv.update_1(left.unwrap()),
         CommitNodeInner::Comp(_, _)
         | CommitNodeInner::Case(_, _)
         | CommitNodeInner::Pair(_, _)
         | CommitNodeInner::AssertL(_, _)
-        | CommitNodeInner::AssertR(_, _) => imr_iv.update(left.unwrap(), right.unwrap()),
+        | CommitNodeInner::AssertR(_, _)
+        | CommitNodeInner::Disconnect(_, _) => imr_iv.update(left.unwrap(), right.unwrap()),
         CommitNodeInner::Witness => imr_iv.update_value(value.unwrap(), ty.target.as_ref()),
     }
 }
