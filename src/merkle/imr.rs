@@ -12,12 +12,6 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-//! # Identity Merkle roots
-//!
-//! Used at time of redemption.
-//! In contrast to [`super::cmr`], `witness` data and both `disconnect` branches are included in the hash.
-//! The type of `witness` data is included in the hash via [`super::tmr`].
-
 use crate::core::commit::CommitNodeInner;
 use crate::core::redeem::NodeType;
 use crate::core::Value;
@@ -28,6 +22,11 @@ use crate::merkle::common::{CommitMerkleRoot, MerkleRoot};
 use bitcoin_hashes::sha256::Midstate;
 
 /// Identity Merkle root
+///
+/// A Merkle root that commits to a node's combinator, its witness data (if present),
+/// and recursively its children.
+///
+/// Uniquely identifies a program's structure in terms of combinators at redemption time.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Imr(Midstate);
 
