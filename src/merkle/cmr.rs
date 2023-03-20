@@ -66,9 +66,9 @@ pub(crate) fn compute_cmr<J: Jet>(node: &CommitNodeInner<J>) -> Cmr {
         CommitNodeInner::Iden
         | CommitNodeInner::Unit
         | CommitNodeInner::Witness
-        | CommitNodeInner::Fail(..)
         | CommitNodeInner::Hidden(..)
         | CommitNodeInner::Jet(..) => cmr_iv,
+        CommitNodeInner::Fail(left, right) => cmr_iv.update(*left, *right),
         CommitNodeInner::InjL(l)
         | CommitNodeInner::InjR(l)
         | CommitNodeInner::Take(l)

@@ -102,12 +102,12 @@ pub(crate) fn compute_imr<J: Jet>(
 ) -> Imr {
     let imr_iv = Imr::get_iv(node);
 
-    match node {
+    match *node {
         CommitNodeInner::Iden
         | CommitNodeInner::Unit
-        | CommitNodeInner::Fail(..)
         | CommitNodeInner::Hidden(..)
         | CommitNodeInner::Jet(..) => imr_iv,
+        CommitNodeInner::Fail(left, right) => imr_iv.update(left.into(), right.into()),
         CommitNodeInner::InjL(_)
         | CommitNodeInner::InjR(_)
         | CommitNodeInner::Take(_)
