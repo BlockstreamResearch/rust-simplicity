@@ -27,7 +27,7 @@ use bitcoin_hashes::sha256::Midstate;
 ///
 /// Uniquely identifies a program's structure in terms of combinators at commitment time.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Cmr(pub Midstate);
+pub struct Cmr(pub(crate) Midstate);
 
 impl_midstate_wrapper!(Cmr);
 

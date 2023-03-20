@@ -24,7 +24,7 @@ use bitcoin_hashes::sha256::Midstate;
 ///
 /// Uniquely identifies a type.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Tmr(Midstate);
+pub struct Tmr(pub(crate) Midstate);
 
 impl_midstate_wrapper!(Tmr);
 
