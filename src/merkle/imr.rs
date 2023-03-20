@@ -104,7 +104,7 @@ impl Imr {
     /// of first pass.
     //
     // TODO: None of the fields in [`RedeemNode`] should be pub.
-    pub(crate) fn compute_imr_pass2<J: Jet>(
+    pub(crate) fn compute_pass2<J: Jet>(
         self, // The IMR computed in the first pass.
         node: &CommitNodeInner<J>,
         ty: &NodeType,

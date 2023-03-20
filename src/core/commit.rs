@@ -627,7 +627,7 @@ impl<J: Jet> CommitNode<J> {
             });
             // The value must exist, and we get ownership by removing it
             let (first_pass_imr, value, ty) = first_pass.remove(&commit).unwrap();
-            let imr = Imr::compute_imr_pass2(first_pass_imr, &commit.0.inner, &ty);
+            let imr = Imr::compute_pass2(first_pass_imr, &commit.0.inner, &ty);
             let amr = Amr::compute(
                 &commit.0.inner,
                 left.clone(),
