@@ -35,7 +35,7 @@ pub(crate) fn check_maximal_sharing<J: Jet>(program: PostOrderIter<RefWrapper<J>
                 seen_hashes.insert(h);
             }
         } else {
-            let primary_key = (node.0.imr, node.0.ty.source.tmr, node.0.ty.target.tmr);
+            let primary_key = node.0.amr;
 
             if seen_keys.contains(&primary_key) {
                 return false;
@@ -75,7 +75,7 @@ pub(crate) fn compute_maximal_sharing<J: Jet>(
                 index += 1;
             }
         } else {
-            let primary_key = (node.0.imr, node.0.ty.source.tmr, node.0.ty.target.tmr);
+            let primary_key = node.0.amr;
             if let Some(shared_node) = primary_key_to_node.get(&primary_key) {
                 node_to_index.insert(node, *node_to_index.get(shared_node).unwrap());
             } else {
