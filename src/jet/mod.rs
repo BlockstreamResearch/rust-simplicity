@@ -47,7 +47,6 @@ use crate::exec::BitMachine;
 use crate::jet::type_name::TypeName;
 use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
-use crate::merkle::common::MerkleRoot;
 use crate::merkle::imr::Imr;
 use crate::Error;
 use std::hash::Hash;
@@ -86,7 +85,7 @@ pub trait Jet: Copy + Eq + Ord + Hash + std::fmt::Debug + std::fmt::Display {
 
     /// Return the IMR of the jet.
     fn imr(&self) -> Imr {
-        self.cmr().into_inner().into()
+        self.cmr().into()
     }
 
     /// Return the AMR of the jet.

@@ -19,6 +19,7 @@ use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::common::{CommitMerkleRoot, MerkleRoot};
+use crate::merkle::tmr::Tmr;
 use bitcoin_hashes::sha256::Midstate;
 
 /// Identity Merkle root
@@ -31,6 +32,18 @@ use bitcoin_hashes::sha256::Midstate;
 pub struct Imr(Midstate);
 
 impl_midstate_wrapper!(Imr);
+
+impl From<Cmr> for Imr {
+    fn from(cmr: Cmr) -> Self {
+        cmr.into_inner().into()
+    }
+}
+
+impl From<Tmr> for Imr {
+    fn from(tmr: Tmr) -> Self {
+        tmr.into_inner().into()
+    }
+}
 
 impl CommitMerkleRoot for Imr {
     fn get_iv<J: Jet>(node: &CommitNodeInner<J>) -> Self {
