@@ -17,6 +17,7 @@
 //! Tools for creating Merkle roots.
 //! There exist different Merkle roots for commitment and for redemption.
 
+pub mod amr;
 pub mod cmr;
 pub mod common;
 pub mod imr;

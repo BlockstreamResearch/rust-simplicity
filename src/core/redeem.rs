@@ -19,6 +19,7 @@ use crate::core::types::Type;
 use crate::core::{iter, Value};
 use crate::decode::WitnessDecoder;
 use crate::jet::Jet;
+use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
 use crate::{decode, encode, impl_ref_wrapper, sharing, Error};
@@ -174,6 +175,8 @@ pub struct RedeemNode<J: Jet> {
     pub cmr: Cmr,
     /// Identity Merkle root of the node
     pub imr: Imr,
+    /// Annotated Merkle root of the node
+    pub amr: Amr,
     /// Type of the node
     pub ty: NodeType,
     /// Bounds for the node during execution on the Bit Machine

@@ -100,6 +100,16 @@ impl Type {
             two_1, two_2, two_4, two_8, two_16, two_32, two_64, two_128, two_256,
         ]
     }
+
+    /// Return both children of the type, if they exist.
+    pub fn split(&self) -> Option<(Arc<Self>, Arc<Self>)> {
+        match &self.inner {
+            TypeInner::Unit => None,
+            TypeInner::Sum(left, right) | TypeInner::Product(left, right) => {
+                Some((left.clone(), right.clone()))
+            }
+        }
+    }
 }
 
 impl fmt::Debug for Type {

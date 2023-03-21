@@ -20,6 +20,7 @@ use crate::core::redeem::{NodeType, RedeemNodeInner};
 use crate::core::{Context, RedeemNode, Value};
 use crate::inference::UnificationArrow;
 use crate::jet::Jet;
+use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
 use crate::merkle::{cmr, imr};
@@ -628,6 +629,13 @@ impl<J: Jet> CommitNode<J> {
             // The value must exist, and we get ownership by removing it
             let (first_pass_imr, value, ty) = first_pass.remove(&commit).unwrap();
             let imr = Imr::compute_imr_pass2(first_pass_imr, &commit.0.inner, &ty);
+            let amr = Amr::compute(
+                &commit.0.inner,
+                left.clone(),
+                right.clone(),
+                value.as_ref(),
+                &ty,
+            );
             let bounds = analysis::compute_bounds(commit.0, left.clone(), right.clone(), &ty);
 
             // Verbose but necessary thanks to Rust
@@ -659,6 +667,7 @@ impl<J: Jet> CommitNode<J> {
                 inner,
                 cmr: commit.0.cmr,
                 imr,
+                amr,
                 ty,
                 bounds,
             };
