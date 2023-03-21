@@ -12,11 +12,6 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-//! # Commitment Merkle roots
-//!
-//! Used at time of commitment.
-//! Importantly, `witness` data and right `disconnect` branches are _not_ included in the hash.
-
 use crate::core::commit::CommitNodeInner;
 use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
@@ -24,8 +19,15 @@ use crate::merkle::common::{CommitMerkleRoot, MerkleRoot};
 use bitcoin_hashes::sha256::Midstate;
 
 /// Commitment Merkle root
+///
+/// A Merkle root that commits to a node's combinator and recursively its children.
+///
+/// Importantly, witness data and right disconnect branches are _not_ included in the hash.
+/// This makes these elements malleable while preserving program identity (SegWit, delegation).
+///
+/// Uniquely identifies a program's structure in terms of combinators at commitment time.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Cmr(pub Midstate);
+pub struct Cmr(pub(crate) Midstate);
 
 impl_midstate_wrapper!(Cmr);
 
@@ -56,26 +58,28 @@ impl CommitMerkleRoot for Cmr {
     }
 }
 
-/// Compute the CMR of the given `node`.
-pub(crate) fn compute_cmr<J: Jet>(node: &CommitNodeInner<J>) -> Cmr {
-    let cmr_iv = Cmr::get_iv(node);
+impl Cmr {
+    /// Compute the CMR of the given node.
+    pub(crate) fn compute<J: Jet>(node: &CommitNodeInner<J>) -> Cmr {
+        let cmr_iv = Cmr::get_iv(node);
 
-    match node {
-        CommitNodeInner::Iden
-        | CommitNodeInner::Unit
-        | CommitNodeInner::Witness
-        | CommitNodeInner::Fail(..)
-        | CommitNodeInner::Hidden(..)
-        | CommitNodeInner::Jet(..) => cmr_iv,
-        CommitNodeInner::InjL(l)
-        | CommitNodeInner::InjR(l)
-        | CommitNodeInner::Take(l)
-        | CommitNodeInner::Drop(l)
-        | CommitNodeInner::Disconnect(l, _) => cmr_iv.update_1(l.cmr),
-        CommitNodeInner::Comp(l, r)
-        | CommitNodeInner::Case(l, r)
-        | CommitNodeInner::Pair(l, r)
-        | CommitNodeInner::AssertL(l, r)
-        | CommitNodeInner::AssertR(l, r) => cmr_iv.update(l.cmr, r.cmr),
+        match node {
+            CommitNodeInner::Iden
+            | CommitNodeInner::Unit
+            | CommitNodeInner::Witness
+            | CommitNodeInner::Hidden(..)
+            | CommitNodeInner::Jet(..) => cmr_iv,
+            CommitNodeInner::Fail(left, right) => cmr_iv.update(*left, *right),
+            CommitNodeInner::InjL(l)
+            | CommitNodeInner::InjR(l)
+            | CommitNodeInner::Take(l)
+            | CommitNodeInner::Drop(l)
+            | CommitNodeInner::Disconnect(l, _) => cmr_iv.update_1(l.cmr),
+            CommitNodeInner::Comp(l, r)
+            | CommitNodeInner::Case(l, r)
+            | CommitNodeInner::Pair(l, r)
+            | CommitNodeInner::AssertL(l, r)
+            | CommitNodeInner::AssertR(l, r) => cmr_iv.update(l.cmr, r.cmr),
+        }
     }
 }

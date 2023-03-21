@@ -12,19 +12,19 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-//! # Type Merkle roots
-//!
-//! Used at time of redemption (see [`super::imr`]).
-//! Uniquely identifies the tree structure of a Simplicity type.
-
 use crate::core::types::TypeInner;
 use crate::impl_midstate_wrapper;
 use crate::merkle::common::{MerkleRoot, TypeMerkleRoot};
 use bitcoin_hashes::sha256::Midstate;
 
 /// Type Merkle root
+///
+/// A Merkle root that commits to a type's primitive (unit, sum, product)
+/// and recursively its sub-types.
+///
+/// Uniquely identifies a type.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Tmr(Midstate);
+pub struct Tmr(pub(crate) Midstate);
 
 impl_midstate_wrapper!(Tmr);
 
