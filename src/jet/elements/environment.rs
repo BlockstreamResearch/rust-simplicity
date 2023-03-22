@@ -19,7 +19,7 @@ use bitcoin_hashes::{sha256, Hash, HashEngine};
 use byteorder::{BigEndian, LittleEndian, WriteBytesExt};
 use elements::confidential::{Asset, Nonce, Value};
 use elements::taproot::ControlBlock;
-use elements::{confidential, AssetIssuance, BlockHash};
+use elements::{confidential, AssetIssuance};
 use simplicity_sys::c_jets::c_env::CElementsTxEnv;
 use std::sync::Arc;
 
@@ -67,7 +67,7 @@ pub struct ElementsEnv {
     /// Optional Annex.
     pub(super) annex: Option<Vec<u8>>,
     /// Genesis block hash
-    pub(super) genesis_hash: BlockHash,
+    pub(super) genesis_hash: elements::BlockHash,
 }
 
 impl ElementsEnv {
@@ -78,7 +78,7 @@ impl ElementsEnv {
         script_cmr: Cmr,
         control_block: ControlBlock,
         annex: Option<Vec<u8>>,
-        genesis_hash: BlockHash,
+        genesis_hash: elements::BlockHash,
     ) -> Self {
         let c_tx = c_env::new_tx(&tx, &utxos);
         let c_tap_env = c_env::new_tap_env(&control_block, script_cmr);
@@ -111,7 +111,7 @@ impl ElementsEnv {
     }
 
     /// Returns the genesis hash of this [`ElementsEnv`].
-    pub fn genesis_hash(&self) -> BlockHash {
+    pub fn genesis_hash(&self) -> elements::BlockHash {
         self.genesis_hash
     }
 }
