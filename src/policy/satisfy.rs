@@ -1,0 +1,291 @@
+use crate::core::Value;
+use crate::jet::elements::ElementsEnv;
+use crate::policy::ast::Policy;
+use bitcoin_hashes::{sha256, Hash};
+use elements::locktime::Height;
+use elements::schnorr::{KeyPair, XOnlyPublicKey};
+use elements::secp256k1_zkp::Message;
+use elements::taproot::TapLeafHash;
+use elements::SchnorrSig;
+use elements::{LockTime, SchnorrSigHashType, Sequence};
+use elements_miniscript::{Preimage32, Satisfier};
+use std::cmp::Ordering;
+use std::collections::{HashMap, VecDeque};
+use std::iter::FromIterator;
+
+pub struct PolicySatisfier {
+    pub preimages: HashMap<sha256::Hash, Preimage32>,
+    pub keys: HashMap<XOnlyPublicKey, KeyPair>,
+    pub env: ElementsEnv,
+}
+
+impl Satisfier<XOnlyPublicKey> for PolicySatisfier {
+    fn lookup_tap_leaf_script_sig(
+        &self,
+        pk: &XOnlyPublicKey,
+        _: &TapLeafHash,
+    ) -> Option<SchnorrSig> {
+        self.keys.get(pk).map(|keypair| {
+            let sighash = self.env.c_tx_env().sighash_all();
+            let msg = Message::from_hashed_data::<sha256::Hash>(&sighash);
+            let sig = keypair.sign_schnorr(msg);
+
+            SchnorrSig {
+                sig,
+                hash_ty: SchnorrSigHashType::All,
+            }
+        })
+    }
+
+    fn lookup_sha256(&self, hash: &sha256::Hash) -> Option<Preimage32> {
+        self.preimages.get(hash).copied()
+    }
+
+    fn check_older(&self, n: Sequence) -> bool {
+        self.env.tx().input[self.env.ix() as usize].sequence >= n
+    }
+
+    fn check_after(&self, n: LockTime) -> bool {
+        let m = LockTime::from(self.env.tx().lock_time);
+        match m.partial_cmp(&n) {
+            Some(Ordering::Less) | Some(Ordering::Equal) => true,
+            _ => false,
+        }
+    }
+}
+
+impl Policy<XOnlyPublicKey> {
+    pub fn satisfy<S: Satisfier<XOnlyPublicKey>>(&self, satisfier: &S) -> Option<Vec<Value>> {
+        let (wit, _) = self.satisfy_helper(satisfier)?;
+        Some(wit.into())
+    }
+
+    fn satisfy_helper<S: Satisfier<XOnlyPublicKey>>(
+        &self,
+        satisfier: &S,
+    ) -> Option<(VecDeque<Value>, u64)> {
+        match self {
+            Policy::Unsatisfiable => None,
+            Policy::Trivial => Some((VecDeque::new(), 0)),
+            Policy::Key(pk) => satisfier
+                .lookup_tap_leaf_script_sig(pk, &TapLeafHash::all_zeros())
+                .map(|sig| {
+                    let value = Value::u512_from_slice(sig.sig.as_ref());
+                    let wit = VecDeque::from_iter(std::iter::once(value));
+                    (wit, 512)
+                }),
+            Policy::After(n) => {
+                let height = Height::from_consensus(*n).ok()?;
+                if satisfier.check_after(LockTime::Blocks(height)) {
+                    Some((VecDeque::new(), 0))
+                } else {
+                    None
+                }
+            }
+            Policy::Older(n) => {
+                if satisfier.check_older(Sequence(*n)) {
+                    Some((VecDeque::new(), 0))
+                } else {
+                    None
+                }
+            }
+            Policy::Sha256(hash) => satisfier.lookup_sha256(hash).map(|preimage| {
+                let value = Value::u256_from_slice(preimage.as_ref());
+                let wit = VecDeque::from_iter(std::iter::once(value));
+                (wit, 256)
+            }),
+            Policy::And(sub_policies) => {
+                assert_eq!(
+                    2,
+                    sub_policies.len(),
+                    "Conjunctions must have exactly two sub-policies"
+                );
+
+                sub_policies[0]
+                    .satisfy_helper(satisfier)
+                    .and_then(|(mut wit1, size1)| {
+                        sub_policies[1]
+                            .satisfy_helper(satisfier)
+                            .map(|(wit2, size2)| {
+                                wit1.extend(wit2.into_iter());
+                                (wit1, size1 + size2)
+                            })
+                    })
+            }
+            Policy::Or(sub_policies) => {
+                assert_eq!(
+                    2,
+                    sub_policies.len(),
+                    "Disjunctions must have exactly two sub-policies"
+                );
+
+                let maybe_sat1 = sub_policies[0].satisfy_helper(satisfier);
+                let maybe_sat2 = sub_policies[1].satisfy_helper(satisfier);
+
+                match (maybe_sat1, maybe_sat2) {
+                    (Some((mut wit1, size1)), Some((mut wit2, size2))) => {
+                        if size1 <= size2 {
+                            wit1.push_front(Value::u1(0));
+                            Some((wit1, size1 + 1))
+                        } else {
+                            wit2.push_front(Value::u1(1));
+                            Some((wit2, size2 + 1))
+                        }
+                    }
+                    (Some((mut wit1, size1)), None) => {
+                        wit1.push_front(Value::u1(0));
+                        Some((wit1, size1 + 1))
+                    }
+                    (None, Some((mut wit2, size2))) => {
+                        wit2.push_front(Value::u1(1));
+                        Some((wit2, size2 + 1))
+                    }
+                    _ => None,
+                }
+            }
+            Policy::Threshold(_, _) => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bitcoin_hashes::Hash;
+    use elements::secp256k1_zkp::rand::rngs::ThreadRng;
+    use elements::secp256k1_zkp::Secp256k1;
+
+    fn get_satisfier() -> PolicySatisfier {
+        let mut preimages = HashMap::new();
+        let mut keys = HashMap::new();
+
+        for i in 0..3 {
+            let preimage = [i; 32];
+            preimages.insert(sha256::Hash::hash(&preimage), preimage);
+        }
+
+        let secp = Secp256k1::new();
+        let mut rng = ThreadRng::default();
+
+        for _ in 0..3 {
+            let keypair = KeyPair::new(&secp, &mut rng);
+            let (xpub, _) = keypair.x_only_public_key();
+            keys.insert(xpub, keypair);
+        }
+
+        PolicySatisfier {
+            preimages,
+            keys,
+            env: ElementsEnv::dummy(),
+        }
+    }
+
+    #[test]
+    fn satisfy_unsatisfiable() {
+        let satisfier = get_satisfier();
+        let policy = Policy::Unsatisfiable;
+        assert_eq!(None, policy.satisfy(&satisfier));
+    }
+
+    #[test]
+    fn satisfy_trivial() {
+        let satisfier = get_satisfier();
+        let policy = Policy::Trivial;
+        assert_eq!(
+            Vec::<Value>::new(),
+            policy.satisfy(&satisfier).expect("satisfiable")
+        );
+    }
+
+    #[test]
+    fn satisfy_pk() {
+        let satisfier = get_satisfier();
+        let mut keys = satisfier.keys.keys();
+        let policy = Policy::Key(*keys.next().unwrap());
+
+        let witness = policy.satisfy(&satisfier).expect("sat");
+        assert_eq!(1, witness.len());
+        let signature = witness[0].try_to_bytes().expect("bytes");
+        assert_eq!(64, signature.len());
+    }
+
+    #[test]
+    fn satisfy_sha256() {
+        let satisfier = get_satisfier();
+        let mut images = satisfier.preimages.keys();
+        let image0 = *images.next().unwrap();
+        let policy = Policy::Sha256(image0);
+
+        let preimage0 = satisfier.preimages.get(&image0).unwrap();
+
+        assert_eq!(
+            vec![Value::u256_from_slice(preimage0)],
+            policy.satisfy(&satisfier).expect("sat")
+        );
+    }
+
+    #[test]
+    fn satisfy_and() {
+        let satisfier = get_satisfier();
+        let mut images = satisfier.preimages.keys();
+        let image0 = *images.next().unwrap();
+        let image1 = *images.next().unwrap();
+        let preimage0 = satisfier.preimages.get(&image0).unwrap();
+        let preimage1 = satisfier.preimages.get(&image1).unwrap();
+
+        let policy0 = Policy::And(vec![Policy::Sha256(image0), Policy::Sha256(image1)]);
+        assert_eq!(
+            vec![
+                Value::u256_from_slice(preimage0),
+                Value::u256_from_slice(preimage1)
+            ],
+            policy0.satisfy(&satisfier).expect("sat")
+        );
+
+        let policy1 = Policy::And(vec![
+            Policy::Sha256(sha256::Hash::from_inner([0; 32])),
+            Policy::Sha256(image1),
+        ]);
+        assert_eq!(None, policy1.satisfy(&satisfier));
+
+        let policy2 = Policy::And(vec![
+            Policy::Sha256(image0),
+            Policy::Sha256(sha256::Hash::from_inner([1; 32])),
+        ]);
+        assert_eq!(None, policy2.satisfy(&satisfier));
+    }
+
+    #[test]
+    fn satisfy_or() {
+        let satisfier = get_satisfier();
+        let mut images = satisfier.preimages.keys();
+        let image0 = *images.next().unwrap();
+        let image1 = *images.next().unwrap();
+        let preimage0 = satisfier.preimages.get(&image0).unwrap();
+        let preimage1 = satisfier.preimages.get(&image1).unwrap();
+
+        let policy0 = Policy::Or(vec![
+            Policy::Sha256(image0),
+            Policy::Sha256(sha256::Hash::from_inner([1; 32])),
+        ]);
+        assert_eq!(
+            vec![Value::u1(0), Value::u256_from_slice(preimage0)],
+            policy0.satisfy(&satisfier).expect("sat")
+        );
+
+        let policy1 = Policy::Or(vec![
+            Policy::Sha256(sha256::Hash::from_inner([0; 32])),
+            Policy::Sha256(image1),
+        ]);
+        assert_eq!(
+            vec![Value::u1(1), Value::u256_from_slice(preimage1)],
+            policy1.satisfy(&satisfier).expect("sat")
+        );
+
+        let policy2 = Policy::Or(vec![
+            Policy::Sha256(sha256::Hash::from_inner([0; 32])),
+            Policy::Sha256(sha256::Hash::from_inner([1; 32])),
+        ]);
+        assert_eq!(None, policy2.satisfy(&satisfier));
+    }
+}

@@ -1,5 +1,7 @@
 use std::os::raw::{c_uchar, c_uint};
 
+use crate::util;
+use bitcoin_hashes::{sha256, Hash};
 use libc::size_t;
 
 /// Documentation of CRawInputData/CRawOutputData/CRawTapData/CRaw
@@ -198,6 +200,12 @@ extern "C" {
     ) -> *mut CTransaction;
     pub fn c_free_transaction(tx: *mut CTransaction);
     pub fn c_free_tapEnv(env: *mut CTapEnv);
+}
+impl CElementsTxEnv {
+    pub fn sighash_all(&self) -> sha256::Hash {
+        let bytes = util::into_u8_merkle_root(&self.sighash_all.data);
+        sha256::Hash::from_inner(bytes)
+    }
 }
 
 // Pointer must be manually free after dropping

@@ -19,7 +19,7 @@ use bitcoin_hashes::{sha256, Hash, HashEngine};
 use byteorder::{BigEndian, LittleEndian, WriteBytesExt};
 use elements::confidential::{Asset, Nonce, Value};
 use elements::taproot::ControlBlock;
-use elements::{confidential, AssetIssuance, BlockHash};
+use elements::{confidential, AssetIssuance};
 use simplicity_sys::c_jets::c_env::CElementsTxEnv;
 use std::sync::Arc;
 
@@ -67,7 +67,7 @@ pub struct ElementsEnv {
     /// Optional Annex.
     pub(super) annex: Option<Vec<u8>>,
     /// Genesis block hash
-    pub(super) genesis_hash: BlockHash,
+    pub(super) genesis_hash: elements::BlockHash,
 }
 
 impl ElementsEnv {
@@ -78,7 +78,7 @@ impl ElementsEnv {
         script_cmr: Cmr,
         control_block: ControlBlock,
         annex: Option<Vec<u8>>,
-        genesis_hash: BlockHash,
+        genesis_hash: elements::BlockHash,
     ) -> Self {
         let c_tx = c_env::new_tx(&tx, &utxos);
         let c_tap_env = c_env::new_tap_env(&control_block, script_cmr);
@@ -100,6 +100,16 @@ impl ElementsEnv {
         &self.c_tx_env
     }
 
+    /// Returns the transaction of this environment
+    pub fn tx(&self) -> &elements::Transaction {
+        &self.tx
+    }
+
+    /// Returns the input index of this environment
+    pub fn ix(&self) -> u32 {
+        self.ix
+    }
+
     /// Returns a reference to the control block of this [`ElementsEnv`].
     pub fn control_block(&self) -> &ControlBlock {
         &self.control_block
@@ -111,8 +121,35 @@ impl ElementsEnv {
     }
 
     /// Returns the genesis hash of this [`ElementsEnv`].
-    pub fn genesis_hash(&self) -> BlockHash {
+    pub fn genesis_hash(&self) -> elements::BlockHash {
         self.genesis_hash
+    }
+}
+
+#[cfg(test)]
+impl ElementsEnv {
+    /// Return a dummy Elements environment
+    pub fn dummy() -> Self {
+        let ctrl_blk: [u8; 33] = [
+            0xc0, 0xeb, 0x04, 0xb6, 0x8e, 0x9a, 0x26, 0xd1, 0x16, 0x04, 0x6c, 0x76, 0xe8, 0xff,
+            0x47, 0x33, 0x2f, 0xb7, 0x1d, 0xda, 0x90, 0xff, 0x4b, 0xef, 0x53, 0x70, 0xf2, 0x52,
+            0x26, 0xd3, 0xbc, 0x09, 0xfc,
+        ];
+
+        ElementsEnv::new(
+            Arc::new(elements::Transaction {
+                version: u32::default(),
+                lock_time: elements::PackedLockTime::ZERO,
+                input: Vec::default(),
+                output: Vec::default(),
+            }),
+            Vec::default(),
+            u32::default(),
+            Cmr::from([0; 32]),
+            ControlBlock::from_slice(&ctrl_blk).unwrap(),
+            None,
+            elements::BlockHash::all_zeros(),
+        )
     }
 }
 

@@ -20,6 +20,7 @@ bitcoin_hashes = "0.11"
 byteorder = "1.3"
 elements = { version = "0.21.1", optional = true }
 miniscript = "9.0.0"
+elements-miniscript = { git = "https://github.com/ElementsProject/elements-miniscript" }
 simplicity_sys = { version = "0.1.0", path = "./simplicity-sys" }
 
 [dev-dependencies]
