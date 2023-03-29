@@ -37,6 +37,16 @@ pub struct ElementsUtxo {
     pub value: confidential::Value,
 }
 
+impl From<elements::TxOut> for ElementsUtxo {
+    fn from(txout: elements::TxOut) -> Self {
+        ElementsUtxo {
+            script_pubkey: txout.script_pubkey,
+            asset: txout.asset,
+            value: txout.value,
+        }
+    }
+}
+
 /// Environment for Elements Simplicity
 ///
 /// # Note

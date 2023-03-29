@@ -28,10 +28,12 @@
 #error "Please select wide multiplication implementation"
 #endif
 
+#if 0
 /** Normalize a field element. This brings the field element to a canonical representation, reduces
  *  its magnitude to 1, and reduces it modulo field size `p`.
  */
 static void secp256k1_fe_normalize(secp256k1_fe *r);
+#endif
 
 /** Weakly normalize a field element: reduce its magnitude to 1, but don't fully normalize. */
 static void secp256k1_fe_normalize_weak(secp256k1_fe *r);
@@ -99,12 +101,12 @@ static void secp256k1_fe_sqr(secp256k1_fe *r, const secp256k1_fe *a);
  *  The input's magnitude can be at most 8. The output magnitude is 1 (but not
  *  guaranteed to be normalized). The result in r will always be a square
  *  itself.
- *  No constant-time guarentee. */
+ *  No constant-time guarantee. */
 static int secp256k1_fe_sqrt_var(secp256k1_fe *r, const secp256k1_fe *a);
 
 /** Sets a field element to be the (modular) inverse of another. Requires the input's magnitude to be
  *  at most 8. The output magnitude is 1 (but not guaranteed to be normalized).
- *  No constant-time guarentee. */
+ *  No constant-time guarantee. */
 static void secp256k1_fe_inv_var(secp256k1_fe *r, const secp256k1_fe *a);
 
 /** Convert a field element to the storage type. */

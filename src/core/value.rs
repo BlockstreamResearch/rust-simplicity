@@ -18,9 +18,13 @@
 //! Simplicity processes data in terms of [`Value`]s,
 //! i.e., inputs, intermediate results and outputs.
 
+use crate::bititer::BitIter;
 use crate::util::slice_to_u64_be;
+use crate::{decode, Error};
 use std::fmt;
 use std::hash::Hash;
+
+use super::types::Type;
 
 /// Simplicity value.
 ///
@@ -112,6 +116,12 @@ impl Value {
         Value::Prod(Box::new(Value::u32(w0)), Box::new(Value::u32(w1)))
     }
 
+    pub fn u128(n: u128) -> Value {
+        let w0 = (n >> 64) as u64;
+        let w1 = n as u64; // Cast safety: picking last 64 bits
+        Value::Prod(Box::new(Value::u64(w0)), Box::new(Value::u64(w1)))
+    }
+
     /// Encode a 32 byte number into value. Useful for encoding 32 pubkeys/hashes
     pub fn u256_from_slice(v: &[u8]) -> Value {
         assert!(v.len() == 32);
@@ -127,6 +137,39 @@ impl Value {
         )
     }
 
+    /// Read bytes from a Simplicity buffer of type (TWO^8)^<2^(n+1) as [`Value`].
+    /// The notation X^<2 is notation for the type (S X)
+    /// The notation X^<(2*n) is notation for the type S (X^n) * X^<n
+    ///
+    /// Cannot represent >= 2**16 bytes 0 <= n < 16 as simplicity consensus rule.
+    ///
+    /// # Panics:
+    ///
+    /// Panics if the length of the slice is >= 2^(n + 1) bytes
+    pub fn var_len_buf_from_slice(v: &[u8], mut n: usize) -> Result<Value, Error> {
+        // Simplicity consensus rule for n < 16 while reading buffers.
+        assert!(n < 16);
+        assert!(v.len() < (1 << (n + 1)));
+        let mut iter = BitIter::new(v.iter().copied());
+        let types = Type::powers_of_two_vec(n); // size n + 1
+        let mut res = None;
+        while n > 0 {
+            let v = if v.len() >= (1 << (n + 1)) {
+                let ty = &types[n];
+                let val = decode::decode_value(ty, &mut iter)?;
+                Value::SumR(Box::new(val))
+            } else {
+                Value::SumL(Box::new(Value::Unit))
+            };
+            res = match res {
+                Some(prod) => Some(Value::Prod(Box::new(prod), Box::new(v))),
+                None => Some(v),
+            };
+            n -= 1;
+        }
+        Ok(res.unwrap_or(Value::Unit))
+    }
+
     /// Encode a 64(pair(32, 32)) byte number into value.
     /// Useful for encoding 64 byte signatures
     pub fn u512_from_slice(v: &[u8]) -> Value {
@@ -135,6 +178,32 @@ impl Value {
             Box::new(Value::u256_from_slice(&v[0..32])),
             Box::new(Value::u256_from_slice(&v[32..64])),
         )
+    }
+
+    /// Execute function `f` on each bit of the encoding of the value.
+    pub fn do_each_bit<F>(&self, mut f: F)
+    where
+        F: FnMut(bool),
+    {
+        let mut value_stack = vec![self];
+
+        while let Some(value) = value_stack.pop() {
+            match value {
+                Value::Unit => {}
+                Value::SumL(l) => {
+                    f(false);
+                    value_stack.push(l);
+                }
+                Value::SumR(r) => {
+                    f(true);
+                    value_stack.push(r);
+                }
+                Value::Prod(l, r) => {
+                    value_stack.push(r);
+                    value_stack.push(l);
+                }
+            }
+        }
     }
 
     /// Encode value as big-endian byte string.
@@ -155,31 +224,16 @@ impl Value {
     pub fn to_bytes_len(&self) -> (Vec<u8>, usize) {
         let mut bytes = vec![];
         let mut unfinished_byte = Vec::with_capacity(8);
-        let mut value_stack = vec![self];
-
-        while let Some(value) = value_stack.pop() {
-            match value {
-                Value::Unit => {}
-                Value::SumL(l) => {
-                    unfinished_byte.push(false);
-                    value_stack.push(l);
-                }
-                Value::SumR(r) => {
-                    unfinished_byte.push(true);
-                    value_stack.push(r);
-                }
-                Value::Prod(l, r) => {
-                    value_stack.push(r);
-                    value_stack.push(l);
-                }
-            }
+        let update_bytes = |bit: bool| {
+            unfinished_byte.push(bit);
 
             if unfinished_byte.len() == 8 {
                 bytes.push(unfinished_byte.iter().fold(0, |acc, &b| acc * 2 + b as u8));
                 unfinished_byte.clear();
             }
-        }
+        };
 
+        self.do_each_bit(update_bytes);
         let bit_length = bytes.len() * 8 + unfinished_byte.len();
 
         if !unfinished_byte.is_empty() {
