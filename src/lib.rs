@@ -48,6 +48,9 @@ mod sharing;
 // mod test_progs;
 mod util;
 
+#[cfg(feature = "elements")]
+pub use crate::policy::Policy;
+
 pub use crate::bit_machine::exec;
 pub use crate::core::{CommitNode, RedeemNode};
 use crate::inference::UnificationArrow;
