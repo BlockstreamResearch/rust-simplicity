@@ -2,29 +2,25 @@ use crate::core::Value;
 use crate::jet::elements::ElementsEnv;
 use crate::policy::ast::Policy;
 use bitcoin_hashes::{sha256, Hash};
+use elements::bitcoin;
 use elements::locktime::Height;
-use elements::schnorr::{KeyPair, XOnlyPublicKey};
 use elements::secp256k1_zkp::Message;
 use elements::taproot::TapLeafHash;
 use elements::SchnorrSig;
 use elements::{LockTime, SchnorrSigHashType, Sequence};
-use elements_miniscript::{Preimage32, Satisfier};
+use elements_miniscript::{MiniscriptKey, Preimage32, Satisfier, ToPublicKey};
 use std::cmp::Ordering;
 use std::collections::{HashMap, VecDeque};
 use std::iter::FromIterator;
 
-pub struct PolicySatisfier {
-    pub preimages: HashMap<sha256::Hash, Preimage32>,
-    pub keys: HashMap<XOnlyPublicKey, KeyPair>,
+pub struct PolicySatisfier<Pk: MiniscriptKey> {
+    pub preimages: HashMap<Pk::Sha256, Preimage32>,
+    pub keys: HashMap<Pk, bitcoin::KeyPair>,
     pub env: ElementsEnv,
 }
 
-impl Satisfier<XOnlyPublicKey> for PolicySatisfier {
-    fn lookup_tap_leaf_script_sig(
-        &self,
-        pk: &XOnlyPublicKey,
-        _: &TapLeafHash,
-    ) -> Option<SchnorrSig> {
+impl<Pk: MiniscriptKey + ToPublicKey> Satisfier<Pk> for PolicySatisfier<Pk> {
+    fn lookup_tap_leaf_script_sig(&self, pk: &Pk, _: &TapLeafHash) -> Option<SchnorrSig> {
         self.keys.get(pk).map(|keypair| {
             let sighash = self.env.c_tx_env().sighash_all();
             let msg = Message::from_hashed_data::<sha256::Hash>(&sighash);
@@ -37,7 +33,7 @@ impl Satisfier<XOnlyPublicKey> for PolicySatisfier {
         })
     }
 
-    fn lookup_sha256(&self, hash: &sha256::Hash) -> Option<Preimage32> {
+    fn lookup_sha256(&self, hash: &Pk::Sha256) -> Option<Preimage32> {
         self.preimages.get(hash).copied()
     }
 
@@ -54,16 +50,13 @@ impl Satisfier<XOnlyPublicKey> for PolicySatisfier {
     }
 }
 
-impl Policy<XOnlyPublicKey> {
-    pub fn satisfy<S: Satisfier<XOnlyPublicKey>>(&self, satisfier: &S) -> Option<Vec<Value>> {
+impl<Pk: MiniscriptKey + ToPublicKey> Policy<Pk> {
+    pub fn satisfy<S: Satisfier<Pk>>(&self, satisfier: &S) -> Option<Vec<Value>> {
         let (wit, _) = self.satisfy_helper(satisfier)?;
         Some(wit.into())
     }
 
-    fn satisfy_helper<S: Satisfier<XOnlyPublicKey>>(
-        &self,
-        satisfier: &S,
-    ) -> Option<(VecDeque<Value>, u64)> {
+    fn satisfy_helper<S: Satisfier<Pk>>(&self, satisfier: &S) -> Option<(VecDeque<Value>, u64)> {
         match self {
             Policy::Unsatisfiable => None,
             Policy::Trivial => Some((VecDeque::new(), 0)),
@@ -155,7 +148,7 @@ mod tests {
     use elements::secp256k1_zkp::rand::rngs::ThreadRng;
     use elements::secp256k1_zkp::Secp256k1;
 
-    fn get_satisfier() -> PolicySatisfier {
+    fn get_satisfier() -> PolicySatisfier<bitcoin::PublicKey> {
         let mut preimages = HashMap::new();
         let mut keys = HashMap::new();
 
@@ -168,9 +161,8 @@ mod tests {
         let mut rng = ThreadRng::default();
 
         for _ in 0..3 {
-            let keypair = KeyPair::new(&secp, &mut rng);
-            let (xpub, _) = keypair.x_only_public_key();
-            keys.insert(xpub, keypair);
+            let keypair = bitcoin::KeyPair::new(&secp, &mut rng);
+            keys.insert(keypair.public_key().to_public_key(), keypair);
         }
 
         PolicySatisfier {
