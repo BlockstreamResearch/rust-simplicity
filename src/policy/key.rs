@@ -1,6 +1,6 @@
+use crate::miniscript::MiniscriptKey;
 use bitcoin_hashes::Hash;
 use elements::schnorr::XOnlyPublicKey;
-use miniscript::{DummyKey, MiniscriptKey};
 
 /// Public key that can be serialized in 32 bytes.
 pub trait PublicKey32: MiniscriptKey {
@@ -25,22 +25,5 @@ impl PublicKey32 for XOnlyPublicKey {
 
     fn hash_to_32_bytes(hash: &Self::Sha256) -> [u8; 32] {
         hash.into_inner()
-    }
-}
-
-impl PublicKey32 for DummyKey {
-    fn to_32_bytes(&self) -> [u8; 32] {
-        [0xab; 32]
-    }
-
-    fn from_32_bytes(bytes: &[u8]) -> Self {
-        if *bytes != [0xab; 32] {
-            panic!("Unable to parse DummyKey from bytes")
-        }
-        DummyKey
-    }
-
-    fn hash_to_32_bytes(_hash: &Self::Sha256) -> [u8; 32] {
-        [0xcd; 32]
     }
 }

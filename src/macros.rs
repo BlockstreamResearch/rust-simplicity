@@ -45,19 +45,19 @@ macro_rules! serde_string_impl_pk {
         #[cfg(feature = "serde")]
         impl<'de, Pk $(, $gen)*> $crate::serde::Deserialize<'de> for $name<Pk $(, $gen)*>
         where
-            Pk: miniscript::MiniscriptKey + core::str::FromStr,
+            Pk: crate::miniscript::MiniscriptKey + core::str::FromStr,
             Pk::Sha256: core::str::FromStr,
             Pk::Hash256: core::str::FromStr,
             Pk::Ripemd160: core::str::FromStr,
             Pk::Hash160: core::str::FromStr,
             <Pk as core::str::FromStr>::Err: core::fmt::Display,
-            <<Pk as miniscript::MiniscriptKey>::Sha256 as core::str::FromStr>::Err:
+            <<Pk as crate::miniscript::MiniscriptKey>::Sha256 as core::str::FromStr>::Err:
                 core::fmt::Display,
-            <<Pk as miniscript::MiniscriptKey>::Hash256 as core::str::FromStr>::Err:
+            <<Pk as crate::miniscript::MiniscriptKey>::Hash256 as core::str::FromStr>::Err:
                 core::fmt::Display,
-            <<Pk as miniscript::MiniscriptKey>::Ripemd160 as core::str::FromStr>::Err:
+            <<Pk as crate::miniscript::MiniscriptKey>::Ripemd160 as core::str::FromStr>::Err:
                 core::fmt::Display,
-            <<Pk as miniscript::MiniscriptKey>::Hash160 as core::str::FromStr>::Err:
+            <<Pk as crate::miniscript::MiniscriptKey>::Hash160 as core::str::FromStr>::Err:
                 core::fmt::Display,
             $($gen : $gen_con,)*
         {
@@ -73,19 +73,19 @@ macro_rules! serde_string_impl_pk {
                 struct Visitor<Pk $(, $gen)*>(PhantomData<(Pk $(, $gen)*)>);
                 impl<'de, Pk $(, $gen)*> $crate::serde::de::Visitor<'de> for Visitor<Pk $(, $gen)*>
                 where
-                    Pk: miniscript::MiniscriptKey + core::str::FromStr,
+                    Pk: crate::miniscript::MiniscriptKey + core::str::FromStr,
                     Pk::Sha256: core::str::FromStr,
                     Pk::Hash256: core::str::FromStr,
                     Pk::Ripemd160: core::str::FromStr,
                     Pk::Hash160: core::str::FromStr,
                     <Pk as core::str::FromStr>::Err: core::fmt::Display,
-                    <<Pk as miniscript::MiniscriptKey>::Sha256 as core::str::FromStr>::Err:
+                    <<Pk as crate::miniscript::MiniscriptKey>::Sha256 as core::str::FromStr>::Err:
                         core::fmt::Display,
-                    <<Pk as miniscript::MiniscriptKey>::Hash256 as core::str::FromStr>::Err:
+                    <<Pk as crate::miniscript::MiniscriptKey>::Hash256 as core::str::FromStr>::Err:
                         core::fmt::Display,
-                    <<Pk as miniscript::MiniscriptKey>::Ripemd160 as core::str::FromStr>::Err:
+                    <<Pk as crate::miniscript::MiniscriptKey>::Ripemd160 as core::str::FromStr>::Err:
                         core::fmt::Display,
-                    <<Pk as miniscript::MiniscriptKey>::Hash160 as core::str::FromStr>::Err:
+                    <<Pk as crate::miniscript::MiniscriptKey>::Hash160 as core::str::FromStr>::Err:
                         core::fmt::Display,
                     $($gen: $gen_con,)*
                 {
@@ -124,7 +124,7 @@ macro_rules! serde_string_impl_pk {
         #[cfg(feature = "serde")]
         impl<'de, Pk $(, $gen)*> $crate::serde::Serialize for $name<Pk $(, $gen)*>
         where
-            Pk: miniscript::MiniscriptKey,
+            Pk: crate::miniscript::MiniscriptKey,
             $($gen: $gen_con,)*
         {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

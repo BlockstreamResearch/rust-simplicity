@@ -23,7 +23,7 @@
 use std::fmt;
 use std::rc::Rc;
 
-use miniscript::{MiniscriptKey, Translator};
+use crate::miniscript::{MiniscriptKey, Translator};
 
 use crate::core::{CommitNode, Context};
 use crate::jet::Elements;
