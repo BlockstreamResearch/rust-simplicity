@@ -172,6 +172,8 @@ impl fmt::Display for Error {
     }
 }
 
+impl std::error::Error for Error {}
+
 #[doc(hidden)]
 impl From<miniscript::Error> for Error {
     fn from(e: miniscript::Error) -> Error {
