@@ -52,7 +52,7 @@ mod util;
 pub use crate::policy::Policy;
 
 pub use crate::bit_machine::exec;
-pub use crate::core::{CommitNode, RedeemNode};
+pub use crate::core::{CommitNode, Context, RedeemNode};
 use crate::inference::UnificationArrow;
 pub use simplicity_sys as ffi;
 use std::fmt;
