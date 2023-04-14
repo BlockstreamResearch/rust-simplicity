@@ -1,7 +1,7 @@
 use crate::core::Value;
 use crate::jet::elements::ElementsEnv;
 use crate::Policy;
-use bitcoin_hashes::{sha256, Hash};
+use bitcoin_hashes::Hash;
 use elements::bitcoin;
 use elements::locktime::Height;
 use elements::taproot::TapLeafHash;
@@ -21,7 +21,7 @@ impl<Pk: MiniscriptKey + ToPublicKey> Satisfier<Pk> for PolicySatisfier<Pk> {
     fn lookup_tap_leaf_script_sig(&self, pk: &Pk, _: &TapLeafHash) -> Option<elements::SchnorrSig> {
         self.keys.get(pk).map(|keypair| {
             let sighash = self.env.c_tx_env().sighash_all();
-            let msg = secp256k1_zkp::Message::from_hashed_data::<sha256::Hash>(&sighash);
+            let msg = secp256k1_zkp::Message::from_slice(&sighash).unwrap();
             let sig = keypair.sign_schnorr(msg);
 
             elements::SchnorrSig {
@@ -142,7 +142,7 @@ impl<Pk: MiniscriptKey + ToPublicKey> Policy<Pk> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bitcoin_hashes::Hash;
+    use bitcoin_hashes::{sha256, Hash};
 
     fn get_satisfier() -> PolicySatisfier<bitcoin::PublicKey> {
         let mut preimages = HashMap::new();
