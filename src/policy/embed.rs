@@ -79,6 +79,11 @@ where
                 if nsubs == 0 {
                     return Err(msError::Unexpected("thresh without args".to_owned()));
                 }
+                if nsubs < 3 {
+                    return Err(msError::Unexpected(
+                        "thresh must have a threshold value and at least 2 children".to_owned(),
+                    ));
+                }
                 if !top.args[0].args.is_empty() {
                     return Err(msError::Unexpected(top.args[0].args[0].name.to_owned()));
                 }
@@ -154,5 +159,47 @@ impl<'a, Pk: MiniscriptKey, Ctx: ScriptContext> TryFrom<&'a Miniscript<Pk, Ctx>>
                 Err(Error::ParseError("Multisig is not supported"))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_bad_thresh() {
+        assert_eq!(
+            Policy::<String>::from_str("thresh()"),
+            Err(msError::Unexpected(
+                "thresh must have a threshold value and at least 2 children".to_string()
+            )),
+        );
+
+        assert_eq!(
+            Policy::<String>::from_str("thresh"),
+            Err(msError::Unexpected("thresh without args".to_string())),
+        );
+
+        assert_eq!(
+            Policy::<String>::from_str("thresh(0)"),
+            Err(msError::Unexpected(
+                "thresh must have a threshold value and at least 2 children".to_string()
+            )),
+        );
+
+        assert_eq!(
+            Policy::<String>::from_str("thresh(0,TRIVIAL)"),
+            Err(msError::Unexpected(
+                "thresh must have a threshold value and at least 2 children".to_string()
+            )),
+        );
+
+        assert!(Policy::<String>::from_str("thresh(0,TRIVIAL,TRIVIAL)").is_ok());
+        assert!(Policy::<String>::from_str("thresh(2,TRIVIAL,TRIVIAL)").is_ok());
+
+        assert_eq!(
+            Policy::<String>::from_str("thresh(3,TRIVIAL,TRIVIAL)"),
+            Err(msError::Unexpected("3".to_string())),
+        );
     }
 }
