@@ -7,7 +7,6 @@ use elements::locktime::Height;
 use elements::taproot::TapLeafHash;
 use elements::{secp256k1_zkp, LockTime, SchnorrSigHashType, Sequence};
 use elements_miniscript::{MiniscriptKey, Preimage32, Satisfier, ToPublicKey};
-use std::cmp::Ordering;
 use std::collections::{HashMap, VecDeque};
 use std::iter::FromIterator;
 
@@ -35,16 +34,14 @@ impl<Pk: MiniscriptKey + ToPublicKey> Satisfier<Pk> for PolicySatisfier<Pk> {
         self.preimages.get(hash).copied()
     }
 
-    fn check_older(&self, n: Sequence) -> bool {
-        self.env.tx().input[self.env.ix() as usize].sequence >= n
+    fn check_older(&self, sequence: Sequence) -> bool {
+        let self_sequence = self.env.tx().input[self.env.ix() as usize].sequence;
+        <Sequence as Satisfier<Pk>>::check_older(&self_sequence, sequence)
     }
 
-    fn check_after(&self, n: LockTime) -> bool {
-        let m = LockTime::from(self.env.tx().lock_time);
-        match m.partial_cmp(&n) {
-            Some(Ordering::Less) | Some(Ordering::Equal) => true,
-            _ => false,
-        }
+    fn check_after(&self, locktime: LockTime) -> bool {
+        let self_locktime = LockTime::from(self.env.tx().lock_time);
+        <LockTime as Satisfier<Pk>>::check_after(&self_locktime, locktime)
     }
 }
 
