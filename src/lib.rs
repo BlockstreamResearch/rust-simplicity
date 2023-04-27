@@ -53,7 +53,6 @@ pub use crate::policy::Policy;
 
 pub use crate::bit_machine::exec;
 pub use crate::core::{CommitNode, Context, RedeemNode};
-use crate::inference::UnificationArrow;
 pub use simplicity_sys as ffi;
 use std::fmt;
 
@@ -69,10 +68,6 @@ pub enum Error {
         unification_hint: &'static str,
         /// Hint why root type does not match children types
         root_hint: &'static str,
-        /// Unification arrow of left child, if it exists
-        left: Option<UnificationArrow>,
-        /// Unification arrow of right child, if it exists
-        right: Option<UnificationArrow>,
     },
     /// Node made a back-reference past the beginning of the program
     BadIndex,
@@ -112,30 +107,12 @@ impl fmt::Debug for Error {
             Error::TypeCheck {
                 unification_hint,
                 root_hint,
-                left,
-                right,
             } => {
-                if let Some(left) = left {
-                    if let Some(right) = right {
-                        write!(
-                            f,
-                            "Type checking failed. Hint: {}\n{}\nActual left  child: {}\nActual right child: {}",
-                            unification_hint, root_hint, left, right
-                        )
-                    } else {
-                        write!(
-                            f,
-                            "Type checking failed. Hint: {}\n{}\nActual child: {}",
-                            unification_hint, root_hint, left
-                        )
-                    }
-                } else {
-                    write!(
-                        f,
-                        "Type checking failed. Hint: {}\n{}",
-                        unification_hint, root_hint
-                    )
-                }
+                write!(
+                    f,
+                    "Type checking failed. Hint: {}\n{}",
+                    unification_hint, root_hint
+                )
             }
             Error::BadIndex => {
                 f.write_str("Node made a back-reference past the beginning of the program")

@@ -163,8 +163,8 @@ impl<J: Jet> CommitNode<J> {
     fn node_from_inner(
         context: &mut Context<J>,
         inner: CommitNodeInner<J>,
-        left: Option<Rc<CommitNode<J>>>,
-        right: Option<Rc<CommitNode<J>>>,
+        _left: Option<Rc<CommitNode<J>>>,
+        _right: Option<Rc<CommitNode<J>>>,
         hint: &'static str,
     ) -> Result<Rc<CommitNode<J>>, Error> {
         match inference::get_arrow(&inner, &mut context.naming) {
@@ -176,8 +176,6 @@ impl<J: Jet> CommitNode<J> {
             Err(Error::Unification(unification_hint)) => Err(Error::TypeCheck {
                 unification_hint,
                 root_hint: hint,
-                left: left.map(|l| l.arrow.clone()),
-                right: right.map(|r| r.arrow.clone()),
             }),
             Err(error) => Err(error),
         }
