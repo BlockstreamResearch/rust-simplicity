@@ -49,6 +49,12 @@ jobs:
         env:
           FEATURES: bitcoin elements test-utils
         run: |
+          if cargo --version | grep "1\.41"; then
+              # 1.0.157 uses syn 2.0 which requires edition 2018
+              cargo update -p serde --precise 1.0.156
+              # 1.0.108 uses `matches!` macro so does not work with Rust 1.41.1, bad `syn` no biscuit.
+              cargo update -p syn --precise 1.0.107
+          fi
           for f in $FEATURES; do echo "Features: $f" && cargo test --no-default-features --features="$f"; done
           echo "No default features" && cargo test --no-default-features
           echo "All features" && cargo test --all-features
