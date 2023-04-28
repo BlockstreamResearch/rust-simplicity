@@ -3,6 +3,7 @@
 #ifndef SIMPLICITY_EVAL_H
 #define SIMPLICITY_EVAL_H
 
+#include "bounded.h"
 #include "dag.h"
 
 typedef unsigned char flags_type;
@@ -21,7 +22,7 @@ typedef unsigned char flags_type;
  *
  * If none of the above conditions fail and 'NULL != output', then a copy the final active write frame's data is written to 'output[roundWord(outputSize)]'.
  *
- * If 'anti_dos_checks' includes the CHECK_EXEC flag, and not every dag node is executed, '*evalSuccess' is set to 'false'
+ * If 'anti_dos_checks' includes the CHECK_EXEC flag, and not every non-HIDDEN dag node is executed, '*evalSuccess' is set to 'false'
  * If 'anti_dos_checks' includes the CHECK_CASE flag, and not every case node has both branches executed, '*evalSuccess' is set to 'false'
  *
  * Otherwise '*evalSuccess' is set to 'true'.
@@ -34,10 +35,11 @@ typedef unsigned char flags_type;
  *               outputSize == bitSize(B);
  *               output == NULL or UWORD output[ROUND_UWORD(outputSize)];
  *               input == NULL or UWORD input[ROUND_UWORD(inputSize)];
+ *               budget <= BUDGET_MAX
  *               if 'dag[len]' represents a Simplicity expression with primitives then 'NULL != env';
  */
-bool evalTCOExpression( bool *evalSuccess, flags_type anti_dos_checks, UWORD* output, size_t outputSize, const UWORD* input, size_t inputSize
-                      , const dag_node* dag, type* type_dag, size_t len, const txEnv* env
+bool evalTCOExpression( bool *evalSuccess, flags_type anti_dos_checks, UWORD* output, ubounded outputSize, const UWORD* input, ubounded inputSize
+                      , const dag_node* dag, type* type_dag, size_t len, ubounded budget, const txEnv* env
                       );
 
 /* Run the Bit Machine on the well-typed Simplicity program 'dag[len]'.
@@ -50,9 +52,10 @@ bool evalTCOExpression( bool *evalSuccess, flags_type anti_dos_checks, UWORD* ou
  *
  * Precondition: NULL != evalSuccess
  *               dag_node dag[len] and 'dag' is well-typed with 'type_dag' of type 1 |- 1;
+ *               budget <= BUDGET_MAX
  *               if 'dag[len]' represents a Simplicity expression with primitives then 'NULL != env';
  */
-static inline bool evalTCOProgram(bool *evalSuccess, const dag_node* dag, type* type_dag, size_t len, const txEnv* env) {
-  return evalTCOExpression(evalSuccess, CHECK_ALL, NULL, 0, NULL, 0, dag, type_dag, len, env);
+static inline bool evalTCOProgram(bool *evalSuccess, const dag_node* dag, type* type_dag, size_t len, ubounded budget, const txEnv* env) {
+  return evalTCOExpression(evalSuccess, CHECK_ALL, NULL, 0, NULL, 0, dag, type_dag, len, budget, env);
 }
 #endif
