@@ -18,10 +18,13 @@ extern crate bitcoin_hashes;
 extern crate byteorder;
 extern crate miniscript;
 
+#[cfg(feature = "serde")]
+pub use actual_serde as serde;
 #[cfg(feature = "bitcoin")]
 pub use bitcoin;
 #[cfg(feature = "elements")]
 pub use elements;
+
 #[macro_use]
 mod macros;
 

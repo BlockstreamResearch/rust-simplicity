@@ -8,6 +8,8 @@ use miniscript::{expression, Miniscript, ScriptContext, Terminal};
 use crate::policy::ast::Policy;
 use crate::Error;
 
+serde_string_impl_pk!(Policy, "a Simplicity policy");
+
 impl<Pk> FromStr for Policy<Pk>
 where
     Pk: MiniscriptKey + FromStr,
