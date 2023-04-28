@@ -28,6 +28,7 @@ use super::c_env;
 /// An Elements UTXO
 // This is not a complete TxOut as it does not contain the nonce that
 // is sent to the recipient.
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ElementsUtxo {
     /// The 'scriptpubkey' (hash of Simplicity program)
     pub script_pubkey: elements::Script,
