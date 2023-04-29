@@ -23,7 +23,7 @@
 use std::fmt;
 use std::rc::Rc;
 
-use miniscript::{MiniscriptKey, Translator};
+use crate::miniscript::{MiniscriptKey, Translator};
 
 use crate::core::{CommitNode, Context};
 use crate::jet::Elements;
@@ -171,9 +171,9 @@ impl<Pk: MiniscriptKey> Policy<Pk> {
 impl<Pk: MiniscriptKey> fmt::Debug for Policy<Pk> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Policy::Unsatisfiable => f.write_str("UNSATISFIABLE()"),
-            Policy::Trivial => f.write_str("TRIVIAL()"),
-            Policy::Key(pk) => write!(f, "pk({:?})", pk),
+            Policy::Unsatisfiable => f.write_str("UNSATISFIABLE"),
+            Policy::Trivial => f.write_str("TRIVIAL"),
+            Policy::Key(pk) => write!(f, "pk({})", pk),
             Policy::After(n) => write!(f, "after({})", n),
             Policy::Older(n) => write!(f, "older({})", n),
             Policy::Sha256(h) => write!(f, "sha256({})", h),

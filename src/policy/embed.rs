@@ -1,9 +1,10 @@
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 
-use miniscript::Error as msError;
-use miniscript::MiniscriptKey;
-use miniscript::{expression, Miniscript, ScriptContext, Terminal};
+use crate::miniscript;
+use crate::miniscript::Error as msError;
+use crate::miniscript::MiniscriptKey;
+use crate::miniscript::{expression, Miniscript, ScriptContext, Terminal};
 
 use crate::policy::ast::Policy;
 use crate::Error;
@@ -19,7 +20,7 @@ where
 {
     type Err = miniscript::Error;
 
-    fn from_str(s: &str) -> Result<Policy<Pk>, miniscript::Error> {
+    fn from_str(s: &str) -> Result<Policy<Pk>, Self::Err> {
         for ch in s.as_bytes() {
             if *ch < 20 || *ch > 127 {
                 return Err(miniscript::Error::Unprintable(*ch));
@@ -27,7 +28,7 @@ where
         }
 
         let tree = expression::Tree::from_str(s)?;
-        miniscript::expression::FromTree::from_tree(&tree)
+        expression::FromTree::from_tree(&tree)
     }
 }
 
@@ -90,7 +91,7 @@ where
                     return Err(msError::Unexpected(top.args[0].args[0].name.to_owned()));
                 }
 
-                let thresh = expression::parse_num(top.args[0].name)?;
+                let thresh: u32 = expression::parse_num(top.args[0].name)?;
                 if thresh >= nsubs {
                     return Err(msError::Unexpected(top.args[0].name.to_owned()));
                 }
@@ -160,6 +161,7 @@ impl<'a, Pk: MiniscriptKey, Ctx: ScriptContext> TryFrom<&'a Miniscript<Pk, Ctx>>
             Terminal::Multi(_, _) | Terminal::MultiA(_, _) => {
                 Err(Error::ParseError("Multisig is not supported"))
             }
+            Terminal::Ext(_) => Err(Error::ParseError("Extensions are not supported")),
         }
     }
 }
