@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <simplicity/elements/exec.h>
+#include "ctx8Pruned.h"
+#include "ctx8Unpruned.h"
 #include "dag.h"
 #include "deserialize.h"
 #include "eval.h"
@@ -115,7 +117,7 @@ static void test_hashBlock(void) {
         write32s(&frame, (uint32_t[16]){ [0] = 0x61626380, [15] = 0x18 }, 16);
       }
       bool evalSuccess;
-      if (evalTCOExpression(&evalSuccess, CHECK_NONE, output, 256, input, 256+512, dag, type_dag, (size_t)len, NULL) && evalSuccess) {
+      if (evalTCOExpression(&evalSuccess, CHECK_NONE, output, 256, input, 256+512, dag, type_dag, (size_t)len, 29100, NULL) && evalSuccess) {
         /* The expected result is the value 'SHA256("abc")'. */
         const uint32_t expectedHash[8] = { 0xba7816bful, 0x8f01cfeaul, 0x414140deul, 0x5dae2223ul
                                          , 0xb00361a3ul, 0x96177a9cul, 0xb410ff61ul, 0xf20015adul };
@@ -203,7 +205,7 @@ static void test_program(char* name, const unsigned char* program, size_t progra
         }
       }
       bool evalSuccess;
-      if (evalTCOProgram(&evalSuccess, dag, type_dag, (size_t)len, NULL) && expectedResult == evalSuccess) {
+      if (evalTCOProgram(&evalSuccess, dag, type_dag, (size_t)len, BUDGET_MAX, NULL) && expectedResult == evalSuccess) {
         successes++;
       } else {
         failures++;
@@ -292,7 +294,7 @@ static void test_elements(void) {
       bool execResult;
       {
         unsigned char imrResult[32];
-        if (elements_simplicity_execSimplicity(&execResult, imrResult, tx1, 0, taproot, genesisHash, amr, elementsCheckSigHashAllTx1, sizeof_elementsCheckSigHashAllTx1) && execResult) {
+        if (elements_simplicity_execSimplicity(&execResult, imrResult, tx1, 0, taproot, genesisHash, BUDGET_MAX, amr, elementsCheckSigHashAllTx1, sizeof_elementsCheckSigHashAllTx1) && execResult) {
           sha256_midstate imr;
           sha256_toMidstate(imr.s, imrResult);
           if (0 == memcmp(imr.s, elementsCheckSigHashAllTx1_imr, sizeof(uint32_t[8]))) {
@@ -311,7 +313,7 @@ static void test_elements(void) {
         unsigned char brokenSig[sizeof_elementsCheckSigHashAllTx1];
         memcpy(brokenSig, elementsCheckSigHashAllTx1, sizeof_elementsCheckSigHashAllTx1);
         brokenSig[sizeof_elementsCheckSigHashAllTx1 - 1] ^= 0x80;
-        if (elements_simplicity_execSimplicity(&execResult, NULL, tx1, 0, taproot, genesisHash, NULL, brokenSig, sizeof_elementsCheckSigHashAllTx1) && !execResult) {
+        if (elements_simplicity_execSimplicity(&execResult, NULL, tx1, 0, taproot, genesisHash, BUDGET_MAX, NULL, brokenSig, sizeof_elementsCheckSigHashAllTx1) && !execResult) {
           successes++;
         } else {
           failures++;
@@ -359,7 +361,7 @@ static void test_elements(void) {
       successes++;
       bool execResult;
       {
-        if (elements_simplicity_execSimplicity(&execResult, NULL, tx2, 0, taproot, genesisHash, NULL, elementsCheckSigHashAllTx1, sizeof_elementsCheckSigHashAllTx1) && !execResult) {
+        if (elements_simplicity_execSimplicity(&execResult, NULL, tx2, 0, taproot, genesisHash, BUDGET_MAX, NULL, elementsCheckSigHashAllTx1, sizeof_elementsCheckSigHashAllTx1) && !execResult) {
           successes++;
         } else {
           failures++;
@@ -429,6 +431,14 @@ int main(void) {
   test_hasDuplicates("hasDuplicates all duplicates testcase", true, rsort_all_duplicates, 10000);
   test_hasDuplicates("hasDuplicates one duplicate testcase", true, rsort_one_duplicate, 10000);
 
+  test_program("ctx8Pruned", ctx8Pruned, sizeof_ctx8Pruned, true, ctx8Pruned_cmr, ctx8Pruned_imr, ctx8Pruned_amr);
+  test_program("ctx8Unpruned", ctx8Unpruned, sizeof_ctx8Unpruned, false, ctx8Unpruned_cmr, ctx8Unpruned_imr, ctx8Unpruned_amr);
+  if (0 == memcmp(ctx8Pruned_cmr, ctx8Unpruned_cmr, sizeof(uint32_t[8]))) {
+    successes++;
+  } else {
+    failures++;
+    printf("Pruned and Unpruned CMRs are not the same.\n");
+  }
   test_program("schnorr0", schnorr0, sizeof_schnorr0, true, schnorr0_cmr, schnorr0_imr, schnorr0_amr);
   test_program("schnorr6", schnorr6, sizeof_schnorr6, false, schnorr6_cmr, schnorr6_imr, schnorr6_amr);
   test_elements();

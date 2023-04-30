@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include "bounded.h"
+#include "limitations.h"
 #include "unreachable.h"
 
 /* We choose an unusual representation for frames of the Bit Machine.
@@ -601,7 +602,7 @@ static bool runTCO(evalState state, call* stack, const dag_node* dag, type* type
 }
 
 /* Inspects the stack contents after a successful runTCO execution to verify anti-DOS properties:
- * 1. If 'checks' includes CHECK_EXEC, then check that all dag nodes were executed at least once.
+ * 1. If 'checks' includes CHECK_EXEC, then check that all non-HIDDEN dag nodes were executed at least once.
  * 2. If 'checks' includes CHECK_CASE, then check that both branches of every CASE node were executed.
  *
  * If these are violated, it means that the dag had unpruned nodes.
@@ -618,11 +619,10 @@ static bool antiDos(flags_type checks, const call* stack, const dag_node* dag, s
   if (!checks) return true;
 
   for(size_t i = 0; i < len; ++i) {
-    /* All combinators must be executed at least once. */
-    flags_type test_flags = CHECK_EXEC;
-
+    /* All non-HIDDEN nodes must be executed at least once. */
     /* Both branches of every case combinator must be executed at least once. */
-    if (CASE == dag[i].tag) test_flags |= CHECK_CASE;
+    flags_type test_flags = (HIDDEN != dag[i].tag ? CHECK_EXEC : 0)
+                          | (CASE == dag[i].tag ? CHECK_CASE : 0);
 
     /* Only enable requested checks */
     test_flags &= checks;
@@ -638,14 +638,15 @@ static bool antiDos(flags_type checks, const call* stack, const dag_node* dag, s
  * the Simplicity interpreter.
  */
 typedef struct memBound {
-  size_t extraCellsBoundTCO[2];
-  size_t extraStackBound[2]; /* extraStackBound[0] is for TCO off and extraStackBound[1] is for TCO on */
+  ubounded extraCellsBound[2];
+  ubounded extraUWORDBound[2];
+  ubounded extraFrameBound[2]; /* extraStackBound[0] is for TCO off and extraStackBound[1] is for TCO on */
+  ubounded cost;
 } memBound;
 
-/* :TODO: Document extraStackBoundTCO in the Tech Report (and implement it in Haskell) */
-/* Given a well-typed dag representing a Simplicity expression, set '*dag_bound' to the memory requirement for evaluation.
- * For all 'i', 0 <= 'i' < 'len', compute 'bound[i].extraCellsBoundTCO' and 'bound[i].extraStackBoundTCO'
- * for the subexpression denoted by the slice
+/* :TODO: Document extraFrameBound in the Tech Report (and implement it in Haskell) */
+/* Given a well-typed dag representing a Simplicity expression, set '*dag_bound' to the memory and CPU requirements for evaluation.
+ * For all 'i', 0 <= 'i' < 'len', compute 'bound[i]' fields for the subexpression denoted by the slice
  *
  *     (dag_nodes[i + 1])dag.
  *
@@ -656,17 +657,23 @@ typedef struct memBound {
  * Precondition: NULL != dag_bound
  *               dag_node dag[len] and 'dag' is well-typed with 'type_dag'.
  * Postcondition: if the result is 'true'
- *                then 'max(dag_bound->extraCellsBoundTCO[0], dag_bound->extraCellsBoundTCO[1]) == SIZE_MAX'.
- *                       or 'dag_bound->extraCellsBoundTCO' characterizes the number of UWORDs needed
- *                         for the frames allocated during evaluation of 'dag';
- *                     'dag_bound->extraStackBoundTCO[0] == SIZE_MAX'
- *                       or 'dag_bound->extraStackBoundTCO[0]' bounds the the number of stack frames needed
- *                          during execution of 'dag';
+ *                then 'dag_bound->cost == BOUNDED_MAX' or 'dag_bound->const' bounds the dags CPU cost measured in milli weight units
+ *                 and 'max(dag_bound->extraCellsBound[0], dag_bound->extraCellsBound[1]) == BOUNDED_MAX'
+ *                     or 'dag_bound->extraCellsBound' characterizes the number of cells needed during evaluation of 'dag'
+ *                        and 'dag_bound->extraUWORDBound' characterizes the number of UWORDs needed
+ *                              for the frames allocated during evaluation of 'dag'
+ *                        and 'dag_bound->extraFrameBound[0]' bounds the the number of stack frames needed during execution of 'dag'.
+ *
+ * :TODO: The cost calculations below are estimated and need to be replaced by experimental data.
  */
 static bool computeEvalTCOBound(memBound *dag_bound, const dag_node* dag, const type* type_dag, const size_t len) {
-  memBound* bound = len <= SIZE_MAX / sizeof(memBound)
-                  ? malloc(len * sizeof(memBound))
-                  : NULL;
+  const ubounded overhead = 10 /* milli weight units */;
+  static_assert(DAG_LEN_MAX <= SIZE_MAX / sizeof(memBound), "bound array too large.");
+  static_assert(1 <= DAG_LEN_MAX, "DAG_LEN_MAX is zero.");
+  static_assert(DAG_LEN_MAX - 1 <= UINT32_MAX, "bound array index does not fit in uint32_t.");
+  assert(1 <= len);
+  assert(len <= DAG_LEN_MAX);
+  memBound* bound = malloc(len * sizeof(memBound));
   if (!bound) return false;
 
   for (size_t i = 0; i < len; ++i) {
@@ -674,76 +681,113 @@ static bool computeEvalTCOBound(memBound *dag_bound, const dag_node* dag, const 
      case ASSERTL:
      case ASSERTR:
      case CASE:
-      bound[i].extraCellsBoundTCO[0] = max( bound[dag[i].child[0]].extraCellsBoundTCO[0]
-                                          , bound[dag[i].child[1]].extraCellsBoundTCO[0] );
-      bound[i].extraCellsBoundTCO[1] = max( bound[dag[i].child[0]].extraCellsBoundTCO[1]
-                                          , bound[dag[i].child[1]].extraCellsBoundTCO[1] );
+      bound[i].extraCellsBound[0] = max( bound[dag[i].child[0]].extraCellsBound[0]
+                                       , bound[dag[i].child[1]].extraCellsBound[0] );
+      bound[i].extraCellsBound[1] = max( bound[dag[i].child[0]].extraCellsBound[1]
+                                       , bound[dag[i].child[1]].extraCellsBound[1] );
 
-      bound[i].extraStackBound[0] = max( bound[dag[i].child[0]].extraStackBound[0]
-                                       , bound[dag[i].child[1]].extraStackBound[0] );
-      bound[i].extraStackBound[1] = max( bound[dag[i].child[0]].extraStackBound[1]
-                                       , bound[dag[i].child[1]].extraStackBound[1] );
+      bound[i].extraUWORDBound[0] = max( bound[dag[i].child[0]].extraUWORDBound[0]
+                                       , bound[dag[i].child[1]].extraUWORDBound[0] );
+      bound[i].extraUWORDBound[1] = max( bound[dag[i].child[0]].extraUWORDBound[1]
+                                       , bound[dag[i].child[1]].extraUWORDBound[1] );
+
+      bound[i].extraFrameBound[0] = max( bound[dag[i].child[0]].extraFrameBound[0]
+                                       , bound[dag[i].child[1]].extraFrameBound[0] );
+      bound[i].extraFrameBound[1] = max( bound[dag[i].child[0]].extraFrameBound[1]
+                                       , bound[dag[i].child[1]].extraFrameBound[1] );
+      bound[i].cost = bounded_add(overhead, max( bound[dag[i].child[0]].cost
+                                               , bound[dag[i].child[1]].cost ));
       break;
      case DISCONNECT:
-      /* :TODO: replace this check with a consensus critical limit. */
-      if (SIZE_MAX <= type_dag[DISCONNECT_W256A(dag, type_dag, i)].bitSize ||
-          SIZE_MAX <= type_dag[DISCONNECT_BC(dag, type_dag, i)].bitSize) {
+      if (BOUNDED_MAX <= type_dag[DISCONNECT_W256A(dag, type_dag, i)].bitSize ||
+          BOUNDED_MAX <= type_dag[DISCONNECT_BC(dag, type_dag, i)].bitSize) {
         /* 'BITSIZE(WORD256 * A)' or 'BITSIZE(B * C)' has exceeded our limits. */
-        bound[i].extraCellsBoundTCO[0] = SIZE_MAX;
-        bound[i].extraCellsBoundTCO[1] = SIZE_MAX;
+        bound[i].extraCellsBound[0] = BOUNDED_MAX;
+        bound[i].extraCellsBound[1] = BOUNDED_MAX;
       } else {
-        bound[i].extraCellsBoundTCO[1] = ROUND_UWORD(type_dag[DISCONNECT_W256A(dag, type_dag, i)].bitSize);
-        bound[i].extraCellsBoundTCO[0] = max(
-          bounded_add(
-            ROUND_UWORD(type_dag[DISCONNECT_BC(dag, type_dag, i)].bitSize),
-            max( bounded_add(bound[i].extraCellsBoundTCO[1], bound[dag[i].child[0]].extraCellsBoundTCO[1])
-               , max(bound[dag[i].child[0]].extraCellsBoundTCO[0], bound[dag[i].child[1]].extraCellsBoundTCO[1]))),
-          bound[dag[i].child[1]].extraCellsBoundTCO[0]);
+        bound[i].extraCellsBound[1] = type_dag[DISCONNECT_W256A(dag, type_dag, i)].bitSize;
+        bound[i].extraCellsBound[0] = max(
+          bounded_add( type_dag[DISCONNECT_BC(dag, type_dag, i)].bitSize
+                     , max( bounded_add(bound[i].extraCellsBound[1], bound[dag[i].child[0]].extraCellsBound[1])
+                          , max(bound[dag[i].child[0]].extraCellsBound[0], bound[dag[i].child[1]].extraCellsBound[1]))),
+          bound[dag[i].child[1]].extraCellsBound[0]);
       }
-      bound[i].extraStackBound[0] = bound[i].extraStackBound[1]
-                                  = max( bounded_add(1, bound[dag[i].child[0]].extraStackBound[1])
-                                       , bound[dag[i].child[1]].extraStackBound[1]);
-      bounded_inc(&bound[i].extraStackBound[0]);
+      bound[i].extraUWORDBound[1] = (ubounded)ROUND_UWORD(type_dag[DISCONNECT_W256A(dag, type_dag, i)].bitSize);
+      bound[i].extraUWORDBound[0] = max(
+          (ubounded)ROUND_UWORD(type_dag[DISCONNECT_BC(dag, type_dag, i)].bitSize) +
+          max( bound[i].extraUWORDBound[1] + bound[dag[i].child[0]].extraUWORDBound[1]
+             , max(bound[dag[i].child[0]].extraUWORDBound[0], bound[dag[i].child[1]].extraUWORDBound[1])),
+        bound[dag[i].child[1]].extraUWORDBound[0]);
+
+      bound[i].extraFrameBound[1] = max( bound[dag[i].child[0]].extraFrameBound[1] + 1
+                                       , bound[dag[i].child[1]].extraFrameBound[1]);
+      bound[i].extraFrameBound[0] = bound[i].extraFrameBound[1] + 1;
+      bound[i].cost = bounded_add(overhead
+                    , bounded_add(type_dag[DISCONNECT_W256A(dag, type_dag, i)].bitSize
+                    , bounded_add(type_dag[DISCONNECT_W256A(dag, type_dag, i)].bitSize /* counted twice because the frame is both filled in and moved. */
+                    , bounded_add(type_dag[DISCONNECT_BC(dag, type_dag, i)].bitSize
+                    , bounded_add(bound[dag[i].child[0]].cost, bound[dag[i].child[1]].cost)))));
       break;
      case COMP:
-      /* :TODO: replace this check with a consensus critical limit. */
-      if (SIZE_MAX <= type_dag[COMP_B(dag, type_dag, i)].bitSize) {
+      if (BOUNDED_MAX <= type_dag[COMP_B(dag, type_dag, i)].bitSize) {
         /* 'BITSIZE(B)' has exceeded our limits. */
-        bound[i].extraCellsBoundTCO[0] = SIZE_MAX;
-        bound[i].extraCellsBoundTCO[1] = SIZE_MAX;
+        bound[i].extraCellsBound[0] = BOUNDED_MAX;
+        bound[i].extraCellsBound[1] = BOUNDED_MAX;
       } else {
-        size_t scratch = ROUND_UWORD(type_dag[COMP_B(dag, type_dag, i)].bitSize);
-        bound[i].extraCellsBoundTCO[0] = max( bounded_add( scratch
-                                                         , max( bound[dag[i].child[0]].extraCellsBoundTCO[0]
-                                                              , bound[dag[i].child[1]].extraCellsBoundTCO[1] ))
-                                            , bound[dag[i].child[1]].extraCellsBoundTCO[0] );
-        bound[i].extraCellsBoundTCO[1] = bounded_add(scratch, bound[dag[i].child[0]].extraCellsBoundTCO[1]);
+        bound[i].extraCellsBound[0] = max( bounded_add( type_dag[COMP_B(dag, type_dag, i)].bitSize
+                                                      , max( bound[dag[i].child[0]].extraCellsBound[0]
+                                                           , bound[dag[i].child[1]].extraCellsBound[1] ))
+                                         , bound[dag[i].child[1]].extraCellsBound[0] );
+        bound[i].extraCellsBound[1] = bounded_add( type_dag[COMP_B(dag, type_dag, i)].bitSize
+                                                 , bound[dag[i].child[0]].extraCellsBound[1] );
       }
-      bound[i].extraStackBound[0] = max( bound[dag[i].child[0]].extraStackBound[0]
-                                       , bound[dag[i].child[1]].extraStackBound[1] );
-      bounded_inc(&bound[i].extraStackBound[0]);
-      bound[i].extraStackBound[1] = max( bounded_add(1, bound[dag[i].child[0]].extraStackBound[1])
-                                       , bound[dag[i].child[1]].extraStackBound[1] );
+      bound[i].extraUWORDBound[0] = max( (ubounded)ROUND_UWORD(type_dag[COMP_B(dag, type_dag, i)].bitSize) +
+                                         max( bound[dag[i].child[0]].extraUWORDBound[0]
+                                            , bound[dag[i].child[1]].extraUWORDBound[1] )
+                                       , bound[dag[i].child[1]].extraUWORDBound[0] );
+      bound[i].extraUWORDBound[1] = (ubounded)ROUND_UWORD(type_dag[COMP_B(dag, type_dag, i)].bitSize)
+                                  + bound[dag[i].child[0]].extraUWORDBound[1];
+
+      bound[i].extraFrameBound[0] = max( bound[dag[i].child[0]].extraFrameBound[0]
+                                       , bound[dag[i].child[1]].extraFrameBound[1] )
+                                  + 1;
+      bound[i].extraFrameBound[1] = max( bound[dag[i].child[0]].extraFrameBound[1] + 1
+                                       , bound[dag[i].child[1]].extraFrameBound[1] );
+      bound[i].cost = bounded_add(overhead
+                    , bounded_add(type_dag[COMP_B(dag, type_dag, i)].bitSize
+                    , bounded_add(bound[dag[i].child[0]].cost, bound[dag[i].child[1]].cost)));
       break;
      case PAIR:
-      bound[i].extraCellsBoundTCO[0] = bound[dag[i].child[1]].extraCellsBoundTCO[0];
-      bound[i].extraCellsBoundTCO[1] = max( bound[dag[i].child[0]].extraCellsBoundTCO[0]
-                                          , max( bound[dag[i].child[0]].extraCellsBoundTCO[1]
-                                               , bound[dag[i].child[1]].extraCellsBoundTCO[1] ));
+      bound[i].extraCellsBound[0] = bound[dag[i].child[1]].extraCellsBound[0];
+      bound[i].extraCellsBound[1] = max( bound[dag[i].child[0]].extraCellsBound[0]
+                                       , max( bound[dag[i].child[0]].extraCellsBound[1]
+                                            , bound[dag[i].child[1]].extraCellsBound[1] ));
 
-      bound[i].extraStackBound[0] = max( bound[dag[i].child[0]].extraStackBound[0]
-                                       , bound[dag[i].child[1]].extraStackBound[0] );
-      bound[i].extraStackBound[1] = max( bound[dag[i].child[0]].extraStackBound[0]
-                                       , bound[dag[i].child[1]].extraStackBound[1] );
+      bound[i].extraUWORDBound[0] = bound[dag[i].child[1]].extraUWORDBound[0];
+      bound[i].extraUWORDBound[1] = max( bound[dag[i].child[0]].extraUWORDBound[0]
+                                       , max( bound[dag[i].child[0]].extraUWORDBound[1]
+                                            , bound[dag[i].child[1]].extraUWORDBound[1] ));
+
+      bound[i].extraFrameBound[0] = max( bound[dag[i].child[0]].extraFrameBound[0]
+                                       , bound[dag[i].child[1]].extraFrameBound[0] );
+      bound[i].extraFrameBound[1] = max( bound[dag[i].child[0]].extraFrameBound[0]
+                                       , bound[dag[i].child[1]].extraFrameBound[1] );
+      bound[i].cost = bounded_add(overhead, bounded_add( bound[dag[i].child[0]].cost
+                                                       , bound[dag[i].child[1]].cost ));
       break;
      case INJL:
      case INJR:
      case TAKE:
      case DROP:
-      bound[i].extraCellsBoundTCO[0] = bound[dag[i].child[0]].extraCellsBoundTCO[0];
-      bound[i].extraCellsBoundTCO[1] = bound[dag[i].child[0]].extraCellsBoundTCO[1];
-      bound[i].extraStackBound[0] = bound[dag[i].child[0]].extraStackBound[0];
-      bound[i].extraStackBound[1] = bound[dag[i].child[0]].extraStackBound[1];
+      bound[i].extraCellsBound[0] = bound[dag[i].child[0]].extraCellsBound[0];
+      bound[i].extraCellsBound[1] = bound[dag[i].child[0]].extraCellsBound[1];
+
+      bound[i].extraUWORDBound[0] = bound[dag[i].child[0]].extraUWORDBound[0];
+      bound[i].extraUWORDBound[1] = bound[dag[i].child[0]].extraUWORDBound[1];
+
+      bound[i].extraFrameBound[0] = bound[dag[i].child[0]].extraFrameBound[0];
+      bound[i].extraFrameBound[1] = bound[dag[i].child[0]].extraFrameBound[1];
+      bound[i].cost = bounded_add(overhead, bound[dag[i].child[0]].cost);
       break;
      case IDEN:
      case UNIT:
@@ -751,8 +795,14 @@ static bool computeEvalTCOBound(memBound *dag_bound, const dag_node* dag, const 
      case WITNESS:
      case JET:
      case WORD:
-      bound[i].extraCellsBoundTCO[0] = bound[i].extraCellsBoundTCO[1] = 0;
-      bound[i].extraStackBound[0] = bound[i].extraStackBound[1] = 0;
+      bound[i].extraCellsBound[0] = bound[i].extraCellsBound[1] = 0;
+      bound[i].extraUWORDBound[0] = bound[i].extraUWORDBound[1] = 0;
+      bound[i].extraFrameBound[0] = bound[i].extraFrameBound[1] = 0;
+      bound[i].cost = IDEN == dag[i].tag ? bounded_add(overhead, type_dag[IDEN_A(dag, type_dag, i)].bitSize)
+                    : WITNESS == dag[i].tag || WORD == dag[i].tag ? bounded_add(overhead, type_dag[dag[i].targetType].bitSize)
+                    : JET == dag[i].tag ? dag[i].cost
+                    : HIDDEN == dag[i].tag ? 0
+                    : overhead;
     }
   }
 
@@ -771,7 +821,7 @@ static bool computeEvalTCOBound(memBound *dag_bound, const dag_node* dag, const 
  *
  * If none of the above conditions fail and 'NULL != output', then a copy the final active write frame's data is written to 'output[roundWord(outputSize)]'.
  *
- * If 'anti_dos_checks' includes the CHECK_EXEC flag, and not every dag node is executed, '*evalSuccess' is set to 'false'
+ * If 'anti_dos_checks' includes the CHECK_EXEC flag, and not every non-HIDDEN dag node is executed, '*evalSuccess' is set to 'false'
  * If 'anti_dos_checks' includes the CHECK_CASE flag, and not every case node has both branches executed, '*evalSuccess' is set to 'false'
  *
  * Otherwise '*evalSuccess' is set to 'true'.
@@ -782,30 +832,53 @@ static bool computeEvalTCOBound(memBound *dag_bound, const dag_node* dag, const 
  *               outputSize == bitSize(B);
  *               output == NULL or UWORD output[ROUND_UWORD(outputSize)];
  *               input == NULL or UWORD input[ROUND_UWORD(inputSize)];
+ *               budget <= BUDGET_MAX
  *               if 'dag[len]' represents a Simplicity expression with primitives then 'NULL != env';
  */
-bool evalTCOExpression( bool *evalSuccess, flags_type anti_dos_checks, UWORD* output, size_t outputSize, const UWORD* input, size_t inputSize
-                      , const dag_node* dag, type* type_dag, size_t len, const txEnv* env
+bool evalTCOExpression( bool *evalSuccess, flags_type anti_dos_checks, UWORD* output, ubounded outputSize, const UWORD* input, ubounded inputSize
+                      , const dag_node* dag, type* type_dag, size_t len, ubounded budget, const txEnv* env
                       ) {
+  assert(1 <= len);
+  assert(len <= DAG_LEN_MAX);
+  assert(budget <= BUDGET_MAX);
   memBound bound;
   if (!computeEvalTCOBound(&bound, dag, type_dag, len)) return false;
 
-  size_t cellsBound = bounded_add( bounded_add(ROUND_UWORD(inputSize), ROUND_UWORD(outputSize))
-                                 , max(bound.extraCellsBoundTCO[0], bound.extraCellsBoundTCO[1])
-                                 );
-  size_t stackBound = bounded_add(bound.extraStackBound[0], 2);
+  const ubounded cellsBound = bounded_add( bounded_add(inputSize, outputSize)
+                                         , max(bound.extraCellsBound[0], bound.extraCellsBound[1])
+                                         );
+  const ubounded UWORDBound = (ubounded)ROUND_UWORD(inputSize) + (ubounded)ROUND_UWORD(outputSize)
+                          + max(bound.extraUWORDBound[0], bound.extraUWORDBound[1]);
+  const ubounded frameBound = bound.extraFrameBound[0] + 2; /* add the initial input and output frames to the count. */
 
-  /* :TODO: add reasonable, consensus critical limits to cells and stack bounds */
-  if (SIZE_MAX <= outputSize || SIZE_MAX <= inputSize || SIZE_MAX <= cellsBound || SIZE_MAX <= stackBound) {
+  static_assert(1 <= BOUNDED_MAX, "BOUNDED_MAX is zero.");
+  static_assert(BUDGET_MAX <= (BOUNDED_MAX - 1) / 1000, "BUDGET_MAX is too large.");
+  static_assert(CELLS_MAX < BOUNDED_MAX, "CELLS_MAX is too large.");
+  if (budget * 1000 < bound.cost || CELLS_MAX < cellsBound) {
+    /* CPU or Memory bounds use exceeds limits. */
     *evalSuccess = false;
     return true;
   }
 
+  /* frameBound is at most 2*len. */
+  static_assert(DAG_LEN_MAX <= SIZE_MAX / 2, "2*DAG_LEN_MAX does not fit in size_t.");
+  assert(frameBound <= 2*len);
+
+  /* UWORDBound * UWORD_BIT, the number of bits actually allocacted, is at most the cellBound count plus (worse case) padding bits in each frame. */
+  static_assert(1 <= UWORD_BIT, "UWORD_BIT is zero.");
+  static_assert(2*DAG_LEN_MAX <= (SIZE_MAX - CELLS_MAX) / (UWORD_BIT - 1), "cellsBound + frameBound*(UWORD_BIT - 1) doesn't fit in size_t.");
+  assert(UWORDBound <= (cellsBound + frameBound*(UWORD_BIT - 1)) / UWORD_BIT);
+
+  /* UWORDBound, is also at most the cellsBound, with an entire UWORD per cell (the rest of the UWORD being padding). */
+  assert(UWORDBound <= cellsBound);
+
   /* We use calloc for 'cells' because the frame data must be initialized before we can perform bitwise operations. */
-  UWORD* cells = calloc(cellsBound ? cellsBound : 1, sizeof(UWORD));
-  frameItem* frames = stackBound <= SIZE_MAX / sizeof(frameItem)
-                    ? malloc(stackBound * sizeof(frameItem))
-                    : NULL;
+  static_assert(CELLS_MAX - 1 <= UINT32_MAX, "cells array index does not fit in uint32_t.");
+  UWORD* cells = calloc(UWORDBound ? UWORDBound : 1, sizeof(UWORD));
+  static_assert(2*DAG_LEN_MAX <= SIZE_MAX / sizeof(frameItem), "frames array does not fit in size_t.");
+  static_assert(1 <= DAG_LEN_MAX, "DAG_LEN_MAX is zero.");
+  static_assert(2*DAG_LEN_MAX - 1 <= UINT32_MAX, "frames array index does not fit in uint32_t.");
+  frameItem* frames = malloc(frameBound * sizeof(frameItem));
   call* stack = calloc(len, sizeof(call));
 
   const bool result = cells && frames && stack;
@@ -814,10 +887,10 @@ bool evalTCOExpression( bool *evalSuccess, flags_type anti_dos_checks, UWORD* ou
 
     evalState state =
       { .activeReadFrame = frames
-      , .activeWriteFrame = frames + (stackBound - 1)
+      , .activeWriteFrame = frames + (frameBound - 1)
       };
     *(state.activeReadFrame) = initReadFrame(inputSize, cells);
-    *(state.activeWriteFrame) = initWriteFrame(outputSize, cells + cellsBound);
+    *(state.activeWriteFrame) = initWriteFrame(outputSize, cells + UWORDBound);
 
     *evalSuccess = runTCO(state, stack, dag, type_dag, len, env);
 
