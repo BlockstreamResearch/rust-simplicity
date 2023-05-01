@@ -130,7 +130,8 @@ fn encode_node<W: io::Write, J: Jet>(
                 w.write_bits_be(7, 4)?;
             }
             RedeemNodeInner::Jet(jet) => {
-                w.write_bit(true)?;
+                w.write_bit(true)?; // jet or word
+                w.write_bit(true)?; // jet
                 jet.encode(w)?;
             }
             _ => unreachable!(),
