@@ -154,9 +154,10 @@ pub(super) fn new_tx(tx: &elements::Transaction, in_utxos: &[ElementsUtxo]) -> *
 pub(super) fn new_tap_env(control_block: &ControlBlock, script_cmr: Cmr) -> *mut CTapEnv {
     unsafe {
         let mut raw_tap_env = std::mem::MaybeUninit::<CRawTapEnv>::uninit();
+        let cb_ser = control_block.serialize();
         c_set_rawTapEnv(
             raw_tap_env.as_mut_ptr(),
-            control_block.serialize().as_ptr(),
+            cb_ser.as_ptr(),
             control_block.merkle_branch.as_inner().len() as c_uchar,
             script_cmr.as_ref().as_ptr(),
         );

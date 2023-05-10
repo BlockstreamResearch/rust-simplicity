@@ -166,7 +166,13 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
             index_dag.push((None, None));
 
             match maybe_code {
-                None => CommitNode::jet(context, J::decode(bits)?),
+                None => match bits.next() {
+                    None => return Err(Error::EndOfStream),
+                    Some(true) => CommitNode::jet(context, J::decode(bits)?),
+                    Some(false) => {
+                        return Err(Error::ParseError("we don't yet support const words"))
+                    }
+                },
                 Some(2) => match subcode {
                     0 => CommitNode::iden(context),
                     1 => CommitNode::unit(context),
