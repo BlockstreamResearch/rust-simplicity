@@ -71,20 +71,16 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
         Policy::After(n) => {
             let n_value = Value::u32(*n);
             let scribe_n = CommitNode::scribe(context, &n_value)?;
-            let lock_time = CommitNode::jet(context, Elements::LockTime)?;
-            let pair_n_locktime = CommitNode::pair(context, scribe_n, lock_time)?;
-            let le32 = CommitNode::jet(context, Elements::Le32)?;
+            let check_lock_height = CommitNode::jet(context, Elements::CheckLockHeight)?;
 
-            verify_bexp(context, pair_n_locktime, le32)
+            CommitNode::comp(context, scribe_n, check_lock_height)
         }
         Policy::Older(n) => {
-            let n_value = Value::u32((*n).into());
+            let n_value = Value::u16(*n);
             let scribe_n = CommitNode::scribe(context, &n_value)?;
-            let current_sequence = CommitNode::jet(context, Elements::CurrentSequence)?;
-            let pair_n_sequence = CommitNode::pair(context, scribe_n, current_sequence)?;
-            let le32 = CommitNode::jet(context, Elements::Le32)?;
+            let check_lock_distance = CommitNode::jet(context, Elements::CheckLockDistance)?;
 
-            verify_bexp(context, pair_n_sequence, le32)
+            CommitNode::comp(context, scribe_n, check_lock_distance)
         }
         Policy::Sha256(hash) => {
             let hash_value = Value::u256_from_slice(&Pk::hash_to_32_bytes(hash));
@@ -201,6 +197,7 @@ mod tests {
     use crate::exec::BitMachine;
     use crate::jet::elements::ElementsEnv;
     use bitcoin_hashes::{sha256, Hash};
+    use elements::bitcoin;
     use elements::schnorr::XOnlyPublicKey;
 
     fn compile(policy: Policy<XOnlyPublicKey>) -> (Rc<CommitNode<Elements>>, ElementsEnv) {
@@ -248,23 +245,49 @@ mod tests {
         ])));
     }
 
-    /*
     #[test]
     fn execute_after() {
-        let (commit, mut env) = compile(Policy::After(42));
+        let env = ElementsEnv::dummy_with(elements::PackedLockTime(42), elements::Sequence::ZERO);
 
-        env.tx.lock_time = 42;
-        assert!(!execute_successful(&commit, vec![], &env));
-
-        env.tx.lock_time = 43;
+        let mut context = Context::new();
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::After(41)
+            .compile(&mut context)
+            .expect("compile");
         assert!(execute_successful(&commit, vec![], &env));
-    }
-    */
 
-    // TODO: check execution once implemented
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::After(42)
+            .compile(&mut context)
+            .expect("compile");
+        assert!(execute_successful(&commit, vec![], &env));
+
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::After(43)
+            .compile(&mut context)
+            .expect("compile");
+        assert!(!execute_successful(&commit, vec![], &env));
+    }
+
     #[test]
-    fn compile_older() {
-        let _ = compile(Policy::Older(42));
+    fn execute_older() {
+        let env = ElementsEnv::dummy_with(
+            elements::PackedLockTime::ZERO,
+            elements::Sequence::from_consensus(42),
+        );
+
+        let mut context = Context::new();
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::Older(41)
+            .compile(&mut context)
+            .expect("compile");
+        assert!(execute_successful(&commit, vec![], &env));
+
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::Older(42)
+            .compile(&mut context)
+            .expect("compile");
+        assert!(execute_successful(&commit, vec![], &env));
+
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::Older(43)
+            .compile(&mut context)
+            .expect("compile");
+        assert!(!execute_successful(&commit, vec![], &env));
     }
 
     #[test]
