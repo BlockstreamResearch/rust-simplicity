@@ -197,10 +197,9 @@ mod tests {
     use crate::exec::BitMachine;
     use crate::jet::elements::ElementsEnv;
     use bitcoin_hashes::{sha256, Hash};
-    use elements::bitcoin;
-    use elements::schnorr::XOnlyPublicKey;
+    use elements::{bitcoin, secp256k1_zkp};
 
-    fn compile(policy: Policy<XOnlyPublicKey>) -> (Rc<CommitNode<Elements>>, ElementsEnv) {
+    fn compile(policy: Policy<bitcoin::XOnlyPublicKey>) -> (Rc<CommitNode<Elements>>, ElementsEnv) {
         let mut context = Context::new();
         let commit = super::compile(&mut context, &policy).expect("compile");
         let env = ElementsEnv::dummy();
@@ -235,14 +234,25 @@ mod tests {
         assert!(execute_successful(&commit, vec![], &env));
     }
 
-    // TODO: check execution once implemented
     #[test]
-    fn compile_pk() {
-        let _ = compile(Policy::Key(XOnlyPublicKey::from_32_bytes(&[
-            0xF9, 0x30, 0x8A, 0x01, 0x92, 0x58, 0xC3, 0x10, 0x49, 0x34, 0x4F, 0x85, 0xF8, 0x9D,
-            0x52, 0x29, 0xB5, 0x31, 0xC8, 0x45, 0x83, 0x6F, 0x99, 0xB0, 0x86, 0x01, 0xF1, 0x13,
-            0xBC, 0xE0, 0x36, 0xF9,
-        ])));
+    fn execute_pk() {
+        let env = ElementsEnv::dummy();
+
+        let sighash = env.c_tx_env().sighash_all();
+        let secp = secp256k1_zkp::Secp256k1::new();
+        let keypair = secp256k1_zkp::KeyPair::new(&secp, &mut secp256k1_zkp::rand::rngs::OsRng);
+        let message = secp256k1_zkp::Message::from(sighash);
+        let signature = keypair.sign_schnorr(message);
+
+        let (xonly, _) = keypair.x_only_public_key();
+        let mut context = Context::new();
+        let commit = Policy::Key(xonly).compile(&mut context).expect("compile");
+
+        assert!(execute_successful(
+            &commit,
+            vec![Value::u512_from_slice(signature.as_ref())],
+            &env
+        ));
     }
 
     #[test]
