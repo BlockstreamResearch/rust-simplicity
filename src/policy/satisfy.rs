@@ -71,7 +71,7 @@ impl<Pk: MiniscriptKey + ToPublicKey> Policy<Pk> {
                 }
             }
             Policy::Older(n) => {
-                if satisfier.check_older(Sequence(*n)) {
+                if satisfier.check_older(Sequence((*n).into())) {
                     Some((VecDeque::new(), 0))
                 } else {
                     None

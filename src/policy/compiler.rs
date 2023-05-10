@@ -78,7 +78,7 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
             verify_bexp(context, pair_n_locktime, le32)
         }
         Policy::Older(n) => {
-            let n_value = Value::u32(*n);
+            let n_value = Value::u32((*n).into());
             let scribe_n = CommitNode::scribe(context, &n_value)?;
             let current_sequence = CommitNode::jet(context, Elements::CurrentSequence)?;
             let pair_n_sequence = CommitNode::pair(context, scribe_n, current_sequence)?;
