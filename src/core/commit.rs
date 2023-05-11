@@ -166,6 +166,17 @@ impl<J: Jet> PartialEq for CommitNode<J> {
 }
 impl<J: Jet> Eq for CommitNode<J> {}
 
+/// Case branches used during execution
+#[derive(Debug)]
+pub enum UsedCaseBranch {
+    /// Only the left branch
+    Left,
+    /// Only the right branch
+    Right,
+    /// The left and the right branch
+    Both,
+}
+
 impl<J: Jet> CommitNode<J> {
     /// Accessor for the node's "inner value", i.e. its combinator
     pub fn inner(&self) -> &CommitNodeInner<J> {
@@ -368,6 +379,19 @@ impl<J: Jet> CommitNode<J> {
             Some(right),
             "Assertr is of type (A + B) × C → D where `right`: B × C → D",
         )
+    }
+
+    pub fn case_branch(
+        context: &mut Context<J>,
+        left: Rc<Self>,
+        right: Rc<Self>,
+        branch: UsedCaseBranch,
+    ) -> Result<Rc<Self>, Error> {
+        match branch {
+            UsedCaseBranch::Left => Self::assertl(context, left, right.cmr),
+            UsedCaseBranch::Right => Self::assertr(context, left.cmr, right),
+            UsedCaseBranch::Both => Self::case(context, left, right),
+        }
     }
 
     /// Create a DAG that computes the pair of the given `left` and `right` child.
