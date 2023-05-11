@@ -26,6 +26,16 @@ use crate::policy::key::PublicKey32;
 use crate::Error;
 use std::rc::Rc;
 
+impl<Pk: MiniscriptKey + PublicKey32> Policy<Pk> {
+    /// Compile the policy into a Simplicity program
+    pub fn compile(
+        &self,
+        context: &mut Context<Elements>,
+    ) -> Result<Rc<CommitNode<Elements>>, Error> {
+        compile(context, self)
+    }
+}
+
 fn compute_sha256(
     context: &mut Context<Elements>,
     witness256: Rc<CommitNode<Elements>>,
@@ -49,7 +59,7 @@ fn verify_bexp(
 }
 
 /// Compile the given policy into a Simplicity program.
-pub fn compile<Pk: MiniscriptKey + PublicKey32>(
+fn compile<Pk: MiniscriptKey + PublicKey32>(
     context: &mut Context<Elements>,
     policy: &Policy<Pk>,
 ) -> Result<Rc<CommitNode<Elements>>, Error> {

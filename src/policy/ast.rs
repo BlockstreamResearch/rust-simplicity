@@ -21,15 +21,8 @@
 //! Simplicity expressions to policy.
 
 use std::fmt;
-use std::rc::Rc;
 
 use crate::miniscript::{MiniscriptKey, Translator};
-
-use crate::core::{CommitNode, Context};
-use crate::jet::Elements;
-use crate::policy::compiler;
-use crate::policy::key::PublicKey32;
-use crate::Error;
 
 /// Policy that expresses spending conditions for Simplicity.
 ///
@@ -57,16 +50,6 @@ pub enum Policy<Pk: MiniscriptKey> {
     Or(Vec<Policy<Pk>>),
     /// Satisfy exactly `k` of the given sub-policies
     Threshold(usize, Vec<Policy<Pk>>),
-}
-
-impl<Pk: MiniscriptKey + PublicKey32> Policy<Pk> {
-    /// Compile the policy into a Simplicity program
-    pub fn compile(
-        &self,
-        context: &mut Context<Elements>,
-    ) -> Result<Rc<CommitNode<Elements>>, Error> {
-        compiler::compile(context, self)
-    }
 }
 
 impl<Pk: MiniscriptKey> Policy<Pk> {
