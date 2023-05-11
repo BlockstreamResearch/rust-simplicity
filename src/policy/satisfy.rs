@@ -1,6 +1,10 @@
+use crate::core::commit::UsedCaseBranch;
 use crate::core::Value;
 use crate::jet::elements::ElementsEnv;
-use crate::Policy;
+use crate::jet::Elements;
+use crate::policy::compiler;
+use crate::policy::key::PublicKey32;
+use crate::{CommitNode, Context, Policy};
 use bitcoin_hashes::Hash;
 use elements::bitcoin;
 use elements::locktime::Height;
@@ -9,6 +13,7 @@ use elements::{secp256k1_zkp, LockTime, SchnorrSigHashType, Sequence};
 use elements_miniscript::{MiniscriptKey, Preimage32, Satisfier, ToPublicKey};
 use std::collections::{HashMap, VecDeque};
 use std::iter::FromIterator;
+use std::rc::Rc;
 
 pub struct PolicySatisfier<Pk: MiniscriptKey> {
     pub preimages: HashMap<Pk::Sha256, Preimage32>,
@@ -45,42 +50,71 @@ impl<Pk: MiniscriptKey + ToPublicKey> Satisfier<Pk> for PolicySatisfier<Pk> {
     }
 }
 
-impl<Pk: MiniscriptKey + ToPublicKey> Policy<Pk> {
+struct Helper {
+    witness: VecDeque<Value>,
+    cost: u64,
+    pruned: Rc<CommitNode<Elements>>,
+}
+
+impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
     pub fn satisfy<S: Satisfier<Pk>>(&self, satisfier: &S) -> Option<Vec<Value>> {
-        let (wit, _) = self.satisfy_helper(satisfier)?;
-        Some(wit.into())
+        let mut context = Context::default();
+        let helper = self.satisfy_helper(satisfier, &mut context)?;
+        Some(helper.witness.into())
     }
 
-    fn satisfy_helper<S: Satisfier<Pk>>(&self, satisfier: &S) -> Option<(VecDeque<Value>, u64)> {
+    fn empty_helper(&self, context: &mut Context<Elements>) -> Helper {
+        Helper {
+            witness: VecDeque::new(),
+            cost: 0,
+            pruned: self.compile(context).unwrap(),
+        }
+    }
+
+    fn satisfy_helper<S: Satisfier<Pk>>(
+        &self,
+        satisfier: &S,
+        context: &mut Context<Elements>,
+    ) -> Option<Helper> {
         match self {
             Policy::Unsatisfiable => None,
-            Policy::Trivial => Some((VecDeque::new(), 0)),
+            Policy::Trivial => Some(self.empty_helper(context)),
             Policy::Key(pk) => satisfier
                 .lookup_tap_leaf_script_sig(pk, &TapLeafHash::all_zeros())
                 .map(|sig| {
                     let value = Value::u512_from_slice(sig.sig.as_ref());
-                    let wit = VecDeque::from_iter(std::iter::once(value));
-                    (wit, 512)
+                    let witness_data = VecDeque::from_iter(std::iter::once(value));
+
+                    Helper {
+                        witness: witness_data,
+                        cost: 512,
+                        pruned: self.compile(context).unwrap(),
+                    }
                 }),
             Policy::After(n) => {
                 let height = Height::from_consensus(*n).ok()?;
                 if satisfier.check_after(LockTime::Blocks(height)) {
-                    Some((VecDeque::new(), 0))
+                    Some(self.empty_helper(context))
                 } else {
                     None
                 }
             }
             Policy::Older(n) => {
                 if satisfier.check_older(Sequence((*n).into())) {
-                    Some((VecDeque::new(), 0))
+                    Some(self.empty_helper(context))
                 } else {
                     None
                 }
             }
             Policy::Sha256(hash) => satisfier.lookup_sha256(hash).map(|preimage| {
                 let value = Value::u256_from_slice(preimage.as_ref());
-                let wit = VecDeque::from_iter(std::iter::once(value));
-                (wit, 256)
+                let witness_data = VecDeque::from_iter(std::iter::once(value));
+
+                Helper {
+                    witness: witness_data,
+                    cost: 256,
+                    pruned: self.compile(context).unwrap(),
+                }
             }),
             Policy::And(sub_policies) => {
                 assert_eq!(
@@ -89,16 +123,13 @@ impl<Pk: MiniscriptKey + ToPublicKey> Policy<Pk> {
                     "Conjunctions must have exactly two sub-policies"
                 );
 
-                sub_policies[0]
-                    .satisfy_helper(satisfier)
-                    .and_then(|(mut wit1, size1)| {
-                        sub_policies[1]
-                            .satisfy_helper(satisfier)
-                            .map(|(wit2, size2)| {
-                                wit1.extend(wit2.into_iter());
-                                (wit1, size1 + size2)
-                            })
-                    })
+                let mut left = sub_policies[0].satisfy_helper(satisfier, context)?;
+                let right = sub_policies[1].satisfy_helper(satisfier, context)?;
+                left.witness.extend(right.witness);
+                left.cost += right.cost;
+                left.pruned = compiler::and(context, left.pruned, right.pruned).ok()?;
+
+                Some(left)
             }
             Policy::Or(sub_policies) => {
                 assert_eq!(
@@ -107,26 +138,51 @@ impl<Pk: MiniscriptKey + ToPublicKey> Policy<Pk> {
                     "Disjunctions must have exactly two sub-policies"
                 );
 
-                let maybe_sat1 = sub_policies[0].satisfy_helper(satisfier);
-                let maybe_sat2 = sub_policies[1].satisfy_helper(satisfier);
+                let maybe_left = sub_policies[0].satisfy_helper(satisfier, context);
+                let maybe_right = sub_policies[1].satisfy_helper(satisfier, context);
 
-                match (maybe_sat1, maybe_sat2) {
-                    (Some((mut wit1, size1)), Some((mut wit2, size2))) => {
-                        if size1 <= size2 {
-                            wit1.push_front(Value::u1(0));
-                            Some((wit1, size1 + 1))
+                match (maybe_left, maybe_right) {
+                    (Some(mut left), Some(mut right)) => {
+                        if left.cost <= right.cost {
+                            left.witness.push_front(Value::u1(0));
+                            left.cost += 1;
+                            left.pruned = compiler::or(
+                                context,
+                                left.pruned,
+                                right.pruned,
+                                UsedCaseBranch::Left,
+                            )
+                            .ok()?;
+                            Some(left)
                         } else {
-                            wit2.push_front(Value::u1(1));
-                            Some((wit2, size2 + 1))
+                            right.witness.push_front(Value::u1(1));
+                            right.cost += 1;
+                            right.pruned = compiler::or(
+                                context,
+                                left.pruned,
+                                right.pruned,
+                                UsedCaseBranch::Right,
+                            )
+                            .ok()?;
+                            Some(right)
                         }
                     }
-                    (Some((mut wit1, size1)), None) => {
-                        wit1.push_front(Value::u1(0));
-                        Some((wit1, size1 + 1))
+                    (Some(mut left), None) => {
+                        left.witness.push_front(Value::u1(0));
+                        left.cost += 1;
+                        let right = sub_policies[1].compile(context).ok()?;
+                        left.pruned =
+                            compiler::or(context, left.pruned, right, UsedCaseBranch::Left).ok()?;
+                        Some(left)
                     }
-                    (None, Some((mut wit2, size2))) => {
-                        wit2.push_front(Value::u1(1));
-                        Some((wit2, size2 + 1))
+                    (None, Some(mut right)) => {
+                        right.witness.push_front(Value::u1(1));
+                        right.cost += 1;
+                        let left = sub_policies[0].compile(context).ok()?;
+                        right.pruned =
+                            compiler::or(context, left, right.pruned, UsedCaseBranch::Right)
+                                .ok()?;
+                        Some(right)
                     }
                     _ => None,
                 }
@@ -141,7 +197,7 @@ mod tests {
     use super::*;
     use bitcoin_hashes::{sha256, Hash};
 
-    fn get_satisfier() -> PolicySatisfier<bitcoin::PublicKey> {
+    fn get_satisfier() -> PolicySatisfier<bitcoin::XOnlyPublicKey> {
         let mut preimages = HashMap::new();
         let mut keys = HashMap::new();
 
@@ -155,7 +211,8 @@ mod tests {
 
         for _ in 0..3 {
             let keypair = bitcoin::KeyPair::new(&secp, &mut rng);
-            keys.insert(keypair.public_key().to_public_key(), keypair);
+            let (xonly, _) = keypair.x_only_public_key();
+            keys.insert(xonly, keypair);
         }
 
         PolicySatisfier {
