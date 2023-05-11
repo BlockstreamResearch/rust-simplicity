@@ -57,10 +57,13 @@ struct Helper {
 }
 
 impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
-    pub fn satisfy<S: Satisfier<Pk>>(&self, satisfier: &S) -> Option<Vec<Value>> {
+    pub fn satisfy<S: Satisfier<Pk>>(
+        &self,
+        satisfier: &S,
+    ) -> Option<(Vec<Value>, Rc<CommitNode<Elements>>)> {
         let mut context = Context::default();
         let helper = self.satisfy_helper(satisfier, &mut context)?;
-        Some(helper.witness.into())
+        Some((helper.witness.into(), helper.pruned))
     }
 
     fn empty_helper(&self, context: &mut Context<Elements>) -> Helper {
@@ -195,7 +198,9 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::exec::BitMachine;
     use bitcoin_hashes::{sha256, Hash};
+    use std::convert::TryFrom;
 
     fn get_satisfier() -> PolicySatisfier<bitcoin::XOnlyPublicKey> {
         let mut preimages = HashMap::new();
@@ -222,112 +227,170 @@ mod tests {
         }
     }
 
+    fn execute_successful(
+        commit: Rc<CommitNode<Elements>>,
+        env: &ElementsEnv,
+        witness: Vec<Value>,
+    ) {
+        let program = commit.finalize(witness.into_iter()).expect("finalize");
+        let mut mac = BitMachine::for_program(&program);
+        assert!(mac.exec(&program, &env).is_ok());
+    }
+
     #[test]
     fn satisfy_unsatisfiable() {
         let satisfier = get_satisfier();
         let policy = Policy::Unsatisfiable;
-        assert_eq!(None, policy.satisfy(&satisfier));
+
+        assert!(policy.satisfy(&satisfier).is_none());
+
+        let mut context = Context::default();
+        let commit = policy.compile(&mut context).expect("compile");
+        let program = commit.finalize(std::iter::empty()).expect("finalize");
+        let mut mac = BitMachine::for_program(&program);
+
+        assert!(mac.exec(&program, &satisfier.env).is_err());
     }
 
     #[test]
     fn satisfy_trivial() {
         let satisfier = get_satisfier();
         let policy = Policy::Trivial;
-        assert_eq!(
-            Vec::<Value>::new(),
-            policy.satisfy(&satisfier).expect("satisfiable")
-        );
+
+        let (witness, commit) = policy.satisfy(&satisfier).expect("satisfiable");
+        assert_eq!(Vec::<Value>::new(), witness);
+
+        execute_successful(commit, &satisfier.env, witness);
     }
 
     #[test]
     fn satisfy_pk() {
         let satisfier = get_satisfier();
-        let mut keys = satisfier.keys.keys();
-        let policy = Policy::Key(*keys.next().unwrap());
+        let mut it = satisfier.keys.keys();
+        let xonly = it.next().unwrap();
+        let policy = Policy::Key(*xonly);
 
-        let witness = policy.satisfy(&satisfier).expect("sat");
+        let (witness, commit) = policy.satisfy(&satisfier).expect("satisfiable");
         assert_eq!(1, witness.len());
-        let signature = witness[0].try_to_bytes().expect("bytes");
-        assert_eq!(64, signature.len());
+
+        let sighash = satisfier.env.c_tx_env().sighash_all();
+        let message = secp256k1_zkp::Message::from(sighash);
+        let signature_bytes = witness[0].try_to_bytes().expect("to bytes");
+        let signature =
+            secp256k1_zkp::schnorr::Signature::from_slice(&signature_bytes).expect("to signature");
+        assert!(signature.verify(&message, &xonly).is_ok());
+
+        execute_successful(commit, &satisfier.env, witness);
     }
 
     #[test]
     fn satisfy_sha256() {
         let satisfier = get_satisfier();
-        let mut images = satisfier.preimages.keys();
-        let image0 = *images.next().unwrap();
-        let policy = Policy::Sha256(image0);
+        let mut it = satisfier.preimages.keys();
+        let image = *it.next().unwrap();
+        let policy = Policy::Sha256(image);
 
-        let preimage0 = satisfier.preimages.get(&image0).unwrap();
+        let (witness, commit) = policy.satisfy(&satisfier).expect("satisfiable");
+        assert_eq!(1, witness.len());
 
-        assert_eq!(
-            vec![Value::u256_from_slice(preimage0)],
-            policy.satisfy(&satisfier).expect("sat")
-        );
+        let witness_bytes = witness[0].try_to_bytes().expect("to bytes");
+        let witness_preimage = Preimage32::try_from(witness_bytes.as_slice()).expect("to array");
+        let preimage = *satisfier.preimages.get(&image).unwrap();
+        assert_eq!(preimage, witness_preimage);
+
+        execute_successful(commit, &satisfier.env, witness);
     }
 
     #[test]
     fn satisfy_and() {
         let satisfier = get_satisfier();
-        let mut images = satisfier.preimages.keys();
-        let image0 = *images.next().unwrap();
-        let image1 = *images.next().unwrap();
-        let preimage0 = satisfier.preimages.get(&image0).unwrap();
-        let preimage1 = satisfier.preimages.get(&image1).unwrap();
+        let images: Vec<_> = satisfier.preimages.keys().map(|x| *x).collect();
+        let preimages: Vec<_> = images
+            .iter()
+            .map(|x| satisfier.preimages.get(x).unwrap())
+            .collect();
 
-        let policy0 = Policy::And(vec![Policy::Sha256(image0), Policy::Sha256(image1)]);
-        assert_eq!(
-            vec![
-                Value::u256_from_slice(preimage0),
-                Value::u256_from_slice(preimage1)
-            ],
-            policy0.satisfy(&satisfier).expect("sat")
-        );
+        // Policy 0
+
+        let policy0 = Policy::And(vec![Policy::Sha256(images[0]), Policy::Sha256(images[1])]);
+        let (witness, commit) = policy0.satisfy(&satisfier).expect("satisfiable");
+        assert_eq!(2, witness.len());
+
+        for i in 0..2 {
+            let preimage_bytes = witness[i].try_to_bytes().expect("to bytes");
+            let witness_preimage =
+                Preimage32::try_from(preimage_bytes.as_slice()).expect("to array");
+            assert_eq!(preimages[i], &witness_preimage);
+        }
+
+        execute_successful(commit, &satisfier.env, witness);
+
+        // Policy 1
 
         let policy1 = Policy::And(vec![
             Policy::Sha256(sha256::Hash::from_inner([0; 32])),
-            Policy::Sha256(image1),
+            Policy::Sha256(images[1]),
         ]);
-        assert_eq!(None, policy1.satisfy(&satisfier));
+        assert!(policy1.satisfy(&satisfier).is_none());
+
+        // Policy 2
 
         let policy2 = Policy::And(vec![
-            Policy::Sha256(image0),
-            Policy::Sha256(sha256::Hash::from_inner([1; 32])),
+            Policy::Sha256(images[0]),
+            Policy::Sha256(sha256::Hash::from_inner([0; 32])),
         ]);
-        assert_eq!(None, policy2.satisfy(&satisfier));
+        assert!(policy2.satisfy(&satisfier).is_none());
     }
 
     #[test]
     fn satisfy_or() {
         let satisfier = get_satisfier();
-        let mut images = satisfier.preimages.keys();
-        let image0 = *images.next().unwrap();
-        let image1 = *images.next().unwrap();
-        let preimage0 = satisfier.preimages.get(&image0).unwrap();
-        let preimage1 = satisfier.preimages.get(&image1).unwrap();
+        let images: Vec<_> = satisfier.preimages.keys().map(|x| *x).collect();
+        let preimages: Vec<_> = images
+            .iter()
+            .map(|x| satisfier.preimages.get(x).unwrap())
+            .collect();
 
-        let policy0 = Policy::Or(vec![
-            Policy::Sha256(image0),
-            Policy::Sha256(sha256::Hash::from_inner([1; 32])),
-        ]);
-        assert_eq!(
-            vec![Value::u1(0), Value::u256_from_slice(preimage0)],
-            policy0.satisfy(&satisfier).expect("sat")
-        );
+        let assert_branch = |policy: &Policy<bitcoin::XOnlyPublicKey>, branch: u8| {
+            let (witness, commit) = policy.satisfy(&satisfier).expect("satisfiable");
+            assert_eq!(2, witness.len());
+
+            assert_eq!(Value::u1(branch), witness[0]);
+            let preimage_bytes = witness[1].try_to_bytes().expect("to bytes");
+            let witness_preimage =
+                Preimage32::try_from(preimage_bytes.as_slice()).expect("to array");
+            assert_eq!(preimages[branch as usize], &witness_preimage);
+
+            execute_successful(commit, &satisfier.env, witness);
+        };
+
+        // Policy 0
+
+        let policy0 = Policy::Or(vec![Policy::Sha256(images[0]), Policy::Sha256(images[1])]);
+        assert_branch(&policy0, 0);
+
+        // Policy 1
 
         let policy1 = Policy::Or(vec![
-            Policy::Sha256(sha256::Hash::from_inner([0; 32])),
-            Policy::Sha256(image1),
+            Policy::Sha256(images[0]),
+            Policy::Sha256(sha256::Hash::from_inner([1; 32])),
         ]);
-        assert_eq!(
-            vec![Value::u1(1), Value::u256_from_slice(preimage1)],
-            policy1.satisfy(&satisfier).expect("sat")
-        );
+        assert_branch(&policy1, 0);
+
+        // Policy 2
 
         let policy2 = Policy::Or(vec![
             Policy::Sha256(sha256::Hash::from_inner([0; 32])),
+            Policy::Sha256(images[1]),
+        ]);
+        assert_branch(&policy2, 1);
+
+        // Policy 3
+
+        let policy3 = Policy::Or(vec![
+            Policy::Sha256(sha256::Hash::from_inner([0; 32])),
             Policy::Sha256(sha256::Hash::from_inner([1; 32])),
         ]);
-        assert_eq!(None, policy2.satisfy(&satisfier));
+        assert!(policy3.satisfy(&satisfier).is_none());
     }
 }
