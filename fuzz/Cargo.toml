@@ -12,10 +12,6 @@ cargo-fuzz = true
 honggfuzz = { version = "0.5.55", default-features = false }
 simplicity = { path = ".." }
 
-# Prevent this from interfering with workspaces
-[workspace]
-members = ["."]
-
 [[bin]]
 name = "decode_natural"
 path = "fuzz_targets/decode_natural.rs"
