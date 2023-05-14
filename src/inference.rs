@@ -12,7 +12,17 @@ use std::{cmp, fmt, mem};
 /// using _path halving_ of the union-find algorithm.
 fn find_root(mut x: RcVar) -> RcVar {
     loop {
-        // Clone inner to un-borrow `x`
+        // To allow moving out of `x` we clone its inner value. Because `VariableInner`s
+        // are either trivial or contain more `Rc`s, this is still an O(1) shallow copy.
+        //
+        // While this does create a new variable which is independent of `x`, because it
+        // clones the inner `Rc`s rather than deep-copying them, as soon as we follow
+        // any of the interior references, it's as though we were using `x` itself. We
+        // make sure to either do this or throw away the copy to ensure that this is
+        // logically equivalent to directly using `x`.
+        //
+        // Ideally As of Rust 1.67 this appears to be necessary due to limitations of
+        // the borrowck, and this pattern is used repeatedly throughout this module.
         let x_var = x.borrow().inner.clone();
         let parent = if let VariableInner::EqualTo(parent) = x_var {
             parent
@@ -21,7 +31,7 @@ fn find_root(mut x: RcVar) -> RcVar {
             return x;
         };
 
-        // Clone inner to un-borrow `parent`
+        // Clone inner to un-borrow `parent`; see above comment.
         let parent_var = parent.borrow().inner.clone();
         if let VariableInner::EqualTo(grandparent) = parent_var {
             // Update the parent pointer to the grandparent, and go to the grandparent.
@@ -72,8 +82,8 @@ fn unify(mut x: RcVar, mut y: RcVar, hint: &'static str) -> Result<(), Error> {
 ///
 /// Fails if `x` is already bound to a type that is incompatible with `ty`.
 fn bind(x: &RcVar, ty: VariableType, hint: &'static str) -> Result<(), Error> {
-    // Clone inner to un-borrow `x`
-    let x_var = x.borrow().inner.clone();
+    // Clone inner to un-borrow the root; see comment inside `find_root` for more explanation
+    let x_var = find_root(x.clone()).borrow().inner.clone(); //x.borrow().inner.clone();
     match x_var {
         VariableInner::Free(_) => {
             x.borrow_mut().inner = VariableInner::Bound(ty, false);
@@ -88,7 +98,7 @@ fn bind(x: &RcVar, ty: VariableType, hint: &'static str) -> Result<(), Error> {
             }
             _ => Err(Error::Unification(hint)),
         },
-        VariableInner::EqualTo(..) => unreachable!("Can only bind root nodes"),
+        VariableInner::EqualTo(..) => unreachable!("x_var is a root node"),
         VariableInner::Finalized(..) => unreachable!("No finalized types at this stage"),
     }
 }
