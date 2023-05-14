@@ -33,13 +33,7 @@ pub mod bit_machine;
 pub mod bititer;
 pub mod bitwriter;
 pub mod core;
-#[cfg(fuzzing)]
-pub mod decode;
-#[cfg(not(fuzzing))]
 mod decode;
-#[cfg(fuzzing)]
-pub mod encode;
-#[cfg(not(fuzzing))]
 mod encode;
 mod inference;
 pub mod jet;
@@ -56,6 +50,8 @@ pub use crate::policy::Policy;
 
 pub use crate::bit_machine::exec;
 pub use crate::core::{CommitNode, Context, RedeemNode};
+pub use crate::decode::{decode_natural, WitnessDecoder};
+pub use crate::encode::{encode_natural, encode_witness};
 pub use simplicity_sys as ffi;
 use std::fmt;
 
