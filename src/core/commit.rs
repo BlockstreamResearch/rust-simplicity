@@ -158,6 +158,13 @@ pub struct CommitNode<J: Jet> {
     pub arrow: UnificationArrow,
 }
 
+impl<J: Jet> PartialEq for CommitNode<J> {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmr == other.cmr
+    }
+}
+impl<J: Jet> Eq for CommitNode<J> {}
+
 impl<J: Jet> CommitNode<J> {
     /// Create a node from its underlying combinator.
     fn node_from_inner(
