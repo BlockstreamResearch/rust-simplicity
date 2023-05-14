@@ -452,8 +452,7 @@ impl<J: Jet> CommitNode<J> {
             Value::Prod(l, r) => {
                 let l = CommitNode::scribe(context, l);
                 let r = CommitNode::scribe(context, r);
-                CommitNode::pair(context, l, r)
-                    .expect("source of scribe has no constraints")
+                CommitNode::pair(context, l, r).expect("source of scribe has no constraints")
             }
         }
     }

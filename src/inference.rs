@@ -227,53 +227,45 @@ impl UnificationArrow {
     }
 
     /// Create a unification arrow for a fresh jet combinator
-    pub(crate) fn for_injl<J: Jet>(
-        child: &CommitNode<J>,
-        naming: &mut VariableFactory
-    ) -> Self {
+    pub(crate) fn for_injl<J: Jet>(child: &CommitNode<J>, naming: &mut VariableFactory) -> Self {
         // Again, we "unify" by just cloning Rcs
         let source = child.arrow.source.clone();
-        let target = Variable::bound(
-            VariableType::Sum(child.arrow.target.clone(), naming.free_variable()),
-        );
+        let target = Variable::bound(VariableType::Sum(
+            child.arrow.target.clone(),
+            naming.free_variable(),
+        ));
         UnificationArrow { source, target }
     }
 
     /// Create a unification arrow for a fresh jet combinator
-    pub(crate) fn for_injr<J: Jet>(
-        child: &CommitNode<J>,
-        naming: &mut VariableFactory
-    ) -> Self {
+    pub(crate) fn for_injr<J: Jet>(child: &CommitNode<J>, naming: &mut VariableFactory) -> Self {
         // Again, we "unify" by just cloning Rcs
         let source = child.arrow.source.clone();
-        let target = Variable::bound(
-            VariableType::Sum(naming.free_variable(), child.arrow.target.clone()),
-        );
+        let target = Variable::bound(VariableType::Sum(
+            naming.free_variable(),
+            child.arrow.target.clone(),
+        ));
         UnificationArrow { source, target }
     }
 
     /// Create a unification arrow for a fresh jet combinator
-    pub(crate) fn for_take<J: Jet>(
-        child: &CommitNode<J>,
-        naming: &mut VariableFactory
-    ) -> Self {
+    pub(crate) fn for_take<J: Jet>(child: &CommitNode<J>, naming: &mut VariableFactory) -> Self {
         // Again, we "unify" by just cloning Rcs
-        let source = Variable::bound(
-            VariableType::Product(child.arrow.source.clone(), naming.free_variable()),
-        );
+        let source = Variable::bound(VariableType::Product(
+            child.arrow.source.clone(),
+            naming.free_variable(),
+        ));
         let target = child.arrow.target.clone();
         UnificationArrow { source, target }
     }
 
     /// Create a unification arrow for a fresh jet combinator
-    pub(crate) fn for_drop<J: Jet>(
-        child: &CommitNode<J>,
-        naming: &mut VariableFactory
-    ) -> Self {
+    pub(crate) fn for_drop<J: Jet>(child: &CommitNode<J>, naming: &mut VariableFactory) -> Self {
         // Again, we "unify" by just cloning Rcs
-        let source = Variable::bound(
-            VariableType::Product(naming.free_variable(), child.arrow.source.clone()),
-        );
+        let source = Variable::bound(VariableType::Product(
+            naming.free_variable(),
+            child.arrow.source.clone(),
+        ));
         let target = child.arrow.target.clone();
         UnificationArrow { source, target }
     }
@@ -308,7 +300,7 @@ impl UnificationArrow {
                     "Composition: Left target = right source",
                 )?;
                 Ok(arrow)
-            },
+            }
             CommitNodeInner::Case(ref lchild, ref rchild)
             | CommitNodeInner::AssertL(ref lchild, ref rchild)
             | CommitNodeInner::AssertR(ref lchild, ref rchild) => {
@@ -328,7 +320,7 @@ impl UnificationArrow {
                             "Case: Left source = A × C",
                         )?;
                         lchild.arrow.target.clone()
-                    },
+                    }
                     CommitNodeInner::AssertR(..) => {
                         bind(
                             &find_root(rchild.arrow.source.clone()),
@@ -336,7 +328,7 @@ impl UnificationArrow {
                             "Case: Right source = B × C",
                         )?;
                         rchild.arrow.target.clone()
-                    },
+                    }
                     CommitNodeInner::Case(..) => {
                         bind(
                             &find_root(lchild.arrow.source.clone()),
@@ -354,12 +346,12 @@ impl UnificationArrow {
                             "Case: Left target = right target",
                         )?;
                         rchild.arrow.target.clone()
-                    },
+                    }
                     _ => unreachable!(),
                 };
 
                 Ok(UnificationArrow { source, target })
-            },
+            }
             CommitNodeInner::Pair(ref lchild, ref rchild) => {
                 unify(
                     lchild.arrow.source.clone(),
@@ -374,7 +366,7 @@ impl UnificationArrow {
                         rchild.arrow.target.clone(),
                     )),
                 })
-            },
+            }
             CommitNodeInner::Disconnect(ref lchild, ref rchild) => {
                 let a = naming.free_variable();
                 let b = naming.free_variable();

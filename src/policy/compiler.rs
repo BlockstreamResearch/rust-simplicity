@@ -55,7 +55,11 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
 ) -> Result<Rc<CommitNode<Elements>>, Error> {
     match policy {
         // TODO: Choose specific Merkle roots for unsatisfiable policies
-        Policy::Unsatisfiable => Ok(CommitNode::fail(context, Cmr::from([0; 32]), Cmr::from([0; 32]))),
+        Policy::Unsatisfiable => Ok(CommitNode::fail(
+            context,
+            Cmr::from([0; 32]),
+            Cmr::from([0; 32]),
+        )),
         Policy::Trivial => Ok(CommitNode::unit(context)),
         Policy::Key(key) => {
             let key_value = Value::u256_from_slice(&key.to_32_bytes());

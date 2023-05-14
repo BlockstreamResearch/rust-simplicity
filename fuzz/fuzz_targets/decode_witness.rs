@@ -18,7 +18,7 @@ use simplicity::bititer::BitIter;
 use simplicity::bitwriter::BitWriter;
 use simplicity::core::iter::WitnessIterator;
 use simplicity::core::types::Type;
-use simplicity::{WitnessDecoder, encode_witness};
+use simplicity::{encode_witness, WitnessDecoder};
 
 fn do_test(data: &[u8]) {
     let mut iter = BitIter::new(data.iter().cloned());
