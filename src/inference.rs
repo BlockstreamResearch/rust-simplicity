@@ -173,200 +173,236 @@ impl<J: Jet> TryFrom<&CommitNode<J>> for NodeType {
 }
 
 impl UnificationArrow {
+    /// Create a unification arrow for a fresh `unit` combinator
+    pub(crate) fn for_unit(naming: &mut VariableFactory) -> Self {
+        UnificationArrow {
+            source: naming.free_variable(),
+            target: Variable::bound(VariableType::Unit),
+        }
+    }
+
+    /// Create a unification arrow for a fresh `iden` combinator
+    pub(crate) fn for_iden(naming: &mut VariableFactory) -> Self {
+        // We cheat and make the source and target of iden literally be the same
+        // variable, rather than unifying them. This is slightly more efficient
+        // and shouldn't result in any user-visible consequences.
+        let name = naming.free_variable();
+        UnificationArrow {
+            source: name.clone(),
+            target: name,
+        }
+    }
+
+    /// Create a unification arrow for a fresh `witness` combinator
+    pub(crate) fn for_witness(naming: &mut VariableFactory) -> Self {
+        UnificationArrow {
+            source: naming.free_variable(),
+            target: naming.free_variable(),
+        }
+    }
+
+    /// Create a unification arrow for a fresh `fail` combinator
+    pub(crate) fn for_fail(naming: &mut VariableFactory) -> Self {
+        UnificationArrow {
+            source: naming.free_variable(),
+            target: naming.free_variable(),
+        }
+    }
+
+    /// Create a unification arrow for a fresh `hidden` combinator
+    pub(crate) fn for_hidden(naming: &mut VariableFactory) -> Self {
+        UnificationArrow {
+            source: naming.free_variable(),
+            target: naming.free_variable(),
+        }
+    }
+
+    /// Create a unification arrow for a fresh jet combinator
+    pub(crate) fn for_jet<J: Jet>(jet: &J) -> Self {
+        let pow2s = Variable::powers_of_two();
+        UnificationArrow {
+            source: Variable::bound(jet.source_ty().to_variable_type(&pow2s)),
+            target: Variable::bound(jet.target_ty().to_variable_type(&pow2s)),
+        }
+    }
+
+    /// Create a unification arrow for a fresh jet combinator
+    pub(crate) fn for_injl<J: Jet>(
+        child: &CommitNode<J>,
+        naming: &mut VariableFactory
+    ) -> Self {
+        // Again, we "unify" by just cloning Rcs
+        let source = child.arrow.source.clone();
+        let target = Variable::bound(
+            VariableType::Sum(child.arrow.target.clone(), naming.free_variable()),
+        );
+        UnificationArrow { source, target }
+    }
+
+    /// Create a unification arrow for a fresh jet combinator
+    pub(crate) fn for_injr<J: Jet>(
+        child: &CommitNode<J>,
+        naming: &mut VariableFactory
+    ) -> Self {
+        // Again, we "unify" by just cloning Rcs
+        let source = child.arrow.source.clone();
+        let target = Variable::bound(
+            VariableType::Sum(naming.free_variable(), child.arrow.target.clone()),
+        );
+        UnificationArrow { source, target }
+    }
+
+    /// Create a unification arrow for a fresh jet combinator
+    pub(crate) fn for_take<J: Jet>(
+        child: &CommitNode<J>,
+        naming: &mut VariableFactory
+    ) -> Self {
+        // Again, we "unify" by just cloning Rcs
+        let source = Variable::bound(
+            VariableType::Product(child.arrow.source.clone(), naming.free_variable()),
+        );
+        let target = child.arrow.target.clone();
+        UnificationArrow { source, target }
+    }
+
+    /// Create a unification arrow for a fresh jet combinator
+    pub(crate) fn for_drop<J: Jet>(
+        child: &CommitNode<J>,
+        naming: &mut VariableFactory
+    ) -> Self {
+        // Again, we "unify" by just cloning Rcs
+        let source = Variable::bound(
+            VariableType::Product(naming.free_variable(), child.arrow.source.clone()),
+        );
+        let target = child.arrow.target.clone();
+        UnificationArrow { source, target }
+    }
+
     /// Return a unification arrow that is initialized for the given `node`.
     pub(crate) fn for_node<J: Jet>(
         node: &CommitNodeInner<J>,
         naming: &mut VariableFactory,
     ) -> Result<UnificationArrow, Error> {
-        let arrow = UnificationArrow {
-            source: naming.free_variable(),
-            target: naming.free_variable(),
-        };
-    
-        if let Some(left) = node.get_left() {
-            let left_arrow = &left.arrow;
-    
-            if let Some(right) = node.get_right() {
-                let right_arrow = &right.arrow;
-    
-                match node {
-                    CommitNodeInner::Comp(_, _) => {
-                        unify(
-                            arrow.source.clone(),
-                            left_arrow.source.clone(),
-                            "Cannot fail",
+        match node {
+            // No children
+            CommitNodeInner::Unit => Ok(Self::for_unit(naming)),
+            CommitNodeInner::Iden => Ok(Self::for_iden(naming)),
+            CommitNodeInner::Witness => Ok(Self::for_witness(naming)),
+            CommitNodeInner::Fail(_, _) => Ok(Self::for_fail(naming)),
+            CommitNodeInner::Hidden(_) => Ok(Self::for_hidden(naming)),
+            CommitNodeInner::Jet(ref j) => Ok(Self::for_jet(j)),
+            // Single children
+            CommitNodeInner::InjL(ref child) => Ok(Self::for_injl(child, naming)),
+            CommitNodeInner::InjR(ref child) => Ok(Self::for_injr(child, naming)),
+            CommitNodeInner::Take(ref child) => Ok(Self::for_take(child, naming)),
+            CommitNodeInner::Drop(ref child) => Ok(Self::for_drop(child, naming)),
+            // Multiple children -- now we have nontrivial unification and may fail.
+            CommitNodeInner::Comp(ref lchild, ref rchild) => {
+                let arrow = UnificationArrow {
+                    source: lchild.arrow.source.clone(),
+                    target: rchild.arrow.target.clone(),
+                };
+                unify(
+                    lchild.arrow.target.clone(),
+                    rchild.arrow.source.clone(),
+                    "Composition: Left target = right source",
+                )?;
+                Ok(arrow)
+            },
+            CommitNodeInner::Case(ref lchild, ref rchild)
+            | CommitNodeInner::AssertL(ref lchild, ref rchild)
+            | CommitNodeInner::AssertR(ref lchild, ref rchild) => {
+                let a = naming.free_variable();
+                let b = naming.free_variable();
+                let c = naming.free_variable();
+
+                let sum_a_b = VariableType::Sum(a.clone(), b.clone());
+                let prod_sum_a_b_c = VariableType::Product(Variable::bound(sum_a_b), c.clone());
+                let source = Variable::bound(prod_sum_a_b_c);
+
+                let target = match node {
+                    CommitNodeInner::AssertL(..) => {
+                        bind(
+                            &find_root(lchild.arrow.source.clone()),
+                            VariableType::Product(a, c.clone()),
+                            "Case: Left source = A × C",
                         )?;
-                        unify(
-                            left_arrow.target.clone(),
-                            right_arrow.source.clone(),
-                            "Composition: Left target = right source",
+                        lchild.arrow.target.clone()
+                    },
+                    CommitNodeInner::AssertR(..) => {
+                        bind(
+                            &find_root(rchild.arrow.source.clone()),
+                            VariableType::Product(b, c),
+                            "Case: Right source = B × C",
                         )?;
-                        unify(
-                            arrow.target.clone(),
-                            right_arrow.target.clone(),
-                            "Cannot fail",
-                        )?;
-                    }
-                    CommitNodeInner::Case(_, _)
-                    | CommitNodeInner::AssertL(_, _)
-                    | CommitNodeInner::AssertR(_, _) => {
-                        let a = naming.free_variable();
-                        let b = naming.free_variable();
-                        let c = naming.free_variable();
-    
-                        let sum_a_b = VariableType::Sum(a.clone(), b.clone());
-                        let prod_sum_a_b_c = VariableType::Product(Variable::bound(sum_a_b), c.clone());
-                        bind(&arrow.source, prod_sum_a_b_c, "Cannot fail")?;
-    
-                        if let CommitNodeInner::AssertR(_, _) = node {
-                        } else {
-                            bind(
-                                &find_root(left_arrow.source.clone()),
-                                VariableType::Product(a, c.clone()),
-                                "Case: Left source = A × C",
-                            )?;
-                            unify(
-                                arrow.target.clone(),
-                                left_arrow.target.clone(),
-                                "Cannot fail",
-                            )?;
-                        }
-                        if let CommitNodeInner::AssertL(_, _) = node {
-                        } else {
-                            bind(
-                                &find_root(right_arrow.source.clone()),
-                                VariableType::Product(b, c),
-                                "Case: Right source = B × C",
-                            )?;
-                            unify(
-                                arrow.target.clone(),
-                                right_arrow.target.clone(),
-                                "Case: Left target = right target",
-                            )?;
-                        }
-                    }
-                    CommitNodeInner::Pair(_, _) => {
-                        unify(
-                            arrow.source.clone(),
-                            left_arrow.source.clone(),
-                            "Cannot fail",
-                        )?;
-                        unify(
-                            left_arrow.source.clone(),
-                            right_arrow.source.clone(),
-                            "Pair: Left source = Right source",
+                        rchild.arrow.target.clone()
+                    },
+                    CommitNodeInner::Case(..) => {
+                        bind(
+                            &find_root(lchild.arrow.source.clone()),
+                            VariableType::Product(a, c.clone()),
+                            "Case: Left source = A × C",
                         )?;
                         bind(
-                            &arrow.target,
-                            VariableType::Product(
-                                left_arrow.target.clone(),
-                                right_arrow.target.clone(),
-                            ),
-                            "Cannot fail",
-                        )?;
-                    }
-                    CommitNodeInner::Disconnect(_, _) => {
-                        let a = naming.free_variable();
-                        let b = naming.free_variable();
-                        let c = naming.free_variable();
-                        let d = naming.free_variable();
-    
-                        let pow2s = Variable::powers_of_two();
-                        let prod_256_a =
-                            Variable::bound(VariableType::Product(pow2s[8].clone(), a.clone()));
-                        let prod_b_c = Variable::bound(VariableType::Product(b.clone(), c.clone()));
-                        let prod_b_d = Variable::bound(VariableType::Product(b, d.clone()));
-    
-                        unify(arrow.source.clone(), a, "Cannot fail")?;
-                        unify(arrow.target.clone(), prod_b_d, "Cannot fail")?;
-                        unify(right_arrow.source.clone(), c, "Cannot fail")?;
-                        unify(right_arrow.target.clone(), d, "Cannot fail")?;
-    
-                        unify(
-                            left_arrow.source.clone(),
-                            prod_256_a,
-                            "Disconnect: Left source = 2^256 × A",
+                            &find_root(rchild.arrow.source.clone()),
+                            VariableType::Product(b, c),
+                            "Case: Right source = B × C",
                         )?;
                         unify(
-                            left_arrow.target.clone(),
-                            prod_b_c,
-                            "Disconnect: Left target = B × C",
+                            lchild.arrow.target.clone(),
+                            rchild.arrow.target.clone(),
+                            "Case: Left target = right target",
                         )?;
-                    }
+                        rchild.arrow.target.clone()
+                    },
                     _ => unreachable!(),
-                }
-            } else {
-                match node {
-                    CommitNodeInner::InjL(_) => {
-                        unify(
-                            arrow.source.clone(),
-                            left_arrow.source.clone(),
-                            "Cannot fail",
-                        )?;
-                        let sum_b_c =
-                            VariableType::Sum(left_arrow.target.clone(), naming.free_variable());
-                        bind(&arrow.target, sum_b_c, "Cannot fail")?;
-                    }
-                    CommitNodeInner::InjR(_) => {
-                        unify(
-                            arrow.source.clone(),
-                            left_arrow.source.clone(),
-                            "Cannot fail",
-                        )?;
-                        let sum_b_c =
-                            VariableType::Sum(naming.free_variable(), left_arrow.target.clone());
-                        bind(&arrow.target, sum_b_c, "Cannot fail")?;
-                    }
-                    CommitNodeInner::Take(_) => {
-                        unify(
-                            arrow.target.clone(),
-                            left_arrow.target.clone(),
-                            "Cannot fail",
-                        )?;
-                        let prod_a_b =
-                            VariableType::Product(left_arrow.source.clone(), naming.free_variable());
-                        bind(&arrow.source, prod_a_b, "Cannot fail")?;
-                    }
-                    CommitNodeInner::Drop(_) => {
-                        unify(
-                            arrow.target.clone(),
-                            left_arrow.target.clone(),
-                            "Cannot fail",
-                        )?;
-                        let prod_a_b =
-                            VariableType::Product(naming.free_variable(), left_arrow.source.clone());
-                        bind(&arrow.source, prod_a_b, "Cannot fail")?;
-                    }
-                    _ => unreachable!(),
-                }
-            }
-        } else {
-            match node {
-                CommitNodeInner::Iden => {
-                    unify(arrow.source.clone(), arrow.target.clone(), " Cannot fail")?
-                }
-                CommitNodeInner::Unit => bind(&arrow.target, VariableType::Unit, "Cannot fail")?,
-                CommitNodeInner::Witness | CommitNodeInner::Fail(..) | CommitNodeInner::Hidden(..) => {
-                    // no type constraints
-                }
-                CommitNodeInner::Jet(jet) => {
-                    let pow2s = Variable::powers_of_two();
-                    bind(
-                        &arrow.source,
-                        jet.source_ty().to_variable_type(&pow2s),
-                        "Cannot fail",
-                    )?;
-                    bind(
-                        &arrow.target,
-                        jet.target_ty().to_variable_type(&pow2s),
-                        "Cannot fail",
-                    )?;
-                }
-                _ => unreachable!(),
+                };
+
+                Ok(UnificationArrow { source, target })
+            },
+            CommitNodeInner::Pair(ref lchild, ref rchild) => {
+                unify(
+                    lchild.arrow.source.clone(),
+                    rchild.arrow.source.clone(),
+                    "Pair: Left source = Right source",
+                )?;
+
+                Ok(UnificationArrow {
+                    source: lchild.arrow.source.clone(),
+                    target: Variable::bound(VariableType::Product(
+                        lchild.arrow.target.clone(),
+                        rchild.arrow.target.clone(),
+                    )),
+                })
+            },
+            CommitNodeInner::Disconnect(ref lchild, ref rchild) => {
+                let a = naming.free_variable();
+                let b = naming.free_variable();
+                let c = rchild.arrow.source.clone();
+                let d = rchild.arrow.target.clone();
+
+                let pow2s = Variable::powers_of_two();
+                let prod_256_a = VariableType::Product(pow2s[8].clone(), a.clone());
+                let prod_b_c = VariableType::Product(b.clone(), c.clone());
+                let prod_b_d = VariableType::Product(b, d.clone());
+
+                bind(
+                    &lchild.arrow.source,
+                    prod_256_a,
+                    "Disconnect: Left source = 2^256 × A",
+                )?;
+                bind(
+                    &lchild.arrow.target,
+                    prod_b_c,
+                    "Disconnect: Left target = B × C",
+                )?;
+
+                Ok(UnificationArrow {
+                    source: a.clone(),
+                    target: Variable::bound(prod_b_d),
+                })
             }
         }
-    
-        Ok(arrow)
     }
 }
 
