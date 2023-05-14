@@ -135,10 +135,10 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
                                 }
                             }
 
-                            if let CommitNodeInner::Hidden(..) = right.inner {
-                                CommitNode::assertl(context, left, right)
-                            } else if let CommitNodeInner::Hidden(..) = left.inner {
-                                CommitNode::assertr(context, left, right)
+                            if let CommitNodeInner::Hidden(right_hash) = right.inner {
+                                CommitNode::assertl(context, left, right_hash)
+                            } else if let CommitNodeInner::Hidden(left_hash) = left.inner {
+                                CommitNode::assertr(context, left_hash, right)
                             } else {
                                 CommitNode::case(context, left, right)
                             }

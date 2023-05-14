@@ -311,19 +311,16 @@ impl<J: Jet> CommitNode<J> {
     pub fn assertl(
         context: &mut Context<J>,
         left: Rc<Self>,
-        right: Rc<Self>,
+        right: Cmr,
     ) -> Result<Rc<Self>, Error> {
-        if let CommitNodeInner::Hidden(_) = right.inner {
-            Self::node_from_inner(
-                context,
-                CommitNodeInner::AssertL(left.clone(), right.clone()),
-                Some(left),
-                Some(right),
-                "Assertl is of type (A + B) × C → D where `left`: A × C → D",
-            )
-        } else {
-            Err(Error::RightChildNotHidden)
-        }
+        let right = Self::hidden(context, right);
+        Self::node_from_inner(
+            context,
+            CommitNodeInner::AssertL(left.clone(), right.clone()),
+            Some(left),
+            Some(right),
+            "Assertl is of type (A + B) × C → D where `left`: A × C → D",
+        )
     }
 
     /// Create a DAG that computes the right assertion of the given `right` child.
@@ -334,20 +331,17 @@ impl<J: Jet> CommitNode<J> {
     /// _Type inference will fail if children are not of the correct type._
     pub fn assertr(
         context: &mut Context<J>,
-        left: Rc<Self>,
+        left: Cmr,
         right: Rc<Self>,
     ) -> Result<Rc<Self>, Error> {
-        if let CommitNodeInner::Hidden(_) = left.inner {
-            Self::node_from_inner(
-                context,
-                CommitNodeInner::AssertR(left.clone(), right.clone()),
-                Some(left),
-                Some(right),
-                "Assertr is of type (A + B) × C → D where `right`: B × C → D",
-            )
-        } else {
-            Err(Error::LeftChildNotHidden)
-        }
+        let left = Self::hidden(context, left);
+        Self::node_from_inner(
+            context,
+            CommitNodeInner::AssertR(left.clone(), right.clone()),
+            Some(left),
+            Some(right),
+            "Assertr is of type (A + B) × C → D where `right`: B × C → D",
+        )
     }
 
     /// Create a DAG that computes the pair of the given `left` and `right` child.
@@ -506,9 +500,8 @@ impl<J: Jet> CommitNode<J> {
     pub fn assert(context: &mut Context<J>, child: Rc<Self>, hash: Cmr) -> Result<Rc<Self>, Error> {
         let unit = Self::unit(context);
         let pair_child_unit = Self::pair(context, child, unit)?;
-        let hidden = Self::hidden(context, hash);
         let unit = Self::unit(context);
-        let assertr_hidden_unit = Self::assertr(context, hidden, unit)?;
+        let assertr_hidden_unit = Self::assertr(context, hash, unit)?;
 
         Self::comp(context, pair_child_unit, assertr_hidden_unit)
     }
