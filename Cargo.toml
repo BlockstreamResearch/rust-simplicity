@@ -28,4 +28,4 @@ actual-serde = { package = "serde", version = "1.0.103", features = ["derive"], 
 simplicity-sys = { version = "0.1.0", path = "./simplicity-sys", features = ["test-utils"] }
 
 [workspace]
-members = ["simplicity-sys", "fuzz"]
+members = ["simplang", "simplicity-sys", "fuzz"]
