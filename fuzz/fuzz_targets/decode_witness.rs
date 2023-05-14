@@ -12,7 +12,7 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-extern crate simplicity;
+use honggfuzz::fuzz;
 
 use simplicity::bititer::BitIter;
 use simplicity::bitwriter::BitWriter;
@@ -62,20 +62,6 @@ fn do_test(data: &[u8]) {
     }
 }
 
-#[cfg(feature = "afl")]
-#[macro_use]
-extern crate afl;
-#[cfg(feature = "afl")]
-fn main() {
-    fuzz!(|data| {
-        do_test(&data);
-    });
-}
-
-#[cfg(feature = "honggfuzz")]
-#[macro_use]
-extern crate honggfuzz;
-#[cfg(feature = "honggfuzz")]
 fn main() {
     loop {
         fuzz!(|data| {

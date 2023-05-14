@@ -12,7 +12,7 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-extern crate simplicity;
+use honggfuzz::fuzz;
 
 use simplicity::bitcoin::XOnlyPublicKey;
 use simplicity::policy::ast::Policy;
@@ -27,23 +27,9 @@ fn do_test(data: &[u8]) {
         Ok(p) => p,
         Err(_) => return,
     };
-    pol.compile(&mut Default::default());
+    let _ = pol.compile(&mut Default::default());
 }
 
-#[cfg(feature = "afl")]
-#[macro_use]
-extern crate afl;
-#[cfg(feature = "afl")]
-fn main() {
-    fuzz!(|data| {
-        do_test(&data);
-    });
-}
-
-#[cfg(feature = "honggfuzz")]
-#[macro_use]
-extern crate honggfuzz;
-#[cfg(feature = "honggfuzz")]
 fn main() {
     loop {
         fuzz!(|data| {
