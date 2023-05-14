@@ -1,6 +1,7 @@
 //! Execution related FFIs, only used for testing rust-simplicity
 //! Also exports test cases from C simplicity
 use std::os::raw::c_uchar;
+use std::slice;
 
 use libc::size_t;
 
@@ -41,18 +42,6 @@ pub fn parse_root(ptr: &[u32; 8]) -> [u8; 32] {
     a
 }
 
-pub fn parse_prog(ptr: *const u8, len: usize) -> Vec<u8> {
-    // Could construct from raw parts, but we just allocate because
-    // this is only used in tests
-    let mut v = Vec::with_capacity(len);
-    unsafe {
-        for i in 0..len {
-            v.push(*ptr.offset(i as isize));
-        }
-    }
-    v
-}
-
 /// Data structure to hold test cases from C simplicity
 pub struct TestData {
     pub cmr: [u8; 32],
@@ -67,7 +56,7 @@ pub fn schnorr0_test_data() -> TestData {
             cmr: parse_root(&schnorr0_cmr),
             amr: parse_root(&schnorr0_amr),
             imr: parse_root(&schnorr0_imr),
-            prog: parse_prog(schnorr0.as_ptr(), sizeof_schnorr0 as usize),
+            prog: slice::from_raw_parts(schnorr0.as_ptr(), sizeof_schnorr0).into(),
         }
     }
 }
@@ -78,7 +67,7 @@ pub fn schnorr6_test_data() -> TestData {
             cmr: parse_root(&schnorr6_cmr),
             amr: parse_root(&schnorr6_amr),
             imr: parse_root(&schnorr6_imr),
-            prog: parse_prog(schnorr6.as_ptr(), sizeof_schnorr6 as usize),
+            prog: slice::from_raw_parts(schnorr6.as_ptr(), sizeof_schnorr6).into(),
         }
     }
 }
@@ -89,7 +78,7 @@ pub fn hash_block_test_data() -> TestData {
             cmr: parse_root(&hashBlock_cmr),
             amr: parse_root(&hashBlock_amr),
             imr: parse_root(&hashBlock_imr),
-            prog: parse_prog(hashBlock.as_ptr(), sizeof_hashBlock as usize),
+            prog: slice::from_raw_parts(hashBlock.as_ptr(), sizeof_hashBlock).into(),
         }
     }
 }

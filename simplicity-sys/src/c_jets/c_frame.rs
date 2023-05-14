@@ -19,6 +19,10 @@ impl CFrameItem {
     ///
     /// Note: The C implementation uses array of UWORD for `from`. UWORD maps to uint_fast16_t which
     /// maps to usize on both 32-bit and 64-bit platforms.
+    ///
+    /// # Safety
+    ///
+    /// `from` must be a valid pointer to a contiguous allocation of at least `n` usizes.
     pub unsafe fn new_read(n: usize, from: *const usize) -> Self {
         // Allocate a new vector of required size
         let mut frame = CFrameItem::new_unchecked();
@@ -29,6 +33,11 @@ impl CFrameItem {
     /// Initialize a new write frame.
     /// 'n' is the number of cells for the write frame.
     /// 'from' is a pointer to the one-past-the-end of the new slice for the array of UWORDS to hold the frame's cells.
+    ///
+    /// # Safety
+    ///
+    /// `from` must be a valid pointer **one past the end** of a contiguous allocation
+    /// of at least `n` usizes.
     pub unsafe fn new_write(n: usize, from: *mut usize) -> Self {
         // Allocate a new vector of required size
         let mut frame = CFrameItem::new_unchecked();
@@ -39,9 +48,7 @@ impl CFrameItem {
 
 // Number of uwords required to hold n bits
 pub fn round_u_word(n: usize) -> usize {
-    unsafe {
-        (n + 8 * frame_ffi::c_sizeof_UWORD - 1) as usize / (8 * frame_ffi::c_sizeof_UWORD as usize)
-    }
+    unsafe { (n + 8 * frame_ffi::c_sizeof_UWORD - 1) / (8 * frame_ffi::c_sizeof_UWORD) }
 }
 
 pub fn ffi_bytes_size(n: usize) -> usize {

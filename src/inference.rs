@@ -316,7 +316,7 @@ impl UnificationArrow {
                     CommitNodeInner::AssertL(..) => {
                         bind(
                             &find_root(lchild.arrow.source.clone()),
-                            VariableType::Product(a, c.clone()),
+                            VariableType::Product(a, c),
                             "Case: Left source = A × C",
                         )?;
                         lchild.arrow.target.clone()
@@ -375,8 +375,8 @@ impl UnificationArrow {
 
                 let pow2s = Variable::powers_of_two();
                 let prod_256_a = VariableType::Product(pow2s[8].clone(), a.clone());
-                let prod_b_c = VariableType::Product(b.clone(), c.clone());
-                let prod_b_d = VariableType::Product(b, d.clone());
+                let prod_b_c = VariableType::Product(b.clone(), c);
+                let prod_b_d = VariableType::Product(b, d);
 
                 bind(
                     &lchild.arrow.source,
@@ -390,7 +390,7 @@ impl UnificationArrow {
                 )?;
 
                 Ok(UnificationArrow {
-                    source: a.clone(),
+                    source: a,
                     target: Variable::bound(prod_b_d),
                 })
             }
