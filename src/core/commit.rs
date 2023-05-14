@@ -17,6 +17,7 @@ use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
 use crate::core::iter::{DagIterable, WitnessIterator};
 use crate::core::redeem::{NodeType, RedeemNodeInner};
+use crate::core::types::RcVar;
 use crate::core::{Context, RedeemNode, Value};
 use crate::inference::UnificationArrow;
 use crate::jet::Jet;
@@ -151,11 +152,11 @@ impl<J: Jet> fmt::Display for CommitNodeInner<J> {
 #[derive(Debug)]
 pub struct CommitNode<J: Jet> {
     /// Underlying combinator of the node
-    pub inner: CommitNodeInner<J>,
+    inner: CommitNodeInner<J>,
     /// Commitment Merkle root of the node
-    pub cmr: Cmr,
+    cmr: Cmr,
     /// Unification arrow of the node
-    pub arrow: UnificationArrow,
+    arrow: UnificationArrow,
 }
 
 impl<J: Jet> PartialEq for CommitNode<J> {
@@ -166,6 +167,31 @@ impl<J: Jet> PartialEq for CommitNode<J> {
 impl<J: Jet> Eq for CommitNode<J> {}
 
 impl<J: Jet> CommitNode<J> {
+    /// Accessor for the node's "inner value", i.e. its combinator
+    pub fn inner(&self) -> &CommitNodeInner<J> {
+        &self.inner
+    }
+
+    /// Accessor for the node's CMR
+    pub fn cmr(&self) -> Cmr {
+        self.cmr
+    }
+
+    /// Accessor for the nodes's unification arrow
+    pub fn unification_arrow(&self) -> &UnificationArrow {
+        &self.arrow
+    }
+
+    /// Accessor for the node's source type
+    pub(crate) fn source_ty(&self) -> RcVar {
+        self.arrow.source_ty()
+    }
+
+    /// Accessor for the node's target type
+    pub(crate) fn target_ty(&self) -> RcVar {
+        self.arrow.target_ty()
+    }
+
     /// Create a node from its underlying combinator.
     fn node_from_inner(
         context: &mut Context<J>,

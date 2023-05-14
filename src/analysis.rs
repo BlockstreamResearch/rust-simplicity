@@ -47,7 +47,7 @@ fn compute_extra_cells_bound<J: Jet>(
     right: Option<Rc<RedeemNode<J>>>,
     ty: &NodeType,
 ) -> usize {
-    match untyped_node.inner {
+    match untyped_node.inner() {
         CommitNodeInner::Iden
         | CommitNodeInner::Unit
         | CommitNodeInner::Fail(_, _)
@@ -86,7 +86,7 @@ fn compute_extra_frames_bound<J: Jet>(
     left: Option<Rc<RedeemNode<J>>>,
     right: Option<Rc<RedeemNode<J>>>,
 ) -> usize {
-    match untyped_node.inner {
+    match untyped_node.inner() {
         CommitNodeInner::Iden
         | CommitNodeInner::Unit
         | CommitNodeInner::Witness

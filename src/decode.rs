@@ -129,16 +129,16 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
                     match subcode {
                         0 => CommitNode::comp(context, left, right),
                         1 => {
-                            if let CommitNodeInner::Hidden(..) = left.inner {
-                                if let CommitNodeInner::Hidden(..) = right.inner {
+                            if let CommitNodeInner::Hidden(..) = left.inner() {
+                                if let CommitNodeInner::Hidden(..) = right.inner() {
                                     return Err(Error::CaseMultipleHiddenChildren);
                                 }
                             }
 
-                            if let CommitNodeInner::Hidden(right_hash) = right.inner {
-                                CommitNode::assertl(context, left, right_hash)
-                            } else if let CommitNodeInner::Hidden(left_hash) = left.inner {
-                                CommitNode::assertr(context, left_hash, right)
+                            if let CommitNodeInner::Hidden(right_hash) = right.inner() {
+                                CommitNode::assertl(context, left, *right_hash)
+                            } else if let CommitNodeInner::Hidden(left_hash) = left.inner() {
+                                CommitNode::assertr(context, *left_hash, right)
                             } else {
                                 CommitNode::case(context, left, right)
                             }

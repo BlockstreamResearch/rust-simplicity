@@ -156,11 +156,11 @@ impl<J: Jet> TryFrom<&CommitNode<J>> for NodeType {
     /// Return the finalized type of the given `node`.
     /// To work, this method must be called on nodes in post order!
     fn try_from(node: &CommitNode<J>) -> Result<Self, Self::Error> {
-        let source_ty = match finalize(node.arrow.source.clone()) {
+        let source_ty = match finalize(node.source_ty()) {
             Ok(ty) => ty,
             Err(error) => return Err(error),
         };
-        let target_ty = match finalize(node.arrow.target.clone()) {
+        let target_ty = match finalize(node.target_ty()) {
             Ok(ty) => ty,
             Err(error) => return Err(error),
         };
@@ -173,6 +173,16 @@ impl<J: Jet> TryFrom<&CommitNode<J>> for NodeType {
 }
 
 impl UnificationArrow {
+    /// Accessor for the source type of the arrow
+    pub(crate) fn source_ty(&self) -> RcVar {
+        self.source.clone()
+    }
+
+    /// Accessor for the target type of the arrow
+    pub(crate) fn target_ty(&self) -> RcVar {
+        self.target.clone()
+    }
+
     /// Create a unification arrow for a fresh `unit` combinator
     pub(crate) fn for_unit(naming: &mut VariableFactory) -> Self {
         UnificationArrow {
@@ -229,9 +239,9 @@ impl UnificationArrow {
     /// Create a unification arrow for a fresh jet combinator
     pub(crate) fn for_injl<J: Jet>(child: &CommitNode<J>, naming: &mut VariableFactory) -> Self {
         // Again, we "unify" by just cloning Rcs
-        let source = child.arrow.source.clone();
+        let source = child.source_ty();
         let target = Variable::bound(VariableType::Sum(
-            child.arrow.target.clone(),
+            child.target_ty(),
             naming.free_variable(),
         ));
         UnificationArrow { source, target }
@@ -240,10 +250,10 @@ impl UnificationArrow {
     /// Create a unification arrow for a fresh jet combinator
     pub(crate) fn for_injr<J: Jet>(child: &CommitNode<J>, naming: &mut VariableFactory) -> Self {
         // Again, we "unify" by just cloning Rcs
-        let source = child.arrow.source.clone();
+        let source = child.source_ty();
         let target = Variable::bound(VariableType::Sum(
             naming.free_variable(),
-            child.arrow.target.clone(),
+            child.target_ty(),
         ));
         UnificationArrow { source, target }
     }
@@ -252,10 +262,10 @@ impl UnificationArrow {
     pub(crate) fn for_take<J: Jet>(child: &CommitNode<J>, naming: &mut VariableFactory) -> Self {
         // Again, we "unify" by just cloning Rcs
         let source = Variable::bound(VariableType::Product(
-            child.arrow.source.clone(),
+            child.source_ty(),
             naming.free_variable(),
         ));
-        let target = child.arrow.target.clone();
+        let target = child.target_ty();
         UnificationArrow { source, target }
     }
 
@@ -264,9 +274,9 @@ impl UnificationArrow {
         // Again, we "unify" by just cloning Rcs
         let source = Variable::bound(VariableType::Product(
             naming.free_variable(),
-            child.arrow.source.clone(),
+            child.source_ty(),
         ));
-        let target = child.arrow.target.clone();
+        let target = child.target_ty();
         UnificationArrow { source, target }
     }
 
@@ -291,12 +301,12 @@ impl UnificationArrow {
             // Multiple children -- now we have nontrivial unification and may fail.
             CommitNodeInner::Comp(ref lchild, ref rchild) => {
                 let arrow = UnificationArrow {
-                    source: lchild.arrow.source.clone(),
-                    target: rchild.arrow.target.clone(),
+                    source: lchild.source_ty(),
+                    target: rchild.target_ty(),
                 };
                 unify(
-                    lchild.arrow.target.clone(),
-                    rchild.arrow.source.clone(),
+                    lchild.target_ty(),
+                    rchild.source_ty(),
                     "Composition: Left target = right source",
                 )?;
                 Ok(arrow)
@@ -315,37 +325,37 @@ impl UnificationArrow {
                 let target = match node {
                     CommitNodeInner::AssertL(..) => {
                         bind(
-                            &find_root(lchild.arrow.source.clone()),
+                            &find_root(lchild.source_ty()),
                             VariableType::Product(a, c),
                             "Case: Left source = A × C",
                         )?;
-                        lchild.arrow.target.clone()
+                        lchild.target_ty()
                     }
                     CommitNodeInner::AssertR(..) => {
                         bind(
-                            &find_root(rchild.arrow.source.clone()),
+                            &find_root(rchild.source_ty()),
                             VariableType::Product(b, c),
                             "Case: Right source = B × C",
                         )?;
-                        rchild.arrow.target.clone()
+                        rchild.target_ty()
                     }
                     CommitNodeInner::Case(..) => {
                         bind(
-                            &find_root(lchild.arrow.source.clone()),
+                            &find_root(lchild.source_ty()),
                             VariableType::Product(a, c.clone()),
                             "Case: Left source = A × C",
                         )?;
                         bind(
-                            &find_root(rchild.arrow.source.clone()),
+                            &find_root(rchild.source_ty()),
                             VariableType::Product(b, c),
                             "Case: Right source = B × C",
                         )?;
                         unify(
-                            lchild.arrow.target.clone(),
-                            rchild.arrow.target.clone(),
+                            lchild.target_ty(),
+                            rchild.target_ty(),
                             "Case: Left target = right target",
                         )?;
-                        rchild.arrow.target.clone()
+                        rchild.target_ty()
                     }
                     _ => unreachable!(),
                 };
@@ -354,24 +364,24 @@ impl UnificationArrow {
             }
             CommitNodeInner::Pair(ref lchild, ref rchild) => {
                 unify(
-                    lchild.arrow.source.clone(),
-                    rchild.arrow.source.clone(),
+                    lchild.source_ty(),
+                    rchild.source_ty(),
                     "Pair: Left source = Right source",
                 )?;
 
                 Ok(UnificationArrow {
-                    source: lchild.arrow.source.clone(),
+                    source: lchild.source_ty(),
                     target: Variable::bound(VariableType::Product(
-                        lchild.arrow.target.clone(),
-                        rchild.arrow.target.clone(),
+                        lchild.target_ty(),
+                        rchild.target_ty(),
                     )),
                 })
             }
             CommitNodeInner::Disconnect(ref lchild, ref rchild) => {
                 let a = naming.free_variable();
                 let b = naming.free_variable();
-                let c = rchild.arrow.source.clone();
-                let d = rchild.arrow.target.clone();
+                let c = rchild.source_ty();
+                let d = rchild.target_ty();
 
                 let pow2s = Variable::powers_of_two();
                 let prod_256_a = VariableType::Product(pow2s[8].clone(), a.clone());
@@ -379,12 +389,12 @@ impl UnificationArrow {
                 let prod_b_d = VariableType::Product(b, d);
 
                 bind(
-                    &lchild.arrow.source,
+                    &lchild.source_ty(),
                     prod_256_a,
                     "Disconnect: Left source = 2^256 × A",
                 )?;
                 bind(
-                    &lchild.arrow.target,
+                    &lchild.target_ty(),
                     prod_b_c,
                     "Disconnect: Left target = B × C",
                 )?;
