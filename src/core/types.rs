@@ -281,7 +281,17 @@ impl Variable {
 
     /// Returns a precomputed variable representing the type 1+1
     pub fn precomputed_2() -> RcVar {
-        let var_one = Variable::bound(VariableType::Unit);
+        // `VariableInner::Precomputed` is treated specially by type inference.
+        // In particular, precomputed variables are protected from modification.
+        // This means thot we need the entire tree, down to the units, to use
+        // the `Precomputed` variant. Hence this awkward `var_one` definition.
+        let var_one = Rc::new(RefCell::new(Self {
+            inner: VariableInner::Precomputed(
+                VariableType::Unit,
+                Type::unit(),
+            ),
+            rank: 0,
+        }));
         let var_two = VariableType::Sum(var_one.clone(), var_one);
 
         let ty_1 = Type::unit();

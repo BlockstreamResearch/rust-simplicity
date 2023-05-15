@@ -247,11 +247,10 @@ impl UnificationArrow {
     }
 
     /// Create a unification arrow for a fresh jet combinator
-    pub(crate) fn for_jet<J: Jet>(_context: &mut Context<J>, jet: &J) -> Self {
-        let pow2s = Variable::powers_of_two();
+    pub(crate) fn for_jet<J: Jet>(context: &mut Context<J>, jet: &J) -> Self {
         UnificationArrow {
-            source: Variable::bound(jet.source_ty().to_variable_type(&pow2s)),
-            target: Variable::bound(jet.target_ty().to_variable_type(&pow2s)),
+            source: jet.source_ty().to_variable_type(|n| context.nth_power_of_2_rcvar(n).clone()),
+            target: jet.target_ty().to_variable_type(|n| context.nth_power_of_2_rcvar(n).clone()),
         }
     }
 

@@ -54,29 +54,26 @@ impl TypeName {
     // b'+' = 43
     // b'*' = 42
     /// Convert the type name into a type.
-    pub(crate) fn to_variable_type(&self, pow2s: &[RcVar]) -> VariableType {
+    pub(crate) fn to_variable_type<F: FnMut(usize) -> RcVar>(&self, mut pow2s: F) -> RcVar {
         let it = self.0.iter().rev();
         let mut stack = Vec::new();
 
         for c in it {
             match c {
-                b'1' => stack.push(VariableType::Unit),
-                b'2' => {
-                    let unit = Variable::bound(VariableType::Unit);
-                    stack.push(VariableType::Sum(unit.clone(), unit))
-                }
-                b'c' => stack.push(VariableType::Product(pow2s[2].clone(), pow2s[2].clone())),
-                b's' => stack.push(VariableType::Product(pow2s[3].clone(), pow2s[3].clone())),
-                b'i' => stack.push(VariableType::Product(pow2s[4].clone(), pow2s[4].clone())),
-                b'l' => stack.push(VariableType::Product(pow2s[5].clone(), pow2s[5].clone())),
-                b'h' => stack.push(VariableType::Product(pow2s[7].clone(), pow2s[7].clone())),
+                b'1' => stack.push(Variable::bound(VariableType::Unit)),
+                b'2' => stack.push(pow2s(0)),
+                b'c' => stack.push(pow2s(3)),
+                b's' => stack.push(pow2s(4)),
+                b'i' => stack.push(pow2s(5)),
+                b'l' => stack.push(pow2s(6)),
+                b'h' => stack.push(pow2s(8)),
                 b'+' | b'*' => {
-                    let left = Variable::bound(stack.pop().expect("Illegal type name syntax!"));
-                    let right = Variable::bound(stack.pop().expect("Illegal type name syntax!"));
+                    let left = stack.pop().expect("Illegal type name syntax!");
+                    let right = stack.pop().expect("Illegal type name syntax!");
 
                     match c {
-                        b'+' => stack.push(VariableType::Sum(left, right)),
-                        b'*' => stack.push(VariableType::Product(left, right)),
+                        b'+' => stack.push(Variable::bound(VariableType::Sum(left, right))),
+                        b'*' => stack.push(Variable::bound(VariableType::Product(left, right))),
                         _ => unreachable!(),
                     }
                 }
