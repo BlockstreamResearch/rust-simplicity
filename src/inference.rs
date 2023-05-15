@@ -83,7 +83,7 @@ fn unify(mut x: RcVar, mut y: RcVar, hint: &'static str) -> Result<(), Error> {
 /// Fails if `x` is already bound to a type that is incompatible with `ty`.
 fn bind(x: &RcVar, ty: VariableType, hint: &'static str) -> Result<(), Error> {
     // Clone inner to un-borrow the root; see comment inside `find_root` for more explanation
-    let x_var = find_root(x.clone()).borrow().inner.clone(); //x.borrow().inner.clone();
+    let x_var = find_root(x.clone()).borrow().inner.clone();
     match x_var {
         VariableInner::Free(_) => {
             x.borrow_mut().inner = VariableInner::Bound(ty, false);
@@ -240,10 +240,7 @@ impl UnificationArrow {
     pub(crate) fn for_injl<J: Jet>(child: &CommitNode<J>, naming: &mut VariableFactory) -> Self {
         // Again, we "unify" by just cloning Rcs
         let source = child.source_ty();
-        let target = Variable::bound(VariableType::Sum(
-            child.target_ty(),
-            naming.free_variable(),
-        ));
+        let target = Variable::bound(VariableType::Sum(child.target_ty(), naming.free_variable()));
         UnificationArrow { source, target }
     }
 
@@ -251,10 +248,7 @@ impl UnificationArrow {
     pub(crate) fn for_injr<J: Jet>(child: &CommitNode<J>, naming: &mut VariableFactory) -> Self {
         // Again, we "unify" by just cloning Rcs
         let source = child.source_ty();
-        let target = Variable::bound(VariableType::Sum(
-            naming.free_variable(),
-            child.target_ty(),
-        ));
+        let target = Variable::bound(VariableType::Sum(naming.free_variable(), child.target_ty()));
         UnificationArrow { source, target }
     }
 
@@ -325,7 +319,7 @@ impl UnificationArrow {
                 let target = match node {
                     CommitNodeInner::AssertL(..) => {
                         bind(
-                            &find_root(lchild.source_ty()),
+                            &lchild.source_ty(),
                             VariableType::Product(a, c),
                             "Case: Left source = A × C",
                         )?;
@@ -333,7 +327,7 @@ impl UnificationArrow {
                     }
                     CommitNodeInner::AssertR(..) => {
                         bind(
-                            &find_root(rchild.source_ty()),
+                            &rchild.source_ty(),
                             VariableType::Product(b, c),
                             "Case: Right source = B × C",
                         )?;
@@ -341,12 +335,12 @@ impl UnificationArrow {
                     }
                     CommitNodeInner::Case(..) => {
                         bind(
-                            &find_root(lchild.source_ty()),
+                            &lchild.source_ty(),
                             VariableType::Product(a, c.clone()),
                             "Case: Left source = A × C",
                         )?;
                         bind(
-                            &find_root(rchild.source_ty()),
+                            &rchild.source_ty(),
                             VariableType::Product(b, c),
                             "Case: Right source = B × C",
                         )?;
