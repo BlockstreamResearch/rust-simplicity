@@ -141,6 +141,11 @@ impl ElementsEnv {
 impl ElementsEnv {
     /// Return a dummy Elements environment
     pub fn dummy() -> Self {
+        Self::dummy_with(elements::PackedLockTime::ZERO, elements::Sequence::MAX)
+    }
+
+    /// Return a dummy Elements environment with given locktime
+    pub fn dummy_with(lock_time: elements::PackedLockTime, sequence: elements::Sequence) -> Self {
         let ctrl_blk: [u8; 33] = [
             0xc0, 0xeb, 0x04, 0xb6, 0x8e, 0x9a, 0x26, 0xd1, 0x16, 0x04, 0x6c, 0x76, 0xe8, 0xff,
             0x47, 0x33, 0x2f, 0xb7, 0x1d, 0xda, 0x90, 0xff, 0x4b, 0xef, 0x53, 0x70, 0xf2, 0x52,
@@ -149,13 +154,25 @@ impl ElementsEnv {
 
         ElementsEnv::new(
             Arc::new(elements::Transaction {
-                version: u32::default(),
-                lock_time: elements::PackedLockTime::ZERO,
-                input: Vec::default(),
+                version: 2,
+                lock_time,
+                // Enable locktime in dummy txin
+                input: vec![elements::TxIn {
+                    previous_output: elements::OutPoint::default(),
+                    is_pegin: false,
+                    script_sig: elements::Script::new(),
+                    sequence,
+                    asset_issuance: AssetIssuance::default(),
+                    witness: elements::TxInWitness::default(),
+                }],
                 output: Vec::default(),
             }),
-            Vec::default(),
-            u32::default(),
+            vec![ElementsUtxo {
+                script_pubkey: elements::Script::new(),
+                asset: confidential::Asset::Null,
+                value: confidential::Value::Null,
+            }],
+            0,
             Cmr::from([0; 32]),
             ControlBlock::from_slice(&ctrl_blk).unwrap(),
             None,

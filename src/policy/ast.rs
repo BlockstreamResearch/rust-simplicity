@@ -48,7 +48,7 @@ pub enum Policy<Pk: MiniscriptKey> {
     /// Absolute timelock
     After(u32),
     /// Relative timelock
-    Older(u32),
+    Older(u16),
     /// Provide the preimage of the given SHA256 hash image
     Sha256(Pk::Sha256),
     /// Satisfy all of the given sub-policies

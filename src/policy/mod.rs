@@ -28,8 +28,10 @@
 pub mod ast;
 pub mod compiler;
 mod embed;
+mod error;
 pub mod key;
 pub mod satisfy;
 // pub mod lift;
 
 pub use ast::Policy;
+pub use error::Error;

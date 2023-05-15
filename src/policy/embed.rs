@@ -1,10 +1,10 @@
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 
-use crate::miniscript;
 use crate::miniscript::Error as msError;
 use crate::miniscript::MiniscriptKey;
 use crate::miniscript::{expression, Miniscript, ScriptContext, Terminal};
+use crate::{miniscript, policy};
 
 use crate::policy::ast::Policy;
 use crate::Error;
@@ -119,7 +119,14 @@ impl<'a, Pk: MiniscriptKey, Ctx: ScriptContext> TryFrom<&'a Miniscript<Pk, Ctx>>
                 Err(Error::ParseError("Public key hashes are not supported"))
             }
             Terminal::After(n) => Ok(Policy::After(n.0)),
-            Terminal::Older(n) => Ok(Policy::Older(n.0)),
+            Terminal::Older(n) => {
+                if !n.is_height_locked() {
+                    return Err(Error::Policy(policy::Error::InvalidSequence));
+                }
+
+                let low_16 = n.0 as u16;
+                Ok(Policy::Older(low_16))
+            }
             Terminal::Sha256(h) => Ok(Policy::Sha256(h.clone())),
             Terminal::Hash256(_h) => Err(Error::ParseError("SHA256d is not supported")),
             Terminal::Ripemd160(_) | Terminal::Hash160(_) => {

@@ -60,6 +60,7 @@ pub use simplicity_sys as ffi;
 use std::fmt;
 
 /// Error type for simplicity
+#[non_exhaustive]
 pub enum Error {
     /// A type cannot be unified with another type
     Unification(&'static str),
@@ -100,6 +101,9 @@ pub enum Error {
     SharingNotMaximal,
     /// Miniscript Error
     MiniscriptError(miniscript::Error),
+    /// Policy-related error
+    #[cfg(feature = "elements")]
+    Policy(policy::Error),
 }
 
 impl fmt::Debug for Error {
@@ -145,6 +149,8 @@ impl fmt::Debug for Error {
             }
             Error::SharingNotMaximal => f.write_str("Decoded programs must have maximal sharing"),
             Error::MiniscriptError(ref e) => fmt::Display::fmt(e, f),
+            #[cfg(feature = "elements")]
+            Error::Policy(ref e) => fmt::Display::fmt(e, f),
         }
     }
 }
@@ -161,5 +167,12 @@ impl std::error::Error for Error {}
 impl From<miniscript::Error> for Error {
     fn from(e: miniscript::Error) -> Error {
         Error::MiniscriptError(e)
+    }
+}
+
+#[cfg(feature = "elements")]
+impl From<policy::Error> for Error {
+    fn from(e: policy::Error) -> Error {
+        Error::Policy(e)
     }
 }
