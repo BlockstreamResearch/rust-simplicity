@@ -30,11 +30,11 @@ fn compute_sha256(
     context: &mut Context<Elements>,
     witness256: Rc<CommitNode<Elements>>,
 ) -> Result<Rc<CommitNode<Elements>>, Error> {
-    let ctx = CommitNode::jet(context, Elements::Sha256Ctx8Init)?;
+    let ctx = CommitNode::jet(context, Elements::Sha256Ctx8Init);
     let pair_ctx_witness = CommitNode::pair(context, ctx, witness256)?;
-    let add256 = CommitNode::jet(context, Elements::Sha256Ctx8Add32)?;
+    let add256 = CommitNode::jet(context, Elements::Sha256Ctx8Add32);
     let digest_ctx = CommitNode::comp(context, pair_ctx_witness, add256)?;
-    let finalize = CommitNode::jet(context, Elements::Sha256Ctx8Finalize)?;
+    let finalize = CommitNode::jet(context, Elements::Sha256Ctx8Finalize);
     CommitNode::comp(context, digest_ctx, finalize)
 }
 
@@ -44,7 +44,7 @@ fn verify_bexp(
     bexp: Rc<CommitNode<Elements>>,
 ) -> Result<Rc<CommitNode<Elements>>, Error> {
     let computed_bexp = CommitNode::comp(context, input, bexp)?;
-    let verify = CommitNode::jet(context, Elements::Verify)?;
+    let verify = CommitNode::jet(context, Elements::Verify);
     CommitNode::comp(context, computed_bexp, verify)
 }
 
@@ -55,40 +55,44 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
 ) -> Result<Rc<CommitNode<Elements>>, Error> {
     match policy {
         // TODO: Choose specific Merkle roots for unsatisfiable policies
-        Policy::Unsatisfiable => CommitNode::fail(context, Cmr::from([0; 32]), Cmr::from([0; 32])),
-        Policy::Trivial => CommitNode::unit(context),
+        Policy::Unsatisfiable => Ok(CommitNode::fail(
+            context,
+            Cmr::from([0; 32]),
+            Cmr::from([0; 32]),
+        )),
+        Policy::Trivial => Ok(CommitNode::unit(context)),
         Policy::Key(key) => {
             let key_value = Value::u256_from_slice(&key.to_32_bytes());
-            let scribe_key = CommitNode::scribe(context, &key_value)?;
-            let sighash_all = CommitNode::jet(context, Elements::SigAllHash)?;
+            let scribe_key = CommitNode::scribe(context, &key_value);
+            let sighash_all = CommitNode::jet(context, Elements::SigAllHash);
             let pair_key_msg = CommitNode::pair(context, scribe_key, sighash_all)?;
-            let witness = CommitNode::witness(context)?;
+            let witness = CommitNode::witness(context);
             let pair_key_msg_sig = CommitNode::pair(context, pair_key_msg, witness)?;
-            let bip_0340_verify = CommitNode::jet(context, Elements::Bip0340Verify)?;
+            let bip_0340_verify = CommitNode::jet(context, Elements::Bip0340Verify);
 
             CommitNode::comp(context, pair_key_msg_sig, bip_0340_verify)
         }
         Policy::After(n) => {
             let n_value = Value::u32(*n);
-            let scribe_n = CommitNode::scribe(context, &n_value)?;
-            let check_lock_height = CommitNode::jet(context, Elements::CheckLockHeight)?;
+            let scribe_n = CommitNode::scribe(context, &n_value);
+            let check_lock_height = CommitNode::jet(context, Elements::CheckLockHeight);
 
             CommitNode::comp(context, scribe_n, check_lock_height)
         }
         Policy::Older(n) => {
             let n_value = Value::u16(*n);
-            let scribe_n = CommitNode::scribe(context, &n_value)?;
-            let check_lock_distance = CommitNode::jet(context, Elements::CheckLockDistance)?;
+            let scribe_n = CommitNode::scribe(context, &n_value);
+            let check_lock_distance = CommitNode::jet(context, Elements::CheckLockDistance);
 
             CommitNode::comp(context, scribe_n, check_lock_distance)
         }
         Policy::Sha256(hash) => {
             let hash_value = Value::u256_from_slice(&Pk::hash_to_32_bytes(hash));
-            let scribe_hash = CommitNode::scribe(context, &hash_value)?;
-            let witness256 = CommitNode::witness(context)?;
+            let scribe_hash = CommitNode::scribe(context, &hash_value);
+            let witness256 = CommitNode::witness(context);
             let computed_hash = compute_sha256(context, witness256)?;
             let pair_hash_computed_hash = CommitNode::pair(context, scribe_hash, computed_hash)?;
-            let eq256 = CommitNode::jet(context, Elements::Eq256)?;
+            let eq256 = CommitNode::jet(context, Elements::Eq256);
 
             verify_bexp(context, pair_hash_computed_hash, eq256)
         }
@@ -121,8 +125,8 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
             let right = compile(context, &sub_policies[1])?;
 
             let cond_right_left = CommitNode::cond(context, right, left)?;
-            let witness = CommitNode::witness(context)?;
-            let unit = CommitNode::unit(context)?;
+            let witness = CommitNode::witness(context);
+            let unit = CommitNode::unit(context);
             let selector = CommitNode::pair(context, witness, unit)?;
 
             CommitNode::comp(context, selector, cond_right_left)
@@ -134,18 +138,18 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
             );
 
             // 1 → 2^32
-            let scribe_zero = CommitNode::scribe(context, &Value::u32(0))?;
+            let scribe_zero = CommitNode::scribe(context, &Value::u32(0));
             // 1 → 2^32
-            let scribe_one = CommitNode::scribe(context, &Value::u32(1))?;
+            let scribe_one = CommitNode::scribe(context, &Value::u32(1));
 
             // 1 → 2^32
             let get_summand = |policy: &Policy<Pk>, context: &mut Context<Elements>| {
                 // 1 → 1
                 let child = compile(context, policy)?;
                 // 1 → 2
-                let witness = CommitNode::witness(context)?;
+                let witness = CommitNode::witness(context);
                 // 1 → 1
-                let unit = CommitNode::unit(context)?;
+                let unit = CommitNode::unit(context);
                 // 1 → 2 x 1
                 let selector = CommitNode::pair(context, witness, unit)?;
                 // 1 → 2^32
@@ -164,13 +168,13 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
                 // 1 → 2^32 × 2^32
                 let pair_sum_summand = CommitNode::pair(context, sum, summand)?;
                 // 2^32 × 2^32 → 2 × 2^32
-                let add32 = CommitNode::jet(context, Elements::Add32)?;
+                let add32 = CommitNode::jet(context, Elements::Add32);
                 // 1 → 2 x 2^32
                 let full_sum = CommitNode::comp(context, pair_sum_summand, add32)?;
                 // 2^32 → 2^32
-                let iden = CommitNode::iden(context)?;
+                let iden = CommitNode::iden(context);
                 // 2 × 2^32 → 2^32
-                let drop_iden = CommitNode::drop(context, iden)?;
+                let drop_iden = CommitNode::drop(context, iden);
 
                 // Discard the overflow bit.
                 // FIXME: enforce that sum of weights is less than 2^32
@@ -179,11 +183,11 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
             }
 
             // 1 → 2^32
-            let scribe_k = CommitNode::scribe(context, &Value::u32(*k as u32))?;
+            let scribe_k = CommitNode::scribe(context, &Value::u32(*k as u32));
             // 1 → 2^32 × 2^32
             let pair_k_sum = CommitNode::pair(context, scribe_k, sum)?;
             // 2^32 × 2^32 → 2
-            let eq32 = CommitNode::jet(context, Elements::Eq32)?;
+            let eq32 = CommitNode::jet(context, Elements::Eq32);
 
             // 1 → 1
             verify_bexp(context, pair_k_sum, eq32)

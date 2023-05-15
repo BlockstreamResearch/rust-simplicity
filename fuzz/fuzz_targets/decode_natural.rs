@@ -12,22 +12,22 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-extern crate simplicity;
+use honggfuzz::fuzz;
 
 use simplicity::bititer::BitIter;
 use simplicity::bitwriter::BitWriter;
-use simplicity::{decode, encode};
+use simplicity::{decode_natural, encode_natural};
 
 fn do_test(data: &[u8]) {
     let mut iter = BitIter::new(data.iter().cloned());
 
-    if let Ok(natural) = decode::decode_natural(&mut iter, None) {
+    if let Ok(natural) = decode_natural(&mut iter, None) {
         // println!("{:?}", natural);
         let bit_len = iter.n_total_read();
 
         let mut sink = Vec::<u8>::new();
         let mut w = BitWriter::from(&mut sink);
-        encode::encode_natural(natural, &mut w).expect("encoding to vector");
+        encode_natural(natural, &mut w).expect("encoding to vector");
         w.flush_all().expect("flushing");
         assert_eq!(w.n_total_written(), bit_len);
 
@@ -42,20 +42,6 @@ fn do_test(data: &[u8]) {
     }
 }
 
-#[cfg(feature = "afl")]
-#[macro_use]
-extern crate afl;
-#[cfg(feature = "afl")]
-fn main() {
-    fuzz!(|data| {
-        do_test(&data);
-    });
-}
-
-#[cfg(feature = "honggfuzz")]
-#[macro_use]
-extern crate honggfuzz;
-#[cfg(feature = "honggfuzz")]
 fn main() {
     loop {
         fuzz!(|data| {
@@ -85,11 +71,6 @@ mod tests {
 
     #[test]
     fn duplicate_crash() {
-        #[cfg(not(fuzzing))]
-        compile_error!(
-            "To build this target or run the unit tests you must set RUSTFLAGS=--cfg=fuzzing"
-        );
-
         let mut a = Vec::new();
         extend_vec_from_hex("00", &mut a);
         super::do_test(&a);

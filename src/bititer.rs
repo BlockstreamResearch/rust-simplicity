@@ -35,6 +35,28 @@ pub struct BitIter<I: Iterator<Item = u8>> {
     total_read: usize,
 }
 
+impl From<Vec<u8>> for BitIter<std::vec::IntoIter<u8>> {
+    fn from(v: Vec<u8>) -> Self {
+        BitIter {
+            iter: v.into_iter(),
+            cached_byte: 0,
+            read_bits: 8,
+            total_read: 0,
+        }
+    }
+}
+
+impl<'a> From<&'a [u8]> for BitIter<std::iter::Copied<std::slice::Iter<'a, u8>>> {
+    fn from(sl: &'a [u8]) -> Self {
+        BitIter {
+            iter: sl.iter().copied(),
+            cached_byte: 0,
+            read_bits: 8,
+            total_read: 0,
+        }
+    }
+}
+
 impl<I: Iterator<Item = u8>> From<I> for BitIter<I> {
     fn from(iter: I) -> Self {
         BitIter {

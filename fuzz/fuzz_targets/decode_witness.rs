@@ -12,14 +12,13 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-extern crate simplicity;
+use honggfuzz::fuzz;
 
 use simplicity::bititer::BitIter;
 use simplicity::bitwriter::BitWriter;
 use simplicity::core::iter::WitnessIterator;
 use simplicity::core::types::Type;
-use simplicity::decode::WitnessDecoder;
-use simplicity::encode;
+use simplicity::{encode_witness, WitnessDecoder};
 
 fn do_test(data: &[u8]) {
     let mut iter = BitIter::new(data.iter().cloned());
@@ -48,7 +47,7 @@ fn do_test(data: &[u8]) {
 
         let mut sink = Vec::<u8>::new();
         let mut w = BitWriter::from(&mut sink);
-        encode::encode_witness(witness.iter(), &mut w).expect("encoding to vector");
+        encode_witness(witness.iter(), &mut w).expect("encoding to vector");
         w.flush_all().expect("flushing");
         assert_eq!(w.n_total_written(), bit_len);
 
@@ -63,20 +62,6 @@ fn do_test(data: &[u8]) {
     }
 }
 
-#[cfg(feature = "afl")]
-#[macro_use]
-extern crate afl;
-#[cfg(feature = "afl")]
-fn main() {
-    fuzz!(|data| {
-        do_test(&data);
-    });
-}
-
-#[cfg(feature = "honggfuzz")]
-#[macro_use]
-extern crate honggfuzz;
-#[cfg(feature = "honggfuzz")]
 fn main() {
     loop {
         fuzz!(|data| {

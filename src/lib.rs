@@ -33,13 +33,7 @@ pub mod bit_machine;
 pub mod bititer;
 pub mod bitwriter;
 pub mod core;
-#[cfg(fuzzing)]
-pub mod decode;
-#[cfg(not(fuzzing))]
 mod decode;
-#[cfg(fuzzing)]
-pub mod encode;
-#[cfg(not(fuzzing))]
 mod encode;
 mod inference;
 pub mod jet;
@@ -56,6 +50,8 @@ pub use crate::policy::Policy;
 
 pub use crate::bit_machine::exec;
 pub use crate::core::{CommitNode, Context, RedeemNode};
+pub use crate::decode::{decode_natural, WitnessDecoder};
+pub use crate::encode::{encode_natural, encode_witness};
 pub use simplicity_sys as ffi;
 use std::fmt;
 
@@ -81,10 +77,6 @@ pub enum Error {
     NonCaseHiddenChild,
     /// 'case' nodes may have at most one hidden child
     CaseMultipleHiddenChildren,
-    /// Right child of left assertion must be hidden
-    RightChildNotHidden,
-    /// Left child of right assertion must be hidden
-    LeftChildNotHidden,
     /// Bitstream ended early
     EndOfStream,
     /// Program must not be empty
@@ -130,12 +122,6 @@ impl fmt::Debug for Error {
             }
             Error::CaseMultipleHiddenChildren => {
                 f.write_str("'case' nodes may have at most one hidden child")
-            }
-            Error::RightChildNotHidden => {
-                f.write_str("The right child of a left assertion must be a hidden node")
-            }
-            Error::LeftChildNotHidden => {
-                f.write_str("The left child of a right assertion must be a hidden node")
             }
             Error::EndOfStream => f.write_str("Bitstream ended early"),
             Error::EmptyProgram => f.write_str("Program must not be empty"),

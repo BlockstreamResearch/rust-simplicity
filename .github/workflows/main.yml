@@ -125,12 +125,9 @@ jobs:
           FEATURES: honggfuzz_fuzz
         run: |
           cd fuzz/
-          for f in $FEATURES; do echo "Features: $f" && RUSTFLAGS=--cfg=fuzzing cargo test --no-default-features --features="$f"; done
-          echo "No default features" && RUSTFLAGS=--cfg=fuzzing cargo test --no-default-features
-          echo "All features" && RUSTFLAGS=--cfg=fuzzing cargo test --all-features
+          cargo test
+          RUSTFLAGS=--cfg=fuzzing cargo test
       - name: Running fuzz tests
-        env:
-          FEATURES: honggfuzz_fuzz
         run: |
           cd fuzz/
           ./travis-fuzz.sh

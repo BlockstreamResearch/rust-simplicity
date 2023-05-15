@@ -129,16 +129,16 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
                     match subcode {
                         0 => CommitNode::comp(context, left, right),
                         1 => {
-                            if let CommitNodeInner::Hidden(..) = left.inner {
-                                if let CommitNodeInner::Hidden(..) = right.inner {
+                            if let CommitNodeInner::Hidden(..) = left.inner() {
+                                if let CommitNodeInner::Hidden(..) = right.inner() {
                                     return Err(Error::CaseMultipleHiddenChildren);
                                 }
                             }
 
-                            if let CommitNodeInner::Hidden(..) = right.inner {
-                                CommitNode::assertl(context, left, right)
-                            } else if let CommitNodeInner::Hidden(..) = left.inner {
-                                CommitNode::assertr(context, left, right)
+                            if let CommitNodeInner::Hidden(right_hash) = right.inner() {
+                                CommitNode::assertl(context, left, *right_hash)
+                            } else if let CommitNodeInner::Hidden(left_hash) = left.inner() {
+                                CommitNode::assertr(context, *left_hash, right)
                             } else {
                                 CommitNode::case(context, left, right)
                             }
@@ -151,13 +151,13 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
                 1 => {
                     index_dag.push((Some(i_abs), None));
 
-                    match subcode {
+                    Ok(match subcode {
                         0 => CommitNode::injl(context, left),
                         1 => CommitNode::injr(context, left),
                         2 => CommitNode::take(context, left),
                         3 => CommitNode::drop(context, left),
                         _ => unreachable!("2-bit subcode"),
-                    }
+                    })
                 }
                 _ => unreachable!("code < 2"),
             }
@@ -168,12 +168,12 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
             match maybe_code {
                 None => match bits.next() {
                     None => return Err(Error::EndOfStream),
-                    Some(true) => CommitNode::jet(context, J::decode(bits)?),
+                    Some(true) => Ok(CommitNode::jet(context, J::decode(bits)?)),
                     Some(false) => {
                         return Err(Error::ParseError("we don't yet support const words"))
                     }
                 },
-                Some(2) => match subcode {
+                Some(2) => Ok(match subcode {
                     0 => CommitNode::iden(context),
                     1 => CommitNode::unit(context),
                     2 => CommitNode::fail(
@@ -183,13 +183,13 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
                     ),
                     3 => return Err(Error::ParseError("01011 (stop code)")),
                     _ => unreachable!("2-bit subcode"),
-                },
-                Some(3) => match subcode {
+                }),
+                Some(3) => Ok(match subcode {
                     0 => CommitNode::hidden(context, Cmr::from(decode_hash(bits)?)),
                     1 if fresh_witness => return Ok(()),
                     1 => CommitNode::witness(context),
                     _ => unreachable!("1-bit subcode"),
-                },
+                }),
                 Some(_) => unreachable!("2-bit code"),
             }
         }
@@ -212,7 +212,7 @@ fn get_child_from_index<J: Jet>(
     match index_to_node.get(&index) {
         Some(child) => child.clone(),
         // Absence of child means that child is a skipped witness node
-        None => CommitNode::witness(context).unwrap(),
+        None => CommitNode::witness(context),
     }
 }
 
