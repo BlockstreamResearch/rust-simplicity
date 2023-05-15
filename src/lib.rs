@@ -60,6 +60,7 @@ pub use simplicity_sys as ffi;
 use std::fmt;
 
 /// Error type for simplicity
+#[non_exhaustive]
 pub enum Error {
     /// A type cannot be unified with another type
     Unification(&'static str),
