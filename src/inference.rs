@@ -1,8 +1,8 @@
 use crate::core::commit::CommitNodeInner;
 use crate::core::redeem::NodeType;
-use crate::core::types::{RcVar, Type, Variable, VariableFactory, VariableInner, VariableType};
+use crate::core::types::{RcVar, Type, Variable, VariableInner, VariableType};
 use crate::jet::Jet;
-use crate::{CommitNode, Error};
+use crate::{CommitNode, Context, Error};
 use std::convert::TryFrom;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -184,19 +184,19 @@ impl UnificationArrow {
     }
 
     /// Create a unification arrow for a fresh `unit` combinator
-    pub(crate) fn for_unit(naming: &mut VariableFactory) -> Self {
+    pub(crate) fn for_unit<J: Jet>(context: &mut Context<J>) -> Self {
         UnificationArrow {
-            source: naming.free_variable(),
+            source: context.naming.free_variable(),
             target: Variable::bound(VariableType::Unit),
         }
     }
 
     /// Create a unification arrow for a fresh `iden` combinator
-    pub(crate) fn for_iden(naming: &mut VariableFactory) -> Self {
+    pub(crate) fn for_iden<J: Jet>(context: &mut Context<J>) -> Self {
         // We cheat and make the source and target of iden literally be the same
         // variable, rather than unifying them. This is slightly more efficient
         // and shouldn't result in any user-visible consequences.
-        let name = naming.free_variable();
+        let name = context.naming.free_variable();
         UnificationArrow {
             source: name.clone(),
             target: name,
@@ -204,31 +204,31 @@ impl UnificationArrow {
     }
 
     /// Create a unification arrow for a fresh `witness` combinator
-    pub(crate) fn for_witness(naming: &mut VariableFactory) -> Self {
+    pub(crate) fn for_witness<J: Jet>(context: &mut Context<J>) -> Self {
         UnificationArrow {
-            source: naming.free_variable(),
-            target: naming.free_variable(),
+            source: context.naming.free_variable(),
+            target: context.naming.free_variable(),
         }
     }
 
     /// Create a unification arrow for a fresh `fail` combinator
-    pub(crate) fn for_fail(naming: &mut VariableFactory) -> Self {
+    pub(crate) fn for_fail<J: Jet>(context: &mut Context<J>) -> Self {
         UnificationArrow {
-            source: naming.free_variable(),
-            target: naming.free_variable(),
+            source: context.naming.free_variable(),
+            target: context.naming.free_variable(),
         }
     }
 
     /// Create a unification arrow for a fresh `hidden` combinator
-    pub(crate) fn for_hidden(naming: &mut VariableFactory) -> Self {
+    pub(crate) fn for_hidden<J: Jet>(context: &mut Context<J>) -> Self {
         UnificationArrow {
-            source: naming.free_variable(),
-            target: naming.free_variable(),
+            source: context.naming.free_variable(),
+            target: context.naming.free_variable(),
         }
     }
 
     /// Create a unification arrow for a fresh jet combinator
-    pub(crate) fn for_jet<J: Jet>(jet: &J) -> Self {
+    pub(crate) fn for_jet<J: Jet>(_context: &mut Context<J>, jet: &J) -> Self {
         let pow2s = Variable::powers_of_two();
         UnificationArrow {
             source: Variable::bound(jet.source_ty().to_variable_type(&pow2s)),
@@ -237,37 +237,43 @@ impl UnificationArrow {
     }
 
     /// Create a unification arrow for a fresh jet combinator
-    pub(crate) fn for_injl<J: Jet>(child: &CommitNode<J>, naming: &mut VariableFactory) -> Self {
+    pub(crate) fn for_injl<J: Jet>(context: &mut Context<J>, child: &CommitNode<J>) -> Self {
         // Again, we "unify" by just cloning Rcs
         let source = child.source_ty();
-        let target = Variable::bound(VariableType::Sum(child.target_ty(), naming.free_variable()));
+        let target = Variable::bound(VariableType::Sum(
+            child.target_ty(),
+            context.naming.free_variable(),
+        ));
         UnificationArrow { source, target }
     }
 
     /// Create a unification arrow for a fresh jet combinator
-    pub(crate) fn for_injr<J: Jet>(child: &CommitNode<J>, naming: &mut VariableFactory) -> Self {
+    pub(crate) fn for_injr<J: Jet>(context: &mut Context<J>, child: &CommitNode<J>) -> Self {
         // Again, we "unify" by just cloning Rcs
         let source = child.source_ty();
-        let target = Variable::bound(VariableType::Sum(naming.free_variable(), child.target_ty()));
+        let target = Variable::bound(VariableType::Sum(
+            context.naming.free_variable(),
+            child.target_ty(),
+        ));
         UnificationArrow { source, target }
     }
 
     /// Create a unification arrow for a fresh jet combinator
-    pub(crate) fn for_take<J: Jet>(child: &CommitNode<J>, naming: &mut VariableFactory) -> Self {
+    pub(crate) fn for_take<J: Jet>(context: &mut Context<J>, child: &CommitNode<J>) -> Self {
         // Again, we "unify" by just cloning Rcs
         let source = Variable::bound(VariableType::Product(
             child.source_ty(),
-            naming.free_variable(),
+            context.naming.free_variable(),
         ));
         let target = child.target_ty();
         UnificationArrow { source, target }
     }
 
     /// Create a unification arrow for a fresh jet combinator
-    pub(crate) fn for_drop<J: Jet>(child: &CommitNode<J>, naming: &mut VariableFactory) -> Self {
+    pub(crate) fn for_drop<J: Jet>(context: &mut Context<J>, child: &CommitNode<J>) -> Self {
         // Again, we "unify" by just cloning Rcs
         let source = Variable::bound(VariableType::Product(
-            naming.free_variable(),
+            context.naming.free_variable(),
             child.source_ty(),
         ));
         let target = child.target_ty();
@@ -276,22 +282,22 @@ impl UnificationArrow {
 
     /// Return a unification arrow that is initialized for the given `node`.
     pub(crate) fn for_node<J: Jet>(
+        context: &mut Context<J>,
         node: &CommitNodeInner<J>,
-        naming: &mut VariableFactory,
     ) -> Result<UnificationArrow, Error> {
         match node {
             // No children
-            CommitNodeInner::Unit => Ok(Self::for_unit(naming)),
-            CommitNodeInner::Iden => Ok(Self::for_iden(naming)),
-            CommitNodeInner::Witness => Ok(Self::for_witness(naming)),
-            CommitNodeInner::Fail(_, _) => Ok(Self::for_fail(naming)),
-            CommitNodeInner::Hidden(_) => Ok(Self::for_hidden(naming)),
-            CommitNodeInner::Jet(ref j) => Ok(Self::for_jet(j)),
+            CommitNodeInner::Unit => Ok(Self::for_unit(context)),
+            CommitNodeInner::Iden => Ok(Self::for_iden(context)),
+            CommitNodeInner::Witness => Ok(Self::for_witness(context)),
+            CommitNodeInner::Fail(_, _) => Ok(Self::for_fail(context)),
+            CommitNodeInner::Hidden(_) => Ok(Self::for_hidden(context)),
+            CommitNodeInner::Jet(ref j) => Ok(Self::for_jet(context, j)),
             // Single children
-            CommitNodeInner::InjL(ref child) => Ok(Self::for_injl(child, naming)),
-            CommitNodeInner::InjR(ref child) => Ok(Self::for_injr(child, naming)),
-            CommitNodeInner::Take(ref child) => Ok(Self::for_take(child, naming)),
-            CommitNodeInner::Drop(ref child) => Ok(Self::for_drop(child, naming)),
+            CommitNodeInner::InjL(ref child) => Ok(Self::for_injl(context, child)),
+            CommitNodeInner::InjR(ref child) => Ok(Self::for_injr(context, child)),
+            CommitNodeInner::Take(ref child) => Ok(Self::for_take(context, child)),
+            CommitNodeInner::Drop(ref child) => Ok(Self::for_drop(context, child)),
             // Multiple children -- now we have nontrivial unification and may fail.
             CommitNodeInner::Comp(ref lchild, ref rchild) => {
                 let arrow = UnificationArrow {
@@ -308,9 +314,9 @@ impl UnificationArrow {
             CommitNodeInner::Case(ref lchild, ref rchild)
             | CommitNodeInner::AssertL(ref lchild, ref rchild)
             | CommitNodeInner::AssertR(ref lchild, ref rchild) => {
-                let a = naming.free_variable();
-                let b = naming.free_variable();
-                let c = naming.free_variable();
+                let a = context.naming.free_variable();
+                let b = context.naming.free_variable();
+                let c = context.naming.free_variable();
 
                 let sum_a_b = VariableType::Sum(a.clone(), b.clone());
                 let prod_sum_a_b_c = VariableType::Product(Variable::bound(sum_a_b), c.clone());
@@ -372,8 +378,8 @@ impl UnificationArrow {
                 })
             }
             CommitNodeInner::Disconnect(ref lchild, ref rchild) => {
-                let a = naming.free_variable();
-                let b = naming.free_variable();
+                let a = context.naming.free_variable();
+                let b = context.naming.free_variable();
                 let c = rchild.source_ty();
                 let d = rchild.target_ty();
 
@@ -405,7 +411,7 @@ impl UnificationArrow {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::Variable;
+    use crate::core::types::{Variable, VariableFactory};
 
     #[test]
     fn type_error() {
