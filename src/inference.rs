@@ -73,6 +73,24 @@ fn unify(mut x: RcVar, mut y: RcVar, hint: &'static str) -> Result<(), Error> {
         VariableInner::Free(_) => Ok(()),
         // If y was already bound to a type, then x must be bound, too
         VariableInner::Bound(y_ty, _) => bind(&x, y_ty, hint),
+        // If y was precomputed, same story, but in this case we cannot modify `y` (since it
+        // needs to be shared across many programs, and setting it to `EqualTo` something
+        // local to a single program would cause inference failures), so put its old value back.
+        //
+        // This means that rather than x being the parent of y, y remains as its own parent,
+        // disconnected from x. This leaves two equivalence classes where there should be one:
+        // the one in which y is the root, and the one which includes x. By calling `bind` on
+        // x, we ensure that both classes actually have the same concrete type.
+        //
+        // Future changes to one class will not propagate to the other, but this is OK *as long
+        // as* all precomputed types are concrete types; then there are no changes to propagate
+        // and any other variables that get unified into either class will simply have their
+        // own type concretized into this one.
+        VariableInner::Precomputed(y_tyvar, y_ty) => {
+            y.borrow_mut().inner = VariableInner::Precomputed(y_tyvar.clone(), y_ty);
+            bind(&x, y_tyvar, hint)?;
+            Ok(())
+        },
         VariableInner::EqualTo(..) => unreachable!("A root node cannot have a parent"),
         VariableInner::Finalized(..) => unreachable!("No finalized types at this stage"),
     }
@@ -89,7 +107,7 @@ fn bind(x: &RcVar, ty: VariableType, hint: &'static str) -> Result<(), Error> {
             x.borrow_mut().inner = VariableInner::Bound(ty, false);
             Ok(())
         }
-        VariableInner::Bound(self_ty, _) => match (self_ty, ty) {
+        VariableInner::Bound(self_ty, _) | VariableInner::Precomputed(self_ty, _) => match (self_ty, ty) {
             (VariableType::Unit, VariableType::Unit) => Ok(()),
             (VariableType::Sum(x1, x2), VariableType::Sum(y1, y2))
             | (VariableType::Product(x1, x2), VariableType::Product(y1, y2)) => {
@@ -122,6 +140,7 @@ fn finalize(x: RcVar) -> Result<Arc<Type>, Error> {
             ty.clone()
         }
         VariableInner::EqualTo(..) => unreachable!("A root cannot have a parent"),
+        VariableInner::Precomputed(_, ref final_type) => return Ok(final_type.clone()),
         VariableInner::Finalized(ref final_type) => return Ok(final_type.clone()),
     };
 

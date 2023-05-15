@@ -279,6 +279,35 @@ impl Variable {
         }))
     }
 
+    /// Returns a precomputed variable representing the type 1+1
+    pub fn precomputed_2() -> RcVar {
+        let var_one = Variable::bound(VariableType::Unit);
+        let var_two = VariableType::Sum(var_one.clone(), var_one);
+
+        let ty_1 = Type::unit();
+        let ty_two = Type::sum(ty_1.clone(), ty_1);
+        Rc::new(RefCell::new(Self {
+            inner: VariableInner::Precomputed(
+                var_two,
+                ty_two,
+            ),
+            rank: 0,
+        }))
+    }
+
+    /// For a precomputed variable, return the finalized version of it
+    ///
+    /// # Panics
+    ///
+    /// Panics if the given variable is not a precomputed one.
+    pub fn precomputed_finalized(&self) -> Arc<Type> {
+        if let VariableInner::Precomputed(_, ref ty) = self.inner {
+            ty.clone()
+        } else {
+            panic!("Tried to finalize a non-precomputed variable {}", self)
+        }
+    }
+
     /// Return an array `pow2s` of types such that `pow2s[i] = 2^i` holds for 0 ≤ `i` < 9.
     pub fn powers_of_two() -> [RcVar; 9] {
         let two_0 = Variable::bound(VariableType::Unit);
@@ -297,6 +326,26 @@ impl Variable {
         ]
     }
 }
+
+/// Given a precomputed variable, takes the product of that variable with itself
+///
+/// # Panics
+///
+/// Panics if the given variable is not a precomputed one.
+pub(crate) fn precomputed_square(rcvar: &RcVar) -> RcVar {
+    if let VariableInner::Precomputed(_, ref ty) = rcvar.borrow().inner {
+        Rc::new(RefCell::new(Variable {
+            inner: VariableInner::Precomputed(
+                VariableType::Product(rcvar.clone(), rcvar.clone()),
+                Type::product(ty.clone(), ty.clone()),
+            ),
+            rank: 0,
+        }))
+    } else {
+        panic!("Tried to square a non-precomputed variable {}", rcvar.borrow());
+    }
+}
+
 
 impl fmt::Debug for Variable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -325,6 +374,10 @@ pub(crate) enum VariableInner {
     /// Variable equal to another variable.
     /// In the union-find algorithm, this is the _parent_
     EqualTo(RcVar),
+    /// A precomputed type, which can be treated simultaneously as finalized
+    /// and non-finalized. Because these types are all concrete they cannot
+    /// recurse and do not need an occurs check.
+    Precomputed(VariableType, Arc<Type>),
     /// Variable bound to some finalized type
     Finalized(Arc<Type>),
 }
@@ -335,6 +388,7 @@ impl fmt::Debug for VariableInner {
             VariableInner::Free(id) => fmt::Debug::fmt(id, f),
             VariableInner::Bound(ty, b) => write!(f, "[{:?}/{}]", ty, b),
             VariableInner::EqualTo(parent) => write!(f, "={:?}", parent),
+            VariableInner::Precomputed(tyvar, _) => write!(f, "[{:?}/precomputed]", tyvar),
             VariableInner::Finalized(ty) => fmt::Debug::fmt(ty, f),
         }
     }
@@ -348,6 +402,8 @@ impl VariableInner {
             // Uncomment to use intermediate compression: more allocation of smaller strings
             // VariableInner::Bound(ty, _) => write!(w, "{}", ty),
             VariableInner::EqualTo(parent) => parent.borrow().inner.uncompressed_display(w),
+            // Precomputed variables are treated same as Bound ones
+            VariableInner::Precomputed(tyvar, _) => tyvar.uncompressed_display(w),
             VariableInner::Finalized(ty) => write!(w, "{}", ty),
         }
     }
