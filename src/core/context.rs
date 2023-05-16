@@ -1,4 +1,3 @@
-
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -17,10 +16,9 @@ impl<J: Jet> Context<J> {
     /// Create a new context.
     pub fn new() -> Self {
         let two = Variable::precomputed_2();
-        let pow2 = std::iter::successors(
-            Some(two),
-            |prev| Some(precomputed_square(prev)),
-        ).take(32).collect();
+        let pow2 = std::iter::successors(Some(two), |prev| Some(precomputed_square(prev)))
+            .take(32)
+            .collect();
 
         Self {
             naming: VariableFactory::new(),
@@ -34,17 +32,19 @@ impl<J: Jet> Context<J> {
         assert!(
             n < self.pow2.len(),
             "we have cached only {} powers of 2 but {} was requested",
-            self.pow2.len(), n,
+            self.pow2.len(),
+            n,
         );
         self.pow2[n].borrow().precomputed_finalized()
     }
 
     /// Accessor for the nth power of two as an `RcVar`
-    pub (crate) fn nth_power_of_2_rcvar(&self, n: usize) -> &RcVar {
+    pub(crate) fn nth_power_of_2_rcvar(&self, n: usize) -> &RcVar {
         assert!(
             n < self.pow2.len(),
             "we have cached only {} powers of 2 but {} was requested",
-            self.pow2.len(), n,
+            self.pow2.len(),
+            n,
         );
         &self.pow2[n]
     }

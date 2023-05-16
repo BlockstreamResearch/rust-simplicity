@@ -286,10 +286,7 @@ impl Variable {
         // This means thot we need the entire tree, down to the units, to use
         // the `Precomputed` variant. Hence this awkward `var_one` definition.
         let var_one = Rc::new(RefCell::new(Self {
-            inner: VariableInner::Precomputed(
-                VariableType::Unit,
-                Type::unit(),
-            ),
+            inner: VariableInner::Precomputed(VariableType::Unit, Type::unit()),
             rank: 0,
         }));
         let var_two = VariableType::Sum(var_one.clone(), var_one);
@@ -297,10 +294,7 @@ impl Variable {
         let ty_1 = Type::unit();
         let ty_two = Type::sum(ty_1.clone(), ty_1);
         Rc::new(RefCell::new(Self {
-            inner: VariableInner::Precomputed(
-                var_two,
-                ty_two,
-            ),
+            inner: VariableInner::Precomputed(var_two, ty_two),
             rank: 0,
         }))
     }
@@ -334,10 +328,12 @@ pub(crate) fn precomputed_square(rcvar: &RcVar) -> RcVar {
             rank: 0,
         }))
     } else {
-        panic!("Tried to square a non-precomputed variable {}", rcvar.borrow());
+        panic!(
+            "Tried to square a non-precomputed variable {}",
+            rcvar.borrow()
+        );
     }
 }
-
 
 impl fmt::Debug for Variable {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

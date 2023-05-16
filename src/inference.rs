@@ -90,7 +90,7 @@ fn unify(mut x: RcVar, mut y: RcVar, hint: &'static str) -> Result<(), Error> {
             y.borrow_mut().inner = VariableInner::Precomputed(y_tyvar.clone(), y_ty);
             bind(&x, y_tyvar, hint)?;
             Ok(())
-        },
+        }
         VariableInner::EqualTo(..) => unreachable!("A root node cannot have a parent"),
         VariableInner::Finalized(..) => unreachable!("No finalized types at this stage"),
     }
@@ -107,15 +107,17 @@ fn bind(x: &RcVar, ty: VariableType, hint: &'static str) -> Result<(), Error> {
             x.borrow_mut().inner = VariableInner::Bound(ty, false);
             Ok(())
         }
-        VariableInner::Bound(self_ty, _) | VariableInner::Precomputed(self_ty, _) => match (self_ty, ty) {
-            (VariableType::Unit, VariableType::Unit) => Ok(()),
-            (VariableType::Sum(x1, x2), VariableType::Sum(y1, y2))
-            | (VariableType::Product(x1, x2), VariableType::Product(y1, y2)) => {
-                unify(x1, y1, hint)?;
-                unify(x2, y2, hint)
+        VariableInner::Bound(self_ty, _) | VariableInner::Precomputed(self_ty, _) => {
+            match (self_ty, ty) {
+                (VariableType::Unit, VariableType::Unit) => Ok(()),
+                (VariableType::Sum(x1, x2), VariableType::Sum(y1, y2))
+                | (VariableType::Product(x1, x2), VariableType::Product(y1, y2)) => {
+                    unify(x1, y1, hint)?;
+                    unify(x2, y2, hint)
+                }
+                _ => Err(Error::Unification(hint)),
             }
-            _ => Err(Error::Unification(hint)),
-        },
+        }
         VariableInner::EqualTo(..) => unreachable!("x_var is a root node"),
         VariableInner::Finalized(..) => unreachable!("No finalized types at this stage"),
     }
@@ -249,8 +251,12 @@ impl UnificationArrow {
     /// Create a unification arrow for a fresh jet combinator
     pub(crate) fn for_jet<J: Jet>(context: &mut Context<J>, jet: &J) -> Self {
         UnificationArrow {
-            source: jet.source_ty().to_variable_type(|n| context.nth_power_of_2_rcvar(n).clone()),
-            target: jet.target_ty().to_variable_type(|n| context.nth_power_of_2_rcvar(n).clone()),
+            source: jet
+                .source_ty()
+                .to_variable_type(|n| context.nth_power_of_2_rcvar(n).clone()),
+            target: jet
+                .target_ty()
+                .to_variable_type(|n| context.nth_power_of_2_rcvar(n).clone()),
         }
     }
 
@@ -401,10 +407,8 @@ impl UnificationArrow {
                 let c = rchild.source_ty();
                 let d = rchild.target_ty();
 
-                let prod_256_a = VariableType::Product(
-                    context.nth_power_of_2_rcvar(8).clone(),
-                    a.clone(),
-                );
+                let prod_256_a =
+                    VariableType::Product(context.nth_power_of_2_rcvar(8).clone(), a.clone());
                 let prod_b_c = VariableType::Product(b.clone(), c);
                 let prod_b_d = VariableType::Product(b, d);
 
