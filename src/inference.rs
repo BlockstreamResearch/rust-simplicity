@@ -401,8 +401,10 @@ impl UnificationArrow {
                 let c = rchild.source_ty();
                 let d = rchild.target_ty();
 
-                let pow2s = Variable::powers_of_two();
-                let prod_256_a = VariableType::Product(pow2s[8].clone(), a.clone());
+                let prod_256_a = VariableType::Product(
+                    context.nth_power_of_2_rcvar(8).clone(),
+                    a.clone(),
+                );
                 let prod_b_c = VariableType::Product(b.clone(), c);
                 let prod_b_d = VariableType::Product(b, d);
 
@@ -429,21 +431,22 @@ impl UnificationArrow {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::types::{Variable, VariableFactory};
 
     #[test]
     fn type_error() {
-        let mut naming = VariableFactory::new();
-        let pow2s = Variable::powers_of_two();
-        let x = naming.free_variable();
-        let y = naming.free_variable();
+        let mut ctx = Context::<crate::jet::Core>::new();
+        let x = ctx.naming.free_variable();
+        let y = ctx.naming.free_variable();
 
-        let x1 = naming.free_variable();
-        let x2 = naming.free_variable();
+        let x1 = ctx.naming.free_variable();
+        let x2 = ctx.naming.free_variable();
         bind(&x, VariableType::Sum(x1, x2), "Cannot fail").unwrap();
         bind(
             &y,
-            VariableType::Product(pow2s[8].clone(), naming.free_variable()),
+            VariableType::Product(
+                ctx.nth_power_of_2_rcvar(8).clone(),
+                ctx.naming.free_variable(),
+            ),
             "Cannot fail",
         )
         .unwrap();

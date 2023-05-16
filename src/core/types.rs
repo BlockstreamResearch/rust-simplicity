@@ -317,24 +317,6 @@ impl Variable {
             panic!("Tried to finalize a non-precomputed variable {}", self)
         }
     }
-
-    /// Return an array `pow2s` of types such that `pow2s[i] = 2^i` holds for 0 ≤ `i` < 9.
-    pub fn powers_of_two() -> [RcVar; 9] {
-        let two_0 = Variable::bound(VariableType::Unit);
-        let two_1 = Variable::bound(VariableType::Sum(two_0.clone(), two_0));
-        let two_2 = Variable::bound(VariableType::Product(two_1.clone(), two_1.clone()));
-        let two_4 = Variable::bound(VariableType::Product(two_2.clone(), two_2.clone()));
-        let two_8 = Variable::bound(VariableType::Product(two_4.clone(), two_4.clone()));
-        let two_16 = Variable::bound(VariableType::Product(two_8.clone(), two_8.clone()));
-        let two_32 = Variable::bound(VariableType::Product(two_16.clone(), two_16.clone()));
-        let two_64 = Variable::bound(VariableType::Product(two_32.clone(), two_32.clone()));
-        let two_128 = Variable::bound(VariableType::Product(two_64.clone(), two_64.clone()));
-        let two_256 = Variable::bound(VariableType::Product(two_128.clone(), two_128.clone()));
-
-        [
-            two_1, two_2, two_4, two_8, two_16, two_32, two_64, two_128, two_256,
-        ]
-    }
 }
 
 /// Given a precomputed variable, takes the product of that variable with itself
