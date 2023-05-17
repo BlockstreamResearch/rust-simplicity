@@ -134,6 +134,14 @@ fn encode_node<W: io::Write, J: Jet>(
                 w.write_bit(true)?; // jet
                 jet.encode(w)?;
             }
+            RedeemNodeInner::Word(val) => {
+                w.write_bit(true)?; // jet or word
+                w.write_bit(false)?; // word
+                assert_eq!(val.len().count_ones(), 1);
+                let depth = val.len().trailing_zeros();
+                encode_natural(1 + depth as usize, w)?;
+                encode_value(val, w)?;
+            }
             _ => unreachable!(),
         }
     }

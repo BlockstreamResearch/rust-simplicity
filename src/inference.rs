@@ -1,6 +1,7 @@
 use crate::core::commit::CommitNodeInner;
 use crate::core::redeem::NodeType;
 use crate::core::types::{RcVar, Type, Variable, VariableInner, VariableType};
+use crate::core::Value;
 use crate::jet::Jet;
 use crate::{CommitNode, Context, Error};
 use std::convert::TryFrom;
@@ -260,6 +261,17 @@ impl UnificationArrow {
         }
     }
 
+    /// Create a unification arrow for a fresh const-word combinator
+    pub(crate) fn for_const_word<J: Jet>(context: &mut Context<J>, word: &Value) -> Self {
+        let len = word.len();
+        assert_eq!(len.count_ones(), 1);
+        let depth = word.len().trailing_zeros();
+        UnificationArrow {
+            source: Variable::bound(VariableType::Unit),
+            target: context.nth_power_of_2_rcvar(depth as usize).clone(),
+        }
+    }
+
     /// Create a unification arrow for a fresh jet combinator
     pub(crate) fn for_injl<J: Jet>(context: &mut Context<J>, child: &CommitNode<J>) -> Self {
         // Again, we "unify" by just cloning Rcs
@@ -317,6 +329,7 @@ impl UnificationArrow {
             CommitNodeInner::Fail(_, _) => Ok(Self::for_fail(context)),
             CommitNodeInner::Hidden(_) => Ok(Self::for_hidden(context)),
             CommitNodeInner::Jet(ref j) => Ok(Self::for_jet(context, j)),
+            CommitNodeInner::Word(ref w) => Ok(Self::for_const_word(context, w)),
             // Single children
             CommitNodeInner::InjL(ref child) => Ok(Self::for_injl(context, child)),
             CommitNodeInner::InjR(ref child) => Ok(Self::for_injr(context, child)),

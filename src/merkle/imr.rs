@@ -84,7 +84,8 @@ impl Imr {
             CommitNodeInner::Iden
             | CommitNodeInner::Unit
             | CommitNodeInner::Hidden(..)
-            | CommitNodeInner::Jet(..) => imr_iv,
+            | CommitNodeInner::Jet(..)
+            | CommitNodeInner::Word(..) => imr_iv,
             CommitNodeInner::Fail(left, right) => imr_iv.update(left.into(), right.into()),
             CommitNodeInner::InjL(_)
             | CommitNodeInner::InjR(_)

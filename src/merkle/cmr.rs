@@ -13,6 +13,7 @@
 //
 
 use crate::core::commit::CommitNodeInner;
+use crate::core::Value;
 use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
 use crate::merkle::common::{CommitMerkleRoot, MerkleRoot};
@@ -54,11 +55,39 @@ impl CommitMerkleRoot for Cmr {
             CommitNodeInner::Fail(_, _) => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1ffail"),
             CommitNodeInner::Hidden(h) => *h,
             CommitNodeInner::Jet(j) => Cmr::tag_iv(b"Simplicity-Draft\x1fJet").update_1(j.cmr()),
+            CommitNodeInner::Word(_) => Cmr::tag_iv(b"Simplicity-Draft\x1fIdentity"),
         }
     }
 }
 
 impl Cmr {
+    /// Compute the CMR of a word
+    ///
+    /// This is equal to the IMR of the equivalent scribe, converted to a CMR in
+    /// the usual way for jets.
+    // FIXME avoid calling `powers_of_two_vec`; also replace this "construct the scribe then
+    //  compute its CMR" logic with the inline algorithm from the C code, which avoids any
+    //  allocations.
+    fn const_word_cmr(v: &Value) -> Cmr {
+        assert_eq!(v.len().count_ones(), 1);
+        let w = 1 + v.len().trailing_zeros() as usize;
+        // 1. compute scribe pass-one IMR
+        let scribe = crate::core::CommitNode::<crate::jet::Core>::scribe(
+            &mut crate::core::Context::new(),
+            v,
+        );
+        let imr_iv = Cmr::tag_iv(b"Simplicity-Draft\x1fIdentity");
+        let imr_pass1 = imr_iv.update_1(scribe.cmr());
+        // 2. Add TMRs to get the pass-two IMR
+        let types = crate::core::types::Type::powers_of_two_vec(15);
+        let imr_pass2 = imr_pass1.update(
+            types[0].tmr.0.into_inner().into(),
+            types[w].tmr.0.into_inner().into(),
+        );
+        // 3. Convert to a jet CMR
+        Cmr::tag_iv(b"Simplicity-Draft\x1fJet").update_1(imr_pass2)
+    }
+
     /// Compute the CMR of the given node.
     pub(crate) fn compute<J: Jet>(node: &CommitNodeInner<J>) -> Cmr {
         let cmr_iv = Cmr::get_iv(node);
@@ -69,6 +98,7 @@ impl Cmr {
             | CommitNodeInner::Witness
             | CommitNodeInner::Hidden(..)
             | CommitNodeInner::Jet(..) => cmr_iv,
+            CommitNodeInner::Word(ref w) => Cmr::const_word_cmr(w),
             CommitNodeInner::Fail(left, right) => cmr_iv.update(*left, *right),
             CommitNodeInner::InjL(l)
             | CommitNodeInner::InjR(l)
@@ -81,5 +111,26 @@ impl Cmr {
             | CommitNodeInner::AssertL(l, r)
             | CommitNodeInner::AssertR(l, r) => cmr_iv.update(l.cmr(), r.cmr()),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fixed_const_word_cmr() {
+        // Checked against C implementation
+        let bit0 = Value::SumL(Box::new(Value::Unit));
+        #[rustfmt::skip]
+        assert_eq!(
+            Cmr::const_word_cmr(&bit0),
+            [
+                0xb1, 0xaa, 0x07, 0xfb, 0x32, 0xc5, 0xa4, 0xe5,
+                0xf5, 0xf9, 0x11, 0x7b, 0x45, 0xbf, 0xf8, 0xb3,
+                0x51, 0xdc, 0x1d, 0x59, 0x80, 0x47, 0xeb, 0x64,
+                0x70, 0x3e, 0x36, 0xa6, 0x97, 0x19, 0x24, 0x17, 
+            ].into(),
+        );
     }
 }

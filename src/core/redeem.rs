@@ -63,8 +63,10 @@ pub enum RedeemNodeInner<J: Jet> {
     Fail(Cmr, Cmr),
     /// Hidden CMR
     Hidden(Cmr),
-    /// Jlication jet
+    /// Application jet
     Jet(J),
+    /// Constant word
+    Word(Value),
 }
 
 impl<J: Jet> RedeemNodeInner<J> {
@@ -76,7 +78,8 @@ impl<J: Jet> RedeemNodeInner<J> {
             | RedeemNodeInner::Witness(..)
             | RedeemNodeInner::Fail(..)
             | RedeemNodeInner::Hidden(..)
-            | RedeemNodeInner::Jet(..) => None,
+            | RedeemNodeInner::Jet(..)
+            | RedeemNodeInner::Word(..) => None,
             RedeemNodeInner::InjL(l)
             | RedeemNodeInner::InjR(l)
             | RedeemNodeInner::Take(l)
@@ -99,6 +102,7 @@ impl<J: Jet> RedeemNodeInner<J> {
             | RedeemNodeInner::Fail(..)
             | RedeemNodeInner::Hidden(..)
             | RedeemNodeInner::Jet(..)
+            | RedeemNodeInner::Word(..)
             | RedeemNodeInner::InjL(_)
             | RedeemNodeInner::InjR(_)
             | RedeemNodeInner::Take(_)
@@ -132,6 +136,7 @@ impl<J: Jet> fmt::Display for RedeemNodeInner<J> {
             RedeemNodeInner::Fail(..) => f.write_str("fail"),
             RedeemNodeInner::Hidden(..) => f.write_str("hidden"),
             RedeemNodeInner::Jet(jet) => write!(f, "jet({})", jet),
+            RedeemNodeInner::Word(w) => write!(f, "word({})", w),
         }
     }
 }
