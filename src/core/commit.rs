@@ -13,6 +13,7 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
+use bitcoin::hashes::hex::ToHex;
 use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
 use crate::core::iter::{DagIterable, WitnessIterator};
@@ -88,7 +89,18 @@ impl<J: Jet> fmt::Display for CommitNodeInner<J> {
             CommitNodeInner::Fail(..) => f.write_str("fail"),
             CommitNodeInner::Hidden(..) => f.write_str("hidden"),
             CommitNodeInner::Jet(jet) => write!(f, "jet({})", jet),
-            CommitNodeInner::Word(w) => write!(f, "word({})", w),
+            CommitNodeInner::Word(w) => {
+                // The default value serialization shows the whole structure of
+                // the value; but for words, the structure is always fixed by the
+                // length, so it is fine to just serialize the bits.
+                f.write_str("word(")?;
+                if let Ok(hex) = w.try_to_bytes() {
+                    f.write_str(&hex.to_hex())?;
+                } else {
+                    w.do_each_bit(|b| f.write_str(if b { "1" } else { "0" }).expect("FIXME"));
+                }
+                f.write_str(")")
+            },
         }
     }
 }
