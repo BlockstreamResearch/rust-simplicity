@@ -50,7 +50,7 @@ impl<Pk: MiniscriptKey + ToPublicKey> Satisfier<Pk> for PolicySatisfier<Pk> {
     }
 }
 
-struct Helper {
+struct SatisfierExtData {
     witness: VecDeque<Value>,
     cost: u64,
     pruned: Rc<CommitNode<Elements>>,
@@ -66,8 +66,8 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
         Some((helper.witness.into(), helper.pruned))
     }
 
-    fn empty_helper(&self, context: &mut Context<Elements>) -> Helper {
-        Helper {
+    fn compile_no_witness(&self, context: &mut Context<Elements>) -> SatisfierExtData {
+        SatisfierExtData {
             witness: VecDeque::new(),
             cost: 0,
             pruned: self.compile(context).unwrap(),
@@ -78,17 +78,17 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
         &self,
         satisfier: &S,
         context: &mut Context<Elements>,
-    ) -> Option<Helper> {
+    ) -> Option<SatisfierExtData> {
         match self {
             Policy::Unsatisfiable => None,
-            Policy::Trivial => Some(self.empty_helper(context)),
+            Policy::Trivial => Some(self.compile_no_witness(context)),
             Policy::Key(pk) => satisfier
                 .lookup_tap_leaf_script_sig(pk, &TapLeafHash::all_zeros())
                 .map(|sig| {
                     let value = Value::u512_from_slice(sig.sig.as_ref());
                     let witness_data = VecDeque::from_iter(std::iter::once(value));
 
-                    Helper {
+                    SatisfierExtData {
                         witness: witness_data,
                         cost: 512,
                         pruned: self.compile(context).unwrap(),
@@ -97,14 +97,14 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
             Policy::After(n) => {
                 let height = Height::from_consensus(*n).ok()?;
                 if satisfier.check_after(LockTime::Blocks(height)) {
-                    Some(self.empty_helper(context))
+                    Some(self.compile_no_witness(context))
                 } else {
                     None
                 }
             }
             Policy::Older(n) => {
                 if satisfier.check_older(Sequence((*n).into())) {
-                    Some(self.empty_helper(context))
+                    Some(self.compile_no_witness(context))
                 } else {
                     None
                 }
@@ -113,7 +113,7 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                 let value = Value::u256_from_slice(preimage.as_ref());
                 let witness_data = VecDeque::from_iter(std::iter::once(value));
 
-                Helper {
+                SatisfierExtData {
                     witness: witness_data,
                     cost: 256,
                     pruned: self.compile(context).unwrap(),
