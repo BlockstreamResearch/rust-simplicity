@@ -52,8 +52,15 @@ impl<Pk: MiniscriptKey + ToPublicKey> Satisfier<Pk> for PolicySatisfier<Pk> {
 
 struct SatisfierExtData {
     witness: VecDeque<Value>,
-    cost: u64,
+    witness_cost: u64,
     pruned: Rc<CommitNode<Elements>>,
+    program_cost: u64,
+}
+
+impl SatisfierExtData {
+    fn cost(&self) -> u64 {
+        self.witness_cost + self.program_cost * 8
+    }
 }
 
 impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
@@ -67,8 +74,9 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
     fn compile_no_witness(&self, context: &mut Context<Elements>) -> SatisfierExtData {
         SatisfierExtData {
             witness: VecDeque::new(),
-            cost: 0,
+            witness_cost: 0,
             pruned: self.compile(context).unwrap(),
+            program_cost: 0,
         }
     }
 
@@ -85,11 +93,14 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                 .map(|sig| {
                     let value = Value::u512_from_slice(sig.sig.as_ref());
                     let witness_data = VecDeque::from_iter(std::iter::once(value));
+                    let pruned = self.compile(context).unwrap();
+                    let program_cost = pruned.len() as u64;
 
                     SatisfierExtData {
                         witness: witness_data,
-                        cost: 512,
-                        pruned: self.compile(context).unwrap(),
+                        witness_cost: 512,
+                        pruned,
+                        program_cost,
                     }
                 }),
             Policy::After(n) => {
@@ -110,11 +121,14 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
             Policy::Sha256(hash) => satisfier.lookup_sha256(hash).map(|preimage| {
                 let value = Value::u256_from_slice(preimage.as_ref());
                 let witness_data = VecDeque::from_iter(std::iter::once(value));
+                let pruned = self.compile(context).unwrap();
+                let program_cost = pruned.len() as u64;
 
                 SatisfierExtData {
                     witness: witness_data,
-                    cost: 256,
-                    pruned: self.compile(context).unwrap(),
+                    witness_cost: 256,
+                    pruned,
+                    program_cost,
                 }
             }),
             Policy::And(sub_policies) => {
@@ -127,8 +141,9 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                 let mut left = sub_policies[0].satisfy_helper(satisfier, context)?;
                 let right = sub_policies[1].satisfy_helper(satisfier, context)?;
                 left.witness.extend(right.witness);
-                left.cost += right.cost;
+                left.witness_cost += right.witness_cost;
                 left.pruned = compiler::and(context, left.pruned, right.pruned).ok()?;
+                left.program_cost += right.program_cost + 1;
 
                 Some(left)
             }
@@ -144,9 +159,9 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
 
                 match (maybe_left, maybe_right) {
                     (Some(mut left), Some(mut right)) => {
-                        if left.cost <= right.cost {
+                        if left.cost() <= right.cost() {
                             left.witness.push_front(Value::u1(0));
-                            left.cost += 1;
+                            left.witness_cost += 1;
                             left.pruned = compiler::or(
                                 context,
                                 left.pruned,
@@ -154,10 +169,11 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                                 UsedCaseBranch::Left,
                             )
                             .ok()?;
+                            left.program_cost += 6;
                             Some(left)
                         } else {
                             right.witness.push_front(Value::u1(1));
-                            right.cost += 1;
+                            right.witness_cost += 1;
                             right.pruned = compiler::or(
                                 context,
                                 left.pruned,
@@ -165,24 +181,27 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                                 UsedCaseBranch::Right,
                             )
                             .ok()?;
+                            right.program_cost += 6;
                             Some(right)
                         }
                     }
                     (Some(mut left), None) => {
                         left.witness.push_front(Value::u1(0));
-                        left.cost += 1;
+                        left.witness_cost += 1;
                         let right = sub_policies[1].compile(context).ok()?;
                         left.pruned =
                             compiler::or(context, left.pruned, right, UsedCaseBranch::Left).ok()?;
+                        left.program_cost += 6;
                         Some(left)
                     }
                     (None, Some(mut right)) => {
                         right.witness.push_front(Value::u1(1));
-                        right.cost += 1;
+                        right.witness_cost += 1;
                         let left = sub_policies[0].compile(context).ok()?;
                         right.pruned =
                             compiler::or(context, left, right.pruned, UsedCaseBranch::Right)
                                 .ok()?;
+                        right.program_cost += 6;
                         Some(right)
                     }
                     _ => None,
