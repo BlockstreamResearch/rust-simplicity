@@ -80,6 +80,28 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
         }
     }
 
+    fn compile_witness_bytes(
+        &self,
+        context: &mut Context<Elements>,
+        witness: &[u8],
+    ) -> SatisfierExtData {
+        let value = match witness.len() {
+            32 => Value::u256_from_slice(witness),
+            64 => Value::u512_from_slice(witness),
+            _ => unimplemented!(),
+        };
+        let witness_data = VecDeque::from_iter(std::iter::once(value));
+        let program = self.compile(context).unwrap();
+        let program_cost = program.len() as u64;
+
+        SatisfierExtData {
+            witness: witness_data,
+            witness_cost: witness.len() as u64 * 8,
+            program,
+            program_cost,
+        }
+    }
+
     fn satisfy_helper<S: Satisfier<Pk>>(
         &self,
         satisfier: &S,
@@ -90,19 +112,7 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
             Policy::Trivial => Some(self.compile_no_witness(context)),
             Policy::Key(pk) => satisfier
                 .lookup_tap_leaf_script_sig(pk, &TapLeafHash::all_zeros())
-                .map(|sig| {
-                    let value = Value::u512_from_slice(sig.sig.as_ref());
-                    let witness_data = VecDeque::from_iter(std::iter::once(value));
-                    let program = self.compile(context).unwrap();
-                    let program_cost = program.len() as u64;
-
-                    SatisfierExtData {
-                        witness: witness_data,
-                        witness_cost: 512,
-                        program,
-                        program_cost,
-                    }
-                }),
+                .map(|sig| self.compile_witness_bytes(context, sig.sig.as_ref())),
             Policy::After(n) => {
                 let height = Height::from_consensus(*n).ok()?;
                 if satisfier.check_after(LockTime::Blocks(height)) {
@@ -118,19 +128,9 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                     None
                 }
             }
-            Policy::Sha256(hash) => satisfier.lookup_sha256(hash).map(|preimage| {
-                let value = Value::u256_from_slice(preimage.as_ref());
-                let witness_data = VecDeque::from_iter(std::iter::once(value));
-                let program = self.compile(context).unwrap();
-                let program_cost = program.len() as u64;
-
-                SatisfierExtData {
-                    witness: witness_data,
-                    witness_cost: 256,
-                    program,
-                    program_cost,
-                }
-            }),
+            Policy::Sha256(hash) => satisfier
+                .lookup_sha256(hash)
+                .map(|preimage| self.compile_witness_bytes(context, preimage.as_ref())),
             Policy::And(sub_policies) => {
                 assert_eq!(
                     2,
