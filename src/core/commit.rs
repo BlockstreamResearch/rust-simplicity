@@ -200,7 +200,7 @@ impl<J: Jet> CommitNode<J> {
         _right: Option<Rc<CommitNode<J>>>,
         hint: &'static str,
     ) -> Result<Rc<CommitNode<J>>, Error> {
-        match UnificationArrow::for_node(&inner, &mut context.naming) {
+        match UnificationArrow::for_node(context, &inner) {
             Ok(arrow) => Ok(Rc::new(CommitNode {
                 cmr: Cmr::compute(&inner),
                 inner,
@@ -222,7 +222,7 @@ impl<J: Jet> CommitNode<J> {
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
             inner,
-            arrow: UnificationArrow::for_iden(&mut context.naming),
+            arrow: UnificationArrow::for_iden(context),
         })
     }
 
@@ -234,7 +234,7 @@ impl<J: Jet> CommitNode<J> {
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
             inner,
-            arrow: UnificationArrow::for_unit(&mut context.naming),
+            arrow: UnificationArrow::for_unit(context),
         })
     }
 
@@ -242,7 +242,7 @@ impl<J: Jet> CommitNode<J> {
     ///
     /// _Overall type: A → B + C where `child`: A → B_
     pub fn injl(context: &mut Context<J>, child: Rc<Self>) -> Rc<Self> {
-        let arrow = UnificationArrow::for_injl(&child, &mut context.naming);
+        let arrow = UnificationArrow::for_injl(context, &child);
         let inner = CommitNodeInner::InjL(child);
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
@@ -255,7 +255,7 @@ impl<J: Jet> CommitNode<J> {
     ///
     /// _Overall type: A → B + C where `child`: A → C_
     pub fn injr(context: &mut Context<J>, child: Rc<Self>) -> Rc<Self> {
-        let arrow = UnificationArrow::for_injr(&child, &mut context.naming);
+        let arrow = UnificationArrow::for_injr(context, &child);
         let inner = CommitNodeInner::InjR(child);
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
@@ -268,7 +268,7 @@ impl<J: Jet> CommitNode<J> {
     ///
     /// _Overall type: A × B → C where `child`: A → C_
     pub fn take(context: &mut Context<J>, child: Rc<Self>) -> Rc<Self> {
-        let arrow = UnificationArrow::for_take(&child, &mut context.naming);
+        let arrow = UnificationArrow::for_take(context, &child);
         let inner = CommitNodeInner::Take(child);
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
@@ -281,7 +281,7 @@ impl<J: Jet> CommitNode<J> {
     ///
     /// _Overall type: A × B → C where `child`: B → C_
     pub fn drop(context: &mut Context<J>, child: Rc<Self>) -> Rc<Self> {
-        let arrow = UnificationArrow::for_drop(&child, &mut context.naming);
+        let arrow = UnificationArrow::for_drop(context, &child);
         let inner = CommitNodeInner::Drop(child);
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
@@ -417,7 +417,7 @@ impl<J: Jet> CommitNode<J> {
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
             inner,
-            arrow: UnificationArrow::for_witness(&mut context.naming),
+            arrow: UnificationArrow::for_witness(context),
         })
     }
 
@@ -430,7 +430,7 @@ impl<J: Jet> CommitNode<J> {
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
             inner,
-            arrow: UnificationArrow::for_fail(&mut context.naming),
+            arrow: UnificationArrow::for_fail(context),
         })
     }
 
@@ -444,15 +444,15 @@ impl<J: Jet> CommitNode<J> {
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
             inner,
-            arrow: UnificationArrow::for_hidden(&mut context.naming),
+            arrow: UnificationArrow::for_hidden(context),
         })
     }
 
     /// Create a DAG that computes some black-box function that is associated with the given `jet`.
     ///
     /// _Overall type: A → B where jet: A → B_
-    pub fn jet(_: &mut Context<J>, jet: J) -> Rc<Self> {
-        let arrow = UnificationArrow::for_jet(&jet);
+    pub fn jet(context: &mut Context<J>, jet: J) -> Rc<Self> {
+        let arrow = UnificationArrow::for_jet(context, &jet);
         let inner = CommitNodeInner::Jet(jet);
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
