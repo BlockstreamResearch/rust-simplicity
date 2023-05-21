@@ -14,7 +14,7 @@
 
 use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
-use crate::core::iter::DagIterable;
+use crate::core::iter::{DagIterable, PostOrderIter};
 use crate::core::types::Type;
 use crate::core::{iter, Value};
 use crate::decode::WitnessDecoder;
@@ -192,6 +192,18 @@ impl<J: Jet> RedeemNode<J> {
     /// Return the right child of the node, if there is such a child.
     pub fn get_right(&self) -> Option<&Self> {
         self.inner.get_right()
+    }
+
+    /// Return an iterator over the unshared nodes of the program
+    pub fn iter(&self) -> PostOrderIter<self::RefWrapper<J>> {
+        RefWrapper(self).iter_post_order()
+    }
+
+    // FIXME: Compute length without iterating over entire DAG?
+    /// Return the number of unshared nodes in the program
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> usize {
+        self.iter().count()
     }
 
     /// Return an iterator over the types of values that make up a valid witness for the program.
