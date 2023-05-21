@@ -154,58 +154,46 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                     "Disjunctions must have exactly two sub-policies"
                 );
 
-                let maybe_left = sub_policies[0].satisfy_helper(satisfier, context);
-                let maybe_right = sub_policies[1].satisfy_helper(satisfier, context);
+                // TODO: Replace std::u64::MAX in MSRV >=1.43.0
+                let mut left = sub_policies[0]
+                    .satisfy_helper(satisfier, context)
+                    .unwrap_or(SatisfierExtData {
+                        witness: VecDeque::new(),
+                        witness_cost: std::u64::MAX,
+                        program: sub_policies[0].compile(context).unwrap(),
+                        program_cost: 0,
+                    });
+                let mut right = sub_policies[1]
+                    .satisfy_helper(satisfier, context)
+                    .unwrap_or(SatisfierExtData {
+                        witness: VecDeque::new(),
+                        witness_cost: std::u64::MAX,
+                        program: sub_policies[1].compile(context).unwrap(),
+                        program_cost: 0,
+                    });
 
-                match (maybe_left, maybe_right) {
-                    (Some(mut left), Some(mut right)) => {
-                        if left.cost() <= right.cost() {
-                            left.witness.push_front(Value::u1(0));
-                            left.witness_cost += 1;
-                            left.program = compiler::or(
-                                context,
-                                left.program,
-                                right.program,
-                                UsedCaseBranch::Left,
-                            )
+                if left.cost() <= right.cost() {
+                    // Both left and right path are unsatisfiable
+                    // TODO: Replace std::u64::MAX in MSRV >=1.43.0
+                    if left.cost() == std::u64::MAX {
+                        return None;
+                    }
+
+                    left.witness.push_front(Value::u1(0));
+                    left.witness_cost += 1;
+                    left.program =
+                        compiler::or(context, left.program, right.program, UsedCaseBranch::Left)
                             .ok()?;
-                            left.program_cost += 6;
-                            Some(left)
-                        } else {
-                            right.witness.push_front(Value::u1(1));
-                            right.witness_cost += 1;
-                            right.program = compiler::or(
-                                context,
-                                left.program,
-                                right.program,
-                                UsedCaseBranch::Right,
-                            )
+                    left.program_cost += 6;
+                    Some(left)
+                } else {
+                    right.witness.push_front(Value::u1(1));
+                    right.witness_cost += 1;
+                    right.program =
+                        compiler::or(context, left.program, right.program, UsedCaseBranch::Right)
                             .ok()?;
-                            right.program_cost += 6;
-                            Some(right)
-                        }
-                    }
-                    (Some(mut left), None) => {
-                        left.witness.push_front(Value::u1(0));
-                        left.witness_cost += 1;
-                        let right = sub_policies[1].compile(context).ok()?;
-                        left.program =
-                            compiler::or(context, left.program, right, UsedCaseBranch::Left)
-                                .ok()?;
-                        left.program_cost += 6;
-                        Some(left)
-                    }
-                    (None, Some(mut right)) => {
-                        right.witness.push_front(Value::u1(1));
-                        right.witness_cost += 1;
-                        let left = sub_policies[0].compile(context).ok()?;
-                        right.program =
-                            compiler::or(context, left, right.program, UsedCaseBranch::Right)
-                                .ok()?;
-                        right.program_cost += 6;
-                        Some(right)
-                    }
-                    _ => None,
+                    right.program_cost += 6;
+                    Some(right)
                 }
             }
             Policy::Threshold(_, _) => None,
