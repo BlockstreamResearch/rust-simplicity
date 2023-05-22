@@ -136,60 +136,16 @@ fn compile<Pk: MiniscriptKey + PublicKey32>(
                 "Thresholds must have at least two sub-policies"
             );
 
-            // 1 → 2^32
-            let scribe_zero = CommitNode::scribe(context, &Value::u32(0));
-            // 1 → 2^32
-            let scribe_one = CommitNode::scribe(context, &Value::u32(1));
-
-            // 1 → 2^32
-            let get_summand = |policy: &Policy<Pk>, context: &mut Context<Elements>| {
-                // 1 → 1
-                let child = compile(context, policy)?;
-                // 1 → 2
-                let witness = CommitNode::witness(context);
-                // 1 → 1
-                let unit = CommitNode::unit(context);
-                // 1 → 2 x 1
-                let selector = CommitNode::pair(context, witness, unit)?;
-                // 1 → 2^32
-                let child_one = CommitNode::comp(context, child, scribe_one.clone())?;
-                // 2 x 1 → 2^32
-                let child_one_or_zero = CommitNode::cond(context, child_one, scribe_zero.clone())?;
-                // 1 → 2^32
-                CommitNode::comp(context, selector, child_one_or_zero)
-            };
-
-            let mut sum = get_summand(&sub_policies[0], context)?;
+            let child = sub_policies[0].compile(context)?;
+            let mut sum = thresh_summand(context, child, UsedCaseBranch::Both)?;
 
             for policy in &sub_policies[1..] {
-                // 1 → 2^32
-                let summand = get_summand(policy, context)?;
-                // 1 → 2^32 × 2^32
-                let pair_sum_summand = CommitNode::pair(context, sum, summand)?;
-                // 2^32 × 2^32 → 2 × 2^32
-                let add32 = CommitNode::jet(context, Elements::Add32);
-                // 1 → 2 x 2^32
-                let full_sum = CommitNode::comp(context, pair_sum_summand, add32)?;
-                // 2^32 → 2^32
-                let iden = CommitNode::iden(context);
-                // 2 × 2^32 → 2^32
-                let drop_iden = CommitNode::drop(context, iden);
-
-                // Discard the overflow bit.
-                // FIXME: enforce that sum of weights is less than 2^32
-                // 1 → 2^32
-                sum = CommitNode::comp(context, full_sum, drop_iden)?;
+                let child = policy.compile(context)?;
+                let summand = thresh_summand(context, child, UsedCaseBranch::Both)?;
+                sum = thresh_add(context, sum, summand)?;
             }
 
-            // 1 → 2^32
-            let scribe_k = CommitNode::scribe(context, &Value::u32(*k as u32));
-            // 1 → 2^32 × 2^32
-            let pair_k_sum = CommitNode::pair(context, scribe_k, sum)?;
-            // 2^32 × 2^32 → 2
-            let eq32 = CommitNode::jet(context, Elements::Eq32);
-
-            // 1 → 1
-            verify_bexp(context, pair_k_sum, eq32)
+            thresh_verify(context, sum, *k as u32)
         }
     }
 }
@@ -227,6 +183,72 @@ pub(crate) fn or(
     let selector = selector(context)?;
 
     CommitNode::comp(context, selector, case_left_right)
+}
+
+/// child: 1 → 1
+///
+/// summand(child): 1 → 2^32
+pub(crate) fn thresh_summand(
+    context: &mut Context<Elements>,
+    child: Rc<CommitNode<Elements>>,
+    branch: UsedCaseBranch,
+) -> Result<Rc<CommitNode<Elements>>, Error> {
+    // 1 → 2 x 1
+    let selector = selector(context)?;
+
+    // 1 → 2^32
+    let scribe_one = CommitNode::scribe(context, &Value::u32(1));
+    // 1 → 2^32
+    let child_one = CommitNode::comp(context, child, scribe_one)?;
+    // 1 → 2^32
+    let scribe_zero = CommitNode::scribe(context, &Value::u32(0));
+    // 2 x 1 → 2^32
+    let child_one_or_zero = CommitNode::cond_branch(context, child_one, scribe_zero, branch)?;
+
+    // 1 → 2^32
+    CommitNode::comp(context, selector, child_one_or_zero)
+}
+
+/// acc: 1 → 2^32, summand: 1 → 2^32
+///
+/// add(sum, summand): 1 → 2^32
+pub(crate) fn thresh_add(
+    context: &mut Context<Elements>,
+    sum: Rc<CommitNode<Elements>>,
+    summand: Rc<CommitNode<Elements>>,
+) -> Result<Rc<CommitNode<Elements>>, Error> {
+    // 1 → 2^32 × 2^32
+    let pair_sum_summand = CommitNode::pair(context, sum, summand)?;
+    // 2^32 × 2^32 → 2 × 2^32
+    let add32 = CommitNode::jet(context, Elements::Add32);
+    // 1 → 2 x 2^32
+    let full_sum = CommitNode::comp(context, pair_sum_summand, add32)?;
+    // 2^32 → 2^32
+    let iden = CommitNode::iden(context);
+    // 2 × 2^32 → 2^32
+    let drop_iden = CommitNode::drop(context, iden);
+
+    // Discard the overflow bit.
+    // FIXME: enforce that sum of weights is less than 2^32
+    // 1 → 2^32
+    CommitNode::comp(context, full_sum, drop_iden)
+}
+
+/// verify(sum): 1 → 1
+pub(crate) fn thresh_verify(
+    context: &mut Context<Elements>,
+    sum: Rc<CommitNode<Elements>>,
+    k: u32,
+) -> Result<Rc<CommitNode<Elements>>, Error> {
+    // 1 → 2^32
+    let scribe_k = CommitNode::scribe(context, &Value::u32(k));
+    // 1 → 2^32 × 2^32
+    let pair_k_sum = CommitNode::pair(context, scribe_k, sum)?;
+    // 2^32 × 2^32 → 2
+    let eq32 = CommitNode::jet(context, Elements::Eq32);
+
+    // 1 → 1
+    verify_bexp(context, pair_k_sum, eq32)
 }
 
 #[cfg(test)]
