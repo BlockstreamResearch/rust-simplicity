@@ -196,7 +196,94 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                     Some(right)
                 }
             }
-            Policy::Threshold(_, _) => None,
+            Policy::Threshold(k, sub_policies) => {
+                assert!(
+                    sub_policies.len() >= 2,
+                    "Thresholds must have at least two sub-policies"
+                );
+
+                let mut satisfiable_children = Vec::new();
+
+                for (index, policy) in sub_policies.iter().enumerate() {
+                    if let Some(ext) = policy.satisfy_helper(satisfier, context) {
+                        satisfiable_children.push((ext, index));
+                    }
+                }
+
+                if satisfiable_children.len() < *k {
+                    return None;
+                }
+
+                // 1) Sort by witness cost
+                // 2) Select k best satisfactions
+                // 3) Sort by index in decreasing order
+                satisfiable_children.sort_by_key(|(sat, _)| sat.cost());
+                satisfiable_children.truncate(*k);
+                satisfiable_children.sort_by(|(_, i), (_, j)| j.cmp(i));
+
+                /// Return satisfaction for `i`th child, if it exists, or return dummy instead
+                fn get_sat_or_default<Pk: MiniscriptKey + PublicKey32>(
+                    i: usize,
+                    context: &mut Context<Elements>,
+                    satisfiable_children: &mut Vec<(SatisfierExtData, usize)>,
+                    sub_policies: &[Policy<Pk>],
+                ) -> SatisfierExtData {
+                    if let Some(x) = satisfiable_children.last() {
+                        if x.1 == i {
+                            return satisfiable_children.pop().unwrap().0;
+                        }
+                    }
+
+                    SatisfierExtData {
+                        witness: VecDeque::new(),
+                        witness_cost: 0,
+                        program: sub_policies[i].compile(context).unwrap(),
+                        program_cost: 0,
+                    }
+                }
+
+                /// Return summand program for `i`th child
+                fn get_summand<Pk: MiniscriptKey + PublicKey32>(
+                    i: usize,
+                    context: &mut Context<Elements>,
+                    satisfiable_children: &mut Vec<(SatisfierExtData, usize)>,
+                    sub_policies: &[Policy<Pk>],
+                ) -> SatisfierExtData {
+                    let mut sat =
+                        get_sat_or_default(i, context, satisfiable_children, sub_policies);
+                    // Satisfactions always have non-zero program cost
+                    let branch = if sat.program_cost == 0 {
+                        sat.witness.push_front(Value::u1(0));
+                        UsedCaseBranch::Right
+                    } else {
+                        sat.witness.push_front(Value::u1(1));
+                        UsedCaseBranch::Left
+                    };
+                    sat.witness_cost += 1;
+                    sat.program = compiler::thresh_summand(context, sat.program, branch).unwrap();
+                    sat.program_cost += 9;
+
+                    sat
+                }
+
+                let mut sat = get_summand(0, context, &mut satisfiable_children, sub_policies);
+
+                for i in 1..sub_policies.len() {
+                    let child_sat =
+                        get_summand(i, context, &mut satisfiable_children, sub_policies);
+
+                    sat.witness.extend(child_sat.witness);
+                    sat.witness_cost += child_sat.witness_cost;
+                    sat.program =
+                        compiler::thresh_add(context, sat.program, child_sat.program).unwrap();
+                    sat.program_cost += child_sat.program_cost + 6;
+                }
+
+                sat.program = compiler::thresh_verify(context, sat.program, *k as u32).unwrap();
+                sat.program_cost += 4;
+
+                Some(sat)
+            }
         }
     }
 }
