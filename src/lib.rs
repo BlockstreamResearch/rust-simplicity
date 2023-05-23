@@ -73,7 +73,7 @@ pub enum Error {
     BadIndex,
     /// Number exceeded 32 bits
     NaturalOverflow,
-    /// 'case' nodes may have at most one hidden child
+    /// Both children of a node are hidden
     CaseMultipleHiddenChildren,
     /// Bitstream ended early
     EndOfStream,
@@ -81,7 +81,7 @@ pub enum Error {
     EmptyProgram,
     /// Tried to allocate too many nodes in a program
     TooManyNodes(usize),
-    /// Unrecognized node
+    /// Cannot parse bitstream
     ParseError(&'static str),
     /// Program is not in canonical order
     NotInCanonicalOrder,
@@ -89,9 +89,9 @@ pub enum Error {
     InconsistentWitnessLength,
     /// Program does not have maximal sharing
     SharingNotMaximal,
-    /// Miniscript Error
+    /// Miniscript error
     MiniscriptError(miniscript::Error),
-    /// Policy-related error
+    /// Policy error
     #[cfg(feature = "elements")]
     Policy(policy::Error),
 }
@@ -115,15 +115,13 @@ impl fmt::Debug for Error {
                 f.write_str("Node made a back-reference past the beginning of the program")
             }
             Error::NaturalOverflow => f.write_str("Number exceeded 32 bits"),
-            Error::CaseMultipleHiddenChildren => {
-                f.write_str("'case' nodes may have at most one hidden child")
-            }
+            Error::CaseMultipleHiddenChildren => f.write_str("Both children of a node are hidden"),
             Error::EndOfStream => f.write_str("Bitstream ended early"),
             Error::EmptyProgram => f.write_str("Program must not be empty"),
             Error::TooManyNodes(k) => {
                 write!(f, "Tried to allocate too many nodes in a program: {}", k)
             }
-            Error::ParseError(s) => write!(f, "Unrecognized node {}", s),
+            Error::ParseError(s) => write!(f, "Cannot parse bitstream {}", s),
             Error::NotInCanonicalOrder => f.write_str("Program is not in canonical order"),
             Error::InconsistentWitnessLength => {
                 f.write_str("Witness has different length than defined in its preamble")
