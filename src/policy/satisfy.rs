@@ -492,4 +492,74 @@ mod tests {
         ]);
         assert!(policy3.satisfy(&satisfier).is_none());
     }
+
+    #[test]
+    fn satisfy_thresh() {
+        let satisfier = get_satisfier();
+        let images: Vec<_> = satisfier.preimages.keys().map(|x| *x).collect();
+        let preimages: Vec<_> = images
+            .iter()
+            .map(|x| satisfier.preimages.get(x).unwrap())
+            .collect();
+
+        let assert_branches = |policy: &Policy<bitcoin::XOnlyPublicKey>, bits: &[bool]| {
+            let program = policy.satisfy(&satisfier).expect("satisfiable");
+            let witness = to_witness(&program);
+            assert_eq!(5, witness.len());
+
+            let mut i = 0;
+
+            let mut assert_branch = |j: usize| {
+                assert_eq!(&Value::u1(bits[j] as u8), witness[i]);
+                i += 1;
+
+                if bits[j] {
+                    let preimage_bytes = witness[i].try_to_bytes().expect("to bytes");
+                    let witness_preimage =
+                        Preimage32::try_from(preimage_bytes.as_slice()).expect("to array");
+                    assert_eq!(preimages[j], &witness_preimage);
+                    i += 1;
+                }
+            };
+
+            for j in 0..2 {
+                assert_branch(j);
+            }
+        };
+
+        let image_from_bit = |bit: bool, j: u8| {
+            if bit {
+                images[j as usize]
+            } else {
+                sha256::Hash::from_inner([j; 32])
+            }
+        };
+
+        for &bit0 in &[true, false] {
+            let image0 = image_from_bit(bit0, 0);
+
+            for &bit1 in &[true, false] {
+                let image1 = image_from_bit(bit1, 1);
+
+                for &bit2 in &[true, false] {
+                    let image2 = image_from_bit(bit2, 2);
+
+                    let policy = Policy::Threshold(
+                        2,
+                        vec![
+                            Policy::Sha256(image0),
+                            Policy::Sha256(image1),
+                            Policy::Sha256(image2),
+                        ],
+                    );
+
+                    match bit0 as u8 + bit1 as u8 + bit2 as u8 {
+                        3 => assert_branches(&policy, &[bit0, bit1, false]),
+                        2 => assert_branches(&policy, &[bit0, bit1, bit2]),
+                        _ => assert!(policy.satisfy(&satisfier).is_none()),
+                    }
+                }
+            }
+        }
+    }
 }
