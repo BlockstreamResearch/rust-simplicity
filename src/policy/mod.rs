@@ -26,7 +26,7 @@
 //!
 
 pub mod ast;
-pub mod compiler;
+mod compiler;
 mod embed;
 mod error;
 pub mod key;

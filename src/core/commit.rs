@@ -15,7 +15,7 @@
 
 use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
-use crate::core::iter::{DagIterable, WitnessIterator};
+use crate::core::iter::{DagIterable, PostOrderIter, WitnessIterator};
 use crate::core::redeem::{NodeType, RedeemNodeInner};
 use crate::core::types::RcVar;
 use crate::core::{Context, RedeemNode, Value};
@@ -166,6 +166,17 @@ impl<J: Jet> PartialEq for CommitNode<J> {
 }
 impl<J: Jet> Eq for CommitNode<J> {}
 
+/// Case branches used during execution
+#[derive(Debug)]
+pub enum UsedCaseBranch {
+    /// Only the left branch
+    Left,
+    /// Only the right branch
+    Right,
+    /// The left and the right branch
+    Both,
+}
+
 impl<J: Jet> CommitNode<J> {
     /// Accessor for the node's "inner value", i.e. its combinator
     pub fn inner(&self) -> &CommitNodeInner<J> {
@@ -190,6 +201,18 @@ impl<J: Jet> CommitNode<J> {
     /// Accessor for the node's target type
     pub(crate) fn target_ty(&self) -> RcVar {
         self.arrow.target_ty()
+    }
+
+    /// Return an iterator over the unshared nodes of the program
+    pub fn iter(&self) -> PostOrderIter<self::RefWrapper<J>> {
+        RefWrapper(self).iter_post_order()
+    }
+
+    // FIXME: Compute length without iterating over entire DAG?
+    /// Return the number of unshared nodes in the program
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> usize {
+        self.iter().count()
     }
 
     /// Create a node from its underlying combinator.
@@ -368,6 +391,19 @@ impl<J: Jet> CommitNode<J> {
             Some(right),
             "Assertr is of type (A + B) × C → D where `right`: B × C → D",
         )
+    }
+
+    pub fn case_branch(
+        context: &mut Context<J>,
+        left: Rc<Self>,
+        right: Rc<Self>,
+        branch: UsedCaseBranch,
+    ) -> Result<Rc<Self>, Error> {
+        match branch {
+            UsedCaseBranch::Left => Self::assertl(context, left, right.cmr),
+            UsedCaseBranch::Right => Self::assertr(context, left.cmr, right),
+            UsedCaseBranch::Both => Self::case(context, left, right),
+        }
     }
 
     /// Create a DAG that computes the pair of the given `left` and `right` child.

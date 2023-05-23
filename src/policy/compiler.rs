@@ -17,7 +17,7 @@
 //! between policy fragment and a simplicity program.
 
 use super::ast::Policy;
-use crate::core::commit::CommitNode;
+use crate::core::commit::{CommitNode, CommitNodeInner, UsedCaseBranch};
 use crate::core::{Context, Value};
 use crate::jet::Elements;
 use crate::merkle::cmr::Cmr;
@@ -25,6 +25,16 @@ use crate::miniscript::MiniscriptKey;
 use crate::policy::key::PublicKey32;
 use crate::Error;
 use std::rc::Rc;
+
+impl<Pk: MiniscriptKey + PublicKey32> Policy<Pk> {
+    /// Compile the policy into a Simplicity program
+    pub fn compile(
+        &self,
+        context: &mut Context<Elements>,
+    ) -> Result<Rc<CommitNode<Elements>>, Error> {
+        compile(context, self)
+    }
+}
 
 fn compute_sha256(
     context: &mut Context<Elements>,
@@ -49,7 +59,7 @@ fn verify_bexp(
 }
 
 /// Compile the given policy into a Simplicity program.
-pub fn compile<Pk: MiniscriptKey + PublicKey32>(
+fn compile<Pk: MiniscriptKey + PublicKey32>(
     context: &mut Context<Elements>,
     policy: &Policy<Pk>,
 ) -> Result<Rc<CommitNode<Elements>>, Error> {
@@ -103,16 +113,10 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
                 "Conjunctions must have exactly two sub-policies"
             );
 
-            if let Policy::Trivial = sub_policies[0] {
-                return compile(context, &sub_policies[1]);
-            }
-            if let Policy::Trivial = sub_policies[1] {
-                return compile(context, &sub_policies[0]);
-            }
-
             let left = compile(context, &sub_policies[0])?;
             let right = compile(context, &sub_policies[1])?;
-            CommitNode::comp(context, left, right)
+
+            and(context, left, right)
         }
         Policy::Or(sub_policies) => {
             assert_eq!(
@@ -124,12 +128,7 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
             let left = compile(context, &sub_policies[0])?;
             let right = compile(context, &sub_policies[1])?;
 
-            let cond_right_left = CommitNode::cond(context, right, left)?;
-            let witness = CommitNode::witness(context);
-            let unit = CommitNode::unit(context);
-            let selector = CommitNode::pair(context, witness, unit)?;
-
-            CommitNode::comp(context, selector, cond_right_left)
+            or(context, left, right, UsedCaseBranch::Both)
         }
         Policy::Threshold(k, sub_policies) => {
             assert!(
@@ -193,6 +192,41 @@ pub fn compile<Pk: MiniscriptKey + PublicKey32>(
             verify_bexp(context, pair_k_sum, eq32)
         }
     }
+}
+
+fn selector(context: &mut Context<Elements>) -> Result<Rc<CommitNode<Elements>>, Error> {
+    let witness = CommitNode::witness(context);
+    let unit = CommitNode::unit(context);
+    CommitNode::pair(context, witness, unit)
+}
+
+pub(crate) fn and(
+    context: &mut Context<Elements>,
+    left: Rc<CommitNode<Elements>>,
+    right: Rc<CommitNode<Elements>>,
+) -> Result<Rc<CommitNode<Elements>>, Error> {
+    if let CommitNodeInner::Unit = left.inner() {
+        return Ok(right);
+    }
+    if let CommitNodeInner::Unit = right.inner() {
+        return Ok(left);
+    }
+
+    CommitNode::comp(context, left, right)
+}
+
+pub(crate) fn or(
+    context: &mut Context<Elements>,
+    left: Rc<CommitNode<Elements>>,
+    right: Rc<CommitNode<Elements>>,
+    branch: UsedCaseBranch,
+) -> Result<Rc<CommitNode<Elements>>, Error> {
+    let drop_left = CommitNode::drop(context, left);
+    let drop_right = CommitNode::drop(context, right);
+    let case_left_right = CommitNode::case_branch(context, drop_left, drop_right, branch)?;
+    let selector = selector(context)?;
+
+    CommitNode::comp(context, selector, case_left_right)
 }
 
 #[cfg(test)]
