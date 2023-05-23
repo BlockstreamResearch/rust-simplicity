@@ -116,7 +116,7 @@ impl<'a, Pk: MiniscriptKey, Ctx: ScriptContext> TryFrom<&'a Miniscript<Pk, Ctx>>
             Terminal::False => Ok(Policy::Unsatisfiable),
             Terminal::PkK(key) => Ok(Policy::Key(key.clone())),
             Terminal::PkH(_) | Terminal::RawPkH(_) => {
-                Err(Error::ParseError("Public key hashes are not supported"))
+                Err(Error::Policy(policy::Error::PublicKeyHash))
             }
             Terminal::After(n) => Ok(Policy::After(n.0)),
             Terminal::Older(n) => {
@@ -128,9 +128,9 @@ impl<'a, Pk: MiniscriptKey, Ctx: ScriptContext> TryFrom<&'a Miniscript<Pk, Ctx>>
                 Ok(Policy::Older(low_16))
             }
             Terminal::Sha256(h) => Ok(Policy::Sha256(h.clone())),
-            Terminal::Hash256(_h) => Err(Error::ParseError("SHA256d is not supported")),
+            Terminal::Hash256(_h) => Err(Error::Policy(policy::Error::Sha256d)),
             Terminal::Ripemd160(_) | Terminal::Hash160(_) => {
-                Err(Error::ParseError("RIPEMD160 is not supported"))
+                Err(Error::Policy(policy::Error::Ripemd160))
             }
             Terminal::AndV(x, y) | Terminal::AndB(x, y) => {
                 let inner = vec![x.as_ref().try_into()?, y.as_ref().try_into()?];
@@ -166,9 +166,9 @@ impl<'a, Pk: MiniscriptKey, Ctx: ScriptContext> TryFrom<&'a Miniscript<Pk, Ctx>>
             | Terminal::NonZero(x)
             | Terminal::ZeroNotEqual(x) => x.as_ref().try_into(),
             Terminal::Multi(_, _) | Terminal::MultiA(_, _) => {
-                Err(Error::ParseError("Multisig is not supported"))
+                Err(Error::Policy(policy::Error::Multisig))
             }
-            Terminal::Ext(_) => Err(Error::ParseError("Extensions are not supported")),
+            Terminal::Ext(_) => Err(Error::Policy(policy::Error::Extensions)),
         }
     }
 }
