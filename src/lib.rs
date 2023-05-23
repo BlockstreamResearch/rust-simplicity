@@ -74,7 +74,7 @@ pub enum Error {
     /// Number exceeded 32 bits
     NaturalOverflow,
     /// Both children of a node are hidden
-    CaseMultipleHiddenChildren,
+    BothChildrenHidden,
     /// Bitstream ended early
     EndOfStream,
     /// Program must not be empty
@@ -115,7 +115,7 @@ impl fmt::Debug for Error {
                 f.write_str("Node made a back-reference past the beginning of the program")
             }
             Error::NaturalOverflow => f.write_str("Number exceeded 32 bits"),
-            Error::CaseMultipleHiddenChildren => f.write_str("Both children of a node are hidden"),
+            Error::BothChildrenHidden => f.write_str("Both children of a node are hidden"),
             Error::EndOfStream => f.write_str("Bitstream ended early"),
             Error::EmptyProgram => f.write_str("Program must not be empty"),
             Error::TooManyNodes(k) => {

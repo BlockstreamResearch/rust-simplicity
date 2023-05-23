@@ -131,7 +131,7 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
                         1 => {
                             if let CommitNodeInner::Hidden(..) = left.inner() {
                                 if let CommitNodeInner::Hidden(..) = right.inner() {
-                                    return Err(Error::CaseMultipleHiddenChildren);
+                                    return Err(Error::BothChildrenHidden);
                                 }
                             }
 
