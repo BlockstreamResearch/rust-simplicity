@@ -73,8 +73,6 @@ pub enum Error {
     BadIndex,
     /// Number exceeded 32 bits
     NaturalOverflow,
-    /// Non-'case' nodes may not have hidden children
-    NonCaseHiddenChild,
     /// 'case' nodes may have at most one hidden child
     CaseMultipleHiddenChildren,
     /// Bitstream ended early
@@ -117,9 +115,6 @@ impl fmt::Debug for Error {
                 f.write_str("Node made a back-reference past the beginning of the program")
             }
             Error::NaturalOverflow => f.write_str("Number exceeded 32 bits"),
-            Error::NonCaseHiddenChild => {
-                f.write_str("Non-'case' nodes may not have hidden children")
-            }
             Error::CaseMultipleHiddenChildren => {
                 f.write_str("'case' nodes may have at most one hidden child")
             }
