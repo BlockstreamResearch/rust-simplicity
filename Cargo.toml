@@ -8,7 +8,7 @@ edition = "2018"
 
 [features]
 default = [ "bitcoin", "elements" ]
-test-utils = ["simplicity_sys/test-utils"]
+test-utils = ["simplicity-sys/test-utils"]
 serde = ["actual-serde", "bitcoin/serde", "elements-miniscript/serde"]
 
 [lib]
@@ -21,11 +21,11 @@ bitcoin_hashes = "0.11"
 byteorder = "1.3"
 elements = { version = "0.21.1", optional = true }
 elements-miniscript = { git = "https://github.com/ElementsProject/elements-miniscript", rev = "955f380" }
-simplicity_sys = { version = "0.1.0", path = "./simplicity-sys" }
+simplicity-sys = { version = "0.1.0", path = "./simplicity-sys" }
 actual-serde = { package = "serde", version = "1.0.103", features = ["derive"], optional = true }
 
 [dev-dependencies]
-simplicity_sys = { version = "0.1.0", path = "./simplicity-sys", features = ["test-utils"] }
+simplicity-sys = { version = "0.1.0", path = "./simplicity-sys", features = ["test-utils"] }
 
 [workspace]
 members = ["simplicity-sys", "fuzz"]
