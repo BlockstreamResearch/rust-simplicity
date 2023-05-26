@@ -449,16 +449,16 @@ mod tests {
             .map(|x| satisfier.preimages.get(x).unwrap())
             .collect();
 
-        let assert_branch = |policy: &Policy<bitcoin::XOnlyPublicKey>, branch: u8| {
+        let assert_branch = |policy: &Policy<bitcoin::XOnlyPublicKey>, bit: bool| {
             let program = policy.satisfy(&satisfier).expect("satisfiable");
             let witness = to_witness(&program);
             assert_eq!(2, witness.len());
 
-            assert_eq!(&Value::u1(branch), witness[0]);
+            assert_eq!(&Value::u1(bit as u8), witness[0]);
             let preimage_bytes = witness[1].try_to_bytes().expect("to bytes");
             let witness_preimage =
                 Preimage32::try_from(preimage_bytes.as_slice()).expect("to array");
-            assert_eq!(preimages[branch as usize], &witness_preimage);
+            assert_eq!(preimages[bit as usize], &witness_preimage);
 
             execute_successful(program, &satisfier.env);
         };
@@ -466,7 +466,7 @@ mod tests {
         // Policy 0
 
         let policy0 = Policy::Or(vec![Policy::Sha256(images[0]), Policy::Sha256(images[1])]);
-        assert_branch(&policy0, 0);
+        assert_branch(&policy0, false);
 
         // Policy 1
 
@@ -474,7 +474,7 @@ mod tests {
             Policy::Sha256(images[0]),
             Policy::Sha256(sha256::Hash::from_inner([1; 32])),
         ]);
-        assert_branch(&policy1, 0);
+        assert_branch(&policy1, false);
 
         // Policy 2
 
@@ -482,7 +482,7 @@ mod tests {
             Policy::Sha256(sha256::Hash::from_inner([0; 32])),
             Policy::Sha256(images[1]),
         ]);
-        assert_branch(&policy2, 1);
+        assert_branch(&policy2, true);
 
         // Policy 3
 
