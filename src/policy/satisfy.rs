@@ -204,9 +204,8 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::iter;
     use crate::core::iter::DagIterable;
-    use crate::core::redeem::RefWrapper;
+    use crate::core::{iter, redeem};
     use crate::exec::BitMachine;
     use bitcoin_hashes::{sha256, Hash};
     use std::convert::TryFrom;
@@ -241,6 +240,10 @@ mod tests {
         assert!(mac.exec(&program, &env).is_ok());
     }
 
+    fn to_witness(program: &RedeemNode<Elements>) -> Vec<&Value> {
+        iter::into_witness(redeem::RefWrapper(program).iter_post_order()).collect()
+    }
+
     #[test]
     fn satisfy_unsatisfiable() {
         let satisfier = get_satisfier();
@@ -262,7 +265,7 @@ mod tests {
         let policy = Policy::Trivial;
 
         let program = policy.satisfy(&satisfier).expect("satisfiable");
-        let witness: Vec<_> = iter::into_witness(RefWrapper(&program).iter_post_order()).collect();
+        let witness = to_witness(&program);
         assert_eq!(Vec::<&Value>::new(), witness);
 
         execute_successful(program, &satisfier.env);
@@ -276,7 +279,7 @@ mod tests {
         let policy = Policy::Key(*xonly);
 
         let program = policy.satisfy(&satisfier).expect("satisfiable");
-        let witness: Vec<_> = iter::into_witness(RefWrapper(&program).iter_post_order()).collect();
+        let witness = to_witness(&program);
         assert_eq!(1, witness.len());
 
         let sighash = satisfier.env.c_tx_env().sighash_all();
@@ -297,7 +300,7 @@ mod tests {
         let policy = Policy::Sha256(image);
 
         let program = policy.satisfy(&satisfier).expect("satisfiable");
-        let witness: Vec<_> = iter::into_witness(RefWrapper(&program).iter_post_order()).collect();
+        let witness = to_witness(&program);
         assert_eq!(1, witness.len());
 
         let witness_bytes = witness[0].try_to_bytes().expect("to bytes");
@@ -321,7 +324,7 @@ mod tests {
 
         let policy0 = Policy::And(vec![Policy::Sha256(images[0]), Policy::Sha256(images[1])]);
         let program = policy0.satisfy(&satisfier).expect("satisfiable");
-        let witness: Vec<_> = iter::into_witness(RefWrapper(&program).iter_post_order()).collect();
+        let witness = to_witness(&program);
         assert_eq!(2, witness.len());
 
         for i in 0..2 {
@@ -361,8 +364,7 @@ mod tests {
 
         let assert_branch = |policy: &Policy<bitcoin::XOnlyPublicKey>, branch: u8| {
             let program = policy.satisfy(&satisfier).expect("satisfiable");
-            let witness: Vec<_> =
-                iter::into_witness(RefWrapper(&program).iter_post_order()).collect();
+            let witness = to_witness(&program);
             assert_eq!(2, witness.len());
 
             assert_eq!(&Value::u1(branch), witness[0]);
