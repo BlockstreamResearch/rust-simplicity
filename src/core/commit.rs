@@ -552,6 +552,22 @@ impl<J: Jet> CommitNode<J> {
         Self::case(context, drop_right, drop_left)
     }
 
+    pub fn cond_branch(
+        context: &mut Context<J>,
+        left: Rc<Self>,
+        right: Rc<Self>,
+        branch: UsedCaseBranch,
+    ) -> Result<Rc<Self>, Error> {
+        let drop_left = Self::drop(context, left);
+        let drop_right = Self::drop(context, right);
+
+        match branch {
+            UsedCaseBranch::Left => Self::assertr(context, drop_right.cmr, drop_left),
+            UsedCaseBranch::Right => Self::assertl(context, drop_right, drop_left.cmr),
+            UsedCaseBranch::Both => Self::case(context, drop_right, drop_left),
+        }
+    }
+
     /// Create a DAG that asserts that its child returns `true`, and fails otherwise.
     /// The `hash` identifies the assertion and is returned upon failure.
     ///

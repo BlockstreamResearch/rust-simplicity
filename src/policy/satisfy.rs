@@ -196,7 +196,94 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                     Some(right)
                 }
             }
-            Policy::Threshold(_, _) => None,
+            Policy::Threshold(k, sub_policies) => {
+                assert!(
+                    sub_policies.len() >= 2,
+                    "Thresholds must have at least two sub-policies"
+                );
+
+                let mut satisfiable_children = Vec::new();
+
+                for (index, policy) in sub_policies.iter().enumerate() {
+                    if let Some(ext) = policy.satisfy_helper(satisfier, context) {
+                        satisfiable_children.push((ext, index));
+                    }
+                }
+
+                if satisfiable_children.len() < *k {
+                    return None;
+                }
+
+                // 1) Sort by witness cost
+                // 2) Select k best satisfactions
+                // 3) Sort by index in decreasing order
+                satisfiable_children.sort_by_key(|(sat, _)| sat.cost());
+                satisfiable_children.truncate(*k);
+                satisfiable_children.sort_by(|(_, i), (_, j)| j.cmp(i));
+
+                /// Return satisfaction for `i`th child, if it exists, or return dummy instead
+                fn get_sat_or_default<Pk: MiniscriptKey + PublicKey32>(
+                    i: usize,
+                    context: &mut Context<Elements>,
+                    satisfiable_children: &mut Vec<(SatisfierExtData, usize)>,
+                    sub_policies: &[Policy<Pk>],
+                ) -> SatisfierExtData {
+                    if let Some(x) = satisfiable_children.last() {
+                        if x.1 == i {
+                            return satisfiable_children.pop().unwrap().0;
+                        }
+                    }
+
+                    SatisfierExtData {
+                        witness: VecDeque::new(),
+                        witness_cost: 0,
+                        program: sub_policies[i].compile(context).unwrap(),
+                        program_cost: 0,
+                    }
+                }
+
+                /// Return summand program for `i`th child
+                fn get_summand<Pk: MiniscriptKey + PublicKey32>(
+                    i: usize,
+                    context: &mut Context<Elements>,
+                    satisfiable_children: &mut Vec<(SatisfierExtData, usize)>,
+                    sub_policies: &[Policy<Pk>],
+                ) -> SatisfierExtData {
+                    let mut sat =
+                        get_sat_or_default(i, context, satisfiable_children, sub_policies);
+                    // Satisfactions always have non-zero program cost
+                    let branch = if sat.program_cost == 0 {
+                        sat.witness.push_front(Value::u1(0));
+                        UsedCaseBranch::Right
+                    } else {
+                        sat.witness.push_front(Value::u1(1));
+                        UsedCaseBranch::Left
+                    };
+                    sat.witness_cost += 1;
+                    sat.program = compiler::thresh_summand(context, sat.program, branch).unwrap();
+                    sat.program_cost += 9;
+
+                    sat
+                }
+
+                let mut sat = get_summand(0, context, &mut satisfiable_children, sub_policies);
+
+                for i in 1..sub_policies.len() {
+                    let child_sat =
+                        get_summand(i, context, &mut satisfiable_children, sub_policies);
+
+                    sat.witness.extend(child_sat.witness);
+                    sat.witness_cost += child_sat.witness_cost;
+                    sat.program =
+                        compiler::thresh_add(context, sat.program, child_sat.program).unwrap();
+                    sat.program_cost += child_sat.program_cost + 6;
+                }
+
+                sat.program = compiler::thresh_verify(context, sat.program, *k as u32).unwrap();
+                sat.program_cost += 4;
+
+                Some(sat)
+            }
         }
     }
 }
@@ -204,9 +291,8 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::iter;
     use crate::core::iter::DagIterable;
-    use crate::core::redeem::RefWrapper;
+    use crate::core::{iter, redeem};
     use crate::exec::BitMachine;
     use bitcoin_hashes::{sha256, Hash};
     use std::convert::TryFrom;
@@ -241,6 +327,10 @@ mod tests {
         assert!(mac.exec(&program, &env).is_ok());
     }
 
+    fn to_witness(program: &RedeemNode<Elements>) -> Vec<&Value> {
+        iter::into_witness(redeem::RefWrapper(program).iter_post_order()).collect()
+    }
+
     #[test]
     fn satisfy_unsatisfiable() {
         let satisfier = get_satisfier();
@@ -262,7 +352,7 @@ mod tests {
         let policy = Policy::Trivial;
 
         let program = policy.satisfy(&satisfier).expect("satisfiable");
-        let witness: Vec<_> = iter::into_witness(RefWrapper(&program).iter_post_order()).collect();
+        let witness = to_witness(&program);
         assert_eq!(Vec::<&Value>::new(), witness);
 
         execute_successful(program, &satisfier.env);
@@ -276,7 +366,7 @@ mod tests {
         let policy = Policy::Key(*xonly);
 
         let program = policy.satisfy(&satisfier).expect("satisfiable");
-        let witness: Vec<_> = iter::into_witness(RefWrapper(&program).iter_post_order()).collect();
+        let witness = to_witness(&program);
         assert_eq!(1, witness.len());
 
         let sighash = satisfier.env.c_tx_env().sighash_all();
@@ -297,7 +387,7 @@ mod tests {
         let policy = Policy::Sha256(image);
 
         let program = policy.satisfy(&satisfier).expect("satisfiable");
-        let witness: Vec<_> = iter::into_witness(RefWrapper(&program).iter_post_order()).collect();
+        let witness = to_witness(&program);
         assert_eq!(1, witness.len());
 
         let witness_bytes = witness[0].try_to_bytes().expect("to bytes");
@@ -321,7 +411,7 @@ mod tests {
 
         let policy0 = Policy::And(vec![Policy::Sha256(images[0]), Policy::Sha256(images[1])]);
         let program = policy0.satisfy(&satisfier).expect("satisfiable");
-        let witness: Vec<_> = iter::into_witness(RefWrapper(&program).iter_post_order()).collect();
+        let witness = to_witness(&program);
         assert_eq!(2, witness.len());
 
         for i in 0..2 {
@@ -359,17 +449,16 @@ mod tests {
             .map(|x| satisfier.preimages.get(x).unwrap())
             .collect();
 
-        let assert_branch = |policy: &Policy<bitcoin::XOnlyPublicKey>, branch: u8| {
+        let assert_branch = |policy: &Policy<bitcoin::XOnlyPublicKey>, bit: bool| {
             let program = policy.satisfy(&satisfier).expect("satisfiable");
-            let witness: Vec<_> =
-                iter::into_witness(RefWrapper(&program).iter_post_order()).collect();
+            let witness = to_witness(&program);
             assert_eq!(2, witness.len());
 
-            assert_eq!(&Value::u1(branch), witness[0]);
+            assert_eq!(&Value::u1(bit as u8), witness[0]);
             let preimage_bytes = witness[1].try_to_bytes().expect("to bytes");
             let witness_preimage =
                 Preimage32::try_from(preimage_bytes.as_slice()).expect("to array");
-            assert_eq!(preimages[branch as usize], &witness_preimage);
+            assert_eq!(preimages[bit as usize], &witness_preimage);
 
             execute_successful(program, &satisfier.env);
         };
@@ -377,7 +466,7 @@ mod tests {
         // Policy 0
 
         let policy0 = Policy::Or(vec![Policy::Sha256(images[0]), Policy::Sha256(images[1])]);
-        assert_branch(&policy0, 0);
+        assert_branch(&policy0, false);
 
         // Policy 1
 
@@ -385,7 +474,7 @@ mod tests {
             Policy::Sha256(images[0]),
             Policy::Sha256(sha256::Hash::from_inner([1; 32])),
         ]);
-        assert_branch(&policy1, 0);
+        assert_branch(&policy1, false);
 
         // Policy 2
 
@@ -393,7 +482,7 @@ mod tests {
             Policy::Sha256(sha256::Hash::from_inner([0; 32])),
             Policy::Sha256(images[1]),
         ]);
-        assert_branch(&policy2, 1);
+        assert_branch(&policy2, true);
 
         // Policy 3
 
@@ -402,5 +491,75 @@ mod tests {
             Policy::Sha256(sha256::Hash::from_inner([1; 32])),
         ]);
         assert!(policy3.satisfy(&satisfier).is_none());
+    }
+
+    #[test]
+    fn satisfy_thresh() {
+        let satisfier = get_satisfier();
+        let images: Vec<_> = satisfier.preimages.keys().map(|x| *x).collect();
+        let preimages: Vec<_> = images
+            .iter()
+            .map(|x| satisfier.preimages.get(x).unwrap())
+            .collect();
+
+        let assert_branches = |policy: &Policy<bitcoin::XOnlyPublicKey>, bits: &[bool]| {
+            let program = policy.satisfy(&satisfier).expect("satisfiable");
+            let witness = to_witness(&program);
+            assert_eq!(5, witness.len());
+
+            let mut i = 0;
+
+            let mut assert_branch = |j: usize| {
+                assert_eq!(&Value::u1(bits[j] as u8), witness[i]);
+                i += 1;
+
+                if bits[j] {
+                    let preimage_bytes = witness[i].try_to_bytes().expect("to bytes");
+                    let witness_preimage =
+                        Preimage32::try_from(preimage_bytes.as_slice()).expect("to array");
+                    assert_eq!(preimages[j], &witness_preimage);
+                    i += 1;
+                }
+            };
+
+            for j in 0..2 {
+                assert_branch(j);
+            }
+        };
+
+        let image_from_bit = |bit: bool, j: u8| {
+            if bit {
+                images[j as usize]
+            } else {
+                sha256::Hash::from_inner([j; 32])
+            }
+        };
+
+        for &bit0 in &[true, false] {
+            let image0 = image_from_bit(bit0, 0);
+
+            for &bit1 in &[true, false] {
+                let image1 = image_from_bit(bit1, 1);
+
+                for &bit2 in &[true, false] {
+                    let image2 = image_from_bit(bit2, 2);
+
+                    let policy = Policy::Threshold(
+                        2,
+                        vec![
+                            Policy::Sha256(image0),
+                            Policy::Sha256(image1),
+                            Policy::Sha256(image2),
+                        ],
+                    );
+
+                    match bit0 as u8 + bit1 as u8 + bit2 as u8 {
+                        3 => assert_branches(&policy, &[bit0, bit1, false]),
+                        2 => assert_branches(&policy, &[bit0, bit1, bit2]),
+                        _ => assert!(policy.satisfy(&satisfier).is_none()),
+                    }
+                }
+            }
+        }
     }
 }
