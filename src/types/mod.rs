@@ -694,6 +694,21 @@ impl Type {
             unreachable!("we just set the constraint to Bound and now it's not Bound")
         }
     }
+
+    /// Return a vector containing the types 2^(2^i) for i from 0 to n-1.
+    pub fn powers_of_2(n: usize) -> Vec<Self> {
+        let mut ret = Vec::with_capacity(n);
+
+        let unit = Type::unit();
+        //ret.push(unit.shallow_clone());
+
+        let mut two = Type::sum(unit.shallow_clone(), unit);
+        for _ in 0..n {
+            ret.push(two.shallow_clone());
+            two = Type::product(two.shallow_clone(), two);
+        }
+        ret
+    }
 }
 
 impl fmt::Display for Type {
