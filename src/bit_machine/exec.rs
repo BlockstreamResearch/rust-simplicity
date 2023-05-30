@@ -414,6 +414,7 @@ impl BitMachine {
                     return Err(ExecutionError::ReachedPrunedBranch(*hash))
                 }
                 RedeemNodeInner::Jet(jet) => jet.exec(self, env)?,
+                RedeemNodeInner::Word(value) => self.write_value(value),
                 RedeemNodeInner::Fail(left, right) => {
                     return Err(ExecutionError::ReachedFailNode(*left, *right))
                 }

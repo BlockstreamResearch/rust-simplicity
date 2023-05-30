@@ -52,7 +52,8 @@ fn compute_extra_cells_bound<J: Jet>(
         | CommitNodeInner::Unit
         | CommitNodeInner::Fail(_, _)
         | CommitNodeInner::Hidden(_)
-        | CommitNodeInner::Jet(_) => 0,
+        | CommitNodeInner::Jet(_)
+        | CommitNodeInner::Word(_) => 0,
         CommitNodeInner::InjL(_)
         | CommitNodeInner::InjR(_)
         | CommitNodeInner::Take(_)
@@ -92,7 +93,8 @@ fn compute_extra_frames_bound<J: Jet>(
         | CommitNodeInner::Witness
         | CommitNodeInner::Fail(_, _)
         | CommitNodeInner::Hidden(_)
-        | CommitNodeInner::Jet(_) => 0,
+        | CommitNodeInner::Jet(_)
+        | CommitNodeInner::Word(_) => 0,
         CommitNodeInner::InjL(_)
         | CommitNodeInner::InjR(_)
         | CommitNodeInner::Take(_)

@@ -71,6 +71,7 @@ impl CommitMerkleRoot for Amr {
             CommitNodeInner::Fail(_, _) => Amr::tag_iv(b"Simplicity-Draft\x1fAnnotated\x1ffail"),
             CommitNodeInner::Hidden(h) => h.into(),
             CommitNodeInner::Jet(jet) => jet.amr(),
+            CommitNodeInner::Word(..) => Cmr::compute(node).into(),
         }
     }
 }
@@ -92,7 +93,9 @@ impl Amr {
         let amr_iv = Amr::get_iv(node);
 
         match *node {
-            CommitNodeInner::Hidden(..) | CommitNodeInner::Jet(..) => amr_iv,
+            CommitNodeInner::Hidden(..) | CommitNodeInner::Jet(..) | CommitNodeInner::Word(..) => {
+                amr_iv
+            }
             CommitNodeInner::Fail(left, right) => amr_iv.update(left.into(), right.into()),
             CommitNodeInner::Witness => amr_iv.update_value(value.unwrap(), ty.target.as_ref()),
             CommitNodeInner::Iden | CommitNodeInner::Unit => {

@@ -64,8 +64,10 @@ pub enum CommitNodeInner<J: Jet> {
     Fail(Cmr, Cmr),
     /// Hidden CMR
     Hidden(Cmr),
-    /// Jlication jet
+    /// Application jet
     Jet(J),
+    /// Constant word
+    Word(Value),
 }
 
 impl<J: Jet> CommitNodeInner<J> {
@@ -77,7 +79,8 @@ impl<J: Jet> CommitNodeInner<J> {
             | CommitNodeInner::Witness
             | CommitNodeInner::Fail(_, _)
             | CommitNodeInner::Hidden(_)
-            | CommitNodeInner::Jet(_) => None,
+            | CommitNodeInner::Jet(_)
+            | CommitNodeInner::Word(_) => None,
             CommitNodeInner::InjL(l)
             | CommitNodeInner::InjR(l)
             | CommitNodeInner::Take(l)
@@ -100,6 +103,7 @@ impl<J: Jet> CommitNodeInner<J> {
             | CommitNodeInner::Fail(_, _)
             | CommitNodeInner::Hidden(_)
             | CommitNodeInner::Jet(_)
+            | CommitNodeInner::Word(_)
             | CommitNodeInner::InjL(_)
             | CommitNodeInner::InjR(_)
             | CommitNodeInner::Take(_)
@@ -133,6 +137,7 @@ impl<J: Jet> fmt::Display for CommitNodeInner<J> {
             CommitNodeInner::Fail(..) => f.write_str("fail"),
             CommitNodeInner::Hidden(..) => f.write_str("hidden"),
             CommitNodeInner::Jet(jet) => write!(f, "jet({})", jet),
+            CommitNodeInner::Word(w) => write!(f, "word({})", w),
         }
     }
 }
@@ -497,6 +502,21 @@ impl<J: Jet> CommitNode<J> {
         })
     }
 
+    /// Create a DAG which is a "constant word" jet. This is equivalent to a tree of `pair`s
+    /// with bits at the tips.
+    ///
+    /// _Overall type: () → 2^n for some n between 1 and 32.
+    // FIXME if the `word` is not of the correct form we should error out here.
+    pub fn const_word(context: &mut Context<J>, word: Value) -> Rc<Self> {
+        let arrow = UnificationArrow::for_const_word(context, &word);
+        let inner = CommitNodeInner::Word(word);
+        Rc::new(CommitNode {
+            cmr: Cmr::compute(&inner),
+            inner,
+            arrow,
+        })
+    }
+
     /// Create a DAG that takes any input and returns `value` as constant output.
     ///
     /// _Overall type: A → B where value: B_
@@ -733,6 +753,7 @@ impl<J: Jet> CommitNode<J> {
                 CommitNodeInner::Fail(hl, hr) => RedeemNodeInner::Fail(hl, hr),
                 CommitNodeInner::Hidden(h) => RedeemNodeInner::Hidden(h),
                 CommitNodeInner::Jet(jet) => RedeemNodeInner::Jet(jet),
+                CommitNodeInner::Word(ref w) => RedeemNodeInner::Word(w.clone()),
             };
             let node = RedeemNode {
                 inner,
