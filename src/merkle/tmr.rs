@@ -37,3 +37,20 @@ impl TypeMerkleRoot for Tmr {
         }
     }
 }
+
+impl Tmr {
+    /// The TMR for the unit type
+    pub fn unit() -> Tmr {
+        Tmr::tag_iv(b"Simplicity-Draft\x1fType\x1funit")
+    }
+
+    /// The TMR for the sum of two types, whose TMRs are given
+    pub fn sum(tmr1: Tmr, tmr2: Tmr) -> Tmr {
+        Tmr::tag_iv(b"Simplicity-Draft\x1fType\x1fsum").update(tmr1, tmr2)
+    }
+
+    /// The TMR for the product of two types, whose TMRs are given
+    pub fn product(tmr1: Tmr, tmr2: Tmr) -> Tmr {
+        Tmr::tag_iv(b"Simplicity-Draft\x1fType\x1fprod").update(tmr1, tmr2)
+    }
+}
