@@ -59,6 +59,8 @@ use std::fmt;
 /// Error type for simplicity
 #[non_exhaustive]
 pub enum Error {
+    /// Type-checking error
+    TypeInference(crate::types::Error),
     /// A type cannot be unified with another type
     Unification(&'static str),
     /// A type is recursive (i.e., occurs within itself), violating the "occurs check"
@@ -100,6 +102,7 @@ pub enum Error {
 impl fmt::Debug for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Error::TypeInference(ref e) => write!(f, "typeck: {}", e),
             Error::Unification(s) => write!(f, "Unification failed. Hint: {}", s),
             Error::OccursCheck => f.write_str("A type is recursive (i.e., occurs within itself)"),
             Error::TypeCheck {
@@ -141,9 +144,36 @@ impl fmt::Display for Error {
     }
 }
 
-impl std::error::Error for Error {}
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match *self {
+            Error::TypeInference(ref e) => Some(e),
+            Error::Unification(..) => None,
+            Error::OccursCheck => None,
+            Error::TypeCheck { .. } => None,
+            Error::BadIndex => None,
+            Error::NaturalOverflow => None,
+            Error::BothChildrenHidden => None,
+            Error::EndOfStream => None,
+            Error::EmptyProgram => None,
+            Error::TooManyNodes(..) => None,
+            Error::ParseError(..) => None,
+            Error::NotInCanonicalOrder => None,
+            Error::InconsistentWitnessLength => None,
+            Error::SharingNotMaximal => None,
+            Error::MiniscriptError(ref e) => Some(e),
+            #[cfg(feature = "elements")]
+            Error::Policy(ref e) => Some(e),
+        }
+    }
+}
 
-#[doc(hidden)]
+impl From<crate::types::Error> for Error {
+    fn from(e: crate::types::Error) -> Error {
+        Error::TypeInference(e)
+    }
+}
+
 impl From<miniscript::Error> for Error {
     fn from(e: miniscript::Error) -> Error {
         Error::MiniscriptError(e)
