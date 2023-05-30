@@ -18,13 +18,9 @@
 //! Simplicity processes data in terms of [`Value`]s,
 //! i.e., inputs, intermediate results and outputs.
 
-use crate::bititer::BitIter;
 use crate::util::slice_to_u64_be;
-use crate::{decode, Error};
 use std::fmt;
 use std::hash::Hash;
-
-use super::types::Type;
 
 /// Simplicity value.
 ///
@@ -135,39 +131,6 @@ impl Value {
                 Box::new(Value::u64(slice_to_u64_be(&v[24..32]))),
             )),
         )
-    }
-
-    /// Read bytes from a Simplicity buffer of type (TWO^8)^<2^(n+1) as [`Value`].
-    /// The notation X^<2 is notation for the type (S X)
-    /// The notation X^<(2*n) is notation for the type S (X^n) * X^<n
-    ///
-    /// Cannot represent >= 2**16 bytes 0 <= n < 16 as simplicity consensus rule.
-    ///
-    /// # Panics:
-    ///
-    /// Panics if the length of the slice is >= 2^(n + 1) bytes
-    pub fn var_len_buf_from_slice(v: &[u8], mut n: usize) -> Result<Value, Error> {
-        // Simplicity consensus rule for n < 16 while reading buffers.
-        assert!(n < 16);
-        assert!(v.len() < (1 << (n + 1)));
-        let mut iter = BitIter::new(v.iter().copied());
-        let types = Type::powers_of_two_vec(n); // size n + 1
-        let mut res = None;
-        while n > 0 {
-            let v = if v.len() >= (1 << (n + 1)) {
-                let ty = &types[n];
-                let val = decode::decode_value(ty, &mut iter)?;
-                Value::SumR(Box::new(val))
-            } else {
-                Value::SumL(Box::new(Value::Unit))
-            };
-            res = match res {
-                Some(prod) => Some(Value::Prod(Box::new(prod), Box::new(v))),
-                None => Some(v),
-            };
-            n -= 1;
-        }
-        Ok(res.unwrap_or(Value::Unit))
     }
 
     /// Encode a 64(pair(32, 32)) byte number into value.
