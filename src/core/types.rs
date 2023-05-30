@@ -1,7 +1,5 @@
 use crate::merkle::tmr::Tmr;
 use crate::util::replace_to_buffer;
-use std::collections::VecDeque;
-use std::iter::FromIterator;
 use std::{cell::RefCell, cmp, fmt, rc::Rc, sync::Arc};
 
 /// Finalized Simplicity type.
@@ -393,35 +391,5 @@ impl VariableInner {
             VariableInner::Precomputed(tyvar, _) => tyvar.uncompressed_display(w),
             VariableInner::Finalized(ty) => write!(w, "{}", ty),
         }
-    }
-}
-
-/// Factory for creating free variables with fresh names.
-/// Identifiers are assigned sequentially as follows:
-/// `A`, `B`, `C`, ... `Z`, `AA`, `AB`, `AC`, ...
-pub(crate) struct VariableFactory {
-    next_id: usize,
-}
-
-impl VariableFactory {
-    /// Create a new factory.
-    pub fn new() -> Self {
-        Self { next_id: 1 }
-    }
-
-    /// Return a free variable with a fresh name.
-    pub fn free_variable(&mut self) -> RcVar {
-        let mut n = self.next_id;
-        self.next_id += 1;
-        let mut ascii_bytes = VecDeque::new();
-
-        while n / 26 > 0 {
-            ascii_bytes.push_front((n % 26) as u8 + 65);
-            n /= 26;
-        }
-
-        ascii_bytes.push_front((n % 26) as u8 + 64);
-        let id = String::from_utf8(Vec::from_iter(ascii_bytes.into_iter())).unwrap();
-        Variable::free(id)
     }
 }

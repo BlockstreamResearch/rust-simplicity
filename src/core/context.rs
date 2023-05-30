@@ -1,13 +1,14 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use crate::core::types::{precomputed_square, RcVar, Type, Variable, VariableFactory};
+use crate::core::types::{precomputed_square, RcVar, Type, Variable};
 use crate::jet::Jet;
+use crate::types;
 
 /// Context for constructing a Simplicity program
 #[allow(dead_code)]
 pub struct Context<J: Jet> {
-    pub(crate) naming: VariableFactory,
+    pub(crate) naming: types::variable::Factory,
     pow2: Vec<RcVar>,
     _jet: PhantomData<J>,
 }
@@ -21,7 +22,7 @@ impl<J: Jet> Context<J> {
             .collect();
 
         Self {
-            naming: VariableFactory::new(),
+            naming: types::variable::Factory::new(),
             pow2,
             _jet: PhantomData,
         }

@@ -63,6 +63,8 @@ use std::borrow::Cow;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::{cmp, fmt, mem, ops};
 
+pub mod variable;
+
 /// Error type for simplicity
 #[non_exhaustive]
 #[derive(Clone, Debug)]
