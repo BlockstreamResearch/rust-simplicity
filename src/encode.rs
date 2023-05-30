@@ -238,7 +238,6 @@ mod test {
     use super::*;
     use crate::bititer::BitIter;
     use crate::core::iter::WitnessIterator;
-    use crate::core::types::Type;
     use crate::decode;
     use crate::decode::WitnessDecoder;
 
@@ -257,7 +256,7 @@ mod test {
 
     #[test]
     fn encode_decode_witness() {
-        let pow2s = Type::powers_of_two();
+        let context = crate::Context::<crate::jet::Core>::new();
 
         for n in 1..1000 {
             let witness = vec![Value::u64(n)];
@@ -270,7 +269,10 @@ mod test {
 
             let mut bits = BitIter::from(sink.into_iter());
             let mut decoder = WitnessDecoder::new(&mut bits).expect("decoding from vector");
-            assert_eq!(witness[0], decoder.next(&pow2s[6]).unwrap());
+            assert_eq!(
+                witness[0],
+                decoder.next(&context.nth_power_of_2_type(6)).unwrap()
+            );
         }
     }
 }
