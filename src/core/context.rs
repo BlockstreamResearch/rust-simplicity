@@ -10,6 +10,8 @@ use crate::types;
 pub struct Context<J: Jet> {
     pub(crate) naming: types::variable::Factory,
     pow2: Vec<RcVar>,
+    pow22: Vec<types::Type>,
+    unit_ty: types::Type,
     _jet: PhantomData<J>,
 }
 
@@ -21,11 +23,40 @@ impl<J: Jet> Context<J> {
             .take(32)
             .collect();
 
+        let one = types::Type::unit();
+        let two = types::Type::sum(one.shallow_clone(), one);
+        let pow22 = std::iter::successors(Some(two), |prev| {
+            Some(types::Type::product(
+                prev.shallow_clone(),
+                prev.shallow_clone(),
+            ))
+        })
+        .take(32)
+        .collect();
+
         Self {
             naming: types::variable::Factory::new(),
             pow2,
+            pow22,
+            unit_ty: types::Type::unit(),
             _jet: PhantomData,
         }
+    }
+
+    /// Accessor for the unit type
+    pub fn unit_ty(&self) -> types::Type {
+        self.unit_ty.shallow_clone()
+    }
+
+    /// Accessor for the nth power of two as a type
+    pub fn nth_power_of_2(&self, n: usize) -> types::Type {
+        assert!(
+            n < self.pow22.len(),
+            "we have cached only {} powers of 2 but {} was requested",
+            self.pow22.len(),
+            n,
+        );
+        self.pow22[n].shallow_clone()
     }
 
     /// Accessor for the nth power of two as a type
