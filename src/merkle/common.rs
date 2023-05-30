@@ -15,7 +15,7 @@
 //! # Common traits and macros
 
 use crate::core::commit::CommitNodeInner;
-use crate::core::types::{Type, TypeInner};
+use crate::core::types::Type;
 use crate::core::Value;
 use crate::jet::Jet;
 use crate::util::u64_to_array_be;
@@ -131,15 +131,6 @@ pub trait CommitMerkleRoot: MerkleRoot {
     /// Each [`CommitNodeInner`] corresponds to some tag that is hashed
     /// and returned as initial value
     fn get_iv<J: Jet>(node: &CommitNodeInner<J>) -> Self;
-}
-
-/// Tagged SHA256 hash used for [`Type`]
-pub trait TypeMerkleRoot: MerkleRoot {
-    /// Return the initial value for the given type.
-    ///
-    /// Each [`Type::inner`] corresponds to some tag that is hashed
-    /// and returned as initial value
-    fn get_iv(ty: &TypeInner) -> Self;
 }
 
 /// Convenience macro for wrappers of `Midstate`.

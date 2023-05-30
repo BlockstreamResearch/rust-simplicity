@@ -1,4 +1,3 @@
-use crate::merkle::common::{MerkleRoot, TypeMerkleRoot};
 use crate::merkle::tmr::Tmr;
 use crate::util::replace_to_buffer;
 use std::collections::VecDeque;
@@ -34,7 +33,7 @@ impl Type {
         let inner = TypeInner::Unit;
 
         Arc::new(Self {
-            tmr: Tmr::get_iv(&inner),
+            tmr: Tmr::unit(),
             inner,
             bit_width: 0,
             display: "1".to_owned(),
@@ -46,7 +45,7 @@ impl Type {
         let inner = TypeInner::Sum(a.clone(), b.clone());
 
         Arc::new(Self {
-            tmr: Tmr::get_iv(&inner).update(a.tmr, b.tmr),
+            tmr: Tmr::sum(a.tmr, b.tmr),
             inner,
             bit_width: 1 + cmp::max(a.bit_width, b.bit_width),
             display: if a.inner == TypeInner::Unit && b.inner == TypeInner::Unit {
@@ -62,7 +61,7 @@ impl Type {
         let inner = TypeInner::Product(a.clone(), b.clone());
 
         Arc::new(Self {
-            tmr: Tmr::get_iv(&inner).update(a.tmr, b.tmr),
+            tmr: Tmr::product(a.tmr, b.tmr),
             inner,
             bit_width: a.bit_width + b.bit_width,
             display: if a.display == b.display {
