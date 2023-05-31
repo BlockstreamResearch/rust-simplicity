@@ -16,10 +16,6 @@
 //!
 //! Source and target types of jet nodes need to be specified manually.
 
-use std::sync::Arc;
-
-use crate::core::types::{RcVar, Variable};
-use crate::core::types::{Type, VariableType};
 use crate::types;
 
 /// Byte-based specification of a Simplicity type.
@@ -55,42 +51,7 @@ impl TypeName {
     // b'+' = 43
     // b'*' = 42
     /// Convert the type name into a type.
-    pub(crate) fn to_variable_type<F: FnMut(usize) -> RcVar>(&self, mut pow2s: F) -> RcVar {
-        let it = self.0.iter().rev();
-        let mut stack = Vec::new();
-
-        for c in it {
-            match c {
-                b'1' => stack.push(Variable::bound(VariableType::Unit)),
-                b'2' => stack.push(pow2s(0)),
-                b'c' => stack.push(pow2s(3)),
-                b's' => stack.push(pow2s(4)),
-                b'i' => stack.push(pow2s(5)),
-                b'l' => stack.push(pow2s(6)),
-                b'h' => stack.push(pow2s(8)),
-                b'+' | b'*' => {
-                    let left = stack.pop().expect("Illegal type name syntax!");
-                    let right = stack.pop().expect("Illegal type name syntax!");
-
-                    match c {
-                        b'+' => stack.push(Variable::bound(VariableType::Sum(left, right))),
-                        b'*' => stack.push(Variable::bound(VariableType::Product(left, right))),
-                        _ => unreachable!(),
-                    }
-                }
-                _ => panic!("Illegal type name syntax!"),
-            }
-        }
-
-        if stack.len() == 1 {
-            stack.pop().unwrap()
-        } else {
-            panic!("Illegal type name syntax!")
-        }
-    }
-
-    /// Convert the type name into a type.
-    pub fn to_type2<F: FnMut(usize) -> types::Type>(&self, mut pow2s: F) -> types::Type {
+    pub fn to_type<F: FnMut(usize) -> types::Type>(&self, mut pow2s: F) -> types::Type {
         let it = self.0.iter().rev();
         let mut stack = Vec::new();
 
@@ -110,43 +71,6 @@ impl TypeName {
                     match c {
                         b'+' => stack.push(types::Type::sum(left, right)),
                         b'*' => stack.push(types::Type::product(left, right)),
-                        _ => unreachable!(),
-                    }
-                }
-                _ => panic!("Illegal type name syntax!"),
-            }
-        }
-
-        if stack.len() == 1 {
-            stack.pop().unwrap()
-        } else {
-            panic!("Illegal type name syntax!")
-        }
-    }
-
-    // TODO: In future commit change to return Type instead of Arc.
-    // Would require some refactors internally.
-    pub fn to_type(&self, pow2s: &[Arc<Type>]) -> Arc<Type> {
-        let it = self.0.iter().rev();
-        let mut stack = Vec::new();
-
-        let unit = Type::unit();
-        for c in it {
-            match c {
-                b'1' => stack.push(Type::unit()),
-                b'2' => {
-                    stack.push(Type::sum(Arc::clone(&unit), Arc::clone(&unit)));
-                }
-                b'i' => stack.push(Type::product(pow2s[4].clone(), pow2s[4].clone())),
-                b'l' => stack.push(Type::product(pow2s[5].clone(), pow2s[5].clone())),
-                b'h' => stack.push(Type::product(pow2s[7].clone(), pow2s[7].clone())),
-                b'+' | b'*' => {
-                    let left = stack.pop().expect("Illegal type name syntax!");
-                    let right = stack.pop().expect("Illegal type name syntax!");
-
-                    match c {
-                        b'+' => stack.push(Type::sum(left, right)),
-                        b'*' => stack.push(Type::product(left, right)),
                         _ => unreachable!(),
                     }
                 }
