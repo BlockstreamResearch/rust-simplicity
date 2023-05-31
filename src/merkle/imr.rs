@@ -13,13 +13,13 @@
 //
 
 use crate::core::commit::CommitNodeInner;
-use crate::core::redeem::NodeType;
 use crate::core::Value;
 use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::common::{CommitMerkleRoot, MerkleRoot};
 use crate::merkle::tmr::Tmr;
+use crate::types::arrow::FinalArrow;
 use bitcoin_hashes::sha256::Midstate;
 
 /// Identity Merkle root
@@ -76,7 +76,7 @@ impl Imr {
         left: Option<Imr>,
         right: Option<Imr>,
         value: Option<&Value>,
-        ty: &NodeType,
+        ty: &FinalArrow,
     ) -> Imr {
         let imr_iv = Imr::get_iv(node);
 
@@ -97,7 +97,7 @@ impl Imr {
             | CommitNodeInner::AssertL(_, _)
             | CommitNodeInner::AssertR(_, _)
             | CommitNodeInner::Disconnect(_, _) => imr_iv.update(left.unwrap(), right.unwrap()),
-            CommitNodeInner::Witness => imr_iv.update_value(value.unwrap(), ty.target.as_ref()),
+            CommitNodeInner::Witness => imr_iv.update_value(value.unwrap(), &ty.target),
         }
     }
 
@@ -108,7 +108,7 @@ impl Imr {
     pub(crate) fn compute_pass2<J: Jet>(
         self, // The IMR computed in the first pass.
         node: &CommitNodeInner<J>,
-        ty: &NodeType,
+        ty: &FinalArrow,
     ) -> Imr {
         let first_pass = self;
         let iv = Imr::pass_two_iv(node);
@@ -116,8 +116,8 @@ impl Imr {
             iv.update_1(first_pass)
         } else {
             iv.update_1(first_pass).update(
-                Imr::from(<[u8; 32]>::from(ty.source.tmr)),
-                Imr::from(<[u8; 32]>::from(ty.target.tmr)),
+                Imr::from(<[u8; 32]>::from(ty.source.tmr())),
+                Imr::from(<[u8; 32]>::from(ty.target.tmr())),
             )
         }
     }

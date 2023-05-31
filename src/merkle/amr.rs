@@ -13,13 +13,13 @@
 //
 
 use crate::core::commit::CommitNodeInner;
-use crate::core::redeem::NodeType;
 use crate::core::{RedeemNode, Value};
 use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::common::{CommitMerkleRoot, MerkleRoot};
 use crate::merkle::tmr::Tmr;
+use crate::types::arrow::FinalArrow;
 use bitcoin_hashes::sha256::Midstate;
 use std::rc::Rc;
 
@@ -88,7 +88,7 @@ impl Amr {
         left: Option<Rc<RedeemNode<J>>>,
         right: Option<Rc<RedeemNode<J>>>,
         value: Option<&Value>,
-        ty: &NodeType,
+        ty: &FinalArrow,
     ) -> Amr {
         let amr_iv = Amr::get_iv(node);
 
@@ -100,29 +100,29 @@ impl Amr {
             CommitNodeInner::Witness => amr_iv.update_value(value.unwrap(), ty.target.as_ref()),
             CommitNodeInner::Iden | CommitNodeInner::Unit => {
                 let a = &ty.source;
-                amr_iv.update_1(a.tmr.into())
+                amr_iv.update_1(a.tmr().into())
             }
             CommitNodeInner::InjL(_) | CommitNodeInner::InjR(_) => {
                 let a = &ty.source;
                 let (b, c) = ty.target.split().unwrap();
                 amr_iv
-                    .update(a.tmr.into(), b.tmr.into())
-                    .update(c.tmr.into(), left.unwrap().amr)
+                    .update(a.tmr().into(), b.tmr().into())
+                    .update(c.tmr().into(), left.unwrap().amr)
             }
             CommitNodeInner::Take(_) | CommitNodeInner::Drop(_) => {
                 let (a, b) = ty.source.split().unwrap();
                 let c = &ty.target;
                 amr_iv
-                    .update(a.tmr.into(), b.tmr.into())
-                    .update(c.tmr.into(), left.unwrap().amr)
+                    .update(a.tmr().into(), b.tmr().into())
+                    .update(c.tmr().into(), left.unwrap().amr)
             }
             CommitNodeInner::Comp(_, _) | CommitNodeInner::Pair(_, _) => {
                 let a = &ty.source;
                 let b = &left.as_ref().unwrap().ty.target;
                 let c = &right.as_ref().unwrap().ty.target;
                 amr_iv
-                    .update_1(a.tmr.into())
-                    .update(b.tmr.into(), c.tmr.into())
+                    .update_1(a.tmr().into())
+                    .update(b.tmr().into(), c.tmr().into())
                     .update(left.unwrap().amr, right.unwrap().amr)
             }
             CommitNodeInner::Case(_, _)
@@ -132,8 +132,8 @@ impl Amr {
                 let (a, b) = sum_a_b.split().unwrap();
                 let d = &ty.target;
                 amr_iv
-                    .update(a.tmr.into(), b.tmr.into())
-                    .update(c.tmr.into(), d.tmr.into())
+                    .update(a.tmr().into(), b.tmr().into())
+                    .update(c.tmr().into(), d.tmr().into())
                     .update(left.unwrap().amr, right.unwrap().amr)
             }
             CommitNodeInner::Disconnect(_, _) => {
@@ -141,8 +141,8 @@ impl Amr {
                 let (b, d) = ty.target.split().unwrap();
                 let c = &right.as_ref().unwrap().ty.source;
                 amr_iv
-                    .update(a.tmr.into(), b.tmr.into())
-                    .update(c.tmr.into(), d.tmr.into())
+                    .update(a.tmr().into(), b.tmr().into())
+                    .update(c.tmr().into(), d.tmr().into())
                     .update(left.unwrap().amr, right.unwrap().amr)
             }
         }

@@ -20,11 +20,10 @@
 
 use super::frame::Frame;
 use crate::core::redeem::RedeemNodeInner;
-use crate::core::types::TypeInner;
 use crate::core::{RedeemNode, Value};
 use crate::jet::{Jet, JetFailed};
 use crate::merkle::cmr::Cmr;
-use crate::{analysis, decode};
+use crate::{analysis, decode, types};
 use std::fmt;
 use std::{cmp, error};
 
@@ -44,7 +43,7 @@ pub struct BitMachine {
 impl BitMachine {
     /// Construct a Bit Machine with enough space to execute the given program.
     pub fn for_program<J: Jet>(program: &RedeemNode<J>) -> Self {
-        let io_width = program.ty.source.bit_width + program.ty.target.bit_width;
+        let io_width = program.ty.source.bit_width() + program.ty.target.bit_width();
 
         Self {
             data: vec![0; (io_width + program.bounds.extra_cells + 7) / 8],
@@ -292,12 +291,12 @@ impl BitMachine {
         let mut call_stack = vec![];
         let mut iterations = 0u64;
 
-        let input_width = ip.ty.source.bit_width;
+        let input_width = ip.ty.source.bit_width();
         // TODO: convert into crate::Error
         if input_width > 0 && self.read.is_empty() {
             panic!("Program requires a non-empty input to execute");
         }
-        let output_width = ip.ty.target.bit_width;
+        let output_width = ip.ty.target.bit_width();
         if output_width > 0 {
             self.new_frame(output_width);
         }
@@ -311,12 +310,12 @@ impl BitMachine {
             match &ip.inner {
                 RedeemNodeInner::Unit => {}
                 RedeemNodeInner::Iden => {
-                    let size_a = ip.ty.source.bit_width;
+                    let size_a = ip.ty.source.bit_width();
                     self.copy(size_a);
                 }
                 RedeemNodeInner::InjL(left) => {
-                    let padl_b_c = if let TypeInner::Sum(b, _) = &ip.ty.target.inner {
-                        ip.ty.target.bit_width - b.bit_width - 1
+                    let padl_b_c = if let types::CompleteBound::Sum(b, _) = &ip.ty.target.bound() {
+                        ip.ty.target.bit_width() - b.bit_width() - 1
                     } else {
                         unreachable!()
                     };
@@ -326,8 +325,8 @@ impl BitMachine {
                     call_stack.push(CallStack::Goto(left));
                 }
                 RedeemNodeInner::InjR(left) => {
-                    let padr_b_c = if let TypeInner::Sum(_, c) = &ip.ty.target.inner {
-                        ip.ty.target.bit_width - c.bit_width - 1
+                    let padr_b_c = if let types::CompleteBound::Sum(_, c) = &ip.ty.target.bound() {
+                        ip.ty.target.bit_width() - c.bit_width() - 1
                     } else {
                         unreachable!()
                     };
@@ -341,7 +340,7 @@ impl BitMachine {
                     call_stack.push(CallStack::Goto(left));
                 }
                 RedeemNodeInner::Comp(left, right) => {
-                    let size_b = left.ty.target.bit_width;
+                    let size_b = left.ty.target.bit_width();
 
                     self.new_frame(size_b);
                     call_stack.push(CallStack::DropFrame);
@@ -350,10 +349,10 @@ impl BitMachine {
                     call_stack.push(CallStack::Goto(left));
                 }
                 RedeemNodeInner::Disconnect(left, right) => {
-                    let size_prod_256_a = left.ty.source.bit_width;
+                    let size_prod_256_a = left.ty.source.bit_width();
                     let size_a = size_prod_256_a - 256;
-                    let size_prod_b_c = left.ty.target.bit_width;
-                    let size_b = size_prod_b_c - right.ty.source.bit_width;
+                    let size_prod_b_c = left.ty.target.bit_width();
+                    let size_b = size_prod_b_c - right.ty.source.bit_width();
 
                     self.new_frame(size_prod_256_a);
                     self.write_bytes(right.cmr.as_ref());
@@ -371,8 +370,9 @@ impl BitMachine {
                 }
                 RedeemNodeInner::Take(left) => call_stack.push(CallStack::Goto(left)),
                 RedeemNodeInner::Drop(left) => {
-                    let size_a = if let TypeInner::Product(a, _) = &ip.ty.source.inner {
-                        a.bit_width
+                    let size_a = if let types::CompleteBound::Product(a, _) = &ip.ty.source.bound()
+                    {
+                        a.bit_width()
                     } else {
                         unreachable!()
                     };
@@ -387,9 +387,9 @@ impl BitMachine {
                     let choice_bit = self.read[self.read.len() - 1].peek_bit(&self.data);
 
                     let (size_a, size_b) =
-                        if let TypeInner::Product(sum_a_b, _c) = &ip.ty.source.inner {
-                            if let TypeInner::Sum(a, b) = &sum_a_b.inner {
-                                (a.bit_width, b.bit_width)
+                        if let types::CompleteBound::Product(sum_a_b, _c) = &ip.ty.source.bound() {
+                            if let types::CompleteBound::Sum(a, b) = &sum_a_b.bound() {
+                                (a.bit_width(), b.bit_width())
                             } else {
                                 unreachable!()
                             }

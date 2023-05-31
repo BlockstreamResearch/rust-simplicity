@@ -20,10 +20,10 @@
 use crate::bititer::BitIter;
 use crate::core::commit::CommitNodeInner;
 use crate::core::iter::{DagIterable, IndexDag, IndexNode, WitnessIterator};
-use crate::core::types::{Type, TypeInner};
 use crate::core::{CommitNode, Context, Value};
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
+use crate::types;
 use crate::Error;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -171,7 +171,7 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
                     Some(true) => Ok(CommitNode::jet(context, J::decode(bits)?)),
                     Some(false) => {
                         let depth = decode_natural(bits, Some(32))?;
-                        let word = decode_value(&context.nth_power_of_2_type(depth - 1), bits)?;
+                        let word = decode_value(&context.nth_power_of_2_final(depth - 1), bits)?;
                         Ok(CommitNode::const_word(context, word))
                     }
                 },
@@ -247,7 +247,7 @@ impl<'a, I: Iterator<Item = u8>> WitnessDecoder<'a, I> {
 }
 
 impl<'a, I: Iterator<Item = u8>> WitnessIterator for WitnessDecoder<'a, I> {
-    fn next(&mut self, ty: &Type) -> Result<Value, Error> {
+    fn next(&mut self, ty: &types::Final) -> Result<Value, Error> {
         decode_value(ty, self.bits)
     }
 
@@ -261,15 +261,18 @@ impl<'a, I: Iterator<Item = u8>> WitnessIterator for WitnessDecoder<'a, I> {
 }
 
 /// Decode a value from bits, based on the given type.
-pub fn decode_value<I: Iterator<Item = bool>>(ty: &Type, iter: &mut I) -> Result<Value, Error> {
-    let value = match ty.inner {
-        TypeInner::Unit => Value::Unit,
-        TypeInner::Sum(ref l, ref r) => match iter.next() {
+pub fn decode_value<I: Iterator<Item = bool>>(
+    ty: &types::Final,
+    iter: &mut I,
+) -> Result<Value, Error> {
+    let value = match ty.bound() {
+        types::CompleteBound::Unit => Value::Unit,
+        types::CompleteBound::Sum(ref l, ref r) => match iter.next() {
             Some(false) => Value::SumL(Box::new(decode_value(l, iter)?)),
             Some(true) => Value::SumR(Box::new(decode_value(r, iter)?)),
             None => return Err(Error::EndOfStream),
         },
-        TypeInner::Product(ref l, ref r) => Value::Prod(
+        types::CompleteBound::Product(ref l, ref r) => Value::Prod(
             Box::new(decode_value(l, iter)?),
             Box::new(decode_value(r, iter)?),
         ),

@@ -17,7 +17,7 @@ use honggfuzz::fuzz;
 use simplicity::bititer::BitIter;
 use simplicity::bitwriter::BitWriter;
 use simplicity::core::iter::WitnessIterator;
-use simplicity::core::types::Type;
+use simplicity::types::Type;
 use simplicity::{encode_witness, WitnessDecoder};
 
 fn do_test(data: &[u8]) {
@@ -33,6 +33,7 @@ fn do_test(data: &[u8]) {
         let mut witness = Vec::with_capacity(witness_bit_len);
         let two_0 = Type::unit();
         let two_1 = Type::sum(two_0.clone(), two_0);
+        let two_1 = two_1.finalize().unwrap();
 
         for _ in 0..witness_bit_len {
             match decoder.next(&two_1) {

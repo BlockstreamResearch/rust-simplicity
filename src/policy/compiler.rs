@@ -23,7 +23,7 @@ use crate::jet::Elements;
 use crate::merkle::cmr::Cmr;
 use crate::miniscript::MiniscriptKey;
 use crate::policy::key::PublicKey32;
-use crate::Error;
+use crate::types::Error;
 use std::rc::Rc;
 
 impl<Pk: MiniscriptKey + PublicKey32> Policy<Pk> {

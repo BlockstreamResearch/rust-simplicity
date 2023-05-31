@@ -45,9 +45,4 @@ impl Factory {
         ascii_bytes.push_front((n % 26) as u8 + 64);
         String::from_utf8(Vec::from_iter(ascii_bytes.into_iter())).unwrap()
     }
-
-    /// Return a free variable with a fresh name.
-    pub fn free_variable(&mut self) -> crate::core::types::RcVar {
-        crate::core::types::Variable::free(self.new_name())
-    }
 }

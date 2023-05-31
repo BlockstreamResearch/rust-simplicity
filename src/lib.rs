@@ -35,7 +35,6 @@ pub mod bitwriter;
 pub mod core;
 mod decode;
 mod encode;
-mod inference;
 pub mod jet;
 pub mod merkle;
 #[cfg(feature = "elements")]

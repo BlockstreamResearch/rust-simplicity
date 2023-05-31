@@ -23,6 +23,7 @@
 //!
 //! See the `types` module above this one for more information.
 
+use std::fmt;
 use std::sync::Arc;
 
 use crate::core::Value;
@@ -31,6 +32,7 @@ use crate::{jet::Jet, Context};
 
 /// A container for an expression's source and target types, whether or not
 /// these types are complete.
+#[derive(Clone, Debug)]
 pub struct Arrow {
     /// The source type
     pub source: Type,
@@ -38,13 +40,26 @@ pub struct Arrow {
     pub target: Type,
 }
 
+impl fmt::Display for Arrow {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} → {}", self.source, self.target)
+    }
+}
+
 /// A container for the type data associated with an expression's source and
 /// target types, if both types are complete.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct FinalArrow {
     /// The source type
     pub source: Arc<Final>,
     /// The target type
     pub target: Arc<Final>,
+}
+
+impl fmt::Display for FinalArrow {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} → {}", self.source, self.target)
+    }
 }
 
 impl Arrow {

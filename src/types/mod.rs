@@ -234,6 +234,16 @@ impl Final {
     pub fn bound(&self) -> &CompleteBound {
         &self.bound
     }
+
+    /// Accessor for both children of the type, if they exist.
+    pub fn split(&self) -> Option<(Arc<Self>, Arc<Self>)> {
+        match &self.bound {
+            CompleteBound::Unit => None,
+            CompleteBound::Sum(left, right) | CompleteBound::Product(left, right) => {
+                Some((Arc::clone(left), Arc::clone(right)))
+            }
+        }
+    }
 }
 
 impl fmt::Display for Final {
