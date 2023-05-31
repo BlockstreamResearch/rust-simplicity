@@ -21,7 +21,6 @@ pub mod commit;
 mod context;
 pub mod iter;
 pub mod redeem;
-pub mod types;
 mod value;
 
 pub use commit::CommitNode;
