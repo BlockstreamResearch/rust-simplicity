@@ -79,10 +79,10 @@ impl Cmr {
         let imr_iv = Cmr::tag_iv(b"Simplicity-Draft\x1fIdentity");
         let imr_pass1 = imr_iv.update_1(scribe.cmr());
         // 2. Add TMRs to get the pass-two IMR
-        let types = crate::core::types::Type::powers_of_two_vec(15);
+        let types = crate::types::Type::powers_of_2(15);
         let imr_pass2 = imr_pass1.update(
-            types[0].tmr.0.into_inner().into(),
-            types[w].tmr.0.into_inner().into(),
+            crate::merkle::tmr::Tmr::unit().into_inner().into(),
+            types[w - 1].expect_finalized().tmr().0.into_inner().into(),
         );
         // 3. Convert to a jet CMR
         Cmr::tag_iv(b"Simplicity-Draft\x1fJet").update_1(imr_pass2)
