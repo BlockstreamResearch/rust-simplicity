@@ -8,7 +8,7 @@ use crate::types;
 #[allow(dead_code)]
 pub struct Context<J: Jet> {
     pub(crate) naming: types::variable::Factory,
-    pow22: Vec<types::Type>,
+    pow2: Vec<types::Type>,
     unit_ty: types::Type,
     _jet: PhantomData<J>,
 }
@@ -18,7 +18,7 @@ impl<J: Jet> Context<J> {
     pub fn new() -> Self {
         let one = types::Type::unit();
         let two = types::Type::sum(one.shallow_clone(), one);
-        let pow22 = std::iter::successors(Some(two), |prev| {
+        let pow2 = std::iter::successors(Some(two), |prev| {
             Some(types::Type::product(
                 prev.shallow_clone(),
                 prev.shallow_clone(),
@@ -29,7 +29,7 @@ impl<J: Jet> Context<J> {
 
         Self {
             naming: types::variable::Factory::new(),
-            pow22,
+            pow2,
             unit_ty: types::Type::unit(),
             _jet: PhantomData,
         }
@@ -40,26 +40,29 @@ impl<J: Jet> Context<J> {
         self.unit_ty.shallow_clone()
     }
 
-    /// Accessor for the nth power of two as a type
+    /// Accessor for a type representing 2^(2^n) for n between 0 and 32 inclusive.
+    ///
+    /// Remember that for n = 0, this returns 2^1 = 2, not 2^0 = 1! To get the
+    /// unit type, instead call `Context::unit_ty`.
     pub fn nth_power_of_2(&self, n: usize) -> types::Type {
         assert!(
-            n < self.pow22.len(),
+            n < self.pow2.len(),
             "we have cached only {} powers of 2 but {} was requested",
-            self.pow22.len(),
+            self.pow2.len(),
             n,
         );
-        self.pow22[n].shallow_clone()
+        self.pow2[n].shallow_clone()
     }
 
     /// Accessor for the nth power of two as a type
     pub fn nth_power_of_2_final(&self, n: usize) -> Arc<types::Final> {
         assert!(
-            n < self.pow22.len(),
+            n < self.pow2.len(),
             "we have cached only {} powers of 2 but {} was requested",
-            self.pow22.len(),
+            self.pow2.len(),
             n,
         );
-        self.pow22[n].final_data().unwrap()
+        self.pow2[n].final_data().unwrap()
     }
 }
 

@@ -124,7 +124,7 @@ pub trait Jet: Copy + Eq + Ord + Hash + std::fmt::Debug + std::fmt::Display {
         if !simplicity_sys::c_jets::sanity_checks() {
             return Err(JetFailed);
         }
-        let pows_of_two = Type::powers_of_2(9); // TODO: make this compile time static
+        let pows_of_two = Type::powers_of_two(9); // TODO: make this compile time static
         let src_ty = self
             .source_ty()
             .to_type(|n| pows_of_two[n].shallow_clone())

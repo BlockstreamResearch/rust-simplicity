@@ -57,20 +57,10 @@ use std::fmt;
 
 /// Error type for simplicity
 #[non_exhaustive]
+#[derive(Debug)]
 pub enum Error {
     /// Type-checking error
-    TypeInference(crate::types::Error),
-    /// A type cannot be unified with another type
-    Unification(&'static str),
-    /// A type is recursive (i.e., occurs within itself), violating the "occurs check"
-    OccursCheck,
-    /// A DAG cannot be created because the children of the root cannot be unified
-    TypeCheck {
-        /// Hint why unification failed
-        unification_hint: &'static str,
-        /// Hint why root type does not match children types
-        root_hint: &'static str,
-    },
+    Type(crate::types::Error),
     /// Node made a back-reference past the beginning of the program
     BadIndex,
     /// Number exceeded 32 bits
@@ -98,22 +88,10 @@ pub enum Error {
     Policy(policy::Error),
 }
 
-impl fmt::Debug for Error {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Error::TypeInference(ref e) => write!(f, "typeck: {}", e),
-            Error::Unification(s) => write!(f, "Unification failed. Hint: {}", s),
-            Error::OccursCheck => f.write_str("A type is recursive (i.e., occurs within itself)"),
-            Error::TypeCheck {
-                unification_hint,
-                root_hint,
-            } => {
-                write!(
-                    f,
-                    "Type checking failed. Hint: {}\n{}",
-                    unification_hint, root_hint
-                )
-            }
+            Error::Type(ref e) => fmt::Display::fmt(e, f),
             Error::BadIndex => {
                 f.write_str("Node made a back-reference past the beginning of the program")
             }
@@ -137,19 +115,10 @@ impl fmt::Debug for Error {
     }
 }
 
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Debug::fmt(self, f)
-    }
-}
-
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match *self {
-            Error::TypeInference(ref e) => Some(e),
-            Error::Unification(..) => None,
-            Error::OccursCheck => None,
-            Error::TypeCheck { .. } => None,
+            Error::Type(ref e) => Some(e),
             Error::BadIndex => None,
             Error::NaturalOverflow => None,
             Error::BothChildrenHidden => None,
@@ -169,7 +138,7 @@ impl std::error::Error for Error {
 
 impl From<crate::types::Error> for Error {
     fn from(e: crate::types::Error) -> Error {
-        Error::TypeInference(e)
+        Error::Type(e)
     }
 }
 

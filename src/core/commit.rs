@@ -803,7 +803,7 @@ mod tests {
         let iden = CommitNode::iden(&mut context);
         let node = CommitNode::disconnect(&mut context, iden.clone(), iden).unwrap();
 
-        if let Err(Error::TypeInference(types::Error::OccursCheck { .. })) =
+        if let Err(Error::Type(types::Error::OccursCheck { .. })) =
             node.finalize(std::iter::empty())
         {
         } else {

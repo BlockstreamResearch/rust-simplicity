@@ -384,6 +384,26 @@ impl Constraint {
 }
 
 impl Type {
+    /// Return an unbound type with the given name
+    pub fn free(name: String) -> Self {
+        Type::from(Constraint::free(name))
+    }
+
+    /// Return a unit type.
+    pub fn unit() -> Self {
+        Type::from(Constraint::unit())
+    }
+
+    /// Return the sum of the given two types.
+    pub fn sum(a: Self, b: Self) -> Self {
+        Type::from(Constraint::sum(a, b))
+    }
+
+    /// Return the product of the given two types.
+    pub fn product(a: Self, b: Self) -> Self {
+        Type::from(Constraint::product(a, b))
+    }
+
     /// Read-only pointer to data (used internally to make mutability easier to analyse)
     fn inner_lock(&self) -> ReadOnlyMutexGuard {
         ReadOnlyMutexGuard {
@@ -709,12 +729,10 @@ impl Type {
     }
 
     /// Return a vector containing the types 2^(2^i) for i from 0 to n-1.
-    pub fn powers_of_2(n: usize) -> Vec<Self> {
+    pub fn powers_of_two(n: usize) -> Vec<Self> {
         let mut ret = Vec::with_capacity(n);
 
         let unit = Type::unit();
-        //ret.push(unit.shallow_clone());
-
         let mut two = Type::sum(unit.shallow_clone(), unit);
         for _ in 0..n {
             ret.push(two.shallow_clone());
@@ -770,51 +788,5 @@ impl From<Constraint> for Type {
                 constraint,
             })),
         }
-    }
-}
-
-impl Type {
-    /// Return an unbound type with the given name
-    pub fn free(name: String) -> Self {
-        Type::from(Constraint::free(name))
-    }
-
-    /// Return a unit type.
-    pub fn unit() -> Self {
-        Type::from(Constraint::unit())
-    }
-
-    /// Return the sum of the given two types.
-    pub fn sum(a: Self, b: Self) -> Self {
-        Type::from(Constraint::sum(a, b))
-    }
-
-    /// Return the product of the given two types.
-    pub fn product(a: Self, b: Self) -> Self {
-        Type::from(Constraint::product(a, b))
-    }
-
-    /// Return an array `pow2s` of types such that `pow2s[i] = 2^i` holds for 0 ≤ `i` < n.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `n` is greater than 16
-    pub fn powers_of_two_vec(n: usize) -> Vec<Type> {
-        assert!(n < 16);
-        let two_0 = Type::unit();
-        let two_1 = Type::sum(two_0.shallow_clone(), two_0.shallow_clone());
-        let mut rv = Vec::with_capacity(n + 1);
-        rv.push(two_0);
-        rv.push(two_1);
-        let mut two_pow_i_minus_1 = rv[1].shallow_clone();
-        for _ in 2..(n + 1) {
-            let two_pow_i = Type::product(
-                two_pow_i_minus_1.shallow_clone(),
-                two_pow_i_minus_1.shallow_clone(),
-            );
-            rv.push(two_pow_i.shallow_clone());
-            two_pow_i_minus_1 = two_pow_i;
-        }
-        rv
     }
 }

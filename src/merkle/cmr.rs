@@ -79,7 +79,7 @@ impl Cmr {
         let imr_iv = Cmr::tag_iv(b"Simplicity-Draft\x1fIdentity");
         let imr_pass1 = imr_iv.update_1(scribe.cmr());
         // 2. Add TMRs to get the pass-two IMR
-        let types = crate::types::Type::powers_of_2(15);
+        let types = crate::types::Type::powers_of_two(15);
         let imr_pass2 = imr_pass1.update(
             crate::merkle::tmr::Tmr::unit().into_inner().into(),
             types[w - 1].expect_finalized().tmr().0.into_inner().into(),
