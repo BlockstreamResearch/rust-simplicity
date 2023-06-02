@@ -13,7 +13,7 @@
 //
 
 use crate::impl_midstate_wrapper;
-use crate::merkle::common::MerkleRoot;
+use crate::merkle::MerkleRoot;
 use bitcoin_hashes::sha256::Midstate;
 
 /// Type Merkle root

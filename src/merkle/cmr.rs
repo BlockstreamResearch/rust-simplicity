@@ -16,7 +16,7 @@ use crate::core::commit::CommitNodeInner;
 use crate::core::Value;
 use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
-use crate::merkle::common::{CommitMerkleRoot, MerkleRoot};
+use crate::merkle::{CommitMerkleRoot, MerkleRoot};
 use bitcoin_hashes::sha256::Midstate;
 
 /// Commitment Merkle root
