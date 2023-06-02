@@ -16,11 +16,4 @@ mod environment;
 #[allow(dead_code)]
 mod exec;
 
-use crate::jet::Bitcoin;
 pub use environment::BitcoinEnv;
-
-impl std::fmt::Display for Bitcoin {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        std::fmt::Debug::fmt(self, f)
-    }
-}

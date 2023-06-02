@@ -13,14 +13,8 @@
 //
 
 use crate::exec::BitMachine;
-use crate::jet::{Core, JetFailed};
+use crate::jet::JetFailed;
 use bitcoin_hashes::{sha256, Hash, HashEngine};
-
-impl std::fmt::Display for Core {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        std::fmt::Debug::fmt(self, f)
-    }
-}
 
 pub(crate) fn add_32(mac: &mut BitMachine, _env: &()) -> Result<(), JetFailed> {
     let a = mac.read_u32();

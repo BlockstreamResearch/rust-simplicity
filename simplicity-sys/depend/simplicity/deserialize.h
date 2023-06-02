@@ -2,9 +2,9 @@
 #ifndef SIMPLICITY_DESERIALIZE_H
 #define SIMPLICITY_DESERIALIZE_H
 
+#include <simplicity/errorCodes.h>
 #include "bitstream.h"
 #include "dag.h"
-#include "errorCodes.h"
 
 /* Decode a length-prefixed Simplicity DAG from 'stream'.
  * Returns 'SIMPLICITY_ERR_DATA_OUT_OF_RANGE' the length prefix's value is too large.
@@ -34,13 +34,13 @@ int32_t decodeMallocDag(dag_node** dag, combinator_counters* census, bitstream* 
  * Returns 'SIMPLICITY_ERR_DATA_OUT_OF_RANGE' if the encoded string of bits exceeds this decoder's limits.
  * Returns 'SIMPLICITY_ERR_BITSTRING_EOF' if not enough bits are available in the 'stream'.
  * If successful, '*witness' is set to the decoded bitstring,
- *                and 0 is returned.
+ *                and 'SIMPLICITY_NO_ERR' is returned.
  *
  * If an error is returned '*witness' might be modified.
  *
  * Precondition: NULL != witness;
  *               NULL != stream;
  */
-int32_t decodeWitnessData(bitstring* witness, bitstream* stream);
+simplicity_err decodeWitnessData(bitstring* witness, bitstream* stream);
 
 #endif

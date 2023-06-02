@@ -5,10 +5,10 @@ TEST_OBJS := test.o ctx8Pruned.o ctx8Unpruned.o hashBlock.o schnorr0.o schnorr6.
 CWARN := -Werror -Wall -Wextra -Wcast-qual -Wcast-align -Wstrict-aliasing -Wpointer-arith -Winit-self -Wshadow -Wswitch-enum -Wstrict-prototypes -Wmissing-prototypes -Wredundant-decls -Wfloat-equal -Wundef -Wconversion
 
 ifneq ($(doCheck), 1)
-CPPFLAGS := $(CPPFLAGS) -DNDEBUG
+CPPFLAGS := $(CPPFLAGS) -DPRODUCTION
 endif
 
-CFLAGS := -I include
+CFLAGS := $(CFLAGS) -I include
 
 # libsecp256k1 is full of conversion warnings, so we compile jets-secp256k1.c separately.
 jets-secp256k1.o: jets-secp256k1.c

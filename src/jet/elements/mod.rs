@@ -19,11 +19,4 @@ mod exec;
 #[cfg(test)]
 mod tests;
 
-use crate::jet::Elements;
 pub use environment::{ElementsEnv, ElementsUtxo};
-
-impl std::fmt::Display for Elements {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        std::fmt::Debug::fmt(self, f)
-    }
-}

@@ -74,6 +74,8 @@ pub enum Error {
     EndOfStream,
     /// Program must not be empty
     EmptyProgram,
+    /// Tried to parse a jet but the name wasn't recognized
+    InvalidJetName(String),
     /// Tried to allocate too many nodes in a program
     TooManyNodes(usize),
     /// Cannot parse bitstream
@@ -102,6 +104,7 @@ impl fmt::Display for Error {
             Error::BothChildrenHidden => f.write_str("Both children of a node are hidden"),
             Error::EndOfStream => f.write_str("Bitstream ended early"),
             Error::EmptyProgram => f.write_str("Program must not be empty"),
+            Error::InvalidJetName(s) => write!(f, "unknown jet `{}`", s),
             Error::TooManyNodes(k) => {
                 write!(f, "Tried to allocate too many nodes in a program: {}", k)
             }
@@ -127,6 +130,7 @@ impl std::error::Error for Error {
             Error::BothChildrenHidden => None,
             Error::EndOfStream => None,
             Error::EmptyProgram => None,
+            Error::InvalidJetName(..) => None,
             Error::TooManyNodes(..) => None,
             Error::ParseError(..) => None,
             Error::NotInCanonicalOrder => None,
