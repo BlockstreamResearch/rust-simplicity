@@ -22,10 +22,7 @@ use crate::jet::Jet;
 use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
-use crate::types::{
-    self,
-    arrow::{Arrow, FinalArrow},
-};
+use crate::types::{self, arrow::Arrow};
 use crate::{analysis, decode, impl_ref_wrapper, Error};
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -649,21 +646,19 @@ impl<J: Jet> CommitNode<J> {
         // It is possible to overcome this with Rc<RefCell> as we do in type computation,
         // but that would leak, Rc<RefCell> everywhere through out the code.
         // We also cache Value and NodeType that are needed in the second pass.
-        let mut first_pass: HashMap<RefWrapper<J>, (Imr, Option<Value>, FinalArrow)> =
-            HashMap::new();
+        let mut first_pass: HashMap<RefWrapper<J>, Imr> = HashMap::new();
 
-        for commit in post_order_it.clone() {
+        for commit in post_order_it {
+            // 1. Compute and store first-pass IMRs
             let left_imr = commit.get_left().map(|x| {
-                first_pass
+                *first_pass
                     .get(&x)
                     .expect("Children come before parent in post order")
-                    .0
             });
             let right_imr = commit.get_right().map(|x| {
-                first_pass
+                *first_pass
                     .get(&x)
                     .expect("Children come before parent in post order")
-                    .0
             });
             let final_ty = commit.0.arrow.finalize()?;
             let value = if let CommitNodeInner::Witness = commit.0.inner {
@@ -679,10 +674,9 @@ impl<J: Jet> CommitNode<J> {
                 value.as_ref(),
                 &final_ty,
             );
-            first_pass.insert(commit, (imr, value, final_ty));
-        }
+            first_pass.insert(commit, imr);
 
-        for commit in post_order_it {
+            // 2. Compute and store complete RedeemNode
             let left = commit.get_left().map(|x| {
                 to_finalized
                     .get(&x)
@@ -695,17 +689,16 @@ impl<J: Jet> CommitNode<J> {
                     .expect("Children come before parent in post order")
                     .clone()
             });
-            // The value must exist, and we get ownership by removing it
-            let (first_pass_imr, value, ty) = first_pass.remove(&commit).unwrap();
-            let imr = Imr::compute_pass2(first_pass_imr, &commit.0.inner, &ty);
+
+            let imr = Imr::compute_pass2(imr, &commit.0.inner, &final_ty);
             let amr = Amr::compute(
                 &commit.0.inner,
                 left.clone(),
                 right.clone(),
                 value.as_ref(),
-                &ty,
+                &final_ty,
             );
-            let bounds = analysis::compute_bounds(commit.0, left.clone(), right.clone(), &ty);
+            let bounds = analysis::compute_bounds(commit.0, left.clone(), right.clone(), &final_ty);
 
             // Verbose but necessary thanks to Rust
             let inner = match commit.0.inner {
@@ -738,7 +731,7 @@ impl<J: Jet> CommitNode<J> {
                 cmr: commit.0.cmr,
                 imr,
                 amr,
-                ty,
+                ty: final_ty,
                 bounds,
             };
 
