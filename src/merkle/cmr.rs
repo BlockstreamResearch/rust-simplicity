@@ -119,6 +119,18 @@ mod tests {
     use super::*;
 
     #[test]
+    fn cmr_display_unit() {
+        let mut ctx = crate::Context::<crate::jet::Core>::new();
+        let c = crate::CommitNode::unit(&mut ctx);
+
+        assert_eq!(
+            c.cmr().to_string(),
+            "62274a89833ece8ba5ff57b28118c0063d3d4a85dd25aae06f87617604402715"
+        );
+        assert_eq!(format!("{:.8}", c.cmr()), "62274a89");
+    }
+
+    #[test]
     fn fixed_const_word_cmr() {
         // Checked against C implementation
         let bit0 = Value::SumL(Box::new(Value::Unit));

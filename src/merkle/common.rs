@@ -162,16 +162,13 @@ macro_rules! impl_midstate_wrapper {
 
         impl std::fmt::Debug for $wrapper {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                for byte in self.as_ref() {
-                    write!(f, "{:02x}", byte)?;
-                }
-                Ok(())
+                bitcoin_hashes::hex::format_hex(&self.0.as_ref(), f)
             }
         }
 
         impl std::fmt::Display for $wrapper {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                std::fmt::Debug::fmt(self, f)
+                bitcoin_hashes::hex::format_hex(&self.0.as_ref(), f)
             }
         }
     };
