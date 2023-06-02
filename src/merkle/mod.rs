@@ -29,13 +29,14 @@ use crate::types;
 use crate::util::u64_to_array_be;
 use bitcoin_hashes::sha256::Midstate;
 use bitcoin_hashes::{sha256, Hash, HashEngine};
+use std::{fmt, str};
 
 /// [Tagged SHA256 hash](https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki).
 ///
 /// A tag is hashed and used as initial value (256-bit midstate).
 /// Subsequent data extends this hash (updated 256-bit midstate)
 /// and the resulting hash is returned
-pub trait MerkleRoot: From<[u8; 32]> + Into<[u8; 32]> {
+pub trait MerkleRoot: From<[u8; 32]> + Into<[u8; 32]> + fmt::Display + str::FromStr {
     /// Create a tagged hash from the given tag `data`.
     ///
     /// The `data` is hashed,
@@ -177,6 +178,15 @@ macro_rules! impl_midstate_wrapper {
         impl std::fmt::Display for $wrapper {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
                 bitcoin_hashes::hex::format_hex(&self.0.as_ref(), f)
+            }
+        }
+
+        impl std::str::FromStr for $wrapper {
+            type Err = bitcoin_hashes::hex::Error;
+
+            fn from_str(s: &str) -> Result<Self, bitcoin_hashes::hex::Error> {
+                let x: [u8; 32] = bitcoin_hashes::hex::FromHex::from_hex(s)?;
+                Ok($wrapper(Midstate::from_inner(x)))
             }
         }
     };

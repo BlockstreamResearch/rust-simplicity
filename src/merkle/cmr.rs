@@ -118,6 +118,8 @@ impl Cmr {
 mod tests {
     use super::*;
 
+    use std::str::FromStr;
+
     #[test]
     fn cmr_display_unit() {
         let mut ctx = crate::Context::<crate::jet::Core>::new();
@@ -128,6 +130,11 @@ mod tests {
             "62274a89833ece8ba5ff57b28118c0063d3d4a85dd25aae06f87617604402715"
         );
         assert_eq!(format!("{:.8}", c.cmr()), "62274a89");
+
+        assert_eq!(
+            Cmr::from_str("62274a89833ece8ba5ff57b28118c0063d3d4a85dd25aae06f87617604402715"),
+            Ok(c.cmr()),
+        );
     }
 
     #[test]
