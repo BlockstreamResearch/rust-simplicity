@@ -87,8 +87,8 @@ fn decode_program<I: Iterator<Item = u8>, J: Jet>(
         return Err(Error::NotInCanonicalOrder);
     }
 
-    let root = index_to_node.get(&(len - 1)).unwrap();
-    Ok(root.clone())
+    let root = get_child_from_index(&mut context, len - 1, &index_to_node);
+    Ok(root)
 }
 
 /// Decode a single Simplicity node from bits and
@@ -344,6 +344,41 @@ mod tests {
     use super::*;
     use crate::bitwriter::BitWriter;
     use crate::encode;
+    use crate::exec::BitMachine;
+
+    #[test]
+    fn shared_witnesses() {
+        // main = witness :: A -> B
+        let justwit = vec![0x38];
+        let mut iter = BitIter::from(&justwit[..]);
+        decode_program_fresh_witness::<_, crate::jet::Core>(&mut iter).unwrap();
+
+        // # Program which demands two 32-bit witnesses, the first one == the second + 1
+        // wit1 = witness :: 1 -> 2^32
+        // wit2 = witness :: 1 -> 2^32
+        //
+        // wit_diff = comp (comp (pair wit1 wit2) jet_subtract_32) (drop iden) :: 1 -> 2^32
+        // diff_is_one = comp (pair wit_diff jet_one_32) jet_eq_32             :: 1 -> 2
+        // main = comp diff_is_one jet_verify                                  :: 1 -> 1
+        #[rustfmt::skip]
+        let diff1 = vec![
+            0xda, 0xe2, 0x39, 0xa3, 0x10, 0x42, 0x0e, 0x05,
+            0x71, 0x88, 0xa3, 0x6d, 0xc4, 0x11, 0x80, 0x80
+        ];
+        let mut iter = BitIter::from(&diff1[..]);
+        let diff1_prog = decode_program_fresh_witness::<_, crate::jet::Core>(&mut iter).unwrap();
+
+        // Attempt to finalize, providing 32-bit witnesses 0, 1, ..., and then
+        // counting how many were consumed afterward.
+        let mut counter = 0..100;
+        let mut witness_iter = (&mut counter).rev().map(Value::u32);
+        let diff1_final = diff1_prog.finalize(&mut witness_iter).unwrap();
+        assert_eq!(counter, 0..98);
+
+        // Execute the program to confirm that it worked
+        let mut mac = BitMachine::for_program(&diff1_final);
+        mac.exec(&diff1_final, &()).unwrap();
+    }
 
     #[test]
     #[cfg(feature = "elements")]
