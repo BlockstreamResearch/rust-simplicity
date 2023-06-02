@@ -13,9 +13,10 @@
 //
 
 use crate::core::commit::CommitNodeInner;
-use crate::core::redeem::{NodeBounds, NodeType};
+use crate::core::redeem::NodeBounds;
 use crate::core::{CommitNode, RedeemNode};
 use crate::jet::Jet;
+use crate::types::arrow::FinalArrow;
 use std::cmp;
 use std::rc::Rc;
 
@@ -31,7 +32,7 @@ pub(crate) fn compute_bounds<J: Jet>(
     untyped_node: &CommitNode<J>,
     left: Option<Rc<RedeemNode<J>>>,
     right: Option<Rc<RedeemNode<J>>>,
-    ty: &NodeType,
+    ty: &FinalArrow,
 ) -> NodeBounds {
     NodeBounds {
         extra_cells: compute_extra_cells_bound(untyped_node, left.clone(), right.clone(), ty),
@@ -45,7 +46,7 @@ fn compute_extra_cells_bound<J: Jet>(
     untyped_node: &CommitNode<J>,
     left: Option<Rc<RedeemNode<J>>>,
     right: Option<Rc<RedeemNode<J>>>,
-    ty: &NodeType,
+    ty: &FinalArrow,
 ) -> usize {
     match untyped_node.inner() {
         CommitNodeInner::Iden
@@ -60,7 +61,7 @@ fn compute_extra_cells_bound<J: Jet>(
         | CommitNodeInner::Drop(_) => left.unwrap().bounds.extra_cells,
         CommitNodeInner::Comp(_, _) => {
             let left = left.unwrap();
-            left.ty.target.bit_width
+            left.ty.target.bit_width()
                 + cmp::max(left.bounds.extra_cells, right.unwrap().bounds.extra_cells)
         }
         CommitNodeInner::Case(_, _)
@@ -72,11 +73,11 @@ fn compute_extra_cells_bound<J: Jet>(
         ),
         CommitNodeInner::Disconnect(_, _) => {
             let left = left.unwrap();
-            left.ty.source.bit_width
-                + left.ty.target.bit_width
+            left.ty.source.bit_width()
+                + left.ty.target.bit_width()
                 + cmp::max(left.bounds.extra_cells, right.unwrap().bounds.extra_cells)
         }
-        CommitNodeInner::Witness => ty.target.bit_width,
+        CommitNodeInner::Witness => ty.target.bit_width(),
     }
 }
 

@@ -15,9 +15,9 @@
 //! # Common traits and macros
 
 use crate::core::commit::CommitNodeInner;
-use crate::core::types::{Type, TypeInner};
 use crate::core::Value;
 use crate::jet::Jet;
+use crate::types;
 use crate::util::u64_to_array_be;
 use bitcoin_hashes::sha256::Midstate;
 use bitcoin_hashes::{sha256, Hash, HashEngine};
@@ -71,7 +71,7 @@ pub trait MerkleRoot: From<[u8; 32]> + Into<[u8; 32]> {
     /// The hash `self` is taken as initial value,
     /// the hash of `value` and the TMR of `value_type` are combined to create a 512-bit block,
     /// and the compression is run once
-    fn update_value(self, value: &Value, value_type: &Type) -> Self {
+    fn update_value(self, value: &Value, value_type: &types::Final) -> Self {
         let (mut bytes, bit_length) = value.to_bytes_len();
 
         // 1 Bit-wise hash of `value`
@@ -114,7 +114,7 @@ pub trait MerkleRoot: From<[u8; 32]> + Into<[u8; 32]> {
         // 2 Hash of hash of `value` and TMR of `value_type`
         let mut engine = sha256::HashEngine::from_midstate(Midstate::from_inner(self.into()), 0);
         engine.input(&value_hash[..]);
-        engine.input(value_type.tmr.as_ref());
+        engine.input(value_type.tmr().as_ref());
         Self::from(engine.midstate().into_inner())
     }
 
@@ -131,15 +131,6 @@ pub trait CommitMerkleRoot: MerkleRoot {
     /// Each [`CommitNodeInner`] corresponds to some tag that is hashed
     /// and returned as initial value
     fn get_iv<J: Jet>(node: &CommitNodeInner<J>) -> Self;
-}
-
-/// Tagged SHA256 hash used for [`Type`]
-pub trait TypeMerkleRoot: MerkleRoot {
-    /// Return the initial value for the given type.
-    ///
-    /// Each [`Type::inner`] corresponds to some tag that is hashed
-    /// and returned as initial value
-    fn get_iv(ty: &TypeInner) -> Self;
 }
 
 /// Convenience macro for wrappers of `Midstate`.

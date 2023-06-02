@@ -16,17 +16,18 @@
 use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
 use crate::core::iter::{DagIterable, PostOrderIter, WitnessIterator};
-use crate::core::redeem::{NodeType, RedeemNodeInner};
-use crate::core::types::RcVar;
+use crate::core::redeem::RedeemNodeInner;
 use crate::core::{Context, RedeemNode, Value};
-use crate::inference::UnificationArrow;
 use crate::jet::Jet;
 use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
+use crate::types::{
+    self,
+    arrow::{Arrow, FinalArrow},
+};
 use crate::{analysis, decode, impl_ref_wrapper, Error};
 use std::collections::HashMap;
-use std::convert::TryFrom;
 use std::rc::Rc;
 use std::{fmt, io};
 
@@ -160,8 +161,8 @@ pub struct CommitNode<J: Jet> {
     inner: CommitNodeInner<J>,
     /// Commitment Merkle root of the node
     cmr: Cmr,
-    /// Unification arrow of the node
-    arrow: UnificationArrow,
+    /// Source and target types of the node
+    arrow: Arrow,
 }
 
 impl<J: Jet> PartialEq for CommitNode<J> {
@@ -194,18 +195,8 @@ impl<J: Jet> CommitNode<J> {
     }
 
     /// Accessor for the nodes's unification arrow
-    pub fn unification_arrow(&self) -> &UnificationArrow {
+    pub fn arrow(&self) -> &Arrow {
         &self.arrow
-    }
-
-    /// Accessor for the node's source type
-    pub(crate) fn source_ty(&self) -> RcVar {
-        self.arrow.source_ty()
-    }
-
-    /// Accessor for the node's target type
-    pub(crate) fn target_ty(&self) -> RcVar {
-        self.arrow.target_ty()
     }
 
     /// Return an iterator over the unshared nodes of the program
@@ -220,28 +211,6 @@ impl<J: Jet> CommitNode<J> {
         self.iter().count()
     }
 
-    /// Create a node from its underlying combinator.
-    fn node_from_inner(
-        context: &mut Context<J>,
-        inner: CommitNodeInner<J>,
-        _left: Option<Rc<CommitNode<J>>>,
-        _right: Option<Rc<CommitNode<J>>>,
-        hint: &'static str,
-    ) -> Result<Rc<CommitNode<J>>, Error> {
-        match UnificationArrow::for_node(context, &inner) {
-            Ok(arrow) => Ok(Rc::new(CommitNode {
-                cmr: Cmr::compute(&inner),
-                inner,
-                arrow,
-            })),
-            Err(Error::Unification(unification_hint)) => Err(Error::TypeCheck {
-                unification_hint,
-                root_hint: hint,
-            }),
-            Err(error) => Err(error),
-        }
-    }
-
     /// Create a DAG that computes the identity function.
     ///
     /// _Overall type: A → A_
@@ -250,7 +219,7 @@ impl<J: Jet> CommitNode<J> {
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
             inner,
-            arrow: UnificationArrow::for_iden(context),
+            arrow: Arrow::for_iden(context),
         })
     }
 
@@ -262,7 +231,7 @@ impl<J: Jet> CommitNode<J> {
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
             inner,
-            arrow: UnificationArrow::for_unit(context),
+            arrow: Arrow::for_unit(context),
         })
     }
 
@@ -270,7 +239,7 @@ impl<J: Jet> CommitNode<J> {
     ///
     /// _Overall type: A → B + C where `child`: A → B_
     pub fn injl(context: &mut Context<J>, child: Rc<Self>) -> Rc<Self> {
-        let arrow = UnificationArrow::for_injl(context, &child);
+        let arrow = Arrow::for_injl(context, &child.arrow);
         let inner = CommitNodeInner::InjL(child);
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
@@ -283,7 +252,7 @@ impl<J: Jet> CommitNode<J> {
     ///
     /// _Overall type: A → B + C where `child`: A → C_
     pub fn injr(context: &mut Context<J>, child: Rc<Self>) -> Rc<Self> {
-        let arrow = UnificationArrow::for_injr(context, &child);
+        let arrow = Arrow::for_injr(context, &child.arrow);
         let inner = CommitNodeInner::InjR(child);
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
@@ -296,7 +265,7 @@ impl<J: Jet> CommitNode<J> {
     ///
     /// _Overall type: A × B → C where `child`: A → C_
     pub fn take(context: &mut Context<J>, child: Rc<Self>) -> Rc<Self> {
-        let arrow = UnificationArrow::for_take(context, &child);
+        let arrow = Arrow::for_take(context, &child.arrow);
         let inner = CommitNodeInner::Take(child);
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
@@ -309,7 +278,7 @@ impl<J: Jet> CommitNode<J> {
     ///
     /// _Overall type: A × B → C where `child`: B → C_
     pub fn drop(context: &mut Context<J>, child: Rc<Self>) -> Rc<Self> {
-        let arrow = UnificationArrow::for_drop(context, &child);
+        let arrow = Arrow::for_drop(context, &child.arrow);
         let inner = CommitNodeInner::Drop(child);
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
@@ -327,14 +296,14 @@ impl<J: Jet> CommitNode<J> {
         context: &mut Context<J>,
         left: Rc<Self>,
         right: Rc<Self>,
-    ) -> Result<Rc<Self>, Error> {
-        Self::node_from_inner(
-            context,
-            CommitNodeInner::Comp(left.clone(), right.clone()),
-            Some(left),
-            Some(right),
-            "Comp is of type A → C where `left`: A → B and `right`: B → C",
-        )
+    ) -> Result<Rc<Self>, types::Error> {
+        let arrow = Arrow::for_comp(context, &left.arrow, &right.arrow)?;
+        let inner = CommitNodeInner::Comp(left, right);
+        Ok(Rc::new(CommitNode {
+            cmr: Cmr::compute(&inner),
+            inner,
+            arrow,
+        }))
     }
 
     /// Create a DAG that computes _case_ of the given `left` and `right` child.
@@ -346,14 +315,14 @@ impl<J: Jet> CommitNode<J> {
         context: &mut Context<J>,
         left: Rc<Self>,
         right: Rc<Self>,
-    ) -> Result<Rc<Self>, Error> {
-        Self::node_from_inner(
-            context,
-            CommitNodeInner::Case(left.clone(), right.clone()),
-            Some(left),
-            Some(right),
-            "Case is of type (A + B) × C → D where `left`: A × C → D and `right`: B × C → D",
-        )
+    ) -> Result<Rc<Self>, types::Error> {
+        let arrow = Arrow::for_case(context, Some(&left.arrow), Some(&right.arrow))?;
+        let inner = CommitNodeInner::Case(left, right);
+        Ok(Rc::new(CommitNode {
+            cmr: Cmr::compute(&inner),
+            inner,
+            arrow,
+        }))
     }
 
     /// Create a DAG that computes the left assertion of the given `left` child.
@@ -366,15 +335,14 @@ impl<J: Jet> CommitNode<J> {
         context: &mut Context<J>,
         left: Rc<Self>,
         right: Cmr,
-    ) -> Result<Rc<Self>, Error> {
-        let right = Self::hidden(context, right);
-        Self::node_from_inner(
-            context,
-            CommitNodeInner::AssertL(left.clone(), right.clone()),
-            Some(left),
-            Some(right),
-            "Assertl is of type (A + B) × C → D where `left`: A × C → D",
-        )
+    ) -> Result<Rc<Self>, types::Error> {
+        let arrow = Arrow::for_case(context, Some(&left.arrow), None)?;
+        let inner = CommitNodeInner::AssertL(left, Self::hidden(context, right));
+        Ok(Rc::new(CommitNode {
+            cmr: Cmr::compute(&inner),
+            inner,
+            arrow,
+        }))
     }
 
     /// Create a DAG that computes the right assertion of the given `right` child.
@@ -387,15 +355,14 @@ impl<J: Jet> CommitNode<J> {
         context: &mut Context<J>,
         left: Cmr,
         right: Rc<Self>,
-    ) -> Result<Rc<Self>, Error> {
-        let left = Self::hidden(context, left);
-        Self::node_from_inner(
-            context,
-            CommitNodeInner::AssertR(left.clone(), right.clone()),
-            Some(left),
-            Some(right),
-            "Assertr is of type (A + B) × C → D where `right`: B × C → D",
-        )
+    ) -> Result<Rc<Self>, types::Error> {
+        let arrow = Arrow::for_case(context, None, Some(&right.arrow))?;
+        let inner = CommitNodeInner::AssertR(Self::hidden(context, left), right);
+        Ok(Rc::new(CommitNode {
+            cmr: Cmr::compute(&inner),
+            inner,
+            arrow,
+        }))
     }
 
     pub fn case_branch(
@@ -403,7 +370,7 @@ impl<J: Jet> CommitNode<J> {
         left: Rc<Self>,
         right: Rc<Self>,
         branch: UsedCaseBranch,
-    ) -> Result<Rc<Self>, Error> {
+    ) -> Result<Rc<Self>, types::Error> {
         match branch {
             UsedCaseBranch::Left => Self::assertl(context, left, right.cmr),
             UsedCaseBranch::Right => Self::assertr(context, left.cmr, right),
@@ -420,14 +387,14 @@ impl<J: Jet> CommitNode<J> {
         context: &mut Context<J>,
         left: Rc<Self>,
         right: Rc<Self>,
-    ) -> Result<Rc<Self>, Error> {
-        Self::node_from_inner(
-            context,
-            CommitNodeInner::Pair(left.clone(), right.clone()),
-            Some(left),
-            Some(right),
-            "Pair is of type A → B × C where `left`: A → B and `right`: A → C",
-        )
+    ) -> Result<Rc<Self>, types::Error> {
+        let arrow = Arrow::for_pair(context, &left.arrow, &right.arrow)?;
+        let inner = CommitNodeInner::Pair(left, right);
+        Ok(Rc::new(CommitNode {
+            cmr: Cmr::compute(&inner),
+            inner,
+            arrow,
+        }))
     }
 
     /// Create a DAG that computes _disconnect_ of the given `left` and `right` child.
@@ -439,14 +406,14 @@ impl<J: Jet> CommitNode<J> {
         context: &mut Context<J>,
         left: Rc<Self>,
         right: Rc<Self>,
-    ) -> Result<Rc<Self>, Error> {
-        Self::node_from_inner(
-            context,
-            CommitNodeInner::Disconnect(left.clone(), right.clone()),
-            Some(left),
-            Some(right),
-            "Disconnect is of type A → B × D where `left`: 2^256 × A → B × C and `right`: C → D",
-        )
+    ) -> Result<Rc<Self>, types::Error> {
+        let arrow = Arrow::for_disconnect(context, &left.arrow, &right.arrow)?;
+        let inner = CommitNodeInner::Disconnect(left, right);
+        Ok(Rc::new(CommitNode {
+            cmr: Cmr::compute(&inner),
+            inner,
+            arrow,
+        }))
     }
 
     /// Create a DAG that returns a given witness value as constant.
@@ -458,7 +425,7 @@ impl<J: Jet> CommitNode<J> {
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
             inner,
-            arrow: UnificationArrow::for_witness(context),
+            arrow: Arrow::for_witness(context),
         })
     }
 
@@ -471,7 +438,7 @@ impl<J: Jet> CommitNode<J> {
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
             inner,
-            arrow: UnificationArrow::for_fail(context),
+            arrow: Arrow::for_fail(context),
         })
     }
 
@@ -485,7 +452,7 @@ impl<J: Jet> CommitNode<J> {
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
             inner,
-            arrow: UnificationArrow::for_hidden(context),
+            arrow: Arrow::for_hidden(context),
         })
     }
 
@@ -493,7 +460,7 @@ impl<J: Jet> CommitNode<J> {
     ///
     /// _Overall type: A → B where jet: A → B_
     pub fn jet(context: &mut Context<J>, jet: J) -> Rc<Self> {
-        let arrow = UnificationArrow::for_jet(context, &jet);
+        let arrow = Arrow::for_jet(context, &jet);
         let inner = CommitNodeInner::Jet(jet);
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
@@ -508,7 +475,7 @@ impl<J: Jet> CommitNode<J> {
     /// _Overall type: () → 2^n for some n between 1 and 32.
     // FIXME if the `word` is not of the correct form we should error out here.
     pub fn const_word(context: &mut Context<J>, word: Value) -> Rc<Self> {
-        let arrow = UnificationArrow::for_const_word(context, &word);
+        let arrow = Arrow::for_const_word(context, &word);
         let inner = CommitNodeInner::Word(word);
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
@@ -566,7 +533,7 @@ impl<J: Jet> CommitNode<J> {
         context: &mut Context<J>,
         left: Rc<Self>,
         right: Rc<Self>,
-    ) -> Result<Rc<Self>, Error> {
+    ) -> Result<Rc<Self>, types::Error> {
         let drop_left = Self::drop(context, left);
         let drop_right = Self::drop(context, right);
         Self::case(context, drop_right, drop_left)
@@ -577,7 +544,7 @@ impl<J: Jet> CommitNode<J> {
         left: Rc<Self>,
         right: Rc<Self>,
         branch: UsedCaseBranch,
-    ) -> Result<Rc<Self>, Error> {
+    ) -> Result<Rc<Self>, types::Error> {
         let drop_left = Self::drop(context, left);
         let drop_right = Self::drop(context, right);
 
@@ -594,7 +561,11 @@ impl<J: Jet> CommitNode<J> {
     /// _Overall type: A → 1 where `child`: A → 2_
     ///
     /// _Type inference will fail if children are not of the correct type._
-    pub fn assert(context: &mut Context<J>, child: Rc<Self>, hash: Cmr) -> Result<Rc<Self>, Error> {
+    pub fn assert(
+        context: &mut Context<J>,
+        child: Rc<Self>,
+        hash: Cmr,
+    ) -> Result<Rc<Self>, types::Error> {
         let unit = Self::unit(context);
         let pair_child_unit = Self::pair(context, child, unit)?;
         let unit = Self::unit(context);
@@ -609,7 +580,7 @@ impl<J: Jet> CommitNode<J> {
     ///
     /// _Type inference will fail if children are not of the correct type._
     #[allow(clippy::should_implement_trait)]
-    pub fn not(context: &mut Context<J>, child: Rc<Self>) -> Result<Rc<Self>, Error> {
+    pub fn not(context: &mut Context<J>, child: Rc<Self>) -> Result<Rc<Self>, types::Error> {
         let unit = Self::unit(context);
         let pair_child_unit = Self::pair(context, child, unit)?;
         let bit_true = Self::bit_true(context);
@@ -628,7 +599,7 @@ impl<J: Jet> CommitNode<J> {
         context: &mut Context<J>,
         left: Rc<Self>,
         right: Rc<Self>,
-    ) -> Result<Rc<Self>, Error> {
+    ) -> Result<Rc<Self>, types::Error> {
         let iden = Self::iden(context);
         let pair_left_iden = Self::pair(context, left, iden)?;
         let bit_false = Self::bit_false(context);
@@ -647,7 +618,7 @@ impl<J: Jet> CommitNode<J> {
         context: &mut Context<J>,
         left: Rc<Self>,
         right: Rc<Self>,
-    ) -> Result<Rc<Self>, Error> {
+    ) -> Result<Rc<Self>, types::Error> {
         let iden = Self::iden(context);
         let pair_left_iden = Self::pair(context, left, iden)?;
         let drop_right = Self::drop(context, right);
@@ -678,7 +649,8 @@ impl<J: Jet> CommitNode<J> {
         // It is possible to overcome this with Rc<RefCell> as we do in type computation,
         // but that would leak, Rc<RefCell> everywhere through out the code.
         // We also cache Value and NodeType that are needed in the second pass.
-        let mut first_pass: HashMap<RefWrapper<J>, (Imr, Option<Value>, NodeType)> = HashMap::new();
+        let mut first_pass: HashMap<RefWrapper<J>, (Imr, Option<Value>, FinalArrow)> =
+            HashMap::new();
 
         for commit in post_order_it.clone() {
             let left_imr = commit.get_left().map(|x| {
@@ -693,15 +665,21 @@ impl<J: Jet> CommitNode<J> {
                     .expect("Children come before parent in post order")
                     .0
             });
-            let ty = NodeType::try_from(commit.0)?;
+            let final_ty = commit.0.arrow.finalize()?;
             let value = if let CommitNodeInner::Witness = commit.0.inner {
-                let v = witness.next(&ty.target)?;
+                let v = witness.next(&final_ty.target)?;
                 Some(v)
             } else {
                 None
             };
-            let imr = Imr::compute(&commit.0.inner, left_imr, right_imr, value.as_ref(), &ty);
-            first_pass.insert(commit, (imr, value, ty));
+            let imr = Imr::compute(
+                &commit.0.inner,
+                left_imr,
+                right_imr,
+                value.as_ref(),
+                &final_ty,
+            );
+            first_pass.insert(commit, (imr, value, final_ty));
         }
 
         for commit in post_order_it {
@@ -825,7 +803,9 @@ mod tests {
         let iden = CommitNode::iden(&mut context);
         let node = CommitNode::disconnect(&mut context, iden.clone(), iden).unwrap();
 
-        if let Err(Error::OccursCheck) = node.finalize(std::iter::empty()) {
+        if let Err(Error::Type(types::Error::OccursCheck { .. })) =
+            node.finalize(std::iter::empty())
+        {
         } else {
             panic!("Expected occurs check error")
         }
@@ -837,7 +817,7 @@ mod tests {
         let unit = CommitNode::unit(&mut context);
         let case = CommitNode::case(&mut context, unit.clone(), unit.clone()).unwrap();
 
-        if let Err(Error::TypeCheck { .. }) = CommitNode::disconnect(&mut context, case, unit) {
+        if let Err(types::Error::Bind { .. }) = CommitNode::disconnect(&mut context, case, unit) {
         } else {
             panic!("Expected type check error")
         }

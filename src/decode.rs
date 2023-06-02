@@ -20,10 +20,10 @@
 use crate::bititer::BitIter;
 use crate::core::commit::CommitNodeInner;
 use crate::core::iter::{DagIterable, IndexDag, IndexNode, WitnessIterator};
-use crate::core::types::{Type, TypeInner};
 use crate::core::{CommitNode, Context, Value};
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
+use crate::types;
 use crate::Error;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -171,7 +171,7 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
                     Some(true) => Ok(CommitNode::jet(context, J::decode(bits)?)),
                     Some(false) => {
                         let depth = decode_natural(bits, Some(32))?;
-                        let word = decode_value(&context.nth_power_of_2_type(depth - 1), bits)?;
+                        let word = decode_value(&context.nth_power_of_2_final(depth - 1), bits)?;
                         Ok(CommitNode::const_word(context, word))
                     }
                 },
@@ -247,7 +247,7 @@ impl<'a, I: Iterator<Item = u8>> WitnessDecoder<'a, I> {
 }
 
 impl<'a, I: Iterator<Item = u8>> WitnessIterator for WitnessDecoder<'a, I> {
-    fn next(&mut self, ty: &Type) -> Result<Value, Error> {
+    fn next(&mut self, ty: &types::Final) -> Result<Value, Error> {
         decode_value(ty, self.bits)
     }
 
@@ -261,15 +261,18 @@ impl<'a, I: Iterator<Item = u8>> WitnessIterator for WitnessDecoder<'a, I> {
 }
 
 /// Decode a value from bits, based on the given type.
-pub fn decode_value<I: Iterator<Item = bool>>(ty: &Type, iter: &mut I) -> Result<Value, Error> {
-    let value = match ty.inner {
-        TypeInner::Unit => Value::Unit,
-        TypeInner::Sum(ref l, ref r) => match iter.next() {
+pub fn decode_value<I: Iterator<Item = bool>>(
+    ty: &types::Final,
+    iter: &mut I,
+) -> Result<Value, Error> {
+    let value = match ty.bound() {
+        types::CompleteBound::Unit => Value::Unit,
+        types::CompleteBound::Sum(ref l, ref r) => match iter.next() {
             Some(false) => Value::SumL(Box::new(decode_value(l, iter)?)),
             Some(true) => Value::SumR(Box::new(decode_value(r, iter)?)),
             None => return Err(Error::EndOfStream),
         },
-        TypeInner::Product(ref l, ref r) => Value::Prod(
+        types::CompleteBound::Product(ref l, ref r) => Value::Prod(
             Box::new(decode_value(l, iter)?),
             Box::new(decode_value(r, iter)?),
         ),
@@ -346,7 +349,7 @@ mod tests {
     #[cfg(feature = "elements")]
     fn decode_schnorr() {
         #[rustfmt::skip]
-        let mut schnorr0 = vec![
+        let schnorr0 = vec![
             0xc6, 0xd5, 0xf2, 0x61, 0x14, 0x03, 0x24, 0xb1, 0x86, 0x20, 0x92, 0x68, 0x9f, 0x0b, 0xf1, 0x3a,
             0xa4, 0x53, 0x6a, 0x63, 0x90, 0x8b, 0x06, 0xdf, 0x33, 0x61, 0x0c, 0x03, 0xe2, 0x27, 0x79, 0xc0,
             0x6d, 0xf2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -357,9 +360,9 @@ mod tests {
             0x3c, 0x90, 0x54, 0xe9, 0xe7, 0x05, 0xa5, 0x9c, 0xbd, 0x7d, 0xdd, 0x1f, 0xb6, 0x42, 0xe5, 0xe8,
             0xef, 0xbe, 0x92, 0x01, 0xa6, 0x20, 0xa6, 0xd8, 0x00
         ];
-        let prog =
-            decode_program_exact_witness::<_, crate::jet::Elements>(&mut schnorr0[..].into())
-                .expect("can't decode schnorr0");
+        let mut iter = BitIter::from(&schnorr0[..]);
+        let prog = decode_program_exact_witness::<_, crate::jet::Elements>(&mut iter)
+            .expect("can't decode schnorr0");
 
         // Matches C source code
         #[rustfmt::skip]

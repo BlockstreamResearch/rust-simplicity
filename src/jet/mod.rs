@@ -42,12 +42,12 @@ use simplicity_sys::c_jets::round_u_word;
 
 use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
-use crate::core::types::Type;
 use crate::exec::BitMachine;
 use crate::jet::type_name::TypeName;
 use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
+use crate::types::Type;
 use crate::Error;
 use std::hash::Hash;
 use std::io::Write;
@@ -124,12 +124,18 @@ pub trait Jet: Copy + Eq + Ord + Hash + std::fmt::Debug + std::fmt::Display {
         if !simplicity_sys::c_jets::sanity_checks() {
             return Err(JetFailed);
         }
-        let pows_of_two = Type::powers_of_two(); // TODO: make this compile time static
-        let src_ty = self.source_ty().to_type(&pows_of_two);
-        let target_ty = self.target_ty().to_type(&pows_of_two);
+        let pows_of_two = Type::powers_of_two(9); // TODO: make this compile time static
+        let src_ty = self
+            .source_ty()
+            .to_type(|n| pows_of_two[n].shallow_clone())
+            .expect_finalized();
+        let target_ty = self
+            .target_ty()
+            .to_type(|n| pows_of_two[n].shallow_clone())
+            .expect_finalized();
 
-        let a_frame_size = round_u_word(src_ty.bit_width);
-        let b_frame_size = round_u_word(target_ty.bit_width);
+        let a_frame_size = round_u_word(src_ty.bit_width());
+        let b_frame_size = round_u_word(target_ty.bit_width());
         // a_frame_size + b_frame_size must be non-zero unless it is a unit to unit jet
         if a_frame_size == 0 && b_frame_size == 0 {
             return Ok(());
@@ -146,8 +152,8 @@ pub trait Jet: Copy + Eq + Ord + Hash + std::fmt::Debug + std::fmt::Display {
         //       ^ src_ptr         ^src_ptr_end(dst_ptr_begin)      ^ dst_ptr_end
         // 1. Write into C bitmachine using A write frame(= src_ptr_end)
         // Precondition satisfied: src_ptr_end is one past the end of slice of UWORDs for A.
-        let mut a_frame = unsafe { CFrameItem::new_write(src_ty.bit_width, src_ptr_end) };
-        for _ in 0..src_ty.bit_width {
+        let mut a_frame = unsafe { CFrameItem::new_write(src_ty.bit_width(), src_ptr_end) };
+        for _ in 0..src_ty.bit_width() {
             let bit = mac.read_bit();
             unsafe {
                 c_writeBit(&mut a_frame, bit);
@@ -156,9 +162,9 @@ pub trait Jet: Copy + Eq + Ord + Hash + std::fmt::Debug + std::fmt::Display {
 
         // 2. Execute the jet. src = A read frame, dst = B write frame
         // Precondition satisfied: src_ptr is the start of slice of UWORDs of A.
-        let src_frame = unsafe { CFrameItem::new_read(src_ty.bit_width, src_ptr) };
+        let src_frame = unsafe { CFrameItem::new_read(src_ty.bit_width(), src_ptr) };
         // Precondition satisfied: dst_ptr_end is one past the end of slice of UWORDs of B.
-        let mut dst_frame = unsafe { CFrameItem::new_write(target_ty.bit_width, dst_ptr_end) };
+        let mut dst_frame = unsafe { CFrameItem::new_write(target_ty.bit_width(), dst_ptr_end) };
         let jet_fn = self.c_jet_ptr();
         let c_env = self.c_jet_env(env);
         let res = jet_fn(&mut dst_frame, src_frame, c_env);
@@ -169,9 +175,9 @@ pub trait Jet: Copy + Eq + Ord + Hash + std::fmt::Debug + std::fmt::Display {
 
         // 3. Read the result from B read frame
         // Precondition satisfied: dst_ptr_begin is the start of slice of UWORDs of B.
-        let mut b_frame = unsafe { CFrameItem::new_read(target_ty.bit_width, dst_ptr_begin) };
+        let mut b_frame = unsafe { CFrameItem::new_read(target_ty.bit_width(), dst_ptr_begin) };
         // Read the value from b_frame
-        for _ in 0..target_ty.bit_width {
+        for _ in 0..target_ty.bit_width() {
             let bit = unsafe { c_readBit(&mut b_frame) };
             mac.write_bit(bit);
         }

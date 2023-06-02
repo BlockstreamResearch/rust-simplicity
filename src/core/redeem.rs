@@ -15,16 +15,15 @@
 use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
 use crate::core::iter::{DagIterable, PostOrderIter};
-use crate::core::types::Type;
 use crate::core::{iter, Value};
 use crate::decode::WitnessDecoder;
 use crate::jet::Jet;
 use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
+use crate::types::{self, arrow::FinalArrow};
 use crate::{decode, encode, impl_ref_wrapper, sharing, Error};
 use std::rc::Rc;
-use std::sync::Arc;
 use std::{fmt, io};
 
 /// Underlying combinator of a [`RedeemNode`].
@@ -141,21 +140,6 @@ impl<J: Jet> fmt::Display for RedeemNodeInner<J> {
     }
 }
 
-/// Source and target type of a node
-#[derive(Debug)]
-pub struct NodeType {
-    /// Source type of the node
-    pub(crate) source: Arc<Type>,
-    /// Target type of the node
-    pub(crate) target: Arc<Type>,
-}
-
-impl fmt::Display for NodeType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} → {}", self.source, self.target)
-    }
-}
-
 /// Bounds on the resources required by a node during execution on the Bit Machine
 #[derive(Debug)]
 pub struct NodeBounds {
@@ -183,7 +167,7 @@ pub struct RedeemNode<J: Jet> {
     /// Annotated Merkle root of the node
     pub amr: Amr,
     /// Type of the node
-    pub ty: NodeType,
+    pub ty: FinalArrow,
     /// Bounds for the node during execution on the Bit Machine
     pub bounds: NodeBounds,
 }
@@ -212,7 +196,7 @@ impl<J: Jet> RedeemNode<J> {
     }
 
     /// Return an iterator over the types of values that make up a valid witness for the program.
-    pub fn get_witness_types(&self) -> impl Iterator<Item = &Type> {
+    pub fn get_witness_types(&self) -> impl Iterator<Item = &types::Final> {
         RefWrapper(self).iter_post_order().filter_map(|node| {
             if let RedeemNodeInner::Witness(_) = &node.0.inner {
                 Some(node.0.ty.target.as_ref())
