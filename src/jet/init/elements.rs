@@ -10,13 +10,17 @@ use crate::Error;
 use bitcoin_hashes::sha256::Midstate;
 use simplicity_sys::CFrameItem;
 use std::io::Write;
+use std::{fmt, str};
 use crate::jet::elements::ElementsEnv;
 use simplicity_sys::CElementsTxEnv;
 
 /// Elements jet family
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub enum Elements {
+    Add16,
     Add32,
+    Add64,
+    Add8,
     AnnexHash,
     AssetAmountHash,
     Bip0340Verify,
@@ -48,8 +52,27 @@ pub enum Elements {
     CurrentScriptSigHash,
     CurrentSequence,
     Decompress,
+    Decrement16,
+    Decrement32,
+    Decrement64,
+    Decrement8,
+    DivMod16,
+    DivMod32,
+    DivMod64,
+    DivMod8,
+    Divide16,
+    Divide32,
+    Divide64,
+    Divide8,
+    Divides16,
+    Divides32,
+    Divides64,
+    Divides8,
+    Eq16,
     Eq256,
     Eq32,
+    Eq64,
+    Eq8,
     FeAdd,
     FeInvert,
     FeIsOdd,
@@ -60,9 +83,26 @@ pub enum Elements {
     FeNormalize,
     FeSquare,
     FeSquareRoot,
+    FullAdd16,
     FullAdd32,
+    FullAdd64,
+    FullAdd8,
+    FullDecrement16,
+    FullDecrement32,
+    FullDecrement64,
+    FullDecrement8,
+    FullIncrement16,
+    FullIncrement32,
+    FullIncrement64,
+    FullIncrement8,
+    FullMultiply16,
     FullMultiply32,
+    FullMultiply64,
+    FullMultiply8,
+    FullSubtract16,
     FullSubtract32,
+    FullSubtract64,
+    FullSubtract8,
     GeIsOnCurve,
     GeNegate,
     GejAdd,
@@ -79,6 +119,10 @@ pub enum Elements {
     GejYIsOdd,
     Generate,
     GenesisBlockHash,
+    Increment16,
+    Increment32,
+    Increment64,
+    Increment8,
     InputAmount,
     InputAmountsHash,
     InputAnnexHash,
@@ -96,6 +140,14 @@ pub enum Elements {
     InputUtxosHash,
     InputsHash,
     InternalKey,
+    IsOne16,
+    IsOne32,
+    IsOne64,
+    IsOne8,
+    IsZero16,
+    IsZero32,
+    IsZero64,
+    IsZero8,
     Issuance,
     IssuanceAsset,
     IssuanceAssetAmount,
@@ -109,17 +161,53 @@ pub enum Elements {
     IssuanceTokenAmountsHash,
     IssuanceTokenProof,
     IssuancesHash,
+    Le16,
     Le32,
+    Le64,
+    Le8,
     LinearCombination1,
     LinearVerify1,
     LockTime,
+    Low16,
     Low32,
+    Low64,
+    Low8,
+    Lt16,
+    Lt32,
+    Lt64,
+    Lt8,
+    Max16,
+    Max32,
+    Max64,
+    Max8,
+    Median16,
+    Median32,
+    Median64,
+    Median8,
+    Min16,
+    Min32,
+    Min64,
+    Min8,
+    Modulo16,
+    Modulo32,
+    Modulo64,
+    Modulo8,
+    Multiply16,
     Multiply32,
+    Multiply64,
+    Multiply8,
+    Negate16,
+    Negate32,
+    Negate64,
+    Negate8,
     NewIssuanceContract,
     NonceHash,
     NumInputs,
     NumOutputs,
+    One16,
     One32,
+    One64,
+    One8,
     OutpointHash,
     OutputAmount,
     OutputAmountsHash,
@@ -165,7 +253,10 @@ pub enum Elements {
     Sha256Ctx8Init,
     Sha256Iv,
     SigAllHash,
+    Subtract16,
     Subtract32,
+    Subtract64,
+    Subtract8,
     TapEnvHash,
     Tapbranch,
     TapbranchHash,
@@ -192,10 +283,25 @@ impl Jet for Elements {
 
     fn cmr(&self) -> Cmr {
         let bytes = match self {
+            Elements::Add16 => [
+                0x51, 0x7a, 0x52, 0x5b, 0x98, 0xc8, 0x78, 0x60, 0x88, 0x41, 0x82, 0xcf, 0xc0, 0x14,
+                0x81, 0x64, 0xaf, 0x35, 0x14, 0x63, 0xe0, 0xfb, 0xac, 0x34, 0x60, 0x65, 0x2b, 0x2f,
+                0xb5, 0xed, 0xcf, 0x19,
+            ],
             Elements::Add32 => [
                 0xe4, 0x04, 0x66, 0xa7, 0xec, 0xf7, 0x1c, 0xe8, 0x62, 0xfb, 0x3c, 0x15, 0x4c, 0x1e,
                 0x8f, 0x84, 0x5d, 0x7e, 0x57, 0x07, 0x46, 0x3a, 0x89, 0x45, 0x37, 0xa3, 0x2f, 0xc7,
                 0x21, 0x49, 0x00, 0xad,
+            ],
+            Elements::Add64 => [
+                0x81, 0x2e, 0x6e, 0x75, 0x70, 0x12, 0x1f, 0x8c, 0xc3, 0x52, 0xc0, 0x9a, 0x0a, 0xc7,
+                0x1a, 0xe6, 0xcc, 0xfe, 0x85, 0x9e, 0x84, 0x97, 0x60, 0xbd, 0x47, 0x8d, 0x29, 0x8a,
+                0xea, 0x82, 0xae, 0xb0,
+            ],
+            Elements::Add8 => [
+                0x62, 0x61, 0x3c, 0x74, 0x98, 0xfe, 0x9c, 0x5e, 0x98, 0xa1, 0xf2, 0x4e, 0xe1, 0x07,
+                0x0a, 0x02, 0xe9, 0xdc, 0xf2, 0x7f, 0x7f, 0x73, 0x63, 0x8c, 0x0a, 0x8f, 0xce, 0x85,
+                0xb7, 0x64, 0x15, 0x1a,
             ],
             Elements::AnnexHash => [
                 0xa1, 0xd4, 0xa3, 0x5f, 0x18, 0xfa, 0xa1, 0xbe, 0xec, 0x1d, 0xe6, 0xd8, 0x6e, 0xf5,
@@ -352,6 +458,91 @@ impl Jet for Elements {
                 0x1f, 0x13, 0x12, 0xba, 0xcc, 0x94, 0x6b, 0x08, 0xef, 0xfb, 0xe7, 0xf8, 0x51, 0x51,
                 0x14, 0x1f, 0x7d, 0xcf,
             ],
+            Elements::Decrement16 => [
+                0x4a, 0x10, 0x94, 0x9e, 0xb5, 0x98, 0xc0, 0x04, 0xbc, 0xae, 0xaf, 0xb8, 0x2f, 0x02,
+                0xac, 0x62, 0x06, 0xc2, 0xa0, 0xf2, 0x32, 0xff, 0x95, 0x40, 0xa4, 0xff, 0x02, 0xa5,
+                0x54, 0x71, 0xf8, 0xfa,
+            ],
+            Elements::Decrement32 => [
+                0x29, 0x1e, 0xab, 0x34, 0x34, 0xe2, 0x01, 0x77, 0x5e, 0xcb, 0x68, 0x21, 0x5b, 0x54,
+                0x03, 0xfe, 0x8c, 0x9e, 0xef, 0xbe, 0x88, 0x0c, 0xb2, 0xe0, 0x96, 0xe7, 0x60, 0x22,
+                0xb8, 0x30, 0x1b, 0x59,
+            ],
+            Elements::Decrement64 => [
+                0xe1, 0x8e, 0xce, 0x15, 0xc9, 0x14, 0xaa, 0x0c, 0x22, 0x2d, 0xec, 0x3b, 0x0c, 0xa0,
+                0xab, 0x39, 0xcd, 0x81, 0xed, 0x38, 0x25, 0x6c, 0xf8, 0x77, 0x0b, 0x78, 0x17, 0x3b,
+                0xb9, 0xc6, 0xb4, 0x87,
+            ],
+            Elements::Decrement8 => [
+                0xd2, 0xaf, 0xfa, 0xd9, 0xae, 0xa4, 0xfd, 0xff, 0x91, 0x6d, 0xbe, 0x5f, 0x90, 0xa6,
+                0xf9, 0x3e, 0x2f, 0x4d, 0x30, 0xba, 0x87, 0x3a, 0x52, 0x81, 0xa4, 0x41, 0xd4, 0xa7,
+                0x93, 0x70, 0xbe, 0x96,
+            ],
+            Elements::DivMod16 => [
+                0xf5, 0x09, 0x47, 0x22, 0x26, 0xc5, 0x32, 0x5a, 0x4a, 0x41, 0x7d, 0x68, 0xc9, 0x97,
+                0xd6, 0x39, 0x5d, 0xe0, 0x99, 0x29, 0xdd, 0xc2, 0x27, 0x1e, 0xc7, 0x28, 0x20, 0x46,
+                0xed, 0xbd, 0xdc, 0x29,
+            ],
+            Elements::DivMod32 => [
+                0xa2, 0x90, 0x83, 0x06, 0x91, 0xf7, 0x3a, 0x5f, 0x40, 0x89, 0x18, 0x6f, 0xce, 0x3b,
+                0x22, 0xff, 0x4c, 0xc1, 0x0a, 0xee, 0x1a, 0xb2, 0x58, 0xa4, 0xac, 0x51, 0x86, 0x4d,
+                0x12, 0xf4, 0xe3, 0x3b,
+            ],
+            Elements::DivMod64 => [
+                0x64, 0x97, 0x16, 0xf1, 0x59, 0x72, 0xf7, 0xb9, 0xc7, 0x0f, 0x9a, 0xd2, 0x2f, 0x65,
+                0xb3, 0x91, 0xff, 0x68, 0x52, 0xac, 0xc8, 0x78, 0x37, 0xbb, 0xce, 0xdd, 0x17, 0x1d,
+                0xcb, 0x8b, 0xd3, 0x14,
+            ],
+            Elements::DivMod8 => [
+                0xd9, 0xbe, 0x81, 0xb7, 0x53, 0x49, 0xe3, 0xbb, 0x22, 0x21, 0xc4, 0xd4, 0x5a, 0xe0,
+                0x4f, 0x8d, 0xf1, 0xbe, 0x4e, 0x7e, 0x76, 0x8b, 0x36, 0x83, 0xb1, 0xa1, 0x55, 0x68,
+                0xb8, 0x31, 0xfe, 0xfb,
+            ],
+            Elements::Divide16 => [
+                0xd3, 0x1f, 0xf5, 0x9b, 0x05, 0x84, 0x17, 0x2f, 0xc1, 0xe4, 0xce, 0x0e, 0x5e, 0x89,
+                0xbe, 0x12, 0x80, 0x90, 0x8e, 0x49, 0x47, 0x28, 0xee, 0xd7, 0x53, 0xbf, 0xa7, 0x1f,
+                0xb6, 0xd8, 0x51, 0x93,
+            ],
+            Elements::Divide32 => [
+                0xab, 0x97, 0x45, 0xca, 0xf9, 0x3e, 0x6b, 0xaa, 0x48, 0xaf, 0x0e, 0xe3, 0xd2, 0xbe,
+                0xf3, 0x9d, 0xb8, 0x0f, 0xe5, 0x4d, 0x06, 0xd2, 0xa8, 0xa6, 0x78, 0x75, 0x6d, 0x07,
+                0x75, 0x32, 0x5f, 0xc5,
+            ],
+            Elements::Divide64 => [
+                0xae, 0x18, 0xfb, 0xff, 0xb0, 0x4e, 0x5c, 0x0d, 0x9f, 0xe9, 0x73, 0xa4, 0x5d, 0xcc,
+                0x9a, 0xcd, 0x0e, 0xdd, 0xe7, 0x74, 0xb8, 0x0a, 0x6d, 0xb6, 0x63, 0x91, 0x23, 0x75,
+                0x63, 0x46, 0xde, 0xec,
+            ],
+            Elements::Divide8 => [
+                0x61, 0x37, 0x2c, 0x0c, 0xd4, 0xa7, 0xe4, 0x78, 0x2d, 0x01, 0xd5, 0xb9, 0xce, 0x03,
+                0x4d, 0xa9, 0x2c, 0x8a, 0x35, 0x13, 0x84, 0xcd, 0x28, 0xd6, 0x48, 0x48, 0x47, 0x93,
+                0xc7, 0x08, 0x66, 0x39,
+            ],
+            Elements::Divides16 => [
+                0xf6, 0x6f, 0x19, 0x64, 0x09, 0x34, 0xa8, 0x25, 0xc4, 0x66, 0x08, 0xcd, 0x06, 0x5d,
+                0xca, 0x61, 0x5d, 0x9c, 0xb8, 0x8b, 0x6d, 0x6e, 0xeb, 0xd6, 0x3c, 0xde, 0x22, 0x12,
+                0x9b, 0xb4, 0xf6, 0xb4,
+            ],
+            Elements::Divides32 => [
+                0x38, 0x59, 0x74, 0x5d, 0x44, 0x09, 0x64, 0xa8, 0x80, 0x2e, 0xbe, 0x32, 0xb1, 0x0c,
+                0x56, 0xf1, 0x86, 0x52, 0xd8, 0xe0, 0xde, 0xd3, 0xc8, 0x8d, 0xe0, 0x32, 0x76, 0xbf,
+                0xb3, 0xcf, 0x15, 0x63,
+            ],
+            Elements::Divides64 => [
+                0x38, 0xa5, 0xd0, 0x32, 0xe9, 0x2f, 0x57, 0x8f, 0x4d, 0x39, 0xa3, 0x19, 0x2a, 0xce,
+                0x98, 0xc7, 0x50, 0xfa, 0x1c, 0x4b, 0x13, 0x58, 0xa6, 0x0e, 0xec, 0x9a, 0x23, 0xc6,
+                0x93, 0x47, 0x7e, 0x54,
+            ],
+            Elements::Divides8 => [
+                0x54, 0x6b, 0x4e, 0x70, 0x78, 0xa7, 0xd4, 0xf2, 0x7b, 0x44, 0xe6, 0x50, 0xdc, 0x29,
+                0xb3, 0x61, 0x42, 0x97, 0xb7, 0xea, 0x32, 0xab, 0x9a, 0x94, 0x89, 0xac, 0xcc, 0x81,
+                0xfc, 0x8d, 0xb6, 0xcd,
+            ],
+            Elements::Eq16 => [
+                0x9a, 0x5e, 0x8d, 0xb0, 0xdd, 0x21, 0xfb, 0xbc, 0x8c, 0x6a, 0x57, 0xa5, 0xf5, 0x49,
+                0x61, 0x83, 0xca, 0xd7, 0x88, 0xed, 0xb8, 0x9c, 0x81, 0x59, 0x9d, 0x77, 0x09, 0xf3,
+                0xb1, 0x97, 0x1e, 0x81,
+            ],
             Elements::Eq256 => [
                 0xd8, 0xbb, 0x63, 0x54, 0x45, 0xb5, 0x6b, 0xc0, 0x6a, 0x33, 0x5e, 0x1d, 0xe8, 0xe5,
                 0x56, 0xcc, 0x06, 0xf4, 0x93, 0x08, 0x67, 0x4c, 0xb8, 0x71, 0x6a, 0x5b, 0xa8, 0x1c,
@@ -361,6 +552,16 @@ impl Jet for Elements {
                 0x88, 0xbf, 0xc8, 0x93, 0x7c, 0x11, 0x87, 0x3b, 0x06, 0xe3, 0xd8, 0xaf, 0xa4, 0xf9,
                 0xf9, 0xe6, 0x22, 0xdb, 0x93, 0xf4, 0x70, 0x6b, 0xde, 0x36, 0xbc, 0x60, 0x14, 0x03,
                 0x34, 0x48, 0xf3, 0x01,
+            ],
+            Elements::Eq64 => [
+                0xdb, 0xd0, 0xa3, 0x5e, 0x1f, 0x78, 0xe6, 0x1a, 0xd6, 0x75, 0xbd, 0xc1, 0x46, 0x29,
+                0xc0, 0xd8, 0x32, 0xae, 0x1d, 0xe6, 0x6b, 0xd7, 0x73, 0xaa, 0x5c, 0xb3, 0x15, 0x79,
+                0x81, 0x4c, 0x16, 0xba,
+            ],
+            Elements::Eq8 => [
+                0xcb, 0xe1, 0xb7, 0x99, 0xb0, 0x70, 0xeb, 0xad, 0xb0, 0x3d, 0x6a, 0x2e, 0xb3, 0x16,
+                0x2c, 0xf5, 0x2c, 0xa0, 0x15, 0xc9, 0xb6, 0xc6, 0x95, 0x90, 0x31, 0x52, 0xc1, 0xe3,
+                0x48, 0x7d, 0xca, 0x3d,
             ],
             Elements::FeAdd => [
                 0xc0, 0x9d, 0x58, 0xe3, 0x8d, 0xc4, 0xce, 0x1a, 0xcc, 0x09, 0xda, 0xe8, 0xa5, 0x88,
@@ -412,20 +613,105 @@ impl Jet for Elements {
                 0x83, 0x8d, 0x24, 0xd7, 0xdd, 0x7b, 0xa8, 0xdc, 0x01, 0xab, 0x5c, 0x6a, 0x77, 0x26,
                 0x3c, 0x15, 0xf7, 0x29,
             ],
+            Elements::FullAdd16 => [
+                0xf8, 0xe1, 0x52, 0xa9, 0x0a, 0xd9, 0x2b, 0x82, 0x05, 0xc5, 0x56, 0x98, 0x21, 0xef,
+                0x09, 0x79, 0x90, 0xd9, 0xf7, 0xf9, 0x8f, 0x21, 0xca, 0xa8, 0xd9, 0xad, 0x55, 0xb5,
+                0xed, 0xbc, 0xb6, 0x4d,
+            ],
             Elements::FullAdd32 => [
                 0x47, 0x27, 0x36, 0x1e, 0xa0, 0x03, 0xc1, 0xa4, 0x83, 0xe5, 0x75, 0x05, 0xcf, 0x5b,
                 0x40, 0x5a, 0x82, 0x27, 0xda, 0x1a, 0xdd, 0xc4, 0x7e, 0x2b, 0x01, 0x6c, 0x2d, 0x09,
                 0xbe, 0x04, 0x7f, 0xe8,
+            ],
+            Elements::FullAdd64 => [
+                0x8e, 0x29, 0x53, 0x1e, 0xa3, 0x0a, 0x34, 0xc0, 0x72, 0x97, 0x86, 0x07, 0x7f, 0x5d,
+                0xc3, 0x79, 0xcb, 0x22, 0x45, 0xfd, 0xe4, 0x41, 0xdb, 0x16, 0xa6, 0x85, 0x6e, 0x26,
+                0x80, 0x3d, 0x26, 0xb9,
+            ],
+            Elements::FullAdd8 => [
+                0x3f, 0xd9, 0x59, 0x05, 0x5a, 0x7b, 0x6f, 0x51, 0xb1, 0x47, 0x44, 0x75, 0x37, 0x66,
+                0x02, 0x8f, 0x51, 0x83, 0x1b, 0xbd, 0x7c, 0xf7, 0x0e, 0x1e, 0xcc, 0x70, 0x06, 0x0d,
+                0xfc, 0xcf, 0xb6, 0x4c,
+            ],
+            Elements::FullDecrement16 => [
+                0xb8, 0x35, 0xbc, 0xde, 0x81, 0x20, 0x7b, 0x8a, 0x1f, 0x68, 0x6b, 0xb5, 0xad, 0x00,
+                0x8d, 0xd7, 0xf2, 0x7f, 0xfb, 0xa2, 0xd9, 0x1f, 0xab, 0x34, 0x63, 0x52, 0xc4, 0x11,
+                0x8a, 0x13, 0xba, 0x57,
+            ],
+            Elements::FullDecrement32 => [
+                0x91, 0xde, 0x80, 0x21, 0xe3, 0xae, 0x86, 0x0b, 0xd8, 0x27, 0x04, 0xb2, 0xe5, 0x14,
+                0x9d, 0xfe, 0x62, 0xb7, 0x4e, 0x1a, 0x6c, 0x71, 0xdb, 0xf0, 0xcb, 0xea, 0xbb, 0x7b,
+                0x9e, 0xb2, 0x6a, 0x2b,
+            ],
+            Elements::FullDecrement64 => [
+                0x9e, 0x85, 0xc0, 0x20, 0xcd, 0x4d, 0xbb, 0x7a, 0x5d, 0xfb, 0x69, 0x7a, 0x44, 0x4c,
+                0x06, 0x74, 0x8e, 0x22, 0x87, 0xae, 0x22, 0x37, 0x81, 0x3b, 0x1c, 0x5f, 0xa4, 0xa5,
+                0x95, 0x8e, 0x6f, 0x1b,
+            ],
+            Elements::FullDecrement8 => [
+                0x16, 0xdb, 0x3f, 0x6d, 0x60, 0x02, 0xd0, 0x70, 0x51, 0xff, 0xf6, 0xf4, 0x94, 0x04,
+                0x66, 0x61, 0xf0, 0x38, 0x79, 0xd6, 0x36, 0x54, 0x67, 0xfc, 0xaa, 0xf9, 0xab, 0xab,
+                0xa0, 0xc7, 0xf2, 0x81,
+            ],
+            Elements::FullIncrement16 => [
+                0x08, 0xf3, 0xe2, 0x48, 0x41, 0xfe, 0x94, 0x8d, 0x15, 0x29, 0x76, 0x52, 0x0f, 0x32,
+                0xdd, 0x12, 0xf7, 0x5c, 0x38, 0x2a, 0xb9, 0xf5, 0x96, 0x6a, 0x16, 0x2c, 0x05, 0x06,
+                0xe2, 0xb3, 0x7b, 0x55,
+            ],
+            Elements::FullIncrement32 => [
+                0xff, 0x69, 0xcd, 0xe4, 0x86, 0xc1, 0x91, 0xf4, 0x26, 0x60, 0x7c, 0xaa, 0xdb, 0x45,
+                0xaa, 0x4b, 0x82, 0xd2, 0x1f, 0xc3, 0x5f, 0x99, 0xba, 0x0d, 0x7f, 0x56, 0xa8, 0x89,
+                0x4c, 0x24, 0xa2, 0x6c,
+            ],
+            Elements::FullIncrement64 => [
+                0x4f, 0x08, 0x0c, 0x7a, 0xb1, 0x90, 0xbb, 0x41, 0xc2, 0x18, 0x8a, 0x37, 0xa4, 0xb3,
+                0xb5, 0x2d, 0x6f, 0x75, 0x66, 0x86, 0x1f, 0x5b, 0x46, 0xa9, 0x80, 0x2d, 0xbe, 0xb1,
+                0x42, 0x35, 0x0a, 0xe0,
+            ],
+            Elements::FullIncrement8 => [
+                0xba, 0x53, 0x0e, 0x83, 0x49, 0xb1, 0x3d, 0x90, 0x27, 0xff, 0x14, 0x16, 0xa4, 0x12,
+                0x12, 0x1f, 0x9b, 0x6b, 0x5e, 0x3c, 0x62, 0xea, 0xa1, 0x18, 0x2a, 0xd2, 0x44, 0xb0,
+                0xf7, 0x0f, 0x12, 0xc5,
+            ],
+            Elements::FullMultiply16 => [
+                0x78, 0x3d, 0x05, 0xcf, 0xb8, 0x4d, 0x0c, 0x91, 0x76, 0x60, 0x38, 0x26, 0xc1, 0x6c,
+                0x5c, 0xf7, 0x30, 0xd0, 0x1c, 0x50, 0xa1, 0x69, 0x29, 0x79, 0xf7, 0x92, 0xe0, 0x98,
+                0xf6, 0x99, 0x80, 0x12,
             ],
             Elements::FullMultiply32 => [
                 0xaa, 0xc2, 0x53, 0x61, 0xe5, 0x98, 0xe3, 0x54, 0x38, 0xb9, 0x18, 0xb5, 0x8f, 0xd2,
                 0xce, 0xf4, 0xdb, 0x3c, 0x5d, 0x8c, 0x5e, 0x63, 0xaa, 0x4f, 0x25, 0xe9, 0xce, 0xc0,
                 0xcf, 0xd9, 0xdf, 0xb1,
             ],
+            Elements::FullMultiply64 => [
+                0x4e, 0x7b, 0xe1, 0x50, 0x1c, 0xda, 0x15, 0xae, 0x5c, 0xfb, 0x21, 0xee, 0xec, 0xe0,
+                0x66, 0xe1, 0x02, 0x0e, 0x0f, 0xd9, 0xb3, 0xe8, 0x36, 0x5b, 0x68, 0x14, 0x02, 0x70,
+                0xf9, 0xbc, 0x69, 0x47,
+            ],
+            Elements::FullMultiply8 => [
+                0xd5, 0xe4, 0xc5, 0x6d, 0xe7, 0x83, 0x94, 0x0d, 0xd6, 0xb6, 0xec, 0xe1, 0x3e, 0xa5,
+                0x8e, 0xf7, 0x9e, 0x1b, 0x70, 0x84, 0xba, 0x2c, 0x0c, 0xc5, 0x71, 0x20, 0xb7, 0xc5,
+                0xc6, 0x2b, 0x3f, 0xdc,
+            ],
+            Elements::FullSubtract16 => [
+                0xfc, 0x6d, 0x4c, 0xd4, 0xa9, 0x9d, 0xbc, 0x0e, 0x01, 0xa5, 0x1e, 0x3d, 0x98, 0x6d,
+                0x6b, 0x04, 0x1c, 0x65, 0x57, 0xb8, 0xfc, 0x2e, 0x8b, 0x8c, 0x2f, 0xb6, 0xd2, 0x29,
+                0x2a, 0x31, 0x12, 0x61,
+            ],
             Elements::FullSubtract32 => [
                 0x6d, 0x96, 0xf6, 0x8a, 0x94, 0x5c, 0x22, 0xe7, 0x62, 0x11, 0x5c, 0x09, 0x42, 0x97,
                 0xb1, 0x94, 0xbe, 0xdc, 0x0c, 0xe5, 0xa0, 0xc9, 0x2d, 0xb6, 0x4b, 0x83, 0x0a, 0x18,
                 0xb4, 0x4d, 0xf0, 0xd0,
+            ],
+            Elements::FullSubtract64 => [
+                0xcd, 0x12, 0x1b, 0x7f, 0x43, 0x84, 0x0f, 0x96, 0xc4, 0x0a, 0xa4, 0x05, 0x6d, 0xef,
+                0x80, 0xd1, 0x77, 0xb6, 0x19, 0xb2, 0x50, 0x5a, 0x94, 0x7a, 0x21, 0x47, 0x55, 0xfa,
+                0x83, 0x2c, 0x7f, 0x0c,
+            ],
+            Elements::FullSubtract8 => [
+                0x11, 0x62, 0x66, 0x81, 0x54, 0x66, 0xfe, 0x6e, 0x6d, 0x47, 0x57, 0xf6, 0xb8, 0xad,
+                0xe3, 0x34, 0xbe, 0xcd, 0xa9, 0xdb, 0x8c, 0x4e, 0xd7, 0xe3, 0x28, 0x13, 0x1f, 0x36,
+                0x98, 0x08, 0x67, 0xf2,
             ],
             Elements::GeIsOnCurve => [
                 0xd9, 0xaa, 0x66, 0x06, 0x5c, 0xb0, 0xed, 0x2c, 0x71, 0x68, 0x60, 0x9d, 0xfd, 0x62,
@@ -506,6 +792,26 @@ impl Jet for Elements {
                 0x8a, 0x38, 0x03, 0xed, 0x96, 0xeb, 0xf9, 0x6c, 0x5b, 0xc9, 0x9d, 0x7d, 0xdc, 0x31,
                 0x87, 0xd7, 0x94, 0x00, 0x41, 0x01, 0x90, 0x56, 0x41, 0x4f, 0x86, 0x96, 0x06, 0x1d,
                 0x97, 0x79, 0x13, 0xc2,
+            ],
+            Elements::Increment16 => [
+                0x89, 0xca, 0xc7, 0x0e, 0x2b, 0xf1, 0x4c, 0xd4, 0xd4, 0x32, 0x75, 0xa0, 0x13, 0x5a,
+                0x9f, 0xab, 0xc0, 0xeb, 0x5a, 0x33, 0xf6, 0x2d, 0x0f, 0x4f, 0xa4, 0x4a, 0x3c, 0xa7,
+                0x3e, 0xda, 0x85, 0x27,
+            ],
+            Elements::Increment32 => [
+                0x44, 0xf6, 0x64, 0x2e, 0x7b, 0x8d, 0xe6, 0x98, 0x7b, 0x5f, 0x1e, 0x9e, 0x2f, 0x2e,
+                0x28, 0x4a, 0x4c, 0xcb, 0xbc, 0x3c, 0x75, 0x5f, 0x23, 0x11, 0xc3, 0x4b, 0x50, 0xf9,
+                0x4f, 0xa4, 0x48, 0xbe,
+            ],
+            Elements::Increment64 => [
+                0xe0, 0xb2, 0x61, 0x72, 0x28, 0x67, 0x29, 0xf5, 0xcd, 0xaf, 0x25, 0x16, 0x18, 0xb9,
+                0x9e, 0x8e, 0xab, 0x93, 0xd8, 0x4a, 0xb9, 0xba, 0x87, 0x03, 0x06, 0xe6, 0x4d, 0xbc,
+                0x5e, 0x3e, 0x09, 0x3d,
+            ],
+            Elements::Increment8 => [
+                0x71, 0xd9, 0x4f, 0xdb, 0x37, 0x95, 0x9c, 0x9a, 0x89, 0xcc, 0x1b, 0x79, 0x71, 0x2c,
+                0xa1, 0x67, 0xda, 0xea, 0x47, 0xbe, 0xf8, 0x5f, 0x92, 0xd4, 0x06, 0x6b, 0x6e, 0x94,
+                0xcc, 0x16, 0x16, 0xb7,
             ],
             Elements::InputAmount => [
                 0x6e, 0x0a, 0x61, 0xfa, 0xae, 0xbc, 0x2c, 0xf4, 0x22, 0x0d, 0xea, 0x6c, 0xc5, 0x9c,
@@ -592,6 +898,46 @@ impl Jet for Elements {
                 0xd8, 0x9b, 0x06, 0xe1, 0xe9, 0xf5, 0x23, 0x88, 0xdd, 0x64, 0x67, 0x87, 0xe1, 0x5b,
                 0xe2, 0x16, 0xc7, 0x66,
             ],
+            Elements::IsOne16 => [
+                0x67, 0x31, 0xde, 0x96, 0x8d, 0x5c, 0xa6, 0xd1, 0x96, 0xd9, 0x0f, 0xb9, 0x3e, 0x23,
+                0x2e, 0x20, 0x90, 0x1b, 0x49, 0x34, 0xfd, 0x17, 0xb7, 0x21, 0x14, 0x96, 0x92, 0xf8,
+                0xfc, 0xa4, 0x3a, 0x4f,
+            ],
+            Elements::IsOne32 => [
+                0xea, 0x1a, 0x8c, 0xe7, 0x2f, 0x57, 0xbe, 0x4e, 0x29, 0x11, 0xb9, 0x14, 0xe2, 0x06,
+                0x47, 0xda, 0xdc, 0xec, 0x87, 0xad, 0x13, 0x5c, 0xdf, 0x64, 0x3b, 0x67, 0x7f, 0xc2,
+                0x14, 0x9d, 0xd6, 0x65,
+            ],
+            Elements::IsOne64 => [
+                0xf2, 0x8a, 0xe2, 0x7a, 0x4e, 0x4b, 0xeb, 0x42, 0xeb, 0x71, 0x9c, 0x5e, 0xae, 0xa4,
+                0xc1, 0xaf, 0xac, 0x66, 0x8b, 0xdc, 0x08, 0x6a, 0x5f, 0x15, 0x4e, 0xb5, 0x79, 0x13,
+                0x4f, 0xc2, 0x06, 0x42,
+            ],
+            Elements::IsOne8 => [
+                0xf1, 0xa2, 0x81, 0xd5, 0x56, 0xbf, 0x41, 0xcd, 0xa8, 0x78, 0x6c, 0x04, 0x53, 0x0e,
+                0x32, 0x19, 0xfd, 0x58, 0x2f, 0xba, 0x2d, 0xff, 0x4e, 0x99, 0xbd, 0x27, 0x5d, 0x7f,
+                0xf7, 0x9a, 0x45, 0x0f,
+            ],
+            Elements::IsZero16 => [
+                0x58, 0x22, 0x9c, 0x26, 0x64, 0x15, 0xd1, 0x05, 0xcf, 0x22, 0xb4, 0x2a, 0x9e, 0xde,
+                0x72, 0x51, 0x48, 0xb3, 0xbc, 0x01, 0x76, 0x47, 0x5d, 0xe6, 0x2a, 0x74, 0x2d, 0x8e,
+                0x11, 0xb5, 0x58, 0x39,
+            ],
+            Elements::IsZero32 => [
+                0x3d, 0x03, 0xf7, 0x9a, 0xda, 0x94, 0x9a, 0x47, 0xc4, 0x6e, 0x4e, 0x97, 0x36, 0xb5,
+                0x2d, 0x2a, 0xc1, 0x93, 0x57, 0xd6, 0xca, 0xe9, 0x71, 0x0d, 0xd6, 0xde, 0xd8, 0x2d,
+                0x12, 0x0a, 0xa5, 0xb5,
+            ],
+            Elements::IsZero64 => [
+                0xb4, 0x39, 0x4c, 0x5d, 0x5f, 0xd1, 0xdf, 0x3b, 0x6d, 0x02, 0x48, 0x95, 0x3f, 0xb2,
+                0x61, 0x4c, 0x86, 0x7f, 0x96, 0xee, 0x4e, 0x0b, 0x05, 0x23, 0x0a, 0xe3, 0x52, 0x88,
+                0x7f, 0x38, 0x32, 0x46,
+            ],
+            Elements::IsZero8 => [
+                0xdc, 0x3a, 0xae, 0xa2, 0x21, 0x96, 0xcc, 0x94, 0x94, 0xce, 0xe4, 0x24, 0xdc, 0x71,
+                0x60, 0xad, 0x52, 0x8c, 0x62, 0xd7, 0x4d, 0xdf, 0x99, 0xd2, 0xdb, 0x9e, 0x7b, 0x5e,
+                0x7e, 0xd2, 0xa0, 0x1b,
+            ],
             Elements::Issuance => [
                 0x3a, 0xa8, 0x19, 0xcf, 0x43, 0xf1, 0x10, 0x61, 0xde, 0x93, 0xac, 0xc5, 0x6f, 0x5d,
                 0x20, 0xc3, 0x97, 0xbc, 0xd9, 0x8d, 0xdb, 0xef, 0xcf, 0x19, 0x88, 0xa2, 0x06, 0x02,
@@ -657,10 +1003,25 @@ impl Jet for Elements {
                 0xab, 0x32, 0xe8, 0x62, 0x92, 0xb6, 0x78, 0x58, 0xef, 0xa2, 0x8c, 0x82, 0xf9, 0x73,
                 0x27, 0x3c, 0x08, 0x69,
             ],
+            Elements::Le16 => [
+                0x17, 0x43, 0xd1, 0xbc, 0x39, 0x38, 0xed, 0xc8, 0xdc, 0x65, 0x78, 0xa3, 0x52, 0xc4,
+                0xf3, 0xec, 0x1f, 0x82, 0xea, 0xae, 0xfe, 0xa9, 0x33, 0x61, 0x89, 0xb9, 0xe2, 0x5c,
+                0x3f, 0x13, 0x29, 0xf4,
+            ],
             Elements::Le32 => [
                 0xea, 0x77, 0x2c, 0x0b, 0x5a, 0xec, 0xde, 0x7d, 0xc1, 0x6e, 0x3f, 0x1f, 0x95, 0x27,
                 0x89, 0xf0, 0x13, 0x70, 0x89, 0x04, 0xce, 0xaa, 0x62, 0xcf, 0xdc, 0xf6, 0x4d, 0x30,
                 0xa3, 0x91, 0x17, 0xaf,
+            ],
+            Elements::Le64 => [
+                0x37, 0xb6, 0x54, 0xea, 0xd2, 0x33, 0xc3, 0xef, 0xb8, 0x0b, 0x4f, 0x88, 0xa6, 0x13,
+                0xba, 0x70, 0x24, 0xd9, 0x8e, 0xb3, 0x1a, 0x2c, 0x3e, 0xdc, 0x93, 0xb5, 0x1a, 0xa4,
+                0x60, 0xbc, 0xf7, 0x83,
+            ],
+            Elements::Le8 => [
+                0xff, 0xdf, 0x7f, 0x6a, 0x8d, 0x3b, 0x2c, 0x1b, 0x06, 0xbd, 0x86, 0x40, 0xbd, 0x98,
+                0xda, 0xa8, 0x9d, 0x2f, 0xcc, 0xa3, 0xa8, 0xb0, 0xc5, 0x70, 0x43, 0xea, 0xc2, 0x9a,
+                0x05, 0xe7, 0xf2, 0xd3,
             ],
             Elements::LinearCombination1 => [
                 0x35, 0xcb, 0xfa, 0x56, 0x1b, 0x44, 0xf4, 0x48, 0xdc, 0x84, 0x3a, 0xa6, 0x05, 0x2a,
@@ -677,15 +1038,165 @@ impl Jet for Elements {
                 0x4e, 0x69, 0x24, 0x37, 0xc3, 0xb0, 0x2e, 0x8d, 0xb0, 0x12, 0xa2, 0x03, 0x12, 0x5b,
                 0xb9, 0x65, 0xe2, 0x07,
             ],
+            Elements::Low16 => [
+                0x11, 0xd9, 0xe7, 0xcd, 0x36, 0x81, 0x3e, 0x73, 0xa9, 0x47, 0x92, 0xcf, 0xae, 0x99,
+                0x63, 0xef, 0x4f, 0x64, 0x64, 0x8d, 0xf4, 0x8a, 0xac, 0xff, 0xe5, 0x7f, 0xb7, 0x0f,
+                0x4e, 0x19, 0xac, 0xac,
+            ],
             Elements::Low32 => [
                 0x96, 0xbe, 0x53, 0x34, 0x5d, 0x52, 0x14, 0xb0, 0x05, 0xc7, 0xfc, 0x5d, 0xe4, 0x0a,
                 0x92, 0x62, 0x56, 0x60, 0x41, 0x40, 0x63, 0x35, 0x27, 0xc1, 0xd0, 0x2b, 0xe0, 0xd5,
                 0xf6, 0x0c, 0xc2, 0xad,
             ],
+            Elements::Low64 => [
+                0x61, 0x2a, 0x86, 0xb8, 0x22, 0x44, 0x94, 0xd8, 0x23, 0x0e, 0xe1, 0x16, 0xba, 0x47,
+                0x89, 0x46, 0x4c, 0x57, 0xa7, 0xe0, 0x58, 0x52, 0x95, 0xb6, 0x1e, 0xc5, 0xc9, 0x6f,
+                0x59, 0x83, 0x77, 0x60,
+            ],
+            Elements::Low8 => [
+                0x43, 0x95, 0xde, 0x24, 0xfd, 0x70, 0xf5, 0xc8, 0x62, 0xfe, 0xe6, 0x8c, 0x6f, 0x67,
+                0xd6, 0x17, 0x12, 0xd8, 0xd6, 0x00, 0x3a, 0x38, 0xe1, 0xbd, 0x85, 0xbe, 0x4b, 0x94,
+                0x52, 0x69, 0x92, 0xba,
+            ],
+            Elements::Lt16 => [
+                0xf9, 0xd9, 0xee, 0xbe, 0xc9, 0xc2, 0x3b, 0x0b, 0x9e, 0xb8, 0xfd, 0x72, 0x2a, 0x31,
+                0x92, 0xcf, 0x7d, 0x28, 0x7d, 0xaa, 0xcf, 0xa5, 0x3e, 0x5d, 0xdc, 0xe7, 0x1b, 0x26,
+                0x92, 0x94, 0x0f, 0x1c,
+            ],
+            Elements::Lt32 => [
+                0xc5, 0x23, 0x3b, 0x33, 0x0d, 0xec, 0x92, 0x06, 0x5e, 0x9e, 0xd3, 0x2d, 0x20, 0xd4,
+                0xe0, 0xcf, 0xfd, 0x97, 0x56, 0xef, 0x11, 0xc8, 0x43, 0x86, 0x9f, 0xa7, 0x54, 0x37,
+                0xef, 0x00, 0xda, 0xaf,
+            ],
+            Elements::Lt64 => [
+                0x3b, 0x8c, 0xbf, 0xda, 0x60, 0x38, 0xef, 0x26, 0x95, 0x06, 0x03, 0xdd, 0xd8, 0x61,
+                0x9c, 0x19, 0x7f, 0x8d, 0xbe, 0x4e, 0x15, 0x4c, 0x15, 0x0b, 0x93, 0xd3, 0x8d, 0x0a,
+                0xb9, 0x68, 0xf7, 0x67,
+            ],
+            Elements::Lt8 => [
+                0x4e, 0xe0, 0x55, 0x24, 0x23, 0xc4, 0x59, 0x57, 0x5f, 0xca, 0x1b, 0x39, 0xfc, 0xdc,
+                0xf0, 0x56, 0x6f, 0xa8, 0x82, 0x1f, 0x14, 0x0c, 0x0a, 0x3c, 0xa4, 0x71, 0x35, 0xbb,
+                0x3c, 0xd6, 0xa1, 0xf9,
+            ],
+            Elements::Max16 => [
+                0x13, 0xc1, 0xad, 0xf5, 0x49, 0xc7, 0x73, 0x0b, 0x87, 0x43, 0xf8, 0x95, 0x06, 0x4f,
+                0xa4, 0xab, 0xd7, 0x79, 0xf4, 0xb4, 0x1d, 0x6d, 0xf7, 0xc6, 0x33, 0x08, 0x71, 0xa3,
+                0x7a, 0xa7, 0x8c, 0xd7,
+            ],
+            Elements::Max32 => [
+                0xc7, 0xf9, 0xaa, 0x5b, 0x7e, 0x5e, 0x03, 0xeb, 0xad, 0x3b, 0xec, 0x46, 0xe7, 0x73,
+                0x45, 0x9f, 0xf8, 0x6a, 0x73, 0x9f, 0x9a, 0x09, 0x01, 0x9e, 0xcc, 0x0b, 0x6c, 0x3c,
+                0xdf, 0xf4, 0x1a, 0x7b,
+            ],
+            Elements::Max64 => [
+                0x12, 0x7d, 0xd5, 0x9e, 0x06, 0xc5, 0xd6, 0x93, 0x04, 0xeb, 0x92, 0xcf, 0xd6, 0xb4,
+                0xf3, 0x65, 0xb7, 0xc2, 0xcd, 0x62, 0x5e, 0x90, 0x45, 0xbe, 0xde, 0xab, 0xf2, 0x31,
+                0xc0, 0x14, 0xe8, 0x60,
+            ],
+            Elements::Max8 => [
+                0xaf, 0xe3, 0xc6, 0x8d, 0x17, 0x39, 0x5d, 0xea, 0x61, 0x8e, 0x15, 0xbd, 0x34, 0xae,
+                0xad, 0xb8, 0xcb, 0xfb, 0xc8, 0x56, 0x00, 0x71, 0xfb, 0xd1, 0x61, 0x4d, 0xa8, 0xb1,
+                0x3f, 0xdf, 0x5d, 0xdd,
+            ],
+            Elements::Median16 => [
+                0xa1, 0xa4, 0x1f, 0x4a, 0x60, 0x17, 0x94, 0x89, 0x9a, 0xa0, 0x50, 0x75, 0x66, 0x3e,
+                0x6a, 0xfd, 0xe4, 0xb2, 0x13, 0x82, 0xb2, 0x77, 0x8d, 0xaf, 0x8f, 0x5c, 0x26, 0xeb,
+                0xb3, 0xd3, 0xab, 0x53,
+            ],
+            Elements::Median32 => [
+                0xc5, 0xfe, 0x19, 0x50, 0x41, 0x84, 0xdc, 0xa2, 0xd3, 0xe8, 0xd0, 0x86, 0xf2, 0x11,
+                0xe6, 0xab, 0x5f, 0x44, 0x6d, 0x6a, 0xcf, 0xc1, 0xe8, 0xfb, 0xa8, 0x12, 0x75, 0x90,
+                0xd8, 0xcf, 0xc0, 0x4e,
+            ],
+            Elements::Median64 => [
+                0xf5, 0x32, 0x56, 0x7c, 0x74, 0x17, 0xcb, 0x0d, 0x19, 0xe4, 0x18, 0xd7, 0x2b, 0x31,
+                0x9a, 0xf8, 0xa1, 0xce, 0x3c, 0xca, 0x90, 0x3b, 0xa2, 0x6d, 0x3b, 0x8f, 0x98, 0xf2,
+                0xd8, 0x31, 0xa6, 0x1d,
+            ],
+            Elements::Median8 => [
+                0x1a, 0x64, 0xb1, 0x35, 0xf4, 0xb3, 0xa8, 0x04, 0xdb, 0xc1, 0x2a, 0x30, 0x59, 0xd9,
+                0x54, 0xa1, 0x8c, 0xfb, 0x7f, 0x0b, 0x9f, 0xc5, 0x2e, 0xb9, 0x5f, 0x4a, 0x1c, 0x30,
+                0xef, 0x48, 0x6c, 0xad,
+            ],
+            Elements::Min16 => [
+                0x26, 0xc0, 0x2d, 0x7c, 0xff, 0xb8, 0x84, 0xad, 0x54, 0x92, 0x88, 0x2b, 0x4b, 0x96,
+                0x62, 0x8e, 0x07, 0x53, 0xeb, 0xa9, 0xf5, 0x13, 0x7f, 0x13, 0x49, 0xe9, 0x43, 0xaf,
+                0x70, 0x3a, 0xd4, 0x39,
+            ],
+            Elements::Min32 => [
+                0xc6, 0x18, 0xd5, 0x77, 0xa5, 0xbd, 0x0c, 0xe3, 0xeb, 0x3d, 0xbb, 0xe5, 0x1b, 0xad,
+                0x5c, 0x9f, 0x9f, 0x10, 0xce, 0xc4, 0x70, 0x59, 0xcb, 0xb5, 0x82, 0x0f, 0x8a, 0xba,
+                0x05, 0x47, 0xa5, 0xca,
+            ],
+            Elements::Min64 => [
+                0xdb, 0x6d, 0xe6, 0x99, 0x42, 0x80, 0x6c, 0xfe, 0xbf, 0x21, 0xae, 0x01, 0x80, 0x67,
+                0x3e, 0xd3, 0x72, 0x93, 0x42, 0xc0, 0x53, 0x48, 0x5b, 0x9b, 0x7e, 0xa7, 0xae, 0xaa,
+                0x51, 0xb6, 0xbf, 0xd7,
+            ],
+            Elements::Min8 => [
+                0x25, 0xc8, 0xdc, 0x61, 0xf7, 0x3e, 0xfa, 0xe8, 0xd7, 0xdf, 0x91, 0x70, 0xc5, 0xf0,
+                0xcb, 0xb9, 0xf7, 0x62, 0x65, 0xa3, 0xad, 0x95, 0xcc, 0x5c, 0x27, 0xe7, 0x28, 0x74,
+                0x05, 0xe0, 0x6d, 0x8c,
+            ],
+            Elements::Modulo16 => [
+                0x25, 0x22, 0x08, 0xa3, 0xe2, 0x82, 0x5d, 0x78, 0xa9, 0x49, 0x5d, 0x81, 0x02, 0x5b,
+                0x83, 0x99, 0x08, 0xaa, 0x70, 0x54, 0xe9, 0x0b, 0x0d, 0x2d, 0xdb, 0xbb, 0x0c, 0x8d,
+                0x84, 0xe5, 0xc8, 0x37,
+            ],
+            Elements::Modulo32 => [
+                0x1a, 0xa0, 0xf2, 0xed, 0x81, 0xe6, 0xaf, 0x95, 0x8d, 0x1a, 0x3b, 0x72, 0xa6, 0xda,
+                0x7f, 0x17, 0x38, 0x53, 0x63, 0xf2, 0xd2, 0xbd, 0x20, 0xd2, 0x93, 0x50, 0x6c, 0x0a,
+                0x18, 0x58, 0x28, 0xfb,
+            ],
+            Elements::Modulo64 => [
+                0x00, 0xd4, 0x46, 0x3d, 0xec, 0x3c, 0x73, 0x0d, 0x7f, 0xed, 0x1a, 0x23, 0xc6, 0x6b,
+                0xc3, 0xf4, 0xa2, 0xc7, 0x16, 0xa0, 0xce, 0x8e, 0x5d, 0x80, 0x50, 0x5b, 0x28, 0xef,
+                0xb9, 0x3d, 0xbc, 0x8b,
+            ],
+            Elements::Modulo8 => [
+                0x57, 0x8a, 0xe6, 0x7d, 0xa0, 0x09, 0xf3, 0xfe, 0xc1, 0x0f, 0x45, 0x64, 0x40, 0xaa,
+                0xcd, 0x54, 0x16, 0x0a, 0x16, 0xf4, 0x47, 0x5f, 0x05, 0x8f, 0xb3, 0x4b, 0xd2, 0xd3,
+                0x75, 0x10, 0xc9, 0x56,
+            ],
+            Elements::Multiply16 => [
+                0x3c, 0xd8, 0x35, 0x22, 0x72, 0xaa, 0xa2, 0xc5, 0x49, 0x65, 0xf0, 0xe8, 0x66, 0xa6,
+                0xe0, 0x81, 0xb2, 0x09, 0x84, 0x8c, 0x3b, 0x0a, 0x90, 0x6e, 0xcf, 0x02, 0x64, 0x15,
+                0xa6, 0x53, 0x4a, 0xb3,
+            ],
             Elements::Multiply32 => [
                 0x16, 0x1f, 0xd0, 0x3a, 0x92, 0xc6, 0x21, 0xb3, 0x28, 0x98, 0x49, 0xff, 0x29, 0xad,
                 0x81, 0x34, 0x99, 0xd6, 0x3e, 0xd9, 0x73, 0xdb, 0x0e, 0x97, 0x51, 0x78, 0x54, 0x21,
                 0xf5, 0x68, 0xd1, 0x8f,
+            ],
+            Elements::Multiply64 => [
+                0x22, 0x25, 0xf1, 0xaf, 0x99, 0xf5, 0x2f, 0xf9, 0x49, 0xea, 0x46, 0xb8, 0xf1, 0xce,
+                0xf6, 0x2f, 0x68, 0xaa, 0x3a, 0x42, 0x60, 0x11, 0x2e, 0xc9, 0xcd, 0x74, 0xd7, 0x8e,
+                0xbe, 0x1d, 0x15, 0xe7,
+            ],
+            Elements::Multiply8 => [
+                0x80, 0x24, 0x3b, 0x83, 0x65, 0x8c, 0x33, 0x0c, 0x3b, 0xc1, 0x93, 0x9e, 0x45, 0x4f,
+                0x53, 0xaa, 0x74, 0xdf, 0x6c, 0xf0, 0xa1, 0x9d, 0x1d, 0x67, 0xf2, 0x14, 0x6c, 0x9c,
+                0xbe, 0xe9, 0x51, 0x30,
+            ],
+            Elements::Negate16 => [
+                0x02, 0x69, 0xd7, 0x3f, 0x09, 0x4d, 0x59, 0x41, 0x19, 0x73, 0xea, 0xcd, 0xd5, 0xd3,
+                0xd9, 0xe4, 0x7c, 0xab, 0xb8, 0x27, 0x7e, 0x6e, 0xf4, 0x11, 0x15, 0x7a, 0x44, 0x8a,
+                0xe1, 0x25, 0x2d, 0x33,
+            ],
+            Elements::Negate32 => [
+                0xf6, 0xb2, 0x1e, 0x3f, 0x59, 0x3e, 0xbd, 0x97, 0xec, 0x16, 0x1f, 0xd4, 0xf8, 0x54,
+                0x43, 0xd3, 0x65, 0xc0, 0x23, 0x07, 0x5a, 0x22, 0xb6, 0x8c, 0xa2, 0x6c, 0xf6, 0xb7,
+                0x8b, 0xab, 0x94, 0xb0,
+            ],
+            Elements::Negate64 => [
+                0x2b, 0xf4, 0x8c, 0x08, 0xa5, 0x7f, 0x18, 0x36, 0xea, 0x2f, 0x57, 0x22, 0xc0, 0x79,
+                0x59, 0xa7, 0xd6, 0x4c, 0xbe, 0xf7, 0x05, 0xdc, 0xc3, 0xca, 0xba, 0x3a, 0x90, 0x05,
+                0x03, 0xd4, 0x89, 0x59,
+            ],
+            Elements::Negate8 => [
+                0x25, 0x6d, 0x50, 0x79, 0x8b, 0x7f, 0xe9, 0xe7, 0xcb, 0x16, 0x96, 0xfb, 0x18, 0x83,
+                0x19, 0x01, 0xef, 0x88, 0x95, 0x2c, 0xc4, 0x60, 0x6b, 0x68, 0x97, 0x4a, 0x79, 0xca,
+                0x8a, 0x8a, 0x00, 0x44,
             ],
             Elements::NewIssuanceContract => [
                 0x8d, 0x58, 0xd7, 0x7a, 0x39, 0xe4, 0xf1, 0x2d, 0x60, 0x2e, 0x9c, 0x01, 0x2b, 0x0a,
@@ -707,10 +1218,25 @@ impl Jet for Elements {
                 0x66, 0xce, 0x53, 0x98, 0x24, 0xd3, 0x34, 0x1b, 0xa6, 0xf0, 0x3e, 0x4b, 0x05, 0x5a,
                 0xac, 0x4e, 0x48, 0xe6,
             ],
+            Elements::One16 => [
+                0x8e, 0x67, 0xce, 0x64, 0xee, 0x18, 0xb6, 0x44, 0xc5, 0x5f, 0xd0, 0x7c, 0x71, 0x93,
+                0x2c, 0xa6, 0xe0, 0x29, 0x0b, 0xab, 0xef, 0xf9, 0x49, 0x25, 0xdd, 0x6d, 0xf2, 0x3a,
+                0x2e, 0xe4, 0xd1, 0xa2,
+            ],
             Elements::One32 => [
                 0x45, 0x26, 0x09, 0x9d, 0x0f, 0x84, 0x0b, 0xa6, 0xab, 0xe5, 0x5e, 0xd9, 0xf3, 0xa9,
                 0xb8, 0xfc, 0xa0, 0x84, 0xf2, 0x51, 0xbf, 0xb2, 0x6d, 0x01, 0x1c, 0xf7, 0xaf, 0x27,
                 0xb0, 0xd8, 0x8e, 0x29,
+            ],
+            Elements::One64 => [
+                0xc1, 0xa3, 0x4a, 0x00, 0xe3, 0x1e, 0xe1, 0x55, 0x2e, 0x6d, 0x09, 0xc6, 0x70, 0x77,
+                0x2b, 0xcb, 0x18, 0x63, 0xc1, 0x0f, 0x14, 0x82, 0xd0, 0x8c, 0xf0, 0xd9, 0xa1, 0x83,
+                0x2c, 0x59, 0xec, 0xf4,
+            ],
+            Elements::One8 => [
+                0xf9, 0x58, 0x76, 0x11, 0x81, 0xef, 0xf2, 0x30, 0xcb, 0xc5, 0x1c, 0xc0, 0xe4, 0x5f,
+                0x66, 0x91, 0x1b, 0x32, 0x19, 0x16, 0x0e, 0x62, 0x7f, 0xa8, 0x10, 0xc0, 0x7d, 0xfe,
+                0xa0, 0xb9, 0x9d, 0x6a,
             ],
             Elements::OutpointHash => [
                 0x4d, 0xf6, 0xf1, 0xbf, 0xc3, 0x0c, 0xd6, 0x9a, 0x2f, 0x26, 0xb4, 0x37, 0x05, 0xfe,
@@ -937,10 +1463,25 @@ impl Jet for Elements {
                 0x36, 0x15, 0x50, 0x4a, 0x0d, 0x2a, 0x1c, 0x05, 0xa5, 0xc3, 0x31, 0xa3, 0xe4, 0xb1,
                 0x88, 0xd5, 0x8c, 0xa4,
             ],
+            Elements::Subtract16 => [
+                0x62, 0x4a, 0xf4, 0x3d, 0x27, 0x5e, 0x2a, 0x20, 0x70, 0x3e, 0x66, 0x52, 0x3d, 0x35,
+                0xdd, 0x34, 0xef, 0x8e, 0x8b, 0x29, 0x3a, 0x57, 0x38, 0x0a, 0x21, 0xdb, 0xf6, 0x10,
+                0xcd, 0x62, 0x7a, 0xa3,
+            ],
             Elements::Subtract32 => [
                 0xf7, 0x6e, 0xca, 0xd1, 0xfd, 0xa5, 0x0f, 0x13, 0x5b, 0xdf, 0xe3, 0xe5, 0x33, 0xa1,
                 0x50, 0x09, 0x8f, 0x40, 0x62, 0x61, 0xc7, 0x6f, 0x6d, 0xbf, 0x67, 0x25, 0xf1, 0xe3,
                 0x88, 0x3c, 0x2a, 0xe2,
+            ],
+            Elements::Subtract64 => [
+                0x99, 0x4b, 0x25, 0x00, 0x38, 0x7d, 0x8d, 0x62, 0x02, 0x09, 0x67, 0x74, 0x16, 0xb9,
+                0xe6, 0x04, 0x52, 0x6c, 0x70, 0x8f, 0xf1, 0xf9, 0x65, 0xc9, 0xc9, 0x12, 0x52, 0x04,
+                0x7a, 0x3f, 0x57, 0xb3,
+            ],
+            Elements::Subtract8 => [
+                0x57, 0xa0, 0xd0, 0x8e, 0x5f, 0x01, 0xe8, 0x38, 0x8d, 0x78, 0x5c, 0xcb, 0x26, 0x57,
+                0xc4, 0xea, 0x98, 0xb8, 0x54, 0xa6, 0x58, 0x5c, 0x65, 0x8a, 0x21, 0x0d, 0xb0, 0x90,
+                0x1d, 0x10, 0xf9, 0x48,
             ],
             Elements::TapEnvHash => [
                 0xb8, 0xd3, 0x7d, 0x55, 0x55, 0xf3, 0x15, 0x08, 0xda, 0x71, 0xf9, 0x1f, 0x96, 0x35,
@@ -1014,7 +1555,10 @@ impl Jet for Elements {
 
     fn source_ty(&self) -> TypeName {
         let name: &'static [u8] = match self {
+            Elements::Add16 => b"i",
             Elements::Add32 => b"l",
+            Elements::Add64 => b"*ll",
+            Elements::Add8 => b"****22*22**22*22***22*22**22*22",
             Elements::AnnexHash => b"***+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh+1h",
             Elements::AssetAmountHash => b"***+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh*+*2hh+*2hl",
             Elements::Bip0340Verify => b"**hh*hh",
@@ -1046,8 +1590,27 @@ impl Jet for Elements {
             Elements::CurrentScriptSigHash => b"1",
             Elements::CurrentSequence => b"1",
             Elements::Decompress => b"*2h",
+            Elements::Decrement16 => b"****22*22**22*22***22*22**22*22",
+            Elements::Decrement32 => b"i",
+            Elements::Decrement64 => b"l",
+            Elements::Decrement8 => b"***22*22**22*22",
+            Elements::DivMod16 => b"i",
+            Elements::DivMod32 => b"l",
+            Elements::DivMod64 => b"*ll",
+            Elements::DivMod8 => b"****22*22**22*22***22*22**22*22",
+            Elements::Divide16 => b"i",
+            Elements::Divide32 => b"l",
+            Elements::Divide64 => b"*ll",
+            Elements::Divide8 => b"****22*22**22*22***22*22**22*22",
+            Elements::Divides16 => b"i",
+            Elements::Divides32 => b"l",
+            Elements::Divides64 => b"*ll",
+            Elements::Divides8 => b"****22*22**22*22***22*22**22*22",
+            Elements::Eq16 => b"i",
             Elements::Eq256 => b"*hh",
             Elements::Eq32 => b"l",
+            Elements::Eq64 => b"*ll",
+            Elements::Eq8 => b"****22*22**22*22***22*22**22*22",
             Elements::FeAdd => b"*hh",
             Elements::FeInvert => b"h",
             Elements::FeIsOdd => b"h",
@@ -1058,9 +1621,26 @@ impl Jet for Elements {
             Elements::FeNormalize => b"h",
             Elements::FeSquare => b"h",
             Elements::FeSquareRoot => b"h",
+            Elements::FullAdd16 => b"*2i",
             Elements::FullAdd32 => b"*2l",
+            Elements::FullAdd64 => b"*2*ll",
+            Elements::FullAdd8 => b"*2****22*22**22*22***22*22**22*22",
+            Elements::FullDecrement16 => b"*2****22*22**22*22***22*22**22*22",
+            Elements::FullDecrement32 => b"*2i",
+            Elements::FullDecrement64 => b"*2l",
+            Elements::FullDecrement8 => b"*2***22*22**22*22",
+            Elements::FullIncrement16 => b"*2****22*22**22*22***22*22**22*22",
+            Elements::FullIncrement32 => b"*2i",
+            Elements::FullIncrement64 => b"*2l",
+            Elements::FullIncrement8 => b"*2***22*22**22*22",
+            Elements::FullMultiply16 => b"l",
             Elements::FullMultiply32 => b"*ll",
+            Elements::FullMultiply64 => b"h",
+            Elements::FullMultiply8 => b"i",
+            Elements::FullSubtract16 => b"*2i",
             Elements::FullSubtract32 => b"*2l",
+            Elements::FullSubtract64 => b"*2*ll",
+            Elements::FullSubtract8 => b"*2****22*22**22*22***22*22**22*22",
             Elements::GeIsOnCurve => b"*hh",
             Elements::GeNegate => b"*hh",
             Elements::GejAdd => b"***hhh**hhh",
@@ -1077,6 +1657,10 @@ impl Jet for Elements {
             Elements::GejYIsOdd => b"**hhh",
             Elements::Generate => b"h",
             Elements::GenesisBlockHash => b"1",
+            Elements::Increment16 => b"****22*22**22*22***22*22**22*22",
+            Elements::Increment32 => b"i",
+            Elements::Increment64 => b"l",
+            Elements::Increment8 => b"***22*22**22*22",
             Elements::InputAmount => b"i",
             Elements::InputAmountsHash => b"1",
             Elements::InputAnnexHash => b"i",
@@ -1094,6 +1678,14 @@ impl Jet for Elements {
             Elements::InputUtxosHash => b"1",
             Elements::InputsHash => b"1",
             Elements::InternalKey => b"1",
+            Elements::IsOne16 => b"****22*22**22*22***22*22**22*22",
+            Elements::IsOne32 => b"i",
+            Elements::IsOne64 => b"l",
+            Elements::IsOne8 => b"***22*22**22*22",
+            Elements::IsZero16 => b"****22*22**22*22***22*22**22*22",
+            Elements::IsZero32 => b"i",
+            Elements::IsZero64 => b"l",
+            Elements::IsZero8 => b"***22*22**22*22",
             Elements::Issuance => b"i",
             Elements::IssuanceAsset => b"i",
             Elements::IssuanceAssetAmount => b"i",
@@ -1107,17 +1699,53 @@ impl Jet for Elements {
             Elements::IssuanceTokenAmountsHash => b"1",
             Elements::IssuanceTokenProof => b"i",
             Elements::IssuancesHash => b"1",
+            Elements::Le16 => b"i",
             Elements::Le32 => b"l",
+            Elements::Le64 => b"*ll",
+            Elements::Le8 => b"****22*22**22*22***22*22**22*22",
             Elements::LinearCombination1 => b"**h**hhhh",
             Elements::LinearVerify1 => b"***h*hhh*hh",
             Elements::LockTime => b"1",
+            Elements::Low16 => b"1",
             Elements::Low32 => b"1",
+            Elements::Low64 => b"1",
+            Elements::Low8 => b"1",
+            Elements::Lt16 => b"i",
+            Elements::Lt32 => b"l",
+            Elements::Lt64 => b"*ll",
+            Elements::Lt8 => b"****22*22**22*22***22*22**22*22",
+            Elements::Max16 => b"i",
+            Elements::Max32 => b"l",
+            Elements::Max64 => b"*ll",
+            Elements::Max8 => b"****22*22**22*22***22*22**22*22",
+            Elements::Median16 => b"*****22*22**22*22***22*22**22*22i",
+            Elements::Median32 => b"*il",
+            Elements::Median64 => b"*l*ll",
+            Elements::Median8 => b"****22*22**22*22****22*22**22*22***22*22**22*22",
+            Elements::Min16 => b"i",
+            Elements::Min32 => b"l",
+            Elements::Min64 => b"*ll",
+            Elements::Min8 => b"****22*22**22*22***22*22**22*22",
+            Elements::Modulo16 => b"i",
+            Elements::Modulo32 => b"l",
+            Elements::Modulo64 => b"*ll",
+            Elements::Modulo8 => b"****22*22**22*22***22*22**22*22",
+            Elements::Multiply16 => b"i",
             Elements::Multiply32 => b"l",
+            Elements::Multiply64 => b"*ll",
+            Elements::Multiply8 => b"****22*22**22*22***22*22**22*22",
+            Elements::Negate16 => b"****22*22**22*22***22*22**22*22",
+            Elements::Negate32 => b"i",
+            Elements::Negate64 => b"l",
+            Elements::Negate8 => b"***22*22**22*22",
             Elements::NewIssuanceContract => b"i",
             Elements::NonceHash => b"***+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh+1+*2hh",
             Elements::NumInputs => b"1",
             Elements::NumOutputs => b"1",
+            Elements::One16 => b"1",
             Elements::One32 => b"1",
+            Elements::One64 => b"1",
+            Elements::One8 => b"1",
             Elements::OutpointHash => b"***+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh*+1h*hi",
             Elements::OutputAmount => b"i",
             Elements::OutputAmountsHash => b"1",
@@ -1163,7 +1791,10 @@ impl Jet for Elements {
             Elements::Sha256Ctx8Init => b"1",
             Elements::Sha256Iv => b"1",
             Elements::SigAllHash => b"1",
+            Elements::Subtract16 => b"i",
             Elements::Subtract32 => b"l",
+            Elements::Subtract64 => b"*ll",
+            Elements::Subtract8 => b"****22*22**22*22***22*22**22*22",
             Elements::TapEnvHash => b"1",
             Elements::Tapbranch => b"***22*22**22*22",
             Elements::TapbranchHash => b"1",
@@ -1184,7 +1815,10 @@ impl Jet for Elements {
 
     fn target_ty(&self) -> TypeName {
         let name: &'static [u8] = match self {
+            Elements::Add16 => b"*2****22*22**22*22***22*22**22*22",
             Elements::Add32 => b"*2i",
+            Elements::Add64 => b"*2l",
+            Elements::Add8 => b"*2***22*22**22*22",
             Elements::AnnexHash => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
             Elements::AssetAmountHash => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
             Elements::Bip0340Verify => b"1",
@@ -1216,8 +1850,27 @@ impl Jet for Elements {
             Elements::CurrentScriptSigHash => b"h",
             Elements::CurrentSequence => b"i",
             Elements::Decompress => b"+1*hh",
+            Elements::Decrement16 => b"*2****22*22**22*22***22*22**22*22",
+            Elements::Decrement32 => b"*2i",
+            Elements::Decrement64 => b"*2l",
+            Elements::Decrement8 => b"*2***22*22**22*22",
+            Elements::DivMod16 => b"i",
+            Elements::DivMod32 => b"l",
+            Elements::DivMod64 => b"*ll",
+            Elements::DivMod8 => b"****22*22**22*22***22*22**22*22",
+            Elements::Divide16 => b"****22*22**22*22***22*22**22*22",
+            Elements::Divide32 => b"i",
+            Elements::Divide64 => b"l",
+            Elements::Divide8 => b"***22*22**22*22",
+            Elements::Divides16 => b"2",
+            Elements::Divides32 => b"2",
+            Elements::Divides64 => b"2",
+            Elements::Divides8 => b"2",
+            Elements::Eq16 => b"2",
             Elements::Eq256 => b"2",
             Elements::Eq32 => b"2",
+            Elements::Eq64 => b"2",
+            Elements::Eq8 => b"2",
             Elements::FeAdd => b"h",
             Elements::FeInvert => b"h",
             Elements::FeIsOdd => b"2",
@@ -1228,9 +1881,26 @@ impl Jet for Elements {
             Elements::FeNormalize => b"h",
             Elements::FeSquare => b"h",
             Elements::FeSquareRoot => b"+1h",
+            Elements::FullAdd16 => b"*2****22*22**22*22***22*22**22*22",
             Elements::FullAdd32 => b"*2i",
+            Elements::FullAdd64 => b"*2l",
+            Elements::FullAdd8 => b"*2***22*22**22*22",
+            Elements::FullDecrement16 => b"*2****22*22**22*22***22*22**22*22",
+            Elements::FullDecrement32 => b"*2i",
+            Elements::FullDecrement64 => b"*2l",
+            Elements::FullDecrement8 => b"*2***22*22**22*22",
+            Elements::FullIncrement16 => b"*2****22*22**22*22***22*22**22*22",
+            Elements::FullIncrement32 => b"*2i",
+            Elements::FullIncrement64 => b"*2l",
+            Elements::FullIncrement8 => b"*2***22*22**22*22",
+            Elements::FullMultiply16 => b"i",
             Elements::FullMultiply32 => b"l",
+            Elements::FullMultiply64 => b"*ll",
+            Elements::FullMultiply8 => b"****22*22**22*22***22*22**22*22",
+            Elements::FullSubtract16 => b"*2****22*22**22*22***22*22**22*22",
             Elements::FullSubtract32 => b"*2i",
+            Elements::FullSubtract64 => b"*2l",
+            Elements::FullSubtract8 => b"*2***22*22**22*22",
             Elements::GeIsOnCurve => b"2",
             Elements::GeNegate => b"*hh",
             Elements::GejAdd => b"**hhh",
@@ -1247,6 +1917,10 @@ impl Jet for Elements {
             Elements::GejYIsOdd => b"2",
             Elements::Generate => b"**hhh",
             Elements::GenesisBlockHash => b"h",
+            Elements::Increment16 => b"*2****22*22**22*22***22*22**22*22",
+            Elements::Increment32 => b"*2i",
+            Elements::Increment64 => b"*2l",
+            Elements::Increment8 => b"*2***22*22**22*22",
             Elements::InputAmount => b"+1*+*2hh+*2hl",
             Elements::InputAmountsHash => b"h",
             Elements::InputAnnexHash => b"+1+1h",
@@ -1264,6 +1938,14 @@ impl Jet for Elements {
             Elements::InputUtxosHash => b"h",
             Elements::InputsHash => b"h",
             Elements::InternalKey => b"h",
+            Elements::IsOne16 => b"2",
+            Elements::IsOne32 => b"2",
+            Elements::IsOne64 => b"2",
+            Elements::IsOne8 => b"2",
+            Elements::IsZero16 => b"2",
+            Elements::IsZero32 => b"2",
+            Elements::IsZero64 => b"2",
+            Elements::IsZero8 => b"2",
             Elements::Issuance => b"+1+12",
             Elements::IssuanceAsset => b"+1+1h",
             Elements::IssuanceAssetAmount => b"+1+1+*2hl",
@@ -1277,17 +1959,53 @@ impl Jet for Elements {
             Elements::IssuanceTokenAmountsHash => b"h",
             Elements::IssuanceTokenProof => b"+1h",
             Elements::IssuancesHash => b"h",
+            Elements::Le16 => b"2",
             Elements::Le32 => b"2",
+            Elements::Le64 => b"2",
+            Elements::Le8 => b"2",
             Elements::LinearCombination1 => b"**hhh",
             Elements::LinearVerify1 => b"1",
             Elements::LockTime => b"i",
+            Elements::Low16 => b"****22*22**22*22***22*22**22*22",
             Elements::Low32 => b"i",
+            Elements::Low64 => b"l",
+            Elements::Low8 => b"***22*22**22*22",
+            Elements::Lt16 => b"2",
+            Elements::Lt32 => b"2",
+            Elements::Lt64 => b"2",
+            Elements::Lt8 => b"2",
+            Elements::Max16 => b"****22*22**22*22***22*22**22*22",
+            Elements::Max32 => b"i",
+            Elements::Max64 => b"l",
+            Elements::Max8 => b"***22*22**22*22",
+            Elements::Median16 => b"****22*22**22*22***22*22**22*22",
+            Elements::Median32 => b"i",
+            Elements::Median64 => b"l",
+            Elements::Median8 => b"***22*22**22*22",
+            Elements::Min16 => b"****22*22**22*22***22*22**22*22",
+            Elements::Min32 => b"i",
+            Elements::Min64 => b"l",
+            Elements::Min8 => b"***22*22**22*22",
+            Elements::Modulo16 => b"****22*22**22*22***22*22**22*22",
+            Elements::Modulo32 => b"i",
+            Elements::Modulo64 => b"l",
+            Elements::Modulo8 => b"***22*22**22*22",
+            Elements::Multiply16 => b"i",
             Elements::Multiply32 => b"l",
+            Elements::Multiply64 => b"*ll",
+            Elements::Multiply8 => b"****22*22**22*22***22*22**22*22",
+            Elements::Negate16 => b"*2****22*22**22*22***22*22**22*22",
+            Elements::Negate32 => b"*2i",
+            Elements::Negate64 => b"*2l",
+            Elements::Negate8 => b"*2***22*22**22*22",
             Elements::NewIssuanceContract => b"+1+1h",
             Elements::NonceHash => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
             Elements::NumInputs => b"i",
             Elements::NumOutputs => b"i",
+            Elements::One16 => b"****22*22**22*22***22*22**22*22",
             Elements::One32 => b"i",
+            Elements::One64 => b"l",
+            Elements::One8 => b"***22*22**22*22",
             Elements::OutpointHash => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
             Elements::OutputAmount => b"+1*+*2hh+*2hl",
             Elements::OutputAmountsHash => b"h",
@@ -1333,7 +2051,10 @@ impl Jet for Elements {
             Elements::Sha256Ctx8Init => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
             Elements::Sha256Iv => b"h",
             Elements::SigAllHash => b"h",
+            Elements::Subtract16 => b"*2****22*22**22*22***22*22**22*22",
             Elements::Subtract32 => b"*2i",
+            Elements::Subtract64 => b"*2l",
+            Elements::Subtract8 => b"*2***22*22**22*22",
             Elements::TapEnvHash => b"h",
             Elements::Tapbranch => b"+1h",
             Elements::TapbranchHash => b"h",
@@ -1355,17 +2076,107 @@ impl Jet for Elements {
     fn encode<W: Write>(&self, w: &mut BitWriter<W>) -> std::io::Result<usize> {
         let (n, len) = match self {
             Elements::Verify => (0, 3),
+            Elements::Low8 => (37, 8),
+            Elements::Low16 => (304, 11),
             Elements::Low32 => (305, 11),
+            Elements::Low64 => (306, 11),
+            Elements::Eq8 => (877, 12),
+            Elements::Eq16 => (7024, 15),
             Elements::Eq32 => (7025, 15),
+            Elements::Eq64 => (7026, 15),
             Elements::Eq256 => (14056, 16),
+            Elements::One8 => (69, 8),
+            Elements::One16 => (560, 11),
             Elements::One32 => (561, 11),
+            Elements::One64 => (562, 11),
+            Elements::FullAdd8 => (293, 10),
+            Elements::FullAdd16 => (2352, 13),
             Elements::FullAdd32 => (2353, 13),
+            Elements::FullAdd64 => (2354, 13),
+            Elements::Add8 => (301, 10),
+            Elements::Add16 => (2416, 13),
             Elements::Add32 => (2417, 13),
+            Elements::Add64 => (2418, 13),
+            Elements::FullIncrement8 => (2437, 13),
+            Elements::FullIncrement16 => (19504, 16),
+            Elements::FullIncrement32 => (19505, 16),
+            Elements::FullIncrement64 => (19506, 16),
+            Elements::Increment8 => (2445, 13),
+            Elements::Increment16 => (19568, 16),
+            Elements::Increment32 => (19569, 16),
+            Elements::Increment64 => (19570, 16),
+            Elements::FullSubtract8 => (2461, 13),
+            Elements::FullSubtract16 => (19696, 16),
             Elements::FullSubtract32 => (19697, 16),
+            Elements::FullSubtract64 => (19698, 16),
+            Elements::Subtract8 => (4933, 14),
+            Elements::Subtract16 => (39472, 17),
             Elements::Subtract32 => (39473, 17),
+            Elements::Subtract64 => (39474, 17),
+            Elements::Negate8 => (4941, 14),
+            Elements::Negate16 => (39536, 17),
+            Elements::Negate32 => (39537, 17),
+            Elements::Negate64 => (39538, 17),
+            Elements::FullDecrement8 => (4949, 14),
+            Elements::FullDecrement16 => (39600, 17),
+            Elements::FullDecrement32 => (39601, 17),
+            Elements::FullDecrement64 => (39602, 17),
+            Elements::Decrement8 => (4957, 14),
+            Elements::Decrement16 => (39664, 17),
+            Elements::Decrement32 => (39665, 17),
+            Elements::Decrement64 => (39666, 17),
+            Elements::FullMultiply8 => (4965, 14),
+            Elements::FullMultiply16 => (39728, 17),
             Elements::FullMultiply32 => (39729, 17),
+            Elements::FullMultiply64 => (39730, 17),
+            Elements::Multiply8 => (4973, 14),
+            Elements::Multiply16 => (39792, 17),
             Elements::Multiply32 => (39793, 17),
+            Elements::Multiply64 => (39794, 17),
+            Elements::IsZero8 => (4981, 14),
+            Elements::IsZero16 => (39856, 17),
+            Elements::IsZero32 => (39857, 17),
+            Elements::IsZero64 => (39858, 17),
+            Elements::IsOne8 => (4989, 14),
+            Elements::IsOne16 => (39920, 17),
+            Elements::IsOne32 => (39921, 17),
+            Elements::IsOne64 => (39922, 17),
+            Elements::Le8 => (79877, 18),
+            Elements::Le16 => (639024, 21),
             Elements::Le32 => (639025, 21),
+            Elements::Le64 => (639026, 21),
+            Elements::Lt8 => (79885, 18),
+            Elements::Lt16 => (639088, 21),
+            Elements::Lt32 => (639089, 21),
+            Elements::Lt64 => (639090, 21),
+            Elements::Min8 => (79893, 18),
+            Elements::Min16 => (639152, 21),
+            Elements::Min32 => (639153, 21),
+            Elements::Min64 => (639154, 21),
+            Elements::Max8 => (79901, 18),
+            Elements::Max16 => (639216, 21),
+            Elements::Max32 => (639217, 21),
+            Elements::Max64 => (639218, 21),
+            Elements::Median8 => (79909, 18),
+            Elements::Median16 => (639280, 21),
+            Elements::Median32 => (639281, 21),
+            Elements::Median64 => (639282, 21),
+            Elements::DivMod8 => (79925, 18),
+            Elements::DivMod16 => (639408, 21),
+            Elements::DivMod32 => (639409, 21),
+            Elements::DivMod64 => (639410, 21),
+            Elements::Divide8 => (79933, 18),
+            Elements::Divide16 => (639472, 21),
+            Elements::Divide32 => (639473, 21),
+            Elements::Divide64 => (639474, 21),
+            Elements::Modulo8 => (79941, 18),
+            Elements::Modulo16 => (639536, 21),
+            Elements::Modulo32 => (639537, 21),
+            Elements::Modulo64 => (639538, 21),
+            Elements::Divides8 => (79949, 18),
+            Elements::Divides16 => (639600, 21),
+            Elements::Divides32 => (639601, 21),
+            Elements::Divides64 => (639602, 21),
             Elements::Sha256Block => (20, 6),
             Elements::Sha256Iv => (84, 8),
             Elements::Sha256Ctx8Add1 => (170, 9),
@@ -1532,15 +2343,21 @@ impl Jet for Elements {
                             0 => {
                                 0 => {},
                                 1 => {
-                                    0 => {},
+                                    0 => {
+                                        0 => {},
+                                        1 => {Elements::Low8}
+                                    },
                                     1 => {
                                         0 => {
                                             0 => {
                                                 0 => {
-                                                    0 => {},
+                                                    0 => {Elements::Low16},
                                                     1 => {Elements::Low32}
                                                 },
-                                                1 => {}
+                                                1 => {
+                                                    0 => {Elements::Low64},
+                                                    1 => {}
+                                                }
                                             },
                                             1 => {}
                                         },
@@ -1561,15 +2378,21 @@ impl Jet for Elements {
                                             1 => {
                                                 0 => {},
                                                 1 => {
-                                                    0 => {},
+                                                    0 => {
+                                                        0 => {},
+                                                        1 => {Elements::Eq8}
+                                                    },
                                                     1 => {
                                                         0 => {
                                                             0 => {
                                                                 0 => {
-                                                                    0 => {},
+                                                                    0 => {Elements::Eq16},
                                                                     1 => {Elements::Eq32}
                                                                 },
-                                                                1 => {}
+                                                                1 => {
+                                                                    0 => {Elements::Eq64},
+                                                                    1 => {}
+                                                                }
                                                             },
                                                             1 => {
                                                                 0 => {
@@ -1601,15 +2424,21 @@ impl Jet for Elements {
                             0 => {
                                 0 => {},
                                 1 => {
-                                    0 => {},
+                                    0 => {
+                                        0 => {},
+                                        1 => {Elements::One8}
+                                    },
                                     1 => {
                                         0 => {
                                             0 => {
                                                 0 => {
-                                                    0 => {},
+                                                    0 => {Elements::One16},
                                                     1 => {Elements::One32}
                                                 },
-                                                1 => {}
+                                                1 => {
+                                                    0 => {Elements::One64},
+                                                    1 => {}
+                                                }
                                             },
                                             1 => {}
                                         },
@@ -1622,15 +2451,21 @@ impl Jet for Elements {
                                     0 => {
                                         0 => {},
                                         1 => {
-                                            0 => {},
+                                            0 => {
+                                                0 => {},
+                                                1 => {Elements::FullAdd8}
+                                            },
                                             1 => {
                                                 0 => {
                                                     0 => {
                                                         0 => {
-                                                            0 => {},
+                                                            0 => {Elements::FullAdd16},
                                                             1 => {Elements::FullAdd32}
                                                         },
-                                                        1 => {}
+                                                        1 => {
+                                                            0 => {Elements::FullAdd64},
+                                                            1 => {}
+                                                        }
                                                     },
                                                     1 => {}
                                                 },
@@ -1641,15 +2476,21 @@ impl Jet for Elements {
                                     1 => {
                                         0 => {},
                                         1 => {
-                                            0 => {},
+                                            0 => {
+                                                0 => {},
+                                                1 => {Elements::Add8}
+                                            },
                                             1 => {
                                                 0 => {
                                                     0 => {
                                                         0 => {
-                                                            0 => {},
+                                                            0 => {Elements::Add16},
                                                             1 => {Elements::Add32}
                                                         },
-                                                        1 => {}
+                                                        1 => {
+                                                            0 => {Elements::Add64},
+                                                            1 => {}
+                                                        }
                                                     },
                                                     1 => {}
                                                 },
@@ -1661,21 +2502,78 @@ impl Jet for Elements {
                                 1 => {
                                     0 => {
                                         0 => {
-                                            0 => {},
+                                            0 => {
+                                                0 => {
+                                                    0 => {},
+                                                    1 => {
+                                                        0 => {
+                                                            0 => {},
+                                                            1 => {Elements::FullIncrement8}
+                                                        },
+                                                        1 => {
+                                                            0 => {
+                                                                0 => {
+                                                                    0 => {
+                                                                        0 => {Elements::FullIncrement16},
+                                                                        1 => {Elements::FullIncrement32}
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {Elements::FullIncrement64},
+                                                                        1 => {}
+                                                                    }
+                                                                },
+                                                                1 => {}
+                                                            },
+                                                            1 => {}
+                                                        }
+                                                    }
+                                                },
+                                                1 => {
+                                                    0 => {},
+                                                    1 => {
+                                                        0 => {
+                                                            0 => {},
+                                                            1 => {Elements::Increment8}
+                                                        },
+                                                        1 => {
+                                                            0 => {
+                                                                0 => {
+                                                                    0 => {
+                                                                        0 => {Elements::Increment16},
+                                                                        1 => {Elements::Increment32}
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {Elements::Increment64},
+                                                                        1 => {}
+                                                                    }
+                                                                },
+                                                                1 => {}
+                                                            },
+                                                            1 => {}
+                                                        }
+                                                    }
+                                                }
+                                            },
                                             1 => {
                                                 0 => {},
                                                 1 => {
                                                     0 => {},
                                                     1 => {
-                                                        0 => {},
+                                                        0 => {
+                                                            0 => {},
+                                                            1 => {Elements::FullSubtract8}
+                                                        },
                                                         1 => {
                                                             0 => {
                                                                 0 => {
                                                                     0 => {
-                                                                        0 => {},
+                                                                        0 => {Elements::FullSubtract16},
                                                                         1 => {Elements::FullSubtract32}
                                                                     },
-                                                                    1 => {}
+                                                                    1 => {
+                                                                        0 => {Elements::FullSubtract64},
+                                                                        1 => {}
+                                                                    }
                                                                 },
                                                                 1 => {}
                                                             },
@@ -1691,40 +2589,21 @@ impl Jet for Elements {
                                                     0 => {
                                                         0 => {},
                                                         1 => {
-                                                            0 => {},
+                                                            0 => {
+                                                                0 => {},
+                                                                1 => {Elements::Subtract8}
+                                                            },
                                                             1 => {
                                                                 0 => {
                                                                     0 => {
                                                                         0 => {
-                                                                            0 => {},
+                                                                            0 => {Elements::Subtract16},
                                                                             1 => {Elements::Subtract32}
                                                                         },
-                                                                        1 => {}
-                                                                    },
-                                                                    1 => {}
-                                                                },
-                                                                1 => {}
-                                                            }
-                                                        }
-                                                    },
-                                                    1 => {}
-                                                },
-                                                1 => {}
-                                            },
-                                            1 => {
-                                                0 => {
-                                                    0 => {
-                                                        0 => {},
-                                                        1 => {
-                                                            0 => {},
-                                                            1 => {
-                                                                0 => {
-                                                                    0 => {
-                                                                        0 => {
-                                                                            0 => {},
-                                                                            1 => {Elements::FullMultiply32}
-                                                                        },
-                                                                        1 => {}
+                                                                        1 => {
+                                                                            0 => {Elements::Subtract64},
+                                                                            1 => {}
+                                                                        }
                                                                     },
                                                                     1 => {}
                                                                 },
@@ -1735,15 +2614,21 @@ impl Jet for Elements {
                                                     1 => {
                                                         0 => {},
                                                         1 => {
-                                                            0 => {},
+                                                            0 => {
+                                                                0 => {},
+                                                                1 => {Elements::Negate8}
+                                                            },
                                                             1 => {
                                                                 0 => {
                                                                     0 => {
                                                                         0 => {
-                                                                            0 => {},
-                                                                            1 => {Elements::Multiply32}
+                                                                            0 => {Elements::Negate16},
+                                                                            1 => {Elements::Negate32}
                                                                         },
-                                                                        1 => {}
+                                                                        1 => {
+                                                                            0 => {Elements::Negate64},
+                                                                            1 => {}
+                                                                        }
                                                                     },
                                                                     1 => {}
                                                                 },
@@ -1752,7 +2637,164 @@ impl Jet for Elements {
                                                         }
                                                     }
                                                 },
-                                                1 => {}
+                                                1 => {
+                                                    0 => {
+                                                        0 => {},
+                                                        1 => {
+                                                            0 => {
+                                                                0 => {},
+                                                                1 => {Elements::FullDecrement8}
+                                                            },
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {Elements::FullDecrement16},
+                                                                            1 => {Elements::FullDecrement32}
+                                                                        },
+                                                                        1 => {
+                                                                            0 => {Elements::FullDecrement64},
+                                                                            1 => {}
+                                                                        }
+                                                                    },
+                                                                    1 => {}
+                                                                },
+                                                                1 => {}
+                                                            }
+                                                        }
+                                                    },
+                                                    1 => {
+                                                        0 => {},
+                                                        1 => {
+                                                            0 => {
+                                                                0 => {},
+                                                                1 => {Elements::Decrement8}
+                                                            },
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {Elements::Decrement16},
+                                                                            1 => {Elements::Decrement32}
+                                                                        },
+                                                                        1 => {
+                                                                            0 => {Elements::Decrement64},
+                                                                            1 => {}
+                                                                        }
+                                                                    },
+                                                                    1 => {}
+                                                                },
+                                                                1 => {}
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            1 => {
+                                                0 => {
+                                                    0 => {
+                                                        0 => {},
+                                                        1 => {
+                                                            0 => {
+                                                                0 => {},
+                                                                1 => {Elements::FullMultiply8}
+                                                            },
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {Elements::FullMultiply16},
+                                                                            1 => {Elements::FullMultiply32}
+                                                                        },
+                                                                        1 => {
+                                                                            0 => {Elements::FullMultiply64},
+                                                                            1 => {}
+                                                                        }
+                                                                    },
+                                                                    1 => {}
+                                                                },
+                                                                1 => {}
+                                                            }
+                                                        }
+                                                    },
+                                                    1 => {
+                                                        0 => {},
+                                                        1 => {
+                                                            0 => {
+                                                                0 => {},
+                                                                1 => {Elements::Multiply8}
+                                                            },
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {Elements::Multiply16},
+                                                                            1 => {Elements::Multiply32}
+                                                                        },
+                                                                        1 => {
+                                                                            0 => {Elements::Multiply64},
+                                                                            1 => {}
+                                                                        }
+                                                                    },
+                                                                    1 => {}
+                                                                },
+                                                                1 => {}
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                1 => {
+                                                    0 => {
+                                                        0 => {},
+                                                        1 => {
+                                                            0 => {
+                                                                0 => {},
+                                                                1 => {Elements::IsZero8}
+                                                            },
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {Elements::IsZero16},
+                                                                            1 => {Elements::IsZero32}
+                                                                        },
+                                                                        1 => {
+                                                                            0 => {Elements::IsZero64},
+                                                                            1 => {}
+                                                                        }
+                                                                    },
+                                                                    1 => {}
+                                                                },
+                                                                1 => {}
+                                                            }
+                                                        }
+                                                    },
+                                                    1 => {
+                                                        0 => {},
+                                                        1 => {
+                                                            0 => {
+                                                                0 => {},
+                                                                1 => {Elements::IsOne8}
+                                                            },
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {Elements::IsOne16},
+                                                                            1 => {Elements::IsOne32}
+                                                                        },
+                                                                        1 => {
+                                                                            0 => {Elements::IsOne64},
+                                                                            1 => {}
+                                                                        }
+                                                                    },
+                                                                    1 => {}
+                                                                },
+                                                                1 => {}
+                                                            }
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     },
@@ -1767,15 +2809,127 @@ impl Jet for Elements {
                                                                     0 => {
                                                                         0 => {},
                                                                         1 => {
-                                                                            0 => {},
+                                                                            0 => {
+                                                                                0 => {},
+                                                                                1 => {Elements::Le8}
+                                                                            },
                                                                             1 => {
                                                                                 0 => {
                                                                                     0 => {
                                                                                         0 => {
-                                                                                            0 => {},
+                                                                                            0 => {Elements::Le16},
                                                                                             1 => {Elements::Le32}
                                                                                         },
-                                                                                        1 => {}
+                                                                                        1 => {
+                                                                                            0 => {Elements::Le64},
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    },
+                                                                                    1 => {}
+                                                                                },
+                                                                                1 => {}
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {},
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {},
+                                                                                1 => {Elements::Lt8}
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {
+                                                                                            0 => {Elements::Lt16},
+                                                                                            1 => {Elements::Lt32}
+                                                                                        },
+                                                                                        1 => {
+                                                                                            0 => {Elements::Lt64},
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    },
+                                                                                    1 => {}
+                                                                                },
+                                                                                1 => {}
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                },
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {},
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {},
+                                                                                1 => {Elements::Min8}
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {
+                                                                                            0 => {Elements::Min16},
+                                                                                            1 => {Elements::Min32}
+                                                                                        },
+                                                                                        1 => {
+                                                                                            0 => {Elements::Min64},
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    },
+                                                                                    1 => {}
+                                                                                },
+                                                                                1 => {}
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {},
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {},
+                                                                                1 => {Elements::Max8}
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {
+                                                                                            0 => {Elements::Max16},
+                                                                                            1 => {Elements::Max32}
+                                                                                        },
+                                                                                        1 => {
+                                                                                            0 => {Elements::Max64},
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    },
+                                                                                    1 => {}
+                                                                                },
+                                                                                1 => {}
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            },
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {
+                                                                        0 => {},
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {},
+                                                                                1 => {Elements::Median8}
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {
+                                                                                            0 => {Elements::Median16},
+                                                                                            1 => {Elements::Median32}
+                                                                                        },
+                                                                                        1 => {
+                                                                                            0 => {Elements::Median64},
+                                                                                            1 => {}
+                                                                                        }
                                                                                     },
                                                                                     1 => {}
                                                                                 },
@@ -1785,11 +2939,118 @@ impl Jet for Elements {
                                                                     },
                                                                     1 => {}
                                                                 },
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {},
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {},
+                                                                                1 => {Elements::DivMod8}
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {
+                                                                                            0 => {Elements::DivMod16},
+                                                                                            1 => {Elements::DivMod32}
+                                                                                        },
+                                                                                        1 => {
+                                                                                            0 => {Elements::DivMod64},
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    },
+                                                                                    1 => {}
+                                                                                },
+                                                                                1 => {}
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {},
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {},
+                                                                                1 => {Elements::Divide8}
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {
+                                                                                            0 => {Elements::Divide16},
+                                                                                            1 => {Elements::Divide32}
+                                                                                        },
+                                                                                        1 => {
+                                                                                            0 => {Elements::Divide64},
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    },
+                                                                                    1 => {}
+                                                                                },
+                                                                                1 => {}
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        },
+                                                        1 => {
+                                                            0 => {
+                                                                0 => {
+                                                                    0 => {
+                                                                        0 => {},
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {},
+                                                                                1 => {Elements::Modulo8}
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {
+                                                                                            0 => {Elements::Modulo16},
+                                                                                            1 => {Elements::Modulo32}
+                                                                                        },
+                                                                                        1 => {
+                                                                                            0 => {Elements::Modulo64},
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    },
+                                                                                    1 => {}
+                                                                                },
+                                                                                1 => {}
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {},
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {},
+                                                                                1 => {Elements::Divides8}
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {
+                                                                                            0 => {Elements::Divides16},
+                                                                                            1 => {Elements::Divides32}
+                                                                                        },
+                                                                                        1 => {
+                                                                                            0 => {Elements::Divides64},
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    },
+                                                                                    1 => {}
+                                                                                },
+                                                                                1 => {}
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                },
                                                                 1 => {}
                                                             },
                                                             1 => {}
-                                                        },
-                                                        1 => {}
+                                                        }
                                                     },
                                                     1 => {}
                                                 },
@@ -2413,7 +3674,10 @@ impl Jet for Elements {
 
     fn c_jet_ptr(&self) -> &dyn Fn(&mut CFrameItem, CFrameItem, &Self::CJetEnvironment) -> bool {
         match self {
+            Elements::Add16 => &simplicity_sys::c_jets::jets_wrapper::add_16,
             Elements::Add32 => &simplicity_sys::c_jets::jets_wrapper::add_32,
+            Elements::Add64 => &simplicity_sys::c_jets::jets_wrapper::add_64,
+            Elements::Add8 => &simplicity_sys::c_jets::jets_wrapper::add_8,
             Elements::AnnexHash => &simplicity_sys::c_jets::jets_wrapper::annex_hash,
             Elements::AssetAmountHash => &simplicity_sys::c_jets::jets_wrapper::asset_amount_hash,
             Elements::Bip0340Verify => &simplicity_sys::c_jets::jets_wrapper::bip_0340_verify,
@@ -2445,8 +3709,27 @@ impl Jet for Elements {
             Elements::CurrentScriptSigHash => &simplicity_sys::c_jets::jets_wrapper::current_script_sig_hash,
             Elements::CurrentSequence => &simplicity_sys::c_jets::jets_wrapper::current_sequence,
             Elements::Decompress => &simplicity_sys::c_jets::jets_wrapper::decompress,
+            Elements::Decrement16 => &simplicity_sys::c_jets::jets_wrapper::decrement_16,
+            Elements::Decrement32 => &simplicity_sys::c_jets::jets_wrapper::decrement_32,
+            Elements::Decrement64 => &simplicity_sys::c_jets::jets_wrapper::decrement_64,
+            Elements::Decrement8 => &simplicity_sys::c_jets::jets_wrapper::decrement_8,
+            Elements::DivMod16 => &simplicity_sys::c_jets::jets_wrapper::div_mod_16,
+            Elements::DivMod32 => &simplicity_sys::c_jets::jets_wrapper::div_mod_32,
+            Elements::DivMod64 => &simplicity_sys::c_jets::jets_wrapper::div_mod_64,
+            Elements::DivMod8 => &simplicity_sys::c_jets::jets_wrapper::div_mod_8,
+            Elements::Divide16 => &simplicity_sys::c_jets::jets_wrapper::divide_16,
+            Elements::Divide32 => &simplicity_sys::c_jets::jets_wrapper::divide_32,
+            Elements::Divide64 => &simplicity_sys::c_jets::jets_wrapper::divide_64,
+            Elements::Divide8 => &simplicity_sys::c_jets::jets_wrapper::divide_8,
+            Elements::Divides16 => &simplicity_sys::c_jets::jets_wrapper::divides_16,
+            Elements::Divides32 => &simplicity_sys::c_jets::jets_wrapper::divides_32,
+            Elements::Divides64 => &simplicity_sys::c_jets::jets_wrapper::divides_64,
+            Elements::Divides8 => &simplicity_sys::c_jets::jets_wrapper::divides_8,
+            Elements::Eq16 => &simplicity_sys::c_jets::jets_wrapper::eq_16,
             Elements::Eq256 => &simplicity_sys::c_jets::jets_wrapper::eq_256,
             Elements::Eq32 => &simplicity_sys::c_jets::jets_wrapper::eq_32,
+            Elements::Eq64 => &simplicity_sys::c_jets::jets_wrapper::eq_64,
+            Elements::Eq8 => &simplicity_sys::c_jets::jets_wrapper::eq_8,
             Elements::FeAdd => &simplicity_sys::c_jets::jets_wrapper::fe_add,
             Elements::FeInvert => &simplicity_sys::c_jets::jets_wrapper::fe_invert,
             Elements::FeIsOdd => &simplicity_sys::c_jets::jets_wrapper::fe_is_odd,
@@ -2457,9 +3740,26 @@ impl Jet for Elements {
             Elements::FeNormalize => &simplicity_sys::c_jets::jets_wrapper::fe_normalize,
             Elements::FeSquare => &simplicity_sys::c_jets::jets_wrapper::fe_square,
             Elements::FeSquareRoot => &simplicity_sys::c_jets::jets_wrapper::fe_square_root,
+            Elements::FullAdd16 => &simplicity_sys::c_jets::jets_wrapper::full_add_16,
             Elements::FullAdd32 => &simplicity_sys::c_jets::jets_wrapper::full_add_32,
+            Elements::FullAdd64 => &simplicity_sys::c_jets::jets_wrapper::full_add_64,
+            Elements::FullAdd8 => &simplicity_sys::c_jets::jets_wrapper::full_add_8,
+            Elements::FullDecrement16 => &simplicity_sys::c_jets::jets_wrapper::full_decrement_16,
+            Elements::FullDecrement32 => &simplicity_sys::c_jets::jets_wrapper::full_decrement_32,
+            Elements::FullDecrement64 => &simplicity_sys::c_jets::jets_wrapper::full_decrement_64,
+            Elements::FullDecrement8 => &simplicity_sys::c_jets::jets_wrapper::full_decrement_8,
+            Elements::FullIncrement16 => &simplicity_sys::c_jets::jets_wrapper::full_increment_16,
+            Elements::FullIncrement32 => &simplicity_sys::c_jets::jets_wrapper::full_increment_32,
+            Elements::FullIncrement64 => &simplicity_sys::c_jets::jets_wrapper::full_increment_64,
+            Elements::FullIncrement8 => &simplicity_sys::c_jets::jets_wrapper::full_increment_8,
+            Elements::FullMultiply16 => &simplicity_sys::c_jets::jets_wrapper::full_multiply_16,
             Elements::FullMultiply32 => &simplicity_sys::c_jets::jets_wrapper::full_multiply_32,
+            Elements::FullMultiply64 => &simplicity_sys::c_jets::jets_wrapper::full_multiply_64,
+            Elements::FullMultiply8 => &simplicity_sys::c_jets::jets_wrapper::full_multiply_8,
+            Elements::FullSubtract16 => &simplicity_sys::c_jets::jets_wrapper::full_subtract_16,
             Elements::FullSubtract32 => &simplicity_sys::c_jets::jets_wrapper::full_subtract_32,
+            Elements::FullSubtract64 => &simplicity_sys::c_jets::jets_wrapper::full_subtract_64,
+            Elements::FullSubtract8 => &simplicity_sys::c_jets::jets_wrapper::full_subtract_8,
             Elements::GeIsOnCurve => &simplicity_sys::c_jets::jets_wrapper::ge_is_on_curve,
             Elements::GeNegate => &simplicity_sys::c_jets::jets_wrapper::ge_negate,
             Elements::GejAdd => &simplicity_sys::c_jets::jets_wrapper::gej_add,
@@ -2476,6 +3776,10 @@ impl Jet for Elements {
             Elements::GejYIsOdd => &simplicity_sys::c_jets::jets_wrapper::gej_y_is_odd,
             Elements::Generate => &simplicity_sys::c_jets::jets_wrapper::generate,
             Elements::GenesisBlockHash => &simplicity_sys::c_jets::jets_wrapper::genesis_block_hash,
+            Elements::Increment16 => &simplicity_sys::c_jets::jets_wrapper::increment_16,
+            Elements::Increment32 => &simplicity_sys::c_jets::jets_wrapper::increment_32,
+            Elements::Increment64 => &simplicity_sys::c_jets::jets_wrapper::increment_64,
+            Elements::Increment8 => &simplicity_sys::c_jets::jets_wrapper::increment_8,
             Elements::InputAmount => &simplicity_sys::c_jets::jets_wrapper::input_amount,
             Elements::InputAmountsHash => &simplicity_sys::c_jets::jets_wrapper::input_amounts_hash,
             Elements::InputAnnexHash => &simplicity_sys::c_jets::jets_wrapper::input_annex_hash,
@@ -2493,6 +3797,14 @@ impl Jet for Elements {
             Elements::InputUtxosHash => &simplicity_sys::c_jets::jets_wrapper::input_utxos_hash,
             Elements::InputsHash => &simplicity_sys::c_jets::jets_wrapper::inputs_hash,
             Elements::InternalKey => &simplicity_sys::c_jets::jets_wrapper::internal_key,
+            Elements::IsOne16 => &simplicity_sys::c_jets::jets_wrapper::is_one_16,
+            Elements::IsOne32 => &simplicity_sys::c_jets::jets_wrapper::is_one_32,
+            Elements::IsOne64 => &simplicity_sys::c_jets::jets_wrapper::is_one_64,
+            Elements::IsOne8 => &simplicity_sys::c_jets::jets_wrapper::is_one_8,
+            Elements::IsZero16 => &simplicity_sys::c_jets::jets_wrapper::is_zero_16,
+            Elements::IsZero32 => &simplicity_sys::c_jets::jets_wrapper::is_zero_32,
+            Elements::IsZero64 => &simplicity_sys::c_jets::jets_wrapper::is_zero_64,
+            Elements::IsZero8 => &simplicity_sys::c_jets::jets_wrapper::is_zero_8,
             Elements::Issuance => &simplicity_sys::c_jets::jets_wrapper::issuance,
             Elements::IssuanceAsset => &simplicity_sys::c_jets::jets_wrapper::issuance_asset,
             Elements::IssuanceAssetAmount => &simplicity_sys::c_jets::jets_wrapper::issuance_asset_amount,
@@ -2506,17 +3818,53 @@ impl Jet for Elements {
             Elements::IssuanceTokenAmountsHash => &simplicity_sys::c_jets::jets_wrapper::issuance_token_amounts_hash,
             Elements::IssuanceTokenProof => &simplicity_sys::c_jets::jets_wrapper::issuance_token_proof,
             Elements::IssuancesHash => &simplicity_sys::c_jets::jets_wrapper::issuances_hash,
+            Elements::Le16 => &simplicity_sys::c_jets::jets_wrapper::le_16,
             Elements::Le32 => &simplicity_sys::c_jets::jets_wrapper::le_32,
+            Elements::Le64 => &simplicity_sys::c_jets::jets_wrapper::le_64,
+            Elements::Le8 => &simplicity_sys::c_jets::jets_wrapper::le_8,
             Elements::LinearCombination1 => &simplicity_sys::c_jets::jets_wrapper::linear_combination_1,
             Elements::LinearVerify1 => &simplicity_sys::c_jets::jets_wrapper::linear_verify_1,
             Elements::LockTime => &simplicity_sys::c_jets::jets_wrapper::lock_time,
+            Elements::Low16 => &simplicity_sys::c_jets::jets_wrapper::low_16,
             Elements::Low32 => &simplicity_sys::c_jets::jets_wrapper::low_32,
+            Elements::Low64 => &simplicity_sys::c_jets::jets_wrapper::low_64,
+            Elements::Low8 => &simplicity_sys::c_jets::jets_wrapper::low_8,
+            Elements::Lt16 => &simplicity_sys::c_jets::jets_wrapper::lt_16,
+            Elements::Lt32 => &simplicity_sys::c_jets::jets_wrapper::lt_32,
+            Elements::Lt64 => &simplicity_sys::c_jets::jets_wrapper::lt_64,
+            Elements::Lt8 => &simplicity_sys::c_jets::jets_wrapper::lt_8,
+            Elements::Max16 => &simplicity_sys::c_jets::jets_wrapper::max_16,
+            Elements::Max32 => &simplicity_sys::c_jets::jets_wrapper::max_32,
+            Elements::Max64 => &simplicity_sys::c_jets::jets_wrapper::max_64,
+            Elements::Max8 => &simplicity_sys::c_jets::jets_wrapper::max_8,
+            Elements::Median16 => &simplicity_sys::c_jets::jets_wrapper::median_16,
+            Elements::Median32 => &simplicity_sys::c_jets::jets_wrapper::median_32,
+            Elements::Median64 => &simplicity_sys::c_jets::jets_wrapper::median_64,
+            Elements::Median8 => &simplicity_sys::c_jets::jets_wrapper::median_8,
+            Elements::Min16 => &simplicity_sys::c_jets::jets_wrapper::min_16,
+            Elements::Min32 => &simplicity_sys::c_jets::jets_wrapper::min_32,
+            Elements::Min64 => &simplicity_sys::c_jets::jets_wrapper::min_64,
+            Elements::Min8 => &simplicity_sys::c_jets::jets_wrapper::min_8,
+            Elements::Modulo16 => &simplicity_sys::c_jets::jets_wrapper::modulo_16,
+            Elements::Modulo32 => &simplicity_sys::c_jets::jets_wrapper::modulo_32,
+            Elements::Modulo64 => &simplicity_sys::c_jets::jets_wrapper::modulo_64,
+            Elements::Modulo8 => &simplicity_sys::c_jets::jets_wrapper::modulo_8,
+            Elements::Multiply16 => &simplicity_sys::c_jets::jets_wrapper::multiply_16,
             Elements::Multiply32 => &simplicity_sys::c_jets::jets_wrapper::multiply_32,
+            Elements::Multiply64 => &simplicity_sys::c_jets::jets_wrapper::multiply_64,
+            Elements::Multiply8 => &simplicity_sys::c_jets::jets_wrapper::multiply_8,
+            Elements::Negate16 => &simplicity_sys::c_jets::jets_wrapper::negate_16,
+            Elements::Negate32 => &simplicity_sys::c_jets::jets_wrapper::negate_32,
+            Elements::Negate64 => &simplicity_sys::c_jets::jets_wrapper::negate_64,
+            Elements::Negate8 => &simplicity_sys::c_jets::jets_wrapper::negate_8,
             Elements::NewIssuanceContract => &simplicity_sys::c_jets::jets_wrapper::new_issuance_contract,
             Elements::NonceHash => &simplicity_sys::c_jets::jets_wrapper::nonce_hash,
             Elements::NumInputs => &simplicity_sys::c_jets::jets_wrapper::num_inputs,
             Elements::NumOutputs => &simplicity_sys::c_jets::jets_wrapper::num_outputs,
+            Elements::One16 => &simplicity_sys::c_jets::jets_wrapper::one_16,
             Elements::One32 => &simplicity_sys::c_jets::jets_wrapper::one_32,
+            Elements::One64 => &simplicity_sys::c_jets::jets_wrapper::one_64,
+            Elements::One8 => &simplicity_sys::c_jets::jets_wrapper::one_8,
             Elements::OutpointHash => &simplicity_sys::c_jets::jets_wrapper::outpoint_hash,
             Elements::OutputAmount => &simplicity_sys::c_jets::jets_wrapper::output_amount,
             Elements::OutputAmountsHash => &simplicity_sys::c_jets::jets_wrapper::output_amounts_hash,
@@ -2562,7 +3910,10 @@ impl Jet for Elements {
             Elements::Sha256Ctx8Init => &simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_init,
             Elements::Sha256Iv => &simplicity_sys::c_jets::jets_wrapper::sha_256_iv,
             Elements::SigAllHash => &simplicity_sys::c_jets::jets_wrapper::sig_all_hash,
+            Elements::Subtract16 => &simplicity_sys::c_jets::jets_wrapper::subtract_16,
             Elements::Subtract32 => &simplicity_sys::c_jets::jets_wrapper::subtract_32,
+            Elements::Subtract64 => &simplicity_sys::c_jets::jets_wrapper::subtract_64,
+            Elements::Subtract8 => &simplicity_sys::c_jets::jets_wrapper::subtract_8,
             Elements::TapEnvHash => &simplicity_sys::c_jets::jets_wrapper::tap_env_hash,
             Elements::Tapbranch => &simplicity_sys::c_jets::jets_wrapper::tapbranch,
             Elements::TapbranchHash => &simplicity_sys::c_jets::jets_wrapper::tapbranch_hash,
@@ -2576,6 +3927,529 @@ impl Jet for Elements {
             Elements::TxLockTime => &simplicity_sys::c_jets::jets_wrapper::tx_lock_time,
             Elements::Verify => &simplicity_sys::c_jets::jets_wrapper::verify,
             Elements::Version => &simplicity_sys::c_jets::jets_wrapper::version,
+        }
+    }
+}
+
+impl fmt::Display for Elements {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Elements::Add16 => f.write_str("add_16"),
+            Elements::Add32 => f.write_str("add_32"),
+            Elements::Add64 => f.write_str("add_64"),
+            Elements::Add8 => f.write_str("add_8"),
+            Elements::AnnexHash => f.write_str("annex_hash"),
+            Elements::AssetAmountHash => f.write_str("asset_amount_hash"),
+            Elements::Bip0340Verify => f.write_str("bip_0340_verify"),
+            Elements::BuildTapbranch => f.write_str("build_tapbranch"),
+            Elements::BuildTapleafSimplicity => f.write_str("build_tapleaf_simplicity"),
+            Elements::CalculateAsset => f.write_str("calculate_asset"),
+            Elements::CalculateConfidentialToken => f.write_str("calculate_confidential_token"),
+            Elements::CalculateExplicitToken => f.write_str("calculate_explicit_token"),
+            Elements::CalculateIssuanceEntropy => f.write_str("calculate_issuance_entropy"),
+            Elements::CheckLockDistance => f.write_str("check_lock_distance"),
+            Elements::CheckLockDuration => f.write_str("check_lock_duration"),
+            Elements::CheckLockHeight => f.write_str("check_lock_height"),
+            Elements::CheckLockTime => f.write_str("check_lock_time"),
+            Elements::CheckSigVerify => f.write_str("check_sig_verify"),
+            Elements::CurrentAmount => f.write_str("current_amount"),
+            Elements::CurrentAnnexHash => f.write_str("current_annex_hash"),
+            Elements::CurrentAsset => f.write_str("current_asset"),
+            Elements::CurrentIndex => f.write_str("current_index"),
+            Elements::CurrentIssuanceAssetAmount => f.write_str("current_issuance_asset_amount"),
+            Elements::CurrentIssuanceAssetProof => f.write_str("current_issuance_asset_proof"),
+            Elements::CurrentIssuanceTokenAmount => f.write_str("current_issuance_token_amount"),
+            Elements::CurrentIssuanceTokenProof => f.write_str("current_issuance_token_proof"),
+            Elements::CurrentNewIssuanceContract => f.write_str("current_new_issuance_contract"),
+            Elements::CurrentPegin => f.write_str("current_pegin"),
+            Elements::CurrentPrevOutpoint => f.write_str("current_prev_outpoint"),
+            Elements::CurrentReissuanceBlinding => f.write_str("current_reissuance_blinding"),
+            Elements::CurrentReissuanceEntropy => f.write_str("current_reissuance_entropy"),
+            Elements::CurrentScriptHash => f.write_str("current_script_hash"),
+            Elements::CurrentScriptSigHash => f.write_str("current_script_sig_hash"),
+            Elements::CurrentSequence => f.write_str("current_sequence"),
+            Elements::Decompress => f.write_str("decompress"),
+            Elements::Decrement16 => f.write_str("decrement_16"),
+            Elements::Decrement32 => f.write_str("decrement_32"),
+            Elements::Decrement64 => f.write_str("decrement_64"),
+            Elements::Decrement8 => f.write_str("decrement_8"),
+            Elements::DivMod16 => f.write_str("div_mod_16"),
+            Elements::DivMod32 => f.write_str("div_mod_32"),
+            Elements::DivMod64 => f.write_str("div_mod_64"),
+            Elements::DivMod8 => f.write_str("div_mod_8"),
+            Elements::Divide16 => f.write_str("divide_16"),
+            Elements::Divide32 => f.write_str("divide_32"),
+            Elements::Divide64 => f.write_str("divide_64"),
+            Elements::Divide8 => f.write_str("divide_8"),
+            Elements::Divides16 => f.write_str("divides_16"),
+            Elements::Divides32 => f.write_str("divides_32"),
+            Elements::Divides64 => f.write_str("divides_64"),
+            Elements::Divides8 => f.write_str("divides_8"),
+            Elements::Eq16 => f.write_str("eq_16"),
+            Elements::Eq256 => f.write_str("eq_256"),
+            Elements::Eq32 => f.write_str("eq_32"),
+            Elements::Eq64 => f.write_str("eq_64"),
+            Elements::Eq8 => f.write_str("eq_8"),
+            Elements::FeAdd => f.write_str("fe_add"),
+            Elements::FeInvert => f.write_str("fe_invert"),
+            Elements::FeIsOdd => f.write_str("fe_is_odd"),
+            Elements::FeIsZero => f.write_str("fe_is_zero"),
+            Elements::FeMultiply => f.write_str("fe_multiply"),
+            Elements::FeMultiplyBeta => f.write_str("fe_multiply_beta"),
+            Elements::FeNegate => f.write_str("fe_negate"),
+            Elements::FeNormalize => f.write_str("fe_normalize"),
+            Elements::FeSquare => f.write_str("fe_square"),
+            Elements::FeSquareRoot => f.write_str("fe_square_root"),
+            Elements::FullAdd16 => f.write_str("full_add_16"),
+            Elements::FullAdd32 => f.write_str("full_add_32"),
+            Elements::FullAdd64 => f.write_str("full_add_64"),
+            Elements::FullAdd8 => f.write_str("full_add_8"),
+            Elements::FullDecrement16 => f.write_str("full_decrement_16"),
+            Elements::FullDecrement32 => f.write_str("full_decrement_32"),
+            Elements::FullDecrement64 => f.write_str("full_decrement_64"),
+            Elements::FullDecrement8 => f.write_str("full_decrement_8"),
+            Elements::FullIncrement16 => f.write_str("full_increment_16"),
+            Elements::FullIncrement32 => f.write_str("full_increment_32"),
+            Elements::FullIncrement64 => f.write_str("full_increment_64"),
+            Elements::FullIncrement8 => f.write_str("full_increment_8"),
+            Elements::FullMultiply16 => f.write_str("full_multiply_16"),
+            Elements::FullMultiply32 => f.write_str("full_multiply_32"),
+            Elements::FullMultiply64 => f.write_str("full_multiply_64"),
+            Elements::FullMultiply8 => f.write_str("full_multiply_8"),
+            Elements::FullSubtract16 => f.write_str("full_subtract_16"),
+            Elements::FullSubtract32 => f.write_str("full_subtract_32"),
+            Elements::FullSubtract64 => f.write_str("full_subtract_64"),
+            Elements::FullSubtract8 => f.write_str("full_subtract_8"),
+            Elements::GeIsOnCurve => f.write_str("ge_is_on_curve"),
+            Elements::GeNegate => f.write_str("ge_negate"),
+            Elements::GejAdd => f.write_str("gej_add"),
+            Elements::GejDouble => f.write_str("gej_double"),
+            Elements::GejGeAdd => f.write_str("gej_ge_add"),
+            Elements::GejGeAddEx => f.write_str("gej_ge_add_ex"),
+            Elements::GejInfinity => f.write_str("gej_infinity"),
+            Elements::GejIsInfinity => f.write_str("gej_is_infinity"),
+            Elements::GejIsOnCurve => f.write_str("gej_is_on_curve"),
+            Elements::GejNegate => f.write_str("gej_negate"),
+            Elements::GejNormalize => f.write_str("gej_normalize"),
+            Elements::GejRescale => f.write_str("gej_rescale"),
+            Elements::GejXEquiv => f.write_str("gej_x_equiv"),
+            Elements::GejYIsOdd => f.write_str("gej_y_is_odd"),
+            Elements::Generate => f.write_str("generate"),
+            Elements::GenesisBlockHash => f.write_str("genesis_block_hash"),
+            Elements::Increment16 => f.write_str("increment_16"),
+            Elements::Increment32 => f.write_str("increment_32"),
+            Elements::Increment64 => f.write_str("increment_64"),
+            Elements::Increment8 => f.write_str("increment_8"),
+            Elements::InputAmount => f.write_str("input_amount"),
+            Elements::InputAmountsHash => f.write_str("input_amounts_hash"),
+            Elements::InputAnnexHash => f.write_str("input_annex_hash"),
+            Elements::InputAnnexesHash => f.write_str("input_annexes_hash"),
+            Elements::InputAsset => f.write_str("input_asset"),
+            Elements::InputOutpointsHash => f.write_str("input_outpoints_hash"),
+            Elements::InputPegin => f.write_str("input_pegin"),
+            Elements::InputPrevOutpoint => f.write_str("input_prev_outpoint"),
+            Elements::InputScriptHash => f.write_str("input_script_hash"),
+            Elements::InputScriptSigHash => f.write_str("input_script_sig_hash"),
+            Elements::InputScriptSigsHash => f.write_str("input_script_sigs_hash"),
+            Elements::InputScriptsHash => f.write_str("input_scripts_hash"),
+            Elements::InputSequence => f.write_str("input_sequence"),
+            Elements::InputSequencesHash => f.write_str("input_sequences_hash"),
+            Elements::InputUtxosHash => f.write_str("input_utxos_hash"),
+            Elements::InputsHash => f.write_str("inputs_hash"),
+            Elements::InternalKey => f.write_str("internal_key"),
+            Elements::IsOne16 => f.write_str("is_one_16"),
+            Elements::IsOne32 => f.write_str("is_one_32"),
+            Elements::IsOne64 => f.write_str("is_one_64"),
+            Elements::IsOne8 => f.write_str("is_one_8"),
+            Elements::IsZero16 => f.write_str("is_zero_16"),
+            Elements::IsZero32 => f.write_str("is_zero_32"),
+            Elements::IsZero64 => f.write_str("is_zero_64"),
+            Elements::IsZero8 => f.write_str("is_zero_8"),
+            Elements::Issuance => f.write_str("issuance"),
+            Elements::IssuanceAsset => f.write_str("issuance_asset"),
+            Elements::IssuanceAssetAmount => f.write_str("issuance_asset_amount"),
+            Elements::IssuanceAssetAmountsHash => f.write_str("issuance_asset_amounts_hash"),
+            Elements::IssuanceAssetProof => f.write_str("issuance_asset_proof"),
+            Elements::IssuanceBlindingEntropyHash => f.write_str("issuance_blinding_entropy_hash"),
+            Elements::IssuanceEntropy => f.write_str("issuance_entropy"),
+            Elements::IssuanceRangeProofsHash => f.write_str("issuance_range_proofs_hash"),
+            Elements::IssuanceToken => f.write_str("issuance_token"),
+            Elements::IssuanceTokenAmount => f.write_str("issuance_token_amount"),
+            Elements::IssuanceTokenAmountsHash => f.write_str("issuance_token_amounts_hash"),
+            Elements::IssuanceTokenProof => f.write_str("issuance_token_proof"),
+            Elements::IssuancesHash => f.write_str("issuances_hash"),
+            Elements::Le16 => f.write_str("le_16"),
+            Elements::Le32 => f.write_str("le_32"),
+            Elements::Le64 => f.write_str("le_64"),
+            Elements::Le8 => f.write_str("le_8"),
+            Elements::LinearCombination1 => f.write_str("linear_combination_1"),
+            Elements::LinearVerify1 => f.write_str("linear_verify_1"),
+            Elements::LockTime => f.write_str("lock_time"),
+            Elements::Low16 => f.write_str("low_16"),
+            Elements::Low32 => f.write_str("low_32"),
+            Elements::Low64 => f.write_str("low_64"),
+            Elements::Low8 => f.write_str("low_8"),
+            Elements::Lt16 => f.write_str("lt_16"),
+            Elements::Lt32 => f.write_str("lt_32"),
+            Elements::Lt64 => f.write_str("lt_64"),
+            Elements::Lt8 => f.write_str("lt_8"),
+            Elements::Max16 => f.write_str("max_16"),
+            Elements::Max32 => f.write_str("max_32"),
+            Elements::Max64 => f.write_str("max_64"),
+            Elements::Max8 => f.write_str("max_8"),
+            Elements::Median16 => f.write_str("median_16"),
+            Elements::Median32 => f.write_str("median_32"),
+            Elements::Median64 => f.write_str("median_64"),
+            Elements::Median8 => f.write_str("median_8"),
+            Elements::Min16 => f.write_str("min_16"),
+            Elements::Min32 => f.write_str("min_32"),
+            Elements::Min64 => f.write_str("min_64"),
+            Elements::Min8 => f.write_str("min_8"),
+            Elements::Modulo16 => f.write_str("modulo_16"),
+            Elements::Modulo32 => f.write_str("modulo_32"),
+            Elements::Modulo64 => f.write_str("modulo_64"),
+            Elements::Modulo8 => f.write_str("modulo_8"),
+            Elements::Multiply16 => f.write_str("multiply_16"),
+            Elements::Multiply32 => f.write_str("multiply_32"),
+            Elements::Multiply64 => f.write_str("multiply_64"),
+            Elements::Multiply8 => f.write_str("multiply_8"),
+            Elements::Negate16 => f.write_str("negate_16"),
+            Elements::Negate32 => f.write_str("negate_32"),
+            Elements::Negate64 => f.write_str("negate_64"),
+            Elements::Negate8 => f.write_str("negate_8"),
+            Elements::NewIssuanceContract => f.write_str("new_issuance_contract"),
+            Elements::NonceHash => f.write_str("nonce_hash"),
+            Elements::NumInputs => f.write_str("num_inputs"),
+            Elements::NumOutputs => f.write_str("num_outputs"),
+            Elements::One16 => f.write_str("one_16"),
+            Elements::One32 => f.write_str("one_32"),
+            Elements::One64 => f.write_str("one_64"),
+            Elements::One8 => f.write_str("one_8"),
+            Elements::OutpointHash => f.write_str("outpoint_hash"),
+            Elements::OutputAmount => f.write_str("output_amount"),
+            Elements::OutputAmountsHash => f.write_str("output_amounts_hash"),
+            Elements::OutputAsset => f.write_str("output_asset"),
+            Elements::OutputNonce => f.write_str("output_nonce"),
+            Elements::OutputNoncesHash => f.write_str("output_nonces_hash"),
+            Elements::OutputNullDatum => f.write_str("output_null_datum"),
+            Elements::OutputRangeProof => f.write_str("output_range_proof"),
+            Elements::OutputRangeProofsHash => f.write_str("output_range_proofs_hash"),
+            Elements::OutputScriptHash => f.write_str("output_script_hash"),
+            Elements::OutputScriptsHash => f.write_str("output_scripts_hash"),
+            Elements::OutputSurjectionProof => f.write_str("output_surjection_proof"),
+            Elements::OutputSurjectionProofsHash => f.write_str("output_surjection_proofs_hash"),
+            Elements::OutputsHash => f.write_str("outputs_hash"),
+            Elements::ParseLock => f.write_str("parse_lock"),
+            Elements::ParseSequence => f.write_str("parse_sequence"),
+            Elements::PointVerify1 => f.write_str("point_verify_1"),
+            Elements::ReissuanceBlinding => f.write_str("reissuance_blinding"),
+            Elements::ReissuanceEntropy => f.write_str("reissuance_entropy"),
+            Elements::ScalarAdd => f.write_str("scalar_add"),
+            Elements::ScalarInvert => f.write_str("scalar_invert"),
+            Elements::ScalarIsZero => f.write_str("scalar_is_zero"),
+            Elements::ScalarMultiply => f.write_str("scalar_multiply"),
+            Elements::ScalarMultiplyLambda => f.write_str("scalar_multiply_lambda"),
+            Elements::ScalarNegate => f.write_str("scalar_negate"),
+            Elements::ScalarNormalize => f.write_str("scalar_normalize"),
+            Elements::ScalarSquare => f.write_str("scalar_square"),
+            Elements::Scale => f.write_str("scale"),
+            Elements::ScriptCMR => f.write_str("script_cmr"),
+            Elements::Sha256Block => f.write_str("sha_256_block"),
+            Elements::Sha256Ctx8Add1 => f.write_str("sha_256_ctx_8_add_1"),
+            Elements::Sha256Ctx8Add128 => f.write_str("sha_256_ctx_8_add_128"),
+            Elements::Sha256Ctx8Add16 => f.write_str("sha_256_ctx_8_add_16"),
+            Elements::Sha256Ctx8Add2 => f.write_str("sha_256_ctx_8_add_2"),
+            Elements::Sha256Ctx8Add256 => f.write_str("sha_256_ctx_8_add_256"),
+            Elements::Sha256Ctx8Add32 => f.write_str("sha_256_ctx_8_add_32"),
+            Elements::Sha256Ctx8Add4 => f.write_str("sha_256_ctx_8_add_4"),
+            Elements::Sha256Ctx8Add512 => f.write_str("sha_256_ctx_8_add_512"),
+            Elements::Sha256Ctx8Add64 => f.write_str("sha_256_ctx_8_add_64"),
+            Elements::Sha256Ctx8Add8 => f.write_str("sha_256_ctx_8_add_8"),
+            Elements::Sha256Ctx8AddBuffer511 => f.write_str("sha_256_ctx_8_add_buffer_511"),
+            Elements::Sha256Ctx8Finalize => f.write_str("sha_256_ctx_8_finalize"),
+            Elements::Sha256Ctx8Init => f.write_str("sha_256_ctx_8_init"),
+            Elements::Sha256Iv => f.write_str("sha_256_iv"),
+            Elements::SigAllHash => f.write_str("sig_all_hash"),
+            Elements::Subtract16 => f.write_str("subtract_16"),
+            Elements::Subtract32 => f.write_str("subtract_32"),
+            Elements::Subtract64 => f.write_str("subtract_64"),
+            Elements::Subtract8 => f.write_str("subtract_8"),
+            Elements::TapEnvHash => f.write_str("tap_env_hash"),
+            Elements::Tapbranch => f.write_str("tapbranch"),
+            Elements::TapbranchHash => f.write_str("tapbranch_hash"),
+            Elements::TapleafHash => f.write_str("tapleaf_hash"),
+            Elements::TapleafVersion => f.write_str("tapleaf_version"),
+            Elements::TxHash => f.write_str("tx_hash"),
+            Elements::TxIsFinal => f.write_str("tx_is_final"),
+            Elements::TxLockDistance => f.write_str("tx_lock_distance"),
+            Elements::TxLockDuration => f.write_str("tx_lock_duration"),
+            Elements::TxLockHeight => f.write_str("tx_lock_height"),
+            Elements::TxLockTime => f.write_str("tx_lock_time"),
+            Elements::Verify => f.write_str("verify"),
+            Elements::Version => f.write_str("version"),
+        }
+    }
+}
+
+impl str::FromStr for Elements {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Error> {
+        match s {
+            "add_16" => Ok(Elements::Add16),
+            "add_32" => Ok(Elements::Add32),
+            "add_64" => Ok(Elements::Add64),
+            "add_8" => Ok(Elements::Add8),
+            "annex_hash" => Ok(Elements::AnnexHash),
+            "asset_amount_hash" => Ok(Elements::AssetAmountHash),
+            "bip_0340_verify" => Ok(Elements::Bip0340Verify),
+            "build_tapbranch" => Ok(Elements::BuildTapbranch),
+            "build_tapleaf_simplicity" => Ok(Elements::BuildTapleafSimplicity),
+            "calculate_asset" => Ok(Elements::CalculateAsset),
+            "calculate_confidential_token" => Ok(Elements::CalculateConfidentialToken),
+            "calculate_explicit_token" => Ok(Elements::CalculateExplicitToken),
+            "calculate_issuance_entropy" => Ok(Elements::CalculateIssuanceEntropy),
+            "check_lock_distance" => Ok(Elements::CheckLockDistance),
+            "check_lock_duration" => Ok(Elements::CheckLockDuration),
+            "check_lock_height" => Ok(Elements::CheckLockHeight),
+            "check_lock_time" => Ok(Elements::CheckLockTime),
+            "check_sig_verify" => Ok(Elements::CheckSigVerify),
+            "current_amount" => Ok(Elements::CurrentAmount),
+            "current_annex_hash" => Ok(Elements::CurrentAnnexHash),
+            "current_asset" => Ok(Elements::CurrentAsset),
+            "current_index" => Ok(Elements::CurrentIndex),
+            "current_issuance_asset_amount" => Ok(Elements::CurrentIssuanceAssetAmount),
+            "current_issuance_asset_proof" => Ok(Elements::CurrentIssuanceAssetProof),
+            "current_issuance_token_amount" => Ok(Elements::CurrentIssuanceTokenAmount),
+            "current_issuance_token_proof" => Ok(Elements::CurrentIssuanceTokenProof),
+            "current_new_issuance_contract" => Ok(Elements::CurrentNewIssuanceContract),
+            "current_pegin" => Ok(Elements::CurrentPegin),
+            "current_prev_outpoint" => Ok(Elements::CurrentPrevOutpoint),
+            "current_reissuance_blinding" => Ok(Elements::CurrentReissuanceBlinding),
+            "current_reissuance_entropy" => Ok(Elements::CurrentReissuanceEntropy),
+            "current_script_hash" => Ok(Elements::CurrentScriptHash),
+            "current_script_sig_hash" => Ok(Elements::CurrentScriptSigHash),
+            "current_sequence" => Ok(Elements::CurrentSequence),
+            "decompress" => Ok(Elements::Decompress),
+            "decrement_16" => Ok(Elements::Decrement16),
+            "decrement_32" => Ok(Elements::Decrement32),
+            "decrement_64" => Ok(Elements::Decrement64),
+            "decrement_8" => Ok(Elements::Decrement8),
+            "div_mod_16" => Ok(Elements::DivMod16),
+            "div_mod_32" => Ok(Elements::DivMod32),
+            "div_mod_64" => Ok(Elements::DivMod64),
+            "div_mod_8" => Ok(Elements::DivMod8),
+            "divide_16" => Ok(Elements::Divide16),
+            "divide_32" => Ok(Elements::Divide32),
+            "divide_64" => Ok(Elements::Divide64),
+            "divide_8" => Ok(Elements::Divide8),
+            "divides_16" => Ok(Elements::Divides16),
+            "divides_32" => Ok(Elements::Divides32),
+            "divides_64" => Ok(Elements::Divides64),
+            "divides_8" => Ok(Elements::Divides8),
+            "eq_16" => Ok(Elements::Eq16),
+            "eq_256" => Ok(Elements::Eq256),
+            "eq_32" => Ok(Elements::Eq32),
+            "eq_64" => Ok(Elements::Eq64),
+            "eq_8" => Ok(Elements::Eq8),
+            "fe_add" => Ok(Elements::FeAdd),
+            "fe_invert" => Ok(Elements::FeInvert),
+            "fe_is_odd" => Ok(Elements::FeIsOdd),
+            "fe_is_zero" => Ok(Elements::FeIsZero),
+            "fe_multiply" => Ok(Elements::FeMultiply),
+            "fe_multiply_beta" => Ok(Elements::FeMultiplyBeta),
+            "fe_negate" => Ok(Elements::FeNegate),
+            "fe_normalize" => Ok(Elements::FeNormalize),
+            "fe_square" => Ok(Elements::FeSquare),
+            "fe_square_root" => Ok(Elements::FeSquareRoot),
+            "full_add_16" => Ok(Elements::FullAdd16),
+            "full_add_32" => Ok(Elements::FullAdd32),
+            "full_add_64" => Ok(Elements::FullAdd64),
+            "full_add_8" => Ok(Elements::FullAdd8),
+            "full_decrement_16" => Ok(Elements::FullDecrement16),
+            "full_decrement_32" => Ok(Elements::FullDecrement32),
+            "full_decrement_64" => Ok(Elements::FullDecrement64),
+            "full_decrement_8" => Ok(Elements::FullDecrement8),
+            "full_increment_16" => Ok(Elements::FullIncrement16),
+            "full_increment_32" => Ok(Elements::FullIncrement32),
+            "full_increment_64" => Ok(Elements::FullIncrement64),
+            "full_increment_8" => Ok(Elements::FullIncrement8),
+            "full_multiply_16" => Ok(Elements::FullMultiply16),
+            "full_multiply_32" => Ok(Elements::FullMultiply32),
+            "full_multiply_64" => Ok(Elements::FullMultiply64),
+            "full_multiply_8" => Ok(Elements::FullMultiply8),
+            "full_subtract_16" => Ok(Elements::FullSubtract16),
+            "full_subtract_32" => Ok(Elements::FullSubtract32),
+            "full_subtract_64" => Ok(Elements::FullSubtract64),
+            "full_subtract_8" => Ok(Elements::FullSubtract8),
+            "ge_is_on_curve" => Ok(Elements::GeIsOnCurve),
+            "ge_negate" => Ok(Elements::GeNegate),
+            "gej_add" => Ok(Elements::GejAdd),
+            "gej_double" => Ok(Elements::GejDouble),
+            "gej_ge_add" => Ok(Elements::GejGeAdd),
+            "gej_ge_add_ex" => Ok(Elements::GejGeAddEx),
+            "gej_infinity" => Ok(Elements::GejInfinity),
+            "gej_is_infinity" => Ok(Elements::GejIsInfinity),
+            "gej_is_on_curve" => Ok(Elements::GejIsOnCurve),
+            "gej_negate" => Ok(Elements::GejNegate),
+            "gej_normalize" => Ok(Elements::GejNormalize),
+            "gej_rescale" => Ok(Elements::GejRescale),
+            "gej_x_equiv" => Ok(Elements::GejXEquiv),
+            "gej_y_is_odd" => Ok(Elements::GejYIsOdd),
+            "generate" => Ok(Elements::Generate),
+            "genesis_block_hash" => Ok(Elements::GenesisBlockHash),
+            "increment_16" => Ok(Elements::Increment16),
+            "increment_32" => Ok(Elements::Increment32),
+            "increment_64" => Ok(Elements::Increment64),
+            "increment_8" => Ok(Elements::Increment8),
+            "input_amount" => Ok(Elements::InputAmount),
+            "input_amounts_hash" => Ok(Elements::InputAmountsHash),
+            "input_annex_hash" => Ok(Elements::InputAnnexHash),
+            "input_annexes_hash" => Ok(Elements::InputAnnexesHash),
+            "input_asset" => Ok(Elements::InputAsset),
+            "input_outpoints_hash" => Ok(Elements::InputOutpointsHash),
+            "input_pegin" => Ok(Elements::InputPegin),
+            "input_prev_outpoint" => Ok(Elements::InputPrevOutpoint),
+            "input_script_hash" => Ok(Elements::InputScriptHash),
+            "input_script_sig_hash" => Ok(Elements::InputScriptSigHash),
+            "input_script_sigs_hash" => Ok(Elements::InputScriptSigsHash),
+            "input_scripts_hash" => Ok(Elements::InputScriptsHash),
+            "input_sequence" => Ok(Elements::InputSequence),
+            "input_sequences_hash" => Ok(Elements::InputSequencesHash),
+            "input_utxos_hash" => Ok(Elements::InputUtxosHash),
+            "inputs_hash" => Ok(Elements::InputsHash),
+            "internal_key" => Ok(Elements::InternalKey),
+            "is_one_16" => Ok(Elements::IsOne16),
+            "is_one_32" => Ok(Elements::IsOne32),
+            "is_one_64" => Ok(Elements::IsOne64),
+            "is_one_8" => Ok(Elements::IsOne8),
+            "is_zero_16" => Ok(Elements::IsZero16),
+            "is_zero_32" => Ok(Elements::IsZero32),
+            "is_zero_64" => Ok(Elements::IsZero64),
+            "is_zero_8" => Ok(Elements::IsZero8),
+            "issuance" => Ok(Elements::Issuance),
+            "issuance_asset" => Ok(Elements::IssuanceAsset),
+            "issuance_asset_amount" => Ok(Elements::IssuanceAssetAmount),
+            "issuance_asset_amounts_hash" => Ok(Elements::IssuanceAssetAmountsHash),
+            "issuance_asset_proof" => Ok(Elements::IssuanceAssetProof),
+            "issuance_blinding_entropy_hash" => Ok(Elements::IssuanceBlindingEntropyHash),
+            "issuance_entropy" => Ok(Elements::IssuanceEntropy),
+            "issuance_range_proofs_hash" => Ok(Elements::IssuanceRangeProofsHash),
+            "issuance_token" => Ok(Elements::IssuanceToken),
+            "issuance_token_amount" => Ok(Elements::IssuanceTokenAmount),
+            "issuance_token_amounts_hash" => Ok(Elements::IssuanceTokenAmountsHash),
+            "issuance_token_proof" => Ok(Elements::IssuanceTokenProof),
+            "issuances_hash" => Ok(Elements::IssuancesHash),
+            "le_16" => Ok(Elements::Le16),
+            "le_32" => Ok(Elements::Le32),
+            "le_64" => Ok(Elements::Le64),
+            "le_8" => Ok(Elements::Le8),
+            "linear_combination_1" => Ok(Elements::LinearCombination1),
+            "linear_verify_1" => Ok(Elements::LinearVerify1),
+            "lock_time" => Ok(Elements::LockTime),
+            "low_16" => Ok(Elements::Low16),
+            "low_32" => Ok(Elements::Low32),
+            "low_64" => Ok(Elements::Low64),
+            "low_8" => Ok(Elements::Low8),
+            "lt_16" => Ok(Elements::Lt16),
+            "lt_32" => Ok(Elements::Lt32),
+            "lt_64" => Ok(Elements::Lt64),
+            "lt_8" => Ok(Elements::Lt8),
+            "max_16" => Ok(Elements::Max16),
+            "max_32" => Ok(Elements::Max32),
+            "max_64" => Ok(Elements::Max64),
+            "max_8" => Ok(Elements::Max8),
+            "median_16" => Ok(Elements::Median16),
+            "median_32" => Ok(Elements::Median32),
+            "median_64" => Ok(Elements::Median64),
+            "median_8" => Ok(Elements::Median8),
+            "min_16" => Ok(Elements::Min16),
+            "min_32" => Ok(Elements::Min32),
+            "min_64" => Ok(Elements::Min64),
+            "min_8" => Ok(Elements::Min8),
+            "modulo_16" => Ok(Elements::Modulo16),
+            "modulo_32" => Ok(Elements::Modulo32),
+            "modulo_64" => Ok(Elements::Modulo64),
+            "modulo_8" => Ok(Elements::Modulo8),
+            "multiply_16" => Ok(Elements::Multiply16),
+            "multiply_32" => Ok(Elements::Multiply32),
+            "multiply_64" => Ok(Elements::Multiply64),
+            "multiply_8" => Ok(Elements::Multiply8),
+            "negate_16" => Ok(Elements::Negate16),
+            "negate_32" => Ok(Elements::Negate32),
+            "negate_64" => Ok(Elements::Negate64),
+            "negate_8" => Ok(Elements::Negate8),
+            "new_issuance_contract" => Ok(Elements::NewIssuanceContract),
+            "nonce_hash" => Ok(Elements::NonceHash),
+            "num_inputs" => Ok(Elements::NumInputs),
+            "num_outputs" => Ok(Elements::NumOutputs),
+            "one_16" => Ok(Elements::One16),
+            "one_32" => Ok(Elements::One32),
+            "one_64" => Ok(Elements::One64),
+            "one_8" => Ok(Elements::One8),
+            "outpoint_hash" => Ok(Elements::OutpointHash),
+            "output_amount" => Ok(Elements::OutputAmount),
+            "output_amounts_hash" => Ok(Elements::OutputAmountsHash),
+            "output_asset" => Ok(Elements::OutputAsset),
+            "output_nonce" => Ok(Elements::OutputNonce),
+            "output_nonces_hash" => Ok(Elements::OutputNoncesHash),
+            "output_null_datum" => Ok(Elements::OutputNullDatum),
+            "output_range_proof" => Ok(Elements::OutputRangeProof),
+            "output_range_proofs_hash" => Ok(Elements::OutputRangeProofsHash),
+            "output_script_hash" => Ok(Elements::OutputScriptHash),
+            "output_scripts_hash" => Ok(Elements::OutputScriptsHash),
+            "output_surjection_proof" => Ok(Elements::OutputSurjectionProof),
+            "output_surjection_proofs_hash" => Ok(Elements::OutputSurjectionProofsHash),
+            "outputs_hash" => Ok(Elements::OutputsHash),
+            "parse_lock" => Ok(Elements::ParseLock),
+            "parse_sequence" => Ok(Elements::ParseSequence),
+            "point_verify_1" => Ok(Elements::PointVerify1),
+            "reissuance_blinding" => Ok(Elements::ReissuanceBlinding),
+            "reissuance_entropy" => Ok(Elements::ReissuanceEntropy),
+            "scalar_add" => Ok(Elements::ScalarAdd),
+            "scalar_invert" => Ok(Elements::ScalarInvert),
+            "scalar_is_zero" => Ok(Elements::ScalarIsZero),
+            "scalar_multiply" => Ok(Elements::ScalarMultiply),
+            "scalar_multiply_lambda" => Ok(Elements::ScalarMultiplyLambda),
+            "scalar_negate" => Ok(Elements::ScalarNegate),
+            "scalar_normalize" => Ok(Elements::ScalarNormalize),
+            "scalar_square" => Ok(Elements::ScalarSquare),
+            "scale" => Ok(Elements::Scale),
+            "script_cmr" => Ok(Elements::ScriptCMR),
+            "sha_256_block" => Ok(Elements::Sha256Block),
+            "sha_256_ctx_8_add_1" => Ok(Elements::Sha256Ctx8Add1),
+            "sha_256_ctx_8_add_128" => Ok(Elements::Sha256Ctx8Add128),
+            "sha_256_ctx_8_add_16" => Ok(Elements::Sha256Ctx8Add16),
+            "sha_256_ctx_8_add_2" => Ok(Elements::Sha256Ctx8Add2),
+            "sha_256_ctx_8_add_256" => Ok(Elements::Sha256Ctx8Add256),
+            "sha_256_ctx_8_add_32" => Ok(Elements::Sha256Ctx8Add32),
+            "sha_256_ctx_8_add_4" => Ok(Elements::Sha256Ctx8Add4),
+            "sha_256_ctx_8_add_512" => Ok(Elements::Sha256Ctx8Add512),
+            "sha_256_ctx_8_add_64" => Ok(Elements::Sha256Ctx8Add64),
+            "sha_256_ctx_8_add_8" => Ok(Elements::Sha256Ctx8Add8),
+            "sha_256_ctx_8_add_buffer_511" => Ok(Elements::Sha256Ctx8AddBuffer511),
+            "sha_256_ctx_8_finalize" => Ok(Elements::Sha256Ctx8Finalize),
+            "sha_256_ctx_8_init" => Ok(Elements::Sha256Ctx8Init),
+            "sha_256_iv" => Ok(Elements::Sha256Iv),
+            "sig_all_hash" => Ok(Elements::SigAllHash),
+            "subtract_16" => Ok(Elements::Subtract16),
+            "subtract_32" => Ok(Elements::Subtract32),
+            "subtract_64" => Ok(Elements::Subtract64),
+            "subtract_8" => Ok(Elements::Subtract8),
+            "tap_env_hash" => Ok(Elements::TapEnvHash),
+            "tapbranch" => Ok(Elements::Tapbranch),
+            "tapbranch_hash" => Ok(Elements::TapbranchHash),
+            "tapleaf_hash" => Ok(Elements::TapleafHash),
+            "tapleaf_version" => Ok(Elements::TapleafVersion),
+            "tx_hash" => Ok(Elements::TxHash),
+            "tx_is_final" => Ok(Elements::TxIsFinal),
+            "tx_lock_distance" => Ok(Elements::TxLockDistance),
+            "tx_lock_duration" => Ok(Elements::TxLockDuration),
+            "tx_lock_height" => Ok(Elements::TxLockHeight),
+            "tx_lock_time" => Ok(Elements::TxLockTime),
+            "verify" => Ok(Elements::Verify),
+            "version" => Ok(Elements::Version),
+            x => Err(Error::InvalidJetName(x.to_owned())),
         }
     }
 }
