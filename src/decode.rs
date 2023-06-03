@@ -34,7 +34,7 @@ use std::rc::Rc;
 pub fn decode_program_exact_witness<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
 ) -> Result<Rc<CommitNode<J>>, Error> {
-    decode_program(bits, false)
+    decode_program(bits)
 }
 
 /// Decode a Simplicity program from bits where there is no witness data.
@@ -44,13 +44,12 @@ pub fn decode_program_exact_witness<I: Iterator<Item = u8>, J: Jet>(
 pub fn decode_program_fresh_witness<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
 ) -> Result<Rc<CommitNode<J>>, Error> {
-    decode_program(bits, true)
+    decode_program(bits)
 }
 
 /// Decode a Simplicity program from bits, without the witness data.
 fn decode_program<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
-    fresh_witness: bool,
 ) -> Result<Rc<CommitNode<J>>, Error> {
     let len = decode_natural(bits, None)?;
 
@@ -73,7 +72,6 @@ fn decode_program<I: Iterator<Item = u8>, J: Jet>(
             index,
             &mut index_to_node,
             &mut index_dag,
-            fresh_witness,
         )?;
     }
 
@@ -99,7 +97,6 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
     index: usize,
     index_to_node: &mut HashMap<usize, Rc<CommitNode<J>>>,
     index_dag: &mut IndexDag,
-    fresh_witness: bool,
 ) -> Result<(), Error> {
     debug_assert!(index == index_dag.len());
 
@@ -188,7 +185,6 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
                 }),
                 Some(3) => Ok(match subcode {
                     0 => CommitNode::hidden(context, Cmr::from(decode_hash(bits)?)),
-                    1 if fresh_witness => return Ok(()),
                     1 => CommitNode::witness(context),
                     _ => unreachable!("1-bit subcode"),
                 }),
