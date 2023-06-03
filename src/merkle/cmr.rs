@@ -16,7 +16,7 @@ use crate::core::commit::CommitNodeInner;
 use crate::core::Value;
 use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
-use crate::merkle::common::{CommitMerkleRoot, MerkleRoot};
+use crate::merkle::{CommitMerkleRoot, MerkleRoot};
 use bitcoin_hashes::sha256::Midstate;
 
 /// Commitment Merkle root
@@ -117,6 +117,25 @@ impl Cmr {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    use std::str::FromStr;
+
+    #[test]
+    fn cmr_display_unit() {
+        let mut ctx = crate::Context::<crate::jet::Core>::new();
+        let c = crate::CommitNode::unit(&mut ctx);
+
+        assert_eq!(
+            c.cmr().to_string(),
+            "62274a89833ece8ba5ff57b28118c0063d3d4a85dd25aae06f87617604402715"
+        );
+        assert_eq!(format!("{:.8}", c.cmr()), "62274a89");
+
+        assert_eq!(
+            Cmr::from_str("62274a89833ece8ba5ff57b28118c0063d3d4a85dd25aae06f87617604402715"),
+            Ok(c.cmr()),
+        );
+    }
 
     #[test]
     fn fixed_const_word_cmr() {

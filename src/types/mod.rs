@@ -29,20 +29,27 @@
 //! that its left child's target type be the same as its right child's source
 //! type), and by unifying all these constraints, all types can be inferred.
 //!
-//! If a type has no free children we refer to it as "complete" or "finalized";
-//! otherwise we refer to it as "incomplete". (Within this module we sometimes
-//! use "finalized" specifically to indicate that the internal cached `Final`
-//! structure is populated, but absent bugs, this will be true iff the type is
-//! complete.)
+//! If a type has no free children we refer to it as "complete". The inference
+//! code, when it notices that a type has become complete, populates its cached
+//! `Final` structure, which can then be accessed using the `final_data` method.
+//! If this structure is populated we refer to the type as "finalized".
+//!
+//! Generally speaking, "complete" and "finalized" can be considered synonyms,
+//! though this is not strictly true because types may become complete indirectly,
+//! by their children becoming complete, without the inference algorithm updating
+//! the `Final` structure.
 //!
 //! It may be the case that some types are still free even after all constraints
-//! are considered. Such types are then set to the unit type, so that a complete
-//! program's nodes all have complete types.
+//! are considered. The `finalize` function completes all types by setting any
+//! free types to the unit type.
 //!
 //! In addition to requiring that type inference succeeds (i.e. no constraints
 //! are in conflict with each other), there is one additional check, the "occurs
 //! check", which ensures that there are no infinitely-sized types. Such types
-//! occur when a type has itself as a child, and are illegal in Simplicity.
+//! occur when a type has itself as a child, and are illegal in Simplicity. This
+//! check is explicitly done by `finalize`, to avoid infinitely looping, but any
+//! final type is guaranteed to pass the occurs-check, whether it was finalized
+//! explicitly or during unification.
 //!
 //! There are four main types in this module:
 //!   * `Type` is the main type representing a Simplicity type, whether it is
