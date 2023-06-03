@@ -272,7 +272,9 @@ mod tests {
         witness: Vec<Value>,
         env: &ElementsEnv,
     ) -> bool {
-        let finalized = commit.finalize(witness.into_iter()).expect("finalize");
+        let finalized = commit
+            .finalize(witness.into_iter(), true)
+            .expect("finalize");
         let mut mac = BitMachine::for_program(&finalized);
 
         let success = match mac.exec(&finalized, env) {
