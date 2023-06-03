@@ -301,6 +301,20 @@ mod tests {
     use crate::exec::BitMachine;
 
     #[test]
+    fn canonical_order() {
+        // "main = comp unit iden", but with the iden serialized before the unit
+        // To obtain this test vector I temporarily swapped `get_left` and `get_right`
+        // in the implementation of `PostOrderIter`
+        let justwit = vec![0xa8, 0x48, 0x10];
+        let mut iter = BitIter::from(&justwit[..]);
+        if let Err(Error::NotInCanonicalOrder) = decode_program::<_, crate::jet::Core>(&mut iter) {
+            // ok
+        } else {
+            panic!("accepted program with non-canonical order")
+        }
+    }
+
+    #[test]
     fn shared_witnesses() {
         // main = witness :: A -> B
         let justwit = vec![0x38];
