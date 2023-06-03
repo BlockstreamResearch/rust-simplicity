@@ -67,7 +67,7 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
     pub fn satisfy<S: Satisfier<Pk>>(&self, satisfier: &S) -> Option<Rc<RedeemNode<Elements>>> {
         let mut context = Context::default();
         let ext = self.satisfy_helper(satisfier, &mut context)?;
-        let program = ext.program.finalize(ext.witness.into_iter()).unwrap();
+        let program = ext.program.finalize(ext.witness.into_iter(), true).unwrap();
         Some(program)
     }
 
@@ -340,7 +340,7 @@ mod tests {
 
         let mut context = Context::default();
         let commit = policy.compile(&mut context).expect("compile");
-        let program = commit.finalize(std::iter::empty()).expect("finalize");
+        let program = commit.finalize(std::iter::empty(), true).expect("finalize");
         let mut mac = BitMachine::for_program(&program);
 
         assert!(mac.exec(&program, &satisfier.env).is_err());

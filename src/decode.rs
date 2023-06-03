@@ -372,7 +372,7 @@ mod tests {
         // counting how many were consumed afterward.
         let mut counter = 0..100;
         let mut witness_iter = (&mut counter).rev().map(Value::u32);
-        let diff1_final = diff1_prog.finalize(&mut witness_iter).unwrap();
+        let diff1_final = diff1_prog.finalize(&mut witness_iter, true).unwrap();
         assert_eq!(counter, 0..98);
 
         // Execute the program to confirm that it worked
