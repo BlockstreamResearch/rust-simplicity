@@ -639,7 +639,7 @@ impl<J: Jet> CommitNode<J> {
     pub fn finalize<W: WitnessIterator>(&self, mut witness: W) -> Result<Rc<RedeemNode<J>>, Error> {
         let root = RefWrapper(self);
         let post_order_it = root.iter_post_order();
-        let mut to_finalized: HashMap<RefWrapper<J>, Rc<RedeemNode<J>>> = HashMap::new();
+        let mut to_finalized: HashMap<Imr, Rc<RedeemNode<J>>> = HashMap::new();
         // Iterate through the DAG again to calculate the value of IMR in the first pass.
         // Unfortunately, we cannot directly mutate the nodes here, because they are RC
         // and we cannot have multiple mutable references to the same object.
@@ -648,6 +648,7 @@ impl<J: Jet> CommitNode<J> {
         // We also cache Value and NodeType that are needed in the second pass.
         let mut first_pass: HashMap<RefWrapper<J>, Imr> = HashMap::new();
 
+        let mut root_first_pass_imr = None;
         for commit in post_order_it {
             // 1. Compute and store first-pass IMRs
             let left_imr = commit.get_left().map(|x| {
@@ -667,30 +668,31 @@ impl<J: Jet> CommitNode<J> {
             } else {
                 None
             };
-            let imr = Imr::compute(
+            let first_pass_imr = Imr::compute(
                 &commit.0.inner,
                 left_imr,
                 right_imr,
                 value.as_ref(),
                 &final_ty,
             );
-            first_pass.insert(commit, imr);
+            first_pass.insert(commit, first_pass_imr);
+            root_first_pass_imr = Some(first_pass_imr); // on the final iteration this will be correct
 
             // 2. Compute and store complete RedeemNode
-            let left = commit.get_left().map(|x| {
+            let left = left_imr.map(|x| {
                 to_finalized
                     .get(&x)
                     .expect("Children come before parent in post order")
                     .clone()
             });
-            let right = commit.get_right().map(|x| {
+            let right = right_imr.map(|x| {
                 to_finalized
                     .get(&x)
                     .expect("Children come before parent in post order")
                     .clone()
             });
 
-            let imr = Imr::compute_pass2(imr, &commit.0.inner, &final_ty);
+            let imr = Imr::compute_pass2(first_pass_imr, &commit.0.inner, &final_ty);
             let amr = Amr::compute(
                 &commit.0.inner,
                 left.clone(),
@@ -735,11 +737,11 @@ impl<J: Jet> CommitNode<J> {
                 bounds,
             };
 
-            to_finalized.insert(commit, Rc::new(node));
+            to_finalized.insert(first_pass_imr, Rc::new(node));
         }
 
         witness.finish()?;
-        Ok(to_finalized.get(&root).unwrap().clone())
+        Ok(to_finalized[&root_first_pass_imr.unwrap()].clone())
     }
 
     /// Decode a Simplicity program from bits, without the witness data.
