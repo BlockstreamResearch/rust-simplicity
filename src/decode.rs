@@ -19,7 +19,7 @@
 
 use crate::bititer::BitIter;
 use crate::core::commit::CommitNodeInner;
-use crate::core::iter::{DagIterable, IndexDag, IndexNode, WitnessIterator};
+use crate::core::iter::{DagIterable, WitnessIterator};
 use crate::core::{CommitNode, Context, Value};
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
@@ -44,22 +44,22 @@ pub fn decode_program<I: Iterator<Item = u8>, J: Jet>(
         return Err(Error::TooManyNodes(len));
     }
 
-    let mut index_dag = Vec::new();
     let mut context = Context::new();
 
     let mut nodes = vec![];
     for _ in 0..len {
-        let new_node = decode_node(bits, &mut context, &nodes[..], &mut index_dag)?;
+        let new_node = decode_node(bits, &mut context, &nodes[..])?;
         nodes.push(new_node);
     }
 
     // We must check the canonical order of the serialized program
-    let node = IndexNode(usize::default(), &index_dag);
-    let connected_it = node.iter_post_order();
-    let indexed_it = (0..index_dag.len()).map(|index| IndexNode(index, &index_dag));
-
-    if !Iterator::eq(connected_it, indexed_it) {
-        return Err(Error::NotInCanonicalOrder);
+    let post_order_it = crate::core::commit::RefWrapper(&nodes[nodes.len() - 1])
+        .iter_post_order()
+        .enumerate();
+    for (n, node) in post_order_it {
+        if node.0 != &*nodes[n] {
+            return Err(Error::NotInCanonicalOrder);
+        }
     }
 
     Ok(Rc::clone(&nodes[nodes.len() - 1]))
@@ -71,10 +71,8 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
     context: &mut Context<J>,
     nodes: &[Rc<CommitNode<J>>],
-    index_dag: &mut IndexDag,
 ) -> Result<Rc<CommitNode<J>>, Error> {
     let index = nodes.len();
-    debug_assert!(index == index_dag.len());
 
     let (maybe_code, subcode) = match bits.next() {
         None => return Err(Error::EndOfStream),
@@ -97,7 +95,6 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
                 0 => {
                     let j_abs = index - decode_natural(bits, Some(index))?;
                     let right = Rc::clone(&nodes[j_abs]);
-                    index_dag.push((Some(i_abs), Some(j_abs)));
 
                     match subcode {
                         0 => CommitNode::comp(context, left, right),
@@ -121,52 +118,44 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
                         _ => unreachable!("2-bit subcode"),
                     }
                 }
-                1 => {
-                    index_dag.push((Some(i_abs), None));
-
-                    Ok(match subcode {
-                        0 => CommitNode::injl(context, left),
-                        1 => CommitNode::injr(context, left),
-                        2 => CommitNode::take(context, left),
-                        3 => CommitNode::drop(context, left),
-                        _ => unreachable!("2-bit subcode"),
-                    })
-                }
+                1 => Ok(match subcode {
+                    0 => CommitNode::injl(context, left),
+                    1 => CommitNode::injr(context, left),
+                    2 => CommitNode::take(context, left),
+                    3 => CommitNode::drop(context, left),
+                    _ => unreachable!("2-bit subcode"),
+                }),
                 _ => unreachable!("code < 2"),
             }
         }
-        _ => {
-            index_dag.push((None, None));
-
-            match maybe_code {
-                None => match bits.next() {
-                    None => return Err(Error::EndOfStream),
-                    Some(true) => Ok(CommitNode::jet(context, J::decode(bits)?)),
-                    Some(false) => {
-                        let depth = decode_natural(bits, Some(32))?;
-                        let word = decode_value(&context.nth_power_of_2_final(depth - 1), bits)?;
-                        Ok(CommitNode::const_word(context, word))
-                    }
-                },
-                Some(2) => Ok(match subcode {
-                    0 => CommitNode::iden(context),
-                    1 => CommitNode::unit(context),
-                    2 => CommitNode::fail(
-                        context,
-                        Cmr::from(decode_hash(bits)?),
-                        Cmr::from(decode_hash(bits)?),
-                    ),
-                    3 => return Err(Error::ParseError("01011 (stop code)")),
-                    _ => unreachable!("2-bit subcode"),
-                }),
-                Some(3) => Ok(match subcode {
-                    0 => CommitNode::hidden(context, Cmr::from(decode_hash(bits)?)),
-                    1 => CommitNode::witness(context),
-                    _ => unreachable!("1-bit subcode"),
-                }),
-                Some(_) => unreachable!("2-bit code"),
-            }
-        }
+        _ => match maybe_code {
+            None => match bits.next() {
+                None => return Err(Error::EndOfStream),
+                Some(true) => Ok(CommitNode::jet(context, J::decode(bits)?)),
+                Some(false) => {
+                    let depth = decode_natural(bits, Some(32))?;
+                    let word = decode_value(&context.nth_power_of_2_final(depth - 1), bits)?;
+                    Ok(CommitNode::const_word(context, word))
+                }
+            },
+            Some(2) => Ok(match subcode {
+                0 => CommitNode::iden(context),
+                1 => CommitNode::unit(context),
+                2 => CommitNode::fail(
+                    context,
+                    Cmr::from(decode_hash(bits)?),
+                    Cmr::from(decode_hash(bits)?),
+                ),
+                3 => return Err(Error::ParseError("01011 (stop code)")),
+                _ => unreachable!("2-bit subcode"),
+            }),
+            Some(3) => Ok(match subcode {
+                0 => CommitNode::hidden(context, Cmr::from(decode_hash(bits)?)),
+                1 => CommitNode::witness(context),
+                _ => unreachable!("1-bit subcode"),
+            }),
+            Some(_) => unreachable!("2-bit code"),
+        },
     }?;
 
     Ok(node)
