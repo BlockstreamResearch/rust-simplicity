@@ -23,7 +23,7 @@ use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
 use crate::types::{self, arrow::Arrow};
-use crate::{analysis, decode, impl_ref_wrapper, Error};
+use crate::{analysis, impl_ref_wrapper, Error};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::{fmt, io};
@@ -827,7 +827,7 @@ impl<J: Jet> CommitNode<J> {
     ///
     /// If the serialization contains the witness data, then use [`RedeemNode::decode()`].
     pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Rc<Self>, Error> {
-        decode::decode_program_fresh_witness(bits)
+        crate::decode_program(bits)
     }
 
     /// Encode a Simplicity program to bits, without witness data.
