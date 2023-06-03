@@ -224,6 +224,7 @@ impl<J: Jet> RedeemNode<J> {
         let program = RefWrapper(self).iter_post_order();
         let program_bits = encode::encode_program(program.clone(), w)?;
         let witness_bits = encode::encode_witness(iter::into_witness(program), w)?;
+        w.flush_all()?;
         Ok(program_bits + witness_bits)
     }
 }
@@ -244,3 +245,52 @@ impl<J: Jet> fmt::Display for RedeemNode<J> {
 pub struct RefWrapper<'a, J: Jet>(pub &'a RedeemNode<J>);
 
 impl_ref_wrapper!(RefWrapper);
+
+#[cfg(test)]
+mod tests {
+    use std::iter;
+
+    use super::*;
+
+    use crate::bititer::BitIter;
+    use crate::bitwriter::BitWriter;
+    use crate::core::Value;
+    use crate::decode::decode_program_fresh_witness;
+    use crate::jet::Core;
+
+    #[test]
+    fn encode_shared_witnesses() {
+        // # Program code:
+        // wit1 = witness :: 1 -> 2^32
+        // wit2 = witness :: 1 -> 2^32
+        //
+        // wits_are_equal = comp (pair wit1 wit2) jet_eq_32 :: 1 -> 2
+        // main = comp wits_are_equal jet_verify            :: 1 -> 1
+        let eqwits = vec![0xc9, 0xc4, 0x6d, 0xb8, 0x82, 0x30, 0x10];
+        let mut iter = BitIter::from(&eqwits[..]);
+        let eqwits_prog = decode_program_fresh_witness::<_, Core>(&mut iter).unwrap();
+
+        let mut witness_iter = iter::repeat(Value::u32(0xDEADBEEF));
+        let eqwits_final = eqwits_prog.finalize(&mut witness_iter).unwrap();
+        let mut output = vec![];
+        let mut writer = BitWriter::new(&mut output);
+        eqwits_final.encode(&mut writer).unwrap();
+
+        assert_eq!(
+            output,
+            [0xc9, 0xc4, 0x6d, 0xb8, 0x82, 0x30, 0x11, 0xe2, 0x0d, 0xea, 0xdb, 0xee, 0xf0],
+        );
+    }
+
+    #[test]
+    fn decode_shared_witnesses() {
+        // This program is exactly the output from the `encode_shared_witnesses` test.
+        // The point of this is to make sure that our witness-unsharing logic doesn't
+        // get confused here and try to read two witnesses when there are only one.
+        let eqwits = vec![
+            0xc9, 0xc4, 0x6d, 0xb8, 0x82, 0x30, 0x11, 0xe2, 0x0d, 0xea, 0xdb, 0xee, 0xf0,
+        ];
+        let mut iter = BitIter::from(&eqwits[..]);
+        RedeemNode::<crate::jet::Core>::decode(&mut iter).unwrap();
+    }
+}
