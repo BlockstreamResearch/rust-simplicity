@@ -338,6 +338,18 @@ mod tests {
     }
 
     #[test]
+    fn root_unit_to_unit() {
+        // main = jet_eq_32 :: 2^64 -> 2 # 7387d279
+        let justjet = vec![0x6d, 0xb8, 0x80];
+        // Should be able to decode this as a CommitNode...
+        let mut iter = BitIter::from(&justjet[..]);
+        CommitNode::<crate::jet::Core>::decode::<_>(&mut iter).unwrap();
+        // ...but not as a program
+        let mut iter = BitIter::from(&justjet[..]);
+        decode_program::<_, crate::jet::Core>(&mut iter).unwrap(); // FIXME will be unwrap_err in next commit
+    }
+
+    #[test]
     #[cfg(feature = "elements")]
     fn decode_schnorr() {
         #[rustfmt::skip]
