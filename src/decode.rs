@@ -25,30 +25,13 @@ use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::types;
 use crate::Error;
-use std::collections::HashMap;
 use std::rc::Rc;
 
-/// Decode a Simplicity program from bits where witness data follows.
-///
-/// The number of decoded witness nodes corresponds exactly to the witness data.
-pub fn decode_program_exact_witness<I: Iterator<Item = u8>, J: Jet>(
-    bits: &mut BitIter<I>,
-) -> Result<Rc<CommitNode<J>>, Error> {
-    decode_program(bits)
-}
-
-/// Decode a Simplicity program from bits where there is no witness data.
-///
-/// Witness nodes are made fresh, i.e., each witness node has at most one parent.
-/// This increases the number of witness nodes and hence the length of the required witness data.
-pub fn decode_program_fresh_witness<I: Iterator<Item = u8>, J: Jet>(
-    bits: &mut BitIter<I>,
-) -> Result<Rc<CommitNode<J>>, Error> {
-    decode_program(bits)
-}
-
 /// Decode a Simplicity program from bits, without the witness data.
-fn decode_program<I: Iterator<Item = u8>, J: Jet>(
+///
+/// If witness data is present, it should be encoded after the program, and the
+/// user must deserialize it separately.
+pub fn decode_program<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
 ) -> Result<Rc<CommitNode<J>>, Error> {
     let len = decode_natural(bits, None)?;
@@ -61,21 +44,15 @@ fn decode_program<I: Iterator<Item = u8>, J: Jet>(
         return Err(Error::TooManyNodes(len));
     }
 
-    let mut index_to_node = HashMap::new();
     let mut index_dag = Vec::new();
     let mut context = Context::new();
 
-    for index in 0..len {
-        decode_node(
-            bits,
-            &mut context,
-            index,
-            &mut index_to_node,
-            &mut index_dag,
-        )?;
+    let mut nodes = vec![];
+    for _ in 0..len {
+        let new_node = decode_node(bits, &mut context, &nodes[..], &mut index_dag)?;
+        nodes.push(new_node);
     }
 
-    // If witnesses are made fresh, then the deserialized program grows and its indices change.
     // We must check the canonical order of the serialized program
     let node = IndexNode(usize::default(), &index_dag);
     let connected_it = node.iter_post_order();
@@ -85,8 +62,7 @@ fn decode_program<I: Iterator<Item = u8>, J: Jet>(
         return Err(Error::NotInCanonicalOrder);
     }
 
-    let root = get_child_from_index(&mut context, len - 1, &index_to_node);
-    Ok(root)
+    Ok(Rc::clone(&nodes[nodes.len() - 1]))
 }
 
 /// Decode a single Simplicity node from bits and
@@ -94,10 +70,10 @@ fn decode_program<I: Iterator<Item = u8>, J: Jet>(
 fn decode_node<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
     context: &mut Context<J>,
-    index: usize,
-    index_to_node: &mut HashMap<usize, Rc<CommitNode<J>>>,
+    nodes: &[Rc<CommitNode<J>>],
     index_dag: &mut IndexDag,
-) -> Result<(), Error> {
+) -> Result<Rc<CommitNode<J>>, Error> {
+    let index = nodes.len();
     debug_assert!(index == index_dag.len());
 
     let (maybe_code, subcode) = match bits.next() {
@@ -115,12 +91,12 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
     let node = match maybe_code {
         Some(code) if code < 2 => {
             let i_abs = index - decode_natural(bits, Some(index))?;
-            let left = get_child_from_index(context, i_abs, index_to_node);
+            let left = Rc::clone(&nodes[i_abs]);
 
             match code {
                 0 => {
                     let j_abs = index - decode_natural(bits, Some(index))?;
-                    let right = get_child_from_index(context, j_abs, index_to_node);
+                    let right = Rc::clone(&nodes[j_abs]);
                     index_dag.push((Some(i_abs), Some(j_abs)));
 
                     match subcode {
@@ -193,25 +169,7 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
         }
     }?;
 
-    debug_assert!(!index_to_node.contains_key(&index));
-    index_to_node.insert(index, node);
-
-    Ok(())
-}
-
-/// Return the child node at the given index from a hash map.
-///
-/// A fresh witness node is returned as child if witness nodes should be made fresh.
-fn get_child_from_index<J: Jet>(
-    context: &mut Context<J>,
-    index: usize,
-    index_to_node: &HashMap<usize, Rc<CommitNode<J>>>,
-) -> Rc<CommitNode<J>> {
-    match index_to_node.get(&index) {
-        Some(child) => child.clone(),
-        // Absence of child means that child is a skipped witness node
-        None => CommitNode::witness(context),
-    }
+    Ok(node)
 }
 
 /// Implementation of [`WitnessIterator`] for an underlying [`BitIter`].
@@ -347,7 +305,7 @@ mod tests {
         // main = witness :: A -> B
         let justwit = vec![0x38];
         let mut iter = BitIter::from(&justwit[..]);
-        decode_program_fresh_witness::<_, crate::jet::Core>(&mut iter).unwrap();
+        decode_program::<_, crate::jet::Core>(&mut iter).unwrap();
 
         // # Program which demands two 32-bit witnesses, the first one == the second + 1
         // wit1 = witness :: 1 -> 2^32
@@ -362,7 +320,7 @@ mod tests {
             0x71, 0x88, 0xa3, 0x6d, 0xc4, 0x11, 0x80, 0x80
         ];
         let mut iter = BitIter::from(&diff1[..]);
-        let diff1_prog = decode_program_fresh_witness::<_, crate::jet::Core>(&mut iter).unwrap();
+        let diff1_prog = decode_program::<_, crate::jet::Core>(&mut iter).unwrap();
 
         // Attempt to finalize, providing 32-bit witnesses 0, 1, ..., and then
         // counting how many were consumed afterward.
@@ -392,8 +350,8 @@ mod tests {
             0xef, 0xbe, 0x92, 0x01, 0xa6, 0x20, 0xa6, 0xd8, 0x00
         ];
         let mut iter = BitIter::from(&schnorr0[..]);
-        let prog = decode_program_exact_witness::<_, crate::jet::Elements>(&mut iter)
-            .expect("can't decode schnorr0");
+        let prog =
+            decode_program::<_, crate::jet::Elements>(&mut iter).expect("can't decode schnorr0");
 
         // Matches C source code
         #[rustfmt::skip]
