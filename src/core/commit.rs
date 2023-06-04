@@ -154,6 +154,12 @@ impl<J: Jet> CommitNode<J> {
         <&Self as DagLike>::post_order_iter(self)
     }
 
+    /// Return an iterator over the unshared nodes of the program, returning
+    /// refcounted pointers to each node.
+    pub fn rc_iter(self: Rc<Self>) -> PostOrderIter<Rc<Self>> {
+        <Rc<Self> as DagLike>::post_order_iter(self)
+    }
+
     // FIXME: Compute length without iterating over entire DAG?
     /// Return the number of unshared nodes in the program
     #[allow(clippy::len_without_is_empty)]
