@@ -33,6 +33,7 @@ pub mod bit_machine;
 pub mod bititer;
 pub mod bitwriter;
 pub mod core;
+mod dag;
 mod decode;
 mod encode;
 pub mod jet;
