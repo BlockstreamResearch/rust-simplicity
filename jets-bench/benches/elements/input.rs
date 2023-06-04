@@ -2,14 +2,14 @@ use std::sync::Arc;
 
 use rand::rngs::ThreadRng;
 use rand::Rng;
-use simplicity::core::types::{Type, TypeInner};
 use simplicity::core::Value;
+use simplicity::types::{self, CompleteBound};
 use simplicity::ffi::c_jets::frame_ffi::c_writeBit;
 use simplicity::ffi::CFrameItem;
 
-pub fn random_value(ty: &Type, rng: &mut ThreadRng) -> Value {
+pub fn random_value(ty: &types::Final, rng: &mut ThreadRng) -> Value {
     enum StackItem<'a> {
-        Type(&'a Type),
+        Type(&'a types::Final),
         LeftSum,
         RightSum,
         Product,
@@ -20,9 +20,9 @@ pub fn random_value(ty: &Type, rng: &mut ThreadRng) -> Value {
 
     while let Some(top) = call_stack.pop() {
         match top {
-            StackItem::Type(ty) => match &ty.inner {
-                TypeInner::Unit => value_stack.push(Value::Unit),
-                TypeInner::Sum(left, right) => {
+            StackItem::Type(ty) => match &ty.bound() {
+                CompleteBound::Unit => value_stack.push(Value::Unit),
+                CompleteBound::Sum(left, right) => {
                     if rng.gen() {
                         call_stack.push(StackItem::LeftSum);
                         call_stack.push(StackItem::Type(left));
@@ -31,7 +31,7 @@ pub fn random_value(ty: &Type, rng: &mut ThreadRng) -> Value {
                         call_stack.push(StackItem::Type(right));
                     }
                 }
-                TypeInner::Product(left, right) => {
+                CompleteBound::Product(left, right) => {
                     call_stack.push(StackItem::Product);
                     call_stack.push(StackItem::Type(right));
                     call_stack.push(StackItem::Type(left));
@@ -70,7 +70,7 @@ pub enum InputSampling {
 }
 
 impl InputSampling {
-    pub fn write_sample(&self, src_frame: &mut CFrameItem, src_ty: &Type, rng: &mut ThreadRng) {
+    pub fn write_sample(&self, src_frame: &mut CFrameItem, src_ty: &types::Final, rng: &mut ThreadRng) {
         let write_bit = |bit: bool| unsafe { c_writeBit(src_frame, bit) };
 
         match self {

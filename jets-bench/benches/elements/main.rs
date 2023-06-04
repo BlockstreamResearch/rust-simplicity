@@ -14,10 +14,10 @@ use elements::confidential;
 use env::EnvSampling;
 use rand::rngs::ThreadRng;
 use rand::{thread_rng, RngCore};
-use simplicity::core::types::Type;
 use simplicity::core::Value;
 use simplicity::jet::elements::ElementsEnv;
 use simplicity::jet::{Elements, Jet};
+use simplicity::types::{self, Type};
 use simplicity::{bitcoin, elements};
 
 mod buffer;
@@ -25,39 +25,6 @@ mod data_structures;
 mod env;
 mod input;
 mod params;
-
-/// Read bytes from a Simplicity buffer of type (TWO^8)^<2^(n+1) as [`Value`].
-/// The notation X^<2 is notation for the type (S X)
-/// The notation X^<(2*n) is notation for the type S (X^n) * X^<n
-///
-/// Cannot represent >= 2**16 bytes 0 <= n < 16 as simplicity consensus rule.
-///
-/// # Panics:
-///
-/// Panics if the length of the slice is >= 2^(n + 1) bytes
-pub fn var_len_buf_from_slice(v: &[u8], mut n: usize) -> Result<Value, Error> {
-    // Simplicity consensus rule for n < 16 while reading buffers.
-    assert!(n < 16);
-    assert!(v.len() < (1 << (n + 1)));
-    let mut iter = BitIter::new(v.iter().copied());
-    let types = Type::powers_of_two_vec(n); // size n + 1
-    let mut res = None;
-    while n > 0 {
-        let v = if v.len() >= (1 << (n + 1)) {
-            let ty = &types[n];
-            let val = decode::decode_value(ty, &mut iter)?;
-            Value::SumR(Box::new(val))
-        } else {
-            Value::SumL(Box::new(Value::Unit))
-        };
-        res = match res {
-            Some(prod) => Some(Value::Prod(Box::new(prod), Box::new(v))),
-            None => Some(v),
-        };
-        n -= 1;
-    }
-    Ok(res.unwrap_or(Value::Unit))
-}
 
 const NUM_RANDOM_SAMPLES: usize = 50;
 
@@ -125,6 +92,20 @@ impl ElementsBenchEnvType {
     }
 }
 
+fn jet_arrow(jet: Elements, pows_of_two: &[Type]) -> (Arc<types::Final>, Arc<types::Final>) {
+    let src_ty = jet
+        .source_ty()
+        .to_type(|n| pows_of_two[n].shallow_clone())
+        .final_data()
+        .unwrap();
+    let tgt_ty = jet
+        .target_ty()
+        .to_type(|n| pows_of_two[n].shallow_clone())
+        .final_data()
+        .unwrap();
+    (src_ty, tgt_ty)
+}
+
 #[rustfmt::skip]
 fn bench(c: &mut Criterion) {
     // Sanity Check: This should never really fail, but still good to do
@@ -132,7 +113,7 @@ fn bench(c: &mut Criterion) {
         panic!("Sanity checks failed");
     }
 
-    let pows_of_two = Type::powers_of_two(); // TODO: make this compile time static
+    let pows_of_two = Type::powers_of_two(32); // TODO: make this compile time static
     let mut rng = ThreadRng::default();
 
     fn eq_32() -> Value {
@@ -184,7 +165,7 @@ fn bench(c: &mut Criterion) {
                 // Worst case when all bytes are present for ctx8 < 512
                 let mut v = [0u8; 511];
                 thread_rng().fill_bytes(&mut v);
-                Value::var_len_buf_from_slice(&v, 8).unwrap()
+                data_structures::var_len_buf_from_slice(&v, 8).unwrap()
             }
             _ => unreachable!(),
         };
@@ -382,8 +363,7 @@ fn bench(c: &mut Criterion) {
         (Elements::CheckSigVerify, InputSampling::Custom(Arc::new(check_sig_verify))),
     ];
     for (jet, sample) in arr {
-        let src_ty = jet.source_ty().to_type(&pows_of_two);
-        let tgt_ty = jet.target_ty().to_type(&pows_of_two);
+        let (src_ty, tgt_ty) = jet_arrow(jet, &pows_of_two);
 
         let mut group = c.benchmark_group(&jet.to_string());
         let env = EnvSampling::Null.env();
@@ -497,8 +477,7 @@ fn bench(c: &mut Criterion) {
 
     // Elements environment jets
     for (jet, env_sampler) in jets {
-        let src_ty = jet.source_ty().to_type(&pows_of_two);
-        let tgt_ty = jet.target_ty().to_type(&pows_of_two);
+        let (src_ty, tgt_ty) = jet_arrow(jet, &pows_of_two);
         let env = env_sampler.env();
 
         let mut group = c.benchmark_group(&format!("{}", jet.to_string()));
@@ -558,8 +537,7 @@ fn bench(c: &mut Criterion) {
     ];
 
     for (jet, inp_fn) in arr {
-        let src_ty = jet.source_ty().to_type(&pows_of_two);
-        let tgt_ty = jet.target_ty().to_type(&pows_of_two);
+        let (src_ty, tgt_ty) = jet_arrow(jet, &pows_of_two);
         let env = EnvSampling::Null.env();
 
         let mut group = c.benchmark_group(&format!("{}", jet.to_string()));
@@ -641,8 +619,7 @@ fn bench(c: &mut Criterion) {
     ];
 
     for (jet, index, env_type) in arr {
-        let src_ty = jet.source_ty().to_type(&pows_of_two);
-        let tgt_ty = jet.target_ty().to_type(&pows_of_two);
+        let (src_ty, tgt_ty) = jet_arrow(jet, &pows_of_two);
         let env = env_type.env();
         let mut group = c.benchmark_group(&format!("{}", jet.to_string()));
 
