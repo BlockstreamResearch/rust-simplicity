@@ -827,7 +827,7 @@ impl<J: Jet> CommitNode<J> {
     ///
     /// If the serialization contains the witness data, then use [`RedeemNode::decode()`].
     pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Rc<Self>, Error> {
-        crate::decode_program(bits)
+        crate::decode::decode_program_arbitrary_type(bits)
     }
 
     /// Encode a Simplicity program to bits, without witness data.
