@@ -68,7 +68,7 @@ impl Cmr {
     // FIXME avoid calling `powers_of_two_vec`; also replace this "construct the scribe then
     //  compute its CMR" logic with the inline algorithm from the C code, which avoids any
     //  allocations.
-    fn const_word_cmr(v: &Value) -> Cmr {
+    pub fn const_word_cmr(v: &Value) -> Cmr {
         assert_eq!(v.len().count_ones(), 1);
         let w = 1 + v.len().trailing_zeros() as usize;
         // 1. compute scribe pass-one IMR
