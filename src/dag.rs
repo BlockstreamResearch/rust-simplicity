@@ -14,11 +14,13 @@
 
 //! General DAG iteration utilities
 
-use std::ops::Deref;
+use std::collections::{HashMap, HashSet};
+use std::fmt;
 use std::rc::Rc;
 
 use crate::core::commit::{CommitNode, CommitNodeInner};
 use crate::core::redeem::{RedeemNode, RedeemNodeInner};
+use crate::core::Value;
 use crate::jet;
 
 /// Generic container for Simplicity DAGs
@@ -55,11 +57,30 @@ pub enum Dag<T> {
     Word,
 }
 
+/// Object representing pointer identity of a DAG node
+///
+/// Used to populate a hashset to determine whether or not a given node has
+/// already been visited by an iterator.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+struct PointerId(usize);
+
+impl<D: DagLike> From<&D> for PointerId {
+    fn from(dag: &D) -> Self {
+        PointerId(dag.data() as *const _ as usize)
+    }
+}
+
 /// A trait for any structure which has the shape of a Simplicity DAG
 ///
 /// This should be implemented on any reference type for `CommitNode` and `RedeemNode`;
 /// it cannot be implemented on these structures themselves because they depend on
-pub trait DagLike: Deref + Sized {
+pub trait DagLike: Sized {
+    /// The type of the DAG node, with no references or wrappers
+    type Node;
+
+    /// A pointer to the underlying data
+    fn data(&self) -> &Self::Node;
+
     /// Interpret the node as a DAG node
     fn as_dag_node(&self) -> Dag<Self>;
 
@@ -104,9 +125,27 @@ pub trait DagLike: Deref + Sized {
             Dag::Word => None,
         }
     }
+
+    /// Obtains an iterator of all the nodes rooted at the DAG, in post order.
+    ///
+    /// Each node is only yielded once, at the leftmost position that it
+    /// appears in the DAG.
+    fn post_order_iter(self) -> PostOrderIter<Self> {
+        PostOrderIter {
+            stack: Vec::new(),
+            maybe_current: Some(self),
+            visited: HashSet::new(),
+        }
+    }
 }
 
 impl<'a, J: jet::Jet> DagLike for &'a CommitNode<J> {
+    type Node = CommitNode<J>;
+
+    fn data(&self) -> &CommitNode<J> {
+        self
+    }
+
     #[rustfmt::skip]
     fn as_dag_node(&self) -> Dag<Self> {
         match self.inner() {
@@ -132,6 +171,12 @@ impl<'a, J: jet::Jet> DagLike for &'a CommitNode<J> {
 }
 
 impl<J: jet::Jet> DagLike for Rc<CommitNode<J>> {
+    type Node = CommitNode<J>;
+
+    fn data(&self) -> &CommitNode<J> {
+        self
+    }
+
     #[rustfmt::skip]
     fn as_dag_node(&self) -> Dag<Self> {
         match self.inner() {
@@ -157,6 +202,12 @@ impl<J: jet::Jet> DagLike for Rc<CommitNode<J>> {
 }
 
 impl<'a, J: jet::Jet> DagLike for &'a RedeemNode<J> {
+    type Node = RedeemNode<J>;
+
+    fn data(&self) -> &RedeemNode<J> {
+        self
+    }
+
     #[rustfmt::skip]
     fn as_dag_node(&self) -> Dag<Self> {
         match self.inner {
@@ -182,6 +233,12 @@ impl<'a, J: jet::Jet> DagLike for &'a RedeemNode<J> {
 }
 
 impl<J: jet::Jet> DagLike for Rc<RedeemNode<J>> {
+    type Node = RedeemNode<J>;
+
+    fn data(&self) -> &RedeemNode<J> {
+        self
+    }
+
     #[rustfmt::skip]
     fn as_dag_node(&self) -> Dag<Self> {
         match self.inner {
@@ -203,5 +260,116 @@ impl<J: jet::Jet> DagLike for Rc<RedeemNode<J>> {
             RedeemNodeInner::Jet(..) => Dag::Jet,
             RedeemNodeInner::Word(..) => Dag::Word,
         }
+    }
+}
+
+/// Iterates over a DAG in _post order_.
+///
+/// That means nodes are yielded in the order (left child, right child, parent).
+/// Shared nodes appear only once at their leftmost position.
+#[derive(Clone, Debug)]
+pub struct PostOrderIter<D: DagLike> {
+    stack: Vec<D>,
+    maybe_current: Option<D>,
+    visited: HashSet<PointerId>,
+}
+
+impl<D: DagLike> Iterator for PostOrderIter<D> {
+    type Item = D;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if let Some(current) = self.maybe_current.take() {
+                let left = current.left_child();
+                self.stack.push(current);
+
+                if let Some(left) = left {
+                    if !self.visited.contains(&PointerId::from(&left)) {
+                        self.maybe_current = Some(left);
+                        continue;
+                    }
+                }
+                // else
+                self.maybe_current = None;
+            } else if let Some(top) = self.stack.last() {
+                if let Some(right) = top.right_child() {
+                    if !self.visited.contains(&PointerId::from(&right)) {
+                        self.maybe_current = Some(right);
+                        continue;
+                    }
+                }
+                // else
+                let top = self.stack.pop().unwrap();
+                self.visited.insert(PointerId::from(&top));
+
+                return Some(top);
+            } else {
+                return None;
+            }
+        }
+    }
+}
+
+impl<'a, J: jet::Jet> PostOrderIter<&'a RedeemNode<J>> {
+    /// Adapt the iterator to only yield witnesses
+    ///
+    /// The witnesses are yielded in the order in which they appear in the DAG
+    /// *except* that each witness is only yielded once, and future occurences
+    /// are skipped.
+    pub fn into_deduped_witnesses(self) -> impl Iterator<Item = &'a Value> + Clone {
+        let mut seen_imrs = HashSet::new();
+        self.filter_map(move |node| {
+            if let RedeemNodeInner::Witness(value) = &node.inner {
+                if seen_imrs.insert(node.imr) {
+                    Some(value)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        })
+    }
+}
+
+impl<D: DagLike> PostOrderIter<D> {
+    /// Display the DAG as an indexed list in post order.
+    ///
+    /// `display_body()` formats the node body in front of the node indices.
+    /// `display_aux()` formats auxiliary items after the node indices.
+    pub fn into_display<F, G>(
+        self,
+        f: &mut fmt::Formatter<'_>,
+        mut display_body: F,
+        mut display_aux: G,
+    ) -> fmt::Result
+    where
+        F: FnMut(&D, &mut fmt::Formatter<'_>) -> fmt::Result,
+        G: FnMut(&D, &mut fmt::Formatter<'_>) -> fmt::Result,
+    {
+        let mut node_to_index = HashMap::new();
+
+        for (index, node) in self.enumerate() {
+            write!(f, "{}: ", index)?;
+            display_body(&node, f)?;
+
+            if let Some(left) = node.left_child() {
+                let i_abs = node_to_index.get(&PointerId::from(&left)).unwrap();
+
+                if let Some(right) = node.right_child() {
+                    let j_abs = node_to_index.get(&PointerId::from(&right)).unwrap();
+
+                    write!(f, "({}, {})", i_abs, j_abs)?;
+                } else {
+                    write!(f, "({})", i_abs)?;
+                }
+            }
+
+            display_aux(&node, f)?;
+            f.write_str("\n")?;
+            node_to_index.insert(PointerId::from(&node), index);
+        }
+
+        Ok(())
     }
 }
