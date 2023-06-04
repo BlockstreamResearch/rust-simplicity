@@ -15,7 +15,7 @@
 use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
 use crate::core::Value;
-use crate::dag::DagLike;
+use crate::dag::{DagLike, PostOrderIter};
 use crate::decode::WitnessDecoder;
 use crate::jet::Jet;
 use crate::merkle::amr::Amr;
@@ -136,8 +136,14 @@ impl<J: Jet> RedeemNode<J> {
     }
 
     /// Return an iterator over the unshared nodes of the program
-    pub fn iter(&self) -> crate::dag::PostOrderIter<&Self> {
+    pub fn iter(&self) -> PostOrderIter<&Self> {
         <&Self as DagLike>::post_order_iter(self)
+    }
+
+    /// Return an iterator over the unshared nodes of the program, returning
+    /// refcounted pointers to each node.
+    pub fn rc_iter(self: Rc<Self>) -> PostOrderIter<Rc<Self>> {
+        <Rc<Self> as DagLike>::post_order_iter(self)
     }
 
     // FIXME: Compute length without iterating over entire DAG?
