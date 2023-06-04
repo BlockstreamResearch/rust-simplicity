@@ -3,9 +3,9 @@ use std::sync::Arc;
 use rand::rngs::ThreadRng;
 use rand::Rng;
 use simplicity::core::Value;
-use simplicity::types::{self, CompleteBound};
 use simplicity::ffi::c_jets::frame_ffi::c_writeBit;
 use simplicity::ffi::CFrameItem;
+use simplicity::types::{self, CompleteBound};
 
 pub fn random_value(ty: &types::Final, rng: &mut ThreadRng) -> Value {
     enum StackItem<'a> {
@@ -70,7 +70,12 @@ pub enum InputSampling {
 }
 
 impl InputSampling {
-    pub fn write_sample(&self, src_frame: &mut CFrameItem, src_ty: &types::Final, rng: &mut ThreadRng) {
+    pub fn write_sample(
+        &self,
+        src_frame: &mut CFrameItem,
+        src_ty: &types::Final,
+        rng: &mut ThreadRng,
+    ) {
         let write_bit = |bit: bool| unsafe { c_writeBit(src_frame, bit) };
 
         match self {

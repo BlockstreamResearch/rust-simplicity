@@ -6,7 +6,7 @@ pub use bitcoin_hashes::sha256;
 use bitcoin_hashes::{hex::FromHex, Hash};
 use elements::Txid;
 use rand::{thread_rng, RngCore};
-use simplicity::{bitcoin, bititer::BitIter, core::Value, elements, Error, types::Type};
+use simplicity::{bitcoin, bititer::BitIter, core::Value, elements, types::Type, Error};
 
 /// Engine to compute SHA256 hash function.
 /// We can't use bitcoin_hashes::sha256::HashEngine because it does not accept
@@ -59,10 +59,7 @@ pub fn var_len_buf_from_slice(v: &[u8], mut n: usize) -> Result<Value, Error> {
     while n > 0 {
         let v = if v.len() >= (1 << (n + 1)) {
             let ty = &types[n];
-            let val = simplicity::decode_value(
-                &ty.final_data().unwrap(),
-                &mut iter,
-            )?;
+            let val = simplicity::decode_value(&ty.final_data().unwrap(), &mut iter)?;
             Value::SumR(Box::new(val))
         } else {
             Value::SumL(Box::new(Value::Unit))
@@ -75,7 +72,6 @@ pub fn var_len_buf_from_slice(v: &[u8], mut n: usize) -> Result<Value, Error> {
     }
     Ok(res.unwrap_or(Value::Unit))
 }
-
 
 // Field order: 2^256 - 2^32 - 2^9 - 2^8 - 2^7 - 2^6 - 2^4 - 1
 fn out_of_field_order_point() -> [u8; 32] {

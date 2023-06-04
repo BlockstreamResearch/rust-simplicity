@@ -66,9 +66,12 @@ fn main() -> Result<(), String> {
     // enumerate all folders in criterion directory
     let jets_iter = match std::fs::read_dir(criterion_dir) {
         Ok(dir) => dir.map(|e| e.unwrap().path()),
-        Err(e) => return Err(
-            format!("Failed to open criterion data directory (did you run `cargo criterion`?): {}", e)
-        ),
+        Err(e) => {
+            return Err(format!(
+                "Failed to open criterion data directory (did you run `cargo criterion`?): {}",
+                e
+            ))
+        }
     };
 
     for jet in jets_iter {
