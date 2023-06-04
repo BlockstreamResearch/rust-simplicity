@@ -14,8 +14,7 @@
 
 use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
-use crate::core::iter::{DagIterable, PostOrderIter};
-use crate::core::{iter, Value};
+use crate::core::Value;
 use crate::dag::DagLike;
 use crate::decode::WitnessDecoder;
 use crate::jet::Jet;
@@ -137,8 +136,8 @@ impl<J: Jet> RedeemNode<J> {
     }
 
     /// Return an iterator over the unshared nodes of the program
-    pub fn iter(&self) -> PostOrderIter<self::RefWrapper<J>> {
-        RefWrapper(self).iter_post_order()
+    pub fn iter(&self) -> crate::dag::PostOrderIter<&Self> {
+        <&Self as DagLike>::post_order_iter(self)
     }
 
     // FIXME: Compute length without iterating over entire DAG?
@@ -150,9 +149,9 @@ impl<J: Jet> RedeemNode<J> {
 
     /// Return an iterator over the types of values that make up a valid witness for the program.
     pub fn get_witness_types(&self) -> impl Iterator<Item = &types::Final> {
-        RefWrapper(self).iter_post_order().filter_map(|node| {
-            if let RedeemNodeInner::Witness(_) = &node.0.inner {
-                Some(node.0.ty.target.as_ref())
+        self.iter().filter_map(|node| {
+            if let RedeemNodeInner::Witness(_) = &node.inner {
+                Some(node.ty.target.as_ref())
             } else {
                 None
             }
@@ -165,7 +164,7 @@ impl<J: Jet> RedeemNode<J> {
         let witness = WitnessDecoder::new(bits)?;
         let program = commit.finalize(witness, false)?;
 
-        if sharing::check_maximal_sharing(RefWrapper(&program).iter_post_order()) {
+        if sharing::check_maximal_sharing(program.iter()) {
             Ok(program)
         } else {
             Err(Error::SharingNotMaximal)
@@ -174,9 +173,8 @@ impl<J: Jet> RedeemNode<J> {
 
     /// Encode a Simplicity program to bits, including the witness data.
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
-        let program = RefWrapper(self).iter_post_order();
-        let program_bits = encode::encode_program(program.clone(), w)?;
-        let witness_bits = encode::encode_witness(iter::into_witness(program), w)?;
+        let program_bits = encode::encode_program(self.iter(), w)?;
+        let witness_bits = encode::encode_witness(self.iter().into_deduped_witnesses(), w)?;
         w.flush_all()?;
         Ok(program_bits + witness_bits)
     }
@@ -184,10 +182,10 @@ impl<J: Jet> RedeemNode<J> {
 
 impl<J: Jet> fmt::Display for RedeemNode<J> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        RefWrapper(self).display(
+        self.iter().into_display(
             f,
-            |node, f| fmt::Display::fmt(&node.0.inner, f),
-            |node, f| write!(f, ": {}", node.0.ty),
+            |node, f| fmt::Display::fmt(&node.inner, f),
+            |node, f| write!(f, ": {}", node.ty),
         )
     }
 }
