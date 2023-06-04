@@ -34,6 +34,20 @@ use std::rc::Rc;
 pub fn decode_program<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
 ) -> Result<Rc<CommitNode<J>>, Error> {
+    let root = decode_program_arbitrary_type(bits)?;
+    let unit_ty = crate::types::Type::unit();
+    root.arrow()
+        .source
+        .unify(&unit_ty, "setting root source to unit")?;
+    root.arrow()
+        .target
+        .unify(&unit_ty, "setting root source to unit")?;
+    Ok(root)
+}
+
+pub fn decode_program_arbitrary_type<I: Iterator<Item = u8>, J: Jet>(
+    bits: &mut BitIter<I>,
+) -> Result<Rc<CommitNode<J>>, Error> {
     let len = decode_natural(bits, None)?;
 
     if len == 0 {
@@ -346,7 +360,7 @@ mod tests {
         CommitNode::<crate::jet::Core>::decode::<_>(&mut iter).unwrap();
         // ...but not as a program
         let mut iter = BitIter::from(&justjet[..]);
-        decode_program::<_, crate::jet::Core>(&mut iter).unwrap(); // FIXME will be unwrap_err in next commit
+        decode_program::<_, crate::jet::Core>(&mut iter).unwrap_err();
     }
 
     #[test]
