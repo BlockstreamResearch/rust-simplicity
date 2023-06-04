@@ -291,8 +291,6 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::iter::DagIterable;
-    use crate::core::{iter, redeem};
     use crate::exec::BitMachine;
     use bitcoin_hashes::{sha256, Hash};
     use std::convert::TryFrom;
@@ -328,7 +326,7 @@ mod tests {
     }
 
     fn to_witness(program: &RedeemNode<Elements>) -> Vec<&Value> {
-        iter::into_witness(redeem::RefWrapper(program).iter_post_order()).collect()
+        program.iter().into_deduped_witnesses().collect()
     }
 
     #[test]

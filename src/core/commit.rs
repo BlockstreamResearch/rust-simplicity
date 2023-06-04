@@ -15,10 +15,10 @@
 
 use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
-use crate::core::iter::{DagIterable, PostOrderIter, WitnessIterator};
+use crate::core::iter::{DagIterable, WitnessIterator};
 use crate::core::redeem::RedeemNodeInner;
 use crate::core::{Context, RedeemNode, Value};
-use crate::dag::DagLike;
+use crate::dag::{DagLike, PostOrderIter};
 use crate::jet::Jet;
 use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
@@ -150,8 +150,8 @@ impl<J: Jet> CommitNode<J> {
     }
 
     /// Return an iterator over the unshared nodes of the program
-    pub fn iter(&self) -> PostOrderIter<self::RefWrapper<J>> {
-        RefWrapper(self).iter_post_order()
+    pub fn iter(&self) -> PostOrderIter<&Self> {
+        <&Self as DagLike>::post_order_iter(self)
     }
 
     // FIXME: Compute length without iterating over entire DAG?
@@ -798,9 +798,9 @@ impl<J: Jet> CommitNode<J> {
 
 impl<J: Jet> fmt::Display for CommitNode<J> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        RefWrapper(self).display(
+        self.iter().into_display(
             f,
-            |node, f| fmt::Display::fmt(&node.0.inner, f),
+            |node, f| fmt::Display::fmt(&node.inner, f),
             |_, _| Ok(()),
         )
     }
