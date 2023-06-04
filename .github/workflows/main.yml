@@ -26,6 +26,29 @@ jobs:
           command: fmt
           args: --all -- --check
 
+  bench_test:
+    name: Jets-Bench Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - stable
+    steps:
+      - name: Checkout Crate
+        uses: actions/checkout@v2
+      - name: Checkout Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+      - name: Running cargo test
+        run: |
+          cargo install cargo-criterion
+          cd jets-bench
+          cargo test
+          cargo criterion --no-run
+
   test:
     name: Tests
     runs-on: ubuntu-latest
