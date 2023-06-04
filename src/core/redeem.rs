@@ -16,6 +16,7 @@ use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
 use crate::core::iter::{DagIterable, PostOrderIter};
 use crate::core::{iter, Value};
+use crate::dag::DagLike;
 use crate::decode::WitnessDecoder;
 use crate::jet::Jet;
 use crate::merkle::amr::Amr;
@@ -66,54 +67,6 @@ pub enum RedeemNodeInner<J: Jet> {
     Jet(J),
     /// Constant word
     Word(Value),
-}
-
-impl<J: Jet> RedeemNodeInner<J> {
-    /// Return the left child of the node, if there is such a child.
-    pub fn get_left(&self) -> Option<&RedeemNode<J>> {
-        match self {
-            RedeemNodeInner::Iden
-            | RedeemNodeInner::Unit
-            | RedeemNodeInner::Witness(..)
-            | RedeemNodeInner::Fail(..)
-            | RedeemNodeInner::Hidden(..)
-            | RedeemNodeInner::Jet(..)
-            | RedeemNodeInner::Word(..) => None,
-            RedeemNodeInner::InjL(l)
-            | RedeemNodeInner::InjR(l)
-            | RedeemNodeInner::Take(l)
-            | RedeemNodeInner::Drop(l)
-            | RedeemNodeInner::Comp(l, _)
-            | RedeemNodeInner::Case(l, _)
-            | RedeemNodeInner::AssertL(l, _)
-            | RedeemNodeInner::AssertR(l, _)
-            | RedeemNodeInner::Pair(l, _)
-            | RedeemNodeInner::Disconnect(l, _) => Some(l),
-        }
-    }
-
-    /// Return the right child of the node, if there is such a child.
-    pub fn get_right(&self) -> Option<&RedeemNode<J>> {
-        match self {
-            RedeemNodeInner::Iden
-            | RedeemNodeInner::Unit
-            | RedeemNodeInner::Witness(..)
-            | RedeemNodeInner::Fail(..)
-            | RedeemNodeInner::Hidden(..)
-            | RedeemNodeInner::Jet(..)
-            | RedeemNodeInner::Word(..)
-            | RedeemNodeInner::InjL(_)
-            | RedeemNodeInner::InjR(_)
-            | RedeemNodeInner::Take(_)
-            | RedeemNodeInner::Drop(_) => None,
-            RedeemNodeInner::Comp(_, r)
-            | RedeemNodeInner::Case(_, r)
-            | RedeemNodeInner::AssertL(_, r)
-            | RedeemNodeInner::AssertR(_, r)
-            | RedeemNodeInner::Pair(_, r)
-            | RedeemNodeInner::Disconnect(_, r) => Some(r),
-        }
-    }
 }
 
 impl<J: Jet> fmt::Display for RedeemNodeInner<J> {
@@ -175,12 +128,12 @@ pub struct RedeemNode<J: Jet> {
 impl<J: Jet> RedeemNode<J> {
     /// Return the left child of the node, if there is such a child.
     pub fn get_left(&self) -> Option<&Self> {
-        self.inner.get_left()
+        <&Self as DagLike>::left_child(&self)
     }
 
     /// Return the right child of the node, if there is such a child.
     pub fn get_right(&self) -> Option<&Self> {
-        self.inner.get_right()
+        <&Self as DagLike>::right_child(&self)
     }
 
     /// Return an iterator over the unshared nodes of the program

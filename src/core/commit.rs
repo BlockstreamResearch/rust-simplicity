@@ -18,6 +18,7 @@ use crate::bitwriter::BitWriter;
 use crate::core::iter::{DagIterable, PostOrderIter, WitnessIterator};
 use crate::core::redeem::RedeemNodeInner;
 use crate::core::{Context, RedeemNode, Value};
+use crate::dag::DagLike;
 use crate::jet::Jet;
 use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
@@ -66,54 +67,6 @@ pub enum CommitNodeInner<J: Jet> {
     Jet(J),
     /// Constant word
     Word(Value),
-}
-
-impl<J: Jet> CommitNodeInner<J> {
-    /// Return the left child of the node, if there is such a child.
-    pub fn get_left(&self) -> Option<&CommitNode<J>> {
-        match self {
-            CommitNodeInner::Iden
-            | CommitNodeInner::Unit
-            | CommitNodeInner::Witness
-            | CommitNodeInner::Fail(_, _)
-            | CommitNodeInner::Hidden(_)
-            | CommitNodeInner::Jet(_)
-            | CommitNodeInner::Word(_) => None,
-            CommitNodeInner::InjL(l)
-            | CommitNodeInner::InjR(l)
-            | CommitNodeInner::Take(l)
-            | CommitNodeInner::Drop(l)
-            | CommitNodeInner::Comp(l, _)
-            | CommitNodeInner::Case(l, _)
-            | CommitNodeInner::AssertL(l, _)
-            | CommitNodeInner::AssertR(l, _)
-            | CommitNodeInner::Pair(l, _)
-            | CommitNodeInner::Disconnect(l, _) => Some(l),
-        }
-    }
-
-    /// Return the right child of the node, if there is such a child.
-    pub fn get_right(&self) -> Option<&CommitNode<J>> {
-        match self {
-            CommitNodeInner::Iden
-            | CommitNodeInner::Unit
-            | CommitNodeInner::Witness
-            | CommitNodeInner::Fail(_, _)
-            | CommitNodeInner::Hidden(_)
-            | CommitNodeInner::Jet(_)
-            | CommitNodeInner::Word(_)
-            | CommitNodeInner::InjL(_)
-            | CommitNodeInner::InjR(_)
-            | CommitNodeInner::Take(_)
-            | CommitNodeInner::Drop(_) => None,
-            CommitNodeInner::Comp(_, r)
-            | CommitNodeInner::Case(_, r)
-            | CommitNodeInner::AssertL(_, r)
-            | CommitNodeInner::AssertR(_, r)
-            | CommitNodeInner::Pair(_, r)
-            | CommitNodeInner::Disconnect(_, r) => Some(r),
-        }
-    }
 }
 
 impl<J: Jet> fmt::Display for CommitNodeInner<J> {
@@ -627,12 +580,12 @@ impl<J: Jet> CommitNode<J> {
 
     /// Return the left child of the node, if there is such a child.
     pub fn get_left(&self) -> Option<&Self> {
-        self.inner.get_left()
+        <&Self as DagLike>::left_child(&self)
     }
 
     /// Return the right child of the node, if there is such a child.
     pub fn get_right(&self) -> Option<&Self> {
-        self.inner.get_right()
+        <&Self as DagLike>::right_child(&self)
     }
 
     /// Create a new DAG, enriched with the witness and computed metadata.
