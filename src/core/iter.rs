@@ -189,9 +189,17 @@ pub fn into_witness<'a, J: Jet + 'a, I>(iter: I) -> impl Iterator<Item = &'a Val
 where
     I: Iterator<Item = RefWrapper<'a, J>> + Clone,
 {
-    iter.filter_map(|node| {
+    // Enforce sharing. Since witnesses don't have any children or otherwise
+    // interact with index logic, this is very simple: just don't repeat any
+    // witnesses. Use a hashset to keep track.
+    let mut seen_imrs = HashSet::new();
+    iter.filter_map(move |node| {
         if let RedeemNodeInner::Witness(value) = &node.0.inner {
-            Some(value)
+            if seen_imrs.insert(node.0.imr) {
+                Some(value)
+            } else {
+                None
+            }
         } else {
             None
         }

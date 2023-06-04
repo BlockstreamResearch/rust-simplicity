@@ -505,25 +505,36 @@ mod tests {
         let assert_branches = |policy: &Policy<bitcoin::XOnlyPublicKey>, bits: &[bool]| {
             let program = policy.satisfy(&satisfier).expect("satisfiable");
             let witness = to_witness(&program);
-            assert_eq!(5, witness.len());
+            // Because of witness sharing, each bit is only encoded once, leading
+            // to some awkward logic here to validate the actual witness.
+            assert_eq!(
+                witness.len(),
+                usize::from(bits.iter().any(|b| *b)) // a witness for any 1 bits
+                    + usize::from(bits.iter().any(|b| !*b)) // one for any 0 bits
+                    + bits.iter().filter(|b| **b).count(), // and preimages for each 1 bit
+            );
 
-            let mut i = 0;
-
-            let mut assert_branch = |j: usize| {
-                assert_eq!(&Value::u1(bits[j] as u8), witness[i]);
-                i += 1;
-
-                if bits[j] {
-                    let preimage_bytes = witness[i].try_to_bytes().expect("to bytes");
+            let mut seen_0 = false;
+            let mut seen_1 = false;
+            let mut witidx = 0;
+            for (bit_n, bit) in bits.iter().copied().enumerate() {
+                if !bit && !seen_0 {
+                    assert_eq!(witness[witidx], &Value::u1(0));
+                    seen_0 = true;
+                    witidx += 1;
+                }
+                if bit && !seen_1 {
+                    assert_eq!(witness[witidx], &Value::u1(1));
+                    seen_1 = true;
+                    witidx += 1;
+                }
+                if bit {
+                    let preimage_bytes = witness[witidx].try_to_bytes().expect("to bytes");
                     let witness_preimage =
                         Preimage32::try_from(preimage_bytes.as_slice()).expect("to array");
-                    assert_eq!(preimages[j], &witness_preimage);
-                    i += 1;
+                    assert_eq!(preimages[bit_n], &witness_preimage);
+                    witidx += 1;
                 }
-            };
-
-            for j in 0..2 {
-                assert_branch(j);
             }
         };
 

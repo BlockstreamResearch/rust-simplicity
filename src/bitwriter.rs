@@ -84,9 +84,11 @@ impl<W: io::Write> BitWriter<W> {
     /// Write out all cached bits.
     /// This may write up to two bytes and flushes the underlying [`io::Write`].
     pub fn flush_all(&mut self) -> io::Result<()> {
-        self.w.write_all(&[self.cache])?;
-        self.cache_len = 0;
-        self.cache = 0;
+        if self.cache_len > 0 {
+            self.w.write_all(&[self.cache])?;
+            self.cache_len = 0;
+            self.cache = 0;
+        }
 
         io::Write::flush(&mut self.w)
     }
