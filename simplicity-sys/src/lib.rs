@@ -12,12 +12,6 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-mod bitstream;
-mod bitstring;
 pub mod c_jets;
 pub use c_jets::{CElementsTxEnv, CFrameItem, CTapEnv, CTransaction};
-pub mod dag;
-pub mod error;
 pub mod ffi;
-pub mod test;
-mod util;
