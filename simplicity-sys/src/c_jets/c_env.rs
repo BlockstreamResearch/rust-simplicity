@@ -233,10 +233,12 @@ mod tests {
     use std::mem::{align_of, size_of};
 
     use crate::c_jets::{c_env::*, frame_ffi::*};
+    use crate::ffi::*;
 
     #[test]
     fn test_sizes() {
         unsafe {
+            assert_eq!(size_of::<u32>(), c_sizeof_ubounded);
             assert_eq!(size_of::<usize>(), c_sizeof_UWORD);
             assert_eq!(size_of::<CFrameItem>(), c_sizeof_frameItem);
             assert_eq!(size_of::<CRawBuffer>(), c_sizeof_rawBuffer);
@@ -251,6 +253,7 @@ mod tests {
     #[test]
     fn test_aligns() {
         unsafe {
+            assert_eq!(align_of::<u32>(), c_alignof_ubounded);
             assert_eq!(align_of::<usize>(), c_alignof_UWORD);
             assert_eq!(align_of::<CFrameItem>(), c_alignof_frameItem);
             assert_eq!(align_of::<CRawBuffer>(), c_alignof_rawBuffer);

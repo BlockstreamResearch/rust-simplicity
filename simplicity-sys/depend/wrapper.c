@@ -1,12 +1,15 @@
 #ifndef WRAPPERS_H
 #define WRAPPERS_H
+#include "simplicity/bounded.h"
 #include "simplicity/frame.h"
 
 #include <stdalign.h>
 
+const size_t c_sizeof_ubounded = sizeof(ubounded);
 const size_t c_sizeof_UWORD = sizeof(UWORD);
 const size_t c_sizeof_frameItem = sizeof(frameItem);
 
+const size_t c_alignof_ubounded = alignof(ubounded);
 const size_t c_alignof_UWORD = alignof(UWORD);
 const size_t c_alignof_frameItem = alignof(frameItem);
 

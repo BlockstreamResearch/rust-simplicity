@@ -15,10 +15,8 @@ pub struct CFrameItem {
 
 extern "C" {
     pub static c_sizeof_frameItem: size_t;
-    pub static c_sizeof_UWORD: size_t;
 
     pub static c_alignof_frameItem: size_t;
-    pub static c_alignof_UWORD: size_t;
 
     pub(crate) fn c_initWriteFrame(frame: &mut CFrameItem, n: size_t, from: *const size_t);
     pub(crate) fn c_initReadFrame(frame: &mut CFrameItem, n: size_t, from: *const size_t);
