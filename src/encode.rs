@@ -25,6 +25,7 @@ use crate::core::redeem::{RedeemNodeInner, RefWrapper};
 use crate::core::Value;
 use crate::jet::Jet;
 use crate::sharing;
+use crate::Imr;
 use std::collections::HashMap;
 use std::{io, mem};
 
@@ -42,7 +43,7 @@ pub fn encode_program<W: io::Write, J: Jet>(
 
     let mut index = 0;
     for node in program {
-        if node_to_index.get(&node).unwrap() != &index {
+        if node_to_index.get(&node.0.imr).unwrap() != &index {
             continue;
         }
 
@@ -57,16 +58,16 @@ pub fn encode_program<W: io::Write, J: Jet>(
 fn encode_node<W: io::Write, J: Jet>(
     node: RefWrapper<J>,
     index: usize,
-    node_to_index: &HashMap<RefWrapper<J>, usize>,
+    node_to_index: &HashMap<Imr, usize>,
     w: &mut BitWriter<W>,
 ) -> io::Result<()> {
     if let Some(left) = node.get_left() {
-        let i_abs = *node_to_index.get(&left).unwrap();
+        let i_abs = *node_to_index.get(&left.0.imr).unwrap();
         debug_assert!(i_abs < index);
         let i = index - i_abs;
 
         if let Some(right) = node.get_right() {
-            let j_abs = *node_to_index.get(&right).unwrap();
+            let j_abs = *node_to_index.get(&right.0.imr).unwrap();
             debug_assert!(j_abs < index);
             let j = index - j_abs;
 
