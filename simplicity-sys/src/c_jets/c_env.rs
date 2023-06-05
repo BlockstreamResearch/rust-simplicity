@@ -1,6 +1,6 @@
 use std::os::raw::{c_uchar, c_uint};
 
-use crate::util;
+use crate::ffi::sha256::CSha256Midstate;
 use bitcoin_hashes::{sha256, Hash};
 use libc::size_t;
 
@@ -110,17 +110,11 @@ pub enum CTransaction {}
 
 #[derive(Debug)]
 #[repr(C)]
-pub struct CSha256 {
-    pub data: [u32; 8],
-}
-
-#[derive(Debug)]
-#[repr(C)]
 pub struct CElementsTxEnv {
     tx: *const CTransaction,
     taproot: *const CTapEnv,
-    genesis_hash: CSha256,
-    sighash_all: CSha256,
+    genesis_hash: CSha256Midstate,
+    sighash_all: CSha256Midstate,
     ix: usize, // This is uint_fast32_t in C, which is usize for 32/64 bits
 }
 
@@ -203,8 +197,8 @@ extern "C" {
 }
 impl CElementsTxEnv {
     pub fn sighash_all(&self) -> sha256::Hash {
-        let bytes = util::into_u8_merkle_root(&self.sighash_all.data);
-        sha256::Hash::from_inner(bytes)
+        let midstate: sha256::Midstate = self.sighash_all.into();
+        sha256::Hash::from_inner(midstate.into_inner())
     }
 }
 
