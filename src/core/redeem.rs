@@ -22,7 +22,7 @@ use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
 use crate::types::{self, arrow::FinalArrow};
-use crate::{decode, encode, impl_ref_wrapper, sharing, Error};
+use crate::{encode, impl_ref_wrapper, sharing, Error};
 use std::rc::Rc;
 use std::{fmt, io};
 
@@ -208,9 +208,9 @@ impl<J: Jet> RedeemNode<J> {
 
     /// Decode a Simplicity program from bits, including the witness data.
     pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Rc<Self>, Error> {
-        let commit = decode::decode_program_exact_witness(bits)?;
+        let commit = crate::decode_program(bits)?;
         let witness = WitnessDecoder::new(bits)?;
-        let program = commit.finalize(witness)?;
+        let program = commit.finalize(witness, false)?;
 
         if sharing::check_maximal_sharing(RefWrapper(&program).iter_post_order()) {
             Ok(program)
@@ -255,7 +255,6 @@ mod tests {
     use crate::bititer::BitIter;
     use crate::bitwriter::BitWriter;
     use crate::core::Value;
-    use crate::decode::decode_program_fresh_witness;
     use crate::jet::Core;
 
     #[test]
@@ -268,18 +267,26 @@ mod tests {
         // main = comp wits_are_equal jet_verify            :: 1 -> 1
         let eqwits = vec![0xc9, 0xc4, 0x6d, 0xb8, 0x82, 0x30, 0x10];
         let mut iter = BitIter::from(&eqwits[..]);
-        let eqwits_prog = decode_program_fresh_witness::<_, Core>(&mut iter).unwrap();
+        let eqwits_prog = crate::decode_program::<_, Core>(&mut iter).unwrap();
 
         let mut witness_iter = iter::repeat(Value::u32(0xDEADBEEF));
-        let eqwits_final = eqwits_prog.finalize(&mut witness_iter).unwrap();
-        let mut output = vec![];
-        let mut writer = BitWriter::new(&mut output);
-        eqwits_final.encode(&mut writer).unwrap();
+        // Generally when we are manually adding witnesses we want to unshare them so that
+        // we have a choice to add distinct witnesses to every spot. But in this case we
+        // are providing the same witness for every spot, so it really doesn't matter, so
+        // try both cases.
+        for unshare_witnesses in vec![false, true] {
+            let eqwits_final = eqwits_prog
+                .finalize(&mut witness_iter, unshare_witnesses)
+                .unwrap();
+            let mut output = vec![];
+            let mut writer = BitWriter::new(&mut output);
+            eqwits_final.encode(&mut writer).unwrap();
 
-        assert_eq!(
-            output,
-            [0xc9, 0xc4, 0x6d, 0xb8, 0x82, 0x30, 0x11, 0xe2, 0x0d, 0xea, 0xdb, 0xee, 0xf0],
-        );
+            assert_eq!(
+                output,
+                [0xc9, 0xc4, 0x6d, 0xb8, 0x82, 0x30, 0x11, 0xe2, 0x0d, 0xea, 0xdb, 0xee, 0xf0],
+            );
+        }
     }
 
     #[test]

@@ -22,11 +22,8 @@ use crate::jet::Jet;
 use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
-use crate::types::{
-    self,
-    arrow::{Arrow, FinalArrow},
-};
-use crate::{analysis, decode, impl_ref_wrapper, Error};
+use crate::types::{self, arrow::Arrow};
+use crate::{analysis, impl_ref_wrapper, Error};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::{fmt, io};
@@ -639,32 +636,103 @@ impl<J: Jet> CommitNode<J> {
     }
 
     /// Create a new DAG, enriched with the witness and computed metadata.
-    pub fn finalize<W: WitnessIterator>(&self, mut witness: W) -> Result<Rc<RedeemNode<J>>, Error> {
+    pub fn finalize<W: WitnessIterator>(
+        &self,
+        mut witness: W,
+        unshare_witnesses: bool,
+    ) -> Result<Rc<RedeemNode<J>>, Error> {
         let root = RefWrapper(self);
-        let post_order_it = root.iter_post_order();
-        let mut to_finalized: HashMap<RefWrapper<J>, Rc<RedeemNode<J>>> = HashMap::new();
+        let mut to_finalized: HashMap<Imr, Rc<RedeemNode<J>>> = HashMap::new();
         // Iterate through the DAG again to calculate the value of IMR in the first pass.
         // Unfortunately, we cannot directly mutate the nodes here, because they are RC
         // and we cannot have multiple mutable references to the same object.
         // It is possible to overcome this with Rc<RefCell> as we do in type computation,
         // but that would leak, Rc<RefCell> everywhere through out the code.
         // We also cache Value and NodeType that are needed in the second pass.
-        let mut first_pass: HashMap<RefWrapper<J>, (Imr, Option<Value>, FinalArrow)> =
-            HashMap::new();
+        let mut first_pass: HashMap<RefWrapper<J>, Imr> = HashMap::new();
 
-        for commit in post_order_it.clone() {
-            let left_imr = commit.get_left().map(|x| {
-                first_pass
-                    .get(&x)
-                    .expect("Children come before parent in post order")
-                    .0
-            });
-            let right_imr = commit.get_right().map(|x| {
-                first_pass
-                    .get(&x)
-                    .expect("Children come before parent in post order")
-                    .0
-            });
+        let mut root_first_pass_imr = None;
+        for commit in root.iter_post_order() {
+            // 0. Skip witness nodes when we encounter them from `post_order_it`, since
+            //    we treat them specially in order to "unshare" them.
+            if unshare_witnesses {
+                if let CommitNodeInner::Witness = commit.0.inner {
+                    continue;
+                }
+            }
+
+            // 1. Compute and store first-pass IMRs
+            fn first_pass_child_imr<J: Jet, W: WitnessIterator>(
+                unshare_witnesses: bool,
+                child: Option<RefWrapper<J>>,
+                witness: &mut W,
+                first_pass: &HashMap<RefWrapper<J>, Imr>,
+                to_finalized: &mut HashMap<Imr, Rc<RedeemNode<J>>>,
+            ) -> Result<Option<Imr>, Error> {
+                match child {
+                    Some(x) if unshare_witnesses => {
+                        if let CommitNodeInner::Witness = x.0.inner {
+                            // Treat witness children as fresh; don't look them up.
+                            let wit_arrow = x.0.arrow.finalize()?;
+                            let wit_val = witness.next(&wit_arrow.target)?;
+                            let wit_first_pass_imr = Imr::compute(
+                                &x.0.inner,
+                                None, // left child
+                                None, // right child
+                                Some(&wit_val),
+                                &wit_arrow,
+                            );
+
+                            // Since they have no children we can do the entire second pass here...
+                            let wit_imr =
+                                Imr::compute_pass2(wit_first_pass_imr, &x.0.inner, &wit_arrow);
+                            let amr =
+                                Amr::compute(&x.0.inner, None, None, Some(&wit_val), &wit_arrow);
+                            let bounds = analysis::compute_bounds(x.0, None, None, &wit_arrow);
+                            let node = RedeemNode {
+                                inner: RedeemNodeInner::Witness(wit_val),
+                                cmr: x.0.cmr,
+                                imr: wit_imr,
+                                amr,
+                                ty: wit_arrow,
+                                bounds,
+                            };
+                            // ...and store the finalized node
+                            to_finalized.insert(wit_first_pass_imr, Rc::new(node));
+
+                            Ok(Some(wit_first_pass_imr))
+                        } else {
+                            Ok(Some(
+                                *first_pass
+                                    .get(&x)
+                                    .expect("Children come before parent in post order"),
+                            ))
+                        }
+                    }
+                    Some(x) => Ok(Some(
+                        *first_pass
+                            .get(&x)
+                            .expect("Children come before parent in post order"),
+                    )),
+                    None => Ok(None),
+                }
+            }
+
+            let left_imr = first_pass_child_imr(
+                unshare_witnesses,
+                commit.get_left(),
+                &mut witness,
+                &first_pass,
+                &mut to_finalized,
+            )?;
+            let right_imr = first_pass_child_imr(
+                unshare_witnesses,
+                commit.get_right(),
+                &mut witness,
+                &first_pass,
+                &mut to_finalized,
+            )?;
+
             let final_ty = commit.0.arrow.finalize()?;
             let value = if let CommitNodeInner::Witness = commit.0.inner {
                 let v = witness.next(&final_ty.target)?;
@@ -672,40 +740,40 @@ impl<J: Jet> CommitNode<J> {
             } else {
                 None
             };
-            let imr = Imr::compute(
+
+            let first_pass_imr = Imr::compute(
                 &commit.0.inner,
                 left_imr,
                 right_imr,
                 value.as_ref(),
                 &final_ty,
             );
-            first_pass.insert(commit, (imr, value, final_ty));
-        }
+            first_pass.insert(commit, first_pass_imr);
+            root_first_pass_imr = Some(first_pass_imr); // on the final iteration this will be correct
 
-        for commit in post_order_it {
-            let left = commit.get_left().map(|x| {
+            // 2. Compute and store complete RedeemNode
+            let left = left_imr.map(|x| {
                 to_finalized
                     .get(&x)
                     .expect("Children come before parent in post order")
                     .clone()
             });
-            let right = commit.get_right().map(|x| {
+            let right = right_imr.map(|x| {
                 to_finalized
                     .get(&x)
                     .expect("Children come before parent in post order")
                     .clone()
             });
-            // The value must exist, and we get ownership by removing it
-            let (first_pass_imr, value, ty) = first_pass.remove(&commit).unwrap();
-            let imr = Imr::compute_pass2(first_pass_imr, &commit.0.inner, &ty);
+
+            let imr = Imr::compute_pass2(first_pass_imr, &commit.0.inner, &final_ty);
             let amr = Amr::compute(
                 &commit.0.inner,
                 left.clone(),
                 right.clone(),
                 value.as_ref(),
-                &ty,
+                &final_ty,
             );
-            let bounds = analysis::compute_bounds(commit.0, left.clone(), right.clone(), &ty);
+            let bounds = analysis::compute_bounds(commit.0, left.clone(), right.clone(), &final_ty);
 
             // Verbose but necessary thanks to Rust
             let inner = match commit.0.inner {
@@ -738,15 +806,15 @@ impl<J: Jet> CommitNode<J> {
                 cmr: commit.0.cmr,
                 imr,
                 amr,
-                ty,
+                ty: final_ty,
                 bounds,
             };
 
-            to_finalized.insert(commit, Rc::new(node));
+            to_finalized.insert(first_pass_imr, Rc::new(node));
         }
 
         witness.finish()?;
-        Ok(to_finalized.get(&root).unwrap().clone())
+        Ok(to_finalized[&root_first_pass_imr.unwrap()].clone())
     }
 
     /// Decode a Simplicity program from bits, without the witness data.
@@ -759,7 +827,7 @@ impl<J: Jet> CommitNode<J> {
     ///
     /// If the serialization contains the witness data, then use [`RedeemNode::decode()`].
     pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Rc<Self>, Error> {
-        decode::decode_program_fresh_witness(bits)
+        crate::decode::decode_program_arbitrary_type(bits)
     }
 
     /// Encode a Simplicity program to bits, without witness data.
@@ -770,7 +838,7 @@ impl<J: Jet> CommitNode<J> {
     /// Otherwise, add the witness via [`Self::finalize()`] and use [`RedeemNode::encode()`].
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
         let empty_witness = std::iter::repeat(Value::Unit);
-        let program = self.finalize(empty_witness).expect("finalize");
+        let program = self.finalize(empty_witness, false).expect("finalize");
         program.encode(w)
     }
 }
@@ -804,7 +872,7 @@ mod tests {
         let node = CommitNode::disconnect(&mut context, iden.clone(), iden).unwrap();
 
         if let Err(Error::Type(types::Error::OccursCheck { .. })) =
-            node.finalize(std::iter::empty())
+            node.finalize(std::iter::empty(), false)
         {
         } else {
             panic!("Expected occurs check error")

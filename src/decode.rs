@@ -19,38 +19,34 @@
 
 use crate::bititer::BitIter;
 use crate::core::commit::CommitNodeInner;
-use crate::core::iter::{DagIterable, IndexDag, IndexNode, WitnessIterator};
+use crate::core::iter::{DagIterable, WitnessIterator};
 use crate::core::{CommitNode, Context, Value};
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::types;
 use crate::Error;
-use std::collections::HashMap;
 use std::rc::Rc;
 
-/// Decode a Simplicity program from bits where witness data follows.
-///
-/// The number of decoded witness nodes corresponds exactly to the witness data.
-pub fn decode_program_exact_witness<I: Iterator<Item = u8>, J: Jet>(
-    bits: &mut BitIter<I>,
-) -> Result<Rc<CommitNode<J>>, Error> {
-    decode_program(bits, false)
-}
-
-/// Decode a Simplicity program from bits where there is no witness data.
-///
-/// Witness nodes are made fresh, i.e., each witness node has at most one parent.
-/// This increases the number of witness nodes and hence the length of the required witness data.
-pub fn decode_program_fresh_witness<I: Iterator<Item = u8>, J: Jet>(
-    bits: &mut BitIter<I>,
-) -> Result<Rc<CommitNode<J>>, Error> {
-    decode_program(bits, true)
-}
-
 /// Decode a Simplicity program from bits, without the witness data.
-fn decode_program<I: Iterator<Item = u8>, J: Jet>(
+///
+/// If witness data is present, it should be encoded after the program, and the
+/// user must deserialize it separately.
+pub fn decode_program<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
-    fresh_witness: bool,
+) -> Result<Rc<CommitNode<J>>, Error> {
+    let root = decode_program_arbitrary_type(bits)?;
+    let unit_ty = crate::types::Type::unit();
+    root.arrow()
+        .source
+        .unify(&unit_ty, "setting root source to unit")?;
+    root.arrow()
+        .target
+        .unify(&unit_ty, "setting root source to unit")?;
+    Ok(root)
+}
+
+pub fn decode_program_arbitrary_type<I: Iterator<Item = u8>, J: Jet>(
+    bits: &mut BitIter<I>,
 ) -> Result<Rc<CommitNode<J>>, Error> {
     let len = decode_natural(bits, None)?;
 
@@ -62,33 +58,25 @@ fn decode_program<I: Iterator<Item = u8>, J: Jet>(
         return Err(Error::TooManyNodes(len));
     }
 
-    let mut index_to_node = HashMap::new();
-    let mut index_dag = Vec::new();
     let mut context = Context::new();
 
-    for index in 0..len {
-        decode_node(
-            bits,
-            &mut context,
-            index,
-            &mut index_to_node,
-            &mut index_dag,
-            fresh_witness,
-        )?;
+    let mut nodes = vec![];
+    for _ in 0..len {
+        let new_node = decode_node(bits, &mut context, &nodes[..])?;
+        nodes.push(new_node);
     }
 
-    // If witnesses are made fresh, then the deserialized program grows and its indices change.
     // We must check the canonical order of the serialized program
-    let node = IndexNode(usize::default(), &index_dag);
-    let connected_it = node.iter_post_order();
-    let indexed_it = (0..index_dag.len()).map(|index| IndexNode(index, &index_dag));
-
-    if !Iterator::eq(connected_it, indexed_it) {
-        return Err(Error::NotInCanonicalOrder);
+    let post_order_it = crate::core::commit::RefWrapper(&nodes[nodes.len() - 1])
+        .iter_post_order()
+        .enumerate();
+    for (n, node) in post_order_it {
+        if node.0 != &*nodes[n] {
+            return Err(Error::NotInCanonicalOrder);
+        }
     }
 
-    let root = get_child_from_index(&mut context, len - 1, &index_to_node);
-    Ok(root)
+    Ok(Rc::clone(&nodes[nodes.len() - 1]))
 }
 
 /// Decode a single Simplicity node from bits and
@@ -96,12 +84,9 @@ fn decode_program<I: Iterator<Item = u8>, J: Jet>(
 fn decode_node<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
     context: &mut Context<J>,
-    index: usize,
-    index_to_node: &mut HashMap<usize, Rc<CommitNode<J>>>,
-    index_dag: &mut IndexDag,
-    fresh_witness: bool,
-) -> Result<(), Error> {
-    debug_assert!(index == index_dag.len());
+    nodes: &[Rc<CommitNode<J>>],
+) -> Result<Rc<CommitNode<J>>, Error> {
+    let index = nodes.len();
 
     let (maybe_code, subcode) = match bits.next() {
         None => return Err(Error::EndOfStream),
@@ -118,13 +103,12 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
     let node = match maybe_code {
         Some(code) if code < 2 => {
             let i_abs = index - decode_natural(bits, Some(index))?;
-            let left = get_child_from_index(context, i_abs, index_to_node);
+            let left = Rc::clone(&nodes[i_abs]);
 
             match code {
                 0 => {
                     let j_abs = index - decode_natural(bits, Some(index))?;
-                    let right = get_child_from_index(context, j_abs, index_to_node);
-                    index_dag.push((Some(i_abs), Some(j_abs)));
+                    let right = Rc::clone(&nodes[j_abs]);
 
                     match subcode {
                         0 => CommitNode::comp(context, left, right),
@@ -148,74 +132,47 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
                         _ => unreachable!("2-bit subcode"),
                     }
                 }
-                1 => {
-                    index_dag.push((Some(i_abs), None));
-
-                    Ok(match subcode {
-                        0 => CommitNode::injl(context, left),
-                        1 => CommitNode::injr(context, left),
-                        2 => CommitNode::take(context, left),
-                        3 => CommitNode::drop(context, left),
-                        _ => unreachable!("2-bit subcode"),
-                    })
-                }
+                1 => Ok(match subcode {
+                    0 => CommitNode::injl(context, left),
+                    1 => CommitNode::injr(context, left),
+                    2 => CommitNode::take(context, left),
+                    3 => CommitNode::drop(context, left),
+                    _ => unreachable!("2-bit subcode"),
+                }),
                 _ => unreachable!("code < 2"),
             }
         }
-        _ => {
-            index_dag.push((None, None));
-
-            match maybe_code {
-                None => match bits.next() {
-                    None => return Err(Error::EndOfStream),
-                    Some(true) => Ok(CommitNode::jet(context, J::decode(bits)?)),
-                    Some(false) => {
-                        let depth = decode_natural(bits, Some(32))?;
-                        let word = decode_value(&context.nth_power_of_2_final(depth - 1), bits)?;
-                        Ok(CommitNode::const_word(context, word))
-                    }
-                },
-                Some(2) => Ok(match subcode {
-                    0 => CommitNode::iden(context),
-                    1 => CommitNode::unit(context),
-                    2 => CommitNode::fail(
-                        context,
-                        Cmr::from(decode_hash(bits)?),
-                        Cmr::from(decode_hash(bits)?),
-                    ),
-                    3 => return Err(Error::ParseError("01011 (stop code)")),
-                    _ => unreachable!("2-bit subcode"),
-                }),
-                Some(3) => Ok(match subcode {
-                    0 => CommitNode::hidden(context, Cmr::from(decode_hash(bits)?)),
-                    1 if fresh_witness => return Ok(()),
-                    1 => CommitNode::witness(context),
-                    _ => unreachable!("1-bit subcode"),
-                }),
-                Some(_) => unreachable!("2-bit code"),
-            }
-        }
+        _ => match maybe_code {
+            None => match bits.next() {
+                None => return Err(Error::EndOfStream),
+                Some(true) => Ok(CommitNode::jet(context, J::decode(bits)?)),
+                Some(false) => {
+                    let depth = decode_natural(bits, Some(32))?;
+                    let word = decode_value(&context.nth_power_of_2_final(depth - 1), bits)?;
+                    Ok(CommitNode::const_word(context, word))
+                }
+            },
+            Some(2) => Ok(match subcode {
+                0 => CommitNode::iden(context),
+                1 => CommitNode::unit(context),
+                2 => CommitNode::fail(
+                    context,
+                    Cmr::from(decode_hash(bits)?),
+                    Cmr::from(decode_hash(bits)?),
+                ),
+                3 => return Err(Error::ParseError("01011 (stop code)")),
+                _ => unreachable!("2-bit subcode"),
+            }),
+            Some(3) => Ok(match subcode {
+                0 => CommitNode::hidden(context, Cmr::from(decode_hash(bits)?)),
+                1 => CommitNode::witness(context),
+                _ => unreachable!("1-bit subcode"),
+            }),
+            Some(_) => unreachable!("2-bit code"),
+        },
     }?;
 
-    debug_assert!(!index_to_node.contains_key(&index));
-    index_to_node.insert(index, node);
-
-    Ok(())
-}
-
-/// Return the child node at the given index from a hash map.
-///
-/// A fresh witness node is returned as child if witness nodes should be made fresh.
-fn get_child_from_index<J: Jet>(
-    context: &mut Context<J>,
-    index: usize,
-    index_to_node: &HashMap<usize, Rc<CommitNode<J>>>,
-) -> Rc<CommitNode<J>> {
-    match index_to_node.get(&index) {
-        Some(child) => child.clone(),
-        // Absence of child means that child is a skipped witness node
-        None => CommitNode::witness(context),
-    }
+    Ok(node)
 }
 
 /// Implementation of [`WitnessIterator`] for an underlying [`BitIter`].
@@ -347,11 +304,25 @@ mod tests {
     use crate::exec::BitMachine;
 
     #[test]
+    fn canonical_order() {
+        // "main = comp unit iden", but with the iden serialized before the unit
+        // To obtain this test vector I temporarily swapped `get_left` and `get_right`
+        // in the implementation of `PostOrderIter`
+        let justwit = vec![0xa8, 0x48, 0x10];
+        let mut iter = BitIter::from(&justwit[..]);
+        if let Err(Error::NotInCanonicalOrder) = decode_program::<_, crate::jet::Core>(&mut iter) {
+            // ok
+        } else {
+            panic!("accepted program with non-canonical order")
+        }
+    }
+
+    #[test]
     fn shared_witnesses() {
         // main = witness :: A -> B
         let justwit = vec![0x38];
         let mut iter = BitIter::from(&justwit[..]);
-        decode_program_fresh_witness::<_, crate::jet::Core>(&mut iter).unwrap();
+        decode_program::<_, crate::jet::Core>(&mut iter).unwrap();
 
         // # Program which demands two 32-bit witnesses, the first one == the second + 1
         // wit1 = witness :: 1 -> 2^32
@@ -366,18 +337,30 @@ mod tests {
             0x71, 0x88, 0xa3, 0x6d, 0xc4, 0x11, 0x80, 0x80
         ];
         let mut iter = BitIter::from(&diff1[..]);
-        let diff1_prog = decode_program_fresh_witness::<_, crate::jet::Core>(&mut iter).unwrap();
+        let diff1_prog = decode_program::<_, crate::jet::Core>(&mut iter).unwrap();
 
         // Attempt to finalize, providing 32-bit witnesses 0, 1, ..., and then
         // counting how many were consumed afterward.
         let mut counter = 0..100;
         let mut witness_iter = (&mut counter).rev().map(Value::u32);
-        let diff1_final = diff1_prog.finalize(&mut witness_iter).unwrap();
+        let diff1_final = diff1_prog.finalize(&mut witness_iter, true).unwrap();
         assert_eq!(counter, 0..98);
 
         // Execute the program to confirm that it worked
         let mut mac = BitMachine::for_program(&diff1_final);
         mac.exec(&diff1_final, &()).unwrap();
+    }
+
+    #[test]
+    fn root_unit_to_unit() {
+        // main = jet_eq_32 :: 2^64 -> 2 # 7387d279
+        let justjet = vec![0x6d, 0xb8, 0x80];
+        // Should be able to decode this as a CommitNode...
+        let mut iter = BitIter::from(&justjet[..]);
+        CommitNode::<crate::jet::Core>::decode::<_>(&mut iter).unwrap();
+        // ...but not as a program
+        let mut iter = BitIter::from(&justjet[..]);
+        decode_program::<_, crate::jet::Core>(&mut iter).unwrap_err();
     }
 
     #[test]
@@ -396,8 +379,8 @@ mod tests {
             0xef, 0xbe, 0x92, 0x01, 0xa6, 0x20, 0xa6, 0xd8, 0x00
         ];
         let mut iter = BitIter::from(&schnorr0[..]);
-        let prog = decode_program_exact_witness::<_, crate::jet::Elements>(&mut iter)
-            .expect("can't decode schnorr0");
+        let prog =
+            decode_program::<_, crate::jet::Elements>(&mut iter).expect("can't decode schnorr0");
 
         // Matches C source code
         #[rustfmt::skip]
