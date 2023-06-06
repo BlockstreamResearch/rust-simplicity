@@ -6,9 +6,11 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <simplicity/errorCodes.h>
 #include "bitstring.h"
 #include "bounded.h"
 #include "jets.h"
+#include "simplicity_assert.h"
 #include "type.h"
 
 /* An enumeration of the various kinds of Simplicity nodes. */
@@ -141,159 +143,159 @@ typedef struct dag_node {
 /* Inline functions for accessing the type annotations of combinators */
 static inline size_t IDEN_A(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  assert(IDEN == dag[i].tag);
+  simplicity_debug_assert(IDEN == dag[i].tag);
   return dag[i].sourceType;
 }
 
 static inline size_t UNIT_A(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  assert(UNIT == dag[i].tag);
+  simplicity_debug_assert(UNIT == dag[i].tag);
   return dag[i].sourceType;
 }
 
 static inline size_t COMP_A(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  assert(COMP == dag[i].tag);
+  simplicity_debug_assert(COMP == dag[i].tag);
   return dag[i].sourceType;
 }
 
 static inline size_t COMP_B(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  assert(COMP == dag[i].tag);
+  simplicity_debug_assert(COMP == dag[i].tag);
   return dag[dag[i].child[1]].sourceType;
 }
 
 static inline size_t COMP_C(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  assert(COMP == dag[i].tag);
+  simplicity_debug_assert(COMP == dag[i].tag);
   return dag[i].targetType;
 }
 
 static inline size_t CASE_A(const dag_node* dag, const type* type_dag, size_t i) {
-  assert(CASE == dag[i].tag || ASSERTL == dag[i].tag || ASSERTR == dag[i].tag);
-  assert(PRODUCT == type_dag[dag[i].sourceType].kind);
-  assert(SUM == type_dag[type_dag[dag[i].sourceType].typeArg[0]].kind);
+  simplicity_debug_assert(CASE == dag[i].tag || ASSERTL == dag[i].tag || ASSERTR == dag[i].tag);
+  simplicity_debug_assert(PRODUCT == type_dag[dag[i].sourceType].kind);
+  simplicity_debug_assert(SUM == type_dag[type_dag[dag[i].sourceType].typeArg[0]].kind);
   return type_dag[type_dag[dag[i].sourceType].typeArg[0]].typeArg[0];
 }
 
 static inline size_t CASE_B(const dag_node* dag, const type* type_dag, size_t i) {
-  assert(CASE == dag[i].tag || ASSERTL == dag[i].tag || ASSERTR == dag[i].tag);
-  assert(PRODUCT == type_dag[dag[i].sourceType].kind);
-  assert(SUM == type_dag[type_dag[dag[i].sourceType].typeArg[0]].kind);
+  simplicity_debug_assert(CASE == dag[i].tag || ASSERTL == dag[i].tag || ASSERTR == dag[i].tag);
+  simplicity_debug_assert(PRODUCT == type_dag[dag[i].sourceType].kind);
+  simplicity_debug_assert(SUM == type_dag[type_dag[dag[i].sourceType].typeArg[0]].kind);
   return type_dag[type_dag[dag[i].sourceType].typeArg[0]].typeArg[1];
 }
 
 static inline size_t CASE_C(const dag_node* dag, const type* type_dag, size_t i) {
-  assert(CASE == dag[i].tag || ASSERTL == dag[i].tag || ASSERTR == dag[i].tag);
-  assert(PRODUCT == type_dag[dag[i].sourceType].kind);
+  simplicity_debug_assert(CASE == dag[i].tag || ASSERTL == dag[i].tag || ASSERTR == dag[i].tag);
+  simplicity_debug_assert(PRODUCT == type_dag[dag[i].sourceType].kind);
   return type_dag[dag[i].sourceType].typeArg[1];
 }
 
 static inline size_t CASE_D(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  assert(CASE == dag[i].tag || ASSERTL == dag[i].tag || ASSERTR == dag[i].tag);
+  simplicity_debug_assert(CASE == dag[i].tag || ASSERTL == dag[i].tag || ASSERTR == dag[i].tag);
   return dag[i].targetType;
 }
 
 static inline size_t PAIR_A(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  assert(PAIR == dag[i].tag);
+  simplicity_debug_assert(PAIR == dag[i].tag);
   return dag[i].sourceType;
 }
 
 static inline size_t PAIR_B(const dag_node* dag, const type* type_dag, size_t i) {
-  assert(PAIR == dag[i].tag);
-  assert(PRODUCT == type_dag[dag[i].targetType].kind);
+  simplicity_debug_assert(PAIR == dag[i].tag);
+  simplicity_debug_assert(PRODUCT == type_dag[dag[i].targetType].kind);
   return type_dag[dag[i].targetType].typeArg[0];
 }
 
 static inline size_t PAIR_C(const dag_node* dag, const type* type_dag, size_t i) {
-  assert(PAIR == dag[i].tag);
-  assert(PRODUCT == type_dag[dag[i].targetType].kind);
+  simplicity_debug_assert(PAIR == dag[i].tag);
+  simplicity_debug_assert(PRODUCT == type_dag[dag[i].targetType].kind);
   return type_dag[dag[i].targetType].typeArg[1];
 }
 
 static inline size_t DISCONNECT_A(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  assert(DISCONNECT == dag[i].tag);
+  simplicity_debug_assert(DISCONNECT == dag[i].tag);
   return dag[i].sourceType;
 }
 
 static inline size_t DISCONNECT_B(const dag_node* dag, const type* type_dag, size_t i) {
-  assert(DISCONNECT == dag[i].tag);
-  assert(PRODUCT == type_dag[dag[i].targetType].kind);
+  simplicity_debug_assert(DISCONNECT == dag[i].tag);
+  simplicity_debug_assert(PRODUCT == type_dag[dag[i].targetType].kind);
   return type_dag[dag[i].targetType].typeArg[0];
 }
 
 static inline size_t DISCONNECT_C(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  assert(DISCONNECT == dag[i].tag);
+  simplicity_debug_assert(DISCONNECT == dag[i].tag);
   return dag[dag[i].child[1]].sourceType;
 }
 
 static inline size_t DISCONNECT_D(const dag_node* dag, const type* type_dag, size_t i) {
-  assert(DISCONNECT == dag[i].tag);
-  assert(PRODUCT == type_dag[dag[i].targetType].kind);
+  simplicity_debug_assert(DISCONNECT == dag[i].tag);
+  simplicity_debug_assert(PRODUCT == type_dag[dag[i].targetType].kind);
   return type_dag[dag[i].targetType].typeArg[1];
 }
 
 static inline size_t DISCONNECT_W256A(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  assert(DISCONNECT == dag[i].tag);
+  simplicity_debug_assert(DISCONNECT == dag[i].tag);
   return dag[dag[i].child[0]].sourceType;
 }
 
 static inline size_t DISCONNECT_BC(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  assert(DISCONNECT == dag[i].tag);
+  simplicity_debug_assert(DISCONNECT == dag[i].tag);
   return dag[dag[i].child[0]].targetType;
 }
 
 static inline size_t INJ_A(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  assert(INJL == dag[i].tag || INJR == dag[i].tag);
+  simplicity_debug_assert(INJL == dag[i].tag || INJR == dag[i].tag);
   return dag[i].sourceType;
 }
 
 static inline size_t INJ_B(const dag_node* dag, const type* type_dag, size_t i) {
-  assert(INJL == dag[i].tag || INJR == dag[i].tag);
-  assert(SUM == type_dag[dag[i].targetType].kind);
+  simplicity_debug_assert(INJL == dag[i].tag || INJR == dag[i].tag);
+  simplicity_debug_assert(SUM == type_dag[dag[i].targetType].kind);
   return type_dag[dag[i].targetType].typeArg[0];
 }
 
 static inline size_t INJ_C(const dag_node* dag, const type* type_dag, size_t i) {
-  assert(INJL == dag[i].tag || INJR == dag[i].tag);
-  assert(SUM == type_dag[dag[i].targetType].kind);
+  simplicity_debug_assert(INJL == dag[i].tag || INJR == dag[i].tag);
+  simplicity_debug_assert(SUM == type_dag[dag[i].targetType].kind);
   return type_dag[dag[i].targetType].typeArg[1];
 }
 
 static inline size_t PROJ_A(const dag_node* dag, const type* type_dag, size_t i) {
-  assert(TAKE == dag[i].tag || DROP == dag[i].tag);
-  assert(PRODUCT == type_dag[dag[i].sourceType].kind);
+  simplicity_debug_assert(TAKE == dag[i].tag || DROP == dag[i].tag);
+  simplicity_debug_assert(PRODUCT == type_dag[dag[i].sourceType].kind);
   return type_dag[dag[i].sourceType].typeArg[0];
 }
 
 static inline size_t PROJ_B(const dag_node* dag, const type* type_dag, size_t i) {
-  assert(TAKE == dag[i].tag || DROP == dag[i].tag);
-  assert(PRODUCT == type_dag[dag[i].sourceType].kind);
+  simplicity_debug_assert(TAKE == dag[i].tag || DROP == dag[i].tag);
+  simplicity_debug_assert(PRODUCT == type_dag[dag[i].sourceType].kind);
   return type_dag[dag[i].sourceType].typeArg[1];
 }
 
 static inline size_t PROJ_C(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  assert(TAKE == dag[i].tag || DROP == dag[i].tag);
+  simplicity_debug_assert(TAKE == dag[i].tag || DROP == dag[i].tag);
   return dag[i].targetType;
 }
 
 static inline size_t WITNESS_A(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  assert(WITNESS == dag[i].tag);
+  simplicity_debug_assert(WITNESS == dag[i].tag);
   return dag[i].sourceType;
 }
 
 static inline size_t WITNESS_B(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  assert(WITNESS == dag[i].tag);
+  simplicity_debug_assert(WITNESS == dag[i].tag);
   return dag[i].targetType;
 }
 
@@ -356,40 +358,41 @@ void computeAnnotatedMerkleRoot(analyses* analysis, const dag_node* dag, const t
  * right branches, with the exception that nodes under right braches may (cross-)reference identical nodes that already occur under
  * left branches.
  *
- * Returns 'true' if the 'dag' is in canonical order, and returns 'false' if it is not.
+ * Returns 'SIMPLICITY_NO_ERROR' if the 'dag' is in canonical order, and returns 'SIMPLICITY_ERR_DATA_OUT_OF_ORDER' if it is not.
  *
  * May modify dag[i].aux values and invalidate dag[i].sourceType and dag[i].targetType.
  * This function should only be used prior to calling 'mallocTypeInference'.
  *
  * Precondition: dag_node dag[len] and 'dag' is well-formed.
  */
-bool verifyCanonicalOrder(dag_node* dag, const size_t len);
+simplicity_err verifyCanonicalOrder(dag_node* dag, const size_t len);
 
 /* This function fills in the 'WITNESS' nodes of a 'dag' with the data from 'witness'.
  * For each 'WITNESS' : A |- B expression in 'dag', the bits from the 'witness' bitstring are decoded in turn
  * to construct a compact representation of a witness value of type B.
- * This function only returns 'true' when exactly 'witness.len' bits are consumed by all the 'dag's witness values.
+ * This function only returns 'SIMPLICITY_NO_ERROR' when exactly 'witness.len' bits are consumed by all the 'dag's witness values.
+ * If extra bits remain, then 'SIMPLICITY_ERR_WITNESS_UNUSED_BITS' is returned.
+ * If there are not enough bits, then 'SIMPLICITY_ERR_WITNESS_EOF' is returned.
  *
  * Precondition: dag_node dag[len] and 'dag' without witness data and is well-typed with 'type_dag';
  *               witness is a valid bitstring;
  *
  * Postcondition: dag_node dag[len] and 'dag' has witness data and is well-typed with 'type_dag'
- *                  when the result is 'true';
+ *                  when the result is 'SIMPLICITY_NO_ERROR';
  */
-bool fillWitnessData(dag_node* dag, type* type_dag, const size_t len, bitstring witness);
+simplicity_err fillWitnessData(dag_node* dag, type* type_dag, const size_t len, bitstring witness);
 
-/* Computes the identity Merkle roots of every subexpression in a well-typed 'dag' with witnesses.
- * imr[i]' is set to the identity Merkle root of the subexpression 'dag[i]'.
- * When 'HIDDEN == dag[i].tag', then 'imr[i]' is instead set to a hidden root hash for that hidden node.
+/* Verifies that identity Merkle roots of every subexpression in a well-typed 'dag' with witnesses are all unique,
+ * including that each hidden root hash for every 'HIDDEN' node is unique.
  *
- * If malloc fails, return 'false', otherwise return 'true'.
- * If 'true' is returned then '*success' is set to true if all the identity Merkle roots (and hidden roots) are all unique.
+ * if 'imr' is not NULL, then '*imr' is set to the identity Merkle root of the 'dag'.
  *
- * Precondition: NULL != success;
- *               sha256_midstate imr[len];
- *               dag_node dag[len] and 'dag' is well-typed with 'type_dag' and contains witnesses.
+ * If malloc fails, returns 'SIMPLICITY_ERR_MALLOC'.
+ * If all the identity Merkle roots (and hidden roots) are all unique, returns 'SIMPLICITY_NO_ERROR'.
+ * Otherwise returns 'SIMPLICITY_ERR_UNSHARED_SUBEXPRESSION'.
+ *
+ * Precondition: dag_node dag[len] and 'dag' is well-typed with 'type_dag' and contains witnesses.
  */
-bool verifyNoDuplicateIdentityRoots(bool* success, sha256_midstate* imr,
-                                    const dag_node* dag, const type* type_dag, const size_t len);
+simplicity_err verifyNoDuplicateIdentityRoots(sha256_midstate* imr, const dag_node* dag, const type* type_dag, const size_t dag_len);
 
 #endif
