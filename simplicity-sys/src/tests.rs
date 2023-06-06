@@ -88,6 +88,30 @@ pub struct TestOutput {
     pub eval_result: SimplicityErr,
 }
 
+/// How far to run the test
+///
+/// If you stop the test early, the returned output will be incomplete.
+#[derive(Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Debug)]
+pub enum TestUpTo {
+    /// Just decode the program, not the witnesses. Will compute and retrieve the root CMR.
+    DecodeProgram,
+    /// Also decode witnesses into a bitstring
+    DecodeWitness,
+    /// Also do type inference
+    TypeInference,
+    /// Fill in the witness data, now that their types are known
+    FillWitnessData,
+    /// Compute and retrieve the root AMR.
+    ComputeAmr,
+    /// Compute and retrieve the root IMR; check that all IMRs are unique
+    ComputeImr,
+    /// Check that the program is 1-1. This will exclude arbitrary expressions, so
+    /// you may want to stop at `ComputeImr` to get the maximum merkle root coverage.
+    CheckOneOne,
+    /// Evaluate the program and retrieve whether it succeded.
+    Everything,
+}
+
 /// Run a program, check its merkle roots, and that it succeeds
 pub fn run_test(
     program: &[u8],
@@ -95,7 +119,7 @@ pub fn run_test(
     target_cmr: &[u32; 8],
     target_imr: &[u32; 8],
 ) {
-    let result = run_program(program).expect("running program");
+    let result = run_program(program, TestUpTo::Everything).expect("running program");
     assert_eq!(result.amr, CSha256Midstate { s: *target_amr });
     assert_eq!(result.cmr, CSha256Midstate { s: *target_cmr });
     assert_eq!(result.imr, CSha256Midstate { s: *target_imr });
@@ -110,7 +134,7 @@ pub fn run_test_fail(
     target_cmr: &[u32; 8],
     target_imr: &[u32; 8],
 ) {
-    let result = run_program(program).expect("running program");
+    let result = run_program(program, TestUpTo::Everything).expect("running program");
     assert_eq!(result.amr, CSha256Midstate { s: *target_amr });
     assert_eq!(result.cmr, CSha256Midstate { s: *target_cmr });
     assert_eq!(result.imr, CSha256Midstate { s: *target_imr });
@@ -129,7 +153,7 @@ impl Drop for FreeOnDrop {
 /// Run a program and return data about it
 ///
 /// This is mostly a direct port of `run_program` in C `tests.c`.
-pub fn run_program(program: &[u8]) -> Result<TestOutput, SimplicityErr> {
+pub fn run_program(program: &[u8], test_up_to: TestUpTo) -> Result<TestOutput, SimplicityErr> {
     let mut result = TestOutput {
         amr: Default::default(),
         cmr: Default::default(),
@@ -147,7 +171,13 @@ pub fn run_program(program: &[u8]) -> Result<TestOutput, SimplicityErr> {
             SimplicityErr::from_i32(decodeMallocDag(&mut dag, &mut census, &mut stream))? as usize;
         assert!(!dag.is_null());
         let _d1 = FreeOnDrop(dag as *mut c_void);
+        if test_up_to <= TestUpTo::DecodeProgram {
+            return Ok(result);
+        }
         decodeWitnessData(&mut witness, &mut stream).into_result()?;
+        if test_up_to <= TestUpTo::DecodeWitness {
+            return Ok(result);
+        }
 
         // 2. Check CMR.
         result.cmr = (*dag.offset(len as isize - 1)).cmr;
@@ -157,23 +187,38 @@ pub fn run_program(program: &[u8]) -> Result<TestOutput, SimplicityErr> {
         mallocTypeInference(&mut type_dag, dag, len, &census).into_result()?;
         assert!(!type_dag.is_null());
         let _d2 = FreeOnDrop(type_dag as *mut c_void);
+        if test_up_to <= TestUpTo::TypeInference {
+            return Ok(result);
+        }
 
         // 4. Fill witness data, now that we know the types
         fillWitnessData(dag, type_dag, len as size_t, witness).into_result()?;
+        if test_up_to <= TestUpTo::FillWitnessData {
+            return Ok(result);
+        }
 
         // 5. Check AMR
         let mut analyses = vec![CAnalyses::default(); len];
         computeAnnotatedMerkleRoot(analyses.as_mut_ptr(), dag, type_dag, len);
         result.amr = analyses[len - 1].annotated_merkle_root;
+        if test_up_to <= TestUpTo::ComputeAmr {
+            return Ok(result);
+        }
 
         // 6. Check IMR
         verifyNoDuplicateIdentityRoots(&mut result.imr, dag, type_dag, len).into_result()?;
+        if test_up_to <= TestUpTo::ComputeImr {
+            return Ok(result);
+        }
 
         // 7. Check that thtis is a 1->1 program. This must be done before evalTCOProgram
         if (*dag.offset(len as isize - 1)).aux_types.types[0] != 0
             || (*dag.offset(len as isize - 1)).aux_types.types[1] != 0
         {
             return Err(SimplicityErr::TypeInferenceNotProgram);
+        }
+        if test_up_to <= TestUpTo::CheckOneOne {
+            return Ok(result);
         }
 
         // 8. Run the program
