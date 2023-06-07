@@ -191,7 +191,7 @@ impl<J: Jet> RedeemNode<J> {
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
         let sharing_iter = self.post_order_iter::<FullSharing>();
         let program_bits = encode::encode_program(sharing_iter.clone(), w)?;
-        let witness_bits = encode::encode_witness(sharing_iter.into_deduped_witnesses(), w)?;
+        let witness_bits = encode::encode_witness(sharing_iter.into_witnesses(), w)?;
         w.flush_all()?;
         Ok(program_bits + witness_bits)
     }

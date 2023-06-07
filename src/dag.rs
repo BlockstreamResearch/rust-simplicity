@@ -14,7 +14,7 @@
 
 //! General DAG iteration utilities
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
 
@@ -544,15 +544,10 @@ impl<'a, J: jet::Jet, S: SharingTracker<&'a RedeemNode<J>> + Clone>
     /// The witnesses are yielded in the order in which they appear in the DAG
     /// *except* that each witness is only yielded once, and future occurences
     /// are skipped.
-    pub fn into_deduped_witnesses(self) -> impl Iterator<Item = &'a Value> + Clone {
-        let mut seen_imrs = HashSet::new();
-        self.filter_map(move |node| {
+    pub fn into_witnesses(self) -> impl Iterator<Item = &'a Value> + Clone {
+        self.filter_map(|node| {
             if let RedeemNodeInner::Witness(value) = &node.inner {
-                if seen_imrs.insert(node.imr) {
-                    Some(value)
-                } else {
-                    None
-                }
+                Some(value)
             } else {
                 None
             }
