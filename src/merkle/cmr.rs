@@ -16,6 +16,7 @@ use crate::core::commit::CommitNodeInner;
 use crate::core::Value;
 use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
+use crate::merkle::tmr::Tmr;
 use crate::merkle::{CommitMerkleRoot, MerkleRoot};
 use bitcoin_hashes::sha256::Midstate;
 
@@ -90,24 +91,33 @@ impl Cmr {
     ///
     /// This is equal to the IMR of the equivalent scribe, converted to a CMR in
     /// the usual way for jets.
-    // FIXME avoid calling `powers_of_two_vec`; also replace this "construct the scribe then
-    //  compute its CMR" logic with the inline algorithm from the C code, which avoids any
-    //  allocations.
     pub fn const_word_cmr(v: &Value) -> Cmr {
         assert_eq!(v.len().count_ones(), 1);
         let w = 1 + v.len().trailing_zeros() as usize;
-        // 1. compute scribe pass-one IMR
-        let scribe = crate::core::CommitNode::<crate::jet::Core>::scribe(
-            &mut crate::core::Context::new(),
-            v,
-        );
+
+        let mut cmr_stack = Vec::with_capacity(33);
+        // 1. Compute the CMR for the `scribe` corresponding to this word jet
+        let mut bit_idx = 0;
+        v.do_each_bit(|bit| {
+            cmr_stack.push(Cmr::BITS[usize::from(bit)]);
+            let mut j = bit_idx;
+            while j & 1 == 1 {
+                let right_cmr = cmr_stack.pop().unwrap();
+                let left_cmr = cmr_stack.pop().unwrap();
+                cmr_stack.push(Cmr::PAIR_IV.update(left_cmr, right_cmr));
+                j >>= 1;
+            }
+
+            bit_idx += 1;
+        });
+        assert_eq!(cmr_stack.len(), 1);
+
         let imr_iv = Cmr::tag_iv(b"Simplicity-Draft\x1fIdentity");
-        let imr_pass1 = imr_iv.update_1(scribe.cmr());
+        let imr_pass1 = imr_iv.update_1(cmr_stack[0]);
         // 2. Add TMRs to get the pass-two IMR
-        let types = crate::types::Type::powers_of_two(15);
         let imr_pass2 = imr_pass1.update(
-            crate::merkle::tmr::Tmr::unit().into_inner().into(),
-            types[w - 1].expect_finalized().tmr().0.into_inner().into(),
+            Tmr::unit().into_inner().into(),
+            Tmr::POWERS_OF_TWO[w - 1].into_inner().into(),
         );
         // 3. Convert to a jet CMR
         Cmr::tag_iv(b"Simplicity-Draft\x1fJet").update_1(imr_pass2)
