@@ -19,8 +19,9 @@
 
 use crate::bititer::BitIter;
 use crate::core::commit::CommitNodeInner;
-use crate::core::iter::{DagIterable, WitnessIterator};
+use crate::core::iter::WitnessIterator;
 use crate::core::{CommitNode, Context, Value};
+use crate::dag::{DagLike, InternalSharing};
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::types;
@@ -67,11 +68,11 @@ pub fn decode_program_arbitrary_type<I: Iterator<Item = u8>, J: Jet>(
     }
 
     // We must check the canonical order of the serialized program
-    let post_order_it = crate::core::commit::RefWrapper(&nodes[nodes.len() - 1])
-        .iter_post_order()
-        .enumerate();
-    for (n, node) in post_order_it {
-        if node.0 != &*nodes[n] {
+    for data in nodes[nodes.len() - 1]
+        .as_ref()
+        .post_order_iter::<InternalSharing>()
+    {
+        if data.index >= nodes.len() || data.node != nodes[data.index].as_ref() {
             return Err(Error::NotInCanonicalOrder);
         }
     }
