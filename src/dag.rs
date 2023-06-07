@@ -15,8 +15,8 @@
 //! General DAG iteration utilities
 
 use std::collections::HashMap;
-use std::fmt;
 use std::rc::Rc;
+use std::{fmt, marker};
 
 use crate::core::commit::{CommitNode, CommitNodeInner};
 use crate::core::redeem::{RedeemNode, RedeemNodeInner};
@@ -69,11 +69,33 @@ pub enum Dag<T> {
 pub trait SharingTracker<D: DagLike> {
     /// Marks an object as having been seen, and record the index
     /// when it was seen.
-    fn record(&mut self, object: &D, index: usize);
+    fn record(
+        &mut self,
+        object: &D,
+        index: usize,
+        left_child: Option<usize>,
+        right_child: Option<usize>,
+    );
 
     /// Check whether an object has been seen before; if so, return
     /// the index it was recorded at.
     fn seen_before(&self, object: &D) -> Option<usize>;
+}
+
+// Annoyingly we need to implement this explicitly
+impl<D: DagLike> SharingTracker<D> for &mut dyn SharingTracker<D> {
+    fn record(
+        &mut self,
+        object: &D,
+        index: usize,
+        left_child: Option<usize>,
+        right_child: Option<usize>,
+    ) {
+        (**self).record(object, index, left_child, right_child)
+    }
+    fn seen_before(&self, object: &D) -> Option<usize> {
+        (**self).seen_before(object)
+    }
 }
 
 /// Do not share at all; yield every node in the expanded DAG
@@ -81,7 +103,7 @@ pub trait SharingTracker<D: DagLike> {
 pub struct NoSharing;
 
 impl<D: DagLike> SharingTracker<D> for NoSharing {
-    fn record(&mut self, _: &D, _: usize) {}
+    fn record(&mut self, _: &D, _: usize, _: Option<usize>, _: Option<usize>) {}
     fn seen_before(&self, _: &D) -> Option<usize> {
         None
     }
@@ -95,7 +117,7 @@ pub struct InternalSharing {
 }
 
 impl<D: DagLike> SharingTracker<D> for InternalSharing {
-    fn record(&mut self, d: &D, index: usize) {
+    fn record(&mut self, d: &D, index: usize, _: Option<usize>, _: Option<usize>) {
         self.map.insert(PointerId::from(d), index);
     }
     fn seen_before(&self, d: &D) -> Option<usize> {
@@ -112,11 +134,83 @@ pub struct FullSharing {
 }
 
 impl<J: jet::Jet> SharingTracker<&RedeemNode<J>> for FullSharing {
-    fn record(&mut self, d: &&RedeemNode<J>, index: usize) {
+    fn record(&mut self, d: &&RedeemNode<J>, index: usize, _: Option<usize>, _: Option<usize>) {
         self.map.insert(d.imr, index);
     }
     fn seen_before(&self, d: &&RedeemNode<J>) -> Option<usize> {
         self.map.get(&d.imr).copied()
+    }
+}
+
+/// A wrapper around any other sharing tracker which forces `witness` and
+/// `disconnect` combinators, and their ancestors, to be unshared
+///
+/// This is useful when providing tools for users to manipulate non-final
+/// programs (programs without witnesses), they should always be presented
+/// with a view in which witness and disconnect nodes are unshared, since
+/// these nodes take input data which is not committed in the CMR.
+///
+/// If these nodes were shared, it may create the impression that data
+/// attached to the node along one path is automatically attached to the
+/// node along every other path, which is dangerously untrue. If the user
+/// actually wants to access the same witness data from multiple places
+/// in the tree, they must write explicit logic which enforces that both
+/// locations have the same data.
+#[derive(Clone, Debug, Default)]
+pub struct UnshareWitnessDisconnect<D: DagLike, T: SharingTracker<D>> {
+    /// The underlying sharing tracker
+    inner: T,
+    /// Map from a node's pointer ID to whether it is a witness node
+    ptrid_witness: HashMap<PointerId, bool>,
+    /// Map from a node's index to whether it is a witness node (needed to
+    /// determine whether a nodes' children are witnesses
+    index_witness: HashMap<usize, bool>,
+    phantom: marker::PhantomData<D>,
+}
+
+impl<D: DagLike, T: SharingTracker<D>> UnshareWitnessDisconnect<D, T> {
+    /// Wrap an existing sharing tracker in the witness-unsharing tracker
+    pub fn new(inner: T) -> Self {
+        UnshareWitnessDisconnect {
+            inner,
+            ptrid_witness: HashMap::new(),
+            index_witness: HashMap::new(),
+            phantom: marker::PhantomData,
+        }
+    }
+}
+
+impl<D: DagLike, T: SharingTracker<D>> SharingTracker<D> for UnshareWitnessDisconnect<D, T> {
+    fn record(
+        &mut self,
+        d: &D,
+        index: usize,
+        left_child: Option<usize>,
+        right_child: Option<usize>,
+    ) {
+        self.inner.record(d, index, left_child, right_child);
+
+        let mut is_witness = false;
+        is_witness |= left_child
+            .map(|idx| self.index_witness[&idx])
+            .unwrap_or(false);
+        is_witness |= right_child
+            .map(|idx| self.index_witness[&idx])
+            .unwrap_or(false);
+        is_witness |= match d.as_dag_node() {
+            Dag::Disconnect(..) => true,
+            Dag::Witness => true,
+            _ => false,
+        };
+        self.ptrid_witness.insert(PointerId::from(d), is_witness);
+        self.index_witness.insert(index, is_witness);
+    }
+
+    fn seen_before(&self, d: &D) -> Option<usize> {
+        match self.ptrid_witness.get(&PointerId::from(d)) {
+            Some(true) => None,
+            _ => self.inner.seen_before(d),
+        }
     }
 }
 
@@ -524,7 +618,12 @@ impl<D: DagLike, S: SharingTracker<D>> Iterator for PostOrderIter<D, S> {
                             check_sibling = true;
                         }
                     }
-                    self.tracker.record(&current.elem, self.index);
+                    self.tracker.record(
+                        &current.elem,
+                        self.index,
+                        current.left_idx,
+                        current.right_idx,
+                    );
                     // There is a special case here where we are yielding a node which
                     // is identical to its sibling (according to the sharing tracker).
                     // In this case we have a repeated node which nonetheless made it
