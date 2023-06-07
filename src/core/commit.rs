@@ -24,7 +24,7 @@ use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
 use crate::types::{self, arrow::Arrow};
-use crate::{analysis, impl_ref_wrapper, Error};
+use crate::{analysis, Error};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::{fmt, io};
@@ -738,13 +738,6 @@ impl<J: Jet> fmt::Display for CommitNode<J> {
         )
     }
 }
-
-/// Wrapper of references to [`CommitNode`].
-/// Zero-cost implementation of `Copy`, `Eq` and `Hash` via pointer equality.
-#[derive(Debug)]
-pub struct RefWrapper<'a, J: Jet>(pub &'a CommitNode<J>);
-
-impl_ref_wrapper!(RefWrapper);
 
 #[cfg(test)]
 mod tests {

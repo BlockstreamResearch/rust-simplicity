@@ -22,7 +22,7 @@ use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
 use crate::types::{self, arrow::FinalArrow};
-use crate::{encode, impl_ref_wrapper, Error};
+use crate::{encode, Error};
 use std::rc::Rc;
 use std::{fmt, io};
 
@@ -206,13 +206,6 @@ impl<J: Jet> fmt::Display for RedeemNode<J> {
         )
     }
 }
-
-/// Wrapper of references to [`RedeemNode`].
-/// Zero-cost implementation of `Copy`, `Eq` and `Hash` via pointer equality.
-#[derive(Debug)]
-pub struct RefWrapper<'a, J: Jet>(pub &'a RedeemNode<J>);
-
-impl_ref_wrapper!(RefWrapper);
 
 #[cfg(test)]
 mod tests {
