@@ -132,9 +132,9 @@ pub trait DagLike: Sized {
     /// appears in the DAG.
     fn post_order_iter(self) -> PostOrderIter<Self> {
         PostOrderIter {
-            stack: Vec::new(),
-            maybe_current: Some(self),
-            visited: HashSet::new(),
+            index: 0,
+            stack: vec![IterStackItem::unprocessed(self, Previous::Root)],
+            visited: HashMap::new(),
         }
     }
 }
@@ -263,15 +263,87 @@ impl<J: jet::Jet> DagLike for Rc<RedeemNode<J>> {
     }
 }
 
+enum Child<D: DagLike> {
+    None,
+    Repeat { idx: usize },
+    New(D),
+}
+
+#[derive(Clone, Debug)]
+enum Previous {
+    /// This is the root element and there are no previous elements
+    Root,
+    /// This is a left child and the previous element is its parent
+    ParentLeft,
+    /// This is a left child and the previous element is its sibling
+    SiblingLeft,
+    /// This is a right child and the previous element is its parent
+    ParentRight,
+}
+
+#[derive(Clone, Debug)]
+struct IterStackItem<D: DagLike> {
+    /// The element on the stack
+    elem: D,
+    /// Whether we have dealt with this item (and pushed its children,
+    /// if any) yet.
+    processed: bool,
+    /// If the item has been processed, the index of its left child, if known
+    left_idx: Option<usize>,
+    /// If the item has been processed, the index of its right child, if known
+    right_idx: Option<usize>,
+    /// Whether the element is a left- or right-child of its parent
+    previous: Previous,
+}
+
+impl<D: DagLike> IterStackItem<D> {
+    /// Constructor for a new stack item with a given element and relationship
+    /// to its parent.
+    fn unprocessed(elem: D, previous: Previous) -> Self {
+        IterStackItem {
+            elem,
+            processed: false,
+            left_idx: None,
+            right_idx: None,
+            previous,
+        }
+    }
+
+    fn left_child(&self, visited: &HashMap<PointerId, usize>) -> Child<D> {
+        match self.elem.left_child() {
+            Some(child) => match visited.get(&PointerId::from(&child)) {
+                Some(&idx) => Child::Repeat { idx },
+                None => Child::New(child),
+            },
+            None => Child::None,
+        }
+    }
+
+    fn right_child(&self, visited: &HashMap<PointerId, usize>) -> Child<D> {
+        match self.elem.right_child() {
+            Some(child) => match visited.get(&PointerId::from(&child)) {
+                Some(&idx) => Child::Repeat { idx },
+                None => Child::New(child),
+            },
+            None => Child::None,
+        }
+    }
+}
+
 /// Iterates over a DAG in _post order_.
 ///
 /// That means nodes are yielded in the order (left child, right child, parent).
 /// Shared nodes appear only once at their leftmost position.
 #[derive(Clone, Debug)]
 pub struct PostOrderIter<D: DagLike> {
-    stack: Vec<D>,
-    maybe_current: Option<D>,
-    visited: HashSet<PointerId>,
+    /// The index of the next item to be yielded
+    index: usize,
+    /// A stack of elements to be yielded; each element is a node, then its left
+    /// and right children (if they exist and if they have been yielded already)
+    stack: Vec<IterStackItem<D>>,
+    /// A mapping of internally shared nodes (i.e. ones identified by pointer) to
+    /// the index at which they were first yielded.
+    visited: HashMap<PointerId, usize>,
 }
 
 impl<D: DagLike> Iterator for PostOrderIter<D> {
@@ -279,31 +351,101 @@ impl<D: DagLike> Iterator for PostOrderIter<D> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            if let Some(current) = self.maybe_current.take() {
-                let left = current.left_child();
-                self.stack.push(current);
-
-                if let Some(left) = left {
-                    if !self.visited.contains(&PointerId::from(&left)) {
-                        self.maybe_current = Some(left);
-                        continue;
+            // Look at the current top item on the stack
+            if let Some(mut current) = self.stack.pop() {
+                if !current.processed {
+                    current.processed = true;
+                    // When we first encounter an item, it is completely unknown; it is
+                    // nominally the next item to be yielded, but it might have children,
+                    // and if so, they come first
+                    match (
+                        current.left_child(&self.visited),
+                        current.right_child(&self.visited),
+                    ) {
+                        // No children is easy, just mark it processed and iterate.
+                        // (We match _ for the right child but we know that if the left one
+                        // is Child::None, then the right one will be Child::None as well.)
+                        (Child::None, _) => {
+                            self.stack.push(current);
+                        }
+                        // Only a left child, already yielded
+                        (Child::Repeat { idx }, Child::None) => {
+                            current.left_idx = Some(idx);
+                            self.stack.push(current);
+                        }
+                        // Only a left child, new
+                        (Child::New(child), Child::None) => {
+                            self.stack.push(current);
+                            self.stack
+                                .push(IterStackItem::unprocessed(child, Previous::ParentLeft));
+                        }
+                        // Two children, both already yielded
+                        (Child::Repeat { idx: lidx }, Child::Repeat { idx: ridx }) => {
+                            current.left_idx = Some(lidx);
+                            current.right_idx = Some(ridx);
+                            self.stack.push(current);
+                        }
+                        // Two children, one yielded already
+                        (Child::New(child), Child::Repeat { idx }) => {
+                            current.right_idx = Some(idx);
+                            self.stack.push(current);
+                            self.stack
+                                .push(IterStackItem::unprocessed(child, Previous::ParentLeft));
+                        }
+                        (Child::Repeat { idx }, Child::New(child)) => {
+                            current.left_idx = Some(idx);
+                            self.stack.push(current);
+                            self.stack
+                                .push(IterStackItem::unprocessed(child, Previous::ParentRight));
+                        }
+                        // Two children, neither yielded already
+                        (Child::New(lchild), Child::New(rchild)) => {
+                            self.stack.push(current);
+                            self.stack
+                                .push(IterStackItem::unprocessed(rchild, Previous::ParentRight));
+                            self.stack
+                                .push(IterStackItem::unprocessed(lchild, Previous::SiblingLeft));
+                        }
                     }
-                }
-                // else
-                self.maybe_current = None;
-            } else if let Some(top) = self.stack.last() {
-                if let Some(right) = top.right_child() {
-                    if !self.visited.contains(&PointerId::from(&right)) {
-                        self.maybe_current = Some(right);
-                        continue;
+                } else {
+                    // The next time we encounter an item, we have the indices for its children
+                    // (which we ignore for now, but will use in a future commit) and can yield
+                    // it. But first we need to update the indices of its parent.
+                    let stack_len = self.stack.len();
+                    match current.previous {
+                        Previous::Root => {
+                            assert_eq!(stack_len, 0);
+                        }
+                        Previous::ParentLeft => {
+                            assert!(self.stack[stack_len - 1].processed);
+                            self.stack[stack_len - 1].left_idx = Some(self.index);
+                        }
+                        Previous::ParentRight => {
+                            assert!(self.stack[stack_len - 1].processed);
+                            self.stack[stack_len - 1].right_idx = Some(self.index);
+                        }
+                        Previous::SiblingLeft => {
+                            assert!(self.stack[stack_len - 2].processed);
+                            self.stack[stack_len - 2].left_idx = Some(self.index);
+                            // There is a special case here where we are yielding a node which
+                            // is identical (i.e. is literally a second refcounted pointer to the
+                            // same object) as its its sibling. In this case we have a repeated
+                            // node which nonetheless made it into the stack, so we pop it here.
+                            if PointerId::from(&current.elem)
+                                == PointerId::from(&self.stack[stack_len - 1].elem)
+                            {
+                                self.stack[stack_len - 2].right_idx = Some(self.index);
+                                self.stack.pop();
+                            }
+                        }
                     }
+                    self.visited
+                        .insert(PointerId::from(&current.elem), self.index);
+                    self.index += 1;
+                    return Some(current.elem);
                 }
-                // else
-                let top = self.stack.pop().unwrap();
-                self.visited.insert(PointerId::from(&top));
-
-                return Some(top);
             } else {
+                // If there is nothing on the stack we are done.
                 return None;
             }
         }
