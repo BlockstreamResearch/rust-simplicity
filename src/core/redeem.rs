@@ -268,4 +268,18 @@ mod tests {
         let mut iter = BitIter::from(&eqwits[..]);
         RedeemNode::<crate::jet::Core>::decode(&mut iter).unwrap();
     }
+
+    #[test]
+    fn witness_consumed() {
+        // "main = unit", but with a witness attached. Found by fuzzer.
+        let badwit = vec![0x27, 0x00];
+        let mut iter = BitIter::from(&badwit[..]);
+        if let Err(Error::InconsistentWitnessLength) =
+            RedeemNode::<crate::jet::Core>::decode(&mut iter)
+        {
+            // ok
+        } else {
+            panic!("accepted program with bad witness length")
+        }
+    }
 }
