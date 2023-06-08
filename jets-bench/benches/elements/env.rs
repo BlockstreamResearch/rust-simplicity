@@ -1,11 +1,10 @@
-
-use bitcoin_hashes::Hash;
 use bitcoin::hashes as bitcoin_hashes;
+use bitcoin_hashes::Hash;
 use elements::taproot::ControlBlock;
 use elements::{BlockHash, PackedLockTime, Transaction};
-use simplicity::{bitcoin, elements};
 use simplicity::jet::elements::{ElementsEnv, ElementsUtxo};
 use simplicity::merkle::cmr::Cmr;
+use simplicity::{bitcoin, elements};
 use std::sync::Arc;
 
 pub enum EnvSampling {
@@ -149,7 +148,7 @@ pub(super) mod txin_utils {
         confidential, encode::deserialize, AssetIssuance, OutPoint, Script, Sequence, TxInWitness,
         Txid,
     };
-    use simplicity::{jet::elements::ElementsUtxo, elements};
+    use simplicity::{elements, jet::elements::ElementsUtxo};
 
     use super::txout_utils;
 

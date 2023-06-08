@@ -2,7 +2,7 @@ use simplicity::ffi as simplicity_sys;
 
 use crate::JetParams;
 use rand::rngs::ThreadRng;
-use simplicity::core::types::Type;
+use simplicity::types;
 use simplicity_sys::c_jets::frame_ffi::{c_readBit, c_writeBit};
 use simplicity_sys::c_jets::round_u_word;
 use simplicity_sys::CFrameItem;
@@ -32,10 +32,10 @@ impl JetBuffer {
     /// # Panics
     ///
     /// Panics if the source and target types are both unit types.
-    pub fn new(src_ty: &Type, tgt_type: &Type, params: &JetParams) -> Self {
+    pub fn new(src_ty: &types::Final, tgt_type: &types::Final, params: &JetParams) -> Self {
         // Note here that we are adding the alignment to the bit width
-        let src_bit_width = src_ty.bit_width + params.src_align;
-        let dst_bit_width = tgt_type.bit_width + params.tgt_align;
+        let src_bit_width = src_ty.bit_width() + params.src_align;
+        let dst_bit_width = tgt_type.bit_width() + params.tgt_align;
         let src_frame_size = round_u_word(src_bit_width);
         let dst_frame_size = round_u_word(dst_bit_width);
 
@@ -58,7 +58,7 @@ impl JetBuffer {
 
     pub fn write(
         &mut self,
-        src_ty: &Type,
+        src_ty: &types::Final,
         params: &JetParams,
         rng: &mut ThreadRng,
     ) -> (CFrameItem, CFrameItem) {
@@ -83,8 +83,8 @@ impl JetBuffer {
             for _ in 0..params.tgt_align {
                 c_writeBit(&mut dst_write_frame, false);
             }
-        }
 
-        (src_read_frame, dst_write_frame)
+            (src_read_frame, dst_write_frame)
+        }
     }
 }

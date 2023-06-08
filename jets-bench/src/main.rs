@@ -47,7 +47,7 @@ pub struct ConfidenceInterval {
     pub upper_bound: f64,
 }
 
-fn main() {
+fn main() -> Result<(), String> {
     // Simplicity root is the grand-parent directory of this file
     let mut bench_results = BTreeMap::new();
     let simplicity_root = std::env::current_dir()
@@ -64,9 +64,15 @@ fn main() {
         .join("main");
 
     // enumerate all folders in criterion directory
-    let jets_iter = std::fs::read_dir(criterion_dir)
-        .unwrap()
-        .map(|e| e.unwrap().path());
+    let jets_iter = match std::fs::read_dir(criterion_dir) {
+        Ok(dir) => dir.map(|e| e.unwrap().path()),
+        Err(e) => {
+            return Err(format!(
+                "Failed to open criterion data directory (did you run `cargo criterion`?): {}",
+                e
+            ))
+        }
+    };
 
     for jet in jets_iter {
         let mut worst_case = None;
@@ -116,4 +122,6 @@ fn main() {
         .join(format!("jet_bench_{}.json", timestamp));
     let mut output_file = std::fs::File::create(output_file).unwrap();
     serde_json::to_writer_pretty(&mut output_file, &bench_results).unwrap();
+
+    Ok(())
 }

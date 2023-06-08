@@ -29,3 +29,6 @@ simplicity-sys = { version = "0.1.0", path = "./simplicity-sys", features = ["te
 
 [workspace]
 members = ["simplicity-sys", "fuzz"]
+# Should be manually/separately tested since it has a massive dep tree
+# and not follow MSRV
+exclude = ["jets-bench"]

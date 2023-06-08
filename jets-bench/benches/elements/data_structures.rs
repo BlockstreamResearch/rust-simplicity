@@ -6,7 +6,7 @@ pub use bitcoin_hashes::sha256;
 use bitcoin_hashes::{hex::FromHex, Hash};
 use elements::Txid;
 use rand::{thread_rng, RngCore};
-use simplicity::{bitcoin, core::Value, elements};
+use simplicity::{bitcoin, bititer::BitIter, core::Value, elements, types::Type, Error};
 
 /// Engine to compute SHA256 hash function.
 /// We can't use bitcoin_hashes::sha256::HashEngine because it does not accept
@@ -38,6 +38,39 @@ impl SimplicityCtx8 {
         ctx.length = n;
         ctx
     }
+}
+
+/// Read bytes from a Simplicity buffer of type (TWO^8)^<2^(n+1) as [`Value`].
+/// The notation X^<2 is notation for the type (S X)
+/// The notation X^<(2*n) is notation for the type S (X^n) * X^<n
+///
+/// Cannot represent >= 2**16 bytes 0 <= n < 16 as simplicity consensus rule.
+///
+/// # Panics:
+///
+/// Panics if the length of the slice is >= 2^(n + 1) bytes
+pub fn var_len_buf_from_slice(v: &[u8], mut n: usize) -> Result<Value, Error> {
+    // Simplicity consensus rule for n < 16 while reading buffers.
+    assert!(n < 16);
+    assert!(v.len() < (1 << (n + 1)));
+    let mut iter = BitIter::new(v.iter().copied());
+    let types = Type::powers_of_two(n); // size n + 1
+    let mut res = None;
+    while n > 0 {
+        let v = if v.len() >= (1 << (n + 1)) {
+            let ty = &types[n];
+            let val = simplicity::decode_value(&ty.final_data().unwrap(), &mut iter)?;
+            Value::SumR(Box::new(val))
+        } else {
+            Value::SumL(Box::new(Value::Unit))
+        };
+        res = match res {
+            Some(prod) => Some(Value::Prod(Box::new(prod), Box::new(v))),
+            None => Some(v),
+        };
+        n -= 1;
+    }
+    Ok(res.unwrap_or(Value::Unit))
 }
 
 // Field order: 2^256 - 2^32 - 2^9 - 2^8 - 2^7 - 2^6 - 2^4 - 1
@@ -121,7 +154,7 @@ pub(crate) trait SimplicityEncode {
 impl SimplicityEncode for SimplicityCtx8 {
     fn value(&self) -> Value {
         let buf_len = self.length % 512;
-        let buf = Value::var_len_buf_from_slice(&self.buffer[..buf_len], 8).unwrap();
+        let buf = var_len_buf_from_slice(&self.buffer[..buf_len], 8).unwrap();
         let len = Value::u64(self.length as u64);
         // convert to 32 byte array
         let arr = self
