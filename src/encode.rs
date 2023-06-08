@@ -22,9 +22,8 @@
 use crate::bitwriter::BitWriter;
 use crate::core::redeem::{RedeemNode, RedeemNodeInner};
 use crate::core::Value;
-use crate::dag::{InternalSharing, PostOrderIter};
+use crate::dag::{FullSharing, PostOrderIter};
 use crate::jet::Jet;
-use crate::sharing;
 use crate::Imr;
 use std::collections::HashMap;
 use std::{io, mem};
@@ -33,22 +32,19 @@ use std::{io, mem};
 ///
 /// Returns the number of written bits.
 pub fn encode_program<W: io::Write, J: Jet>(
-    program: PostOrderIter<&RedeemNode<J>, InternalSharing>,
+    program: PostOrderIter<&RedeemNode<J>, FullSharing>,
     w: &mut BitWriter<W>,
 ) -> io::Result<usize> {
-    let (node_to_index, len) = sharing::compute_maximal_sharing(program.clone());
+    let len_program = program.clone();
+    let len = len_program.count();
 
     let start_n = w.n_total_written();
+    let mut node_to_index = HashMap::new();
     encode_natural(len, w)?;
 
-    let mut index = 0;
-    for node in program {
-        if node_to_index.get(&node.imr).unwrap() != &index {
-            continue;
-        }
-
+    for (index, node) in program.enumerate() {
+        node_to_index.insert(node.imr, index);
         encode_node(node, index, &node_to_index, w)?;
-        index += 1;
     }
 
     Ok(w.n_total_written() - start_n)

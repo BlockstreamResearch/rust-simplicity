@@ -40,7 +40,6 @@ pub mod jet;
 pub mod merkle;
 #[cfg(feature = "elements")]
 pub mod policy;
-mod sharing;
 pub mod types;
 // #[cfg(test)]
 // mod test_progs;

@@ -22,7 +22,7 @@ use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
 use crate::types::{self, arrow::FinalArrow};
-use crate::{encode, impl_ref_wrapper, sharing, Error};
+use crate::{encode, impl_ref_wrapper, Error};
 use std::rc::Rc;
 use std::{fmt, io};
 
@@ -171,7 +171,16 @@ impl<J: Jet> RedeemNode<J> {
         let witness = WitnessDecoder::new(bits)?;
         let program = commit.finalize(witness, false)?;
 
-        if sharing::check_maximal_sharing((*program).post_order_iter::<FullSharing>()) {
+        let iter = program
+            .as_ref()
+            .post_order_iter::<InternalSharing>()
+            .map(|node| node.imr);
+        let fully_shared_iter = program
+            .as_ref()
+            .post_order_iter::<FullSharing>()
+            .map(|node| node.imr);
+
+        if iter.eq(fully_shared_iter) {
             Ok(program)
         } else {
             Err(Error::SharingNotMaximal)
@@ -180,7 +189,7 @@ impl<J: Jet> RedeemNode<J> {
 
     /// Encode a Simplicity program to bits, including the witness data.
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
-        let sharing_iter = self.post_order_iter::<InternalSharing>();
+        let sharing_iter = self.post_order_iter::<FullSharing>();
         let program_bits = encode::encode_program(sharing_iter.clone(), w)?;
         let witness_bits = encode::encode_witness(sharing_iter.into_deduped_witnesses(), w)?;
         w.flush_all()?;
