@@ -29,6 +29,8 @@ fn main() {
     .collect();
     let test_files: Vec<_> = vec![
         // "test.c",
+        "ctx8Pruned.c",
+        "ctx8Unpruned.c",
         "hashBlock.c",
         "schnorr0.c",
         "schnorr6.c",
