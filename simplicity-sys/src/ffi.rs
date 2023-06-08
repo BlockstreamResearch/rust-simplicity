@@ -81,6 +81,11 @@ pub enum SimplicityErr {
     AntiDoS = -42,
 }
 
+extern "C" {
+    pub static c_sizeof_simplicity_err: size_t;
+    pub static c_alignof_simplicity_err: size_t;
+}
+
 impl fmt::Display for SimplicityErr {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(self, f)
@@ -156,6 +161,9 @@ pub mod bitstream {
     }
 
     extern "C" {
+        pub static c_sizeof_bitstream: size_t;
+        pub static c_alignof_bitstream: size_t;
+
         pub fn closeBitstream(stream: *mut CBitstream) -> bool;
         pub fn readNBits(n: c_int, stream: *mut CBitstream) -> i32;
         pub fn decodeUptoMaxInt(stream: *mut CBitstream) -> i32;
@@ -183,6 +191,11 @@ pub mod bitstring {
                 offset: 0,
             }
         }
+    }
+
+    extern "C" {
+        pub static c_sizeof_bitstring: size_t;
+        pub static c_alignof_bitstring: size_t;
     }
 }
 
@@ -282,6 +295,15 @@ pub mod dag {
     }
 
     extern "C" {
+        pub static c_sizeof_tag: size_t;
+        pub static c_alignof_tag: size_t;
+        pub static c_sizeof_combinator_counters: size_t;
+        pub static c_alignof_combinator_counters: size_t;
+        pub static c_sizeof_dag_node: size_t;
+        pub static c_alignof_dag_node: size_t;
+        pub static c_sizeof_analyses: size_t;
+        pub static c_alignof_analyses: size_t;
+
         /// Given the IMR of a jet specification, return the CMR of a jet that implements
         /// that specification
         pub fn mkJetCMR(imr: *const u32) -> CSha256Midstate;
@@ -407,6 +429,7 @@ pub mod eval {
 
 pub mod sha256 {
     use bitcoin_hashes::sha256::Midstate;
+    use libc::size_t;
 
     /// The 256-bit array of a SHA-256 hash or midstate.
     #[repr(C)]
@@ -423,6 +446,11 @@ pub mod sha256 {
             }
             Midstate(inner)
         }
+    }
+
+    extern "C" {
+        pub static c_sizeof_sha256_midstate: size_t;
+        pub static c_alignof_sha256_midstate: size_t;
     }
 }
 
@@ -462,6 +490,11 @@ pub mod ty {
     }
 
     extern "C" {
+        pub static c_sizeof_typename: size_t;
+        pub static c_alignof_typename: size_t;
+        pub static c_sizeof_type: size_t;
+        pub static c_alignof_type: size_t;
+
         /// Given a well-formed 'type_dag', compute the bitSizes, skips, and type Merkle roots of all subexpressions.
         pub fn computeTypeAnalyses(type_dag: *mut CType, len: size_t);
     }
@@ -492,18 +525,40 @@ mod tests {
     use std::mem::{align_of, size_of};
 
     #[test]
+    #[rustfmt::skip]
     fn test_sizes() {
         unsafe {
             assert_eq!(size_of::<ubounded>(), c_sizeof_ubounded);
             assert_eq!(size_of::<UWORD>(), c_sizeof_UWORD);
+            assert_eq!(size_of::<SimplicityErr>(), c_sizeof_simplicity_err);
+
+            assert_eq!(size_of::<bitstream::CBitstream>(), bitstream::c_sizeof_bitstream);
+            assert_eq!(size_of::<bitstring::CBitstring>(), bitstring::c_sizeof_bitstring);
+            assert_eq!(size_of::<dag::CTag>(), dag::c_sizeof_tag);
+            assert_eq!(size_of::<dag::CCombinatorCounters>(), dag::c_sizeof_combinator_counters);
+            assert_eq!(size_of::<dag::CDagNode>(), dag::c_sizeof_dag_node);
+            assert_eq!(size_of::<dag::CAnalyses>(), dag::c_sizeof_analyses);
+            assert_eq!(size_of::<sha256::CSha256Midstate>(), sha256::c_sizeof_sha256_midstate);
+            assert_eq!(size_of::<ty::CType>(), ty::c_sizeof_type);
+            assert_eq!(size_of::<ty::CTypeName>(), ty::c_sizeof_typename);
         }
     }
 
     #[test]
+    #[rustfmt::skip]
     fn test_aligns() {
         unsafe {
             assert_eq!(align_of::<ubounded>(), c_alignof_ubounded);
             assert_eq!(align_of::<UWORD>(), c_alignof_UWORD);
+
+            assert_eq!(align_of::<bitstream::CBitstream>(), bitstream::c_alignof_bitstream);
+            assert_eq!(align_of::<bitstring::CBitstring>(), bitstring::c_alignof_bitstring);
+            assert_eq!(align_of::<dag::CTag>(), dag::c_alignof_tag);
+            assert_eq!(align_of::<dag::CCombinatorCounters>(), dag::c_alignof_combinator_counters);
+            assert_eq!(align_of::<dag::CDagNode>(), dag::c_alignof_dag_node);
+            assert_eq!(align_of::<dag::CAnalyses>(), dag::c_alignof_analyses);
+            assert_eq!(align_of::<sha256::CSha256Midstate>(), sha256::c_alignof_sha256_midstate);
+            assert_eq!(align_of::<ty::CType>(), ty::c_alignof_type);
         }
     }
 }
