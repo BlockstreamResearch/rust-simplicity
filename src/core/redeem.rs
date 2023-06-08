@@ -14,8 +14,8 @@
 
 use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
-use crate::core::iter::{DagIterable, PostOrderIter};
-use crate::core::{iter, Value};
+use crate::core::Value;
+use crate::dag::{DagLike, PostOrderIter};
 use crate::decode::WitnessDecoder;
 use crate::jet::Jet;
 use crate::merkle::amr::Amr;
@@ -66,54 +66,6 @@ pub enum RedeemNodeInner<J: Jet> {
     Jet(J),
     /// Constant word
     Word(Value),
-}
-
-impl<J: Jet> RedeemNodeInner<J> {
-    /// Return the left child of the node, if there is such a child.
-    pub fn get_left(&self) -> Option<&RedeemNode<J>> {
-        match self {
-            RedeemNodeInner::Iden
-            | RedeemNodeInner::Unit
-            | RedeemNodeInner::Witness(..)
-            | RedeemNodeInner::Fail(..)
-            | RedeemNodeInner::Hidden(..)
-            | RedeemNodeInner::Jet(..)
-            | RedeemNodeInner::Word(..) => None,
-            RedeemNodeInner::InjL(l)
-            | RedeemNodeInner::InjR(l)
-            | RedeemNodeInner::Take(l)
-            | RedeemNodeInner::Drop(l)
-            | RedeemNodeInner::Comp(l, _)
-            | RedeemNodeInner::Case(l, _)
-            | RedeemNodeInner::AssertL(l, _)
-            | RedeemNodeInner::AssertR(l, _)
-            | RedeemNodeInner::Pair(l, _)
-            | RedeemNodeInner::Disconnect(l, _) => Some(l),
-        }
-    }
-
-    /// Return the right child of the node, if there is such a child.
-    pub fn get_right(&self) -> Option<&RedeemNode<J>> {
-        match self {
-            RedeemNodeInner::Iden
-            | RedeemNodeInner::Unit
-            | RedeemNodeInner::Witness(..)
-            | RedeemNodeInner::Fail(..)
-            | RedeemNodeInner::Hidden(..)
-            | RedeemNodeInner::Jet(..)
-            | RedeemNodeInner::Word(..)
-            | RedeemNodeInner::InjL(_)
-            | RedeemNodeInner::InjR(_)
-            | RedeemNodeInner::Take(_)
-            | RedeemNodeInner::Drop(_) => None,
-            RedeemNodeInner::Comp(_, r)
-            | RedeemNodeInner::Case(_, r)
-            | RedeemNodeInner::AssertL(_, r)
-            | RedeemNodeInner::AssertR(_, r)
-            | RedeemNodeInner::Pair(_, r)
-            | RedeemNodeInner::Disconnect(_, r) => Some(r),
-        }
-    }
 }
 
 impl<J: Jet> fmt::Display for RedeemNodeInner<J> {
@@ -175,17 +127,23 @@ pub struct RedeemNode<J: Jet> {
 impl<J: Jet> RedeemNode<J> {
     /// Return the left child of the node, if there is such a child.
     pub fn get_left(&self) -> Option<&Self> {
-        self.inner.get_left()
+        <&Self as DagLike>::left_child(&self)
     }
 
     /// Return the right child of the node, if there is such a child.
     pub fn get_right(&self) -> Option<&Self> {
-        self.inner.get_right()
+        <&Self as DagLike>::right_child(&self)
     }
 
     /// Return an iterator over the unshared nodes of the program
-    pub fn iter(&self) -> PostOrderIter<self::RefWrapper<J>> {
-        RefWrapper(self).iter_post_order()
+    pub fn iter(&self) -> PostOrderIter<&Self> {
+        <&Self as DagLike>::post_order_iter(self)
+    }
+
+    /// Return an iterator over the unshared nodes of the program, returning
+    /// refcounted pointers to each node.
+    pub fn rc_iter(self: Rc<Self>) -> PostOrderIter<Rc<Self>> {
+        <Rc<Self> as DagLike>::post_order_iter(self)
     }
 
     // FIXME: Compute length without iterating over entire DAG?
@@ -197,9 +155,9 @@ impl<J: Jet> RedeemNode<J> {
 
     /// Return an iterator over the types of values that make up a valid witness for the program.
     pub fn get_witness_types(&self) -> impl Iterator<Item = &types::Final> {
-        RefWrapper(self).iter_post_order().filter_map(|node| {
-            if let RedeemNodeInner::Witness(_) = &node.0.inner {
-                Some(node.0.ty.target.as_ref())
+        self.iter().filter_map(|node| {
+            if let RedeemNodeInner::Witness(_) = &node.inner {
+                Some(node.ty.target.as_ref())
             } else {
                 None
             }
@@ -212,7 +170,7 @@ impl<J: Jet> RedeemNode<J> {
         let witness = WitnessDecoder::new(bits)?;
         let program = commit.finalize(witness, false)?;
 
-        if sharing::check_maximal_sharing(RefWrapper(&program).iter_post_order()) {
+        if sharing::check_maximal_sharing(program.iter()) {
             Ok(program)
         } else {
             Err(Error::SharingNotMaximal)
@@ -221,9 +179,8 @@ impl<J: Jet> RedeemNode<J> {
 
     /// Encode a Simplicity program to bits, including the witness data.
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
-        let program = RefWrapper(self).iter_post_order();
-        let program_bits = encode::encode_program(program.clone(), w)?;
-        let witness_bits = encode::encode_witness(iter::into_witness(program), w)?;
+        let program_bits = encode::encode_program(self.iter(), w)?;
+        let witness_bits = encode::encode_witness(self.iter().into_deduped_witnesses(), w)?;
         w.flush_all()?;
         Ok(program_bits + witness_bits)
     }
@@ -231,10 +188,10 @@ impl<J: Jet> RedeemNode<J> {
 
 impl<J: Jet> fmt::Display for RedeemNode<J> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        RefWrapper(self).display(
+        self.iter().into_display(
             f,
-            |node, f| fmt::Display::fmt(&node.0.inner, f),
-            |node, f| write!(f, ": {}", node.0.ty),
+            |node, f| fmt::Display::fmt(&node.inner, f),
+            |node, f| write!(f, ": {}", node.ty),
         )
     }
 }

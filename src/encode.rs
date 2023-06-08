@@ -20,9 +20,9 @@
 //! to read it visually the way you can with Bitcoin Script.
 
 use crate::bitwriter::BitWriter;
-use crate::core::iter::{DagIterable, PostOrderIter};
-use crate::core::redeem::{RedeemNodeInner, RefWrapper};
+use crate::core::redeem::{RedeemNode, RedeemNodeInner};
 use crate::core::Value;
+use crate::dag::PostOrderIter;
 use crate::jet::Jet;
 use crate::sharing;
 use crate::Imr;
@@ -33,7 +33,7 @@ use std::{io, mem};
 ///
 /// Returns the number of written bits.
 pub fn encode_program<W: io::Write, J: Jet>(
-    program: PostOrderIter<RefWrapper<J>>,
+    program: PostOrderIter<&RedeemNode<J>>,
     w: &mut BitWriter<W>,
 ) -> io::Result<usize> {
     let (node_to_index, len) = sharing::compute_maximal_sharing(program.clone());
@@ -43,7 +43,7 @@ pub fn encode_program<W: io::Write, J: Jet>(
 
     let mut index = 0;
     for node in program {
-        if node_to_index.get(&node.0.imr).unwrap() != &index {
+        if node_to_index.get(&node.imr).unwrap() != &index {
             continue;
         }
 
@@ -56,22 +56,22 @@ pub fn encode_program<W: io::Write, J: Jet>(
 
 /// Encode a node to bits.
 fn encode_node<W: io::Write, J: Jet>(
-    node: RefWrapper<J>,
+    node: &RedeemNode<J>,
     index: usize,
     node_to_index: &HashMap<Imr, usize>,
     w: &mut BitWriter<W>,
 ) -> io::Result<()> {
     if let Some(left) = node.get_left() {
-        let i_abs = *node_to_index.get(&left.0.imr).unwrap();
+        let i_abs = *node_to_index.get(&left.imr).unwrap();
         debug_assert!(i_abs < index);
         let i = index - i_abs;
 
         if let Some(right) = node.get_right() {
-            let j_abs = *node_to_index.get(&right.0.imr).unwrap();
+            let j_abs = *node_to_index.get(&right.imr).unwrap();
             debug_assert!(j_abs < index);
             let j = index - j_abs;
 
-            match &node.0.inner {
+            match &node.inner {
                 RedeemNodeInner::Comp(_, _) => {
                     w.write_bits_be(0, 5)?;
                 }
@@ -92,7 +92,7 @@ fn encode_node<W: io::Write, J: Jet>(
             encode_natural(i, w)?;
             encode_natural(j, w)?;
         } else {
-            match &node.0.inner {
+            match &node.inner {
                 RedeemNodeInner::InjL(_) => {
                     w.write_bits_be(4, 5)?;
                 }
@@ -111,7 +111,7 @@ fn encode_node<W: io::Write, J: Jet>(
             encode_natural(i, w)?;
         }
     } else {
-        match &node.0.inner {
+        match &node.inner {
             RedeemNodeInner::Iden => {
                 w.write_bits_be(8, 5)?;
             }
