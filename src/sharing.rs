@@ -13,7 +13,7 @@
 //
 
 use crate::core::redeem::{RedeemNode, RedeemNodeInner};
-use crate::dag::PostOrderIter;
+use crate::dag::{FullSharing, InternalSharing, PostOrderIter};
 use crate::jet::Jet;
 use crate::Imr;
 use std::collections::{HashMap, HashSet};
@@ -24,7 +24,9 @@ use std::collections::{HashMap, HashSet};
 /// 1. For hidden nodes, their hash must be unique in the program.
 /// 2. For non-hidden nodes, the triple of their IMR, source type TMR and target type TMR
 ///    must be unique in the program.
-pub(crate) fn check_maximal_sharing<J: Jet>(program: PostOrderIter<&RedeemNode<J>>) -> bool {
+pub(crate) fn check_maximal_sharing<J: Jet>(
+    program: PostOrderIter<&RedeemNode<J>, FullSharing>,
+) -> bool {
     let mut seen_hashes = HashSet::new();
     let mut seen_keys = HashSet::new();
 
@@ -57,7 +59,7 @@ pub(crate) fn check_maximal_sharing<J: Jet>(program: PostOrderIter<&RedeemNode<J
 /// # See
 /// [`check_maximal_sharing()`]
 pub(crate) fn compute_maximal_sharing<J: Jet>(
-    program: PostOrderIter<&RedeemNode<J>>,
+    program: PostOrderIter<&RedeemNode<J>, InternalSharing>,
 ) -> (HashMap<Imr, usize>, usize) {
     let mut node_to_index = HashMap::new();
 

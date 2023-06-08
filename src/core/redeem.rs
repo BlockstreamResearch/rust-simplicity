@@ -15,7 +15,7 @@
 use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
 use crate::core::Value;
-use crate::dag::{DagLike, PostOrderIter};
+use crate::dag::{DagLike, FullSharing, InternalSharing, NoSharing, PostOrderIter};
 use crate::decode::WitnessDecoder;
 use crate::jet::Jet;
 use crate::merkle::amr::Amr;
@@ -136,13 +136,14 @@ impl<J: Jet> RedeemNode<J> {
     }
 
     /// Return an iterator over the unshared nodes of the program
-    pub fn iter(&self) -> PostOrderIter<&Self> {
+    pub fn iter(&self) -> PostOrderIter<&Self, NoSharing> {
         <&Self as DagLike>::post_order_iter(self)
     }
 
-    /// Return an iterator over the unshared nodes of the program, returning
-    /// refcounted pointers to each node.
-    pub fn rc_iter(self: Rc<Self>) -> PostOrderIter<Rc<Self>> {
+    /// Return an iterator over the nodes of the program, returning
+    /// refcounted pointers to each node. Each refcounted pointer
+    /// is returned only once.
+    pub fn rc_iter(self: Rc<Self>) -> PostOrderIter<Rc<Self>, InternalSharing> {
         <Rc<Self> as DagLike>::post_order_iter(self)
     }
 
@@ -170,7 +171,7 @@ impl<J: Jet> RedeemNode<J> {
         let witness = WitnessDecoder::new(bits)?;
         let program = commit.finalize(witness, false)?;
 
-        if sharing::check_maximal_sharing(program.iter()) {
+        if sharing::check_maximal_sharing((*program).post_order_iter::<FullSharing>()) {
             Ok(program)
         } else {
             Err(Error::SharingNotMaximal)
@@ -179,8 +180,9 @@ impl<J: Jet> RedeemNode<J> {
 
     /// Encode a Simplicity program to bits, including the witness data.
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
-        let program_bits = encode::encode_program(self.iter(), w)?;
-        let witness_bits = encode::encode_witness(self.iter().into_deduped_witnesses(), w)?;
+        let sharing_iter = self.post_order_iter::<InternalSharing>();
+        let program_bits = encode::encode_program(sharing_iter.clone(), w)?;
+        let witness_bits = encode::encode_witness(sharing_iter.into_deduped_witnesses(), w)?;
         w.flush_all()?;
         Ok(program_bits + witness_bits)
     }

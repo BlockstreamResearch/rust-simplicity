@@ -22,7 +22,7 @@
 use crate::bitwriter::BitWriter;
 use crate::core::redeem::{RedeemNode, RedeemNodeInner};
 use crate::core::Value;
-use crate::dag::PostOrderIter;
+use crate::dag::{InternalSharing, PostOrderIter};
 use crate::jet::Jet;
 use crate::sharing;
 use crate::Imr;
@@ -33,7 +33,7 @@ use std::{io, mem};
 ///
 /// Returns the number of written bits.
 pub fn encode_program<W: io::Write, J: Jet>(
-    program: PostOrderIter<&RedeemNode<J>>,
+    program: PostOrderIter<&RedeemNode<J>, InternalSharing>,
     w: &mut BitWriter<W>,
 ) -> io::Result<usize> {
     let (node_to_index, len) = sharing::compute_maximal_sharing(program.clone());

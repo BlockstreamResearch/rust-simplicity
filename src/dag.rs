@@ -22,6 +22,7 @@ use crate::core::commit::{CommitNode, CommitNodeInner};
 use crate::core::redeem::{RedeemNode, RedeemNodeInner};
 use crate::core::Value;
 use crate::jet;
+use crate::Imr;
 
 /// Generic container for Simplicity DAGs
 pub enum Dag<T> {
@@ -57,10 +58,72 @@ pub enum Dag<T> {
     Word,
 }
 
+/// How much sharing/expansion to do when running an iterator over a DAG
+///
+/// This object works by recording and looking up nodes in a DAG as they are
+/// being iterated over. If the tracker says that an element has been seen
+/// before, it will not be yielded again; so for example, a tracker which
+/// records nodes by their IMR will implement full sharing, while a tracker
+/// which claims to have never seen any node before will implement no
+/// sharing at all.
+pub trait SharingTracker<D: DagLike> {
+    /// Marks an object as having been seen, and record the index
+    /// when it was seen.
+    fn record(&mut self, object: &D, index: usize);
+
+    /// Check whether an object has been seen before; if so, return
+    /// the index it was recorded at.
+    fn seen_before(&self, object: &D) -> Option<usize>;
+}
+
+/// Do not share at all; yield every node in the expanded DAG
+#[derive(Clone, Debug, Default)]
+pub struct NoSharing;
+
+impl<D: DagLike> SharingTracker<D> for NoSharing {
+    fn record(&mut self, _: &D, _: usize) {}
+    fn seen_before(&self, _: &D) -> Option<usize> {
+        None
+    }
+}
+
+/// Share using pointer identity, i.e. yield each node only once, where two
+/// nodes are the same iff they both point to the same object.
+#[derive(Clone, Debug, Default)]
+pub struct InternalSharing {
+    map: HashMap<PointerId, usize>,
+}
+
+impl<D: DagLike> SharingTracker<D> for InternalSharing {
+    fn record(&mut self, d: &D, index: usize) {
+        self.map.insert(PointerId::from(d), index);
+    }
+    fn seen_before(&self, d: &D) -> Option<usize> {
+        self.map.get(&PointerId::from(d)).copied()
+    }
+}
+
+/// Full sharing: yield a node with each IMR only once. This can only be
+/// used with `RedeemNode`s, since `CommitNode`s do not have enough
+/// information to determine their IMRs.
+#[derive(Clone, Debug, Default)]
+pub struct FullSharing {
+    map: HashMap<Imr, usize>,
+}
+
+impl<J: jet::Jet> SharingTracker<&RedeemNode<J>> for FullSharing {
+    fn record(&mut self, d: &&RedeemNode<J>, index: usize) {
+        self.map.insert(d.imr, index);
+    }
+    fn seen_before(&self, d: &&RedeemNode<J>) -> Option<usize> {
+        self.map.get(&d.imr).copied()
+    }
+}
+
 /// Object representing pointer identity of a DAG node
 ///
 /// Used to populate a hashset to determine whether or not a given node has
-/// already been visited by an iterator.
+/// already been tracker by an iterator.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 struct PointerId(usize);
 
@@ -130,11 +193,27 @@ pub trait DagLike: Sized {
     ///
     /// Each node is only yielded once, at the leftmost position that it
     /// appears in the DAG.
-    fn post_order_iter(self) -> PostOrderIter<Self> {
+    fn post_order_iter<S: SharingTracker<Self> + Default>(self) -> PostOrderIter<Self, S> {
         PostOrderIter {
             index: 0,
             stack: vec![IterStackItem::unprocessed(self, Previous::Root)],
-            visited: HashMap::new(),
+            tracker: Default::default(),
+        }
+    }
+
+    /// Obtains an post-order iterator of all the nodes rooted at DAG, using the
+    /// given tracker.
+    ///
+    /// Ordinary users will never need to use this method; but it is available to
+    /// enable obscure iteration use-cases.
+    fn post_order_iter_with_tracker<S: SharingTracker<Self>>(
+        self,
+        tracker: S,
+    ) -> PostOrderIter<Self, S> {
+        PostOrderIter {
+            index: 0,
+            stack: vec![IterStackItem::unprocessed(self, Previous::Root)],
+            tracker,
         }
     }
 }
@@ -309,20 +388,20 @@ impl<D: DagLike> IterStackItem<D> {
         }
     }
 
-    fn left_child(&self, visited: &HashMap<PointerId, usize>) -> Child<D> {
+    fn left_child<V: SharingTracker<D>>(&self, tracker: &V) -> Child<D> {
         match self.elem.left_child() {
-            Some(child) => match visited.get(&PointerId::from(&child)) {
-                Some(&idx) => Child::Repeat { idx },
+            Some(child) => match tracker.seen_before(&child) {
+                Some(idx) => Child::Repeat { idx },
                 None => Child::New(child),
             },
             None => Child::None,
         }
     }
 
-    fn right_child(&self, visited: &HashMap<PointerId, usize>) -> Child<D> {
+    fn right_child<V: SharingTracker<D>>(&self, tracker: &V) -> Child<D> {
         match self.elem.right_child() {
-            Some(child) => match visited.get(&PointerId::from(&child)) {
-                Some(&idx) => Child::Repeat { idx },
+            Some(child) => match tracker.seen_before(&child) {
+                Some(idx) => Child::Repeat { idx },
                 None => Child::New(child),
             },
             None => Child::None,
@@ -333,20 +412,21 @@ impl<D: DagLike> IterStackItem<D> {
 /// Iterates over a DAG in _post order_.
 ///
 /// That means nodes are yielded in the order (left child, right child, parent).
-/// Shared nodes appear only once at their leftmost position.
+/// Nodes may be repeated or not, based on the `S` parameter which defines how
+/// the iterator treats sharing.
 #[derive(Clone, Debug)]
-pub struct PostOrderIter<D: DagLike> {
+pub struct PostOrderIter<D: DagLike, S: SharingTracker<D>> {
     /// The index of the next item to be yielded
     index: usize,
     /// A stack of elements to be yielded; each element is a node, then its left
     /// and right children (if they exist and if they have been yielded already)
     stack: Vec<IterStackItem<D>>,
-    /// A mapping of internally shared nodes (i.e. ones identified by pointer) to
-    /// the index at which they were first yielded.
-    visited: HashMap<PointerId, usize>,
+    /// Data which tracks which nodes have been yielded already and therefore
+    /// should be skipped.
+    tracker: S,
 }
 
-impl<D: DagLike> Iterator for PostOrderIter<D> {
+impl<D: DagLike, S: SharingTracker<D>> Iterator for PostOrderIter<D, S> {
     type Item = D;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -359,8 +439,8 @@ impl<D: DagLike> Iterator for PostOrderIter<D> {
                     // nominally the next item to be yielded, but it might have children,
                     // and if so, they come first
                     match (
-                        current.left_child(&self.visited),
-                        current.right_child(&self.visited),
+                        current.left_child(&self.tracker),
+                        current.right_child(&self.tracker),
                     ) {
                         // No children is easy, just mark it processed and iterate.
                         // (We match _ for the right child but we know that if the left one
@@ -411,6 +491,7 @@ impl<D: DagLike> Iterator for PostOrderIter<D> {
                     // The next time we encounter an item, we have the indices for its children
                     // (which we ignore for now, but will use in a future commit) and can yield
                     // it. But first we need to update the indices of its parent.
+                    let mut check_sibling = false;
                     let stack_len = self.stack.len();
                     match current.previous {
                         Previous::Root => {
@@ -427,20 +508,23 @@ impl<D: DagLike> Iterator for PostOrderIter<D> {
                         Previous::SiblingLeft => {
                             assert!(self.stack[stack_len - 2].processed);
                             self.stack[stack_len - 2].left_idx = Some(self.index);
-                            // There is a special case here where we are yielding a node which
-                            // is identical (i.e. is literally a second refcounted pointer to the
-                            // same object) as its its sibling. In this case we have a repeated
-                            // node which nonetheless made it into the stack, so we pop it here.
-                            if PointerId::from(&current.elem)
-                                == PointerId::from(&self.stack[stack_len - 1].elem)
-                            {
-                                self.stack[stack_len - 2].right_idx = Some(self.index);
-                                self.stack.pop();
-                            }
+                            check_sibling = true;
                         }
                     }
-                    self.visited
-                        .insert(PointerId::from(&current.elem), self.index);
+                    self.tracker.record(&current.elem, self.index);
+                    // There is a special case here where we are yielding a node which
+                    // is identical to its sibling (according to the sharing tracker).
+                    // In this case we have a repeated node which nonetheless made it
+                    // into the stack, so we pop it here.
+                    if check_sibling
+                        && self
+                            .tracker
+                            .seen_before(&self.stack[stack_len - 1].elem)
+                            .is_some()
+                    {
+                        self.stack[stack_len - 2].right_idx = Some(self.index);
+                        self.stack.pop();
+                    }
                     self.index += 1;
                     return Some(current.elem);
                 }
@@ -452,7 +536,9 @@ impl<D: DagLike> Iterator for PostOrderIter<D> {
     }
 }
 
-impl<'a, J: jet::Jet> PostOrderIter<&'a RedeemNode<J>> {
+impl<'a, J: jet::Jet, S: SharingTracker<&'a RedeemNode<J>> + Clone>
+    PostOrderIter<&'a RedeemNode<J>, S>
+{
     /// Adapt the iterator to only yield witnesses
     ///
     /// The witnesses are yielded in the order in which they appear in the DAG
@@ -474,7 +560,7 @@ impl<'a, J: jet::Jet> PostOrderIter<&'a RedeemNode<J>> {
     }
 }
 
-impl<D: DagLike> PostOrderIter<D> {
+impl<D: DagLike, S: SharingTracker<D>> PostOrderIter<D, S> {
     /// Display the DAG as an indexed list in post order.
     ///
     /// `display_body()` formats the node body in front of the node indices.

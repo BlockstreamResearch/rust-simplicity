@@ -18,7 +18,7 @@ use crate::bitwriter::BitWriter;
 use crate::core::iter::{DagIterable, WitnessIterator};
 use crate::core::redeem::RedeemNodeInner;
 use crate::core::{Context, RedeemNode, Value};
-use crate::dag::{DagLike, PostOrderIter};
+use crate::dag::{DagLike, InternalSharing, NoSharing, PostOrderIter};
 use crate::jet::Jet;
 use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
@@ -150,13 +150,14 @@ impl<J: Jet> CommitNode<J> {
     }
 
     /// Return an iterator over the unshared nodes of the program
-    pub fn iter(&self) -> PostOrderIter<&Self> {
+    pub fn iter(&self) -> PostOrderIter<&Self, NoSharing> {
         <&Self as DagLike>::post_order_iter(self)
     }
 
-    /// Return an iterator over the unshared nodes of the program, returning
-    /// refcounted pointers to each node.
-    pub fn rc_iter(self: Rc<Self>) -> PostOrderIter<Rc<Self>> {
+    /// Return an iterator over the nodes of the program, returning
+    /// refcounted pointers to each node. Each refcounted pointer
+    /// is returned only once.
+    pub fn rc_iter(self: Rc<Self>) -> PostOrderIter<Rc<Self>, InternalSharing> {
         <Rc<Self> as DagLike>::post_order_iter(self)
     }
 
@@ -600,7 +601,6 @@ impl<J: Jet> CommitNode<J> {
         mut witness: W,
         unshare_witnesses: bool,
     ) -> Result<Rc<RedeemNode<J>>, Error> {
-        let root = RefWrapper(self);
         let mut to_finalized: HashMap<Imr, Rc<RedeemNode<J>>> = HashMap::new();
         // Iterate through the DAG again to calculate the value of IMR in the first pass.
         // Unfortunately, we cannot directly mutate the nodes here, because they are RC
@@ -611,7 +611,8 @@ impl<J: Jet> CommitNode<J> {
         let mut first_pass: HashMap<RefWrapper<J>, Imr> = HashMap::new();
 
         let mut root_first_pass_imr = None;
-        for commit in root.iter_post_order() {
+        for commit in self.post_order_iter::<InternalSharing>() {
+            let commit = RefWrapper(commit);
             // 0. Skip witness nodes when we encounter them from `post_order_it`, since
             //    we treat them specially in order to "unshare" them.
             if unshare_witnesses {
