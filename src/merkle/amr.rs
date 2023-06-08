@@ -69,7 +69,7 @@ impl Amr {
             }
             CommitNodeInner::Witness => Amr(bip340_iv(b"Simplicity-Draft\x1fAnnotated\x1fwitness")),
             CommitNodeInner::Fail(_, _) => Amr(bip340_iv(b"Simplicity-Draft\x1fAnnotated\x1ffail")),
-            CommitNodeInner::Jet(jet) => jet.amr(),
+            CommitNodeInner::Jet(..) => Cmr::get_iv(node).into(),
             CommitNodeInner::Word(..) => Cmr::compute(node).into(),
         }
     }
@@ -168,5 +168,33 @@ impl Amr {
                     .update(left.unwrap().amr, right.unwrap().amr)
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::jet::Core;
+    use crate::{CommitNode, Context};
+    use std::iter;
+
+    #[test]
+    fn fixed_amr() {
+        let mut ctx = Context::new();
+        let node = CommitNode::jet(&mut ctx, Core::Verify)
+            .finalize(iter::empty(), true)
+            .unwrap();
+        // Checked against C implementation
+        #[rustfmt::skip]
+        assert_eq!(
+            node.amr,
+            Amr::from_byte_array([
+                0x02, 0x0e, 0x84, 0x01, 0x30, 0x30, 0xec, 0x69,
+                0xd9, 0xa9, 0x3f, 0xec, 0x71, 0x10, 0xe7, 0x27,
+                0xea, 0xd5, 0x12, 0x88, 0x5f, 0xa3, 0xc5, 0x72,
+                0xd8, 0xcf, 0xc3, 0x47, 0x2c, 0xa5, 0xc8, 0xe8, 
+            ]),
+        );
     }
 }
