@@ -333,23 +333,35 @@ mod tests {
         // diff_is_one = comp (pair wit_diff jet_one_32) jet_eq_32             :: 1 -> 2
         // main = comp diff_is_one jet_verify                                  :: 1 -> 1
         #[rustfmt::skip]
-        let diff1 = vec![
-            0xda, 0xe2, 0x39, 0xa3, 0x10, 0x42, 0x0e, 0x05,
-            0x71, 0x88, 0xa3, 0x6d, 0xc4, 0x11, 0x80, 0x80
+        let diff1s = vec![
+            vec![
+                0xda, 0xe2, 0x39, 0xa3, 0x10, 0x42, 0x0e, 0x05,
+                0x71, 0x88, 0xa3, 0x6d, 0xc4, 0x11, 0x80, 0x80
+            ],
+            // Same program but with each `witness` replaced by `comp iden witness`, which
+            // is semantically the same but will trip up naive witness-unsharing logic.
+            vec![
+                0xde, 0x87, 0x04, 0x08, 0xe6, 0x8c, 0x41, 0x08,
+                0x38, 0x15, 0xc6, 0x22, 0x8d, 0xb7, 0x10, 0x46,
+                0x02, 0x00, 
+            ],
         ];
-        let mut iter = BitIter::from(&diff1[..]);
-        let diff1_prog = decode_program::<_, crate::jet::Core>(&mut iter).unwrap();
 
-        // Attempt to finalize, providing 32-bit witnesses 0, 1, ..., and then
-        // counting how many were consumed afterward.
-        let mut counter = 0..100;
-        let mut witness_iter = (&mut counter).rev().map(Value::u32);
-        let diff1_final = diff1_prog.finalize(&mut witness_iter, true).unwrap();
-        assert_eq!(counter, 0..98);
+        for diff1 in diff1s {
+            let mut iter = BitIter::from(&diff1[..]);
+            let diff1_prog = decode_program::<_, crate::jet::Core>(&mut iter).unwrap();
 
-        // Execute the program to confirm that it worked
-        let mut mac = BitMachine::for_program(&diff1_final);
-        mac.exec(&diff1_final, &()).unwrap();
+            // Attempt to finalize, providing 32-bit witnesses 0, 1, ..., and then
+            // counting how many were consumed afterward.
+            let mut counter = 0..100;
+            let mut witness_iter = (&mut counter).rev().map(Value::u32);
+            let diff1_final = diff1_prog.finalize(&mut witness_iter, true).unwrap();
+            assert_eq!(counter, 0..98);
+
+            // Execute the program to confirm that it worked
+            let mut mac = BitMachine::for_program(&diff1_final);
+            mac.exec(&diff1_final, &()).unwrap();
+        }
     }
 
     #[test]
