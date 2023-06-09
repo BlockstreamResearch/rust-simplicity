@@ -25,8 +25,78 @@ use crate::dag::{DagLike, InternalSharing};
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::types;
-use crate::Error;
 use std::rc::Rc;
+use std::{error, fmt};
+
+/// Decoding error
+#[non_exhaustive]
+#[derive(Debug)]
+pub enum Error {
+    /// Node made a back-reference past the beginning of the program
+    BadIndex,
+    /// Both children of a node are hidden
+    BothChildrenHidden,
+    /// Program must not be empty
+    EmptyProgram,
+    /// Bitstream ended early
+    EndOfStream,
+    /// Tried to parse a jet but the name wasn't recognized
+    InvalidJet,
+    /// Number exceeded 32 bits
+    NaturalOverflow,
+    /// Program is not encoded in canonical order
+    NotInCanonicalOrder,
+    /// Program encoded a stop code
+    StopCode,
+    /// Tried to allocate too many nodes in a program
+    TooManyNodes(usize),
+    /// Type-checking error
+    Type(crate::types::Error),
+}
+
+impl From<crate::types::Error> for Error {
+    fn from(e: crate::types::Error) -> Error {
+        Error::Type(e)
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::BadIndex => {
+                f.write_str("node made a back-reference past the beginning of the program")
+            }
+            Error::BothChildrenHidden => f.write_str("both children of a case node are hidden"),
+            Error::EmptyProgram => f.write_str("empty program"),
+            Error::EndOfStream => f.write_str("bitstream ended early"),
+            Error::InvalidJet => write!(f, "unrecognized jet"),
+            Error::NaturalOverflow => f.write_str("encoded number exceeded 32 bits"),
+            Error::NotInCanonicalOrder => f.write_str("program not in canonical order"),
+            Error::StopCode => f.write_str("program contained a stop code"),
+            Error::TooManyNodes(k) => {
+                write!(f, "program has too many nodes ({})", k)
+            }
+            Error::Type(ref e) => fmt::Display::fmt(e, f),
+        }
+    }
+}
+
+impl error::Error for Error {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        match *self {
+            Error::BadIndex => None,
+            Error::BothChildrenHidden => None,
+            Error::EmptyProgram => None,
+            Error::EndOfStream => None,
+            Error::InvalidJet => None,
+            Error::NaturalOverflow => None,
+            Error::NotInCanonicalOrder => None,
+            Error::StopCode => None,
+            Error::TooManyNodes(..) => None,
+            Error::Type(ref e) => Some(e),
+        }
+    }
+}
 
 /// Decode a Simplicity program from bits, without the witness data.
 ///
@@ -146,7 +216,11 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
         _ => match maybe_code {
             None => match bits.next() {
                 None => return Err(Error::EndOfStream),
-                Some(true) => Ok(CommitNode::jet(context, J::decode(bits)?)),
+                Some(true) => match J::decode(bits) {
+                    Err(crate::Error::Decode(e)) => return Err(e),
+                    Err(_) => unreachable!(), // FIXME need to update generated jet code to directly return a decode::Error
+                    Ok(jet) => Ok(CommitNode::jet(context, jet)),
+                },
                 Some(false) => {
                     let depth = decode_natural(bits, Some(32))?;
                     let word = decode_value(&context.nth_power_of_2_final(depth - 1), bits)?;
@@ -161,7 +235,7 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
                     Cmr::from(decode_hash(bits)?),
                     Cmr::from(decode_hash(bits)?),
                 ),
-                3 => return Err(Error::ParseError("01011 (stop code)")),
+                3 => return Err(Error::StopCode),
                 _ => unreachable!("2-bit subcode"),
             }),
             Some(3) => Ok(match subcode {
@@ -205,13 +279,13 @@ impl<'a, I: Iterator<Item = u8>> WitnessDecoder<'a, I> {
 }
 
 impl<'a, I: Iterator<Item = u8>> WitnessIterator for WitnessDecoder<'a, I> {
-    fn next(&mut self, ty: &types::Final) -> Result<Value, Error> {
-        decode_value(ty, self.bits)
+    fn next(&mut self, ty: &types::Final) -> Result<Value, crate::Error> {
+        decode_value(ty, self.bits).map_err(From::from)
     }
 
-    fn finish(self) -> Result<(), Error> {
+    fn finish(self) -> Result<(), crate::Error> {
         if self.bits.n_total_read() != self.max_n {
-            Err(Error::InconsistentWitnessLength)
+            Err(crate::Error::InconsistentWitnessLength)
         } else {
             Ok(())
         }

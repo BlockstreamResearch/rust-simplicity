@@ -67,61 +67,39 @@ use std::fmt;
 #[non_exhaustive]
 #[derive(Debug)]
 pub enum Error {
+    /// Decoder error
+    Decode(crate::decode::Error),
     /// Type-checking error
     Type(crate::types::Error),
-    /// Node made a back-reference past the beginning of the program
-    BadIndex,
-    /// Number exceeded 32 bits
-    NaturalOverflow,
-    /// Both children of a node are hidden
-    BothChildrenHidden,
-    /// Bitstream ended early
-    EndOfStream,
-    /// Program must not be empty
-    EmptyProgram,
-    /// Tried to parse a jet but the name wasn't recognized
-    InvalidJetName(String),
-    /// Tried to allocate too many nodes in a program
-    TooManyNodes(usize),
-    /// Cannot parse bitstream
-    ParseError(&'static str),
-    /// Program is not in canonical order
-    NotInCanonicalOrder,
+    /// Witness iterator ended early
+    NoMoreWitnesses,
     /// Witness has different length than defined in its preamble
     InconsistentWitnessLength,
-    /// Program does not have maximal sharing
-    SharingNotMaximal,
+    /// Tried to parse a jet but the name wasn't recognized
+    InvalidJetName(String),
     /// Miniscript error
     MiniscriptError(miniscript::Error),
     /// Policy error
     #[cfg(feature = "elements")]
     Policy(policy::Error),
+    /// Program does not have maximal sharing
+    SharingNotMaximal,
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Error::Decode(ref e) => fmt::Display::fmt(e, f),
             Error::Type(ref e) => fmt::Display::fmt(e, f),
-            Error::BadIndex => {
-                f.write_str("Node made a back-reference past the beginning of the program")
-            }
-            Error::NaturalOverflow => f.write_str("Number exceeded 32 bits"),
-            Error::BothChildrenHidden => f.write_str("Both children of a node are hidden"),
-            Error::EndOfStream => f.write_str("Bitstream ended early"),
-            Error::EmptyProgram => f.write_str("Program must not be empty"),
-            Error::InvalidJetName(s) => write!(f, "unknown jet `{}`", s),
-            Error::TooManyNodes(k) => {
-                write!(f, "Tried to allocate too many nodes in a program: {}", k)
-            }
-            Error::ParseError(s) => write!(f, "Cannot parse bitstream {}", s),
-            Error::NotInCanonicalOrder => f.write_str("Program is not in canonical order"),
             Error::InconsistentWitnessLength => {
-                f.write_str("Witness has different length than defined in its preamble")
+                f.write_str("witness has different length than defined in its preamble")
             }
-            Error::SharingNotMaximal => f.write_str("Decoded programs must have maximal sharing"),
+            Error::InvalidJetName(s) => write!(f, "unknown jet `{}`", s),
+            Error::NoMoreWitnesses => f.write_str("no more witness data available"),
             Error::MiniscriptError(ref e) => fmt::Display::fmt(e, f),
             #[cfg(feature = "elements")]
             Error::Policy(ref e) => fmt::Display::fmt(e, f),
+            Error::SharingNotMaximal => f.write_str("Decoded programs must have maximal sharing"),
         }
     }
 }
@@ -129,22 +107,22 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match *self {
+            Error::Decode(ref e) => Some(e),
             Error::Type(ref e) => Some(e),
-            Error::BadIndex => None,
-            Error::NaturalOverflow => None,
-            Error::BothChildrenHidden => None,
-            Error::EndOfStream => None,
-            Error::EmptyProgram => None,
-            Error::InvalidJetName(..) => None,
-            Error::TooManyNodes(..) => None,
-            Error::ParseError(..) => None,
-            Error::NotInCanonicalOrder => None,
+            Error::NoMoreWitnesses => None,
             Error::InconsistentWitnessLength => None,
+            Error::InvalidJetName(..) => None,
             Error::SharingNotMaximal => None,
             Error::MiniscriptError(ref e) => Some(e),
             #[cfg(feature = "elements")]
             Error::Policy(ref e) => Some(e),
         }
+    }
+}
+
+impl From<crate::decode::Error> for Error {
+    fn from(e: crate::decode::Error) -> Error {
+        Error::Decode(e)
     }
 }
 

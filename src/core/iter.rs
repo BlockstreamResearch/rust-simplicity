@@ -29,7 +29,7 @@ pub trait WitnessIterator {
 
 impl<I: Iterator<Item = Value>> WitnessIterator for I {
     fn next(&mut self, _ty: &types::Final) -> Result<Value, Error> {
-        Iterator::next(self).ok_or(Error::EndOfStream)
+        Iterator::next(self).ok_or(Error::NoMoreWitnesses)
     }
 
     fn finish(self) -> Result<(), Error> {
