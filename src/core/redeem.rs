@@ -48,9 +48,9 @@ pub enum RedeemNodeInner<J: Jet> {
     /// Case of a left and right child
     Case(Rc<RedeemNode<J>>, Rc<RedeemNode<J>>),
     /// Left assertion of a left and right child.
-    AssertL(Rc<RedeemNode<J>>, Rc<RedeemNode<J>>),
+    AssertL(Rc<RedeemNode<J>>, Cmr),
     /// Right assertion of a left and right child.
-    AssertR(Rc<RedeemNode<J>>, Rc<RedeemNode<J>>),
+    AssertR(Cmr, Rc<RedeemNode<J>>),
     /// Pair of a left and right child
     Pair(Rc<RedeemNode<J>>, Rc<RedeemNode<J>>),
     /// Disconnect of a left and right child

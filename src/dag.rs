@@ -42,6 +42,10 @@ pub enum Dag<T> {
     Comp(T, T),
     /// Case of a left and right child
     Case(T, T),
+    /// Left-assertion of a child
+    AssertL(T),
+    /// Right-assertion of a child
+    AssertR(T),
     /// Pair of a left and right child
     Pair(T, T),
     /// Disconnect of a left and right child
@@ -252,6 +256,8 @@ pub trait DagLike: Sized {
             Dag::Drop(sub) => Some(sub),
             Dag::Comp(left, _) => Some(left),
             Dag::Case(left, _) => Some(left),
+            Dag::AssertL(left) => Some(left),
+            Dag::AssertR(right) => Some(right), // note that we treat the child of an assertR as a left child!
             Dag::Pair(left, _) => Some(left),
             Dag::Disconnect(left, _) => Some(left),
             Dag::Witness => None,
@@ -272,6 +278,8 @@ pub trait DagLike: Sized {
             Dag::Take(_) => None,
             Dag::Drop(_) => None,
             Dag::Comp(_, right) => Some(right),
+            Dag::AssertL(_) => None,
+            Dag::AssertR(_) => None, // note that we treat the child of an assertR as a left child!
             Dag::Case(_, right) => Some(right),
             Dag::Pair(_, right) => Some(right),
             Dag::Disconnect(_, right) => Some(right),
@@ -330,8 +338,8 @@ impl<'a, J: jet::Jet> DagLike for &'a CommitNode<J> {
             CommitNodeInner::Drop(ref sub) => Dag::Drop(sub),
             CommitNodeInner::Comp(ref left, ref right) => Dag::Comp(left, right),
             CommitNodeInner::Case(ref left, ref right) => Dag::Case(left, right),
-            CommitNodeInner::AssertL(ref left, ref right) => Dag::Case(left, right),
-            CommitNodeInner::AssertR(ref left, ref right) => Dag::Case(left, right),
+            CommitNodeInner::AssertL(ref left, _) => Dag::AssertL(left),
+            CommitNodeInner::AssertR(_, ref right) => Dag::AssertR(right),
             CommitNodeInner::Pair(ref left, ref right) => Dag::Pair(left, right),
             CommitNodeInner::Disconnect(ref left, ref right) => Dag::Disconnect(left, right),
             CommitNodeInner::Witness => Dag::Witness,
@@ -361,8 +369,8 @@ impl<J: jet::Jet> DagLike for Rc<CommitNode<J>> {
             CommitNodeInner::Drop(ref sub) => Dag::Drop(Rc::clone(sub)),
             CommitNodeInner::Comp(ref left, ref right) => Dag::Comp(Rc::clone(left), Rc::clone(right)),
             CommitNodeInner::Case(ref left, ref right) => Dag::Case(Rc::clone(left), Rc::clone(right)),
-            CommitNodeInner::AssertL(ref left, ref right) => Dag::Case(Rc::clone(left), Rc::clone(right)),
-            CommitNodeInner::AssertR(ref left, ref right) => Dag::Case(Rc::clone(left), Rc::clone(right)),
+            CommitNodeInner::AssertL(ref left, _) => Dag::AssertL(Rc::clone(left)),
+            CommitNodeInner::AssertR(_, ref right) => Dag::AssertR(Rc::clone(right)),
             CommitNodeInner::Pair(ref left, ref right) => Dag::Pair(Rc::clone(left), Rc::clone(right)),
             CommitNodeInner::Disconnect(ref left, ref right) => Dag::Disconnect(Rc::clone(left), Rc::clone(right)),
             CommitNodeInner::Witness => Dag::Witness,
@@ -392,8 +400,8 @@ impl<'a, J: jet::Jet> DagLike for &'a RedeemNode<J> {
             RedeemNodeInner::Drop(ref sub) => Dag::Drop(sub),
             RedeemNodeInner::Comp(ref left, ref right) => Dag::Comp(left, right),
             RedeemNodeInner::Case(ref left, ref right) => Dag::Case(left, right),
-            RedeemNodeInner::AssertL(ref left, ref right) => Dag::Case(left, right),
-            RedeemNodeInner::AssertR(ref left, ref right) => Dag::Case(left, right),
+            RedeemNodeInner::AssertL(ref left, _) => Dag::AssertL(left),
+            RedeemNodeInner::AssertR(_, ref right) => Dag::AssertR(right),
             RedeemNodeInner::Pair(ref left, ref right) => Dag::Pair(left, right),
             RedeemNodeInner::Disconnect(ref left, ref right) => Dag::Disconnect(left, right),
             RedeemNodeInner::Witness(..) => Dag::Witness,
@@ -423,8 +431,8 @@ impl<J: jet::Jet> DagLike for Rc<RedeemNode<J>> {
             RedeemNodeInner::Drop(ref sub) => Dag::Drop(Rc::clone(sub)),
             RedeemNodeInner::Comp(ref left, ref right) => Dag::Comp(Rc::clone(left), Rc::clone(right)),
             RedeemNodeInner::Case(ref left, ref right) => Dag::Case(Rc::clone(left), Rc::clone(right)),
-            RedeemNodeInner::AssertL(ref left, ref right) => Dag::Case(Rc::clone(left), Rc::clone(right)),
-            RedeemNodeInner::AssertR(ref left, ref right) => Dag::Case(Rc::clone(left), Rc::clone(right)),
+            RedeemNodeInner::AssertL(ref left, _) => Dag::AssertL(Rc::clone(left)),
+            RedeemNodeInner::AssertR(_, ref right) => Dag::AssertR(Rc::clone(right)),
             RedeemNodeInner::Pair(ref left, ref right) => Dag::Pair(Rc::clone(left), Rc::clone(right)),
             RedeemNodeInner::Disconnect(ref left, ref right) => Dag::Disconnect(Rc::clone(left), Rc::clone(right)),
             RedeemNodeInner::Witness(..) => Dag::Witness,

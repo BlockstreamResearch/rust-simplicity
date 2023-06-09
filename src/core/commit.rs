@@ -49,9 +49,9 @@ pub enum CommitNodeInner<J: Jet> {
     /// Case of a left and right child
     Case(Rc<CommitNode<J>>, Rc<CommitNode<J>>),
     /// Left assertion of a left and right child.
-    AssertL(Rc<CommitNode<J>>, Rc<CommitNode<J>>),
+    AssertL(Rc<CommitNode<J>>, Cmr),
     /// Right assertion of a left and right child.
-    AssertR(Rc<CommitNode<J>>, Rc<CommitNode<J>>),
+    AssertR(Cmr, Rc<CommitNode<J>>),
     /// Pair of a left and right child
     Pair(Rc<CommitNode<J>>, Rc<CommitNode<J>>),
     /// Disconnect of a left and right child
@@ -293,7 +293,7 @@ impl<J: Jet> CommitNode<J> {
         right: Cmr,
     ) -> Result<Rc<Self>, types::Error> {
         let arrow = Arrow::for_case(context, Some(&left.arrow), None)?;
-        let inner = CommitNodeInner::AssertL(left, Self::hidden(context, right));
+        let inner = CommitNodeInner::AssertL(left, right);
         Ok(Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
             inner,
@@ -313,7 +313,7 @@ impl<J: Jet> CommitNode<J> {
         right: Rc<Self>,
     ) -> Result<Rc<Self>, types::Error> {
         let arrow = Arrow::for_case(context, None, Some(&right.arrow))?;
-        let inner = CommitNodeInner::AssertR(Self::hidden(context, left), right);
+        let inner = CommitNodeInner::AssertR(left, right);
         Ok(Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
             inner,
@@ -668,12 +668,8 @@ impl<J: Jet> CommitNode<J> {
                 CommitNodeInner::Drop(_) => RedeemNodeInner::Drop(left.unwrap()),
                 CommitNodeInner::Comp(_, _) => RedeemNodeInner::Comp(left.unwrap(), right.unwrap()),
                 CommitNodeInner::Case(_, _) => RedeemNodeInner::Case(left.unwrap(), right.unwrap()),
-                CommitNodeInner::AssertL(_, _) => {
-                    RedeemNodeInner::AssertL(left.unwrap(), right.unwrap())
-                }
-                CommitNodeInner::AssertR(_, _) => {
-                    RedeemNodeInner::AssertR(left.unwrap(), right.unwrap())
-                }
+                CommitNodeInner::AssertL(_, cmr) => RedeemNodeInner::AssertL(left.unwrap(), cmr),
+                CommitNodeInner::AssertR(cmr, _) => RedeemNodeInner::AssertR(cmr, left.unwrap()),
                 CommitNodeInner::Pair(_, _) => RedeemNodeInner::Pair(left.unwrap(), right.unwrap()),
                 CommitNodeInner::Disconnect(_, _) => {
                     RedeemNodeInner::Disconnect(left.unwrap(), right.unwrap())

@@ -94,9 +94,9 @@ impl Imr {
             CommitNodeInner::Comp(_, _)
             | CommitNodeInner::Case(_, _)
             | CommitNodeInner::Pair(_, _)
-            | CommitNodeInner::AssertL(_, _)
-            | CommitNodeInner::AssertR(_, _)
             | CommitNodeInner::Disconnect(_, _) => imr_iv.update(left.unwrap(), right.unwrap()),
+            CommitNodeInner::AssertL(_, r_cmr) => imr_iv.update(left.unwrap(), r_cmr.into()),
+            CommitNodeInner::AssertR(l_cmr, _) => imr_iv.update(l_cmr.into(), left.unwrap()),
             CommitNodeInner::Witness => imr_iv.update_value(value.unwrap(), &ty.target),
         }
     }

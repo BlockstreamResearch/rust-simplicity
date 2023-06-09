@@ -142,9 +142,9 @@ impl Cmr {
             | CommitNodeInner::Disconnect(l, _) => cmr_iv.update_1(l.cmr()),
             CommitNodeInner::Comp(l, r)
             | CommitNodeInner::Case(l, r)
-            | CommitNodeInner::Pair(l, r)
-            | CommitNodeInner::AssertL(l, r)
-            | CommitNodeInner::AssertR(l, r) => cmr_iv.update(l.cmr(), r.cmr()),
+            | CommitNodeInner::Pair(l, r) => cmr_iv.update(l.cmr(), r.cmr()),
+            CommitNodeInner::AssertL(l, r_cmr) => cmr_iv.update(l.cmr(), *r_cmr),
+            CommitNodeInner::AssertR(l_cmr, r) => cmr_iv.update(*l_cmr, r.cmr()),
         }
     }
 }

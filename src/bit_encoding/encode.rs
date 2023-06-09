@@ -58,10 +58,10 @@ impl<'n, J: Jet> DagLike for EncodeNode<'n, J> {
                 Dag::Case(EncodeNode::Node(left), EncodeNode::Node(right))
             }
             RedeemNodeInner::AssertL(left, rcmr) => {
-                Dag::Case(EncodeNode::Node(left), EncodeNode::Hidden(rcmr.cmr))
+                Dag::Case(EncodeNode::Node(left), EncodeNode::Hidden(*rcmr))
             }
             RedeemNodeInner::AssertR(lcmr, right) => {
-                Dag::Case(EncodeNode::Hidden(lcmr.cmr), EncodeNode::Node(right))
+                Dag::Case(EncodeNode::Hidden(*lcmr), EncodeNode::Node(right))
             }
             RedeemNodeInner::Pair(left, right) => {
                 Dag::Pair(EncodeNode::Node(left), EncodeNode::Node(right))

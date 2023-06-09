@@ -130,9 +130,7 @@ impl Amr {
                     .update(b.tmr().into(), c.tmr().into())
                     .update(left.unwrap().amr, right.unwrap().amr)
             }
-            CommitNodeInner::Case(_, _)
-            | CommitNodeInner::AssertL(_, _)
-            | CommitNodeInner::AssertR(_, _) => {
+            CommitNodeInner::Case(_, _) => {
                 let (sum_a_b, c) = ty.source.split().unwrap();
                 let (a, b) = sum_a_b.split().unwrap();
                 let d = &ty.target;
@@ -140,6 +138,28 @@ impl Amr {
                     .update(a.tmr().into(), b.tmr().into())
                     .update(c.tmr().into(), d.tmr().into())
                     .update(left.unwrap().amr, right.unwrap().amr)
+            }
+            CommitNodeInner::AssertL(_, r_cmr) => {
+                let l_amr = left.as_ref().unwrap().amr;
+                let r_amr = r_cmr.into();
+                let (sum_a_b, c) = ty.source.split().unwrap();
+                let (a, b) = sum_a_b.split().unwrap();
+                let d = &ty.target;
+                amr_iv
+                    .update(a.tmr().into(), b.tmr().into())
+                    .update(c.tmr().into(), d.tmr().into())
+                    .update(l_amr, r_amr)
+            }
+            CommitNodeInner::AssertR(l_cmr, _) => {
+                let l_amr = l_cmr.into();
+                let r_amr = left.as_ref().unwrap().amr;
+                let (sum_a_b, c) = ty.source.split().unwrap();
+                let (a, b) = sum_a_b.split().unwrap();
+                let d = &ty.target;
+                amr_iv
+                    .update(a.tmr().into(), b.tmr().into())
+                    .update(c.tmr().into(), d.tmr().into())
+                    .update(l_amr, r_amr)
             }
             CommitNodeInner::Disconnect(_, _) => {
                 let a = &ty.source;
