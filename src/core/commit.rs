@@ -15,16 +15,16 @@
 
 use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
-use crate::core::iter::{DagIterable, WitnessIterator};
+use crate::core::iter::WitnessIterator;
 use crate::core::redeem::RedeemNodeInner;
 use crate::core::{Context, RedeemNode, Value};
-use crate::dag::{DagLike, PostOrderIter};
+use crate::dag::{self, DagLike, InternalSharing, NoSharing, PostOrderIter};
 use crate::jet::Jet;
 use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
 use crate::types::{self, arrow::Arrow};
-use crate::{analysis, impl_ref_wrapper, Error};
+use crate::{analysis, Error};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::{fmt, io};
@@ -150,13 +150,14 @@ impl<J: Jet> CommitNode<J> {
     }
 
     /// Return an iterator over the unshared nodes of the program
-    pub fn iter(&self) -> PostOrderIter<&Self> {
+    pub fn iter(&self) -> PostOrderIter<&Self, NoSharing> {
         <&Self as DagLike>::post_order_iter(self)
     }
 
-    /// Return an iterator over the unshared nodes of the program, returning
-    /// refcounted pointers to each node.
-    pub fn rc_iter(self: Rc<Self>) -> PostOrderIter<Rc<Self>> {
+    /// Return an iterator over the nodes of the program, returning
+    /// refcounted pointers to each node. Each refcounted pointer
+    /// is returned only once.
+    pub fn rc_iter(self: Rc<Self>) -> PostOrderIter<Rc<Self>, InternalSharing> {
         <Rc<Self> as DagLike>::post_order_iter(self)
     }
 
@@ -600,142 +601,66 @@ impl<J: Jet> CommitNode<J> {
         mut witness: W,
         unshare_witnesses: bool,
     ) -> Result<Rc<RedeemNode<J>>, Error> {
-        let root = RefWrapper(self);
-        let mut to_finalized: HashMap<Imr, Rc<RedeemNode<J>>> = HashMap::new();
-        // Iterate through the DAG again to calculate the value of IMR in the first pass.
-        // Unfortunately, we cannot directly mutate the nodes here, because they are RC
-        // and we cannot have multiple mutable references to the same object.
-        // It is possible to overcome this with Rc<RefCell> as we do in type computation,
-        // but that would leak, Rc<RefCell> everywhere through out the code.
-        // We also cache Value and NodeType that are needed in the second pass.
-        let mut first_pass: HashMap<RefWrapper<J>, Imr> = HashMap::new();
+        // Iterate over either the internally-shared DAG, or the internally-shared DAG
+        // with witnesses unshared. The borrowck makes this a little irritating to express.
+        let mut share = InternalSharing::default();
+        let mut unshare = dag::UnshareWitnessDisconnect::new(share.clone());
+        let tracker: &mut dyn dag::SharingTracker<&CommitNode<J>> = if unshare_witnesses {
+            &mut unshare
+        } else {
+            &mut share
+        };
 
-        let mut root_first_pass_imr = None;
-        for commit in root.iter_post_order() {
-            // 0. Skip witness nodes when we encounter them from `post_order_it`, since
-            //    we treat them specially in order to "unshare" them.
-            if unshare_witnesses {
-                if let CommitNodeInner::Witness = commit.0.inner {
-                    continue;
-                }
-            }
+        // Map from a node's index to its first-pass IMR
+        let mut first_pass: HashMap<usize, Imr> = HashMap::new();
+        // Map from a node's first-pass IMR to its index and final node
+        let mut finalized: HashMap<Imr, Rc<RedeemNode<J>>> = HashMap::new();
+        // IMR of the final node to be iterated over
+        let mut root_imr = None;
+        for data in self.post_order_iter_with_tracker(tracker) {
+            // 0. Obtain data needed for IMR
+            let left_data = data
+                .left_index
+                .and_then(|idx| first_pass.get(&idx))
+                .cloned();
+            let right_data = data
+                .right_index
+                .and_then(|idx| first_pass.get(&idx))
+                .cloned();
 
-            // 1. Compute and store first-pass IMRs
-            fn first_pass_child_imr<J: Jet, W: WitnessIterator>(
-                unshare_witnesses: bool,
-                child: Option<RefWrapper<J>>,
-                witness: &mut W,
-                first_pass: &HashMap<RefWrapper<J>, Imr>,
-                to_finalized: &mut HashMap<Imr, Rc<RedeemNode<J>>>,
-            ) -> Result<Option<Imr>, Error> {
-                match child {
-                    Some(x) if unshare_witnesses => {
-                        if let CommitNodeInner::Witness = x.0.inner {
-                            // Treat witness children as fresh; don't look them up.
-                            let wit_arrow = x.0.arrow.finalize()?;
-                            let wit_val = witness.next(&wit_arrow.target)?;
-                            let wit_first_pass_imr = Imr::compute(
-                                &x.0.inner,
-                                None, // left child
-                                None, // right child
-                                Some(&wit_val),
-                                &wit_arrow,
-                            );
-
-                            // Since they have no children we can do the entire second pass here...
-                            let wit_imr =
-                                Imr::compute_pass2(wit_first_pass_imr, &x.0.inner, &wit_arrow);
-                            let amr =
-                                Amr::compute(&x.0.inner, None, None, Some(&wit_val), &wit_arrow);
-                            let bounds = analysis::compute_bounds(x.0, None, None, &wit_arrow);
-                            let node = RedeemNode {
-                                inner: RedeemNodeInner::Witness(wit_val),
-                                cmr: x.0.cmr,
-                                imr: wit_imr,
-                                amr,
-                                ty: wit_arrow,
-                                bounds,
-                            };
-                            // ...and store the finalized node
-                            to_finalized.insert(wit_first_pass_imr, Rc::new(node));
-
-                            Ok(Some(wit_first_pass_imr))
-                        } else {
-                            Ok(Some(
-                                *first_pass
-                                    .get(&x)
-                                    .expect("Children come before parent in post order"),
-                            ))
-                        }
-                    }
-                    Some(x) => Ok(Some(
-                        *first_pass
-                            .get(&x)
-                            .expect("Children come before parent in post order"),
-                    )),
-                    None => Ok(None),
-                }
-            }
-
-            let left_imr = first_pass_child_imr(
-                unshare_witnesses,
-                commit.get_left(),
-                &mut witness,
-                &first_pass,
-                &mut to_finalized,
-            )?;
-            let right_imr = first_pass_child_imr(
-                unshare_witnesses,
-                commit.get_right(),
-                &mut witness,
-                &first_pass,
-                &mut to_finalized,
-            )?;
-
-            let final_ty = commit.0.arrow.finalize()?;
-            let value = if let CommitNodeInner::Witness = commit.0.inner {
-                let v = witness.next(&final_ty.target)?;
-                Some(v)
+            let final_ty = data.node.arrow.finalize()?;
+            let value = if let CommitNodeInner::Witness = data.node.inner {
+                Some(witness.next(&final_ty.target)?)
             } else {
                 None
             };
 
+            // 1. Compute first-pass IMR and record.
             let first_pass_imr = Imr::compute(
-                &commit.0.inner,
-                left_imr,
-                right_imr,
+                &data.node.inner,
+                left_data,
+                right_data,
                 value.as_ref(),
                 &final_ty,
             );
-            first_pass.insert(commit, first_pass_imr);
-            root_first_pass_imr = Some(first_pass_imr); // on the final iteration this will be correct
+            first_pass.insert(data.index, first_pass_imr);
 
-            // 2. Compute and store complete RedeemNode
-            let left = left_imr.map(|x| {
-                to_finalized
-                    .get(&x)
-                    .expect("Children come before parent in post order")
-                    .clone()
-            });
-            let right = right_imr.map(|x| {
-                to_finalized
-                    .get(&x)
-                    .expect("Children come before parent in post order")
-                    .clone()
-            });
+            // 2. Finalize the node
+            let left = left_data.map(|imr| Rc::clone(&finalized[&imr]));
+            let right = right_data.map(|imr| Rc::clone(&finalized[&imr]));
 
-            let imr = Imr::compute_pass2(first_pass_imr, &commit.0.inner, &final_ty);
+            let imr = Imr::compute_pass2(first_pass_imr, &data.node.inner, &final_ty);
             let amr = Amr::compute(
-                &commit.0.inner,
+                &data.node.inner,
                 left.clone(),
                 right.clone(),
                 value.as_ref(),
                 &final_ty,
             );
-            let bounds = analysis::compute_bounds(commit.0, left.clone(), right.clone(), &final_ty);
+            let bounds =
+                analysis::compute_bounds(data.node, left.clone(), right.clone(), &final_ty);
 
-            // Verbose but necessary thanks to Rust
-            let inner = match commit.0.inner {
+            let inner = match data.node.inner {
                 CommitNodeInner::Iden => RedeemNodeInner::Iden,
                 CommitNodeInner::Unit => RedeemNodeInner::Unit,
                 CommitNodeInner::InjL(_) => RedeemNodeInner::InjL(left.unwrap()),
@@ -760,20 +685,22 @@ impl<J: Jet> CommitNode<J> {
                 CommitNodeInner::Jet(jet) => RedeemNodeInner::Jet(jet),
                 CommitNodeInner::Word(ref w) => RedeemNodeInner::Word(w.clone()),
             };
-            let node = RedeemNode {
-                inner,
-                cmr: commit.0.cmr,
-                imr,
-                amr,
-                ty: final_ty,
-                bounds,
-            };
-
-            to_finalized.insert(first_pass_imr, Rc::new(node));
+            finalized.insert(
+                first_pass_imr,
+                Rc::new(RedeemNode {
+                    inner,
+                    cmr: data.node.cmr,
+                    imr,
+                    amr,
+                    ty: final_ty,
+                    bounds,
+                }),
+            );
+            // This will be correct on the last iteration
+            root_imr = Some(first_pass_imr);
         }
-
         witness.finish()?;
-        Ok(to_finalized[&root_first_pass_imr.unwrap()].clone())
+        Ok(finalized.remove(&root_imr.unwrap()).unwrap())
     }
 
     /// Decode a Simplicity program from bits, without the witness data.
@@ -811,13 +738,6 @@ impl<J: Jet> fmt::Display for CommitNode<J> {
         )
     }
 }
-
-/// Wrapper of references to [`CommitNode`].
-/// Zero-cost implementation of `Copy`, `Eq` and `Hash` via pointer equality.
-#[derive(Debug)]
-pub struct RefWrapper<'a, J: Jet>(pub &'a CommitNode<J>);
-
-impl_ref_wrapper!(RefWrapper);
 
 #[cfg(test)]
 mod tests {

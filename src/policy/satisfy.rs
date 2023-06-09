@@ -291,6 +291,7 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dag::{DagLike, NoSharing};
     use crate::exec::BitMachine;
     use bitcoin_hashes::{sha256, Hash};
     use std::convert::TryFrom;
@@ -326,7 +327,10 @@ mod tests {
     }
 
     fn to_witness(program: &RedeemNode<Elements>) -> Vec<&Value> {
-        program.iter().into_deduped_witnesses().collect()
+        program
+            .post_order_iter::<NoSharing>()
+            .into_witnesses()
+            .collect()
     }
 
     #[test]
@@ -503,29 +507,15 @@ mod tests {
         let assert_branches = |policy: &Policy<bitcoin::XOnlyPublicKey>, bits: &[bool]| {
             let program = policy.satisfy(&satisfier).expect("satisfiable");
             let witness = to_witness(&program);
-            // Because of witness sharing, each bit is only encoded once, leading
-            // to some awkward logic here to validate the actual witness.
             assert_eq!(
                 witness.len(),
-                usize::from(bits.iter().any(|b| *b)) // a witness for any 1 bits
-                    + usize::from(bits.iter().any(|b| !*b)) // one for any 0 bits
-                    + bits.iter().filter(|b| **b).count(), // and preimages for each 1 bit
+                bits.len() + bits.iter().filter(|b| **b).count(),
             );
 
-            let mut seen_0 = false;
-            let mut seen_1 = false;
             let mut witidx = 0;
             for (bit_n, bit) in bits.iter().copied().enumerate() {
-                if !bit && !seen_0 {
-                    assert_eq!(witness[witidx], &Value::u1(0));
-                    seen_0 = true;
-                    witidx += 1;
-                }
-                if bit && !seen_1 {
-                    assert_eq!(witness[witidx], &Value::u1(1));
-                    seen_1 = true;
-                    witidx += 1;
-                }
+                assert_eq!(witness[witidx], &Value::u1(bit.into()));
+                witidx += 1;
                 if bit {
                     let preimage_bytes = witness[witidx].try_to_bytes().expect("to bytes");
                     let witness_preimage =

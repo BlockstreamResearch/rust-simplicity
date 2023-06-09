@@ -15,14 +15,14 @@
 use crate::bititer::BitIter;
 use crate::bitwriter::BitWriter;
 use crate::core::Value;
-use crate::dag::{DagLike, PostOrderIter};
+use crate::dag::{DagLike, FullSharing, InternalSharing, NoSharing, PostOrderIter};
 use crate::decode::WitnessDecoder;
 use crate::jet::Jet;
 use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
 use crate::types::{self, arrow::FinalArrow};
-use crate::{encode, impl_ref_wrapper, sharing, Error};
+use crate::{encode, Error};
 use std::rc::Rc;
 use std::{fmt, io};
 
@@ -136,13 +136,14 @@ impl<J: Jet> RedeemNode<J> {
     }
 
     /// Return an iterator over the unshared nodes of the program
-    pub fn iter(&self) -> PostOrderIter<&Self> {
+    pub fn iter(&self) -> PostOrderIter<&Self, NoSharing> {
         <&Self as DagLike>::post_order_iter(self)
     }
 
-    /// Return an iterator over the unshared nodes of the program, returning
-    /// refcounted pointers to each node.
-    pub fn rc_iter(self: Rc<Self>) -> PostOrderIter<Rc<Self>> {
+    /// Return an iterator over the nodes of the program, returning
+    /// refcounted pointers to each node. Each refcounted pointer
+    /// is returned only once.
+    pub fn rc_iter(self: Rc<Self>) -> PostOrderIter<Rc<Self>, InternalSharing> {
         <Rc<Self> as DagLike>::post_order_iter(self)
     }
 
@@ -155,9 +156,9 @@ impl<J: Jet> RedeemNode<J> {
 
     /// Return an iterator over the types of values that make up a valid witness for the program.
     pub fn get_witness_types(&self) -> impl Iterator<Item = &types::Final> {
-        self.iter().filter_map(|node| {
-            if let RedeemNodeInner::Witness(_) = &node.inner {
-                Some(node.ty.target.as_ref())
+        self.iter().filter_map(|data| {
+            if let RedeemNodeInner::Witness(_) = &data.node.inner {
+                Some(data.node.ty.target.as_ref())
             } else {
                 None
             }
@@ -170,7 +171,16 @@ impl<J: Jet> RedeemNode<J> {
         let witness = WitnessDecoder::new(bits)?;
         let program = commit.finalize(witness, false)?;
 
-        if sharing::check_maximal_sharing(program.iter()) {
+        let iter = program
+            .as_ref()
+            .post_order_iter::<InternalSharing>()
+            .map(|data| data.node.imr);
+        let fully_shared_iter = program
+            .as_ref()
+            .post_order_iter::<FullSharing>()
+            .map(|data| data.node.imr);
+
+        if iter.eq(fully_shared_iter) {
             Ok(program)
         } else {
             Err(Error::SharingNotMaximal)
@@ -179,8 +189,9 @@ impl<J: Jet> RedeemNode<J> {
 
     /// Encode a Simplicity program to bits, including the witness data.
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
-        let program_bits = encode::encode_program(self.iter(), w)?;
-        let witness_bits = encode::encode_witness(self.iter().into_deduped_witnesses(), w)?;
+        let sharing_iter = self.post_order_iter::<FullSharing>();
+        let program_bits = encode::encode_program(sharing_iter.clone(), w)?;
+        let witness_bits = encode::encode_witness(sharing_iter.into_witnesses(), w)?;
         w.flush_all()?;
         Ok(program_bits + witness_bits)
     }
@@ -195,13 +206,6 @@ impl<J: Jet> fmt::Display for RedeemNode<J> {
         )
     }
 }
-
-/// Wrapper of references to [`RedeemNode`].
-/// Zero-cost implementation of `Copy`, `Eq` and `Hash` via pointer equality.
-#[derive(Debug)]
-pub struct RefWrapper<'a, J: Jet>(pub &'a RedeemNode<J>);
-
-impl_ref_wrapper!(RefWrapper);
 
 #[cfg(test)]
 mod tests {
@@ -256,5 +260,19 @@ mod tests {
         ];
         let mut iter = BitIter::from(&eqwits[..]);
         RedeemNode::<crate::jet::Core>::decode(&mut iter).unwrap();
+    }
+
+    #[test]
+    fn witness_consumed() {
+        // "main = unit", but with a witness attached. Found by fuzzer.
+        let badwit = vec![0x27, 0x00];
+        let mut iter = BitIter::from(&badwit[..]);
+        if let Err(Error::InconsistentWitnessLength) =
+            RedeemNode::<crate::jet::Core>::decode(&mut iter)
+        {
+            // ok
+        } else {
+            panic!("accepted program with bad witness length")
+        }
     }
 }

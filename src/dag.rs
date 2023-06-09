@@ -14,14 +14,15 @@
 
 //! General DAG iteration utilities
 
-use std::collections::{HashMap, HashSet};
-use std::fmt;
+use std::collections::HashMap;
 use std::rc::Rc;
+use std::{fmt, marker};
 
 use crate::core::commit::{CommitNode, CommitNodeInner};
 use crate::core::redeem::{RedeemNode, RedeemNodeInner};
 use crate::core::Value;
 use crate::jet;
+use crate::Imr;
 
 /// Generic container for Simplicity DAGs
 pub enum Dag<T> {
@@ -57,10 +58,166 @@ pub enum Dag<T> {
     Word,
 }
 
+/// How much sharing/expansion to do when running an iterator over a DAG
+///
+/// This object works by recording and looking up nodes in a DAG as they are
+/// being iterated over. If the tracker says that an element has been seen
+/// before, it will not be yielded again; so for example, a tracker which
+/// records nodes by their IMR will implement full sharing, while a tracker
+/// which claims to have never seen any node before will implement no
+/// sharing at all.
+pub trait SharingTracker<D: DagLike> {
+    /// Marks an object as having been seen, and record the index
+    /// when it was seen.
+    fn record(
+        &mut self,
+        object: &D,
+        index: usize,
+        left_child: Option<usize>,
+        right_child: Option<usize>,
+    );
+
+    /// Check whether an object has been seen before; if so, return
+    /// the index it was recorded at.
+    fn seen_before(&self, object: &D) -> Option<usize>;
+}
+
+// Annoyingly we need to implement this explicitly
+impl<D: DagLike> SharingTracker<D> for &mut dyn SharingTracker<D> {
+    fn record(
+        &mut self,
+        object: &D,
+        index: usize,
+        left_child: Option<usize>,
+        right_child: Option<usize>,
+    ) {
+        (**self).record(object, index, left_child, right_child)
+    }
+    fn seen_before(&self, object: &D) -> Option<usize> {
+        (**self).seen_before(object)
+    }
+}
+
+/// Do not share at all; yield every node in the expanded DAG
+#[derive(Clone, Debug, Default)]
+pub struct NoSharing;
+
+impl<D: DagLike> SharingTracker<D> for NoSharing {
+    fn record(&mut self, _: &D, _: usize, _: Option<usize>, _: Option<usize>) {}
+    fn seen_before(&self, _: &D) -> Option<usize> {
+        None
+    }
+}
+
+/// Share using pointer identity, i.e. yield each node only once, where two
+/// nodes are the same iff they both point to the same object.
+#[derive(Clone, Debug, Default)]
+pub struct InternalSharing {
+    map: HashMap<PointerId, usize>,
+}
+
+impl<D: DagLike> SharingTracker<D> for InternalSharing {
+    fn record(&mut self, d: &D, index: usize, _: Option<usize>, _: Option<usize>) {
+        self.map.insert(PointerId::from(d), index);
+    }
+    fn seen_before(&self, d: &D) -> Option<usize> {
+        self.map.get(&PointerId::from(d)).copied()
+    }
+}
+
+/// Full sharing: yield a node with each IMR only once. This can only be
+/// used with `RedeemNode`s, since `CommitNode`s do not have enough
+/// information to determine their IMRs.
+#[derive(Clone, Debug, Default)]
+pub struct FullSharing {
+    map: HashMap<Imr, usize>,
+}
+
+impl<J: jet::Jet> SharingTracker<&RedeemNode<J>> for FullSharing {
+    fn record(&mut self, d: &&RedeemNode<J>, index: usize, _: Option<usize>, _: Option<usize>) {
+        self.map.insert(d.imr, index);
+    }
+    fn seen_before(&self, d: &&RedeemNode<J>) -> Option<usize> {
+        self.map.get(&d.imr).copied()
+    }
+}
+
+/// A wrapper around any other sharing tracker which forces `witness` and
+/// `disconnect` combinators, and their ancestors, to be unshared
+///
+/// This is useful when providing tools for users to manipulate non-final
+/// programs (programs without witnesses), they should always be presented
+/// with a view in which witness and disconnect nodes are unshared, since
+/// these nodes take input data which is not committed in the CMR.
+///
+/// If these nodes were shared, it may create the impression that data
+/// attached to the node along one path is automatically attached to the
+/// node along every other path, which is dangerously untrue. If the user
+/// actually wants to access the same witness data from multiple places
+/// in the tree, they must write explicit logic which enforces that both
+/// locations have the same data.
+#[derive(Clone, Debug, Default)]
+pub struct UnshareWitnessDisconnect<D: DagLike, T: SharingTracker<D>> {
+    /// The underlying sharing tracker
+    inner: T,
+    /// Map from a node's pointer ID to whether it is a witness node
+    ptrid_witness: HashMap<PointerId, bool>,
+    /// Map from a node's index to whether it is a witness node (needed to
+    /// determine whether a nodes' children are witnesses
+    index_witness: HashMap<usize, bool>,
+    phantom: marker::PhantomData<D>,
+}
+
+impl<D: DagLike, T: SharingTracker<D>> UnshareWitnessDisconnect<D, T> {
+    /// Wrap an existing sharing tracker in the witness-unsharing tracker
+    pub fn new(inner: T) -> Self {
+        UnshareWitnessDisconnect {
+            inner,
+            ptrid_witness: HashMap::new(),
+            index_witness: HashMap::new(),
+            phantom: marker::PhantomData,
+        }
+    }
+}
+
+impl<D: DagLike, T: SharingTracker<D>> SharingTracker<D> for UnshareWitnessDisconnect<D, T> {
+    fn record(
+        &mut self,
+        d: &D,
+        index: usize,
+        left_child: Option<usize>,
+        right_child: Option<usize>,
+    ) {
+        self.inner.record(d, index, left_child, right_child);
+
+        let mut is_witness = false;
+        is_witness |= left_child
+            .map(|idx| self.index_witness[&idx])
+            .unwrap_or(false);
+        is_witness |= right_child
+            .map(|idx| self.index_witness[&idx])
+            .unwrap_or(false);
+        is_witness |= match d.as_dag_node() {
+            Dag::Disconnect(..) => true,
+            Dag::Witness => true,
+            _ => false,
+        };
+        self.ptrid_witness.insert(PointerId::from(d), is_witness);
+        self.index_witness.insert(index, is_witness);
+    }
+
+    fn seen_before(&self, d: &D) -> Option<usize> {
+        match self.ptrid_witness.get(&PointerId::from(d)) {
+            Some(true) => None,
+            _ => self.inner.seen_before(d),
+        }
+    }
+}
+
 /// Object representing pointer identity of a DAG node
 ///
 /// Used to populate a hashset to determine whether or not a given node has
-/// already been visited by an iterator.
+/// already been tracker by an iterator.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 struct PointerId(usize);
 
@@ -130,11 +287,27 @@ pub trait DagLike: Sized {
     ///
     /// Each node is only yielded once, at the leftmost position that it
     /// appears in the DAG.
-    fn post_order_iter(self) -> PostOrderIter<Self> {
+    fn post_order_iter<S: SharingTracker<Self> + Default>(self) -> PostOrderIter<Self, S> {
         PostOrderIter {
-            stack: Vec::new(),
-            maybe_current: Some(self),
-            visited: HashSet::new(),
+            index: 0,
+            stack: vec![IterStackItem::unprocessed(self, Previous::Root)],
+            tracker: Default::default(),
+        }
+    }
+
+    /// Obtains an post-order iterator of all the nodes rooted at DAG, using the
+    /// given tracker.
+    ///
+    /// Ordinary users will never need to use this method; but it is available to
+    /// enable obscure iteration use-cases.
+    fn post_order_iter_with_tracker<S: SharingTracker<Self>>(
+        self,
+        tracker: S,
+    ) -> PostOrderIter<Self, S> {
+        PostOrderIter {
+            index: 0,
+            stack: vec![IterStackItem::unprocessed(self, Previous::Root)],
+            tracker,
         }
     }
 }
@@ -263,68 +436,235 @@ impl<J: jet::Jet> DagLike for Rc<RedeemNode<J>> {
     }
 }
 
+enum Child<D: DagLike> {
+    None,
+    Repeat { idx: usize },
+    New(D),
+}
+
+#[derive(Clone, Debug)]
+enum Previous {
+    /// This is the root element and there are no previous elements
+    Root,
+    /// This is a left child and the previous element is its parent
+    ParentLeft,
+    /// This is a left child and the previous element is its sibling
+    SiblingLeft,
+    /// This is a right child and the previous element is its parent
+    ParentRight,
+}
+
+#[derive(Clone, Debug)]
+struct IterStackItem<D: DagLike> {
+    /// The element on the stack
+    elem: D,
+    /// Whether we have dealt with this item (and pushed its children,
+    /// if any) yet.
+    processed: bool,
+    /// If the item has been processed, the index of its left child, if known
+    left_idx: Option<usize>,
+    /// If the item has been processed, the index of its right child, if known
+    right_idx: Option<usize>,
+    /// Whether the element is a left- or right-child of its parent
+    previous: Previous,
+}
+
+impl<D: DagLike> IterStackItem<D> {
+    /// Constructor for a new stack item with a given element and relationship
+    /// to its parent.
+    fn unprocessed(elem: D, previous: Previous) -> Self {
+        IterStackItem {
+            elem,
+            processed: false,
+            left_idx: None,
+            right_idx: None,
+            previous,
+        }
+    }
+
+    fn left_child<V: SharingTracker<D>>(&self, tracker: &V) -> Child<D> {
+        match self.elem.left_child() {
+            Some(child) => match tracker.seen_before(&child) {
+                Some(idx) => Child::Repeat { idx },
+                None => Child::New(child),
+            },
+            None => Child::None,
+        }
+    }
+
+    fn right_child<V: SharingTracker<D>>(&self, tracker: &V) -> Child<D> {
+        match self.elem.right_child() {
+            Some(child) => match tracker.seen_before(&child) {
+                Some(idx) => Child::Repeat { idx },
+                None => Child::New(child),
+            },
+            None => Child::None,
+        }
+    }
+}
+
 /// Iterates over a DAG in _post order_.
 ///
 /// That means nodes are yielded in the order (left child, right child, parent).
-/// Shared nodes appear only once at their leftmost position.
+/// Nodes may be repeated or not, based on the `S` parameter which defines how
+/// the iterator treats sharing.
 #[derive(Clone, Debug)]
-pub struct PostOrderIter<D: DagLike> {
-    stack: Vec<D>,
-    maybe_current: Option<D>,
-    visited: HashSet<PointerId>,
+pub struct PostOrderIter<D: DagLike, S: SharingTracker<D>> {
+    /// The index of the next item to be yielded
+    index: usize,
+    /// A stack of elements to be yielded; each element is a node, then its left
+    /// and right children (if they exist and if they have been yielded already)
+    stack: Vec<IterStackItem<D>>,
+    /// Data which tracks which nodes have been yielded already and therefore
+    /// should be skipped.
+    tracker: S,
 }
 
-impl<D: DagLike> Iterator for PostOrderIter<D> {
-    type Item = D;
+/// A set of data yielded by a `PostOrderIter`
+pub struct PostOrderIterItem<D: DagLike> {
+    /// The actual node data
+    pub node: D,
+    /// The index of this node (equivalent to if you'd called `.enumerate()` on
+    /// the iterator)
+    pub index: usize,
+    /// The index of this node's left child, if it has a left child
+    pub left_index: Option<usize>,
+    /// The index of this node's right child, if it has a left child
+    pub right_index: Option<usize>,
+}
+
+impl<D: DagLike, S: SharingTracker<D>> Iterator for PostOrderIter<D, S> {
+    type Item = PostOrderIterItem<D>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            if let Some(current) = self.maybe_current.take() {
-                let left = current.left_child();
-                self.stack.push(current);
-
-                if let Some(left) = left {
-                    if !self.visited.contains(&PointerId::from(&left)) {
-                        self.maybe_current = Some(left);
-                        continue;
+            // Look at the current top item on the stack
+            if let Some(mut current) = self.stack.pop() {
+                if !current.processed {
+                    current.processed = true;
+                    // When we first encounter an item, it is completely unknown; it is
+                    // nominally the next item to be yielded, but it might have children,
+                    // and if so, they come first
+                    match (
+                        current.left_child(&self.tracker),
+                        current.right_child(&self.tracker),
+                    ) {
+                        // No children is easy, just mark it processed and iterate.
+                        // (We match _ for the right child but we know that if the left one
+                        // is Child::None, then the right one will be Child::None as well.)
+                        (Child::None, _) => {
+                            self.stack.push(current);
+                        }
+                        // Only a left child, already yielded
+                        (Child::Repeat { idx }, Child::None) => {
+                            current.left_idx = Some(idx);
+                            self.stack.push(current);
+                        }
+                        // Only a left child, new
+                        (Child::New(child), Child::None) => {
+                            self.stack.push(current);
+                            self.stack
+                                .push(IterStackItem::unprocessed(child, Previous::ParentLeft));
+                        }
+                        // Two children, both already yielded
+                        (Child::Repeat { idx: lidx }, Child::Repeat { idx: ridx }) => {
+                            current.left_idx = Some(lidx);
+                            current.right_idx = Some(ridx);
+                            self.stack.push(current);
+                        }
+                        // Two children, one yielded already
+                        (Child::New(child), Child::Repeat { idx }) => {
+                            current.right_idx = Some(idx);
+                            self.stack.push(current);
+                            self.stack
+                                .push(IterStackItem::unprocessed(child, Previous::ParentLeft));
+                        }
+                        (Child::Repeat { idx }, Child::New(child)) => {
+                            current.left_idx = Some(idx);
+                            self.stack.push(current);
+                            self.stack
+                                .push(IterStackItem::unprocessed(child, Previous::ParentRight));
+                        }
+                        // Two children, neither yielded already
+                        (Child::New(lchild), Child::New(rchild)) => {
+                            self.stack.push(current);
+                            self.stack
+                                .push(IterStackItem::unprocessed(rchild, Previous::ParentRight));
+                            self.stack
+                                .push(IterStackItem::unprocessed(lchild, Previous::SiblingLeft));
+                        }
                     }
-                }
-                // else
-                self.maybe_current = None;
-            } else if let Some(top) = self.stack.last() {
-                if let Some(right) = top.right_child() {
-                    if !self.visited.contains(&PointerId::from(&right)) {
-                        self.maybe_current = Some(right);
-                        continue;
+                } else {
+                    // The next time we encounter an item, we have the indices for its children
+                    // (which we ignore for now, but will use in a future commit) and can yield
+                    // it. But first we need to update the indices of its parent.
+                    let mut check_sibling = false;
+                    let stack_len = self.stack.len();
+                    match current.previous {
+                        Previous::Root => {
+                            assert_eq!(stack_len, 0);
+                        }
+                        Previous::ParentLeft => {
+                            assert!(self.stack[stack_len - 1].processed);
+                            self.stack[stack_len - 1].left_idx = Some(self.index);
+                        }
+                        Previous::ParentRight => {
+                            assert!(self.stack[stack_len - 1].processed);
+                            self.stack[stack_len - 1].right_idx = Some(self.index);
+                        }
+                        Previous::SiblingLeft => {
+                            assert!(self.stack[stack_len - 2].processed);
+                            self.stack[stack_len - 2].left_idx = Some(self.index);
+                            check_sibling = true;
+                        }
                     }
+                    self.tracker.record(
+                        &current.elem,
+                        self.index,
+                        current.left_idx,
+                        current.right_idx,
+                    );
+                    // There is a special case here where we are yielding a node which
+                    // is identical to its sibling (according to the sharing tracker).
+                    // In this case we have a repeated node which nonetheless made it
+                    // into the stack, so we pop it here.
+                    if check_sibling
+                        && self
+                            .tracker
+                            .seen_before(&self.stack[stack_len - 1].elem)
+                            .is_some()
+                    {
+                        self.stack[stack_len - 2].right_idx = Some(self.index);
+                        self.stack.pop();
+                    }
+                    self.index += 1;
+                    return Some(PostOrderIterItem {
+                        node: current.elem,
+                        index: self.index - 1,
+                        left_index: current.left_idx,
+                        right_index: current.right_idx,
+                    });
                 }
-                // else
-                let top = self.stack.pop().unwrap();
-                self.visited.insert(PointerId::from(&top));
-
-                return Some(top);
             } else {
+                // If there is nothing on the stack we are done.
                 return None;
             }
         }
     }
 }
 
-impl<'a, J: jet::Jet> PostOrderIter<&'a RedeemNode<J>> {
+impl<'a, J: jet::Jet, S: SharingTracker<&'a RedeemNode<J>> + Clone>
+    PostOrderIter<&'a RedeemNode<J>, S>
+{
     /// Adapt the iterator to only yield witnesses
     ///
     /// The witnesses are yielded in the order in which they appear in the DAG
     /// *except* that each witness is only yielded once, and future occurences
     /// are skipped.
-    pub fn into_deduped_witnesses(self) -> impl Iterator<Item = &'a Value> + Clone {
-        let mut seen_imrs = HashSet::new();
-        self.filter_map(move |node| {
-            if let RedeemNodeInner::Witness(value) = &node.inner {
-                if seen_imrs.insert(node.imr) {
-                    Some(value)
-                } else {
-                    None
-                }
+    pub fn into_witnesses(self) -> impl Iterator<Item = &'a Value> + Clone {
+        self.filter_map(|data| {
+            if let RedeemNodeInner::Witness(value) = &data.node.inner {
+                Some(value)
             } else {
                 None
             }
@@ -332,7 +672,7 @@ impl<'a, J: jet::Jet> PostOrderIter<&'a RedeemNode<J>> {
     }
 }
 
-impl<D: DagLike> PostOrderIter<D> {
+impl<D: DagLike, S: SharingTracker<D>> PostOrderIter<D, S> {
     /// Display the DAG as an indexed list in post order.
     ///
     /// `display_body()` formats the node body in front of the node indices.
@@ -349,7 +689,7 @@ impl<D: DagLike> PostOrderIter<D> {
     {
         let mut node_to_index = HashMap::new();
 
-        for (index, node) in self.enumerate() {
+        for (index, node) in self.map(|data| data.node).enumerate() {
             write!(f, "{}: ", index)?;
             display_body(&node, f)?;
 
