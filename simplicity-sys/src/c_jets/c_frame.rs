@@ -3,6 +3,7 @@
 
 use super::frame_ffi;
 use super::frame_ffi::CFrameItem;
+use std::mem;
 
 impl CFrameItem {
     /// Allocate a new frame item with dummy values
@@ -48,9 +49,9 @@ impl CFrameItem {
 
 // Number of uwords required to hold n bits
 pub fn round_u_word(n: usize) -> usize {
-    unsafe { (n + 8 * frame_ffi::c_sizeof_UWORD - 1) / (8 * frame_ffi::c_sizeof_UWORD) }
+    (n + 8 * mem::size_of::<crate::ffi::UWORD>() - 1) / (8 * mem::size_of::<crate::ffi::UWORD>())
 }
 
 pub fn ffi_bytes_size(n: usize) -> usize {
-    unsafe { round_u_word(n) * frame_ffi::c_sizeof_UWORD }
+    round_u_word(n) * mem::size_of::<crate::ffi::UWORD>()
 }

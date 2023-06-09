@@ -377,6 +377,19 @@ mod tests {
     }
 
     #[test]
+    fn extra_nodes() {
+        // main = comp unit unit # but with an extra unconnected `unit` stuck on the beginning
+        // I created this unit test by hand
+        let cuu = vec![0xa9, 0x48, 0x00];
+        let mut iter = BitIter::from(&cuu[..]);
+        let err = decode_program::<_, crate::jet::Core>(&mut iter).unwrap_err();
+        if let Error::NotInCanonicalOrder = err {
+        } else {
+            panic!("Should have gotten noncanonical order error, got {}", err);
+        }
+    }
+
+    #[test]
     #[cfg(feature = "elements")]
     fn decode_schnorr() {
         #[rustfmt::skip]
