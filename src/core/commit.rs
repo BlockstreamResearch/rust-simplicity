@@ -612,7 +612,7 @@ impl<J: Jet> CommitNode<J> {
 
         let mut root_first_pass_imr = None;
         for commit in self.post_order_iter::<InternalSharing>() {
-            let commit = RefWrapper(commit);
+            let commit = RefWrapper(commit.node);
             // 0. Skip witness nodes when we encounter them from `post_order_it`, since
             //    we treat them specially in order to "unshare" them.
             if unshare_witnesses {

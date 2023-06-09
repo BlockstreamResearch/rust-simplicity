@@ -22,10 +22,8 @@
 use crate::bitwriter::BitWriter;
 use crate::core::redeem::{RedeemNode, RedeemNodeInner};
 use crate::core::Value;
-use crate::dag::{FullSharing, PostOrderIter};
+use crate::dag::{FullSharing, PostOrderIter, PostOrderIterItem};
 use crate::jet::Jet;
-use crate::Imr;
-use std::collections::HashMap;
 use std::{io, mem};
 
 /// Encode a Simplicity program to bits, without witness data.
@@ -39,12 +37,10 @@ pub fn encode_program<W: io::Write, J: Jet>(
     let len = len_program.count();
 
     let start_n = w.n_total_written();
-    let mut node_to_index = HashMap::new();
     encode_natural(len, w)?;
 
-    for (index, node) in program.enumerate() {
-        node_to_index.insert(node.imr, index);
-        encode_node(node, index, &node_to_index, w)?;
+    for node in program {
+        encode_node(node, w)?;
     }
 
     Ok(w.n_total_written() - start_n)
@@ -52,22 +48,18 @@ pub fn encode_program<W: io::Write, J: Jet>(
 
 /// Encode a node to bits.
 fn encode_node<W: io::Write, J: Jet>(
-    node: &RedeemNode<J>,
-    index: usize,
-    node_to_index: &HashMap<Imr, usize>,
+    data: PostOrderIterItem<&RedeemNode<J>>,
     w: &mut BitWriter<W>,
 ) -> io::Result<()> {
-    if let Some(left) = node.get_left() {
-        let i_abs = *node_to_index.get(&left.imr).unwrap();
-        debug_assert!(i_abs < index);
-        let i = index - i_abs;
+    if let Some(i_abs) = data.left_index {
+        debug_assert!(i_abs < data.index);
+        let i = data.index - i_abs;
 
-        if let Some(right) = node.get_right() {
-            let j_abs = *node_to_index.get(&right.imr).unwrap();
-            debug_assert!(j_abs < index);
-            let j = index - j_abs;
+        if let Some(j_abs) = data.right_index {
+            debug_assert!(j_abs < data.index);
+            let j = data.index - j_abs;
 
-            match &node.inner {
+            match &data.node.inner {
                 RedeemNodeInner::Comp(_, _) => {
                     w.write_bits_be(0, 5)?;
                 }
@@ -88,7 +80,7 @@ fn encode_node<W: io::Write, J: Jet>(
             encode_natural(i, w)?;
             encode_natural(j, w)?;
         } else {
-            match &node.inner {
+            match &data.node.inner {
                 RedeemNodeInner::InjL(_) => {
                     w.write_bits_be(4, 5)?;
                 }
@@ -107,7 +99,7 @@ fn encode_node<W: io::Write, J: Jet>(
             encode_natural(i, w)?;
         }
     } else {
-        match &node.inner {
+        match &data.node.inner {
             RedeemNodeInner::Iden => {
                 w.write_bits_be(8, 5)?;
             }

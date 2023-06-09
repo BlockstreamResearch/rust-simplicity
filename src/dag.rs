@@ -426,8 +426,21 @@ pub struct PostOrderIter<D: DagLike, S: SharingTracker<D>> {
     tracker: S,
 }
 
+/// A set of data yielded by a `PostOrderIter`
+pub struct PostOrderIterItem<D: DagLike> {
+    /// The actual node data
+    pub node: D,
+    /// The index of this node (equivalent to if you'd called `.enumerate()` on
+    /// the iterator)
+    pub index: usize,
+    /// The index of this node's left child, if it has a left child
+    pub left_index: Option<usize>,
+    /// The index of this node's right child, if it has a left child
+    pub right_index: Option<usize>,
+}
+
 impl<D: DagLike, S: SharingTracker<D>> Iterator for PostOrderIter<D, S> {
-    type Item = D;
+    type Item = PostOrderIterItem<D>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -526,7 +539,12 @@ impl<D: DagLike, S: SharingTracker<D>> Iterator for PostOrderIter<D, S> {
                         self.stack.pop();
                     }
                     self.index += 1;
-                    return Some(current.elem);
+                    return Some(PostOrderIterItem {
+                        node: current.elem,
+                        index: self.index - 1,
+                        left_index: current.left_idx,
+                        right_index: current.right_idx,
+                    });
                 }
             } else {
                 // If there is nothing on the stack we are done.
@@ -545,8 +563,8 @@ impl<'a, J: jet::Jet, S: SharingTracker<&'a RedeemNode<J>> + Clone>
     /// *except* that each witness is only yielded once, and future occurences
     /// are skipped.
     pub fn into_witnesses(self) -> impl Iterator<Item = &'a Value> + Clone {
-        self.filter_map(|node| {
-            if let RedeemNodeInner::Witness(value) = &node.inner {
+        self.filter_map(|data| {
+            if let RedeemNodeInner::Witness(value) = &data.node.inner {
                 Some(value)
             } else {
                 None
@@ -572,7 +590,7 @@ impl<D: DagLike, S: SharingTracker<D>> PostOrderIter<D, S> {
     {
         let mut node_to_index = HashMap::new();
 
-        for (index, node) in self.enumerate() {
+        for (index, node) in self.map(|data| data.node).enumerate() {
             write!(f, "{}: ", index)?;
             display_body(&node, f)?;
 

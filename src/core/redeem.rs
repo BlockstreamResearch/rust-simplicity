@@ -156,9 +156,9 @@ impl<J: Jet> RedeemNode<J> {
 
     /// Return an iterator over the types of values that make up a valid witness for the program.
     pub fn get_witness_types(&self) -> impl Iterator<Item = &types::Final> {
-        self.iter().filter_map(|node| {
-            if let RedeemNodeInner::Witness(_) = &node.inner {
-                Some(node.ty.target.as_ref())
+        self.iter().filter_map(|data| {
+            if let RedeemNodeInner::Witness(_) = &data.node.inner {
+                Some(data.node.ty.target.as_ref())
             } else {
                 None
             }
@@ -174,11 +174,11 @@ impl<J: Jet> RedeemNode<J> {
         let iter = program
             .as_ref()
             .post_order_iter::<InternalSharing>()
-            .map(|node| node.imr);
+            .map(|data| data.node.imr);
         let fully_shared_iter = program
             .as_ref()
             .post_order_iter::<FullSharing>()
-            .map(|node| node.imr);
+            .map(|data| data.node.imr);
 
         if iter.eq(fully_shared_iter) {
             Ok(program)
