@@ -31,6 +31,48 @@ use bitcoin_hashes::sha256::Midstate;
 use bitcoin_hashes::{sha256, Hash, HashEngine};
 use std::{fmt, str};
 
+/// Helper function to compute the "compact value", i.e. the sha256 hash
+/// of the bits of a given value, which is used in some IMRs and AMRs.
+fn compact_value(value: &Value) -> [u8; 32] {
+    let (mut bytes, bit_length) = value.to_bytes_len();
+
+    // TODO: Automate hashing once `bitcoin_hashes` supports bit-wise hashing
+    // 1.1 Append single '1' bit
+    if bit_length % 8 == 0 {
+        bytes.push(0x80);
+    } else {
+        let delimiter_index = bit_length % 8;
+        *bytes.last_mut().unwrap() |= 1 << (7 - delimiter_index);
+    }
+
+    // 1.2 Append k '0x00' bytes, where k is minimum number >= 0 such that bytes.len() + k + 8 is multiple of 64
+    let k = if bytes.len() % 64 > 56 {
+        // Not enough space for 64-bit integer
+        // Pad with zeroes until next block is 64 bits short of completion
+        56 + (64 - (bytes.len() % 64))
+    } else {
+        // Pad with zeroes until current block is 64 bits short of completion
+        56 - (bytes.len() % 64)
+    };
+    bytes.resize(bytes.len() + k, 0x00);
+    debug_assert!(bytes.len() % 64 == 56);
+
+    // 1.3 Append bit_length as 64-bit bit-endian integer
+    let bit_length_bytes = u64_to_array_be(bit_length as u64);
+    bytes.extend(bit_length_bytes.iter());
+    debug_assert!(bytes.len() % 16 == 0);
+
+    // 1.4 Compute hash of `value` normally since bytes.len() is multiple of 64
+    let mut consumed = 0;
+    let mut engine = sha256::HashEngine::default();
+    while consumed < bytes.len() {
+        engine.input(&bytes[consumed..(consumed + 16)]);
+        consumed += 16;
+    }
+    debug_assert!(consumed == bytes.len());
+    engine.midstate().into_inner()
+}
+
 /// [Tagged SHA256 hash](https://github.com/bitcoin/bips/blob/master/bip-0340.mediawiki).
 ///
 /// A tag is hashed and used as initial value (256-bit midstate).
@@ -81,45 +123,8 @@ pub trait MerkleRoot: From<[u8; 32]> + Into<[u8; 32]> + fmt::Display + str::From
     /// the hash of `value` and the TMR of `value_type` are combined to create a 512-bit block,
     /// and the compression is run once
     fn update_value(self, value: &Value, value_type: &types::Final) -> Self {
-        let (mut bytes, bit_length) = value.to_bytes_len();
-
         // 1 Bit-wise hash of `value`
-        // TODO: Automate hashing once `bitcoin_hashes` supports bit-wise hashing
-        // 1.1 Append single '1' bit
-        if bit_length % 8 == 0 {
-            bytes.push(0x80);
-        } else {
-            let delimiter_index = bit_length % 8;
-            *bytes.last_mut().unwrap() |= 1 << (7 - delimiter_index);
-        }
-
-        // 1.2 Append k '0x00' bytes, where k is minimum number >= 0 such that bytes.len() + k + 8 is multiple of 64
-        let k = if bytes.len() % 64 > 56 {
-            // Not enough space for 64-bit integer
-            // Pad with zeroes until next block is 64 bits short of completion
-            56 + (64 - (bytes.len() % 64))
-        } else {
-            // Pad with zeroes until current block is 64 bits short of completion
-            56 - (bytes.len() % 64)
-        };
-        bytes.resize(bytes.len() + k, 0x00);
-        debug_assert!(bytes.len() % 64 == 56);
-
-        // 1.3 Append bit_length as 64-bit bit-endian integer
-        let bit_length_bytes = u64_to_array_be(bit_length as u64);
-        bytes.extend(bit_length_bytes.iter());
-        debug_assert!(bytes.len() % 16 == 0);
-
-        // 1.4 Compute hash of `value` normally since bytes.len() is multiple of 64
-        let mut consumed = 0;
-        let mut engine = sha256::HashEngine::default();
-        while consumed < bytes.len() {
-            engine.input(&bytes[consumed..(consumed + 16)]);
-            consumed += 16;
-        }
-        debug_assert!(consumed == bytes.len());
-        let value_hash = engine.midstate().into_inner();
-
+        let value_hash = compact_value(value);
         // 2 Hash of hash of `value` and TMR of `value_type`
         let mut engine = sha256::HashEngine::from_midstate(Midstate::from_inner(self.into()), 0);
         engine.input(&value_hash[..]);

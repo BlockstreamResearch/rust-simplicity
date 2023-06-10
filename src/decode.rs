@@ -677,7 +677,7 @@ mod tests {
         assert_program_deserializable::<Core>(
             &[0x38],
             "bf12681a76fc7c00c63e583c25cc97237337d6aca30d3f4a664075445385c648",
-            Some("9a3ba3023d735c2aad68cd51d36e9b0433d957409c07541347900bf0b1907ba0"), // FIXME this value is wrong!
+            Some("e7e02bc77e86cfd4dd48b3ccea00a60d519e0d8cfcc021826e193116a15eaa1c"),
             Some("78dcc84f6accf009d29ac434fa095f0b175cf9813b0efff0e2fcc6b8dc9196ae"),
         );
 
