@@ -25,7 +25,7 @@ use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::types;
 use std::rc::Rc;
-use std::{error, fmt};
+use std::{cell, error, fmt, mem};
 
 /// Decoding error
 #[non_exhaustive]
@@ -117,7 +117,7 @@ enum DecodeNode<J: Jet> {
     Fail(Cmr, Cmr),
     Hidden(Cmr),
     Jet(J),
-    Word(Value),
+    Word(cell::RefCell<Value>),
 }
 
 impl<'d, J: Jet> DagLike for (usize, &'d [DecodeNode<J>]) {
@@ -254,7 +254,14 @@ pub fn decode_program_arbitrary_type<I: Iterator<Item = u8>, J: Jet>(
             DecodeNode::Fail(cmr1, cmr2) => Node(CommitNode::fail(&mut context, cmr1, cmr2)),
             DecodeNode::Hidden(cmr) => Hidden(cmr),
             DecodeNode::Jet(j) => Node(CommitNode::jet(&mut context, j)),
-            DecodeNode::Word(ref w) => Node(CommitNode::const_word(&mut context, w.clone())),
+            DecodeNode::Word(ref w) => {
+                // Since we access each node only once, it is fine to remove the value
+                // when we encounter it and move it into the CommitNode. Doing this
+                // saves us a clone.
+                let w_ref = &mut *w.borrow_mut();
+                let w = mem::replace(w_ref, Value::Unit);
+                Node(CommitNode::const_word(&mut context, w))
+            }
         };
         converted.push(new);
     }
@@ -329,7 +336,7 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
             Some(false) => {
                 let depth = decode_natural(bits, Some(32))?;
                 let word = decode_value(&context.nth_power_of_2_final(depth - 1), bits)?;
-                DecodeNode::Word(word)
+                DecodeNode::Word(cell::RefCell::new(word))
             }
         },
     };
