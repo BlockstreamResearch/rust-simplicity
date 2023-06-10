@@ -184,7 +184,7 @@ pub fn decode_program_arbitrary_type<I: Iterator<Item = u8>, J: Jet>(
 
     let mut nodes = Vec::with_capacity(len);
     for _ in 0..len {
-        let new_node = decode_node(bits, &mut context, &nodes[..])?;
+        let new_node = decode_node(bits, nodes.len())?;
         nodes.push(new_node);
     }
 
@@ -273,11 +273,8 @@ pub fn decode_program_arbitrary_type<I: Iterator<Item = u8>, J: Jet>(
 /// insert it into a hash map at its index for future reference by ancestor nodes.
 fn decode_node<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
-    context: &mut Context<J>,
-    nodes: &[DecodeNode<J>],
+    index: usize,
 ) -> Result<DecodeNode<J>, Error> {
-    let index = nodes.len();
-
     let (maybe_code, subcode) = match bits.next() {
         None => return Err(Error::EndOfStream),
         Some(true) => (None, u64::default()),
@@ -335,7 +332,7 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
             },
             Some(false) => {
                 let depth = decode_natural(bits, Some(32))?;
-                let word = decode_value(&context.nth_power_of_2_final(depth - 1), bits)?;
+                let word = decode_power_of_2(bits, 1 << (depth - 1))?;
                 DecodeNode::Word(cell::RefCell::new(word))
             }
         },
@@ -405,6 +402,43 @@ pub fn decode_value<I: Iterator<Item = bool>>(
     };
 
     Ok(value)
+}
+
+/// Decode a value from bits, of the form 2^exp
+///
+/// # Panics
+///
+/// Panics if `exp` itself is not a power of 2
+pub fn decode_power_of_2<I: Iterator<Item = bool>>(
+    iter: &mut I,
+    exp: usize,
+) -> Result<Value, Error> {
+    assert_eq!(exp.count_ones(), 1, "exp must be a power of 2");
+
+    struct StackElem {
+        value: Value,
+        width: usize,
+    }
+
+    let mut stack = Vec::with_capacity(32);
+    for _ in 0..exp {
+        // Read next bit
+        let bit = Value::u1(u8::from(iter.next().ok_or(Error::EndOfStream)?));
+        stack.push(StackElem {
+            value: bit,
+            width: 1,
+        });
+
+        while stack.len() >= 2 && stack[stack.len() - 1].width == stack[stack.len() - 2].width {
+            let right = stack.pop().unwrap();
+            let left = stack.pop().unwrap();
+            stack.push(StackElem {
+                value: Value::Prod(Box::new(left.value), Box::new(right.value)),
+                width: left.width * 2,
+            });
+        }
+    }
+    Ok(stack.pop().unwrap().value)
 }
 
 /// Decode a 256-bit hash from bits.
