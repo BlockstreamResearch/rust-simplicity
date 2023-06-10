@@ -508,7 +508,12 @@ mod tests {
     use crate::jet::Core;
     use bitcoin_hashes::hex::ToHex;
 
-    fn assert_program_succeeds<J: Jet>(prog_bytes: &[u8]) -> Rc<CommitNode<J>> {
+    fn assert_program_deserializable<J: Jet>(
+        prog_bytes: &[u8],
+        cmr_str: &str,
+        amr_str: Option<&str>,
+        imr_str: Option<&str>,
+    ) -> Rc<CommitNode<J>> {
         let prog_hex = prog_bytes.to_hex();
 
         let mut iter = BitIter::from(prog_bytes);
@@ -516,6 +521,40 @@ mod tests {
             Ok(prog) => prog,
             Err(e) => panic!("program {} failed: {}", prog_hex, e),
         };
+
+        assert_eq!(
+            prog.cmr().to_string(),
+            cmr_str,
+            "CMR mismatch (got {} expected {}) for program {}",
+            prog.cmr().to_string(),
+            cmr_str,
+            prog_hex,
+        );
+        if amr_str.is_some() || imr_str.is_some() {
+            let fprog = prog
+                .finalize(std::iter::repeat(Value::Unit), true)
+                .expect("can't be finalized without witnesses; can't check AMR or IMR");
+            if let Some(amr) = amr_str {
+                assert_eq!(
+                    fprog.amr.to_string(),
+                    amr,
+                    "AMR mismatch (got {} expected {}) for program {}",
+                    fprog.amr.to_string(),
+                    amr,
+                    prog_hex,
+                );
+            }
+            if let Some(imr) = imr_str {
+                assert_eq!(
+                    fprog.imr.to_string(),
+                    imr,
+                    "IMR mismatch (got {} expected {}) for program {}",
+                    fprog.imr.to_string(),
+                    imr,
+                    prog_hex,
+                );
+            }
+        }
 
         let mut reser_sink = Vec::<u8>::new();
         let mut w = BitWriter::from(&mut reser_sink);
@@ -532,7 +571,7 @@ mod tests {
         prog
     }
 
-    fn assert_program_fails<J: Jet>(prog: &[u8], err: Error) {
+    fn assert_program_not_deserializable<J: Jet>(prog: &[u8], err: Error) {
         let prog_hex = prog.to_hex();
         let err_str = err.to_string();
 
@@ -555,32 +594,44 @@ mod tests {
         // "main = comp unit iden", but with the iden serialized before the unit
         // To obtain this test vector I temporarily swapped `get_left` and `get_right`
         // in the implementation of `PostOrderIter`
-        assert_program_fails::<Core>(&[0xa8, 0x48, 0x10], Error::NotInCanonicalOrder);
+        assert_program_not_deserializable::<Core>(&[0xa8, 0x48, 0x10], Error::NotInCanonicalOrder);
     }
 
     #[test]
     #[rustfmt::skip]
     fn assert_lr() {
-        // asl = assertl unit deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
-        // main = comp witness asl
-        assert_program_succeeds::<Core>(&[
-            0xc5, 0xd2, 0xdb, 0xd5, 0xb7, 0xdd, 0xfb, 0xd5,
-            0xb7, 0xdd, 0xfb, 0xd5, 0xb7, 0xdd, 0xfb, 0xd5,
-            0xb7, 0xdd, 0xfb, 0xd5, 0xb7, 0xdd, 0xfb, 0xd5,
-            0xb7, 0xdd, 0xfb, 0xd5, 0xb7, 0xdd, 0xfb, 0xd5,
-            0xb7, 0xdd, 0xe1, 0x80, 0x60, 0x00,
-        ]);
+        // asst = assertl unit deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
+        // input0 = pair (injl unit) unit
+        // main = comp input0 asst
+        assert_program_deserializable::<Core>(
+            &[
+                0xcd, 0x24, 0x08, 0x4b, 0x6f, 0x56, 0xdf, 0x77,
+                0xef, 0x56, 0xdf, 0x77, 0xef, 0x56, 0xdf, 0x77,
+                0xef, 0x56, 0xdf, 0x77, 0xef, 0x56, 0xdf, 0x77,
+                0xef, 0x56, 0xdf, 0x77, 0xef, 0x56, 0xdf, 0x77,
+                0xef, 0x56, 0xdf, 0x77, 0x86, 0x01, 0x80,
+            ],
+            "c7194362a5480900dd44f9f647a49b8adcb92a25fb293c920e6bbcf6977cf63d",
+            Some("eaf95c23d967563132b65e43578fe08dae2a29ac66775ddd37af3ac7de28678b"),
+            Some("d2927a9a54ddea8359ee00aa27e0aa1e354cc6924b090c759e2ed686712700a0"),
+        );
 
 
-        // asr = assertr deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef unit
-        // main = comp witness asr
-        assert_program_succeeds::<Core>(&[
-            0xc5, 0xdb, 0x7a, 0xb6, 0xfb, 0xbf, 0x7a, 0xb6,
-            0xfb, 0xbf, 0x7a, 0xb6, 0xfb, 0xbf, 0x7a, 0xb6,
-            0xfb, 0xbf, 0x7a, 0xb6, 0xfb, 0xbf, 0x7a, 0xb6,
-            0xfb, 0xbf, 0x7a, 0xb6, 0xfb, 0xbf, 0x7a, 0xb6,
-            0xfb, 0xbd, 0x21, 0x80, 0x60, 0x00,
-        ]);
+        // asst = assertr deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef unit
+        // input1 = pair (injr unit) unit
+        // main = comp input1 asst
+        assert_program_deserializable::<Core>(
+            &[
+                0xcd, 0x25, 0x08, 0x6d, 0xea, 0xdb, 0xee, 0xfd,
+                0xea, 0xdb, 0xee, 0xfd, 0xea, 0xdb, 0xee, 0xfd,
+                0xea, 0xdb, 0xee, 0xfd, 0xea, 0xdb, 0xee, 0xfd,
+                0xea, 0xdb, 0xee, 0xfd, 0xea, 0xdb, 0xee, 0xfd,
+                0xea, 0xdb, 0xee, 0xf4, 0x86, 0x01, 0x80,
+            ],
+            "8e471ac519e0b16a2b7dda7e8d68165f260cae4823861ddc494b7c73a615b212",
+            Some("ea1ee417816a57b80739520c7319c33a39a5f4ce7b59856e69f768d5d8f174a6"),
+            Some("f262f83f1c9341390e015e4c5126f3954e17a1f275af73da2948eaf4797fda48"),
+        );
     }
 
     #[test]
@@ -594,7 +645,7 @@ mod tests {
             0x7e, 0xf5, 0x6d, 0xf7, 0x7e, 0xf5, 0x6d, 0xf7,
             78,
         ];
-        assert_program_fails::<Core>(&hidden, Error::HiddenNode);
+        assert_program_not_deserializable::<Core>(&hidden, Error::HiddenNode);
 
         // main = comp witness hidden deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
         let hidden = [
@@ -602,7 +653,7 @@ mod tests {
             0xd5, 0xb7, 0xdd, 0xfb, 0xd5, 0xb7, 0xdd, 0xfb, 0xd5, 0xb7, 0xdd, 0xfb, 0xd5, 0xb7,
             0xdd, 0xfb, 0xd5, 0xb7, 0xdd, 0xe0, 0x80,
         ];
-        assert_program_fails::<Core>(&hidden, Error::HiddenNode);
+        assert_program_not_deserializable::<Core>(&hidden, Error::HiddenNode);
     }
 
     #[test]
@@ -617,13 +668,18 @@ mod tests {
             0xdf, 0xbd, 0x5b, 0x7d, 0xdf, 0xbd, 0x5b, 0x7d,
             0xde, 0x10,
         ];
-        assert_program_fails::<Core>(&hidden, Error::BothChildrenHidden);
+        assert_program_not_deserializable::<Core>(&hidden, Error::BothChildrenHidden);
     }
 
     #[test]
     fn shared_witnesses() {
         // main = witness :: A -> B
-        assert_program_succeeds::<Core>(&[0x38]);
+        assert_program_deserializable::<Core>(
+            &[0x38],
+            "bf12681a76fc7c00c63e583c25cc97237337d6aca30d3f4a664075445385c648",
+            Some("9a3ba3023d735c2aad68cd51d36e9b0433d957409c07541347900bf0b1907ba0"), // FIXME this value is wrong!
+            Some("78dcc84f6accf009d29ac434fa095f0b175cf9813b0efff0e2fcc6b8dc9196ae"),
+        );
 
         // # Program which demands two 32-bit witnesses, the first one == the second + 1
         // wit1 = witness :: 1 -> 2^32
@@ -634,21 +690,33 @@ mod tests {
         // main = comp diff_is_one jet_verify                                  :: 1 -> 1
         #[rustfmt::skip]
         let diff1s = vec![
-            vec![
-                0xda, 0xe2, 0x39, 0xa3, 0x10, 0x42, 0x0e, 0x05,
-                0x71, 0x88, 0xa3, 0x6d, 0xc4, 0x11, 0x80, 0x80
-            ],
+            (
+                vec![
+                    0xda, 0xe2, 0x39, 0xa3, 0x10, 0x42, 0x0e, 0x05,
+                    0x71, 0x88, 0xa3, 0x6d, 0xc4, 0x11, 0x80, 0x80
+                ],
+                // CMR not checked against C code, since C won't give us any data without witnesses
+                "a2ad9852818c0dc9307b476464cb9366c5c97896ba128f2f526b51910218293c",
+                None,
+                None,
+            ),
             // Same program but with each `witness` replaced by `comp iden witness`, which
             // is semantically the same but will trip up naive witness-unsharing logic.
-            vec![
-                0xde, 0x87, 0x04, 0x08, 0xe6, 0x8c, 0x41, 0x08,
-                0x38, 0x15, 0xc6, 0x22, 0x8d, 0xb7, 0x10, 0x46,
-                0x02, 0x00,
-            ],
+            (
+                vec![
+                    0xde, 0x87, 0x04, 0x08, 0xe6, 0x8c, 0x41, 0x08,
+                    0x38, 0x15, 0xc6, 0x22, 0x8d, 0xb7, 0x10, 0x46,
+                    0x02, 0x00,
+                ],
+                // CMR not checked against C code, since C won't give us any data without witnesses
+                "f4583eca2a35aa48e8895235b58cfe90ba2196fbf7722b7d847c3c55eb6bdc0e",
+                None,
+                None,
+            )
         ];
 
-        for diff1 in diff1s {
-            let diff1_prog = assert_program_succeeds::<Core>(&diff1);
+        for (diff1, cmr, amr, imr) in diff1s {
+            let diff1_prog = assert_program_deserializable::<Core>(&diff1, cmr, amr, imr);
 
             // Attempt to finalize, providing 32-bit witnesses 0, 1, ..., and then
             // counting how many were consumed afterward.
@@ -679,7 +747,7 @@ mod tests {
     fn extra_nodes() {
         // main = comp unit unit # but with an extra unconnected `unit` stuck on the beginning
         // I created this unit test by hand
-        assert_program_fails::<Core>(&[0xa9, 0x48, 0x00], Error::NotInCanonicalOrder);
+        assert_program_not_deserializable::<Core>(&[0xa9, 0x48, 0x00], Error::NotInCanonicalOrder);
     }
 
     #[test]
@@ -697,7 +765,7 @@ mod tests {
             0x3c, 0x90, 0x54, 0xe9, 0xe7, 0x05, 0xa5, 0x9c, 0xbd, 0x7d, 0xdd, 0x1f, 0xb6, 0x42, 0xe5, 0xe8,
             0xef, 0xbe, 0x92, 0x01, 0xa6, 0x20, 0xa6, 0xd8, 0x00
         ];
-        // Note: we cannot use `assert_program_succeeds` since the encoded program includes
+        // Note: we cannot use `assert_program_deserializable` since the encoded program includes
         //       witness data, which we don't parse and won't reseriaize.
         let mut iter = BitIter::from(&schnorr0[..]);
         let prog =
