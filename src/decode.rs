@@ -377,27 +377,63 @@ mod tests {
     use crate::bitwriter::BitWriter;
     use crate::encode;
     use crate::exec::BitMachine;
+    use crate::jet::Core;
+    use bitcoin_hashes::hex::ToHex;
+
+    fn assert_program_succeeds<J: Jet>(prog_bytes: &[u8]) -> Rc<CommitNode<J>> {
+        let prog_hex = prog_bytes.to_hex();
+
+        let mut iter = BitIter::from(prog_bytes);
+        let prog = match decode_program::<_, J>(&mut iter) {
+            Ok(prog) => prog,
+            Err(e) => panic!("program {} failed: {}", prog_hex, e),
+        };
+
+        let mut reser_sink = Vec::<u8>::new();
+        let mut w = BitWriter::from(&mut reser_sink);
+        prog.encode(&mut w)
+            .expect("reserializing program into vector");
+        assert_eq!(
+            prog_bytes,
+            &reser_sink[..],
+            "program {} reserialized as {}",
+            prog_hex,
+            reser_sink.to_hex(),
+        );
+
+        prog
+    }
+
+    fn assert_program_fails<J: Jet>(prog: &[u8], err: Error) {
+        let prog_hex = prog.to_hex();
+        let err_str = err.to_string();
+
+        let mut iter = BitIter::from(prog);
+        match decode_program::<_, J>(&mut iter) {
+            Ok(prog) => panic!(
+                "Program {} succeded (expected error {}). Program parsed as:\n{}",
+                prog_hex, err, prog
+            ),
+            Err(e) if e.to_string() == err_str => {} // ok
+            Err(e) => panic!(
+                "Program {} failed with error {} (expected error {})",
+                prog_hex, e, err
+            ),
+        };
+    }
 
     #[test]
     fn canonical_order() {
         // "main = comp unit iden", but with the iden serialized before the unit
         // To obtain this test vector I temporarily swapped `get_left` and `get_right`
         // in the implementation of `PostOrderIter`
-        let justwit = vec![0xa8, 0x48, 0x10];
-        let mut iter = BitIter::from(&justwit[..]);
-        if let Err(Error::NotInCanonicalOrder) = decode_program::<_, crate::jet::Core>(&mut iter) {
-            // ok
-        } else {
-            panic!("accepted program with non-canonical order")
-        }
+        assert_program_fails::<Core>(&[0xa8, 0x48, 0x10], Error::NotInCanonicalOrder);
     }
 
     #[test]
     fn shared_witnesses() {
         // main = witness :: A -> B
-        let justwit = vec![0x38];
-        let mut iter = BitIter::from(&justwit[..]);
-        decode_program::<_, crate::jet::Core>(&mut iter).unwrap();
+        assert_program_succeeds::<Core>(&[0x38]);
 
         // # Program which demands two 32-bit witnesses, the first one == the second + 1
         // wit1 = witness :: 1 -> 2^32
@@ -417,13 +453,12 @@ mod tests {
             vec![
                 0xde, 0x87, 0x04, 0x08, 0xe6, 0x8c, 0x41, 0x08,
                 0x38, 0x15, 0xc6, 0x22, 0x8d, 0xb7, 0x10, 0x46,
-                0x02, 0x00, 
+                0x02, 0x00,
             ],
         ];
 
         for diff1 in diff1s {
-            let mut iter = BitIter::from(&diff1[..]);
-            let diff1_prog = decode_program::<_, crate::jet::Core>(&mut iter).unwrap();
+            let diff1_prog = assert_program_succeeds::<Core>(&diff1);
 
             // Attempt to finalize, providing 32-bit witnesses 0, 1, ..., and then
             // counting how many were consumed afterward.
@@ -444,23 +479,17 @@ mod tests {
         let justjet = vec![0x6d, 0xb8, 0x80];
         // Should be able to decode this as a CommitNode...
         let mut iter = BitIter::from(&justjet[..]);
-        CommitNode::<crate::jet::Core>::decode::<_>(&mut iter).unwrap();
+        CommitNode::<Core>::decode::<_>(&mut iter).unwrap();
         // ...but not as a program
         let mut iter = BitIter::from(&justjet[..]);
-        decode_program::<_, crate::jet::Core>(&mut iter).unwrap_err();
+        decode_program::<_, Core>(&mut iter).unwrap_err();
     }
 
     #[test]
     fn extra_nodes() {
         // main = comp unit unit # but with an extra unconnected `unit` stuck on the beginning
         // I created this unit test by hand
-        let cuu = vec![0xa9, 0x48, 0x00];
-        let mut iter = BitIter::from(&cuu[..]);
-        let err = decode_program::<_, crate::jet::Core>(&mut iter).unwrap_err();
-        if let Error::NotInCanonicalOrder = err {
-        } else {
-            panic!("Should have gotten noncanonical order error, got {}", err);
-        }
+        assert_program_fails::<Core>(&[0xa9, 0x48, 0x00], Error::NotInCanonicalOrder);
     }
 
     #[test]
@@ -478,6 +507,8 @@ mod tests {
             0x3c, 0x90, 0x54, 0xe9, 0xe7, 0x05, 0xa5, 0x9c, 0xbd, 0x7d, 0xdd, 0x1f, 0xb6, 0x42, 0xe5, 0xe8,
             0xef, 0xbe, 0x92, 0x01, 0xa6, 0x20, 0xa6, 0xd8, 0x00
         ];
+        // Note: we cannot use `assert_program_succeeds` since the encoded program includes
+        //       witness data, which we don't parse and won't reseriaize.
         let mut iter = BitIter::from(&schnorr0[..]);
         let prog =
             decode_program::<_, crate::jet::Elements>(&mut iter).expect("can't decode schnorr0");
@@ -490,13 +521,13 @@ mod tests {
                 0x7b, 0xc5, 0x6c, 0xb1, 0x6d, 0x84, 0x99, 0x9b,
                 0x97, 0x7b, 0x58, 0xe1, 0xbc, 0x71, 0xdb, 0xe9,
                 0xed, 0xcc, 0x33, 0x65, 0x0a, 0xfc, 0x8a, 0x6e,
-                0xe0, 0x5c, 0xfe, 0xf8, 0xd6, 0x08, 0x13, 0x2b, 
+                0xe0, 0x5c, 0xfe, 0xf8, 0xd6, 0x08, 0x13, 0x2b,
             ].into(),
         );
     }
 
     #[test]
-    fn decode_fixed() {
+    fn decode_fixed_natural() {
         let tries = vec![
             (1, vec![false]),
             (2, vec![true, false, false]),
