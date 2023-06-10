@@ -156,7 +156,7 @@ impl<'d, J: Jet> DagLike for (usize, &'d [DecodeNode<J>]) {
 pub fn decode_program<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
 ) -> Result<Rc<CommitNode<J>>, Error> {
-    let root = decode_program_arbitrary_type(bits)?;
+    let root = decode_expression(bits)?;
     let unit_ty = crate::types::Type::unit();
     root.arrow()
         .source
@@ -167,7 +167,7 @@ pub fn decode_program<I: Iterator<Item = u8>, J: Jet>(
     Ok(root)
 }
 
-pub fn decode_program_arbitrary_type<I: Iterator<Item = u8>, J: Jet>(
+pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
 ) -> Result<Rc<CommitNode<J>>, Error> {
     let len = decode_natural(bits, None)?;

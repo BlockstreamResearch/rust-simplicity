@@ -714,7 +714,7 @@ impl<J: Jet> CommitNode<J> {
     pub fn decode<I: Iterator<Item = u8>>(
         bits: &mut BitIter<I>,
     ) -> Result<Rc<Self>, crate::decode::Error> {
-        crate::decode::decode_program_arbitrary_type(bits)
+        crate::decode::decode_expression(bits)
     }
 
     /// Encode a Simplicity program to bits, without witness data.
