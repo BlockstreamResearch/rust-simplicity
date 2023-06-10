@@ -61,18 +61,18 @@ fn encode_node<W: io::Write, J: Jet>(
 
             match &data.node.inner {
                 RedeemNodeInner::Comp(_, _) => {
-                    w.write_bits_be(0, 5)?;
+                    w.write_bits_be(0x00000, 5)?;
                 }
                 RedeemNodeInner::Case(_, _)
                 | RedeemNodeInner::AssertL(_, _)
                 | RedeemNodeInner::AssertR(_, _) => {
-                    w.write_bits_be(1, 5)?;
+                    w.write_bits_be(0b00001, 5)?;
                 }
                 RedeemNodeInner::Pair(_, _) => {
-                    w.write_bits_be(2, 5)?;
+                    w.write_bits_be(0b00010, 5)?;
                 }
                 RedeemNodeInner::Disconnect(_, _) => {
-                    w.write_bits_be(3, 5)?;
+                    w.write_bits_be(0b00011, 5)?;
                 }
                 _ => unreachable!(),
             }
@@ -82,16 +82,16 @@ fn encode_node<W: io::Write, J: Jet>(
         } else {
             match &data.node.inner {
                 RedeemNodeInner::InjL(_) => {
-                    w.write_bits_be(4, 5)?;
+                    w.write_bits_be(0b00100, 5)?;
                 }
                 RedeemNodeInner::InjR(_) => {
-                    w.write_bits_be(5, 5)?;
+                    w.write_bits_be(0b00101, 5)?;
                 }
                 RedeemNodeInner::Take(_) => {
-                    w.write_bits_be(6, 5)?;
+                    w.write_bits_be(0b00110, 5)?;
                 }
                 RedeemNodeInner::Drop(_) => {
-                    w.write_bits_be(7, 5)?;
+                    w.write_bits_be(0b00111, 5)?;
                 }
                 _ => unreachable!(),
             };
@@ -101,22 +101,22 @@ fn encode_node<W: io::Write, J: Jet>(
     } else {
         match &data.node.inner {
             RedeemNodeInner::Iden => {
-                w.write_bits_be(8, 5)?;
+                w.write_bits_be(0b01000, 5)?;
             }
             RedeemNodeInner::Unit => {
-                w.write_bits_be(9, 5)?;
+                w.write_bits_be(0b01001, 5)?;
             }
             RedeemNodeInner::Fail(hl, hr) => {
-                w.write_bits_be(10, 5)?;
+                w.write_bits_be(0b01010, 5)?;
                 encode_hash(hl.as_ref(), w)?;
                 encode_hash(hr.as_ref(), w)?;
             }
             RedeemNodeInner::Hidden(h) => {
-                w.write_bits_be(6, 4)?;
+                w.write_bits_be(0b0110, 4)?;
                 encode_hash(h.as_ref(), w)?;
             }
             RedeemNodeInner::Witness(_) => {
-                w.write_bits_be(7, 4)?;
+                w.write_bits_be(0b0111, 4)?;
             }
             RedeemNodeInner::Jet(jet) => {
                 w.write_bit(true)?; // jet or word
