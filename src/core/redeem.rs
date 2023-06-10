@@ -189,7 +189,7 @@ impl<J: Jet> RedeemNode<J> {
     /// Encode a Simplicity program to bits, including the witness data.
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
         let sharing_iter = self.post_order_iter::<FullSharing>();
-        let program_bits = encode::encode_program(sharing_iter.clone(), w)?;
+        let program_bits = encode::encode_program(self, w)?;
         let witness_bits = encode::encode_witness(sharing_iter.into_witnesses(), w)?;
         w.flush_all()?;
         Ok(program_bits + witness_bits)
