@@ -40,6 +40,8 @@ pub enum Error {
     EmptyProgram,
     /// Bitstream ended early
     EndOfStream,
+    /// Hidden node occurred outside of a case combinator
+    HiddenNode,
     /// Tried to parse a jet but the name wasn't recognized
     InvalidJet,
     /// Number exceeded 32 bits
@@ -69,6 +71,7 @@ impl fmt::Display for Error {
             Error::BothChildrenHidden => f.write_str("both children of a case node are hidden"),
             Error::EmptyProgram => f.write_str("empty program"),
             Error::EndOfStream => f.write_str("bitstream ended early"),
+            Error::HiddenNode => write!(f, "hidden node occurred outside of a case combinator"),
             Error::InvalidJet => write!(f, "unrecognized jet"),
             Error::NaturalOverflow => f.write_str("encoded number exceeded 32 bits"),
             Error::NotInCanonicalOrder => f.write_str("program not in canonical order"),
@@ -88,6 +91,7 @@ impl error::Error for Error {
             Error::BothChildrenHidden => None,
             Error::EmptyProgram => None,
             Error::EndOfStream => None,
+            Error::HiddenNode => None,
             Error::InvalidJet => None,
             Error::NaturalOverflow => None,
             Error::NotInCanonicalOrder => None,
@@ -145,9 +149,28 @@ pub fn decode_program_arbitrary_type<I: Iterator<Item = u8>, J: Jet>(
         if data.index >= nodes.len() || data.node != nodes[data.index].as_ref() {
             return Err(Error::NotInCanonicalOrder);
         }
+
+        if !matches!(
+            data.node.inner(),
+            CommitNodeInner::AssertL(..) | CommitNodeInner::AssertR(..)
+        ) {
+            if let Some(left_index) = data.left_index {
+                if let CommitNodeInner::Hidden(..) = nodes[left_index].inner() {
+                    return Err(Error::HiddenNode);
+                }
+            }
+            if let Some(right_index) = data.right_index {
+                if let CommitNodeInner::Hidden(..) = nodes[right_index].inner() {
+                    return Err(Error::HiddenNode);
+                }
+            }
+        }
     }
 
-    Ok(Rc::clone(&nodes[nodes.len() - 1]))
+    match nodes[nodes.len() - 1].inner() {
+        CommitNodeInner::Hidden(..) => Err(Error::HiddenNode),
+        _ => Ok(Rc::clone(&nodes[nodes.len() - 1])),
+    }
 }
 
 /// Decode a single Simplicity node from bits and
@@ -453,6 +476,43 @@ mod tests {
             0xfb, 0xbf, 0x7a, 0xb6, 0xfb, 0xbf, 0x7a, 0xb6,
             0xfb, 0xbd, 0x21, 0x80, 0x60, 0x00,
         ]);
+    }
+
+    #[test]
+    fn hidden_node() {
+        // main = hidden deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
+        #[rustfmt::skip]
+        let hidden = [
+            0x36, 0xf5, 0x6d, 0xf7, 0x7e, 0xf5, 0x6d, 0xf7,
+            0x7e, 0xf5, 0x6d, 0xf7, 0x7e, 0xf5, 0x6d, 0xf7,
+            0x7e, 0xf5, 0x6d, 0xf7, 0x7e, 0xf5, 0x6d, 0xf7,
+            0x7e, 0xf5, 0x6d, 0xf7, 0x7e, 0xf5, 0x6d, 0xf7,
+            78,
+        ];
+        assert_program_fails::<Core>(&hidden, Error::HiddenNode);
+
+        // main = comp witness hidden deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
+        let hidden = [
+            0xae, 0xdb, 0xd5, 0xb7, 0xdd, 0xfb, 0xd5, 0xb7, 0xdd, 0xfb, 0xd5, 0xb7, 0xdd, 0xfb,
+            0xd5, 0xb7, 0xdd, 0xfb, 0xd5, 0xb7, 0xdd, 0xfb, 0xd5, 0xb7, 0xdd, 0xfb, 0xd5, 0xb7,
+            0xdd, 0xfb, 0xd5, 0xb7, 0xdd, 0xe0, 0x80,
+        ];
+        assert_program_fails::<Core>(&hidden, Error::HiddenNode);
+    }
+
+    #[test]
+    fn case_both_children_hidden() {
+        // h1 = hidden deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
+        // main = case h1 h1
+        #[rustfmt::skip]
+        let hidden = [
+            0x8d, 0xbd, 0x5b, 0x7d, 0xdf, 0xbd, 0x5b, 0x7d,
+            0xdf, 0xbd, 0x5b, 0x7d, 0xdf, 0xbd, 0x5b, 0x7d,
+            0xdf, 0xbd, 0x5b, 0x7d, 0xdf, 0xbd, 0x5b, 0x7d,
+            0xdf, 0xbd, 0x5b, 0x7d, 0xdf, 0xbd, 0x5b, 0x7d,
+            0xde, 0x10,
+        ];
+        assert_program_fails::<Core>(&hidden, Error::BothChildrenHidden);
     }
 
     #[test]
