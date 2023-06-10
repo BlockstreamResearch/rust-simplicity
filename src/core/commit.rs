@@ -60,8 +60,6 @@ pub enum CommitNodeInner<J: Jet> {
     Witness,
     /// Universal fail
     Fail(Cmr, Cmr),
-    /// Hidden CMR
-    Hidden(Cmr),
     /// Application jet
     Jet(J),
     /// Constant word
@@ -85,7 +83,6 @@ impl<J: Jet> fmt::Display for CommitNodeInner<J> {
             CommitNodeInner::Disconnect(_, _) => f.write_str("disconnect"),
             CommitNodeInner::Witness => f.write_str("witness"),
             CommitNodeInner::Fail(..) => f.write_str("fail"),
-            CommitNodeInner::Hidden(..) => f.write_str("hidden"),
             CommitNodeInner::Jet(jet) => write!(f, "jet({})", jet),
             CommitNodeInner::Word(w) => write!(f, "word({})", w),
         }
@@ -398,20 +395,6 @@ impl<J: Jet> CommitNode<J> {
         })
     }
 
-    /// Create a hidden DAG that contains the given `hash` as its CMR.
-    ///
-    /// **This DAG must only be used as child for left or right assertions.**
-    ///
-    /// _The Bit Machine will crash upon seeing this node._
-    pub fn hidden(context: &mut Context<J>, hash: Cmr) -> Rc<Self> {
-        let inner = CommitNodeInner::Hidden(hash);
-        Rc::new(CommitNode {
-            cmr: Cmr::compute(&inner),
-            inner,
-            arrow: Arrow::for_hidden(context),
-        })
-    }
-
     /// Create a DAG that computes some black-box function that is associated with the given `jet`.
     ///
     /// _Overall type: A → B where jet: A → B_
@@ -648,7 +631,7 @@ impl<J: Jet> CommitNode<J> {
             let left = left_data.map(|imr| Rc::clone(&finalized[&imr]));
             let right = right_data.map(|imr| Rc::clone(&finalized[&imr]));
 
-            let imr = Imr::compute_pass2(first_pass_imr, &data.node.inner, &final_ty);
+            let imr = Imr::compute_pass2(first_pass_imr, &final_ty);
             let amr = Amr::compute(
                 &data.node.inner,
                 left.clone(),
@@ -676,7 +659,6 @@ impl<J: Jet> CommitNode<J> {
                 }
                 CommitNodeInner::Witness => RedeemNodeInner::Witness(value.unwrap()),
                 CommitNodeInner::Fail(hl, hr) => RedeemNodeInner::Fail(hl, hr),
-                CommitNodeInner::Hidden(h) => RedeemNodeInner::Hidden(h),
                 CommitNodeInner::Jet(jet) => RedeemNodeInner::Jet(jet),
                 CommitNodeInner::Word(ref w) => RedeemNodeInner::Word(w.clone()),
             };

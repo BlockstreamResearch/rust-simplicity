@@ -59,8 +59,6 @@ pub enum RedeemNodeInner<J: Jet> {
     Witness(Value),
     /// Universal fail
     Fail(Cmr, Cmr),
-    /// Hidden CMR
-    Hidden(Cmr),
     /// Application jet
     Jet(J),
     /// Constant word
@@ -84,7 +82,6 @@ impl<J: Jet> fmt::Display for RedeemNodeInner<J> {
             RedeemNodeInner::Disconnect(_, _) => f.write_str("disconnect"),
             RedeemNodeInner::Witness(..) => f.write_str("witness"),
             RedeemNodeInner::Fail(..) => f.write_str("fail"),
-            RedeemNodeInner::Hidden(..) => f.write_str("hidden"),
             RedeemNodeInner::Jet(jet) => write!(f, "jet({})", jet),
             RedeemNodeInner::Word(w) => write!(f, "word({})", w),
         }

@@ -422,9 +422,6 @@ impl BitMachine {
                     }
                 }
                 RedeemNodeInner::Witness(value) => self.write_value(value),
-                RedeemNodeInner::Hidden(hash) => {
-                    return Err(ExecutionError::ReachedPrunedBranch(*hash))
-                }
                 RedeemNodeInner::Jet(jet) => jet.exec(self, env)?,
                 RedeemNodeInner::Word(value) => self.write_value(value),
                 RedeemNodeInner::Fail(left, right) => {

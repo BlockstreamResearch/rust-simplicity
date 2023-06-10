@@ -54,7 +54,6 @@ impl CommitMerkleRoot for Cmr {
             }
             CommitNodeInner::Witness => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1fwitness"),
             CommitNodeInner::Fail(_, _) => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1ffail"),
-            CommitNodeInner::Hidden(h) => *h,
             CommitNodeInner::Jet(j) => Cmr::tag_iv(b"Simplicity-Draft\x1fJet").update_1(j.cmr()),
             CommitNodeInner::Word(_) => Cmr::tag_iv(b"Simplicity-Draft\x1fIdentity"),
         }
@@ -131,7 +130,6 @@ impl Cmr {
             CommitNodeInner::Iden
             | CommitNodeInner::Unit
             | CommitNodeInner::Witness
-            | CommitNodeInner::Hidden(..)
             | CommitNodeInner::Jet(..) => cmr_iv,
             CommitNodeInner::Word(ref w) => Cmr::const_word_cmr(w),
             CommitNodeInner::Fail(left, right) => cmr_iv.update(*left, *right),

@@ -344,7 +344,6 @@ impl<'a, J: jet::Jet> DagLike for &'a CommitNode<J> {
             CommitNodeInner::Disconnect(ref left, ref right) => Dag::Disconnect(left, right),
             CommitNodeInner::Witness => Dag::Witness,
             CommitNodeInner::Fail(..) => Dag::Fail,
-            CommitNodeInner::Hidden(..) => Dag::Hidden,
             CommitNodeInner::Jet(..) => Dag::Jet,
             CommitNodeInner::Word(..) => Dag::Word,
         }
@@ -375,7 +374,6 @@ impl<J: jet::Jet> DagLike for Rc<CommitNode<J>> {
             CommitNodeInner::Disconnect(ref left, ref right) => Dag::Disconnect(Rc::clone(left), Rc::clone(right)),
             CommitNodeInner::Witness => Dag::Witness,
             CommitNodeInner::Fail(..) => Dag::Fail,
-            CommitNodeInner::Hidden(..) => Dag::Hidden,
             CommitNodeInner::Jet(..) => Dag::Jet,
             CommitNodeInner::Word(..) => Dag::Word,
         }
@@ -406,7 +404,6 @@ impl<'a, J: jet::Jet> DagLike for &'a RedeemNode<J> {
             RedeemNodeInner::Disconnect(ref left, ref right) => Dag::Disconnect(left, right),
             RedeemNodeInner::Witness(..) => Dag::Witness,
             RedeemNodeInner::Fail(..) => Dag::Fail,
-            RedeemNodeInner::Hidden(..) => Dag::Hidden,
             RedeemNodeInner::Jet(..) => Dag::Jet,
             RedeemNodeInner::Word(..) => Dag::Word,
         }
@@ -437,7 +434,6 @@ impl<J: jet::Jet> DagLike for Rc<RedeemNode<J>> {
             RedeemNodeInner::Disconnect(ref left, ref right) => Dag::Disconnect(Rc::clone(left), Rc::clone(right)),
             RedeemNodeInner::Witness(..) => Dag::Witness,
             RedeemNodeInner::Fail(..) => Dag::Fail,
-            RedeemNodeInner::Hidden(..) => Dag::Hidden,
             RedeemNodeInner::Jet(..) => Dag::Jet,
             RedeemNodeInner::Word(..) => Dag::Word,
         }

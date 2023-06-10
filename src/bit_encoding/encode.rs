@@ -69,7 +69,6 @@ impl<'n, J: Jet> DagLike for EncodeNode<'n, J> {
             RedeemNodeInner::Disconnect(left, right) => {
                 Dag::Disconnect(EncodeNode::Node(left), EncodeNode::Node(right))
             }
-            RedeemNodeInner::Hidden(..) => unreachable!(),
             RedeemNodeInner::Witness(..) => Dag::Witness,
             RedeemNodeInner::Fail(..) => Dag::Fail,
             RedeemNodeInner::Jet(..) => Dag::Jet,
@@ -197,7 +196,6 @@ fn encode_node<W: io::Write, J: Jet>(
                 encode_hash(hl.as_ref(), w)?;
                 encode_hash(hr.as_ref(), w)?;
             }
-            RedeemNodeInner::Hidden(..) => unreachable!(),
             RedeemNodeInner::Witness(_) => {
                 w.write_bits_be(0b0111, 4)?;
             }
