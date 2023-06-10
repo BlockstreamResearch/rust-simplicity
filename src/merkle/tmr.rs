@@ -184,6 +184,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::needless_range_loop)]
     fn const_powers_of_2() {
         let n = Tmr::POWERS_OF_TWO.len();
         let types = crate::types::Type::powers_of_two(n);

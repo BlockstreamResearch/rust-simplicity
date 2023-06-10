@@ -199,17 +199,17 @@ fn test_ffi_env() {
         }],
         output: vec![
             TxOut {
-                asset: asset.clone(),
+                asset,
                 value: confidential::Value::Explicit(0x00000002540bd71c),
                 nonce: confidential::Nonce::Null,
-                script_pubkey: hex_script(&"1976a91448633e2c0ee9495dd3f9c43732c47f4702a362c888ac"),
+                script_pubkey: hex_script("1976a91448633e2c0ee9495dd3f9c43732c47f4702a362c888ac"),
                 witness: TxOutWitness {
                     surjection_proof: None,
                     rangeproof: None,
                 },
             },
             TxOut {
-                asset: asset.clone(),
+                asset,
                 value: confidential::Value::Explicit(0x0000000000000ce4),
                 nonce: confidential::Nonce::Null,
                 script_pubkey: elements::Script::new(),

@@ -235,7 +235,7 @@ mod tests {
         // we have a choice to add distinct witnesses to every spot. But in this case we
         // are providing the same witness for every spot, so it really doesn't matter, so
         // try both cases.
-        for unshare_witnesses in vec![false, true] {
+        for &unshare_witnesses in &[false, true] {
             let eqwits_final = eqwits_prog
                 .finalize(&mut witness_iter, unshare_witnesses)
                 .unwrap();

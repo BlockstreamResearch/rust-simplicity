@@ -277,11 +277,10 @@ mod tests {
             .expect("finalize");
         let mut mac = BitMachine::for_program(&finalized);
 
-        let success = match mac.exec(&finalized, env) {
+        match mac.exec(&finalized, env) {
             Ok(output) => output == Value::Unit,
             Err(_) => false,
-        };
-        success
+        }
     }
 
     #[test]

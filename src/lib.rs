@@ -12,7 +12,12 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-#![allow(clippy::redundant_field_names, clippy::identity_op)]
+#![allow(
+    // we use `bool` to represent bits and frequentely assert_eq against them
+    clippy::bool_assert_comparison,
+    // we use () as the environment for Core (FIXME we should probabl use a newtype)
+    clippy::let_unit_value
+)]
 
 #[cfg(feature = "serde")]
 pub use actual_serde as serde;
