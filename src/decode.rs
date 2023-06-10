@@ -18,10 +18,9 @@
 //! Refer to [`crate::encode`] for information on the encoding.
 
 use crate::bititer::BitIter;
-use crate::core::commit::CommitNodeInner;
 use crate::core::iter::WitnessIterator;
 use crate::core::{CommitNode, Context, Value};
-use crate::dag::{DagLike, InternalSharing};
+use crate::dag::{Dag, DagLike, InternalSharing};
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::types;
@@ -102,6 +101,54 @@ impl error::Error for Error {
     }
 }
 
+#[derive(Debug)]
+enum DecodeNode<J: Jet> {
+    Iden,
+    Unit,
+    InjL(usize),
+    InjR(usize),
+    Take(usize),
+    Drop(usize),
+    Comp(usize, usize),
+    Case(usize, usize),
+    Pair(usize, usize),
+    Disconnect(usize, usize),
+    Witness,
+    Fail(Cmr, Cmr),
+    Hidden(Cmr),
+    Jet(J),
+    Word(Value),
+}
+
+impl<'d, J: Jet> DagLike for (usize, &'d [DecodeNode<J>]) {
+    type Node = DecodeNode<J>;
+
+    fn data(&self) -> &DecodeNode<J> {
+        &self.1[self.0]
+    }
+
+    fn as_dag_node(&self) -> Dag<Self> {
+        let nodes = &self.1;
+        match self.1[self.0] {
+            DecodeNode::Iden => Dag::Iden,
+            DecodeNode::Unit => Dag::Unit,
+            DecodeNode::InjL(i) => Dag::InjL((i, nodes)),
+            DecodeNode::InjR(i) => Dag::InjR((i, nodes)),
+            DecodeNode::Take(i) => Dag::Take((i, nodes)),
+            DecodeNode::Drop(i) => Dag::Drop((i, nodes)),
+            DecodeNode::Comp(li, ri) => Dag::Comp((li, nodes), (ri, nodes)),
+            DecodeNode::Case(li, ri) => Dag::Case((li, nodes), (ri, nodes)),
+            DecodeNode::Pair(li, ri) => Dag::Pair((li, nodes), (ri, nodes)),
+            DecodeNode::Disconnect(li, ri) => Dag::Disconnect((li, nodes), (ri, nodes)),
+            DecodeNode::Witness => Dag::Witness,
+            DecodeNode::Fail(..) => Dag::Fail,
+            DecodeNode::Hidden(..) => Dag::Hidden,
+            DecodeNode::Jet(..) => Dag::Jet,
+            DecodeNode::Word(..) => Dag::Word,
+        }
+    }
+}
+
 /// Decode a Simplicity program from bits, without the witness data.
 ///
 /// If witness data is present, it should be encoded after the program, and the
@@ -135,42 +182,84 @@ pub fn decode_program_arbitrary_type<I: Iterator<Item = u8>, J: Jet>(
 
     let mut context = Context::new();
 
-    let mut nodes = vec![];
+    let mut nodes = Vec::with_capacity(len);
     for _ in 0..len {
         let new_node = decode_node(bits, &mut context, &nodes[..])?;
         nodes.push(new_node);
     }
 
-    // We must check the canonical order of the serialized program
-    for data in nodes[nodes.len() - 1]
-        .as_ref()
-        .post_order_iter::<InternalSharing>()
-    {
-        if data.index >= nodes.len() || data.node != nodes[data.index].as_ref() {
+    enum Converted<J: Jet> {
+        Node(Rc<CommitNode<J>>),
+        Hidden(Cmr),
+    }
+    use Converted::{Hidden, Node};
+    impl<J: Jet> Converted<J> {
+        fn get(&self) -> Result<Rc<CommitNode<J>>, Error> {
+            match self {
+                Node(rc) => Ok(Rc::clone(rc)),
+                Hidden(_) => Err(Error::HiddenNode),
+            }
+        }
+    }
+
+    // Convert the DecodeNode structure into a CommitNode structure
+    let mut converted = Vec::<Converted<J>>::with_capacity(len);
+    for data in (nodes.len() - 1, &nodes[..]).post_order_iter::<InternalSharing>() {
+        // Check canonical order as we go
+        if data.index != data.node.0 {
             return Err(Error::NotInCanonicalOrder);
         }
 
-        if !matches!(
-            data.node.inner(),
-            CommitNodeInner::AssertL(..) | CommitNodeInner::AssertR(..)
-        ) {
-            if let Some(left_index) = data.left_index {
-                if let CommitNodeInner::Hidden(..) = nodes[left_index].inner() {
-                    return Err(Error::HiddenNode);
+        let new = match nodes[data.node.0] {
+            DecodeNode::Unit => Node(CommitNode::unit(&mut context)),
+            DecodeNode::Iden => Node(CommitNode::iden(&mut context)),
+            DecodeNode::InjL(i) => Node(CommitNode::injl(&mut context, converted[i].get()?)),
+            DecodeNode::InjR(i) => Node(CommitNode::injr(&mut context, converted[i].get()?)),
+            DecodeNode::Take(i) => Node(CommitNode::take(&mut context, converted[i].get()?)),
+            DecodeNode::Drop(i) => Node(CommitNode::drop(&mut context, converted[i].get()?)),
+            DecodeNode::Comp(i, j) => Node(CommitNode::comp(
+                &mut context,
+                converted[i].get()?,
+                converted[j].get()?,
+            )?),
+            DecodeNode::Case(i, j) => {
+                // Case is a special case, since it uniquely is allowed to have hidden
+                // children (but only one!) in which case it becomes an assertion.
+                match (&converted[i], &converted[j]) {
+                    (Node(left), Node(right)) => Node(CommitNode::case(
+                        &mut context,
+                        Rc::clone(left),
+                        Rc::clone(right),
+                    )?),
+                    (Node(left), Hidden(cmr)) => {
+                        Node(CommitNode::assertl(&mut context, Rc::clone(left), *cmr)?)
+                    }
+                    (Hidden(cmr), Node(right)) => {
+                        Node(CommitNode::assertr(&mut context, *cmr, Rc::clone(right))?)
+                    }
+                    (Hidden(_), Hidden(_)) => return Err(Error::BothChildrenHidden),
                 }
             }
-            if let Some(right_index) = data.right_index {
-                if let CommitNodeInner::Hidden(..) = nodes[right_index].inner() {
-                    return Err(Error::HiddenNode);
-                }
-            }
-        }
+            DecodeNode::Pair(i, j) => Node(CommitNode::pair(
+                &mut context,
+                converted[i].get()?,
+                converted[j].get()?,
+            )?),
+            DecodeNode::Disconnect(i, j) => Node(CommitNode::disconnect(
+                &mut context,
+                converted[i].get()?,
+                converted[j].get()?,
+            )?),
+            DecodeNode::Witness => Node(CommitNode::witness(&mut context)),
+            DecodeNode::Fail(cmr1, cmr2) => Node(CommitNode::fail(&mut context, cmr1, cmr2)),
+            DecodeNode::Hidden(cmr) => Hidden(cmr),
+            DecodeNode::Jet(j) => Node(CommitNode::jet(&mut context, j)),
+            DecodeNode::Word(ref w) => Node(CommitNode::const_word(&mut context, w.clone())),
+        };
+        converted.push(new);
     }
 
-    match nodes[nodes.len() - 1].inner() {
-        CommitNodeInner::Hidden(..) => Err(Error::HiddenNode),
-        _ => Ok(Rc::clone(&nodes[nodes.len() - 1])),
-    }
+    converted[len - 1].get()
 }
 
 /// Decode a single Simplicity node from bits and
@@ -178,8 +267,8 @@ pub fn decode_program_arbitrary_type<I: Iterator<Item = u8>, J: Jet>(
 fn decode_node<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
     context: &mut Context<J>,
-    nodes: &[Rc<CommitNode<J>>],
-) -> Result<Rc<CommitNode<J>>, Error> {
+    nodes: &[DecodeNode<J>],
+) -> Result<DecodeNode<J>, Error> {
     let index = nodes.len();
 
     let (maybe_code, subcode) = match bits.next() {
@@ -195,80 +284,55 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
     };
 
     let node = match maybe_code {
-        Some(code) if code < 2 => {
+        Some(0) => {
             let i_abs = index - decode_natural(bits, Some(index))?;
-            let left = Rc::clone(&nodes[i_abs]);
+            let j_abs = index - decode_natural(bits, Some(index))?;
 
-            match code {
-                0 => {
-                    let j_abs = index - decode_natural(bits, Some(index))?;
-                    let right = Rc::clone(&nodes[j_abs]);
-
-                    match subcode {
-                        0 => CommitNode::comp(context, left, right),
-                        1 => {
-                            if let CommitNodeInner::Hidden(..) = left.inner() {
-                                if let CommitNodeInner::Hidden(..) = right.inner() {
-                                    return Err(Error::BothChildrenHidden);
-                                }
-                            }
-
-                            if let CommitNodeInner::Hidden(right_hash) = right.inner() {
-                                CommitNode::assertl(context, left, *right_hash)
-                            } else if let CommitNodeInner::Hidden(left_hash) = left.inner() {
-                                CommitNode::assertr(context, *left_hash, right)
-                            } else {
-                                CommitNode::case(context, left, right)
-                            }
-                        }
-                        2 => CommitNode::pair(context, left, right),
-                        3 => CommitNode::disconnect(context, left, right),
-                        _ => unreachable!("2-bit subcode"),
-                    }
-                }
-                1 => Ok(match subcode {
-                    0 => CommitNode::injl(context, left),
-                    1 => CommitNode::injr(context, left),
-                    2 => CommitNode::take(context, left),
-                    3 => CommitNode::drop(context, left),
-                    _ => unreachable!("2-bit subcode"),
-                }),
-                _ => unreachable!("code < 2"),
+            match subcode {
+                0 => DecodeNode::Comp(i_abs, j_abs),
+                1 => DecodeNode::Case(i_abs, j_abs),
+                2 => DecodeNode::Pair(i_abs, j_abs),
+                3 => DecodeNode::Disconnect(i_abs, j_abs),
+                _ => unreachable!("2-bit subcode"),
             }
         }
-        _ => match maybe_code {
-            None => match bits.next() {
-                None => return Err(Error::EndOfStream),
-                Some(true) => match J::decode(bits) {
-                    Err(crate::Error::Decode(e)) => return Err(e),
-                    Err(_) => unreachable!(), // FIXME need to update generated jet code to directly return a decode::Error
-                    Ok(jet) => Ok(CommitNode::jet(context, jet)),
-                },
-                Some(false) => {
-                    let depth = decode_natural(bits, Some(32))?;
-                    let word = decode_value(&context.nth_power_of_2_final(depth - 1), bits)?;
-                    Ok(CommitNode::const_word(context, word))
-                }
-            },
-            Some(2) => Ok(match subcode {
-                0 => CommitNode::iden(context),
-                1 => CommitNode::unit(context),
-                2 => CommitNode::fail(
-                    context,
-                    Cmr::from(decode_hash(bits)?),
-                    Cmr::from(decode_hash(bits)?),
-                ),
-                3 => return Err(Error::StopCode),
+        Some(1) => {
+            let i_abs = index - decode_natural(bits, Some(index))?;
+            match subcode {
+                0 => DecodeNode::InjL(i_abs),
+                1 => DecodeNode::InjR(i_abs),
+                2 => DecodeNode::Take(i_abs),
+                3 => DecodeNode::Drop(i_abs),
                 _ => unreachable!("2-bit subcode"),
-            }),
-            Some(3) => Ok(match subcode {
-                0 => CommitNode::hidden(context, Cmr::from(decode_hash(bits)?)),
-                1 => CommitNode::witness(context),
-                _ => unreachable!("1-bit subcode"),
-            }),
-            Some(_) => unreachable!("2-bit code"),
+            }
+        }
+        Some(2) => match subcode {
+            0 => DecodeNode::Iden,
+            1 => DecodeNode::Unit,
+            2 => DecodeNode::Fail(Cmr::from(decode_hash(bits)?), Cmr::from(decode_hash(bits)?)),
+            3 => return Err(Error::StopCode),
+            _ => unreachable!("2-bit subcode"),
         },
-    }?;
+        Some(3) => match subcode {
+            0 => DecodeNode::Hidden(Cmr::from(decode_hash(bits)?)),
+            1 => DecodeNode::Witness,
+            _ => unreachable!("1-bit subcode"),
+        },
+        Some(_) => unreachable!("2-bit code"),
+        None => match bits.next() {
+            None => return Err(Error::EndOfStream),
+            Some(true) => match J::decode(bits) {
+                Err(crate::Error::Decode(e)) => return Err(e),
+                Err(_) => unreachable!(), // FIXME need to update generated jet code to directly return a decode::Error
+                Ok(jet) => DecodeNode::Jet(jet),
+            },
+            Some(false) => {
+                let depth = decode_natural(bits, Some(32))?;
+                let word = decode_value(&context.nth_power_of_2_final(depth - 1), bits)?;
+                DecodeNode::Word(word)
+            }
+        },
+    };
 
     Ok(node)
 }
