@@ -19,9 +19,10 @@
 //! A frame is a, possibly empty, cell array with a cursor referencing
 //! a cell in the array.
 
-use std::fmt;
 use std::mem::size_of;
 use std::ops::{Add, Shl};
+
+use crate::BitIter;
 
 /// Context to access a sub-slice of [`super::exec::BitMachine`]'s data.
 /// Read and write operations require a reference to the data,
@@ -150,8 +151,8 @@ impl Frame {
 
     /// Extend the present frame with a read-only reference the the data
     /// and return the resulting struct.
-    pub fn to_frame_data<'a>(&self, data: &'a [u8]) -> FrameData<'a> {
-        FrameData::new(self, data)
+    pub fn as_bit_iter<'a>(&self, data: &'a [u8]) -> BitIter<impl Iterator<Item = u8> + 'a> {
+        BitIter::byte_slice_window(data, self.start, self.start + self.len)
     }
 
     fn read_unsigned<T>(&mut self, data: &[u8]) -> T
@@ -188,78 +189,6 @@ impl Frame {
     }
 }
 
-/// View onto a sub-slice of the Bit Machine's data.
-/// In contrast to [`Frame`],
-/// this struct contains a read-only reference to the data
-/// and can print / iterate over it.
-#[derive(Eq, PartialEq)]
-pub(crate) struct FrameData<'a> {
-    data: &'a [u8],
-    start: usize,
-    cursor: usize,
-    end: usize,
-}
-
-impl<'a> FrameData<'a> {
-    fn new(frame: &Frame, data: &'a [u8]) -> Self {
-        FrameData {
-            data,
-            start: frame.start,
-            cursor: frame.cursor,
-            end: frame.start + frame.len,
-        }
-    }
-}
-
-impl<'a> fmt::Debug for FrameData<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.write_str("[")?;
-
-        for i in self.start..self.end {
-            if i == self.cursor {
-                f.write_str("^")?;
-            }
-
-            let (byte_index, bit_index) = get_indices(i);
-            let bit = self.data[byte_index] & (1 << (7 - bit_index)) != 0;
-
-            if bit {
-                f.write_str("1")?;
-            } else {
-                f.write_str("0")?;
-            }
-        }
-
-        if self.cursor == self.end {
-            f.write_str("^")?;
-        }
-
-        f.write_str("]")?;
-        Ok(())
-    }
-}
-
-impl<'a> ExactSizeIterator for FrameData<'a> {
-    fn len(&self) -> usize {
-        self.end - self.start
-    }
-}
-
-impl<'a> Iterator for FrameData<'a> {
-    type Item = bool;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.cursor >= self.end {
-            None
-        } else {
-            let (byte_index, bit_index) = get_indices(self.cursor);
-            let next_bit = self.data[byte_index] & (1 << (7 - bit_index)) != 0;
-            self.cursor += 1;
-            Some(next_bit)
-        }
-    }
-}
-
 fn get_indices(cursor: usize) -> (usize, usize) {
     let byte_index = cursor / 8;
     let bit_index = cursor % 8;
@@ -270,7 +199,6 @@ fn get_indices(cursor: usize) -> (usize, usize) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::util::bitvec_to_bytevec;
 
     #[test]
     fn read_unsigned() {
@@ -318,15 +246,5 @@ mod tests {
         assert_eq!(frame.read_u8(&bytes), 3);
         assert_eq!(frame.read_u16(&bytes), 9027);
         assert_eq!(frame.read_u32(&bytes), 1669571523);
-    }
-
-    #[test]
-    fn test_to_frame_data_iter() {
-        let bytes = (0..100).collect::<Vec<u8>>();
-        let frame = Frame::new(0, 100 * 8);
-        let bits = frame.to_frame_data(&bytes).collect::<Vec<_>>();
-        let computed_bytes = bitvec_to_bytevec(&bits);
-
-        assert_eq!(bytes, computed_bytes);
     }
 }

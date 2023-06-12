@@ -21,6 +21,8 @@
 //! `Iterator<Item=bool>`.
 //!
 
+use crate::core::Value;
+use crate::types;
 use crate::Cmr;
 
 /// Attempted to read from a bit iterator, but there was no more data
@@ -59,6 +61,8 @@ impl From<Vec<u8>> for BitIter<std::vec::IntoIter<u8>> {
         BitIter {
             iter: v.into_iter(),
             cached_byte: 0,
+            // Set to 8 to force next `Iterator::next` to read a new byte
+            // from the underlying iterator
             read_bits: 8,
             total_read: 0,
         }
@@ -70,6 +74,8 @@ impl<'a> From<&'a [u8]> for BitIter<std::iter::Copied<std::slice::Iter<'a, u8>>>
         BitIter {
             iter: sl.iter().copied(),
             cached_byte: 0,
+            // Set to 8 to force next `Iterator::next` to read a new byte
+            // from the underlying iterator
             read_bits: 8,
             total_read: 0,
         }
@@ -81,6 +87,8 @@ impl<I: Iterator<Item = u8>> From<I> for BitIter<I> {
         BitIter {
             iter,
             cached_byte: 0,
+            // Set to 8 to force next `Iterator::next` to read a new byte
+            // from the underlying iterator
             read_bits: 8,
             total_read: 0,
         }
@@ -99,6 +107,35 @@ impl<I: Iterator<Item = u8>> Iterator for BitIter<I> {
             self.cached_byte = self.iter.next()?;
             self.read_bits = 0;
             self.next()
+        }
+    }
+}
+
+impl<'a> BitIter<std::iter::Copied<std::slice::Iter<'a, u8>>> {
+    /// Creates a new bitwise iterator from a bytewise one. Equivalent
+    /// to using `From`
+    pub fn byte_slice_window(sl: &'a [u8], start: usize, end: usize) -> Self {
+        assert!(start <= end);
+        assert!(end <= sl.len() * 8);
+
+        let actual_sl = &sl[start / 8..(end + 7) / 8];
+        let mut iter = actual_sl.iter().copied();
+
+        let read_bits = start % 8;
+        if read_bits == 0 {
+            BitIter {
+                iter,
+                cached_byte: 0,
+                read_bits: 8,
+                total_read: 0,
+            }
+        } else {
+            BitIter {
+                cached_byte: iter.by_ref().next().unwrap(),
+                iter,
+                read_bits,
+                total_read: 0,
+            }
         }
     }
 }
@@ -143,6 +180,55 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
             *byte = self.read_u8()?;
         }
         Ok(Cmr::from(ret))
+    }
+
+    /// Decode a value from bits, based on the given type.
+    pub fn read_value(&mut self, ty: &types::Final) -> Result<Value, EarlyEndOfStreamError> {
+        enum State<'a> {
+            ProcessType(&'a types::Final),
+            DoSumL,
+            DoSumR,
+            DoProduct,
+        }
+
+        let mut stack = vec![State::ProcessType(ty)];
+        let mut result_stack = vec![];
+        while let Some(state) = stack.pop() {
+            match state {
+                State::ProcessType(ty) => match ty.bound() {
+                    types::CompleteBound::Unit => result_stack.push(Value::Unit),
+                    types::CompleteBound::Sum(ref l, ref r) => {
+                        if self.read_bit()? {
+                            stack.push(State::DoSumR);
+                            stack.push(State::ProcessType(r));
+                        } else {
+                            stack.push(State::DoSumL);
+                            stack.push(State::ProcessType(l));
+                        }
+                    }
+                    types::CompleteBound::Product(ref l, ref r) => {
+                        stack.push(State::DoProduct);
+                        stack.push(State::ProcessType(r));
+                        stack.push(State::ProcessType(l));
+                    }
+                },
+                State::DoSumL => {
+                    let val = result_stack.pop().unwrap();
+                    result_stack.push(Value::SumL(Box::new(val)));
+                }
+                State::DoSumR => {
+                    let val = result_stack.pop().unwrap();
+                    result_stack.push(Value::SumR(Box::new(val)));
+                }
+                State::DoProduct => {
+                    let val_r = result_stack.pop().unwrap();
+                    let val_l = result_stack.pop().unwrap();
+                    result_stack.push(Value::Prod(Box::new(val_l), Box::new(val_r)));
+                }
+            }
+        }
+        assert_eq!(result_stack.len(), 1);
+        Ok(result_stack.pop().unwrap())
     }
 
     /// Accessor for the number of bits which have been read,
@@ -209,5 +295,35 @@ mod tests {
         assert_eq!(iter.read_u2(), Ok(u2::_2)); // 10
         assert_eq!(iter.read_u2(), Ok(u2::_1)); // 01
         assert_eq!(iter.n_total_read(), 9);
+    }
+
+    #[test]
+    fn byte_slice_window() {
+        let data = [0x12, 0x23, 0x34];
+
+        let mut full = BitIter::byte_slice_window(&data, 0, 24);
+        assert_eq!(full.read_u8(), Ok(0x12));
+        assert_eq!(full.read_u8(), Ok(0x23));
+        assert_eq!(full.read_u8(), Ok(0x34));
+        assert_eq!(full.read_u8(), Err(EarlyEndOfStreamError));
+
+        let mut mid = BitIter::byte_slice_window(&data, 8, 16);
+        assert_eq!(mid.read_u8(), Ok(0x23));
+        assert_eq!(mid.read_u8(), Err(EarlyEndOfStreamError));
+
+        let mut offs = BitIter::byte_slice_window(&data, 4, 20);
+        assert_eq!(offs.read_u8(), Ok(0x22));
+        assert_eq!(offs.read_u8(), Ok(0x33));
+        assert_eq!(offs.read_u8(), Err(EarlyEndOfStreamError));
+
+        let mut shift1 = BitIter::byte_slice_window(&data, 1, 24);
+        assert_eq!(shift1.read_u8(), Ok(0x24));
+        assert_eq!(shift1.read_u8(), Ok(0x46));
+        assert_eq!(shift1.read_u8(), Err(EarlyEndOfStreamError));
+
+        let mut shift7 = BitIter::byte_slice_window(&data, 7, 24);
+        assert_eq!(shift7.read_u8(), Ok(0x11));
+        assert_eq!(shift7.read_u8(), Ok(0x9a));
+        assert_eq!(shift7.read_u8(), Err(EarlyEndOfStreamError));
     }
 }

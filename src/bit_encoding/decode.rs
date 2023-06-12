@@ -375,7 +375,7 @@ impl<'a, I: Iterator<Item = u8>> WitnessDecoder<'a, I> {
 
 impl<'a, I: Iterator<Item = u8>> WitnessIterator for WitnessDecoder<'a, I> {
     fn next(&mut self, ty: &types::Final) -> Result<Value, crate::Error> {
-        decode_value(ty, self.bits).map_err(From::from)
+        self.bits.read_value(ty).map_err(crate::Error::from)
     }
 
     fn finish(self) -> Result<(), crate::Error> {
@@ -385,27 +385,6 @@ impl<'a, I: Iterator<Item = u8>> WitnessIterator for WitnessDecoder<'a, I> {
             Ok(())
         }
     }
-}
-
-/// Decode a value from bits, based on the given type.
-pub fn decode_value<I: Iterator<Item = bool>>(
-    ty: &types::Final,
-    iter: &mut I,
-) -> Result<Value, Error> {
-    let value = match ty.bound() {
-        types::CompleteBound::Unit => Value::Unit,
-        types::CompleteBound::Sum(ref l, ref r) => match iter.next() {
-            Some(false) => Value::SumL(Box::new(decode_value(l, iter)?)),
-            Some(true) => Value::SumR(Box::new(decode_value(r, iter)?)),
-            None => return Err(Error::EndOfStream),
-        },
-        types::CompleteBound::Product(ref l, ref r) => Value::Prod(
-            Box::new(decode_value(l, iter)?),
-            Box::new(decode_value(r, iter)?),
-        ),
-    };
-
-    Ok(value)
 }
 
 /// Decode a value from bits, of the form 2^exp
