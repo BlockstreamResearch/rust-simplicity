@@ -27,3 +27,8 @@ path = "fuzz_targets/decode_witness.rs"
 [[bin]]
 name = "parse_compile"
 path = "fuzz_targets/parse_compile.rs"
+
+[patch.crates-io.bitcoin_hashes]
+git = "https://github.com/apoelstra/bitcoin_hashes"
+branch = "2023-04--fuzzcfg"
+
