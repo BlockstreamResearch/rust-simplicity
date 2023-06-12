@@ -118,7 +118,16 @@ impl Amr {
                     .update(a.tmr().into(), b.tmr().into())
                     .update(c.tmr().into(), left.unwrap().amr)
             }
-            CommitNodeInner::Comp(_, _) | CommitNodeInner::Pair(_, _) => {
+            CommitNodeInner::Comp(_, _) => {
+                let a = &ty.source;
+                let b = &right.as_ref().unwrap().ty.source;
+                let c = &ty.target;
+                amr_iv
+                    .update_1(a.tmr().into())
+                    .update(b.tmr().into(), c.tmr().into())
+                    .update(left.unwrap().amr, right.unwrap().amr)
+            }
+            CommitNodeInner::Pair(_, _) => {
                 let a = &ty.source;
                 let b = &left.as_ref().unwrap().ty.target;
                 let c = &right.as_ref().unwrap().ty.target;
