@@ -573,6 +573,24 @@ mod tests {
     }
 
     #[test]
+    fn shared_grandchild() {
+        // # This program repeats the node `cp2` three times; during iteration it will
+        // # be placed on the stack as part of the initial `comp` combinator, but by
+        // # the time we get to it, it will have already been yielded. Makes sure this
+        // # does not confuse the iteration logic and break the decoded program structure.
+        // id1 = iden
+        // cp2 = comp id1 id1
+        // cp3 = comp cp2 cp2
+        // main = comp cp3 cp2
+        assert_program_deserializable::<Core>(
+            &[0xc1, 0x00, 0x00, 0x01, 0x00],
+            "c2c86be0081a9c75af49098f359c7efdfa7ccbd0459adb11bcf676b80c8644b1",
+            Some("e053520f0c3219d1cabd705b4523ccd05c8d703a70f6f3994a20774a42b5ccfc"),
+            Some("7b0ad0514279280d5c2ac1da729222936b8768d9f465c6c6ade3b0ed7dc97263"),
+        );
+    }
+
+    #[test]
     #[rustfmt::skip]
     fn assert_lr() {
         // asst = assertl unit deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
