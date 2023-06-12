@@ -595,10 +595,9 @@ impl<J: Jet> CommitNode<J> {
 
         // Map from a node's index to its first-pass IMR
         let mut first_pass: HashMap<usize, Imr> = HashMap::new();
-        // Map from a node's first-pass IMR to its index and final node
-        let mut finalized: HashMap<Imr, Rc<RedeemNode<J>>> = HashMap::new();
+        // Map from a node's index to its finalized node
+        let mut finalized = vec![];
         // IMR of the final node to be iterated over
-        let mut root_imr = None;
         for data in self.post_order_iter_with_tracker(tracker) {
             // 0. Obtain data needed for IMR
             let left_data = data
@@ -628,8 +627,8 @@ impl<J: Jet> CommitNode<J> {
             first_pass.insert(data.index, first_pass_imr);
 
             // 2. Finalize the node
-            let left = left_data.map(|imr| Rc::clone(&finalized[&imr]));
-            let right = right_data.map(|imr| Rc::clone(&finalized[&imr]));
+            let left = data.left_index.map(|idx| Rc::clone(&finalized[idx]));
+            let right = data.right_index.map(|idx| Rc::clone(&finalized[idx]));
 
             let imr = Imr::compute_pass2(first_pass_imr, &final_ty);
             let amr = Amr::compute(
@@ -662,22 +661,17 @@ impl<J: Jet> CommitNode<J> {
                 CommitNodeInner::Jet(jet) => RedeemNodeInner::Jet(jet),
                 CommitNodeInner::Word(ref w) => RedeemNodeInner::Word(w.clone()),
             };
-            finalized.insert(
-                first_pass_imr,
-                Rc::new(RedeemNode {
-                    inner,
-                    cmr: data.node.cmr,
-                    imr,
-                    amr,
-                    ty: final_ty,
-                    bounds,
-                }),
-            );
-            // This will be correct on the last iteration
-            root_imr = Some(first_pass_imr);
+            finalized.push(Rc::new(RedeemNode {
+                inner,
+                cmr: data.node.cmr,
+                imr,
+                amr,
+                ty: final_ty,
+                bounds,
+            }));
         }
         witness.finish()?;
-        Ok(finalized.remove(&root_imr.unwrap()).unwrap())
+        Ok(finalized.pop().unwrap())
     }
 
     /// Decode a Simplicity program from bits, without the witness data.

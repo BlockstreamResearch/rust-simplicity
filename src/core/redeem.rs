@@ -257,6 +257,19 @@ mod tests {
     }
 
     #[test]
+    fn unshared_child() {
+        // # id1 and id2 should be shared, but are not!
+        // id1 = iden          :: A -> A # cmr dbfefcfc...
+        // id2 = iden          :: A -> A # cmr dbfefcfc...
+        // cp3 = comp id1 id2  :: A -> A # cmr c1ae55b5...
+        // main = comp cp3 cp3 :: A -> A # cmr 314e2879...
+        let bad = [0xc1, 0x08, 0x04, 0x00, 0x00, 0x74, 0x74, 0x74];
+        let mut iter = BitIter::from(&bad[..]);
+        let err = RedeemNode::<crate::jet::Core>::decode(&mut iter).unwrap_err();
+        assert!(matches!(err, crate::Error::SharingNotMaximal));
+    }
+
+    #[test]
     fn witness_consumed() {
         // "main = unit", but with a witness attached. Found by fuzzer.
         let badwit = vec![0x27, 0x00];
