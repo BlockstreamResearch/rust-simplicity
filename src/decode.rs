@@ -595,6 +595,12 @@ mod tests {
         // To obtain this test vector I temporarily swapped `get_left` and `get_right`
         // in the implementation of `PostOrderIter`
         assert_program_not_deserializable::<Core>(&[0xa8, 0x48, 0x10], Error::NotInCanonicalOrder);
+
+        // "main = iden", but prefixed by some unused nodes, the first of which is also iden.
+        assert_program_not_deserializable::<Core>(
+            &[0xc1, 0x00, 0x06, 0x20],
+            Error::NotInCanonicalOrder,
+        );
     }
 
     #[test]
