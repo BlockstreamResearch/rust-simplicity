@@ -323,7 +323,7 @@ mod tests {
 
     fn execute_successful(program: Rc<RedeemNode<Elements>>, env: &ElementsEnv) {
         let mut mac = BitMachine::for_program(&program);
-        assert!(mac.exec(&program, &env).is_ok());
+        assert!(mac.exec(&program, env).is_ok());
     }
 
     fn to_witness(program: &RedeemNode<Elements>) -> Vec<&Value> {
@@ -376,7 +376,7 @@ mod tests {
         let signature_bytes = witness[0].try_to_bytes().expect("to bytes");
         let signature =
             secp256k1_zkp::schnorr::Signature::from_slice(&signature_bytes).expect("to signature");
-        assert!(signature.verify(&message, &xonly).is_ok());
+        assert!(signature.verify(&message, xonly).is_ok());
 
         execute_successful(program, &satisfier.env);
     }
@@ -403,7 +403,7 @@ mod tests {
     #[test]
     fn satisfy_and() {
         let satisfier = get_satisfier();
-        let images: Vec<_> = satisfier.preimages.keys().map(|x| *x).collect();
+        let images: Vec<_> = satisfier.preimages.keys().copied().collect();
         let preimages: Vec<_> = images
             .iter()
             .map(|x| satisfier.preimages.get(x).unwrap())
@@ -445,7 +445,7 @@ mod tests {
     #[test]
     fn satisfy_or() {
         let satisfier = get_satisfier();
-        let images: Vec<_> = satisfier.preimages.keys().map(|x| *x).collect();
+        let images: Vec<_> = satisfier.preimages.keys().copied().collect();
         let preimages: Vec<_> = images
             .iter()
             .map(|x| satisfier.preimages.get(x).unwrap())
@@ -498,7 +498,7 @@ mod tests {
     #[test]
     fn satisfy_thresh() {
         let satisfier = get_satisfier();
-        let images: Vec<_> = satisfier.preimages.keys().map(|x| *x).collect();
+        let images: Vec<_> = satisfier.preimages.keys().copied().collect();
         let preimages: Vec<_> = images
             .iter()
             .map(|x| satisfier.preimages.get(x).unwrap())

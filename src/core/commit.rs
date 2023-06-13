@@ -712,7 +712,9 @@ impl<J: Jet> CommitNode<J> {
     /// or the witness is provided by other means.
     ///
     /// If the serialization contains the witness data, then use [`RedeemNode::decode()`].
-    pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Rc<Self>, Error> {
+    pub fn decode<I: Iterator<Item = u8>>(
+        bits: &mut BitIter<I>,
+    ) -> Result<Rc<Self>, crate::decode::Error> {
         crate::decode::decode_program_arbitrary_type(bits)
     }
 

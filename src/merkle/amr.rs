@@ -16,10 +16,9 @@ use crate::core::commit::CommitNodeInner;
 use crate::core::{RedeemNode, Value};
 use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
-use crate::merkle::cmr::Cmr;
-use crate::merkle::tmr::Tmr;
-use crate::merkle::{CommitMerkleRoot, MerkleRoot};
+use crate::merkle::{compact_value, CommitMerkleRoot, MerkleRoot};
 use crate::types::arrow::FinalArrow;
+use crate::{Cmr, Tmr};
 use bitcoin_hashes::sha256::Midstate;
 use std::rc::Rc;
 
@@ -97,7 +96,13 @@ impl Amr {
                 amr_iv
             }
             CommitNodeInner::Fail(left, right) => amr_iv.update(left.into(), right.into()),
-            CommitNodeInner::Witness => amr_iv.update_value(value.unwrap(), ty.target.as_ref()),
+            CommitNodeInner::Witness => {
+                let a = &ty.source; // will always be unit
+                let b = &ty.target;
+                amr_iv
+                    .update_1(a.tmr().into())
+                    .update(b.tmr().into(), Amr::from(compact_value(value.unwrap())))
+            }
             CommitNodeInner::Iden | CommitNodeInner::Unit => {
                 let a = &ty.source;
                 amr_iv.update_1(a.tmr().into())
