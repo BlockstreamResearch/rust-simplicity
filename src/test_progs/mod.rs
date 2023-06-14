@@ -19,7 +19,7 @@ mod tests {
 
     use simplicity_sys::c_jets::exec_ffi;
 
-    use crate::bititer::BitIter;
+    use crate::BitIter;
     use crate::jet::Elements;
     use crate::merkle::common::MerkleRoot;
     use crate::RedeemNode;

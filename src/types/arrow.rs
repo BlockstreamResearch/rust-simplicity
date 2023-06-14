@@ -109,14 +109,6 @@ impl Arrow {
         }
     }
 
-    /// Create a unification arrow for a fresh `hidden` combinator
-    pub fn for_hidden<J: Jet>(context: &mut Context<J>) -> Self {
-        Arrow {
-            source: Type::free(context.naming.new_name()),
-            target: Type::free(context.naming.new_name()),
-        }
-    }
-
     /// Create a unification arrow for a fresh jet combinator
     pub fn for_jet<J: Jet>(context: &mut Context<J>, jet: &J) -> Self {
         Arrow {

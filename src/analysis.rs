@@ -52,22 +52,20 @@ fn compute_extra_cells_bound<J: Jet>(
         CommitNodeInner::Iden
         | CommitNodeInner::Unit
         | CommitNodeInner::Fail(_, _)
-        | CommitNodeInner::Hidden(_)
         | CommitNodeInner::Jet(_)
         | CommitNodeInner::Word(_) => 0,
         CommitNodeInner::InjL(_)
         | CommitNodeInner::InjR(_)
         | CommitNodeInner::Take(_)
-        | CommitNodeInner::Drop(_) => left.unwrap().bounds.extra_cells,
+        | CommitNodeInner::Drop(_)
+        | CommitNodeInner::AssertL(_, _)
+        | CommitNodeInner::AssertR(_, _) => left.unwrap().bounds.extra_cells,
         CommitNodeInner::Comp(_, _) => {
             let left = left.unwrap();
             left.ty.target.bit_width()
                 + cmp::max(left.bounds.extra_cells, right.unwrap().bounds.extra_cells)
         }
-        CommitNodeInner::Case(_, _)
-        | CommitNodeInner::AssertL(_, _)
-        | CommitNodeInner::AssertR(_, _)
-        | CommitNodeInner::Pair(_, _) => cmp::max(
+        CommitNodeInner::Case(_, _) | CommitNodeInner::Pair(_, _) => cmp::max(
             left.unwrap().bounds.extra_cells,
             right.unwrap().bounds.extra_cells,
         ),
@@ -93,23 +91,21 @@ fn compute_extra_frames_bound<J: Jet>(
         | CommitNodeInner::Unit
         | CommitNodeInner::Witness
         | CommitNodeInner::Fail(_, _)
-        | CommitNodeInner::Hidden(_)
         | CommitNodeInner::Jet(_)
         | CommitNodeInner::Word(_) => 0,
         CommitNodeInner::InjL(_)
         | CommitNodeInner::InjR(_)
         | CommitNodeInner::Take(_)
-        | CommitNodeInner::Drop(_) => left.unwrap().bounds.extra_frames,
+        | CommitNodeInner::Drop(_)
+        | CommitNodeInner::AssertL(_, _)
+        | CommitNodeInner::AssertR(_, _) => left.unwrap().bounds.extra_frames,
         CommitNodeInner::Comp(_, _) => {
             1 + cmp::max(
                 left.unwrap().bounds.extra_frames,
                 right.unwrap().bounds.extra_frames,
             )
         }
-        CommitNodeInner::Case(_, _)
-        | CommitNodeInner::AssertL(_, _)
-        | CommitNodeInner::AssertR(_, _)
-        | CommitNodeInner::Pair(_, _) => cmp::max(
+        CommitNodeInner::Case(_, _) | CommitNodeInner::Pair(_, _) => cmp::max(
             left.unwrap().bounds.extra_frames,
             right.unwrap().bounds.extra_frames,
         ),

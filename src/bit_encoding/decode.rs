@@ -17,13 +17,13 @@
 //! Functionality to decode Simplicity programs.
 //! Refer to [`crate::encode`] for information on the encoding.
 
-use crate::bititer::BitIter;
 use crate::core::iter::WitnessIterator;
 use crate::core::{CommitNode, Context, Value};
 use crate::dag::{Dag, DagLike, InternalSharing};
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::types;
+use crate::BitIter;
 use std::rc::Rc;
 use std::{cell, error, fmt, mem};
 
@@ -156,7 +156,7 @@ impl<'d, J: Jet> DagLike for (usize, &'d [DecodeNode<J>]) {
 pub fn decode_program<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
 ) -> Result<Rc<CommitNode<J>>, Error> {
-    let root = decode_program_arbitrary_type(bits)?;
+    let root = decode_expression(bits)?;
     let unit_ty = crate::types::Type::unit();
     root.arrow()
         .source
@@ -167,7 +167,7 @@ pub fn decode_program<I: Iterator<Item = u8>, J: Jet>(
     Ok(root)
 }
 
-pub fn decode_program_arbitrary_type<I: Iterator<Item = u8>, J: Jet>(
+pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
 ) -> Result<Rc<CommitNode<J>>, Error> {
     let len = decode_natural(bits, None)?;
@@ -502,10 +502,10 @@ pub fn decode_natural<I: Iterator<Item = bool>>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bitwriter::BitWriter;
     use crate::encode;
     use crate::exec::BitMachine;
     use crate::jet::Core;
+    use crate::BitWriter;
     use bitcoin_hashes::hex::ToHex;
 
     fn assert_program_deserializable<J: Jet>(

@@ -19,27 +19,102 @@
 //! so given a hex dump of a program it is not generally possible
 //! to read it visually the way you can with Bitcoin Script.
 
-use crate::bitwriter::BitWriter;
-use crate::core::redeem::{RedeemNode, RedeemNodeInner};
+use crate::core::redeem::RedeemNodeInner;
 use crate::core::Value;
-use crate::dag::{FullSharing, PostOrderIter, PostOrderIterItem};
+use crate::dag::{Dag, DagLike, PostOrderIterItem, SharingTracker};
 use crate::jet::Jet;
+use crate::{BitWriter, Cmr, Imr, RedeemNode};
+use std::collections::HashMap;
 use std::{io, mem};
+
+#[derive(Copy, Clone)]
+enum EncodeNode<'n, J: Jet> {
+    Node(&'n RedeemNode<J>),
+    Hidden(Cmr),
+}
+
+impl<'n, J: Jet> DagLike for EncodeNode<'n, J> {
+    type Node = Self;
+    fn data(&self) -> &Self {
+        self
+    }
+
+    fn as_dag_node(&self) -> Dag<Self> {
+        let node = match *self {
+            EncodeNode::Node(node) => node,
+            EncodeNode::Hidden(..) => return Dag::Hidden,
+        };
+        match &node.inner {
+            RedeemNodeInner::Unit => Dag::Unit,
+            RedeemNodeInner::Iden => Dag::Iden,
+            RedeemNodeInner::InjL(sub) => Dag::InjL(EncodeNode::Node(sub)),
+            RedeemNodeInner::InjR(sub) => Dag::InjR(EncodeNode::Node(sub)),
+            RedeemNodeInner::Take(sub) => Dag::Take(EncodeNode::Node(sub)),
+            RedeemNodeInner::Drop(sub) => Dag::Drop(EncodeNode::Node(sub)),
+            RedeemNodeInner::Comp(left, right) => {
+                Dag::Comp(EncodeNode::Node(left), EncodeNode::Node(right))
+            }
+            RedeemNodeInner::Case(left, right) => {
+                Dag::Case(EncodeNode::Node(left), EncodeNode::Node(right))
+            }
+            RedeemNodeInner::AssertL(left, rcmr) => {
+                Dag::Case(EncodeNode::Node(left), EncodeNode::Hidden(*rcmr))
+            }
+            RedeemNodeInner::AssertR(lcmr, right) => {
+                Dag::Case(EncodeNode::Hidden(*lcmr), EncodeNode::Node(right))
+            }
+            RedeemNodeInner::Pair(left, right) => {
+                Dag::Pair(EncodeNode::Node(left), EncodeNode::Node(right))
+            }
+            RedeemNodeInner::Disconnect(left, right) => {
+                Dag::Disconnect(EncodeNode::Node(left), EncodeNode::Node(right))
+            }
+            RedeemNodeInner::Witness(..) => Dag::Witness,
+            RedeemNodeInner::Fail(..) => Dag::Fail,
+            RedeemNodeInner::Jet(..) => Dag::Jet,
+            RedeemNodeInner::Word(..) => Dag::Word,
+        }
+    }
+}
+
+/// Shares nodes based on IMR, *except* for Hidden nodes, which are identified
+/// solely by the hash they contain
+#[derive(Clone, Debug, Default)]
+pub struct EncodeSharing {
+    map: HashMap<Imr, usize>,
+}
+
+impl<'n, J: Jet> SharingTracker<EncodeNode<'n, J>> for EncodeSharing {
+    fn record(&mut self, d: &EncodeNode<J>, index: usize, _: Option<usize>, _: Option<usize>) {
+        let imr = match d {
+            EncodeNode::Node(n) => n.imr,
+            EncodeNode::Hidden(cmr) => (*cmr).into(),
+        };
+        self.map.insert(imr, index);
+    }
+    fn seen_before(&self, d: &EncodeNode<J>) -> Option<usize> {
+        let imr = match d {
+            EncodeNode::Node(n) => n.imr,
+            EncodeNode::Hidden(cmr) => (*cmr).into(),
+        };
+        self.map.get(&imr).copied()
+    }
+}
 
 /// Encode a Simplicity program to bits, without witness data.
 ///
 /// Returns the number of written bits.
 pub fn encode_program<W: io::Write, J: Jet>(
-    program: PostOrderIter<&RedeemNode<J>, FullSharing>,
+    program: &RedeemNode<J>,
     w: &mut BitWriter<W>,
 ) -> io::Result<usize> {
-    let len_program = program.clone();
-    let len = len_program.count();
+    let iter = EncodeNode::Node(program).post_order_iter::<EncodeSharing>();
 
+    let len = iter.clone().count();
     let start_n = w.n_total_written();
     encode_natural(len, w)?;
 
-    for node in program {
+    for node in iter {
         encode_node(node, w)?;
     }
 
@@ -48,9 +123,19 @@ pub fn encode_program<W: io::Write, J: Jet>(
 
 /// Encode a node to bits.
 fn encode_node<W: io::Write, J: Jet>(
-    data: PostOrderIterItem<&RedeemNode<J>>,
+    data: PostOrderIterItem<EncodeNode<J>>,
     w: &mut BitWriter<W>,
 ) -> io::Result<()> {
+    // Handle Hidden nodes specially
+    let node = match data.node {
+        EncodeNode::Node(node) => node,
+        EncodeNode::Hidden(cmr) => {
+            w.write_bits_be(0b0110, 4)?;
+            encode_hash(cmr.as_ref(), w)?;
+            return Ok(());
+        }
+    };
+
     if let Some(i_abs) = data.left_index {
         debug_assert!(i_abs < data.index);
         let i = data.index - i_abs;
@@ -59,20 +144,20 @@ fn encode_node<W: io::Write, J: Jet>(
             debug_assert!(j_abs < data.index);
             let j = data.index - j_abs;
 
-            match &data.node.inner {
+            match &node.inner {
                 RedeemNodeInner::Comp(_, _) => {
-                    w.write_bits_be(0, 5)?;
+                    w.write_bits_be(0x00000, 5)?;
                 }
                 RedeemNodeInner::Case(_, _)
                 | RedeemNodeInner::AssertL(_, _)
                 | RedeemNodeInner::AssertR(_, _) => {
-                    w.write_bits_be(1, 5)?;
+                    w.write_bits_be(0b00001, 5)?;
                 }
                 RedeemNodeInner::Pair(_, _) => {
-                    w.write_bits_be(2, 5)?;
+                    w.write_bits_be(0b00010, 5)?;
                 }
                 RedeemNodeInner::Disconnect(_, _) => {
-                    w.write_bits_be(3, 5)?;
+                    w.write_bits_be(0b00011, 5)?;
                 }
                 _ => unreachable!(),
             }
@@ -80,18 +165,18 @@ fn encode_node<W: io::Write, J: Jet>(
             encode_natural(i, w)?;
             encode_natural(j, w)?;
         } else {
-            match &data.node.inner {
+            match &node.inner {
                 RedeemNodeInner::InjL(_) => {
-                    w.write_bits_be(4, 5)?;
+                    w.write_bits_be(0b00100, 5)?;
                 }
                 RedeemNodeInner::InjR(_) => {
-                    w.write_bits_be(5, 5)?;
+                    w.write_bits_be(0b00101, 5)?;
                 }
                 RedeemNodeInner::Take(_) => {
-                    w.write_bits_be(6, 5)?;
+                    w.write_bits_be(0b00110, 5)?;
                 }
                 RedeemNodeInner::Drop(_) => {
-                    w.write_bits_be(7, 5)?;
+                    w.write_bits_be(0b00111, 5)?;
                 }
                 _ => unreachable!(),
             };
@@ -99,24 +184,20 @@ fn encode_node<W: io::Write, J: Jet>(
             encode_natural(i, w)?;
         }
     } else {
-        match &data.node.inner {
+        match &node.inner {
             RedeemNodeInner::Iden => {
-                w.write_bits_be(8, 5)?;
+                w.write_bits_be(0b01000, 5)?;
             }
             RedeemNodeInner::Unit => {
-                w.write_bits_be(9, 5)?;
+                w.write_bits_be(0b01001, 5)?;
             }
             RedeemNodeInner::Fail(hl, hr) => {
-                w.write_bits_be(10, 5)?;
+                w.write_bits_be(0b01010, 5)?;
                 encode_hash(hl.as_ref(), w)?;
                 encode_hash(hr.as_ref(), w)?;
             }
-            RedeemNodeInner::Hidden(h) => {
-                w.write_bits_be(6, 4)?;
-                encode_hash(h.as_ref(), w)?;
-            }
             RedeemNodeInner::Witness(_) => {
-                w.write_bits_be(7, 4)?;
+                w.write_bits_be(0b0111, 4)?;
             }
             RedeemNodeInner::Jet(jet) => {
                 w.write_bit(true)?; // jet or word
@@ -225,10 +306,10 @@ pub fn encode_natural<W: io::Write>(n: usize, w: &mut BitWriter<W>) -> io::Resul
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::bititer::BitIter;
     use crate::core::iter::WitnessIterator;
     use crate::decode;
     use crate::decode::WitnessDecoder;
+    use crate::BitIter;
 
     #[test]
     fn encode_decode_natural() {

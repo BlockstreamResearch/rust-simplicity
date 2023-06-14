@@ -14,9 +14,8 @@
 
 use honggfuzz::fuzz;
 
-use simplicity::bititer::BitIter;
-use simplicity::bitwriter::BitWriter;
 use simplicity::{decode_natural, encode_natural};
+use simplicity::{BitIter, BitWriter};
 
 fn do_test(data: &[u8]) {
     let mut iter = BitIter::new(data.iter().cloned());

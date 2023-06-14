@@ -58,14 +58,6 @@ impl CommitMerkleRoot for Imr {
 }
 
 impl Imr {
-    /// The IV used in the second pass of IMR computation.
-    fn pass_two_iv<J: Jet>(node: &CommitNodeInner<J>) -> Self {
-        match node {
-            CommitNodeInner::Hidden(_) => Imr::tag_iv(b"Simplicity-Draft\x1fHidden"),
-            _ => Imr::tag_iv(b"Simplicity-Draft\x1fIdentity"),
-        }
-    }
-
     /// Compute the IMR of the given node (once finalized).
     ///
     /// Nodes with left children require their finalized left child,
@@ -81,10 +73,7 @@ impl Imr {
         let imr_iv = Imr::get_iv(node);
 
         match *node {
-            CommitNodeInner::Iden
-            | CommitNodeInner::Unit
-            | CommitNodeInner::Hidden(..)
-            | CommitNodeInner::Jet(..) => imr_iv,
+            CommitNodeInner::Iden | CommitNodeInner::Unit | CommitNodeInner::Jet(..) => imr_iv,
             CommitNodeInner::Word(ref value) => Cmr::const_word_cmr(value).into_inner().into(),
             CommitNodeInner::Fail(left, right) => imr_iv.update(left.into(), right.into()),
             CommitNodeInner::InjL(_)
@@ -94,31 +83,24 @@ impl Imr {
             CommitNodeInner::Comp(_, _)
             | CommitNodeInner::Case(_, _)
             | CommitNodeInner::Pair(_, _)
-            | CommitNodeInner::AssertL(_, _)
-            | CommitNodeInner::AssertR(_, _)
             | CommitNodeInner::Disconnect(_, _) => imr_iv.update(left.unwrap(), right.unwrap()),
+            CommitNodeInner::AssertL(_, r_cmr) => imr_iv.update(left.unwrap(), r_cmr.into()),
+            CommitNodeInner::AssertR(l_cmr, _) => imr_iv.update(l_cmr.into(), left.unwrap()),
             CommitNodeInner::Witness => imr_iv.update_value(value.unwrap(), &ty.target),
         }
     }
 
     /// Do the second pass of the IMR computation. This must be called on the result
     /// of first pass.
-    //
-    // TODO: None of the fields in [`RedeemNode`] should be pub.
-    pub(crate) fn compute_pass2<J: Jet>(
+    pub(crate) fn compute_pass2(
         self, // The IMR computed in the first pass.
-        node: &CommitNodeInner<J>,
         ty: &FinalArrow,
     ) -> Imr {
         let first_pass = self;
-        let iv = Imr::pass_two_iv(node);
-        if let CommitNodeInner::Hidden(_) = node {
-            iv.update_1(first_pass)
-        } else {
-            iv.update_1(first_pass).update(
-                Imr::from(<[u8; 32]>::from(ty.source.tmr())),
-                Imr::from(<[u8; 32]>::from(ty.target.tmr())),
-            )
-        }
+        let iv = Imr::tag_iv(b"Simplicity-Draft\x1fIdentity");
+        iv.update_1(first_pass).update(
+            Imr::from(<[u8; 32]>::from(ty.source.tmr())),
+            Imr::from(<[u8; 32]>::from(ty.target.tmr())),
+        )
     }
 }

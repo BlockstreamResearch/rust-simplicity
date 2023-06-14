@@ -34,13 +34,10 @@ pub use elements_miniscript as miniscript;
 mod macros;
 
 mod analysis;
+pub mod bit_encoding;
 pub mod bit_machine;
-pub mod bititer;
-pub mod bitwriter;
 pub mod core;
 pub mod dag;
-mod decode;
-mod encode;
 pub mod jet;
 pub mod merkle;
 #[cfg(feature = "elements")]
@@ -49,6 +46,13 @@ pub mod types;
 // #[cfg(test)]
 // mod test_progs;
 mod util;
+
+use bit_encoding::bititer; // FIXME used by autogenerator jet code
+use bit_encoding::bitwriter; // FIXME used by autogenerator jet code
+use bit_encoding::decode;
+use bit_encoding::encode;
+pub use bit_encoding::BitIter;
+pub use bit_encoding::BitWriter;
 
 #[cfg(feature = "elements")]
 pub use crate::policy::Policy;

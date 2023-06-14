@@ -54,7 +54,6 @@ impl CommitMerkleRoot for Cmr {
             }
             CommitNodeInner::Witness => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1fwitness"),
             CommitNodeInner::Fail(_, _) => Cmr::tag_iv(b"Simplicity-Draft\x1fCommitment\x1ffail"),
-            CommitNodeInner::Hidden(h) => *h,
             CommitNodeInner::Jet(j) => Cmr::tag_iv(b"Simplicity-Draft\x1fJet").update_1(j.cmr()),
             CommitNodeInner::Word(_) => Cmr::tag_iv(b"Simplicity-Draft\x1fIdentity"),
         }
@@ -131,7 +130,6 @@ impl Cmr {
             CommitNodeInner::Iden
             | CommitNodeInner::Unit
             | CommitNodeInner::Witness
-            | CommitNodeInner::Hidden(..)
             | CommitNodeInner::Jet(..) => cmr_iv,
             CommitNodeInner::Word(ref w) => Cmr::const_word_cmr(w),
             CommitNodeInner::Fail(left, right) => cmr_iv.update(*left, *right),
@@ -142,9 +140,9 @@ impl Cmr {
             | CommitNodeInner::Disconnect(l, _) => cmr_iv.update_1(l.cmr()),
             CommitNodeInner::Comp(l, r)
             | CommitNodeInner::Case(l, r)
-            | CommitNodeInner::Pair(l, r)
-            | CommitNodeInner::AssertL(l, r)
-            | CommitNodeInner::AssertR(l, r) => cmr_iv.update(l.cmr(), r.cmr()),
+            | CommitNodeInner::Pair(l, r) => cmr_iv.update(l.cmr(), r.cmr()),
+            CommitNodeInner::AssertL(l, r_cmr) => cmr_iv.update(l.cmr(), *r_cmr),
+            CommitNodeInner::AssertR(l_cmr, r) => cmr_iv.update(*l_cmr, r.cmr()),
         }
     }
 }

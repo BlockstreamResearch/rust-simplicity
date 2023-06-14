@@ -13,8 +13,6 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use crate::bititer::BitIter;
-use crate::bitwriter::BitWriter;
 use crate::core::iter::WitnessIterator;
 use crate::core::redeem::RedeemNodeInner;
 use crate::core::{Context, RedeemNode, Value};
@@ -25,6 +23,7 @@ use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
 use crate::types::{self, arrow::Arrow};
 use crate::{analysis, Error};
+use crate::{BitIter, BitWriter};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::{fmt, io};
@@ -50,9 +49,9 @@ pub enum CommitNodeInner<J: Jet> {
     /// Case of a left and right child
     Case(Rc<CommitNode<J>>, Rc<CommitNode<J>>),
     /// Left assertion of a left and right child.
-    AssertL(Rc<CommitNode<J>>, Rc<CommitNode<J>>),
+    AssertL(Rc<CommitNode<J>>, Cmr),
     /// Right assertion of a left and right child.
-    AssertR(Rc<CommitNode<J>>, Rc<CommitNode<J>>),
+    AssertR(Cmr, Rc<CommitNode<J>>),
     /// Pair of a left and right child
     Pair(Rc<CommitNode<J>>, Rc<CommitNode<J>>),
     /// Disconnect of a left and right child
@@ -61,8 +60,6 @@ pub enum CommitNodeInner<J: Jet> {
     Witness,
     /// Universal fail
     Fail(Cmr, Cmr),
-    /// Hidden CMR
-    Hidden(Cmr),
     /// Application jet
     Jet(J),
     /// Constant word
@@ -86,7 +83,6 @@ impl<J: Jet> fmt::Display for CommitNodeInner<J> {
             CommitNodeInner::Disconnect(_, _) => f.write_str("disconnect"),
             CommitNodeInner::Witness => f.write_str("witness"),
             CommitNodeInner::Fail(..) => f.write_str("fail"),
-            CommitNodeInner::Hidden(..) => f.write_str("hidden"),
             CommitNodeInner::Jet(jet) => write!(f, "jet({})", jet),
             CommitNodeInner::Word(w) => write!(f, "word({})", w),
         }
@@ -294,7 +290,7 @@ impl<J: Jet> CommitNode<J> {
         right: Cmr,
     ) -> Result<Rc<Self>, types::Error> {
         let arrow = Arrow::for_case(context, Some(&left.arrow), None)?;
-        let inner = CommitNodeInner::AssertL(left, Self::hidden(context, right));
+        let inner = CommitNodeInner::AssertL(left, right);
         Ok(Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
             inner,
@@ -314,7 +310,7 @@ impl<J: Jet> CommitNode<J> {
         right: Rc<Self>,
     ) -> Result<Rc<Self>, types::Error> {
         let arrow = Arrow::for_case(context, None, Some(&right.arrow))?;
-        let inner = CommitNodeInner::AssertR(Self::hidden(context, left), right);
+        let inner = CommitNodeInner::AssertR(left, right);
         Ok(Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
             inner,
@@ -396,20 +392,6 @@ impl<J: Jet> CommitNode<J> {
             cmr: Cmr::compute(&inner),
             inner,
             arrow: Arrow::for_fail(context),
-        })
-    }
-
-    /// Create a hidden DAG that contains the given `hash` as its CMR.
-    ///
-    /// **This DAG must only be used as child for left or right assertions.**
-    ///
-    /// _The Bit Machine will crash upon seeing this node._
-    pub fn hidden(context: &mut Context<J>, hash: Cmr) -> Rc<Self> {
-        let inner = CommitNodeInner::Hidden(hash);
-        Rc::new(CommitNode {
-            cmr: Cmr::compute(&inner),
-            inner,
-            arrow: Arrow::for_hidden(context),
         })
     }
 
@@ -649,7 +631,7 @@ impl<J: Jet> CommitNode<J> {
             let left = left_data.map(|imr| Rc::clone(&finalized[&imr]));
             let right = right_data.map(|imr| Rc::clone(&finalized[&imr]));
 
-            let imr = Imr::compute_pass2(first_pass_imr, &data.node.inner, &final_ty);
+            let imr = Imr::compute_pass2(first_pass_imr, &final_ty);
             let amr = Amr::compute(
                 &data.node.inner,
                 left.clone(),
@@ -669,19 +651,14 @@ impl<J: Jet> CommitNode<J> {
                 CommitNodeInner::Drop(_) => RedeemNodeInner::Drop(left.unwrap()),
                 CommitNodeInner::Comp(_, _) => RedeemNodeInner::Comp(left.unwrap(), right.unwrap()),
                 CommitNodeInner::Case(_, _) => RedeemNodeInner::Case(left.unwrap(), right.unwrap()),
-                CommitNodeInner::AssertL(_, _) => {
-                    RedeemNodeInner::AssertL(left.unwrap(), right.unwrap())
-                }
-                CommitNodeInner::AssertR(_, _) => {
-                    RedeemNodeInner::AssertR(left.unwrap(), right.unwrap())
-                }
+                CommitNodeInner::AssertL(_, cmr) => RedeemNodeInner::AssertL(left.unwrap(), cmr),
+                CommitNodeInner::AssertR(cmr, _) => RedeemNodeInner::AssertR(cmr, left.unwrap()),
                 CommitNodeInner::Pair(_, _) => RedeemNodeInner::Pair(left.unwrap(), right.unwrap()),
                 CommitNodeInner::Disconnect(_, _) => {
                     RedeemNodeInner::Disconnect(left.unwrap(), right.unwrap())
                 }
                 CommitNodeInner::Witness => RedeemNodeInner::Witness(value.unwrap()),
                 CommitNodeInner::Fail(hl, hr) => RedeemNodeInner::Fail(hl, hr),
-                CommitNodeInner::Hidden(h) => RedeemNodeInner::Hidden(h),
                 CommitNodeInner::Jet(jet) => RedeemNodeInner::Jet(jet),
                 CommitNodeInner::Word(ref w) => RedeemNodeInner::Word(w.clone()),
             };
@@ -715,7 +692,7 @@ impl<J: Jet> CommitNode<J> {
     pub fn decode<I: Iterator<Item = u8>>(
         bits: &mut BitIter<I>,
     ) -> Result<Rc<Self>, crate::decode::Error> {
-        crate::decode::decode_program_arbitrary_type(bits)
+        crate::decode::decode_expression(bits)
     }
 
     /// Encode a Simplicity program to bits, without witness data.

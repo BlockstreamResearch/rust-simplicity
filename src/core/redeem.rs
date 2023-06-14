@@ -12,8 +12,6 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use crate::bititer::BitIter;
-use crate::bitwriter::BitWriter;
 use crate::core::Value;
 use crate::dag::{DagLike, FullSharing, InternalSharing, NoSharing, PostOrderIter};
 use crate::decode::WitnessDecoder;
@@ -23,6 +21,7 @@ use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
 use crate::types::{self, arrow::FinalArrow};
 use crate::{encode, Error};
+use crate::{BitIter, BitWriter};
 use std::rc::Rc;
 use std::{fmt, io};
 
@@ -49,9 +48,9 @@ pub enum RedeemNodeInner<J: Jet> {
     /// Case of a left and right child
     Case(Rc<RedeemNode<J>>, Rc<RedeemNode<J>>),
     /// Left assertion of a left and right child.
-    AssertL(Rc<RedeemNode<J>>, Rc<RedeemNode<J>>),
+    AssertL(Rc<RedeemNode<J>>, Cmr),
     /// Right assertion of a left and right child.
-    AssertR(Rc<RedeemNode<J>>, Rc<RedeemNode<J>>),
+    AssertR(Cmr, Rc<RedeemNode<J>>),
     /// Pair of a left and right child
     Pair(Rc<RedeemNode<J>>, Rc<RedeemNode<J>>),
     /// Disconnect of a left and right child
@@ -60,8 +59,6 @@ pub enum RedeemNodeInner<J: Jet> {
     Witness(Value),
     /// Universal fail
     Fail(Cmr, Cmr),
-    /// Hidden CMR
-    Hidden(Cmr),
     /// Application jet
     Jet(J),
     /// Constant word
@@ -85,7 +82,6 @@ impl<J: Jet> fmt::Display for RedeemNodeInner<J> {
             RedeemNodeInner::Disconnect(_, _) => f.write_str("disconnect"),
             RedeemNodeInner::Witness(..) => f.write_str("witness"),
             RedeemNodeInner::Fail(..) => f.write_str("fail"),
-            RedeemNodeInner::Hidden(..) => f.write_str("hidden"),
             RedeemNodeInner::Jet(jet) => write!(f, "jet({})", jet),
             RedeemNodeInner::Word(w) => write!(f, "word({})", w),
         }
@@ -190,7 +186,7 @@ impl<J: Jet> RedeemNode<J> {
     /// Encode a Simplicity program to bits, including the witness data.
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
         let sharing_iter = self.post_order_iter::<FullSharing>();
-        let program_bits = encode::encode_program(sharing_iter.clone(), w)?;
+        let program_bits = encode::encode_program(self, w)?;
         let witness_bits = encode::encode_witness(sharing_iter.into_witnesses(), w)?;
         w.flush_all()?;
         Ok(program_bits + witness_bits)
@@ -213,8 +209,6 @@ mod tests {
 
     use super::*;
 
-    use crate::bititer::BitIter;
-    use crate::bitwriter::BitWriter;
     use crate::core::Value;
     use crate::jet::Core;
 

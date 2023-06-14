@@ -381,9 +381,9 @@ impl BitMachine {
                     call_stack.push(CallStack::Back(size_a));
                     call_stack.push(CallStack::Goto(left));
                 }
-                RedeemNodeInner::Case(left, right)
-                | RedeemNodeInner::AssertL(left, right)
-                | RedeemNodeInner::AssertR(left, right) => {
+                RedeemNodeInner::Case(..)
+                | RedeemNodeInner::AssertL(..)
+                | RedeemNodeInner::AssertR(..) => {
                     let choice_bit = self.read[self.read.len() - 1].peek_bit(&self.data);
 
                     let (size_a, size_b) =
@@ -397,22 +397,31 @@ impl BitMachine {
                             unreachable!()
                         };
 
-                    if choice_bit {
-                        let padr_a_b = cmp::max(size_a, size_b) - size_b;
-                        self.fwd(1 + padr_a_b);
-                        call_stack.push(CallStack::Back(1 + padr_a_b));
-                        call_stack.push(CallStack::Goto(right));
-                    } else {
-                        let padl_a_b = cmp::max(size_a, size_b) - size_a;
-                        self.fwd(1 + padl_a_b);
-                        call_stack.push(CallStack::Back(1 + padl_a_b));
-                        call_stack.push(CallStack::Goto(left));
+                    match (&ip.inner, choice_bit) {
+                        (RedeemNodeInner::Case(_, right), true)
+                        | (RedeemNodeInner::AssertR(_, right), true) => {
+                            let padr_a_b = cmp::max(size_a, size_b) - size_b;
+                            self.fwd(1 + padr_a_b);
+                            call_stack.push(CallStack::Back(1 + padr_a_b));
+                            call_stack.push(CallStack::Goto(right));
+                        }
+                        (RedeemNodeInner::Case(left, _), false)
+                        | (RedeemNodeInner::AssertL(left, _), false) => {
+                            let padl_a_b = cmp::max(size_a, size_b) - size_a;
+                            self.fwd(1 + padl_a_b);
+                            call_stack.push(CallStack::Back(1 + padl_a_b));
+                            call_stack.push(CallStack::Goto(left));
+                        }
+                        (RedeemNodeInner::AssertL(_, r_cmr), true) => {
+                            return Err(ExecutionError::ReachedPrunedBranch(*r_cmr))
+                        }
+                        (RedeemNodeInner::AssertR(l_cmr, _), false) => {
+                            return Err(ExecutionError::ReachedPrunedBranch(*l_cmr))
+                        }
+                        _ => unreachable!(),
                     }
                 }
                 RedeemNodeInner::Witness(value) => self.write_value(value),
-                RedeemNodeInner::Hidden(hash) => {
-                    return Err(ExecutionError::ReachedPrunedBranch(*hash))
-                }
                 RedeemNodeInner::Jet(jet) => jet.exec(self, env)?,
                 RedeemNodeInner::Word(value) => self.write_value(value),
                 RedeemNodeInner::Fail(left, right) => {
