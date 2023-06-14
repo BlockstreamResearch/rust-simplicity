@@ -41,6 +41,7 @@ pub mod core;
 pub mod dag;
 pub mod jet;
 mod merkle;
+pub mod node;
 #[cfg(feature = "elements")]
 pub mod policy;
 pub mod types;
