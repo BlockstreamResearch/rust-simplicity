@@ -21,6 +21,25 @@
 //! `Iterator<Item=bool>`.
 //!
 
+use crate::Cmr;
+
+/// Attempted to read from a bit iterator, but there was no more data
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub struct EarlyEndOfStreamError;
+
+/// Two-bit type used during decoding
+///
+/// Use of an enum rather than a numeric primitive type makes it easier to
+/// match on.
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[allow(non_camel_case_types)]
+pub enum u2 {
+    _0,
+    _1,
+    _2,
+    _3,
+}
+
 /// Bitwise iterator formed from a wrapped bytewise iterator. Bytes are
 /// interpreted big-endian, i.e. MSB is returned first
 #[derive(Debug)]
@@ -91,45 +110,39 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
         Self::from(iter)
     }
 
-    /// Reads up to 64 bits as a big-endian number
-    ///
-    /// `n` must be between 0 and 63 inclusive; the function will panic
-    /// otherwise.
-    ///
-    /// Returns `None` if the underlying byte iterator runs out
-    pub fn read_bits_be(&mut self, mut n: usize) -> Option<u64> {
-        assert!(n < 64);
-        if n == 0 {
-            return Some(0);
-        }
+    /// Reads a single bit from the iterator.
+    pub fn read_bit(&mut self) -> Result<bool, EarlyEndOfStreamError> {
+        self.next().ok_or(EarlyEndOfStreamError)
+    }
 
-        // 0 <= avail_bits <= 8
-        // 0 <= n < 64
-        let avail_bits = 8 - self.read_bits;
-        if avail_bits < n {
-            n -= avail_bits;
-            let mask = if avail_bits < 8 {
-                (1 << avail_bits) - 1
-            } else {
-                0xff
-            };
-            let pre_result = ((self.cached_byte & mask) as u64) << n;
-            self.cached_byte = self.iter.next()?;
-            self.read_bits = 0;
-
-            if let Some(read) = self.read_bits_be(n) {
-                self.total_read += avail_bits;
-                Some(pre_result + read)
-            } else {
-                None
-            }
-        } else {
-            // 0 <= n <= 8
-            self.read_bits += n;
-            self.total_read += n;
-            let mask = if n < 8 { (1 << n) - 1 } else { 0xff };
-            Some(((self.cached_byte >> (avail_bits - n)) & mask) as u64)
+    /// Reads two bits from the iterator.
+    pub fn read_u2(&mut self) -> Result<u2, EarlyEndOfStreamError> {
+        match (self.next(), self.next()) {
+            (Some(false), Some(false)) => Ok(u2::_0),
+            (Some(false), Some(true)) => Ok(u2::_1),
+            (Some(true), Some(false)) => Ok(u2::_2),
+            (Some(true), Some(true)) => Ok(u2::_3),
+            _ => Err(EarlyEndOfStreamError),
         }
+    }
+
+    /// Reads a byte from the iterator.
+    pub fn read_u8(&mut self) -> Result<u8, EarlyEndOfStreamError> {
+        debug_assert!(self.read_bits > 0);
+        let cached = self.cached_byte;
+        self.cached_byte = self.iter.next().ok_or(EarlyEndOfStreamError)?;
+
+        Ok(cached.checked_shl(self.read_bits as u32).unwrap_or(0)
+            + (self.cached_byte >> (8 - self.read_bits)))
+    }
+
+    /// Reads a 256-bit CMR from the iterator.
+    pub fn read_cmr(&mut self) -> Result<Cmr, EarlyEndOfStreamError> {
+        let mut ret = [0; 32];
+        for byte in &mut ret {
+            *byte = self.read_u8()?;
+        }
+        Ok(Cmr::from(ret))
     }
 
     /// Accessor for the number of bits which have been read,
@@ -147,20 +160,20 @@ mod tests {
     fn empty_iter() {
         let mut iter = BitIter::from([].iter().cloned());
         assert!(iter.next().is_none());
-        assert_eq!(iter.read_bits_be(0), Some(0));
-        assert_eq!(iter.read_bits_be(1), None);
-        assert_eq!(iter.read_bits_be(63), None);
+        assert_eq!(iter.read_bit(), Err(EarlyEndOfStreamError));
+        assert_eq!(iter.read_u2(), Err(EarlyEndOfStreamError));
+        assert_eq!(iter.read_u8(), Err(EarlyEndOfStreamError));
+        assert_eq!(iter.read_cmr(), Err(EarlyEndOfStreamError));
         assert_eq!(iter.n_total_read(), 0);
     }
 
     #[test]
     fn one_bit_iter() {
         let mut iter = BitIter::from([0x80].iter().cloned());
-        assert_eq!(iter.read_bits_be(0), Some(0));
-        assert_eq!(iter.read_bits_be(1), Some(1));
-        assert_eq!(iter.read_bits_be(7), Some(0));
-        assert_eq!(iter.read_bits_be(1), None);
-        assert_eq!(iter.n_total_read(), 8);
+        assert_eq!(iter.read_bit(), Ok(true));
+        assert_eq!(iter.read_bit(), Ok(false));
+        assert_eq!(iter.read_u8(), Err(EarlyEndOfStreamError));
+        assert_eq!(iter.n_total_read(), 2);
     }
 
     #[test]
@@ -180,24 +193,21 @@ mod tests {
     }
 
     #[test]
-    fn six_by_six() {
-        let mut iter = BitIter::from([0x0f, 0xaa, 0x00].iter().cloned());
-        assert_eq!(iter.read_bits_be(6), Some(0x03)); // 00 0011
-        assert_eq!(iter.read_bits_be(6), Some(0x3a)); // 11 1010
-        assert_eq!(iter.read_bits_be(6), Some(0x28)); // 10 1000
-        assert_eq!(iter.read_bits_be(6), Some(0x00)); // 00 0000
-        assert_eq!(iter.n_total_read(), 24);
+    fn byte_by_byte() {
+        let mut iter = BitIter::from([0x0f, 0xaa].iter().cloned());
+        assert_eq!(iter.read_u8(), Ok(0x0f));
+        assert_eq!(iter.read_u8(), Ok(0xaa));
         assert_eq!(iter.next(), None);
-        assert_eq!(iter.n_total_read(), 24);
     }
 
     #[test]
     fn regression_1() {
         let mut iter = BitIter::from([0x34, 0x90].iter().cloned());
-        assert_eq!(iter.read_bits_be(4), Some(0x03)); // 0011
+        assert_eq!(iter.read_u2(), Ok(u2::_0)); // 0011
+        assert_eq!(iter.read_u2(), Ok(u2::_3)); // 0011
         assert_eq!(iter.next(), Some(false)); // 0
-        assert_eq!(iter.read_bits_be(2), Some(0x02)); // 10
-        assert_eq!(iter.read_bits_be(2), Some(0x01)); // 01
+        assert_eq!(iter.read_u2(), Ok(u2::_2)); // 10
+        assert_eq!(iter.read_u2(), Ok(u2::_1)); // 01
         assert_eq!(iter.n_total_read(), 9);
     }
 }
