@@ -24,7 +24,6 @@ use crate::merkle::imr::Imr;
 use crate::types::{self, arrow::Arrow};
 use crate::{analysis, Error};
 use crate::{BitIter, BitWriter};
-use std::collections::HashMap;
 use std::rc::Rc;
 use std::{fmt, io};
 
@@ -594,20 +593,14 @@ impl<J: Jet> CommitNode<J> {
         };
 
         // Map from a node's index to its first-pass IMR
-        let mut first_pass: HashMap<usize, Imr> = HashMap::new();
+        let mut first_pass = vec![];
         // Map from a node's index to its finalized node
         let mut finalized = vec![];
         // IMR of the final node to be iterated over
         for data in self.post_order_iter_with_tracker(tracker) {
             // 0. Obtain data needed for IMR
-            let left_data = data
-                .left_index
-                .and_then(|idx| first_pass.get(&idx))
-                .cloned();
-            let right_data = data
-                .right_index
-                .and_then(|idx| first_pass.get(&idx))
-                .cloned();
+            let left_imr = data.left_index.map(|idx| first_pass[idx]);
+            let right_imr = data.right_index.map(|idx| first_pass[idx]);
 
             let final_ty = data.node.arrow.finalize()?;
             let value = if let CommitNodeInner::Witness = data.node.inner {
@@ -619,8 +612,8 @@ impl<J: Jet> CommitNode<J> {
             // 1. Compute first-pass IMR and record.
             let first_pass_imr = Imr::compute(
                 &data.node.inner,
-                left_data,
-                right_data,
+                left_imr,
+                right_imr,
                 value.as_ref(),
                 &final_ty,
             );
