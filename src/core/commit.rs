@@ -13,8 +13,6 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use crate::bititer::BitIter;
-use crate::bitwriter::BitWriter;
 use crate::core::iter::WitnessIterator;
 use crate::core::redeem::RedeemNodeInner;
 use crate::core::{Context, RedeemNode, Value};
@@ -25,6 +23,7 @@ use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
 use crate::types::{self, arrow::Arrow};
 use crate::{analysis, Error};
+use crate::{BitIter, BitWriter};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::{fmt, io};

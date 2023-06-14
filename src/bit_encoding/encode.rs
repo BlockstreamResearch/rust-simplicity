@@ -19,11 +19,11 @@
 //! so given a hex dump of a program it is not generally possible
 //! to read it visually the way you can with Bitcoin Script.
 
-use crate::bitwriter::BitWriter;
-use crate::core::redeem::{RedeemNode, RedeemNodeInner};
+use crate::core::redeem::RedeemNodeInner;
 use crate::core::Value;
 use crate::dag::{FullSharing, PostOrderIter, PostOrderIterItem};
 use crate::jet::Jet;
+use crate::{BitWriter, RedeemNode};
 use std::{io, mem};
 
 /// Encode a Simplicity program to bits, without witness data.
@@ -225,10 +225,10 @@ pub fn encode_natural<W: io::Write>(n: usize, w: &mut BitWriter<W>) -> io::Resul
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::bititer::BitIter;
     use crate::core::iter::WitnessIterator;
     use crate::decode;
     use crate::decode::WitnessDecoder;
+    use crate::BitIter;
 
     #[test]
     fn encode_decode_natural() {

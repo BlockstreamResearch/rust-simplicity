@@ -40,14 +40,13 @@ pub use init::elements::Elements;
 use simplicity_sys::c_jets::frame_ffi::{c_readBit, c_writeBit, CFrameItem};
 use simplicity_sys::c_jets::round_u_word;
 
-use crate::bititer::BitIter;
-use crate::bitwriter::BitWriter;
 use crate::exec::BitMachine;
 use crate::jet::type_name::TypeName;
 use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
 use crate::Error;
+use crate::{BitIter, BitWriter};
 use std::hash::Hash;
 use std::io::Write;
 

@@ -47,10 +47,12 @@ pub mod types;
 // mod test_progs;
 mod util;
 
-pub use bit_encoding::bititer;
-pub use bit_encoding::bitwriter;
+use bit_encoding::bititer; // FIXME used by autogenerator jet code
+use bit_encoding::bitwriter; // FIXME used by autogenerator jet code
 use bit_encoding::decode;
 use bit_encoding::encode;
+pub use bit_encoding::BitIter;
+pub use bit_encoding::BitWriter;
 
 #[cfg(feature = "elements")]
 pub use crate::policy::Policy;

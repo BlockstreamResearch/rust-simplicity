@@ -14,11 +14,10 @@
 
 use honggfuzz::fuzz;
 
-use simplicity::bititer::BitIter;
-use simplicity::bitwriter::BitWriter;
 use simplicity::core::iter::WitnessIterator;
 use simplicity::types::Type;
 use simplicity::{encode_witness, WitnessDecoder};
+use simplicity::{BitIter, BitWriter};
 
 fn do_test(data: &[u8]) {
     let mut iter = BitIter::new(data.iter().cloned());

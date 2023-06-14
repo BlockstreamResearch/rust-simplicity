@@ -12,8 +12,6 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use crate::bititer::BitIter;
-use crate::bitwriter::BitWriter;
 use crate::core::Value;
 use crate::dag::{DagLike, FullSharing, InternalSharing, NoSharing, PostOrderIter};
 use crate::decode::WitnessDecoder;
@@ -23,6 +21,7 @@ use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
 use crate::types::{self, arrow::FinalArrow};
 use crate::{encode, Error};
+use crate::{BitIter, BitWriter};
 use std::rc::Rc;
 use std::{fmt, io};
 
@@ -213,8 +212,6 @@ mod tests {
 
     use super::*;
 
-    use crate::bititer::BitIter;
-    use crate::bitwriter::BitWriter;
     use crate::core::Value;
     use crate::jet::Core;
 
