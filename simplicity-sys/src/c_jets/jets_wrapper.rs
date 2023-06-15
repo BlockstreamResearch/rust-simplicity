@@ -19,6 +19,38 @@ pub fn add_8<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
     unsafe { elements_ffi::add_8(dst, src, std::ptr::null()) }
 }
 
+pub fn all_16<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::all_16(dst, src, std::ptr::null()) }
+}
+
+pub fn all_32<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::all_32(dst, src, std::ptr::null()) }
+}
+
+pub fn all_64<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::all_64(dst, src, std::ptr::null()) }
+}
+
+pub fn all_8<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::all_8(dst, src, std::ptr::null()) }
+}
+
+pub fn and_16<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::and_16(dst, src, std::ptr::null()) }
+}
+
+pub fn and_32<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::and_32(dst, src, std::ptr::null()) }
+}
+
+pub fn and_64<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::and_64(dst, src, std::ptr::null()) }
+}
+
+pub fn and_8<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::and_8(dst, src, std::ptr::null()) }
+}
+
 pub fn annex_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
     unsafe { elements_ffi::annex_hash(dst, src, env) }
 }
@@ -55,6 +87,22 @@ pub fn calculate_issuance_entropy(dst: &mut CFrameItem, src: CFrameItem, env: &C
     unsafe { elements_ffi::calculate_issuance_entropy(dst, src, env) }
 }
 
+pub fn ch_16<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::ch_16(dst, src, std::ptr::null()) }
+}
+
+pub fn ch_32<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::ch_32(dst, src, std::ptr::null()) }
+}
+
+pub fn ch_64<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::ch_64(dst, src, std::ptr::null()) }
+}
+
+pub fn ch_8<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::ch_8(dst, src, std::ptr::null()) }
+}
+
 pub fn check_lock_distance(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
     unsafe { elements_ffi::check_lock_distance(dst, src, env) }
 }
@@ -73,6 +121,22 @@ pub fn check_lock_time(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxE
 
 pub fn check_sig_verify<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
     unsafe { elements_ffi::check_sig_verify(dst, src, std::ptr::null()) }
+}
+
+pub fn complement_16<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::complement_16(dst, src, std::ptr::null()) }
+}
+
+pub fn complement_32<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::complement_32(dst, src, std::ptr::null()) }
+}
+
+pub fn complement_64<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::complement_64(dst, src, std::ptr::null()) }
+}
+
+pub fn complement_8<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::complement_8(dst, src, std::ptr::null()) }
 }
 
 pub fn current_amount(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
@@ -411,6 +475,22 @@ pub fn genesis_block_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElements
     unsafe { elements_ffi::genesis_block_hash(dst, src, env) }
 }
 
+pub fn high_16<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::high_16(dst, src, std::ptr::null()) }
+}
+
+pub fn high_32<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::high_32(dst, src, std::ptr::null()) }
+}
+
+pub fn high_64<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::high_64(dst, src, std::ptr::null()) }
+}
+
+pub fn high_8<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::high_8(dst, src, std::ptr::null()) }
+}
+
 pub fn increment_16<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
     unsafe { elements_ffi::increment_16(dst, src, std::ptr::null()) }
 }
@@ -639,6 +719,22 @@ pub fn lt_8<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
     unsafe { elements_ffi::lt_8(dst, src, std::ptr::null()) }
 }
 
+pub fn maj_16<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::maj_16(dst, src, std::ptr::null()) }
+}
+
+pub fn maj_32<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::maj_32(dst, src, std::ptr::null()) }
+}
+
+pub fn maj_64<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::maj_64(dst, src, std::ptr::null()) }
+}
+
+pub fn maj_8<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::maj_8(dst, src, std::ptr::null()) }
+}
+
 pub fn max_16<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
     unsafe { elements_ffi::max_16(dst, src, std::ptr::null()) }
 }
@@ -765,6 +861,22 @@ pub fn one_64<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
 
 pub fn one_8<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
     unsafe { elements_ffi::one_8(dst, src, std::ptr::null()) }
+}
+
+pub fn or_16<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::or_16(dst, src, std::ptr::null()) }
+}
+
+pub fn or_32<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::or_32(dst, src, std::ptr::null()) }
+}
+
+pub fn or_64<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::or_64(dst, src, std::ptr::null()) }
+}
+
+pub fn or_8<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::or_8(dst, src, std::ptr::null()) }
 }
 
 pub fn outpoint_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
@@ -947,6 +1059,22 @@ pub fn sig_all_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv)
     unsafe { elements_ffi::sig_all_hash(dst, src, env) }
 }
 
+pub fn some_16<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::some_16(dst, src, std::ptr::null()) }
+}
+
+pub fn some_32<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::some_32(dst, src, std::ptr::null()) }
+}
+
+pub fn some_64<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::some_64(dst, src, std::ptr::null()) }
+}
+
+pub fn some_8<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::some_8(dst, src, std::ptr::null()) }
+}
+
 pub fn subtract_16<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
     unsafe { elements_ffi::subtract_16(dst, src, std::ptr::null()) }
 }
@@ -1013,5 +1141,37 @@ pub fn verify<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
 
 pub fn version(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
     unsafe { elements_ffi::version(dst, src, env) }
+}
+
+pub fn xor_16<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::xor_16(dst, src, std::ptr::null()) }
+}
+
+pub fn xor_32<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::xor_32(dst, src, std::ptr::null()) }
+}
+
+pub fn xor_64<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::xor_64(dst, src, std::ptr::null()) }
+}
+
+pub fn xor_8<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::xor_8(dst, src, std::ptr::null()) }
+}
+
+pub fn xor_xor_16<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::xor_xor_16(dst, src, std::ptr::null()) }
+}
+
+pub fn xor_xor_32<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::xor_xor_32(dst, src, std::ptr::null()) }
+}
+
+pub fn xor_xor_64<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::xor_xor_64(dst, src, std::ptr::null()) }
+}
+
+pub fn xor_xor_8<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::xor_xor_8(dst, src, std::ptr::null()) }
 }
 
