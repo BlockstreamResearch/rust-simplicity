@@ -19,6 +19,7 @@ macro_rules! decode_bits {
 ///
 /// A macro that implements serde serialization and deserialization using the
 /// `fmt::Display` and `str::FromStr` traits.
+#[cfg(feature = "elements")]
 macro_rules! serde_string_impl_pk {
     ($name:ident, $expecting:expr $(, $gen:ident; $gen_con:ident)*) => {
         #[cfg(feature = "serde")]
