@@ -21,16 +21,32 @@ use bitcoin_hashes::sha256::Midstate;
 
 use super::{bip340_iv, compact_value};
 
+/// Identity Merkle root (first pass)
+///
+/// A Merkle root that commits to a node's combinator, its witness data (if present),
+/// and recursively its children. Used as input to the [`Imr`] type which is probably
+/// actually what you want.
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct FirstPassImr(Midstate);
+
+impl_midstate_wrapper!(FirstPassImr);
+
 /// Identity Merkle root
 ///
 /// A Merkle root that commits to a node's combinator, its witness data (if present),
-/// and recursively its children.
+/// its source and target types, and recursively its children.
 ///
 /// Uniquely identifies a program's structure in terms of combinators at redemption time.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Imr(Midstate);
 
 impl_midstate_wrapper!(Imr);
+
+impl From<Cmr> for FirstPassImr {
+    fn from(cmr: Cmr) -> Self {
+        FirstPassImr::from_byte_array(cmr.to_byte_array())
+    }
+}
 
 impl From<Cmr> for Imr {
     fn from(cmr: Cmr) -> Self {
@@ -44,13 +60,15 @@ impl From<Tmr> for Imr {
     }
 }
 
-impl Imr {
+impl FirstPassImr {
     fn get_iv<J: Jet>(node: &CommitNodeInner<J>) -> Self {
         match node {
             CommitNodeInner::Disconnect(_, _) => {
-                Imr(bip340_iv(b"Simplicity-Draft\x1fIdentity\x1fdisconnect"))
+                FirstPassImr(bip340_iv(b"Simplicity-Draft\x1fIdentity\x1fdisconnect"))
             }
-            CommitNodeInner::Witness => Imr(bip340_iv(b"Simplicity-Draft\x1fIdentity\x1fwitness")),
+            CommitNodeInner::Witness => {
+                FirstPassImr(bip340_iv(b"Simplicity-Draft\x1fIdentity\x1fwitness"))
+            }
             _ => Cmr::get_iv(node).into(),
         }
     }
@@ -60,14 +78,14 @@ impl Imr {
     /// Nodes with left children require their finalized left child,
     /// while nodes with right children require their finalized right child.
     /// Witness nodes require their value and node type.
-    pub(crate) fn compute<J: Jet>(
+    pub fn compute<J: Jet>(
         node: &CommitNodeInner<J>,
-        left: Option<Imr>,
-        right: Option<Imr>,
+        left: Option<FirstPassImr>,
+        right: Option<FirstPassImr>,
         value: Option<&Value>,
         ty: &FinalArrow,
-    ) -> Imr {
-        let imr_iv = Imr::get_iv(node);
+    ) -> FirstPassImr {
+        let imr_iv = FirstPassImr::get_iv(node);
 
         match *node {
             CommitNodeInner::Iden | CommitNodeInner::Unit | CommitNodeInner::Jet(..) => imr_iv,
@@ -92,20 +110,18 @@ impl Imr {
                 let mut engine = sha256::HashEngine::from_midstate(imr_iv.0, 0);
                 engine.input(&value_hash[..]);
                 engine.input(ty.target.tmr().as_ref());
-                Imr(engine.midstate())
+                FirstPassImr(engine.midstate())
             }
         }
     }
+}
 
+impl Imr {
     /// Do the second pass of the IMR computation. This must be called on the result
     /// of first pass.
-    pub(crate) fn compute_pass2(
-        self, // The IMR computed in the first pass.
-        ty: &FinalArrow,
-    ) -> Imr {
-        let first_pass = self;
+    pub fn compute_pass2(first_pass: FirstPassImr, ty: &FinalArrow) -> Imr {
         let iv = Imr(bip340_iv(b"Simplicity-Draft\x1fIdentity"));
-        iv.update_1(first_pass)
+        iv.update_1(Imr(first_pass.0))
             .update(ty.source.tmr().into(), ty.target.tmr().into())
     }
 }

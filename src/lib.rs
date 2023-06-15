@@ -66,7 +66,12 @@ pub use crate::core::redeem::RedeemNodeInner;
 pub use crate::core::{CommitNode, RedeemNode};
 pub use crate::decode::{decode_program, WitnessDecoder};
 pub use crate::encode::{encode_natural, encode_value, encode_witness};
-pub use crate::merkle::{amr::Amr, cmr::Cmr, imr::Imr, tmr::Tmr};
+pub use crate::merkle::{
+    amr::Amr,
+    cmr::Cmr,
+    imr::{FirstPassImr, Imr},
+    tmr::Tmr,
+};
 pub use crate::value::Value;
 pub use simplicity_sys as ffi;
 use std::fmt;
