@@ -15,11 +15,13 @@
 use crate::core::commit::CommitNodeInner;
 use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
-use crate::merkle::{compact_value, CommitMerkleRoot, MerkleRoot};
+use crate::merkle::compact_value;
 use crate::types::arrow::FinalArrow;
 use crate::{Cmr, RedeemNode, Tmr, Value};
 use bitcoin_hashes::sha256::Midstate;
 use std::rc::Rc;
+
+use super::bip340_iv;
 
 /// Annotated Merkle root
 ///
@@ -28,52 +30,50 @@ use std::rc::Rc;
 ///
 /// Uniquely identifies a program's structure in terms of types at redemption time.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Amr(pub(crate) Midstate);
+pub struct Amr(Midstate);
 
 impl_midstate_wrapper!(Amr);
 
 impl From<Cmr> for Amr {
     fn from(cmr: Cmr) -> Self {
-        cmr.into_inner().into()
+        Amr::from_byte_array(cmr.to_byte_array())
     }
 }
 
 impl From<Tmr> for Amr {
     fn from(tmr: Tmr) -> Self {
-        tmr.into_inner().into()
-    }
-}
-
-impl CommitMerkleRoot for Amr {
-    fn get_iv<J: Jet>(node: &CommitNodeInner<J>) -> Self {
-        match *node {
-            CommitNodeInner::Iden => Amr::tag_iv(b"Simplicity-Draft\x1fAnnotated\x1fiden"),
-            CommitNodeInner::Unit => Amr::tag_iv(b"Simplicity-Draft\x1fAnnotated\x1funit"),
-            CommitNodeInner::InjL(_) => Amr::tag_iv(b"Simplicity-Draft\x1fAnnotated\x1finjl"),
-            CommitNodeInner::InjR(_) => Amr::tag_iv(b"Simplicity-Draft\x1fAnnotated\x1finjr"),
-            CommitNodeInner::Take(_) => Amr::tag_iv(b"Simplicity-Draft\x1fAnnotated\x1ftake"),
-            CommitNodeInner::Drop(_) => Amr::tag_iv(b"Simplicity-Draft\x1fAnnotated\x1fdrop"),
-            CommitNodeInner::Comp(_, _) => Amr::tag_iv(b"Simplicity-Draft\x1fAnnotated\x1fcomp"),
-            CommitNodeInner::Case(_, _) => Amr::tag_iv(b"Simplicity-Draft\x1fAnnotated\x1fcase"),
-            CommitNodeInner::AssertL(_, _) => {
-                Amr::tag_iv(b"Simplicity-Draft\x1fAnnotated\x1fassertl")
-            }
-            CommitNodeInner::AssertR(_, _) => {
-                Amr::tag_iv(b"Simplicity-Draft\x1fAnnotated\x1fassertr")
-            }
-            CommitNodeInner::Pair(_, _) => Amr::tag_iv(b"Simplicity-Draft\x1fAnnotated\x1fpair"),
-            CommitNodeInner::Disconnect(_, _) => {
-                Amr::tag_iv(b"Simplicity-Draft\x1fAnnotated\x1fdisconnect")
-            }
-            CommitNodeInner::Witness => Amr::tag_iv(b"Simplicity-Draft\x1fAnnotated\x1fwitness"),
-            CommitNodeInner::Fail(_, _) => Amr::tag_iv(b"Simplicity-Draft\x1fAnnotated\x1ffail"),
-            CommitNodeInner::Jet(jet) => jet.amr(),
-            CommitNodeInner::Word(..) => Cmr::compute(node).into(),
-        }
+        Amr::from_byte_array(tmr.to_byte_array())
     }
 }
 
 impl Amr {
+    fn get_iv<J: Jet>(node: &CommitNodeInner<J>) -> Self {
+        match *node {
+            CommitNodeInner::Iden => Amr(bip340_iv(b"Simplicity-Draft\x1fAnnotated\x1fiden")),
+            CommitNodeInner::Unit => Amr(bip340_iv(b"Simplicity-Draft\x1fAnnotated\x1funit")),
+            CommitNodeInner::InjL(_) => Amr(bip340_iv(b"Simplicity-Draft\x1fAnnotated\x1finjl")),
+            CommitNodeInner::InjR(_) => Amr(bip340_iv(b"Simplicity-Draft\x1fAnnotated\x1finjr")),
+            CommitNodeInner::Take(_) => Amr(bip340_iv(b"Simplicity-Draft\x1fAnnotated\x1ftake")),
+            CommitNodeInner::Drop(_) => Amr(bip340_iv(b"Simplicity-Draft\x1fAnnotated\x1fdrop")),
+            CommitNodeInner::Comp(_, _) => Amr(bip340_iv(b"Simplicity-Draft\x1fAnnotated\x1fcomp")),
+            CommitNodeInner::Case(_, _) => Amr(bip340_iv(b"Simplicity-Draft\x1fAnnotated\x1fcase")),
+            CommitNodeInner::AssertL(_, _) => {
+                Amr(bip340_iv(b"Simplicity-Draft\x1fAnnotated\x1fassertl"))
+            }
+            CommitNodeInner::AssertR(_, _) => {
+                Amr(bip340_iv(b"Simplicity-Draft\x1fAnnotated\x1fassertr"))
+            }
+            CommitNodeInner::Pair(_, _) => Amr(bip340_iv(b"Simplicity-Draft\x1fAnnotated\x1fpair")),
+            CommitNodeInner::Disconnect(_, _) => {
+                Amr(bip340_iv(b"Simplicity-Draft\x1fAnnotated\x1fdisconnect"))
+            }
+            CommitNodeInner::Witness => Amr(bip340_iv(b"Simplicity-Draft\x1fAnnotated\x1fwitness")),
+            CommitNodeInner::Fail(_, _) => Amr(bip340_iv(b"Simplicity-Draft\x1fAnnotated\x1ffail")),
+            CommitNodeInner::Jet(jet) => jet.amr(),
+            CommitNodeInner::Word(..) => Cmr::compute(node).into(),
+        }
+    }
+
     /// Compute the AMR of the given node (once finalized).
     ///
     /// Nodes with left children require their finalized left child,
@@ -95,9 +95,10 @@ impl Amr {
             CommitNodeInner::Witness => {
                 let a = &ty.source; // will always be unit
                 let b = &ty.target;
-                amr_iv
-                    .update_1(a.tmr().into())
-                    .update(b.tmr().into(), Amr::from(compact_value(value.unwrap())))
+                amr_iv.update_1(a.tmr().into()).update(
+                    b.tmr().into(),
+                    Amr::from_byte_array(compact_value(value.unwrap())),
+                )
             }
             CommitNodeInner::Iden | CommitNodeInner::Unit => {
                 let a = &ty.source;

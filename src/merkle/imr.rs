@@ -15,10 +15,11 @@
 use crate::core::commit::CommitNodeInner;
 use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
-use crate::merkle::{CommitMerkleRoot, MerkleRoot};
 use crate::types::arrow::FinalArrow;
 use crate::{Cmr, Tmr, Value};
 use bitcoin_hashes::sha256::Midstate;
+
+use super::{bip340_iv, compact_value};
 
 /// Identity Merkle root
 ///
@@ -27,35 +28,33 @@ use bitcoin_hashes::sha256::Midstate;
 ///
 /// Uniquely identifies a program's structure in terms of combinators at redemption time.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Imr(pub(crate) Midstate);
+pub struct Imr(Midstate);
 
 impl_midstate_wrapper!(Imr);
 
 impl From<Cmr> for Imr {
     fn from(cmr: Cmr) -> Self {
-        cmr.into_inner().into()
+        Imr::from_byte_array(cmr.to_byte_array())
     }
 }
 
 impl From<Tmr> for Imr {
     fn from(tmr: Tmr) -> Self {
-        tmr.into_inner().into()
-    }
-}
-
-impl CommitMerkleRoot for Imr {
-    fn get_iv<J: Jet>(node: &CommitNodeInner<J>) -> Self {
-        match node {
-            CommitNodeInner::Disconnect(_, _) => {
-                Imr::tag_iv(b"Simplicity-Draft\x1fIdentity\x1fdisconnect")
-            }
-            CommitNodeInner::Witness => Imr::tag_iv(b"Simplicity-Draft\x1fIdentity\x1fwitness"),
-            _ => Cmr::get_iv(node).into_inner().into(),
-        }
+        Imr::from_byte_array(tmr.to_byte_array())
     }
 }
 
 impl Imr {
+    fn get_iv<J: Jet>(node: &CommitNodeInner<J>) -> Self {
+        match node {
+            CommitNodeInner::Disconnect(_, _) => {
+                Imr(bip340_iv(b"Simplicity-Draft\x1fIdentity\x1fdisconnect"))
+            }
+            CommitNodeInner::Witness => Imr(bip340_iv(b"Simplicity-Draft\x1fIdentity\x1fwitness")),
+            _ => Cmr::get_iv(node).into(),
+        }
+    }
+
     /// Compute the IMR of the given node (once finalized).
     ///
     /// Nodes with left children require their finalized left child,
@@ -72,7 +71,7 @@ impl Imr {
 
         match *node {
             CommitNodeInner::Iden | CommitNodeInner::Unit | CommitNodeInner::Jet(..) => imr_iv,
-            CommitNodeInner::Word(ref value) => Cmr::const_word_cmr(value).into_inner().into(),
+            CommitNodeInner::Word(ref value) => Cmr::const_word_cmr(value).into(),
             CommitNodeInner::Fail(left, right) => imr_iv.update(left.into(), right.into()),
             CommitNodeInner::InjL(_)
             | CommitNodeInner::InjR(_)
@@ -84,7 +83,17 @@ impl Imr {
             | CommitNodeInner::Disconnect(_, _) => imr_iv.update(left.unwrap(), right.unwrap()),
             CommitNodeInner::AssertL(_, r_cmr) => imr_iv.update(left.unwrap(), r_cmr.into()),
             CommitNodeInner::AssertR(l_cmr, _) => imr_iv.update(l_cmr.into(), left.unwrap()),
-            CommitNodeInner::Witness => imr_iv.update_value(value.unwrap(), &ty.target),
+            CommitNodeInner::Witness => {
+                use bitcoin_hashes::{sha256, HashEngine};
+
+                // 1 Bit-wise hash of `value`
+                let value_hash = compact_value(value.unwrap());
+                // 2 Hash of hash of `value` and TMR of `value_type`
+                let mut engine = sha256::HashEngine::from_midstate(imr_iv.0, 0);
+                engine.input(&value_hash[..]);
+                engine.input(ty.target.tmr().as_ref());
+                Imr(engine.midstate())
+            }
         }
     }
 
@@ -95,10 +104,8 @@ impl Imr {
         ty: &FinalArrow,
     ) -> Imr {
         let first_pass = self;
-        let iv = Imr::tag_iv(b"Simplicity-Draft\x1fIdentity");
-        iv.update_1(first_pass).update(
-            Imr::from(<[u8; 32]>::from(ty.source.tmr())),
-            Imr::from(<[u8; 32]>::from(ty.target.tmr())),
-        )
+        let iv = Imr(bip340_iv(b"Simplicity-Draft\x1fIdentity"));
+        iv.update_1(first_pass)
+            .update(ty.source.tmr().into(), ty.target.tmr().into())
     }
 }

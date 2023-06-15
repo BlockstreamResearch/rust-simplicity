@@ -226,7 +226,7 @@ fn test_ffi_env() {
         value: confidential::Value::Explicit(0x00000002540be400),
     };
     let ctrl_block = ControlBlock::from_slice(&ctrl_blk).expect("ctrl block from slice");
-    let script_cmr = Cmr::from([0; 32]);
+    let script_cmr = Cmr::from_byte_array([0; 32]);
     let env = ElementsEnv::new(
         Arc::new(tx),
         vec![utxo],

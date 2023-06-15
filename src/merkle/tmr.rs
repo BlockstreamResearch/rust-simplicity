@@ -13,7 +13,6 @@
 //
 
 use crate::impl_midstate_wrapper;
-use crate::merkle::MerkleRoot;
 use bitcoin_hashes::sha256::Midstate;
 
 /// Type Merkle root
@@ -168,17 +167,21 @@ impl Tmr {
 
 #[cfg(test)]
 mod tests {
+    use super::super::bip340_iv;
     use super::*;
 
     #[test]
     fn const_ivs() {
         assert_eq!(
-            Tmr::tag_iv(b"Simplicity-Draft\x1fType\x1funit"),
+            Tmr(bip340_iv(b"Simplicity-Draft\x1fType\x1funit")),
             Tmr::UNIT_IV,
         );
-        assert_eq!(Tmr::tag_iv(b"Simplicity-Draft\x1fType\x1fsum"), Tmr::SUM_IV,);
         assert_eq!(
-            Tmr::tag_iv(b"Simplicity-Draft\x1fType\x1fprod"),
+            Tmr(bip340_iv(b"Simplicity-Draft\x1fType\x1fsum")),
+            Tmr::SUM_IV,
+        );
+        assert_eq!(
+            Tmr(bip340_iv(b"Simplicity-Draft\x1fType\x1fprod")),
             Tmr::PRODUCT_IV,
         );
     }

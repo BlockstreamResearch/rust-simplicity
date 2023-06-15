@@ -173,7 +173,7 @@ impl ElementsEnv {
                 value: confidential::Value::Null,
             }],
             0,
-            Cmr::from([0; 32]),
+            Cmr::from_byte_array([0; 32]),
             ControlBlock::from_slice(&ctrl_blk).unwrap(),
             None,
             elements::BlockHash::all_zeros(),

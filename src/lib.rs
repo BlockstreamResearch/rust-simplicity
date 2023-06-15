@@ -40,7 +40,7 @@ mod context;
 pub mod core;
 pub mod dag;
 pub mod jet;
-pub mod merkle;
+mod merkle;
 #[cfg(feature = "elements")]
 pub mod policy;
 pub mod types;
