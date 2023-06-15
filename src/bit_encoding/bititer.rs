@@ -21,9 +21,8 @@
 //! `Iterator<Item=bool>`.
 //!
 
-use crate::core::Value;
-use crate::Cmr;
 use crate::{decode, types};
+use crate::{Cmr, Value};
 
 /// Attempted to read from a bit iterator, but there was no more data
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]

@@ -20,10 +20,9 @@
 //! to read it visually the way you can with Bitcoin Script.
 
 use crate::core::redeem::RedeemNodeInner;
-use crate::core::Value;
 use crate::dag::{Dag, DagLike, PostOrderIterItem, SharingTracker};
 use crate::jet::Jet;
-use crate::{BitWriter, Cmr, Imr, RedeemNode};
+use crate::{BitWriter, Cmr, Imr, RedeemNode, Value};
 use std::collections::{hash_map::Entry, HashMap};
 use std::{io, mem};
 

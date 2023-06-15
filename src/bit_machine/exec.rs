@@ -20,10 +20,9 @@
 
 use super::frame::Frame;
 use crate::core::redeem::RedeemNodeInner;
-use crate::core::Value;
 use crate::jet::{Jet, JetFailed};
 use crate::{analysis, types};
-use crate::{Cmr, RedeemNode};
+use crate::{Cmr, RedeemNode, Value};
 use std::fmt;
 use std::{cmp, error};
 

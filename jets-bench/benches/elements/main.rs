@@ -14,10 +14,10 @@ use elements::confidential;
 use env::EnvSampling;
 use rand::rngs::ThreadRng;
 use rand::{thread_rng, RngCore};
-use simplicity::core::Value;
 use simplicity::jet::elements::ElementsEnv;
 use simplicity::jet::{Elements, Jet};
 use simplicity::types::{self, Type};
+use simplicity::Value;
 use simplicity::{bitcoin, elements};
 
 mod buffer;

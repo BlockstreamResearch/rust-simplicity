@@ -15,7 +15,6 @@
 
 use crate::core::iter::WitnessIterator;
 use crate::core::redeem::RedeemNodeInner;
-use crate::core::{Context, RedeemNode, Value};
 use crate::dag::{self, DagLike, InternalSharing, NoSharing, PostOrderIter};
 use crate::jet::Jet;
 use crate::merkle::amr::Amr;
@@ -23,7 +22,7 @@ use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
 use crate::types::{self, arrow::Arrow};
 use crate::{analysis, Error};
-use crate::{BitIter, BitWriter};
+use crate::{BitIter, BitWriter, Context, RedeemNode, Value};
 use std::rc::Rc;
 use std::{fmt, io};
 

@@ -23,10 +23,10 @@ pub mod imr;
 pub mod tmr;
 
 use crate::core::commit::CommitNodeInner;
-use crate::core::Value;
 use crate::jet::Jet;
 use crate::types;
 use crate::util::u64_to_array_be;
+use crate::Value;
 use bitcoin_hashes::sha256::Midstate;
 use bitcoin_hashes::{sha256, Hash, HashEngine};
 use std::{fmt, str};

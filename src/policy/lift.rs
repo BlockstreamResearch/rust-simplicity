@@ -17,7 +17,7 @@
 //! between policy fragment and a simplicity program.
 
 use crate::core::TermDag;
-use crate::core::Value;
+use crate::Value;
 use crate::jet;
 use crate::jet::application::Bitcoin;
 use crate::jet::Application;

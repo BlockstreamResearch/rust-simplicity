@@ -20,9 +20,8 @@ use std::{fmt, marker};
 
 use crate::core::commit::{CommitNode, CommitNodeInner};
 use crate::core::redeem::{RedeemNode, RedeemNodeInner};
-use crate::core::Value;
 use crate::jet;
-use crate::Imr;
+use crate::{Imr, Value};
 
 /// Generic container for Simplicity DAGs
 pub enum Dag<T> {

@@ -2,10 +2,10 @@ use std::sync::Arc;
 
 use rand::rngs::ThreadRng;
 use rand::Rng;
-use simplicity::core::Value;
 use simplicity::ffi::c_jets::frame_ffi::c_writeBit;
 use simplicity::ffi::CFrameItem;
 use simplicity::types::{self, CompleteBound};
+use simplicity::Value;
 
 pub fn random_value(ty: &types::Final, rng: &mut ThreadRng) -> Value {
     enum StackItem<'a> {

@@ -18,12 +18,11 @@
 //! Refer to [`crate::encode`] for information on the encoding.
 
 use crate::core::iter::WitnessIterator;
-use crate::core::{CommitNode, Context, Value};
 use crate::dag::{Dag, DagLike, InternalSharing};
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::types;
-use crate::BitIter;
+use crate::{BitIter, CommitNode, Context, Value};
 use std::rc::Rc;
 use std::{cell, error, fmt, mem};
 
