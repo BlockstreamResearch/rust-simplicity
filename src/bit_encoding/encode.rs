@@ -41,37 +41,33 @@ impl<'n, J: Jet> DagLike for EncodeNode<'n, J> {
     fn as_dag_node(&self) -> Dag<Self> {
         let node = match *self {
             EncodeNode::Node(node) => node,
-            EncodeNode::Hidden(..) => return Dag::Hidden,
+            EncodeNode::Hidden(..) => return Dag::Nullary,
         };
         match &node.inner {
-            RedeemNodeInner::Unit => Dag::Unit,
-            RedeemNodeInner::Iden => Dag::Iden,
-            RedeemNodeInner::InjL(sub) => Dag::InjL(EncodeNode::Node(sub)),
-            RedeemNodeInner::InjR(sub) => Dag::InjR(EncodeNode::Node(sub)),
-            RedeemNodeInner::Take(sub) => Dag::Take(EncodeNode::Node(sub)),
-            RedeemNodeInner::Drop(sub) => Dag::Drop(EncodeNode::Node(sub)),
-            RedeemNodeInner::Comp(left, right) => {
-                Dag::Comp(EncodeNode::Node(left), EncodeNode::Node(right))
-            }
-            RedeemNodeInner::Case(left, right) => {
-                Dag::Case(EncodeNode::Node(left), EncodeNode::Node(right))
+            RedeemNodeInner::Unit
+            | RedeemNodeInner::Iden
+            | RedeemNodeInner::Fail(..)
+            | RedeemNodeInner::Jet(..)
+            | RedeemNodeInner::Word(..) => Dag::Nullary,
+            RedeemNodeInner::InjL(sub)
+            | RedeemNodeInner::InjR(sub)
+            | RedeemNodeInner::Take(sub)
+            | RedeemNodeInner::Drop(sub) => Dag::Unary(EncodeNode::Node(sub)),
+            RedeemNodeInner::Comp(left, right)
+            | RedeemNodeInner::Case(left, right)
+            | RedeemNodeInner::Pair(left, right) => {
+                Dag::Binary(EncodeNode::Node(left), EncodeNode::Node(right))
             }
             RedeemNodeInner::AssertL(left, rcmr) => {
-                Dag::Case(EncodeNode::Node(left), EncodeNode::Hidden(*rcmr))
+                Dag::Binary(EncodeNode::Node(left), EncodeNode::Hidden(*rcmr))
             }
             RedeemNodeInner::AssertR(lcmr, right) => {
-                Dag::Case(EncodeNode::Hidden(*lcmr), EncodeNode::Node(right))
-            }
-            RedeemNodeInner::Pair(left, right) => {
-                Dag::Pair(EncodeNode::Node(left), EncodeNode::Node(right))
+                Dag::Binary(EncodeNode::Hidden(*lcmr), EncodeNode::Node(right))
             }
             RedeemNodeInner::Disconnect(left, right) => {
                 Dag::Disconnect(EncodeNode::Node(left), EncodeNode::Node(right))
             }
             RedeemNodeInner::Witness(..) => Dag::Witness,
-            RedeemNodeInner::Fail(..) => Dag::Fail,
-            RedeemNodeInner::Jet(..) => Dag::Jet,
-            RedeemNodeInner::Word(..) => Dag::Word,
         }
     }
 }
