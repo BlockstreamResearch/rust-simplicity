@@ -22,7 +22,6 @@ pub mod cmr;
 pub mod imr;
 pub mod tmr;
 
-use crate::util::u64_to_array_be;
 use crate::Value;
 use bitcoin_hashes::{sha256, Hash, HashEngine};
 
@@ -53,7 +52,7 @@ fn compact_value(value: &Value) -> [u8; 32] {
     debug_assert!(bytes.len() % 64 == 56);
 
     // 1.3 Append bit_length as 64-bit bit-endian integer
-    let bit_length_bytes = u64_to_array_be(bit_length as u64);
+    let bit_length_bytes = (bit_length as u64).to_be_bytes();
     bytes.extend(bit_length_bytes.iter());
     debug_assert!(bytes.len() % 16 == 0);
 

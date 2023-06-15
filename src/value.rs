@@ -18,7 +18,7 @@
 //! Simplicity processes data in terms of [`Value`]s,
 //! i.e., inputs, intermediate results and outputs.
 
-use crate::util::slice_to_u64_be;
+use std::convert::TryInto;
 use std::fmt;
 use std::hash::Hash;
 
@@ -123,12 +123,16 @@ impl Value {
         assert!(v.len() == 32);
         Value::Prod(
             Box::new(Value::Prod(
-                Box::new(Value::u64(slice_to_u64_be(&v[0..8]))),
-                Box::new(Value::u64(slice_to_u64_be(&v[8..16]))),
+                Box::new(Value::u64(u64::from_be_bytes(v[0..8].try_into().unwrap()))),
+                Box::new(Value::u64(u64::from_be_bytes(v[8..16].try_into().unwrap()))),
             )),
             Box::new(Value::Prod(
-                Box::new(Value::u64(slice_to_u64_be(&v[16..24]))),
-                Box::new(Value::u64(slice_to_u64_be(&v[24..32]))),
+                Box::new(Value::u64(u64::from_be_bytes(
+                    v[16..24].try_into().unwrap(),
+                ))),
+                Box::new(Value::u64(u64::from_be_bytes(
+                    v[24..32].try_into().unwrap(),
+                ))),
             )),
         )
     }

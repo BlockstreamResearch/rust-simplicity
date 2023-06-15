@@ -46,7 +46,6 @@ pub mod policy;
 pub mod types;
 // #[cfg(test)]
 // mod test_progs;
-mod util;
 mod value;
 
 use bit_encoding::bititer; // FIXME used by autogenerator jet code
