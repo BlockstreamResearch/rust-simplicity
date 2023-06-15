@@ -16,11 +16,13 @@
 
 use std::collections::{hash_map::Entry, HashMap};
 use std::rc::Rc;
+use std::sync::Arc;
 use std::{fmt, marker};
 
 use crate::core::commit::{CommitNode, CommitNodeInner};
 use crate::core::redeem::{RedeemNode, RedeemNodeInner};
 use crate::jet;
+use crate::node::{self, Node, NodeData};
 use crate::{Imr, Value};
 
 /// Generic container for Simplicity DAGs
@@ -459,6 +461,66 @@ impl<J: jet::Jet> DagLike for Rc<RedeemNode<J>> {
             RedeemNodeInner::Fail(..) => Dag::Fail,
             RedeemNodeInner::Jet(..) => Dag::Jet,
             RedeemNodeInner::Word(..) => Dag::Word,
+        }
+    }
+}
+
+impl<'a, N: NodeData<J>, J: jet::Jet> DagLike for &'a Node<N, J> {
+    type Node = Node<N, J>;
+
+    fn data(&self) -> &Node<N, J> {
+        self
+    }
+
+    #[rustfmt::skip]
+    fn as_dag_node(&self) -> Dag<Self> {
+        match self.inner() {
+            node::Inner::Iden => Dag::Iden,
+            node::Inner::Unit => Dag::Unit,
+            node::Inner::InjL(ref sub) => Dag::InjL(sub),
+            node::Inner::InjR(ref sub) => Dag::InjR(sub),
+            node::Inner::Take(ref sub) => Dag::Take(sub),
+            node::Inner::Drop(ref sub) => Dag::Drop(sub),
+            node::Inner::Comp(ref left, ref right) => Dag::Comp(left, right),
+            node::Inner::Case(ref left, ref right) => Dag::Case(left, right),
+            node::Inner::AssertL(ref left, _) => Dag::AssertL(left),
+            node::Inner::AssertR(_, ref right) => Dag::AssertR(right),
+            node::Inner::Pair(ref left, ref right) => Dag::Pair(left, right),
+            node::Inner::Disconnect(ref left, ref right) => Dag::Disconnect(left, right),
+            node::Inner::Witness(..) => Dag::Witness,
+            node::Inner::Fail(..) => Dag::Fail,
+            node::Inner::Jet(..) => Dag::Jet,
+            node::Inner::Word(..) => Dag::Word,
+        }
+    }
+}
+
+impl<N: NodeData<J>, J: jet::Jet> DagLike for Arc<Node<N, J>> {
+    type Node = Node<N, J>;
+
+    fn data(&self) -> &Node<N, J> {
+        self
+    }
+
+    #[rustfmt::skip]
+    fn as_dag_node(&self) -> Dag<Self> {
+        match self.inner() {
+            node::Inner::Iden => Dag::Iden,
+            node::Inner::Unit => Dag::Unit,
+            node::Inner::InjL(ref sub) => Dag::InjL(Arc::clone(sub)),
+            node::Inner::InjR(ref sub) => Dag::InjR(Arc::clone(sub)),
+            node::Inner::Take(ref sub) => Dag::Take(Arc::clone(sub)),
+            node::Inner::Drop(ref sub) => Dag::Drop(Arc::clone(sub)),
+            node::Inner::Comp(ref left, ref right) => Dag::Comp(Arc::clone(left), Arc::clone(right)),
+            node::Inner::Case(ref left, ref right) => Dag::Case(Arc::clone(left), Arc::clone(right)),
+            node::Inner::AssertL(ref left, _) => Dag::AssertL(Arc::clone(left)),
+            node::Inner::AssertR(_, ref right) => Dag::AssertR(Arc::clone(right)),
+            node::Inner::Pair(ref left, ref right) => Dag::Pair(Arc::clone(left), Arc::clone(right)),
+            node::Inner::Disconnect(ref left, ref right) => Dag::Disconnect(Arc::clone(left), Arc::clone(right)),
+            node::Inner::Witness(..) => Dag::Witness,
+            node::Inner::Fail(..) => Dag::Fail,
+            node::Inner::Jet(..) => Dag::Jet,
+            node::Inner::Word(..) => Dag::Word,
         }
     }
 }
