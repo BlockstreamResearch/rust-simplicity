@@ -854,10 +854,10 @@ mod tests {
 
         for (natural, bitvec) in tries {
             let truncated = bitvec[0..bitvec.len() - 1].to_vec();
-            assert_matches!(
+            assert!(matches!(
                 decode_natural(&mut truncated.into_iter(), None),
                 Err(Error::EndOfStream)
-            );
+            ));
 
             let mut sink = Vec::<u8>::new();
 
