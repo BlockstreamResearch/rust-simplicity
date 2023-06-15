@@ -62,7 +62,7 @@ pub use crate::bit_machine::exec;
 pub use crate::core::commit::CommitNodeInner;
 pub use crate::core::redeem::RedeemNodeInner;
 pub use crate::core::{CommitNode, Context, RedeemNode};
-pub use crate::decode::{decode_natural, decode_program, WitnessDecoder};
+pub use crate::decode::{decode_program, WitnessDecoder};
 pub use crate::encode::{encode_natural, encode_value, encode_witness};
 pub use crate::merkle::{amr::Amr, cmr::Cmr, imr::Imr, tmr::Tmr};
 pub use simplicity_sys as ffi;

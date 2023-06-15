@@ -14,13 +14,13 @@
 
 use honggfuzz::fuzz;
 
-use simplicity::{decode_natural, encode_natural};
+use simplicity::encode_natural;
 use simplicity::{BitIter, BitWriter};
 
 fn do_test(data: &[u8]) {
     let mut iter = BitIter::new(data.iter().cloned());
 
-    if let Ok(natural) = decode_natural(&mut iter, None) {
+    if let Ok(natural) = iter.read_natural(None) {
         // println!("{:?}", natural);
         let bit_len = iter.n_total_read();
 

@@ -22,8 +22,8 @@
 //!
 
 use crate::core::Value;
-use crate::types;
 use crate::Cmr;
+use crate::{decode, types};
 
 /// Attempted to read from a bit iterator, but there was no more data
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -229,6 +229,14 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
         }
         assert_eq!(result_stack.len(), 1);
         Ok(result_stack.pop().unwrap())
+    }
+
+    /// Decode a natural number from bits.
+    ///
+    /// If a bound is specified, then the decoding terminates before trying to
+    /// decode a larger number.
+    pub fn read_natural(&mut self, bound: Option<usize>) -> Result<usize, decode::Error> {
+        decode::decode_natural(self, bound)
     }
 
     /// Accessor for the number of bits which have been read,

@@ -178,7 +178,7 @@ pub fn decode_program<I: Iterator<Item = u8>, J: Jet>(
 pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
 ) -> Result<Rc<CommitNode<J>>, Error> {
-    let len = decode_natural(bits, None)?;
+    let len = bits.read_natural(None)?;
 
     if len == 0 {
         return Err(Error::EmptyProgram);
@@ -293,7 +293,7 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
                 Ok(jet) => Ok(DecodeNode::Jet(jet)),
             }
         } else {
-            let depth = decode_natural(bits, Some(32))?;
+            let depth = bits.read_natural(Some(32))?;
             let word = decode_power_of_2(bits, 1 << (depth - 1))?;
             Ok(DecodeNode::Word(cell::RefCell::new(word)))
         }
@@ -302,8 +302,8 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
         match bits.read_u2()? {
             u2::_0 => {
                 let subcode = bits.read_u2()?;
-                let i_abs = index - decode_natural(bits, Some(index))?;
-                let j_abs = index - decode_natural(bits, Some(index))?;
+                let i_abs = index - bits.read_natural(Some(index))?;
+                let j_abs = index - bits.read_natural(Some(index))?;
 
                 // Bits 4 and 5: subcode
                 match subcode {
@@ -315,7 +315,7 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
             }
             u2::_1 => {
                 let subcode = bits.read_u2()?;
-                let i_abs = index - decode_natural(bits, Some(index))?;
+                let i_abs = index - bits.read_natural(Some(index))?;
                 // Bits 4 and 5: subcode
                 match subcode {
                     u2::_0 => Ok(DecodeNode::InjL(i_abs)),
@@ -361,7 +361,7 @@ impl<'a, I: Iterator<Item = u8>> WitnessDecoder<'a, I> {
     pub fn new(bits: &'a mut BitIter<I>) -> Result<Self, Error> {
         let bit_len = match bits.next() {
             Some(false) => 0,
-            Some(true) => decode_natural(bits, None)?,
+            Some(true) => bits.read_natural(None)?,
             None => return Err(Error::EndOfStream),
         };
         let n_start = bits.n_total_read();
