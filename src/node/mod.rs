@@ -92,10 +92,12 @@ use std::{fmt, hash};
 mod commit;
 mod construct;
 mod inner;
+mod redeem;
 
 pub use commit::{Commit, CommitData, CommitNode};
 pub use construct::{Construct, ConstructData, ConstructNode};
 pub use inner::Inner;
+pub use redeem::{Redeem, RedeemData, RedeemNode};
 
 // This trait should only be implemented on empty types, so we can demand
 // every trait bound under the sun. Doing so will make #[derive]s easier
