@@ -23,6 +23,7 @@ use crate::types::{self, arrow::FinalArrow};
 use crate::{encode, Error};
 use crate::{BitIter, BitWriter, FailEntropy, Value};
 use std::rc::Rc;
+use std::sync::Arc;
 use std::{fmt, io};
 
 /// Underlying combinator of a [`RedeemNode`].
@@ -147,6 +148,91 @@ impl<J: Jet> RedeemNode<J> {
         }
         converted.pop().unwrap()
     }
+
+    /// [will be removed] create a CommitNode from a newfangled `node::ConstructNode`
+    pub fn to_node(&self) -> Arc<node::RedeemNode<J>> {
+        let mut converted = Vec::<Arc<node::RedeemNode<J>>>::new();
+        for data in self.post_order_iter::<InternalSharing>() {
+            let left = data.left_index.map(|idx| Arc::clone(&converted[idx]));
+            let right = data.right_index.map(|idx| Arc::clone(&converted[idx]));
+
+            let left_data = data.left_index.map(|idx| converted[idx].cached_data());
+            let right_data = data.right_index.map(|idx| converted[idx].cached_data());
+            let new_node = Arc::new(
+                node::RedeemNode::new(
+                    data.node.ty.shallow_clone(),
+                    match data.node.inner {
+                        RedeemNodeInner::Iden => node::Inner::Iden,
+                        RedeemNodeInner::Unit => node::Inner::Unit,
+                        RedeemNodeInner::InjL(..) => node::Inner::InjL(left.unwrap()),
+                        RedeemNodeInner::InjR(..) => node::Inner::InjR(left.unwrap()),
+                        RedeemNodeInner::Take(..) => node::Inner::Take(left.unwrap()),
+                        RedeemNodeInner::Drop(..) => node::Inner::Drop(left.unwrap()),
+                        RedeemNodeInner::Comp(..) => {
+                            node::Inner::Comp(left.unwrap(), right.unwrap())
+                        }
+                        RedeemNodeInner::Case(..) => {
+                            node::Inner::Case(left.unwrap(), right.unwrap())
+                        }
+                        RedeemNodeInner::AssertL(_, cmr) => {
+                            node::Inner::AssertL(left.unwrap(), cmr)
+                        }
+                        RedeemNodeInner::AssertR(cmr, _) => {
+                            node::Inner::AssertR(cmr, left.unwrap())
+                        }
+                        RedeemNodeInner::Pair(..) => {
+                            node::Inner::Pair(left.unwrap(), right.unwrap())
+                        }
+                        RedeemNodeInner::Disconnect(..) => {
+                            node::Inner::Disconnect(left.unwrap(), right.unwrap())
+                        }
+                        RedeemNodeInner::Witness(ref wit) => {
+                            node::Inner::Witness(Arc::new(wit.clone()))
+                        }
+                        RedeemNodeInner::Jet(j) => node::Inner::Jet(j),
+                        RedeemNodeInner::Word(ref w) => node::Inner::Word(Arc::new(w.clone())),
+                        RedeemNodeInner::Fail(entropy) => node::Inner::Fail(entropy),
+                    },
+                    match data.node.inner {
+                        RedeemNodeInner::Iden => node::Inner::Iden,
+                        RedeemNodeInner::Unit => node::Inner::Unit,
+                        RedeemNodeInner::InjL(..) => node::Inner::InjL(left_data.unwrap()),
+                        RedeemNodeInner::InjR(..) => node::Inner::InjR(left_data.unwrap()),
+                        RedeemNodeInner::Take(..) => node::Inner::Take(left_data.unwrap()),
+                        RedeemNodeInner::Drop(..) => node::Inner::Drop(left_data.unwrap()),
+                        RedeemNodeInner::Comp(..) => {
+                            node::Inner::Comp(left_data.unwrap(), right_data.unwrap())
+                        }
+                        RedeemNodeInner::Case(..) => {
+                            node::Inner::Case(left_data.unwrap(), right_data.unwrap())
+                        }
+                        RedeemNodeInner::AssertL(_, cmr) => {
+                            node::Inner::AssertL(left_data.unwrap(), cmr)
+                        }
+                        RedeemNodeInner::AssertR(cmr, _) => {
+                            node::Inner::AssertR(cmr, left_data.unwrap())
+                        }
+                        RedeemNodeInner::Pair(..) => {
+                            node::Inner::Pair(left_data.unwrap(), right_data.unwrap())
+                        }
+                        RedeemNodeInner::Disconnect(..) => {
+                            node::Inner::Disconnect(left_data.unwrap(), right_data.unwrap())
+                        }
+                        RedeemNodeInner::Witness(ref wit) => {
+                            node::Inner::Witness(Arc::new(wit.clone()))
+                        }
+                        RedeemNodeInner::Jet(j) => node::Inner::Jet(j),
+                        RedeemNodeInner::Word(ref w) => node::Inner::Word(Arc::new(w.clone())),
+                        RedeemNodeInner::Fail(entropy) => node::Inner::Fail(entropy),
+                    },
+                )
+                .expect("converting between redeemnodes"),
+            );
+            converted.push(new_node);
+        }
+        converted.pop().unwrap()
+    }
+
     /// Return the left child of the node, if there is such a child.
     pub fn get_left(&self) -> Option<&Self> {
         <&Self as DagLike>::left_child(&self)
@@ -195,7 +281,7 @@ impl<J: Jet> RedeemNode<J> {
     /// Encode a Simplicity program to bits, including the witness data.
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
         let sharing_iter = self.post_order_iter::<FullSharing>();
-        let program_bits = encode::encode_program(self, w)?;
+        let program_bits = encode::encode_program(&self.to_node(), w)?;
         let witness_bits = encode::encode_witness(sharing_iter.into_witnesses(), w)?;
         w.flush_all()?;
         Ok(program_bits + witness_bits)
