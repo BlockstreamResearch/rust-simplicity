@@ -1,0 +1,8 @@
+# Program which demands two 32-bit witnesses, the first one == the second + 1
+wit1 = comp iden witness :: 1 -> 2^32
+wit2 = comp iden witness :: 1 -> 2^32
+
+wit_diff = comp (comp (pair wit1 wit2) jet_subtract_32) (drop iden) :: 1 -> 2^32
+diff_is_one = comp (pair wit_diff jet_one_32) jet_eq_32             :: 1 -> 2
+main = comp diff_is_one jet_verify                                  :: 1 -> 1
+

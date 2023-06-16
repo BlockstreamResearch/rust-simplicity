@@ -1,0 +1,12 @@
+# Witnesses
+sig1 = witness :: 1 -> 2^512
+
+# Constants
+const1 = word_jet 0xf9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f90000000000000000000000000000000000000000000000000000000000000000 :: 1 -> 2^512 # f254d6e9
+
+# Program code
+pr1 = pair const1 sig1    :: 1 -> (2^512 * 2^512) # 31ae2960
+jt2 = jet_bip_0340_verify :: (2^512 * 2^512) -> 1 # af924cbe
+
+main = comp pr1 jt2       :: 1 -> 1               # 7bc56cb1
+

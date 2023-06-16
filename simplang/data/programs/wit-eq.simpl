@@ -1,0 +1,6 @@
+# Program which demands two 32-bit witnesses, the first one == the second
+wit = witness :: 1 -> 2^32
+
+wit_eq = comp (pair wit wit) jet_eq_32 :: 1 -> 2
+main = comp wit_eq jet_verify          :: 1 -> 1
+

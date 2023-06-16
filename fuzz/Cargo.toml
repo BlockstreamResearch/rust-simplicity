@@ -10,6 +10,7 @@ cargo-fuzz = true
 
 [dependencies]
 honggfuzz = { version = "0.5.55", default-features = false }
+simplang = { path = "../simplang" }
 simplicity = { path = ".." }
 
 [[bin]]
@@ -27,3 +28,11 @@ path = "fuzz_targets/decode_witness.rs"
 [[bin]]
 name = "parse_compile"
 path = "fuzz_targets/parse_compile.rs"
+
+[[bin]]
+name = "parse_simplang"
+path = "fuzz_targets/parse_simplang.rs"
+
+[[bin]]
+name = "encode_simplang"
+path = "fuzz_targets/encode_simplang.rs"

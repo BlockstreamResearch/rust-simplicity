@@ -1,0 +1,11 @@
+# Witnesses
+main = witness :: B -> B 
+wit1 = witness :: B -> B 
+
+# Program code
+cp1 = comp wit1 wit1 :: B -> B # f3cc17d7
+cp2 = comp cp1 cp1   :: B -> B # b7f2a225
+cp3 = comp cp2 cp2   :: B -> B # 0a25df50
+cp4 = comp cp3 cp3   :: B -> B # bc8c2b93
+cp5 = comp cp4 cp4   :: B -> B # ed529c46
+
