@@ -1,0 +1,7 @@
+
+bit0 = injl unit :: A -> 2
+bit1 = injr unit :: B -> 2
+
+pad = pair iden unit     :: 2 -> 2 * 1
+bitflip = case bit1 bit0 :: 2 * 1 -> 2
+main = comp pad bitflip  :: 2 -> 2

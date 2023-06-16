@@ -21,6 +21,7 @@ fn do_test(data: &[u8]) {
     let mut iter = BitIter::new(data.iter().cloned());
 
     if let Ok(program) = RedeemNode::<Core>::decode(&mut iter) {
+        println!("DEcoded {}", program);
         let bit_len = iter.n_total_read();
 
         let mut sink = Vec::<u8>::new();
@@ -70,7 +71,7 @@ mod tests {
     #[test]
     fn duplicate_crash() {
         let mut a = Vec::new();
-        extend_vec_from_hex("4954", &mut a);
+        extend_vec_from_hex("c5d2dbd5b7ddfbd5b7ddfbd5b7ddfbd5b7ddfbd5b7ddfbd5b7ddfbd5b7ddfbd5b7dde1806000", &mut a);
         super::do_test(&a);
     }
 }

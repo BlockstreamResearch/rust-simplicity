@@ -21,7 +21,7 @@ use std::str::FromStr;
 
 /// What set of jets to use in the program.
 // FIXME this should probably be configurable.
-type DefaultJet = simplicity::jet::Core;
+type DefaultJet = simplicity::jet::Elements;
 
 fn usage(process_name: &str) -> Result<(), String> {
     println!("Usage:");

@@ -13,30 +13,15 @@
 //
 
 use honggfuzz::fuzz;
-use simplang::parse::parse;
-use simplicity::bititer::BitIter;
+use std::str::FromStr;
+use simplicity::dag::InternalSharing;
 use simplicity::jet::Elements;
-use simplicity::Tmr;
 
 fn do_test(data: &[u8]) {
-    let mut iter = BitIter::new(data.iter().cloned());
-
-    if let Ok(program) = simplicity::decode_program_fresh_witness::<_, Elements>(&mut iter) {
-        // Manually check that this is a 1-1 program
-        match program.arrow().source.finalize() {
-            Ok(source) if source.tmr() == Tmr::unit() => {},
-            _ => return,
-        }
-        // Manually check that this is a 1-1 program
-        match program.arrow().target.finalize() {
-            Ok(target) if target.tmr() == Tmr::unit() => {},
-            _ => return,
-        }
-
-        let reserialize= simplang::decompile::to_human_readable(&program);
-        println!("{reserialize}");
-        let round_trip = parse::<Elements>(&reserialize).unwrap();
-        assert_eq!(program, round_trip);
+    if let Ok(program) = simplang::Program::<Elements, InternalSharing>::from_bytes(data) {
+        let reserialize= program.string_serialize();
+        let round_trip = simplang::Program::<Elements>::from_str(&reserialize).unwrap();
+        assert_eq!(program.root(), round_trip.root());
     }
 }
 

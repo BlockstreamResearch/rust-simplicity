@@ -2,4 +2,3 @@ id1 = iden
 cp2 = comp id1 id1
 cp3 = comp cp2 cp2
 main = comp cp3 cp2
-

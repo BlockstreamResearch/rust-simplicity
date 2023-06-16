@@ -12,9 +12,8 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use std::str;
+use std::str::{self, FromStr};
 use honggfuzz::fuzz;
-use simplang::parse::parse;
 use simplicity::jet::Elements;
 
 fn do_test(data: &[u8]) {
@@ -23,10 +22,10 @@ fn do_test(data: &[u8]) {
         Err(_) => return,
     };
 
-    if let Ok(program) = parse::<Elements>(s) {
-        let reserialize= simplang::decompile::to_human_readable(&program);
-        let round_trip = parse::<Elements>(&reserialize).unwrap();
-        assert_eq!(program, round_trip);
+    if let Ok(program) = simplang::Program::<Elements>::from_str(s) {
+        let reserialize= program.string_serialize();
+        let round_trip = simplang::Program::<Elements>::from_str(&reserialize).unwrap();
+        assert_eq!(program.root(), round_trip.root());
     }
 }
 
@@ -35,5 +34,32 @@ fn main() {
         fuzz!(|data| {
             do_test(data);
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    fn extend_vec_from_hex(hex: &str, out: &mut Vec<u8>) {
+        let mut b = 0;
+        for (idx, c) in hex.as_bytes().iter().enumerate() {
+            b <<= 4;
+            match *c {
+                b'A'..=b'F' => b |= c - b'A' + 10,
+                b'a'..=b'f' => b |= c - b'a' + 10,
+                b'0'..=b'9' => b |= c - b'0',
+                _ => panic!("Bad hex"),
+            }
+            if (idx & 1) == 1 {
+                out.push(b);
+                b = 0;
+            }
+        }
+    }
+
+    #[test]
+    fn duplicate_crash() {
+        let mut a = Vec::new();
+        extend_vec_from_hex("00", &mut a);
+        super::do_test(&a);
     }
 }
