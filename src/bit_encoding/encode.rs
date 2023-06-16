@@ -24,7 +24,7 @@ use crate::core::Value;
 use crate::dag::{Dag, DagLike, PostOrderIterItem, SharingTracker};
 use crate::jet::Jet;
 use crate::{BitWriter, Cmr, Imr, RedeemNode};
-use std::collections::HashMap;
+use std::collections::{hash_map::Entry, HashMap};
 use std::{io, mem};
 
 #[derive(Copy, Clone)]
@@ -85,12 +85,25 @@ pub struct EncodeSharing {
 }
 
 impl<'n, J: Jet> SharingTracker<EncodeNode<'n, J>> for EncodeSharing {
-    fn record(&mut self, d: &EncodeNode<J>, index: usize, _: Option<usize>, _: Option<usize>) {
+    fn record(
+        &mut self,
+        d: &EncodeNode<J>,
+        index: usize,
+        _: Option<usize>,
+        _: Option<usize>,
+    ) -> Option<usize> {
         let imr = match d {
             EncodeNode::Node(n) => n.imr,
             EncodeNode::Hidden(cmr) => (*cmr).into(),
         };
-        self.map.insert(imr, index);
+
+        match self.map.entry(imr) {
+            Entry::Occupied(occ) => Some(*occ.get()),
+            Entry::Vacant(vac) => {
+                vac.insert(index);
+                None
+            }
+        }
     }
     fn seen_before(&self, d: &EncodeNode<J>) -> Option<usize> {
         let imr = match d {

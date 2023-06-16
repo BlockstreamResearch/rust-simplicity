@@ -27,6 +27,8 @@ use crate::BitIter;
 use std::rc::Rc;
 use std::{cell, error, fmt, mem};
 
+use super::bititer::u2;
+
 /// Decoding error
 #[non_exhaustive]
 #[derive(Debug)]
@@ -53,6 +55,12 @@ pub enum Error {
     TooManyNodes(usize),
     /// Type-checking error
     Type(crate::types::Error),
+}
+
+impl From<super::bititer::EarlyEndOfStreamError> for Error {
+    fn from(_: super::bititer::EarlyEndOfStreamError) -> Error {
+        Error::EndOfStream
+    }
 }
 
 impl From<crate::types::Error> for Error {
@@ -170,7 +178,7 @@ pub fn decode_program<I: Iterator<Item = u8>, J: Jet>(
 pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
 ) -> Result<Rc<CommitNode<J>>, Error> {
-    let len = decode_natural(bits, None)?;
+    let len = bits.read_natural(None)?;
 
     if len == 0 {
         return Err(Error::EmptyProgram);
@@ -275,70 +283,66 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
     index: usize,
 ) -> Result<DecodeNode<J>, Error> {
-    let (maybe_code, subcode) = match bits.next() {
-        None => return Err(Error::EndOfStream),
-        Some(true) => (None, u64::default()),
-        Some(false) => {
-            let code = bits.read_bits_be(2).ok_or(Error::EndOfStream)?;
-            let subcode = bits
-                .read_bits_be(if code < 3 { 2 } else { 1 })
-                .ok_or(Error::EndOfStream)?;
-            (Some(code), subcode)
-        }
-    };
-
-    let node = match maybe_code {
-        Some(0) => {
-            let i_abs = index - decode_natural(bits, Some(index))?;
-            let j_abs = index - decode_natural(bits, Some(index))?;
-
-            match subcode {
-                0 => DecodeNode::Comp(i_abs, j_abs),
-                1 => DecodeNode::Case(i_abs, j_abs),
-                2 => DecodeNode::Pair(i_abs, j_abs),
-                3 => DecodeNode::Disconnect(i_abs, j_abs),
-                _ => unreachable!("2-bit subcode"),
-            }
-        }
-        Some(1) => {
-            let i_abs = index - decode_natural(bits, Some(index))?;
-            match subcode {
-                0 => DecodeNode::InjL(i_abs),
-                1 => DecodeNode::InjR(i_abs),
-                2 => DecodeNode::Take(i_abs),
-                3 => DecodeNode::Drop(i_abs),
-                _ => unreachable!("2-bit subcode"),
-            }
-        }
-        Some(2) => match subcode {
-            0 => DecodeNode::Iden,
-            1 => DecodeNode::Unit,
-            2 => DecodeNode::Fail(Cmr::from(decode_hash(bits)?), Cmr::from(decode_hash(bits)?)),
-            3 => return Err(Error::StopCode),
-            _ => unreachable!("2-bit subcode"),
-        },
-        Some(3) => match subcode {
-            0 => DecodeNode::Hidden(Cmr::from(decode_hash(bits)?)),
-            1 => DecodeNode::Witness,
-            _ => unreachable!("1-bit subcode"),
-        },
-        Some(_) => unreachable!("2-bit code"),
-        None => match bits.next() {
-            None => return Err(Error::EndOfStream),
-            Some(true) => match J::decode(bits) {
-                Err(crate::Error::Decode(e)) => return Err(e),
+    // First bit: 1 for jets/words, 0 for normal combinators
+    if bits.read_bit()? {
+        // Second bit: 1 for jets, 0 for words
+        if bits.read_bit()? {
+            match J::decode(bits) {
+                Err(crate::Error::Decode(e)) => Err(e),
                 Err(_) => unreachable!(), // FIXME need to update generated jet code to directly return a decode::Error
-                Ok(jet) => DecodeNode::Jet(jet),
-            },
-            Some(false) => {
-                let depth = decode_natural(bits, Some(32))?;
-                let word = decode_power_of_2(bits, 1 << (depth - 1))?;
-                DecodeNode::Word(cell::RefCell::new(word))
+                Ok(jet) => Ok(DecodeNode::Jet(jet)),
             }
-        },
-    };
+        } else {
+            let depth = bits.read_natural(Some(32))?;
+            let word = decode_power_of_2(bits, 1 << (depth - 1))?;
+            Ok(DecodeNode::Word(cell::RefCell::new(word)))
+        }
+    } else {
+        // Bits 2 and 3: code
+        match bits.read_u2()? {
+            u2::_0 => {
+                let subcode = bits.read_u2()?;
+                let i_abs = index - bits.read_natural(Some(index))?;
+                let j_abs = index - bits.read_natural(Some(index))?;
 
-    Ok(node)
+                // Bits 4 and 5: subcode
+                match subcode {
+                    u2::_0 => Ok(DecodeNode::Comp(i_abs, j_abs)),
+                    u2::_1 => Ok(DecodeNode::Case(i_abs, j_abs)),
+                    u2::_2 => Ok(DecodeNode::Pair(i_abs, j_abs)),
+                    u2::_3 => Ok(DecodeNode::Disconnect(i_abs, j_abs)),
+                }
+            }
+            u2::_1 => {
+                let subcode = bits.read_u2()?;
+                let i_abs = index - bits.read_natural(Some(index))?;
+                // Bits 4 and 5: subcode
+                match subcode {
+                    u2::_0 => Ok(DecodeNode::InjL(i_abs)),
+                    u2::_1 => Ok(DecodeNode::InjR(i_abs)),
+                    u2::_2 => Ok(DecodeNode::Take(i_abs)),
+                    u2::_3 => Ok(DecodeNode::Drop(i_abs)),
+                }
+            }
+            u2::_2 => {
+                // Bits 4 and 5: subcode
+                match bits.read_u2()? {
+                    u2::_0 => Ok(DecodeNode::Iden),
+                    u2::_1 => Ok(DecodeNode::Unit),
+                    u2::_2 => Ok(DecodeNode::Fail(bits.read_cmr()?, bits.read_cmr()?)),
+                    u2::_3 => Err(Error::StopCode),
+                }
+            }
+            u2::_3 => {
+                // Bit 4: subcode
+                if bits.read_bit()? {
+                    Ok(DecodeNode::Witness)
+                } else {
+                    Ok(DecodeNode::Hidden(bits.read_cmr()?))
+                }
+            }
+        }
+    }
 }
 
 /// Implementation of [`WitnessIterator`] for an underlying [`BitIter`].
@@ -357,7 +361,7 @@ impl<'a, I: Iterator<Item = u8>> WitnessDecoder<'a, I> {
     pub fn new(bits: &'a mut BitIter<I>) -> Result<Self, Error> {
         let bit_len = match bits.next() {
             Some(false) => 0,
-            Some(true) => decode_natural(bits, None)?,
+            Some(true) => bits.read_natural(None)?,
             None => return Err(Error::EndOfStream),
         };
         let n_start = bits.n_total_read();
@@ -371,7 +375,7 @@ impl<'a, I: Iterator<Item = u8>> WitnessDecoder<'a, I> {
 
 impl<'a, I: Iterator<Item = u8>> WitnessIterator for WitnessDecoder<'a, I> {
     fn next(&mut self, ty: &types::Final) -> Result<Value, crate::Error> {
-        decode_value(ty, self.bits).map_err(From::from)
+        self.bits.read_value(ty).map_err(crate::Error::from)
     }
 
     fn finish(self) -> Result<(), crate::Error> {
@@ -381,27 +385,6 @@ impl<'a, I: Iterator<Item = u8>> WitnessIterator for WitnessDecoder<'a, I> {
             Ok(())
         }
     }
-}
-
-/// Decode a value from bits, based on the given type.
-pub fn decode_value<I: Iterator<Item = bool>>(
-    ty: &types::Final,
-    iter: &mut I,
-) -> Result<Value, Error> {
-    let value = match ty.bound() {
-        types::CompleteBound::Unit => Value::Unit,
-        types::CompleteBound::Sum(ref l, ref r) => match iter.next() {
-            Some(false) => Value::SumL(Box::new(decode_value(l, iter)?)),
-            Some(true) => Value::SumR(Box::new(decode_value(r, iter)?)),
-            None => return Err(Error::EndOfStream),
-        },
-        types::CompleteBound::Product(ref l, ref r) => Value::Prod(
-            Box::new(decode_value(l, iter)?),
-            Box::new(decode_value(r, iter)?),
-        ),
-    };
-
-    Ok(value)
 }
 
 /// Decode a value from bits, of the form 2^exp
@@ -439,20 +422,6 @@ pub fn decode_power_of_2<I: Iterator<Item = bool>>(
         }
     }
     Ok(stack.pop().unwrap().value)
-}
-
-/// Decode a 256-bit hash from bits.
-pub fn decode_hash<I: Iterator<Item = u8>>(iter: &mut BitIter<I>) -> Result<[u8; 32], Error> {
-    let mut h = [0; 32];
-
-    for b in &mut h {
-        match iter.read_bits_be(8) {
-            Some(n) => *b = n as u8,
-            None => return Err(Error::EndOfStream),
-        }
-    }
-
-    Ok(h)
 }
 
 /// Decode a natural number from bits.
@@ -600,6 +569,24 @@ mod tests {
         assert_program_not_deserializable::<Core>(
             &[0xc1, 0x00, 0x06, 0x20],
             Error::NotInCanonicalOrder,
+        );
+    }
+
+    #[test]
+    fn shared_grandchild() {
+        // # This program repeats the node `cp2` three times; during iteration it will
+        // # be placed on the stack as part of the initial `comp` combinator, but by
+        // # the time we get to it, it will have already been yielded. Makes sure this
+        // # does not confuse the iteration logic and break the decoded program structure.
+        // id1 = iden
+        // cp2 = comp id1 id1
+        // cp3 = comp cp2 cp2
+        // main = comp cp3 cp2
+        assert_program_deserializable::<Core>(
+            &[0xc1, 0x00, 0x00, 0x01, 0x00],
+            "c2c86be0081a9c75af49098f359c7efdfa7ccbd0459adb11bcf676b80c8644b1",
+            Some("e053520f0c3219d1cabd705b4523ccd05c8d703a70f6f3994a20774a42b5ccfc"),
+            Some("7b0ad0514279280d5c2ac1da729222936b8768d9f465c6c6ade3b0ed7dc97263"),
         );
     }
 

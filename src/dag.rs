@@ -14,7 +14,7 @@
 
 //! General DAG iteration utilities
 
-use std::collections::HashMap;
+use std::collections::{hash_map::Entry, HashMap};
 use std::rc::Rc;
 use std::{fmt, marker};
 
@@ -73,13 +73,16 @@ pub enum Dag<T> {
 pub trait SharingTracker<D: DagLike> {
     /// Marks an object as having been seen, and record the index
     /// when it was seen.
+    ///
+    /// If the object was already seen, does **not** update the index,
+    /// and instead returns the original one.
     fn record(
         &mut self,
         object: &D,
         index: usize,
         left_child: Option<usize>,
         right_child: Option<usize>,
-    );
+    ) -> Option<usize>;
 
     /// Check whether an object has been seen before; if so, return
     /// the index it was recorded at.
@@ -94,7 +97,7 @@ impl<D: DagLike> SharingTracker<D> for &mut dyn SharingTracker<D> {
         index: usize,
         left_child: Option<usize>,
         right_child: Option<usize>,
-    ) {
+    ) -> Option<usize> {
         (**self).record(object, index, left_child, right_child)
     }
     fn seen_before(&self, object: &D) -> Option<usize> {
@@ -107,7 +110,9 @@ impl<D: DagLike> SharingTracker<D> for &mut dyn SharingTracker<D> {
 pub struct NoSharing;
 
 impl<D: DagLike> SharingTracker<D> for NoSharing {
-    fn record(&mut self, _: &D, _: usize, _: Option<usize>, _: Option<usize>) {}
+    fn record(&mut self, _: &D, _: usize, _: Option<usize>, _: Option<usize>) -> Option<usize> {
+        None
+    }
     fn seen_before(&self, _: &D) -> Option<usize> {
         None
     }
@@ -121,8 +126,14 @@ pub struct InternalSharing {
 }
 
 impl<D: DagLike> SharingTracker<D> for InternalSharing {
-    fn record(&mut self, d: &D, index: usize, _: Option<usize>, _: Option<usize>) {
-        self.map.insert(PointerId::from(d), index);
+    fn record(&mut self, d: &D, index: usize, _: Option<usize>, _: Option<usize>) -> Option<usize> {
+        match self.map.entry(PointerId::from(d)) {
+            Entry::Occupied(occ) => Some(*occ.get()),
+            Entry::Vacant(vac) => {
+                vac.insert(index);
+                None
+            }
+        }
     }
     fn seen_before(&self, d: &D) -> Option<usize> {
         self.map.get(&PointerId::from(d)).copied()
@@ -138,8 +149,20 @@ pub struct FullSharing {
 }
 
 impl<J: jet::Jet> SharingTracker<&RedeemNode<J>> for FullSharing {
-    fn record(&mut self, d: &&RedeemNode<J>, index: usize, _: Option<usize>, _: Option<usize>) {
-        self.map.insert(d.imr, index);
+    fn record(
+        &mut self,
+        d: &&RedeemNode<J>,
+        index: usize,
+        _: Option<usize>,
+        _: Option<usize>,
+    ) -> Option<usize> {
+        match self.map.entry(d.imr) {
+            Entry::Occupied(occ) => Some(*occ.get()),
+            Entry::Vacant(vac) => {
+                vac.insert(index);
+                None
+            }
+        }
     }
     fn seen_before(&self, d: &&RedeemNode<J>) -> Option<usize> {
         self.map.get(&d.imr).copied()
@@ -191,9 +214,7 @@ impl<D: DagLike, T: SharingTracker<D>> SharingTracker<D> for UnshareWitnessDisco
         index: usize,
         left_child: Option<usize>,
         right_child: Option<usize>,
-    ) {
-        self.inner.record(d, index, left_child, right_child);
-
+    ) -> Option<usize> {
         let mut is_witness = false;
         is_witness |= left_child
             .map(|idx| self.index_witness[&idx])
@@ -208,6 +229,13 @@ impl<D: DagLike, T: SharingTracker<D>> SharingTracker<D> for UnshareWitnessDisco
         };
         self.ptrid_witness.insert(PointerId::from(d), is_witness);
         self.index_witness.insert(index, is_witness);
+
+        // Only record non-witnesses in the underlying tracker.
+        if !is_witness {
+            self.inner.record(d, index, left_child, right_child)
+        } else {
+            None
+        }
     }
 
     fn seen_before(&self, d: &D) -> Option<usize> {
@@ -599,10 +627,25 @@ impl<D: DagLike, S: SharingTracker<D>> Iterator for PostOrderIter<D, S> {
                         }
                     }
                 } else {
-                    // The next time we encounter an item, we have the indices for its children
-                    // (which we ignore for now, but will use in a future commit) and can yield
-                    // it. But first we need to update the indices of its parent.
-                    let mut check_sibling = false;
+                    // The second time we encounter an item, we have dealt with its children,
+                    // updated the child indices for this item, and are now ready to yield it
+                    // rather than putting it back in the stack. However, while dealing with
+                    // its children, we may have already yielded it (which can happen because
+                    // this is a DAG, not a tree). In this case we want to skip it.
+                    //
+                    // Check whether this is the case, and record the item's new index if not.
+                    let current_index = self.tracker.record(
+                        &current.elem,
+                        self.index,
+                        current.left_idx,
+                        current.right_idx,
+                    );
+                    let already_yielded = current_index.is_some();
+                    let current_index = current_index.unwrap_or(self.index);
+
+                    // Then, update the item's parents and/or sibling, to make sure that its
+                    // parent has the correct child index. We need to do this whether or not
+                    // we're going to skip the element.
                     let stack_len = self.stack.len();
                     match current.previous {
                         Previous::Root => {
@@ -610,41 +653,28 @@ impl<D: DagLike, S: SharingTracker<D>> Iterator for PostOrderIter<D, S> {
                         }
                         Previous::ParentLeft => {
                             assert!(self.stack[stack_len - 1].processed);
-                            self.stack[stack_len - 1].left_idx = Some(self.index);
+                            self.stack[stack_len - 1].left_idx = Some(current_index);
                         }
                         Previous::ParentRight => {
                             assert!(self.stack[stack_len - 1].processed);
-                            self.stack[stack_len - 1].right_idx = Some(self.index);
+                            self.stack[stack_len - 1].right_idx = Some(current_index);
                         }
                         Previous::SiblingLeft => {
                             assert!(self.stack[stack_len - 2].processed);
-                            self.stack[stack_len - 2].left_idx = Some(self.index);
-                            check_sibling = true;
+                            self.stack[stack_len - 2].left_idx = Some(current_index);
                         }
                     }
-                    self.tracker.record(
-                        &current.elem,
-                        self.index,
-                        current.left_idx,
-                        current.right_idx,
-                    );
-                    // There is a special case here where we are yielding a node which
-                    // is identical to its sibling (according to the sharing tracker).
-                    // In this case we have a repeated node which nonetheless made it
-                    // into the stack, so we pop it here.
-                    if check_sibling
-                        && self
-                            .tracker
-                            .seen_before(&self.stack[stack_len - 1].elem)
-                            .is_some()
-                    {
-                        self.stack[stack_len - 2].right_idx = Some(self.index);
-                        self.stack.pop();
+                    // Having updated the parent indices, so that our iterator is in a
+                    // consistent state, we can safely skip here if the current item is
+                    // already yielded.
+                    if already_yielded {
+                        continue;
                     }
+
                     self.index += 1;
                     return Some(PostOrderIterItem {
                         node: current.elem,
-                        index: self.index - 1,
+                        index: current_index,
                         left_index: current.left_idx,
                         right_index: current.right_idx,
                     });

@@ -59,7 +59,7 @@ pub fn var_len_buf_from_slice(v: &[u8], mut n: usize) -> Result<Value, Error> {
     while n > 0 {
         let v = if v.len() >= (1 << (n + 1)) {
             let ty = &types[n];
-            let val = simplicity::decode_value(&ty.final_data().unwrap(), &mut iter)?;
+            let val = iter.read_value(&ty.final_data().unwrap())?;
             Value::SumR(Box::new(val))
         } else {
             Value::SumL(Box::new(Value::Unit))

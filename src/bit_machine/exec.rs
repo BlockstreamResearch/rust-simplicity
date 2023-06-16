@@ -20,10 +20,10 @@
 
 use super::frame::Frame;
 use crate::core::redeem::RedeemNodeInner;
-use crate::core::{RedeemNode, Value};
+use crate::core::Value;
 use crate::jet::{Jet, JetFailed};
-use crate::merkle::cmr::Cmr;
-use crate::{analysis, decode, types};
+use crate::{analysis, types};
+use crate::{Cmr, RedeemNode};
 use std::fmt;
 use std::{cmp, error};
 
@@ -447,9 +447,10 @@ impl BitMachine {
         if output_width > 0 {
             let out_frame = self.write.last_mut().unwrap();
             out_frame.reset_cursor();
-            let value =
-                decode::decode_value(&program.ty.target, &mut out_frame.to_frame_data(&self.data))
-                    .expect("Decode value of output frame");
+            let value = out_frame
+                .as_bit_iter(&self.data)
+                .read_value(&program.ty.target)
+                .expect("Decode value of output frame");
 
             Ok(value)
         } else {

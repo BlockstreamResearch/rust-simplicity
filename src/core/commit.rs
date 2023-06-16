@@ -24,7 +24,6 @@ use crate::merkle::imr::Imr;
 use crate::types::{self, arrow::Arrow};
 use crate::{analysis, Error};
 use crate::{BitIter, BitWriter};
-use std::collections::HashMap;
 use std::rc::Rc;
 use std::{fmt, io};
 
@@ -594,21 +593,14 @@ impl<J: Jet> CommitNode<J> {
         };
 
         // Map from a node's index to its first-pass IMR
-        let mut first_pass: HashMap<usize, Imr> = HashMap::new();
-        // Map from a node's first-pass IMR to its index and final node
-        let mut finalized: HashMap<Imr, Rc<RedeemNode<J>>> = HashMap::new();
+        let mut first_pass = vec![];
+        // Map from a node's index to its finalized node
+        let mut finalized = vec![];
         // IMR of the final node to be iterated over
-        let mut root_imr = None;
         for data in self.post_order_iter_with_tracker(tracker) {
             // 0. Obtain data needed for IMR
-            let left_data = data
-                .left_index
-                .and_then(|idx| first_pass.get(&idx))
-                .cloned();
-            let right_data = data
-                .right_index
-                .and_then(|idx| first_pass.get(&idx))
-                .cloned();
+            let left_imr = data.left_index.map(|idx| first_pass[idx]);
+            let right_imr = data.right_index.map(|idx| first_pass[idx]);
 
             let final_ty = data.node.arrow.finalize()?;
             let value = if let CommitNodeInner::Witness = data.node.inner {
@@ -620,16 +612,16 @@ impl<J: Jet> CommitNode<J> {
             // 1. Compute first-pass IMR and record.
             let first_pass_imr = Imr::compute(
                 &data.node.inner,
-                left_data,
-                right_data,
+                left_imr,
+                right_imr,
                 value.as_ref(),
                 &final_ty,
             );
             first_pass.insert(data.index, first_pass_imr);
 
             // 2. Finalize the node
-            let left = left_data.map(|imr| Rc::clone(&finalized[&imr]));
-            let right = right_data.map(|imr| Rc::clone(&finalized[&imr]));
+            let left = data.left_index.map(|idx| Rc::clone(&finalized[idx]));
+            let right = data.right_index.map(|idx| Rc::clone(&finalized[idx]));
 
             let imr = Imr::compute_pass2(first_pass_imr, &final_ty);
             let amr = Amr::compute(
@@ -662,22 +654,17 @@ impl<J: Jet> CommitNode<J> {
                 CommitNodeInner::Jet(jet) => RedeemNodeInner::Jet(jet),
                 CommitNodeInner::Word(ref w) => RedeemNodeInner::Word(w.clone()),
             };
-            finalized.insert(
-                first_pass_imr,
-                Rc::new(RedeemNode {
-                    inner,
-                    cmr: data.node.cmr,
-                    imr,
-                    amr,
-                    ty: final_ty,
-                    bounds,
-                }),
-            );
-            // This will be correct on the last iteration
-            root_imr = Some(first_pass_imr);
+            finalized.push(Rc::new(RedeemNode {
+                inner,
+                cmr: data.node.cmr,
+                imr,
+                amr,
+                ty: final_ty,
+                bounds,
+            }));
         }
         witness.finish()?;
-        Ok(finalized.remove(&root_imr.unwrap()).unwrap())
+        Ok(finalized.pop().unwrap())
     }
 
     /// Decode a Simplicity program from bits, without the witness data.

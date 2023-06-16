@@ -48,6 +48,7 @@ pub mod types;
 mod util;
 
 use bit_encoding::bititer; // FIXME used by autogenerator jet code
+pub use bit_encoding::bititer::EarlyEndOfStreamError;
 use bit_encoding::bitwriter; // FIXME used by autogenerator jet code
 use bit_encoding::decode;
 use bit_encoding::encode;
@@ -61,7 +62,7 @@ pub use crate::bit_machine::exec;
 pub use crate::core::commit::CommitNodeInner;
 pub use crate::core::redeem::RedeemNodeInner;
 pub use crate::core::{CommitNode, Context, RedeemNode};
-pub use crate::decode::{decode_natural, decode_program, decode_value, WitnessDecoder};
+pub use crate::decode::{decode_program, WitnessDecoder};
 pub use crate::encode::{encode_natural, encode_value, encode_witness};
 pub use crate::merkle::{amr::Amr, cmr::Cmr, imr::Imr, tmr::Tmr};
 pub use simplicity_sys as ffi;
@@ -127,6 +128,12 @@ impl std::error::Error for Error {
 impl From<crate::decode::Error> for Error {
     fn from(e: crate::decode::Error) -> Error {
         Error::Decode(e)
+    }
+}
+
+impl From<EarlyEndOfStreamError> for Error {
+    fn from(e: EarlyEndOfStreamError) -> Error {
+        Error::Decode(e.into())
     }
 }
 
