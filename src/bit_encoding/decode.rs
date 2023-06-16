@@ -627,6 +627,22 @@ mod tests {
     }
 
     #[test]
+    #[rustfmt::skip]
+    fn disconnect() {
+        // id1 = iden                 :: (2^256 * B) -> (2^256 * B)                       # cmr dbfefcfc...
+        // pr2 = pair id1 id1         :: (2^256 * B) -> ((2^256 * B) * (2^256 * B))       # cmr a62c628c...
+        // disc3 = disconnect pr2 pr2 :: B -> ((2^256 * B) * ((2^256 * B) * (2^256 * B))) # cmr d81d6f28...
+        // ut4 = unit                 :: ((2^256 * B) * ((2^256 * B) * (2^256 * B))) -> 1 # cmr 62274a89...
+        // main = comp disc3 ut4      :: B -> 1                                           # cmr a453360c...
+        assert_program_deserializable::<Core>(
+            &[0xc5, 0x02, 0x06, 0x24, 0x10],
+            "a453360c0825cc2d3c4c907d67b174273b0e0386c7e5ecdb28394a8f37fd68b9",
+            Some("d5b05a5da87ee490312279496e12e17bc987c98219d8961bc3a7c3ec95a7ce1e"),
+            Some("3579ae2a05bbe689f16bd3ff29d840ae8aa8bbad70f6de27b7473746637abeb6"),
+        );
+    }
+
+    #[test]
     fn hidden_node() {
         // main = hidden deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
         #[rustfmt::skip]
