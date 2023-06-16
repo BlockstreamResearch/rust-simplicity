@@ -290,6 +290,141 @@ where
     }
 }
 
+impl<N, J> Constructible<N::Witness, J> for Arc<Node<N, J>>
+where
+    N: NodeData<J>,
+    N::CachedData: for<'a> Constructible<&'a N::Witness, J>,
+    J: Jet,
+{
+    fn iden(ctx: &mut Context<J>) -> Self {
+        Arc::new(Node {
+            cmr: Cmr::iden(),
+            data: N::CachedData::iden(ctx),
+            inner: Inner::Iden,
+        })
+    }
+
+    fn unit(ctx: &mut Context<J>) -> Self {
+        Arc::new(Node {
+            cmr: Cmr::unit(),
+            data: N::CachedData::unit(ctx),
+            inner: Inner::Unit,
+        })
+    }
+
+    fn injl(ctx: &mut Context<J>, child: &Self) -> Self {
+        Arc::new(Node {
+            cmr: Cmr::injl(child.cmr()),
+            data: N::CachedData::injl(ctx, &child.data),
+            inner: Inner::InjL(Arc::clone(child)),
+        })
+    }
+
+    fn injr(ctx: &mut Context<J>, child: &Self) -> Self {
+        Arc::new(Node {
+            cmr: Cmr::injr(child.cmr()),
+            data: N::CachedData::injr(ctx, &child.data),
+            inner: Inner::InjR(Arc::clone(child)),
+        })
+    }
+
+    fn take(ctx: &mut Context<J>, child: &Self) -> Self {
+        Arc::new(Node {
+            cmr: Cmr::take(child.cmr()),
+            data: N::CachedData::take(ctx, &child.data),
+            inner: Inner::Take(Arc::clone(child)),
+        })
+    }
+
+    fn drop_(ctx: &mut Context<J>, child: &Self) -> Self {
+        Arc::new(Node {
+            cmr: Cmr::drop(child.cmr()),
+            data: N::CachedData::drop_(ctx, &child.data),
+            inner: Inner::Drop(Arc::clone(child)),
+        })
+    }
+
+    fn comp(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, types::Error> {
+        Ok(Arc::new(Node {
+            cmr: Cmr::comp(left.cmr(), right.cmr()),
+            data: N::CachedData::comp(ctx, &left.data, &right.data)?,
+            inner: Inner::Comp(Arc::clone(left), Arc::clone(right)),
+        }))
+    }
+
+    fn case(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, types::Error> {
+        Ok(Arc::new(Node {
+            cmr: Cmr::case(left.cmr(), right.cmr()),
+            data: N::CachedData::case(ctx, &left.data, &right.data)?,
+            inner: Inner::Case(Arc::clone(left), Arc::clone(right)),
+        }))
+    }
+
+    fn assertl(ctx: &mut Context<J>, left: &Self, r_cmr: Cmr) -> Result<Self, types::Error> {
+        Ok(Arc::new(Node {
+            cmr: Cmr::case(left.cmr(), r_cmr),
+            data: N::CachedData::assertl(ctx, &left.data, r_cmr)?,
+            inner: Inner::AssertL(Arc::clone(left), r_cmr),
+        }))
+    }
+
+    fn assertr(ctx: &mut Context<J>, l_cmr: Cmr, right: &Self) -> Result<Self, types::Error> {
+        Ok(Arc::new(Node {
+            cmr: Cmr::case(l_cmr, right.cmr()),
+            data: N::CachedData::assertr(ctx, l_cmr, &right.data)?,
+            inner: Inner::AssertR(l_cmr, Arc::clone(right)),
+        }))
+    }
+
+    fn pair(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, types::Error> {
+        Ok(Arc::new(Node {
+            cmr: Cmr::pair(left.cmr(), right.cmr()),
+            data: N::CachedData::pair(ctx, &left.data, &right.data)?,
+            inner: Inner::Pair(Arc::clone(left), Arc::clone(right)),
+        }))
+    }
+
+    fn disconnect(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, types::Error> {
+        Ok(Arc::new(Node {
+            cmr: Cmr::disconnect(left.cmr()),
+            data: N::CachedData::disconnect(ctx, &left.data, &right.data)?,
+            inner: Inner::Disconnect(Arc::clone(left), Arc::clone(right)),
+        }))
+    }
+
+    fn witness(ctx: &mut Context<J>, value: N::Witness) -> Self {
+        Arc::new(Node {
+            cmr: Cmr::witness(),
+            data: N::CachedData::witness(ctx, &value),
+            inner: Inner::Witness(value),
+        })
+    }
+
+    fn fail(ctx: &mut Context<J>, entropy: FailEntropy) -> Self {
+        Arc::new(Node {
+            cmr: Cmr::fail(entropy),
+            data: N::CachedData::fail(ctx, entropy),
+            inner: Inner::Fail(entropy),
+        })
+    }
+
+    fn jet(ctx: &mut Context<J>, jet: J) -> Self {
+        Arc::new(Node {
+            cmr: Cmr::jet(jet),
+            data: N::CachedData::jet(ctx, jet),
+            inner: Inner::Jet(jet),
+        })
+    }
+
+    fn const_word(ctx: &mut Context<J>, value: Arc<Value>) -> Self {
+        Arc::new(Node {
+            cmr: Cmr::const_word(&value),
+            data: N::CachedData::const_word(ctx, Arc::clone(&value)),
+            inner: Inner::Word(value),
+        })
+    }
+}
+
 impl<N: NodeData<J>, J: Jet> Node<N, J> {
     /// Accessor for the node's "inner value", i.e. its combinator
     pub fn inner(&self) -> &Inner<Arc<Node<N, J>>, J, N::Witness> {
