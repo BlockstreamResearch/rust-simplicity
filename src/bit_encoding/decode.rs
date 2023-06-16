@@ -22,7 +22,7 @@ use crate::dag::{Dag, DagLike, InternalSharing};
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::types;
-use crate::{BitIter, CommitNode, Context, Value};
+use crate::{BitIter, CommitNode, Context, FailEntropy, Value};
 use std::rc::Rc;
 use std::{cell, error, fmt, mem};
 
@@ -121,7 +121,7 @@ enum DecodeNode<J: Jet> {
     Pair(usize, usize),
     Disconnect(usize, usize),
     Witness,
-    Fail(Cmr, Cmr),
+    Fail(FailEntropy),
     Hidden(Cmr),
     Jet(J),
     Word(cell::RefCell<Value>),
@@ -258,7 +258,7 @@ pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
                 converted[j].get()?,
             )?),
             DecodeNode::Witness => Node(CommitNode::witness(&mut context)),
-            DecodeNode::Fail(cmr1, cmr2) => Node(CommitNode::fail(&mut context, cmr1, cmr2)),
+            DecodeNode::Fail(entropy) => Node(CommitNode::fail(&mut context, entropy)),
             DecodeNode::Hidden(cmr) => Hidden(cmr),
             DecodeNode::Jet(j) => Node(CommitNode::jet(&mut context, j)),
             DecodeNode::Word(ref w) => {
@@ -328,7 +328,7 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
                 match bits.read_u2()? {
                     u2::_0 => Ok(DecodeNode::Iden),
                     u2::_1 => Ok(DecodeNode::Unit),
-                    u2::_2 => Ok(DecodeNode::Fail(bits.read_cmr()?, bits.read_cmr()?)),
+                    u2::_2 => Ok(DecodeNode::Fail(bits.read_fail_entropy()?)),
                     u2::_3 => Err(Error::StopCode),
                 }
             }

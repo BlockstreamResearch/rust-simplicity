@@ -15,7 +15,7 @@
 use crate::core::commit::CommitNodeInner;
 use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
-use crate::{Tmr, Value};
+use crate::{FailEntropy, Tmr, Value};
 use bitcoin_hashes::sha256::Midstate;
 
 use super::bip340_iv;
@@ -96,8 +96,8 @@ impl Cmr {
     }
 
     /// Produce a CMR for a fail combinator
-    pub fn fail(left: Cmr, right: Cmr) -> Self {
-        Self::FAIL_IV.update(left, right)
+    pub fn fail(entropy: FailEntropy) -> Self {
+        Self::FAIL_IV.update_fail_entropy(entropy)
     }
 
     /// Produce a CMR for a jet
@@ -275,7 +275,7 @@ impl Cmr {
             CommitNodeInner::Pair(left, right) => Self::pair(left.cmr(), right.cmr()),
             CommitNodeInner::Disconnect(left, _) => Self::disconnect(left.cmr()),
             CommitNodeInner::Witness => Self::witness(),
-            CommitNodeInner::Fail(left, right) => Self::fail(*left, *right),
+            CommitNodeInner::Fail(entropy) => Self::fail(*entropy),
             CommitNodeInner::Jet(j) => Self::jet(*j),
             CommitNodeInner::Word(w) => Self::const_word(w),
         }

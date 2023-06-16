@@ -22,7 +22,7 @@ use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::{FirstPassImr, Imr};
 use crate::types::{self, arrow::Arrow};
 use crate::{analysis, Error};
-use crate::{BitIter, BitWriter, Context, RedeemNode, Value};
+use crate::{BitIter, BitWriter, Context, FailEntropy, RedeemNode, Value};
 use std::rc::Rc;
 use std::{fmt, io};
 
@@ -57,7 +57,7 @@ pub enum CommitNodeInner<J: Jet> {
     /// Witness data (missing during commitment, inserted during redemption)
     Witness,
     /// Universal fail
-    Fail(Cmr, Cmr),
+    Fail(FailEntropy),
     /// Application jet
     Jet(J),
     /// Constant word
@@ -384,8 +384,8 @@ impl<J: Jet> CommitNode<J> {
     /// The given `left` and `right` hashes form a block for the CMR computation.
     ///
     /// _Overall type: A → B_
-    pub fn fail(context: &mut Context<J>, left: Cmr, right: Cmr) -> Rc<Self> {
-        let inner = CommitNodeInner::Fail(left, right);
+    pub fn fail(context: &mut Context<J>, entropy: FailEntropy) -> Rc<Self> {
+        let inner = CommitNodeInner::Fail(entropy);
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
             inner,
@@ -649,7 +649,7 @@ impl<J: Jet> CommitNode<J> {
                     RedeemNodeInner::Disconnect(left.unwrap(), right.unwrap())
                 }
                 CommitNodeInner::Witness => RedeemNodeInner::Witness(value.unwrap()),
-                CommitNodeInner::Fail(hl, hr) => RedeemNodeInner::Fail(hl, hr),
+                CommitNodeInner::Fail(entropy) => RedeemNodeInner::Fail(entropy),
                 CommitNodeInner::Jet(jet) => RedeemNodeInner::Jet(jet),
                 CommitNodeInner::Word(ref w) => RedeemNodeInner::Word(w.clone()),
             };

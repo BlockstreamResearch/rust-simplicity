@@ -20,7 +20,7 @@ use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
 use crate::types::{self, arrow::FinalArrow};
 use crate::{encode, Error};
-use crate::{BitIter, BitWriter, Value};
+use crate::{BitIter, BitWriter, FailEntropy, Value};
 use std::rc::Rc;
 use std::{fmt, io};
 
@@ -57,7 +57,7 @@ pub enum RedeemNodeInner<J: Jet> {
     /// Witness data
     Witness(Value),
     /// Universal fail
-    Fail(Cmr, Cmr),
+    Fail(FailEntropy),
     /// Application jet
     Jet(J),
     /// Constant word

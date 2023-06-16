@@ -51,7 +51,7 @@ fn compute_extra_cells_bound<J: Jet>(
     match untyped_node.inner() {
         CommitNodeInner::Iden
         | CommitNodeInner::Unit
-        | CommitNodeInner::Fail(_, _)
+        | CommitNodeInner::Fail(_)
         | CommitNodeInner::Jet(_)
         | CommitNodeInner::Word(_) => 0,
         CommitNodeInner::InjL(_)
@@ -90,7 +90,7 @@ fn compute_extra_frames_bound<J: Jet>(
         CommitNodeInner::Iden
         | CommitNodeInner::Unit
         | CommitNodeInner::Witness
-        | CommitNodeInner::Fail(_, _)
+        | CommitNodeInner::Fail(_)
         | CommitNodeInner::Jet(_)
         | CommitNodeInner::Word(_) => 0,
         CommitNodeInner::InjL(_)

@@ -22,7 +22,7 @@
 //!
 
 use crate::{decode, types};
-use crate::{Cmr, Value};
+use crate::{Cmr, FailEntropy, Value};
 
 /// Attempted to read from a bit iterator, but there was no more data
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -179,6 +179,15 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
             *byte = self.read_u8()?;
         }
         Ok(Cmr::from_byte_array(ret))
+    }
+
+    /// Reads a 512-bit fail-combinator entropy from the iterator.
+    pub fn read_fail_entropy(&mut self) -> Result<FailEntropy, EarlyEndOfStreamError> {
+        let mut ret = [0; 64];
+        for byte in &mut ret {
+            *byte = self.read_u8()?;
+        }
+        Ok(FailEntropy::from_byte_array(ret))
     }
 
     /// Decode a value from bits, based on the given type.

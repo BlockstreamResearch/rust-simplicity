@@ -23,7 +23,34 @@ pub mod imr;
 pub mod tmr;
 
 use crate::Value;
-use bitcoin_hashes::{sha256, Hash, HashEngine};
+use bitcoin_hashes::{hex, sha256, Hash, HashEngine};
+use std::fmt;
+
+/// 512-bit opaque blob of data used to seed `Fail` nodes
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+pub struct FailEntropy([u8; 64]);
+
+impl FailEntropy {
+    /// The all-zeroes entropy
+    pub const ZERO: Self = FailEntropy([0; 64]);
+
+    /// Construct a [`FailEntropy`] from raw data
+    pub fn from_byte_array(data: [u8; 64]) -> Self {
+        FailEntropy(data)
+    }
+}
+
+impl fmt::Display for FailEntropy {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        hex::format_hex(&self.0, f)
+    }
+}
+
+impl AsRef<[u8]> for FailEntropy {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
 
 /// Helper function to compute the "compact value", i.e. the sha256 hash
 /// of the bits of a given value, which is used in some IMRs and AMRs.
@@ -135,6 +162,14 @@ macro_rules! impl_midstate_wrapper {
                 let mut engine = sha256::HashEngine::from_midstate(self.0, 0);
                 engine.input(&[0; 32]);
                 engine.input(&right.as_ref());
+                $wrapper(engine.midstate())
+            }
+
+            pub fn update_fail_entropy(self, entropy: $crate::FailEntropy) -> Self {
+                use $crate::bitcoin_hashes::{sha256, HashEngine};
+
+                let mut engine = sha256::HashEngine::from_midstate(self.0, 0);
+                engine.input(entropy.as_ref());
                 $wrapper(engine.midstate())
             }
 

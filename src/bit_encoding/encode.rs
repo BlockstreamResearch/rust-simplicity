@@ -203,10 +203,9 @@ fn encode_node<W: io::Write, J: Jet>(
             RedeemNodeInner::Unit => {
                 w.write_bits_be(0b01001, 5)?;
             }
-            RedeemNodeInner::Fail(hl, hr) => {
+            RedeemNodeInner::Fail(entropy) => {
                 w.write_bits_be(0b01010, 5)?;
-                encode_hash(hl.as_ref(), w)?;
-                encode_hash(hr.as_ref(), w)?;
+                encode_hash(entropy.as_ref(), w)?;
             }
             RedeemNodeInner::Witness(_) => {
                 w.write_bits_be(0b0111, 4)?;

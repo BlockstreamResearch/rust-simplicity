@@ -22,7 +22,7 @@ use crate::jet::Elements;
 use crate::miniscript::MiniscriptKey;
 use crate::policy::key::PublicKey32;
 use crate::types::Error;
-use crate::{Cmr, Context, Value};
+use crate::{Context, FailEntropy, Value};
 use std::rc::Rc;
 
 impl<Pk: MiniscriptKey + PublicKey32> Policy<Pk> {
@@ -64,11 +64,7 @@ fn compile<Pk: MiniscriptKey + PublicKey32>(
 ) -> Result<Rc<CommitNode<Elements>>, Error> {
     match policy {
         // TODO: Choose specific Merkle roots for unsatisfiable policies
-        Policy::Unsatisfiable => Ok(CommitNode::fail(
-            context,
-            Cmr::from_byte_array([0; 32]),
-            Cmr::from_byte_array([0; 32]),
-        )),
+        Policy::Unsatisfiable => Ok(CommitNode::fail(context, FailEntropy::ZERO)),
         Policy::Trivial => Ok(CommitNode::unit(context)),
         Policy::Key(key) => {
             let key_value = Value::u256_from_slice(&key.to_32_bytes());

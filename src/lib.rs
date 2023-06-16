@@ -71,6 +71,7 @@ pub use crate::merkle::{
     cmr::Cmr,
     imr::{FirstPassImr, Imr},
     tmr::Tmr,
+    FailEntropy,
 };
 pub use crate::value::Value;
 pub use simplicity_sys as ffi;
