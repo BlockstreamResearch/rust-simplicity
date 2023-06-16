@@ -61,6 +61,16 @@ impl fmt::Display for FinalArrow {
     }
 }
 
+impl FinalArrow {
+    /// Same as [`Self::clone`] but named to make it clearer that this is cheap
+    pub fn shallow_clone(&self) -> Self {
+        FinalArrow {
+            source: Arc::clone(&self.source),
+            target: Arc::clone(&self.target),
+        }
+    }
+}
+
 impl Arrow {
     /// Finalize the source and target types in the arrow
     pub fn finalize(&self) -> Result<FinalArrow, Error> {
@@ -109,7 +119,7 @@ impl Arrow {
     }
 
     /// Create a unification arrow for a fresh jet combinator
-    pub fn for_jet<J: Jet>(context: &mut Context<J>, jet: &J) -> Self {
+    pub fn for_jet<J: Jet>(context: &mut Context<J>, jet: J) -> Self {
         Arrow {
             source: jet.source_ty().to_type(|n| context.nth_power_of_2(n)),
             target: jet.target_ty().to_type(|n| context.nth_power_of_2(n)),
@@ -283,5 +293,13 @@ impl Arrow {
             source: a,
             target: prod_b_d,
         })
+    }
+
+    /// Same as [`Self::clone`] but named to make it clearer that this is cheap
+    pub fn shallow_clone(&self) -> Self {
+        Arrow {
+            source: self.source.shallow_clone(),
+            target: self.target.shallow_clone(),
+        }
     }
 }

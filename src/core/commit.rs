@@ -397,7 +397,7 @@ impl<J: Jet> CommitNode<J> {
     ///
     /// _Overall type: A → B where jet: A → B_
     pub fn jet(context: &mut Context<J>, jet: J) -> Rc<Self> {
-        let arrow = Arrow::for_jet(context, &jet);
+        let arrow = Arrow::for_jet(context, jet);
         let inner = CommitNodeInner::Jet(jet);
         Rc::new(CommitNode {
             cmr: Cmr::compute(&inner),
