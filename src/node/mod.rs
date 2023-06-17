@@ -12,6 +12,76 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
+//! Simplicity Program Nodes
+//!
+//! The types in this module are used to represent Simplicity expressions as
+//! DAGs. The nodes of this DAG are individual combinators along with some
+//! cached data about the node, which depends on the specific node type.
+//!
+//! All nodes represent the root of an expression. Expressions whose source
+//! and target types are both unit are called "programs". Generally speaking,
+//! any nodes that users hold directly will be programs.
+//!
+//! There are three main node types:
+//!
+//! 1. [`ReedemNode`] represents a Simplicity node as it exists on the blockchain.
+//!    Every witness node is populated with a correctly-typed [`Value`], every
+//!    disconnect node has a child, every non-executed branch of a `case` combinator
+//!    is pruned, and there is nothing you can do to modify the expression.
+//!
+//!    `RedeemNode`s can be executed on the bit machine and have complete types
+//!    and resource bounds, and can be serialized in the consensus bit-encoding.
+//!
+//! 2. [`CommitNode`] represents a Simplicity node as it is *committed to* on
+//!    the blockchain. This means that witness and (TODO) disconnect nodes are not
+//!    populated, but type inference is complete and resource bounds are
+//!    available. `case` combinators may have pruned children (in which case they
+//!    are instead considered `assertl` or `assertr` combinators), or not.
+//!
+//!    There is a bit-encoding for `CommitNode`s which is essentially only used
+//!    by this library. It consists of the bit-encoding.of the combinators, fully
+//!    shared *except* that witness and disconnect nodes (and their ancestors)
+//!    are unshared. No witness data is included.
+//!
+//!    TODO there is also a human-readable encoding.
+//!
+//! 3. [`ConstructNode`] represents an "under-construction" Simplicity expression.
+//!    These nodes' types are not necessarily complete, and are inferred as the
+//!    program is constructed. This is the only node that you can programmatically
+//!    construct. It has no encoding, human-readable or bitwise, and is intended
+//!    to exist only ephemerally.
+//!
+//! The following conversions are possible between the node types:
+//!
+//! 1. [`ConstructNode::finalize_types`] converts a [`ConstructNode`] to a
+//!    [`CommitNode`] by setting any free variables, as well as the source and
+//!    target of the root node, to unit.
+//!
+//!    This conversion requires no input from the user but may fail with a type
+//!    error, in case of infinitely-sized types or in the case that the unit
+//!    bounds cannot be applied.
+//!
+//! 2. [`CommitNode::rtl_finalize`] converts a [`CommitNode`] to a [`RedeemNode`]
+//!    by attaching witnesses to each witness node, and deciding whether to hide
+//!    branches for each `case` node. It iterates through the entire program, in
+//!    right-to-left post-order, to ensure that both children of every `case`
+//!    are encountered before the `case` does, and that every `case` will be
+//!    encountered before any witness data that feeds into it (via `comp`).
+//!
+//!    If witnesses are not available for a given node, this is fine; that node
+//!    and its ancestors are not finalized. Any non-finalized nodes must be
+//!    pruned, or else the method will return an error.
+//!
+//! 3. [`CommitNode::unfinalize_types`] converts a [`CommitNode`] to a
+//!    [`ConstructNode`] by throwing away all types and re-inferring them. It
+//!    cannot fail.
+//!
+//! 4. [`RedeemNode::unfinalize`] converts a [`RedeemNode`] to a [`CommitNode`]
+//!    by throwing away witness and (TODO) disconnect data. It cannot recover
+//!    pruned branches so is of limited usefulness, but it is included for
+//!    completeness.
+//!
+
 use crate::dag::{DagLike, InternalSharing};
 use crate::jet::Jet;
 use crate::{types, Cmr, Context, FailEntropy, Value};
