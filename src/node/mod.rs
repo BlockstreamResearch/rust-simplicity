@@ -82,7 +82,7 @@
 //!    completeness.
 //!
 
-use crate::dag::{DagLike, MaxSharing};
+use crate::dag::{DagLike, MaxSharing, PostOrderIterItem, SharingTracker};
 use crate::jet::Jet;
 use crate::{types, Cmr, Context, FailEntropy, Value};
 
@@ -459,5 +459,56 @@ impl<N: NodeData<J>, J: Jet> Node<N, J> {
     /// Accessor for the node's cached data
     pub fn cached_data(&self) -> &N::CachedData {
         &self.data
+    }
+
+    /// Generic conversion function from one type of node to another.
+    ///
+    /// Parameterized over what kind of sharing to use when iterating over
+    /// the original DAG.
+    ///
+    /// Generally users won't need to use this function directly; it is used
+    /// internally to convert a `ConstructNode` to a `CommitNode` by finalizing
+    /// types, and to convert a `CommitNode` to a `RedeemNOde` by attaching
+    /// witnesses.
+    pub fn convert<S, FD, FW, M, E>(
+        &self,
+        mut convert_data: FD,
+        mut convert_witness: FW,
+    ) -> Result<Arc<Node<M, J>>, E>
+    where
+        S: for<'a> SharingTracker<&'a Self> + Default,
+        M: NodeData<J>,
+        FD: FnMut(
+            &PostOrderIterItem<&Self>,
+            Inner<&Arc<Node<M, J>>, J, M::Witness>,
+        ) -> Result<M::CachedData, E>,
+        FW: FnMut(&PostOrderIterItem<&Self>, &N::Witness) -> Result<M::Witness, E>,
+    {
+        let mut converted: Vec<Arc<Node<M, J>>> = vec![];
+        for data in self.post_order_iter::<S>() {
+            // Construct an Inner<usize> where pointers are replaced by indices.
+            // Note that `map_left_right`'s internal logic will ensure that these
+            // `unwrap`s are only called when they will succeed.
+            let indexed_inner: Inner<usize, J, &N::Witness> = data
+                .node
+                .inner
+                .as_ref()
+                .map_left_right(|_| data.left_index.unwrap(), |_| data.right_index.unwrap());
+            // Convert the witness first
+            let witness_inner: Inner<&usize, J, M::Witness> = indexed_inner
+                .as_ref()
+                .map_witness_result(|wit| convert_witness(&data, wit))?;
+            // Then the inner data
+            let converted_inner: Inner<&Arc<Node<M, J>>, J, M::Witness> =
+                witness_inner.map(|idx| &converted[*idx]);
+            let new_data: M::CachedData = convert_data(&data, converted_inner.clone())?;
+
+            converted.push(Arc::new(Node {
+                data: new_data,
+                cmr: data.node.cmr,
+                inner: converted_inner.map(Arc::clone),
+            }));
+        }
+        Ok(converted.pop().unwrap())
     }
 }
