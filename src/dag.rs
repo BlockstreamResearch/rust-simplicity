@@ -170,6 +170,52 @@ impl<J: jet::Jet> SharingTracker<&RedeemNode<J>> for FullSharing {
     }
 }
 
+/// Maximal sharing: share every node whose CMR and cached data match
+///
+/// For `RedeemNode`s, this coincides with `FullSharing`; for other
+/// types of nodes it represents "as much sharing as we can currently
+/// safely do".
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MaxSharing<N: NodeData<J>, J: jet::Jet> {
+    map: HashMap<N::SharingId, usize>,
+}
+
+// Annoyingly we have to implement Default by hand
+impl<N: NodeData<J>, J: jet::Jet> Default for MaxSharing<N, J> {
+    fn default() -> Self {
+        MaxSharing {
+            map: Default::default(),
+        }
+    }
+}
+
+impl<N, J> SharingTracker<&Node<N, J>> for MaxSharing<N, J>
+where
+    J: jet::Jet,
+    N: NodeData<J>,
+{
+    fn record(
+        &mut self,
+        d: &&Node<N, J>,
+        index: usize,
+        _: Option<usize>,
+        _: Option<usize>,
+    ) -> Option<usize> {
+        let id = d.sharing_id()?;
+
+        match self.map.entry(id) {
+            Entry::Occupied(occ) => Some(*occ.get()),
+            Entry::Vacant(vac) => {
+                vac.insert(index);
+                None
+            }
+        }
+    }
+    fn seen_before(&self, d: &&Node<N, J>) -> Option<usize> {
+        d.sharing_id().and_then(|id| self.map.get(&id)).copied()
+    }
+}
+
 /// A wrapper around any other sharing tracker which forces `witness` and
 /// `disconnect` combinators, and their ancestors, to be unshared
 ///
@@ -741,6 +787,25 @@ impl<D: DagLike, S: SharingTracker<D>> Iterator for PostOrderIter<D, S> {
                 return None;
             }
         }
+    }
+}
+
+impl<'a, N: NodeData<J>, J: jet::Jet, S: SharingTracker<&'a Node<N, J>> + Clone>
+    PostOrderIter<&'a Node<N, J>, S>
+{
+    /// Adapt the iterator to only yield witnesses
+    ///
+    /// The witnesses are yielded in the order in which they appear in the DAG
+    /// *except* that each witness is only yielded once, and future occurences
+    /// are skipped.
+    pub fn into_witnesses(self) -> impl Iterator<Item = &'a N::Witness> + Clone {
+        self.filter_map(|data| {
+            if let node::Inner::Witness(value) = data.node.inner() {
+                Some(value)
+            } else {
+                None
+            }
+        })
     }
 }
 

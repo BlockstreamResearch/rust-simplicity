@@ -82,7 +82,7 @@
 //!    completeness.
 //!
 
-use crate::dag::{DagLike, InternalSharing};
+use crate::dag::{DagLike, MaxSharing};
 use crate::jet::Jet;
 use crate::{types, Cmr, Context, FailEntropy, Value};
 
@@ -99,8 +99,23 @@ pub use inner::Inner;
 pub trait NodeData<J: Jet>:
     Copy + Clone + PartialEq + Eq + PartialOrd + Ord + fmt::Debug + hash::Hash
 {
+    /// Precomputed data about the node, such as its type arrow or various Merkle roots.
     type CachedData: Clone;
+
+    /// Type of witness data attached to DAGs of this node type. Typically either [`Value`]
+    /// or [`NoWitness`].
     type Witness: Clone;
+
+    /// A type which uniquely identifies a node, for purposes of sharing
+    /// during iteration over the DAG.
+    type SharingId: hash::Hash + Clone + Eq;
+
+    /// Yields the sharing ID for a given type, starting from its CMR and its cached data.
+    ///
+    /// If the type cannot be uniquely identified (e.g. because it is missing data), then
+    /// this method returns `None`. In this case, the node will not be shared with any
+    /// other node.
+    fn compute_sharing_id(cmr: Cmr, cached_data: &Self::CachedData) -> Option<Self::SharingId>;
 }
 
 /// Null data type used as dummy for [`NodeData::Witness`]
@@ -282,7 +297,7 @@ where
     for<'a> &'a Node<N, J>: DagLike,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.post_order_iter::<InternalSharing>().into_display(
+        self.post_order_iter::<MaxSharing<N, J>>().into_display(
             f,
             |node, f| fmt::Display::fmt(&node.inner, f),
             |_, _| Ok(()),
@@ -434,5 +449,15 @@ impl<N: NodeData<J>, J: Jet> Node<N, J> {
     /// Accessor for the node's CMR
     pub fn cmr(&self) -> Cmr {
         self.cmr
+    }
+
+    /// Accessor for the node's cached data
+    pub fn sharing_id(&self) -> Option<N::SharingId> {
+        N::compute_sharing_id(self.cmr, &self.data)
+    }
+
+    /// Accessor for the node's cached data
+    pub fn cached_data(&self) -> &N::CachedData {
+        &self.data
     }
 }
