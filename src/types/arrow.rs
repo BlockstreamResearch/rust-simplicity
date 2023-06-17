@@ -26,9 +26,8 @@
 use std::fmt;
 use std::sync::Arc;
 
-use crate::core::Value;
 use crate::types::{Bound, Error, Final, Type};
-use crate::{jet::Jet, Context};
+use crate::{jet::Jet, Context, Value};
 
 /// A container for an expression's source and target types, whether or not
 /// these types are complete.

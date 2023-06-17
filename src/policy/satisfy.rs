@@ -1,10 +1,9 @@
 use crate::core::commit::UsedCaseBranch;
-use crate::core::Value;
 use crate::jet::elements::ElementsEnv;
 use crate::jet::Elements;
 use crate::policy::compiler;
 use crate::policy::key::PublicKey32;
-use crate::{CommitNode, Context, Policy, RedeemNode};
+use crate::{CommitNode, Context, Policy, RedeemNode, Value};
 use bitcoin_hashes::Hash;
 use elements::bitcoin;
 use elements::locktime::Height;

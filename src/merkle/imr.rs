@@ -13,13 +13,11 @@
 //
 
 use crate::core::commit::CommitNodeInner;
-use crate::core::Value;
 use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
-use crate::merkle::cmr::Cmr;
-use crate::merkle::tmr::Tmr;
 use crate::merkle::{CommitMerkleRoot, MerkleRoot};
 use crate::types::arrow::FinalArrow;
+use crate::{Cmr, Tmr, Value};
 use bitcoin_hashes::sha256::Midstate;
 
 /// Identity Merkle root

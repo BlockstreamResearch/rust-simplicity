@@ -13,12 +13,11 @@
 //
 
 use crate::core::commit::CommitNodeInner;
-use crate::core::{RedeemNode, Value};
 use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
 use crate::merkle::{compact_value, CommitMerkleRoot, MerkleRoot};
 use crate::types::arrow::FinalArrow;
-use crate::{Cmr, Tmr};
+use crate::{Cmr, RedeemNode, Tmr, Value};
 use bitcoin_hashes::sha256::Midstate;
 use std::rc::Rc;
 

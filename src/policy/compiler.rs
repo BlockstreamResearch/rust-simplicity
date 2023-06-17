@@ -18,12 +18,11 @@
 
 use super::ast::Policy;
 use crate::core::commit::{CommitNode, CommitNodeInner, UsedCaseBranch};
-use crate::core::{Context, Value};
 use crate::jet::Elements;
-use crate::merkle::cmr::Cmr;
 use crate::miniscript::MiniscriptKey;
 use crate::policy::key::PublicKey32;
 use crate::types::Error;
+use crate::{Cmr, Context, Value};
 use std::rc::Rc;
 
 impl<Pk: MiniscriptKey + PublicKey32> Policy<Pk> {

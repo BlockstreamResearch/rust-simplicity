@@ -14,10 +14,10 @@ use elements::confidential;
 use env::EnvSampling;
 use rand::rngs::ThreadRng;
 use rand::{thread_rng, RngCore};
-use simplicity::core::Value;
 use simplicity::jet::elements::ElementsEnv;
 use simplicity::jet::{Elements, Jet};
 use simplicity::types::{self, Type};
+use simplicity::Value;
 use simplicity::{bitcoin, elements};
 
 mod buffer;
@@ -300,7 +300,7 @@ fn bench(c: &mut Criterion) {
         (Elements::FullSubtract32, InputSampling::Random),
         // locks
         (Elements::ParseLock, InputSampling::Random), // all values take same time
-        (Elements::ParseSequence, InputSampling::Custom(Arc::new(|| sequence()))),
+        (Elements::ParseSequence, InputSampling::Custom(Arc::new(sequence))),
         // Hashes
         (Elements::Sha256Iv, InputSampling::Random),
         (Elements::Sha256Block, InputSampling::Random),
@@ -487,8 +487,8 @@ fn bench(c: &mut Criterion) {
             group.bench_with_input(&name, &params,|b, params| {
                 b.iter_batched(
                     || {
-                        let mut buffer = JetBuffer::new(&src_ty, &tgt_ty, &params);
-                        let (src, dst) = buffer.write(&src_ty, &params, &mut rng);
+                        let mut buffer = JetBuffer::new(&src_ty, &tgt_ty, params);
+                        let (src, dst) = buffer.write(&src_ty, params, &mut rng);
                         (dst, src, buffer)
                     },
                     |(mut dst, src, _buffer)| jet.c_jet_ptr()(&mut dst, src, env.c_tx_env()),
@@ -548,8 +548,8 @@ fn bench(c: &mut Criterion) {
                 b.iter_batched(
                     || {
                         // Elements sighash chapter jets with non-unit src type
-                        let mut buffer = JetBuffer::new(&src_ty, &tgt_ty, &params);
-                        let (src, dst) = buffer.write(&src_ty, &params, &mut rng);
+                        let mut buffer = JetBuffer::new(&src_ty, &tgt_ty, params);
+                        let (src, dst) = buffer.write(&src_ty, params, &mut rng);
                         (dst, src, buffer)
                     },
                     |(mut dst, src, _buffer)| jet.c_jet_ptr()(&mut dst, src, env.c_tx_env()),
@@ -637,8 +637,8 @@ fn bench(c: &mut Criterion) {
             group.bench_with_input(&name, &params, |b, params| {
                 b.iter_batched(
                     || {
-                        let mut buffer = JetBuffer::new(&src_ty, &tgt_ty, &params);
-                        let (src, dst) = buffer.write(&src_ty, &params, &mut rng);
+                        let mut buffer = JetBuffer::new(&src_ty, &tgt_ty, params);
+                        let (src, dst) = buffer.write(&src_ty, params, &mut rng);
                         (dst, src, buffer)
                     },
                     |(mut dst, src, _buffer)| jet.c_jet_ptr()(&mut dst, src, env.c_tx_env()),

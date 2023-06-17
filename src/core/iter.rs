@@ -14,9 +14,8 @@
 
 //! Iterators over DAGs
 
-use crate::core::Value;
 use crate::types;
-use crate::Error;
+use crate::{Error, Value};
 
 /// Iterator over witness values that asks for the value type on each iteration.
 pub trait WitnessIterator {

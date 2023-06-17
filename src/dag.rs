@@ -20,9 +20,8 @@ use std::{fmt, marker};
 
 use crate::core::commit::{CommitNode, CommitNodeInner};
 use crate::core::redeem::{RedeemNode, RedeemNodeInner};
-use crate::core::Value;
 use crate::jet;
-use crate::Imr;
+use crate::{Imr, Value};
 
 /// Generic container for Simplicity DAGs
 pub enum Dag<T> {
@@ -222,11 +221,7 @@ impl<D: DagLike, T: SharingTracker<D>> SharingTracker<D> for UnshareWitnessDisco
         is_witness |= right_child
             .map(|idx| self.index_witness[&idx])
             .unwrap_or(false);
-        is_witness |= match d.as_dag_node() {
-            Dag::Disconnect(..) => true,
-            Dag::Witness => true,
-            _ => false,
-        };
+        is_witness |= matches!(d.as_dag_node(), Dag::Disconnect(..) | Dag::Witness);
         self.ptrid_witness.insert(PointerId::from(d), is_witness);
         self.index_witness.insert(index, is_witness);
 

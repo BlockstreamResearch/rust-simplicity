@@ -6,7 +6,7 @@ pub use bitcoin_hashes::sha256;
 use bitcoin_hashes::{hex::FromHex, Hash};
 use elements::Txid;
 use rand::{thread_rng, RngCore};
-use simplicity::{bitcoin, core::Value, elements, types::Type, BitIter, Error};
+use simplicity::{bitcoin, elements, types::Type, BitIter, Error, Value};
 
 /// Engine to compute SHA256 hash function.
 /// We can't use bitcoin_hashes::sha256::HashEngine because it does not accept
@@ -34,9 +34,10 @@ impl Default for SimplicityCtx8 {
 
 impl SimplicityCtx8 {
     pub fn with_len(n: usize) -> Self {
-        let mut ctx = SimplicityCtx8::default();
-        ctx.length = n;
-        ctx
+        SimplicityCtx8 {
+            length: n,
+            ..Default::default()
+        }
     }
 }
 
@@ -160,15 +161,13 @@ impl SimplicityEncode for SimplicityCtx8 {
         let arr = self
             .h
             .iter()
-            .map(|x| x.to_be_bytes())
-            .flatten()
+            .flat_map(|x| x.to_be_bytes())
             .collect::<Vec<u8>>();
         let mid_state = Value::u256_from_slice(&arr);
-        let v = Value::Prod(
+        Value::Prod(
             Box::new(buf),
             Box::new(Value::Prod(Box::new(len), Box::new(mid_state))),
-        );
-        v
+        )
     }
 }
 

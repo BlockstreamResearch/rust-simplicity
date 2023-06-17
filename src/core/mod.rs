@@ -18,12 +18,8 @@
 //! Defines Simplicity terms, values, types, DAGs and programs.
 
 pub mod commit;
-mod context;
 pub mod iter;
 pub mod redeem;
-mod value;
 
 pub use commit::CommitNode;
-pub use context::Context;
 pub use redeem::RedeemNode;
-pub use value::Value;
