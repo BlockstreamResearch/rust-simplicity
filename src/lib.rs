@@ -65,7 +65,7 @@ pub use crate::context::Context;
 pub use crate::core::commit::CommitNodeInner;
 pub use crate::core::redeem::RedeemNodeInner;
 pub use crate::core::{CommitNode, RedeemNode};
-pub use crate::decode::{decode_program, WitnessDecoder};
+pub use crate::decode::WitnessDecoder;
 pub use crate::encode::{encode_natural, encode_value, encode_witness};
 pub use crate::merkle::{
     amr::Amr,
