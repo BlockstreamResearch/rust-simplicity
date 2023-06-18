@@ -178,7 +178,7 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
         for byte in &mut ret {
             *byte = self.read_u8()?;
         }
-        Ok(Cmr::from(ret))
+        Ok(Cmr::from_byte_array(ret))
     }
 
     /// Decode a value from bits, based on the given type.

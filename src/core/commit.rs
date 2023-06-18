@@ -19,7 +19,7 @@ use crate::dag::{self, DagLike, InternalSharing, NoSharing, PostOrderIter};
 use crate::jet::Jet;
 use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
-use crate::merkle::imr::Imr;
+use crate::merkle::imr::{FirstPassImr, Imr};
 use crate::types::{self, arrow::Arrow};
 use crate::{analysis, Error};
 use crate::{BitIter, BitWriter, Context, RedeemNode, Value};
@@ -609,7 +609,7 @@ impl<J: Jet> CommitNode<J> {
             };
 
             // 1. Compute first-pass IMR and record.
-            let first_pass_imr = Imr::compute(
+            let first_pass_imr = FirstPassImr::compute(
                 &data.node.inner,
                 left_imr,
                 right_imr,

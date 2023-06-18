@@ -40,13 +40,12 @@ mod context;
 pub mod core;
 pub mod dag;
 pub mod jet;
-pub mod merkle;
+mod merkle;
 #[cfg(feature = "elements")]
 pub mod policy;
 pub mod types;
 // #[cfg(test)]
 // mod test_progs;
-mod util;
 mod value;
 
 use bit_encoding::bititer; // FIXME used by autogenerator jet code
@@ -67,7 +66,12 @@ pub use crate::core::redeem::RedeemNodeInner;
 pub use crate::core::{CommitNode, RedeemNode};
 pub use crate::decode::{decode_program, WitnessDecoder};
 pub use crate::encode::{encode_natural, encode_value, encode_witness};
-pub use crate::merkle::{amr::Amr, cmr::Cmr, imr::Imr, tmr::Tmr};
+pub use crate::merkle::{
+    amr::Amr,
+    cmr::Cmr,
+    imr::{FirstPassImr, Imr},
+    tmr::Tmr,
+};
 pub use crate::value::Value;
 pub use simplicity_sys as ffi;
 use std::fmt;

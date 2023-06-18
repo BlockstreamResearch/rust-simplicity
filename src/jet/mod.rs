@@ -43,9 +43,7 @@ use simplicity_sys::c_jets::round_u_word;
 
 use crate::exec::BitMachine;
 use crate::jet::type_name::TypeName;
-use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
-use crate::merkle::imr::Imr;
 use crate::Error;
 use crate::{BitIter, BitWriter};
 use std::hash::Hash;
@@ -81,16 +79,6 @@ pub trait Jet: Copy + Eq + Ord + Hash + std::fmt::Debug + std::fmt::Display {
 
     /// Return the CMR of the jet.
     fn cmr(&self) -> Cmr;
-
-    /// Return the IMR of the jet.
-    fn imr(&self) -> Imr {
-        self.cmr().into()
-    }
-
-    /// Return the AMR of the jet.
-    fn amr(&self) -> Amr {
-        self.cmr().into()
-    }
 
     /// Return the source type of the jet.
     fn source_ty(&self) -> TypeName;

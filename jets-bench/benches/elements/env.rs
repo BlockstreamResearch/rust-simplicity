@@ -3,7 +3,7 @@ use bitcoin_hashes::Hash;
 use elements::taproot::ControlBlock;
 use elements::{BlockHash, PackedLockTime, Transaction};
 use simplicity::jet::elements::{ElementsEnv, ElementsUtxo};
-use simplicity::merkle::cmr::Cmr;
+use simplicity::Cmr;
 use simplicity::{bitcoin, elements};
 use std::sync::Arc;
 
@@ -91,7 +91,7 @@ fn env_with_spent_utxos(
         Arc::new(tx),
         utxos,
         u32::default(),
-        Cmr::from([0xab; 32]), // dummy values
+        Cmr::from_byte_array([0xab; 32]), // dummy values
         ControlBlock::from_slice(&ctrl_blk).unwrap(),
         annex,
         BlockHash::all_zeros(), // Dummy genesis hash
