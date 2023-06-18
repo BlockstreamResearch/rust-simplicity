@@ -152,7 +152,8 @@ impl<J: Jet> RedeemNode<J> {
 
     /// Decode a Simplicity program from bits, including the witness data.
     pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Rc<Self>, Error> {
-        let commit = crate::bit_encoding::decode::decode_program(bits)?;
+        let commit = crate::bit_encoding::decode::decode_expression(bits)?;
+        let commit = crate::CommitNode::from_node(&commit);
         let witness = WitnessDecoder::new(bits)?;
         let program = commit.finalize(witness, false)?;
 
@@ -210,7 +211,7 @@ mod tests {
 
     use super::*;
 
-    use crate::bit_encoding::decode::decode_program;
+    use crate::bit_encoding::decode::decode_expression;
     use crate::jet::Core;
 
     #[test]
@@ -223,7 +224,8 @@ mod tests {
         // main = comp wits_are_equal jet_verify            :: 1 -> 1
         let eqwits = vec![0xc9, 0xc4, 0x6d, 0xb8, 0x82, 0x30, 0x10];
         let mut iter = BitIter::from(&eqwits[..]);
-        let eqwits_prog = decode_program::<_, Core>(&mut iter).unwrap();
+        let eqwits_prog = decode_expression::<_, Core>(&mut iter).unwrap();
+        let eqwits_prog = crate::CommitNode::from_node(&eqwits_prog);
 
         let mut witness_iter = iter::repeat(Value::u32(0xDEADBEEF));
         // Generally when we are manually adding witnesses we want to unshare them so that

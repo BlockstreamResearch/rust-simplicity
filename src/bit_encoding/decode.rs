@@ -21,12 +21,17 @@ use crate::core::iter::WitnessIterator;
 use crate::dag::{Dag, DagLike, InternalSharing};
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
+use crate::node::{
+    CommitNode, ConstructNode, CoreConstructible, JetConstructible, NoWitness, WitnessConstructible,
+};
 use crate::types;
-use crate::{BitIter, CommitNode, Context, FailEntropy, Value};
-use std::rc::Rc;
-use std::{cell, error, fmt, mem};
+use crate::{BitIter, Context, FailEntropy, Value};
+use std::sync::Arc;
+use std::{error, fmt};
 
 use super::bititer::u2;
+
+type ArcNode<J> = Arc<ConstructNode<J>>;
 
 /// Decoding error
 #[non_exhaustive]
@@ -124,7 +129,7 @@ enum DecodeNode<J: Jet> {
     Fail(FailEntropy),
     Hidden(Cmr),
     Jet(J),
-    Word(cell::RefCell<Value>),
+    Word(Arc<Value>),
 }
 
 impl<'d, J: Jet> DagLike for (usize, &'d [DecodeNode<J>]) {
@@ -162,21 +167,14 @@ impl<'d, J: Jet> DagLike for (usize, &'d [DecodeNode<J>]) {
 /// user must deserialize it separately.
 pub fn decode_program<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
-) -> Result<Rc<CommitNode<J>>, Error> {
+) -> Result<Arc<CommitNode<J>>, Error> {
     let root = decode_expression(bits)?;
-    let unit_ty = crate::types::Type::unit();
-    root.arrow()
-        .source
-        .unify(&unit_ty, "setting root source to unit")?;
-    root.arrow()
-        .target
-        .unify(&unit_ty, "setting root source to unit")?;
-    Ok(root)
+    root.finalize_types().map_err(Error::from)
 }
 
 pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
-) -> Result<Rc<CommitNode<J>>, Error> {
+) -> Result<ArcNode<J>, Error> {
     let len = bits.read_natural(None)?;
 
     if len == 0 {
@@ -196,14 +194,14 @@ pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
     }
 
     enum Converted<J: Jet> {
-        Node(Rc<CommitNode<J>>),
+        Node(ArcNode<J>),
         Hidden(Cmr),
     }
     use Converted::{Hidden, Node};
     impl<J: Jet> Converted<J> {
-        fn get(&self) -> Result<Rc<CommitNode<J>>, Error> {
+        fn get(&self) -> Result<&ArcNode<J>, Error> {
             match self {
-                Node(rc) => Ok(Rc::clone(rc)),
+                Node(arc) => Ok(arc),
                 Hidden(_) => Err(Error::HiddenNode),
             }
         }
@@ -218,13 +216,13 @@ pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
         }
 
         let new = match nodes[data.node.0] {
-            DecodeNode::Unit => Node(CommitNode::unit(&mut context)),
-            DecodeNode::Iden => Node(CommitNode::iden(&mut context)),
-            DecodeNode::InjL(i) => Node(CommitNode::injl(&mut context, converted[i].get()?)),
-            DecodeNode::InjR(i) => Node(CommitNode::injr(&mut context, converted[i].get()?)),
-            DecodeNode::Take(i) => Node(CommitNode::take(&mut context, converted[i].get()?)),
-            DecodeNode::Drop(i) => Node(CommitNode::drop(&mut context, converted[i].get()?)),
-            DecodeNode::Comp(i, j) => Node(CommitNode::comp(
+            DecodeNode::Unit => Node(ArcNode::unit(&mut context)),
+            DecodeNode::Iden => Node(ArcNode::iden(&mut context)),
+            DecodeNode::InjL(i) => Node(ArcNode::injl(&mut context, converted[i].get()?)),
+            DecodeNode::InjR(i) => Node(ArcNode::injr(&mut context, converted[i].get()?)),
+            DecodeNode::Take(i) => Node(ArcNode::take(&mut context, converted[i].get()?)),
+            DecodeNode::Drop(i) => Node(ArcNode::drop_(&mut context, converted[i].get()?)),
+            DecodeNode::Comp(i, j) => Node(ArcNode::comp(
                 &mut context,
                 converted[i].get()?,
                 converted[j].get()?,
@@ -233,47 +231,34 @@ pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
                 // Case is a special case, since it uniquely is allowed to have hidden
                 // children (but only one!) in which case it becomes an assertion.
                 match (&converted[i], &converted[j]) {
-                    (Node(left), Node(right)) => Node(CommitNode::case(
-                        &mut context,
-                        Rc::clone(left),
-                        Rc::clone(right),
-                    )?),
-                    (Node(left), Hidden(cmr)) => {
-                        Node(CommitNode::assertl(&mut context, Rc::clone(left), *cmr)?)
-                    }
+                    (Node(left), Node(right)) => Node(ArcNode::case(&mut context, left, right)?),
+                    (Node(left), Hidden(cmr)) => Node(ArcNode::assertl(&mut context, left, *cmr)?),
                     (Hidden(cmr), Node(right)) => {
-                        Node(CommitNode::assertr(&mut context, *cmr, Rc::clone(right))?)
+                        Node(ArcNode::assertr(&mut context, *cmr, right)?)
                     }
                     (Hidden(_), Hidden(_)) => return Err(Error::BothChildrenHidden),
                 }
             }
-            DecodeNode::Pair(i, j) => Node(CommitNode::pair(
+            DecodeNode::Pair(i, j) => Node(ArcNode::pair(
                 &mut context,
                 converted[i].get()?,
                 converted[j].get()?,
             )?),
-            DecodeNode::Disconnect(i, j) => Node(CommitNode::disconnect(
+            DecodeNode::Disconnect(i, j) => Node(ArcNode::disconnect(
                 &mut context,
                 converted[i].get()?,
                 converted[j].get()?,
             )?),
-            DecodeNode::Witness => Node(CommitNode::witness(&mut context)),
-            DecodeNode::Fail(entropy) => Node(CommitNode::fail(&mut context, entropy)),
+            DecodeNode::Witness => Node(ArcNode::witness(&mut context, NoWitness)),
+            DecodeNode::Fail(entropy) => Node(ArcNode::fail(&mut context, entropy)),
             DecodeNode::Hidden(cmr) => Hidden(cmr),
-            DecodeNode::Jet(j) => Node(CommitNode::jet(&mut context, j)),
-            DecodeNode::Word(ref w) => {
-                // Since we access each node only once, it is fine to remove the value
-                // when we encounter it and move it into the CommitNode. Doing this
-                // saves us a clone.
-                let w_ref = &mut *w.borrow_mut();
-                let w = mem::replace(w_ref, Value::Unit);
-                Node(CommitNode::const_word(&mut context, w))
-            }
+            DecodeNode::Jet(j) => Node(ArcNode::jet(&mut context, j)),
+            DecodeNode::Word(ref w) => Node(ArcNode::const_word(&mut context, Arc::clone(w))),
         };
         converted.push(new);
     }
 
-    converted[len - 1].get()
+    converted[len - 1].get().map(Arc::clone)
 }
 
 /// Decode a single Simplicity node from bits and
@@ -294,7 +279,7 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
         } else {
             let depth = bits.read_natural(Some(32))?;
             let word = decode_power_of_2(bits, 1 << (depth - 1))?;
-            Ok(DecodeNode::Word(cell::RefCell::new(word)))
+            Ok(DecodeNode::Word(Arc::new(word)))
         }
     } else {
         // Bits 2 and 3: code
@@ -474,6 +459,7 @@ mod tests {
     use crate::exec::BitMachine;
     use crate::jet::Core;
     use crate::BitWriter;
+    use crate::CommitNode;
     use bitcoin_hashes::hex::ToHex;
 
     fn assert_program_deserializable<J: Jet>(
@@ -481,11 +467,11 @@ mod tests {
         cmr_str: &str,
         amr_str: Option<&str>,
         imr_str: Option<&str>,
-    ) -> Rc<CommitNode<J>> {
+    ) -> std::rc::Rc<crate::CommitNode<J>> {
         let prog_hex = prog_bytes.to_hex();
 
         let mut iter = BitIter::from(prog_bytes);
-        let prog = match decode_program::<_, J>(&mut iter) {
+        let prog = match decode_expression::<_, J>(&mut iter) {
             Ok(prog) => prog,
             Err(e) => panic!("program {} failed: {}", prog_hex, e),
         };
@@ -500,30 +486,33 @@ mod tests {
         );
         if amr_str.is_some() || imr_str.is_some() {
             let fprog = prog
-                .finalize(std::iter::repeat(Value::Unit), true)
+                .finalize_types()
+                .expect("finalizing types")
+                .finalize_no_witnesses()
                 .expect("can't be finalized without witnesses; can't check AMR or IMR");
             if let Some(amr) = amr_str {
                 assert_eq!(
-                    fprog.amr.to_string(),
+                    fprog.amr().to_string(),
                     amr,
                     "AMR mismatch (got {} expected {}) for program {}",
-                    fprog.amr.to_string(),
+                    fprog.amr().to_string(),
                     amr,
                     prog_hex,
                 );
             }
             if let Some(imr) = imr_str {
                 assert_eq!(
-                    fprog.imr.to_string(),
+                    fprog.imr().to_string(),
                     imr,
                     "IMR mismatch (got {} expected {}) for program {}",
-                    fprog.imr.to_string(),
+                    fprog.imr().to_string(),
                     imr,
                     prog_hex,
                 );
             }
         }
 
+        let prog = crate::CommitNode::from_node(&prog);
         let mut reser_sink = Vec::<u8>::new();
         let mut w = BitWriter::from(&mut reser_sink);
         prog.encode(&mut w)
