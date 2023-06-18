@@ -82,7 +82,7 @@
 //!    completeness.
 //!
 
-use crate::dag::{DagLike, MaxSharing, PostOrderIterItem, SharingTracker};
+use crate::dag::{DagLike, MaxSharing, SharingTracker, SwapChildren};
 use crate::jet::Jet;
 use crate::{types, Cmr, FailEntropy, Value};
 
@@ -91,11 +91,13 @@ use std::{fmt, hash};
 
 mod commit;
 mod construct;
+mod convert;
 mod inner;
 mod redeem;
 
 pub use commit::{Commit, CommitData, CommitNode};
 pub use construct::{Construct, ConstructData, ConstructNode};
+pub use convert::{Converter, Hide};
 pub use inner::Inner;
 pub use redeem::{Redeem, RedeemData, RedeemNode};
 
@@ -517,31 +519,24 @@ impl<N: NodeData<J>, J: Jet> Node<N, J> {
         &self.data
     }
 
-    /// Generic conversion function from one type of node to another.
+    /// Generic conversion function from one type of node to another, with the
+    /// ability to prune during the conversion.
     ///
-    /// Parameterized over what kind of sharing to use when iterating over
-    /// the original DAG.
+    /// Parameterized over what kind of sharing to use when iterating over the
+    /// DAG, and what conversion logic to use.
     ///
-    /// Generally users won't need to use this function directly; it is used
-    /// internally to convert a `ConstructNode` to a `CommitNode` by finalizing
-    /// types, and to convert a `CommitNode` to a `RedeemNOde` by attaching
-    /// witnesses.
-    pub fn convert<S, FD, FW, M, E>(
-        &self,
-        mut convert_data: FD,
-        mut convert_witness: FW,
-    ) -> Result<Arc<Node<M, J>>, E>
+    /// See the documentation for [`Converter`] for details.
+    pub fn convert<S, M, C>(&self, converter: &mut C) -> Result<Arc<Node<M, J>>, C::Error>
     where
-        S: for<'a> SharingTracker<&'a Self> + Default,
+        S: for<'a> SharingTracker<SwapChildren<&'a Self>> + Default,
         M: NodeData<J>,
-        FD: FnMut(
-            &PostOrderIterItem<&Self>,
-            Inner<&Arc<Node<M, J>>, J, M::Witness>,
-        ) -> Result<M::CachedData, E>,
-        FW: FnMut(&PostOrderIterItem<&Self>, &N::Witness) -> Result<M::Witness, E>,
+        C: Converter<N, M, J>,
     {
         let mut converted: Vec<Arc<Node<M, J>>> = vec![];
-        for data in self.post_order_iter::<S>() {
+        for data in self.rtl_post_order_iter::<S>() {
+            // First, tell the converter about the iterator state..
+            converter.visit_node(&data);
+
             // Construct an Inner<usize> where pointers are replaced by indices.
             // Note that `map_left_right`'s internal logic will ensure that these
             // `unwrap`s are only called when they will succeed.
@@ -550,19 +545,35 @@ impl<N: NodeData<J>, J: Jet> Node<N, J> {
                 .inner
                 .as_ref()
                 .map_left_right(|_| data.left_index.unwrap(), |_| data.right_index.unwrap());
-            // Convert the witness first
+
+            // Then, convert witness data, if this is a witness node.
             let witness_inner: Inner<&usize, J, M::Witness> = indexed_inner
                 .as_ref()
-                .map_witness_result(|wit| convert_witness(&data, wit))?;
-            // Then the inner data
-            let converted_inner: Inner<&Arc<Node<M, J>>, J, M::Witness> =
-                witness_inner.map(|idx| &converted[*idx]);
-            let new_data: M::CachedData = convert_data(&data, converted_inner.clone())?;
+                .map_witness_result(|wit| converter.convert_witness(&data, wit))?;
 
+            // Then put the converted nodes in place (it's easier to do this in this
+            // order because of the way the reference types work out).
+            let converted_inner: Inner<Arc<Node<M, J>>, J, M::Witness> =
+                witness_inner.map(|idx| Arc::clone(&converted[*idx]));
+
+            // Next, prune case nodes into asserts, if applicable
+            let pruned_inner = if let Inner::Case(left, right) = converted_inner {
+                let hide = converter.prune_case(&data, &left, &right)?;
+
+                match hide {
+                    Hide::Neither => Inner::Case(left, right),
+                    Hide::Left => Inner::AssertR(left.cmr(), right),
+                    Hide::Right => Inner::AssertL(left, right.cmr()),
+                }
+            } else {
+                converted_inner
+            };
+
+            // Finally, construct the node
             converted.push(Arc::new(Node {
-                data: new_data,
+                data: converter.convert_data(&data, pruned_inner.as_ref())?,
                 cmr: data.node.cmr,
-                inner: converted_inner.map(Arc::clone),
+                inner: pruned_inner,
             }));
         }
         Ok(converted.pop().unwrap())

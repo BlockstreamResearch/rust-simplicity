@@ -12,7 +12,7 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use crate::dag::InternalSharing;
+use crate::dag::{InternalSharing, PostOrderIterItem};
 use crate::jet::Jet;
 use crate::types::{self, arrow::Arrow};
 use crate::{BitIter, Cmr, FailEntropy, Value};
@@ -20,7 +20,7 @@ use crate::{BitIter, Cmr, FailEntropy, Value};
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use super::{CommitData, CommitNode, NoWitness, Node, NodeData};
+use super::{Commit, CommitData, CommitNode, Converter, Inner, NoWitness, Node, NodeData};
 use super::{CoreConstructible, JetConstructible, WitnessConstructible};
 
 /// ID used to share [`ConstructNode`]s.
@@ -78,13 +78,29 @@ impl<J: Jet> ConstructNode<J> {
     ///
     /// Does *not* sets the source and target type of this node to unit.
     pub fn finalize_types_non_program(&self) -> Result<Arc<CommitNode<J>>, types::Error> {
-        self.convert::<InternalSharing, _, _, _, _>(
-            |data, converted| {
-                let converted_data = converted.map(|node| node.cached_data());
+        struct FinalizeTypes<J: Jet>(PhantomData<J>);
+
+        impl<J: Jet> Converter<Construct, Commit, J> for FinalizeTypes<J> {
+            type Error = types::Error;
+            fn convert_witness(
+                &mut self,
+                _: &PostOrderIterItem<&ConstructNode<J>>,
+                _: &NoWitness,
+            ) -> Result<NoWitness, Self::Error> {
+                Ok(NoWitness)
+            }
+
+            fn convert_data(
+                &mut self,
+                data: &PostOrderIterItem<&ConstructNode<J>>,
+                inner: Inner<&Arc<CommitNode<J>>, J, &NoWitness>,
+            ) -> Result<Arc<CommitData<J>>, Self::Error> {
+                let converted_data = inner.map(|node| node.cached_data());
                 CommitData::new(&data.node.data.arrow, converted_data).map(Arc::new)
-            },
-            |_, _| Ok(NoWitness),
-        )
+            }
+        }
+
+        self.convert::<InternalSharing, _, _>(&mut FinalizeTypes(PhantomData))
     }
 
     /// Decode a Simplicity expression from bits, without witness data.
