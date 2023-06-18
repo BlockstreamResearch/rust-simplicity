@@ -82,7 +82,7 @@
 //!    completeness.
 //!
 
-use crate::dag::{DagLike, MaxSharing, PostOrderIterItem, SharingTracker};
+use crate::dag::{DagLike, MaxSharing, PostOrderIterItem, SharingTracker, SwapChildren};
 use crate::jet::Jet;
 use crate::{types, Cmr, FailEntropy, Value};
 
@@ -91,11 +91,13 @@ use std::{fmt, hash};
 
 mod commit;
 mod construct;
+mod finalize;
 mod inner;
 mod redeem;
 
 pub use commit::{Commit, CommitData, CommitNode};
 pub use construct::{Construct, ConstructData, ConstructNode};
+pub use finalize::{Finalizer, Hide};
 pub use inner::Inner;
 pub use redeem::{Redeem, RedeemData, RedeemNode};
 
@@ -564,6 +566,129 @@ impl<N: NodeData<J>, J: Jet> Node<N, J> {
                 cmr: data.node.cmr,
                 inner: converted_inner.map(Arc::clone),
             }));
+        }
+        Ok(converted.pop().unwrap())
+    }
+
+    /// Generic conversion function from one type of node to another, with the
+    /// ability to prune during the conversion.
+    ///
+    /// Parameterized over what kind of sharing to use when iterating over the
+    /// DAG, and what finalizer logic to use when converting.
+    ///
+    /// **Iterates in right-to-left order.** This means that for a given node,
+    /// the iterator will yield its right child, then its left child, then the
+    /// node itself.
+    ///
+    /// See the documentation for [`Finalizer`] for details.
+    ///
+    /// # Panics
+    ///
+    /// Panics if an unconverted branch is not hidden. It is the responsibility
+    /// of the [`Finalizer`] to ensure this does not happen, by making sure that
+    /// whenever a `None` branch is provided to [`Finalizer::prune_case`], that
+    /// that branch gets pruned.
+    pub fn rtl_convert_finalize<S, M, F>(
+        &self,
+        finalizer: &mut F,
+    ) -> Result<Option<Arc<Node<M, J>>>, F::Error>
+    where
+        S: for<'a> SharingTracker<SwapChildren<&'a Self>> + Default,
+        M: NodeData<J>,
+        F: Finalizer<N, M, J>,
+    {
+        let mut converted: Vec<Option<Arc<Node<M, J>>>> = vec![];
+        for data in self.rtl_post_order_iter::<S>() {
+            // First, tell the finalizer about the node.
+            finalizer.visit_node(&data);
+
+            // Construct an Inner<usize> where pointers are replaced by indices.
+            // Note that `map_left_right`'s internal logic will ensure that these
+            // `unwrap`s are only called when they will succeed.
+            let indexed_inner: Inner<usize, J, &N::Witness> = data
+                .node
+                .inner
+                .as_ref()
+                .map_left_right(|_| data.left_index.unwrap(), |_| data.right_index.unwrap());
+
+            // (Attempt to) convert witnesses first
+            let witness_inner: Option<Inner<&usize, J, M::Witness>> = indexed_inner
+                .as_ref()
+                .map_witness_result(|wit| finalizer.convert_witness(&data, wit))?
+                .transpose_witness();
+
+            // If no witness was provided, record and stop early.
+            let witness_inner = match witness_inner {
+                Some(inner) => inner,
+                None => {
+                    converted.push(None);
+                    continue;
+                }
+            };
+
+            // Now, we treat `case` specially.
+            let maybe_new = if let Inner::Case(ref orig_left, ref orig_right) = data.node.inner {
+                let l_cmr = orig_left.cmr();
+                let r_cmr = orig_right.cmr();
+
+                let maybe_left = data.left_index.and_then(|idx| converted[idx].as_ref());
+                let maybe_right = data.right_index.and_then(|idx| converted[idx].as_ref());
+
+                let hide = finalizer.prune_case(&data, maybe_left, maybe_right)?;
+
+                let maybe_inner: Option<Inner<&Arc<Node<M, J>>, J, M::Witness>> =
+                    match (hide, maybe_left, maybe_right) {
+                        (Hide::Neither, None, _) => panic!("unconverted left branch"),
+                        (Hide::Neither, _, None) => panic!("unconverted right branch"),
+                        (Hide::Neither, Some(left), Some(right)) => Some(Inner::Case(left, right)),
+                        (Hide::Left, _, None) => panic!("unconverted right branch"),
+                        (Hide::Left, _, Some(right)) => Some(Inner::AssertR(l_cmr, right)),
+                        (Hide::Right, None, _) => panic!("unconverted left branch"),
+                        (Hide::Right, Some(left), _) => Some(Inner::AssertL(left, r_cmr)),
+                        (Hide::Both, _, _) => None,
+                    };
+
+                match maybe_inner {
+                    // Note that this .clone() is just an Arc clone.
+                    Some(inner) => {
+                        finalizer
+                            .convert_data(&data, inner.clone())?
+                            .map(|cached_data| {
+                                Arc::new(Node {
+                                    data: cached_data,
+                                    cmr: data.node.cmr,
+                                    inner: inner.map(Arc::clone),
+                                })
+                            })
+                    }
+                    None => None,
+                }
+            } else {
+                // Otherwise we just propagate `None`s.
+                match witness_inner
+                    .map(|idx| converted[*idx].as_ref())
+                    .transpose()
+                {
+                    // fail nodes get automatically pruned
+                    Some(Inner::Fail(..)) => None,
+                    Some(inner) => {
+                        // Re-bind inner just to remind us what its type is
+                        let inner: Inner<&Arc<Node<M, J>>, J, M::Witness> = inner;
+                        // Then return it. Note that this .clone() is just an Arc clone.
+                        finalizer
+                            .convert_data(&data, inner.clone())?
+                            .map(|cached_data| {
+                                Arc::new(Node {
+                                    data: cached_data,
+                                    cmr: data.node.cmr,
+                                    inner: inner.map(Arc::clone),
+                                })
+                            })
+                    }
+                    None => None,
+                }
+            };
+            converted.push(maybe_new);
         }
         Ok(converted.pop().unwrap())
     }
