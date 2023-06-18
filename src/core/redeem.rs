@@ -307,12 +307,9 @@ impl<J: Jet> fmt::Display for RedeemNode<J> {
 
 #[cfg(test)]
 mod tests {
-    use std::iter;
-
     use super::*;
-
-    use crate::bit_encoding::decode::decode_expression;
     use crate::jet::Core;
+    use crate::node::{CommitNode, SimpleFinalizer};
 
     #[test]
     fn encode_shared_witnesses() {
@@ -322,29 +319,23 @@ mod tests {
         //
         // wits_are_equal = comp (pair wit1 wit2) jet_eq_32 :: 1 -> 2
         // main = comp wits_are_equal jet_verify            :: 1 -> 1
-        let eqwits = vec![0xc9, 0xc4, 0x6d, 0xb8, 0x82, 0x30, 0x10];
+        let eqwits = vec![0xcd, 0xdc, 0x51, 0xb6, 0xe2, 0x08, 0xc0, 0x40];
         let mut iter = BitIter::from(&eqwits[..]);
-        let eqwits_prog = decode_expression::<_, Core>(&mut iter).unwrap();
-        let eqwits_prog = crate::CommitNode::from_node(&eqwits_prog);
+        let eqwits_prog = CommitNode::<Core>::decode(&mut iter).unwrap();
 
-        let mut witness_iter = iter::repeat(Value::u32(0xDEADBEEF));
-        // Generally when we are manually adding witnesses we want to unshare them so that
-        // we have a choice to add distinct witnesses to every spot. But in this case we
-        // are providing the same witness for every spot, so it really doesn't matter, so
-        // try both cases.
-        for &unshare_witnesses in &[false, true] {
-            let eqwits_final = eqwits_prog
-                .finalize(&mut witness_iter, unshare_witnesses)
-                .unwrap();
-            let mut output = vec![];
-            let mut writer = BitWriter::new(&mut output);
-            eqwits_final.encode(&mut writer).unwrap();
+        let eqwits_final = eqwits_prog
+            .finalize(&mut SimpleFinalizer::new(std::iter::repeat(Arc::new(
+                Value::u32(0xDEADBEEF),
+            ))))
+            .unwrap();
+        let mut output = vec![];
+        let mut writer = BitWriter::new(&mut output);
+        eqwits_final.encode(&mut writer).unwrap();
 
-            assert_eq!(
-                output,
-                [0xc9, 0xc4, 0x6d, 0xb8, 0x82, 0x30, 0x11, 0xe2, 0x0d, 0xea, 0xdb, 0xee, 0xf0],
-            );
-        }
+        assert_eq!(
+            output,
+            [0xc9, 0xc4, 0x6d, 0xb8, 0x82, 0x30, 0x11, 0xe2, 0x0d, 0xea, 0xdb, 0xee, 0xf0],
+        );
     }
 
     #[test]
