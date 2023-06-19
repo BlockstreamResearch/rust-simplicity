@@ -190,6 +190,18 @@ impl<J: Jet> RedeemNode<J> {
         w.flush_all()?;
         Ok(program_bits + witness_bits)
     }
+
+    /// Encode a Simplicity program to a vector of bytes, including the witness data.
+    pub fn encode_to_vec(&self) -> Vec<u8> {
+        let mut program_and_witness_bytes = Vec::<u8>::new();
+        let mut writer = BitWriter::new(&mut program_and_witness_bytes);
+        self.encode(&mut writer)
+            .expect("write to vector never fails");
+        writer.flush_all().expect("flushing vector never fails");
+        debug_assert!(!program_and_witness_bytes.is_empty());
+
+        program_and_witness_bytes
+    }
 }
 
 impl<J: Jet> fmt::Display for RedeemNode<J> {
