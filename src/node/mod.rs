@@ -89,9 +89,11 @@ use crate::{types, Cmr, Context, FailEntropy, Value};
 use std::sync::Arc;
 use std::{fmt, hash};
 
+mod commit;
 mod construct;
 mod inner;
 
+pub use commit::{Commit, CommitData, CommitNode};
 pub use construct::{Construct, ConstructData, ConstructNode};
 pub use inner::Inner;
 

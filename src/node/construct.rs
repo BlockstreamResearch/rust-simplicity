@@ -12,6 +12,7 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
+use crate::dag::InternalSharing;
 use crate::jet::Jet;
 use crate::types::{self, arrow::Arrow};
 use crate::{Cmr, Context, FailEntropy, Value};
@@ -19,7 +20,7 @@ use crate::{Cmr, Context, FailEntropy, Value};
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use super::{Constructible, NoWitness, Node, NodeData};
+use super::{CommitData, CommitNode, Constructible, NoWitness, Node, NodeData};
 
 /// ID used to share [`ConstructNode`]s.
 ///
@@ -47,6 +48,42 @@ impl<J: Jet> ConstructNode<J> {
     /// Accessor for the node's arrow
     pub fn arrow(&self) -> &Arrow {
         &self.data.arrow
+    }
+
+    /// Sets the source and target type of the node to unit
+    pub fn set_arrow_to_program(&self) -> Result<(), types::Error> {
+        let unit_ty = types::Type::unit();
+        self.arrow()
+            .source
+            .unify(&unit_ty, "setting root source to unit")?;
+        self.arrow()
+            .target
+            .unify(&unit_ty, "setting root source to unit")?;
+        Ok(())
+    }
+
+    /// Convert a [`ConstructNode`] to a [`CommitNode`] by finalizing all of the types.
+    ///
+    /// Also sets the source and target type of this node to unit. This is almost
+    /// certainly what you want, since the resulting `CommitNode` cannot be further
+    /// composed, and needs to be 1->1 to go on-chain. But if you don't, call
+    /// [`Self::finalize_types_without_fixing`] instead.
+    pub fn finalize_types(&self) -> Result<Arc<CommitNode<J>>, types::Error> {
+        self.set_arrow_to_program()?;
+        self.finalize_types_non_program()
+    }
+
+    /// Convert a [`ConstructNode`] to a [`CommitNode`] by finalizing all of the types.
+    ///
+    /// Does *not* sets the source and target type of this node to unit.
+    pub fn finalize_types_non_program(&self) -> Result<Arc<CommitNode<J>>, types::Error> {
+        self.convert::<InternalSharing, _, _, _, _>(
+            |data, converted| {
+                let converted_data = converted.map(|node| node.cached_data());
+                CommitData::new(&data.node.data.arrow, converted_data).map(Arc::new)
+            },
+            |_, _| Ok(NoWitness),
+        )
     }
 }
 
