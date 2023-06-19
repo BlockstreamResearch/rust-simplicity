@@ -1,8 +1,13 @@
 use crate::policy::key::PublicKey32;
 use crate::policy::satisfy::PolicySatisfier;
 use crate::{policy, Cmr, Context, Policy};
+use bitcoin_hashes::Hash;
+use elements::schnorr::TapTweak;
 use elements::secp256k1_zkp;
-use elements::taproot::{LeafVersion, TaprootBuilder, TaprootSpendInfo};
+use elements::taproot::{
+    ControlBlock, LeafVersion, TapBranchHash, TapLeafHash, TaprootBuilder, TaprootMerkleBranch,
+    TaprootSpendInfo,
+};
 use elements_miniscript::{MiniscriptKey, ToPublicKey};
 use std::fmt;
 use std::str::FromStr;
@@ -138,8 +143,24 @@ impl<Pk: PublicKey32 + ToPublicKey> Descriptor<Pk> {
         let program_and_witness_bytes = program.encode_to_vec();
         let cmr_bytes = Vec::from(program.cmr.as_ref());
 
-        // FIXME: Should env be public?
-        let control_block = satisfier.env.control_block();
+        // Single leaf: leaf hash = merkle root
+        let (script, leaf_version) = self.leaf();
+        let leaf_hash = TapLeafHash::from_script(&script, leaf_version);
+        let merkle_root = TapBranchHash::from_inner(leaf_hash.into_inner());
+        // Single leaf: empty merkle inclusion proof
+        let merkle_branch = TaprootMerkleBranch::from_inner(Vec::new()).expect("constant branch");
+
+        let internal_key = self.internal_key().to_x_only_pubkey();
+        let output_key_parity = internal_key
+            .tap_tweak(secp256k1_zkp::SECP256K1, Some(merkle_root))
+            .1;
+
+        let control_block = ControlBlock {
+            leaf_version,
+            output_key_parity,
+            internal_key,
+            merkle_branch,
+        };
         let witness = vec![
             program_and_witness_bytes,
             cmr_bytes,

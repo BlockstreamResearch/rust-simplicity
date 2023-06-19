@@ -1,37 +1,27 @@
 use crate::core::commit::UsedCaseBranch;
-use crate::jet::elements::ElementsEnv;
 use crate::jet::Elements;
 use crate::policy::compiler;
 use crate::policy::key::PublicKey32;
 use crate::{CommitNode, Context, Policy, RedeemNode, Value};
 use bitcoin_hashes::Hash;
-use elements::bitcoin;
 use elements::locktime::Height;
 use elements::taproot::TapLeafHash;
-use elements::{secp256k1_zkp, LockTime, SchnorrSigHashType, Sequence};
+use elements::{LockTime, Sequence};
 use elements_miniscript::{MiniscriptKey, Preimage32, Satisfier, ToPublicKey};
 use std::collections::{HashMap, VecDeque};
 use std::iter::FromIterator;
 use std::rc::Rc;
 
-pub struct PolicySatisfier<Pk: MiniscriptKey> {
+pub struct PolicySatisfier<'a, Pk: MiniscriptKey> {
     pub preimages: HashMap<Pk::Sha256, Preimage32>,
-    pub keys: HashMap<Pk, bitcoin::KeyPair>,
-    pub env: ElementsEnv,
+    pub signatures: HashMap<Pk, elements::SchnorrSig>,
+    pub tx: &'a elements::Transaction,
+    pub index: usize,
 }
 
-impl<Pk: MiniscriptKey + ToPublicKey> Satisfier<Pk> for PolicySatisfier<Pk> {
+impl<'a, Pk: MiniscriptKey + ToPublicKey> Satisfier<Pk> for PolicySatisfier<'a, Pk> {
     fn lookup_tap_leaf_script_sig(&self, pk: &Pk, _: &TapLeafHash) -> Option<elements::SchnorrSig> {
-        self.keys.get(pk).map(|keypair| {
-            let sighash = self.env.c_tx_env().sighash_all();
-            let msg = secp256k1_zkp::Message::from_slice(&sighash).unwrap();
-            let sig = keypair.sign_schnorr(msg);
-
-            elements::SchnorrSig {
-                sig,
-                hash_ty: SchnorrSigHashType::All,
-            }
-        })
+        self.signatures.get(pk).copied()
     }
 
     fn lookup_sha256(&self, hash: &Pk::Sha256) -> Option<Preimage32> {
@@ -39,12 +29,12 @@ impl<Pk: MiniscriptKey + ToPublicKey> Satisfier<Pk> for PolicySatisfier<Pk> {
     }
 
     fn check_older(&self, sequence: Sequence) -> bool {
-        let self_sequence = self.env.tx().input[self.env.ix() as usize].sequence;
+        let self_sequence = self.tx.input[self.index].sequence;
         <Sequence as Satisfier<Pk>>::check_older(&self_sequence, sequence)
     }
 
     fn check_after(&self, locktime: LockTime) -> bool {
-        let self_locktime = LockTime::from(self.env.tx().lock_time);
+        let self_locktime = LockTime::from(self.tx.lock_time);
         <LockTime as Satisfier<Pk>>::check_after(&self_locktime, locktime)
     }
 }
@@ -292,12 +282,15 @@ mod tests {
     use super::*;
     use crate::dag::{DagLike, NoSharing};
     use crate::exec::BitMachine;
+    use crate::jet::elements::ElementsEnv;
     use bitcoin_hashes::{sha256, Hash};
+    use elements::bitcoin;
+    use elements::{secp256k1_zkp, SchnorrSigHashType};
     use std::convert::TryFrom;
 
-    fn get_satisfier() -> PolicySatisfier<bitcoin::XOnlyPublicKey> {
+    fn get_satisfier(env: &ElementsEnv) -> PolicySatisfier<bitcoin::XOnlyPublicKey> {
         let mut preimages = HashMap::new();
-        let mut keys = HashMap::new();
+        let mut signatures = HashMap::new();
 
         for i in 0..3 {
             let preimage = [i; 32];
@@ -309,14 +302,23 @@ mod tests {
 
         for _ in 0..3 {
             let keypair = bitcoin::KeyPair::new(&secp, &mut rng);
-            let (xonly, _) = keypair.x_only_public_key();
-            keys.insert(xonly, keypair);
+            let xonly = keypair.x_only_public_key().0;
+
+            let sighash = env.c_tx_env().sighash_all();
+            let msg = secp256k1_zkp::Message::from_slice(&sighash).expect("constant sighash");
+            let sig = elements::SchnorrSig {
+                sig: keypair.sign_schnorr(msg),
+                hash_ty: SchnorrSigHashType::All,
+            };
+
+            signatures.insert(xonly, sig);
         }
 
         PolicySatisfier {
             preimages,
-            keys,
-            env: ElementsEnv::dummy(),
+            signatures,
+            tx: env.tx(),
+            index: 0,
         }
     }
 
@@ -334,7 +336,8 @@ mod tests {
 
     #[test]
     fn satisfy_unsatisfiable() {
-        let satisfier = get_satisfier();
+        let env = ElementsEnv::dummy();
+        let satisfier = get_satisfier(&env);
         let policy = Policy::Unsatisfiable;
 
         assert!(policy.satisfy(&satisfier).is_none());
@@ -344,25 +347,27 @@ mod tests {
         let program = commit.finalize(std::iter::empty(), true).expect("finalize");
         let mut mac = BitMachine::for_program(&program);
 
-        assert!(mac.exec(&program, &satisfier.env).is_err());
+        assert!(mac.exec(&program, &env).is_err());
     }
 
     #[test]
     fn satisfy_trivial() {
-        let satisfier = get_satisfier();
+        let env = ElementsEnv::dummy();
+        let satisfier = get_satisfier(&env);
         let policy = Policy::Trivial;
 
         let program = policy.satisfy(&satisfier).expect("satisfiable");
         let witness = to_witness(&program);
         assert_eq!(Vec::<&Value>::new(), witness);
 
-        execute_successful(program, &satisfier.env);
+        execute_successful(program, &env);
     }
 
     #[test]
     fn satisfy_pk() {
-        let satisfier = get_satisfier();
-        let mut it = satisfier.keys.keys();
+        let env = ElementsEnv::dummy();
+        let satisfier = get_satisfier(&env);
+        let mut it = satisfier.signatures.keys();
         let xonly = it.next().unwrap();
         let policy = Policy::Key(*xonly);
 
@@ -370,19 +375,20 @@ mod tests {
         let witness = to_witness(&program);
         assert_eq!(1, witness.len());
 
-        let sighash = satisfier.env.c_tx_env().sighash_all();
+        let sighash = env.c_tx_env().sighash_all();
         let message = secp256k1_zkp::Message::from(sighash);
         let signature_bytes = witness[0].try_to_bytes().expect("to bytes");
         let signature =
             secp256k1_zkp::schnorr::Signature::from_slice(&signature_bytes).expect("to signature");
         assert!(signature.verify(&message, xonly).is_ok());
 
-        execute_successful(program, &satisfier.env);
+        execute_successful(program, &env);
     }
 
     #[test]
     fn satisfy_sha256() {
-        let satisfier = get_satisfier();
+        let env = ElementsEnv::dummy();
+        let satisfier = get_satisfier(&env);
         let mut it = satisfier.preimages.keys();
         let image = *it.next().unwrap();
         let policy = Policy::Sha256(image);
@@ -396,12 +402,13 @@ mod tests {
         let preimage = *satisfier.preimages.get(&image).unwrap();
         assert_eq!(preimage, witness_preimage);
 
-        execute_successful(program, &satisfier.env);
+        execute_successful(program, &env);
     }
 
     #[test]
     fn satisfy_and() {
-        let satisfier = get_satisfier();
+        let env = ElementsEnv::dummy();
+        let satisfier = get_satisfier(&env);
         let images: Vec<_> = satisfier.preimages.keys().copied().collect();
         let preimages: Vec<_> = images
             .iter()
@@ -422,7 +429,7 @@ mod tests {
             assert_eq!(preimages[i], &witness_preimage);
         }
 
-        execute_successful(program, &satisfier.env);
+        execute_successful(program, &env);
 
         // Policy 1
 
@@ -443,7 +450,8 @@ mod tests {
 
     #[test]
     fn satisfy_or() {
-        let satisfier = get_satisfier();
+        let env = ElementsEnv::dummy();
+        let satisfier = get_satisfier(&env);
         let images: Vec<_> = satisfier.preimages.keys().copied().collect();
         let preimages: Vec<_> = images
             .iter()
@@ -461,7 +469,7 @@ mod tests {
                 Preimage32::try_from(preimage_bytes.as_slice()).expect("to array");
             assert_eq!(preimages[bit as usize], &witness_preimage);
 
-            execute_successful(program, &satisfier.env);
+            execute_successful(program, &env);
         };
 
         // Policy 0
@@ -496,7 +504,8 @@ mod tests {
 
     #[test]
     fn satisfy_thresh() {
-        let satisfier = get_satisfier();
+        let env = ElementsEnv::dummy();
+        let satisfier = get_satisfier(&env);
         let images: Vec<_> = satisfier.preimages.keys().copied().collect();
         let preimages: Vec<_> = images
             .iter()
