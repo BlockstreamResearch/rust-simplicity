@@ -1,19 +1,16 @@
-use std::marker::PhantomData;
 use std::sync::Arc;
 
-use crate::jet::Jet;
 use crate::types;
 
 /// Context for constructing a Simplicity program
 #[allow(dead_code)]
-pub struct Context<J: Jet> {
+pub struct Context {
     pub(crate) naming: types::variable::Factory,
     pow2: Vec<types::Type>,
     unit_ty: types::Type,
-    _jet: PhantomData<J>,
 }
 
-impl<J: Jet> Context<J> {
+impl Context {
     /// Create a new context.
     pub fn new() -> Self {
         let one = types::Type::unit();
@@ -31,7 +28,6 @@ impl<J: Jet> Context<J> {
             naming: types::variable::Factory::new(),
             pow2,
             unit_ty: types::Type::unit(),
-            _jet: PhantomData,
         }
     }
 
@@ -66,7 +62,7 @@ impl<J: Jet> Context<J> {
     }
 }
 
-impl<J: Jet> Default for Context<J> {
+impl Default for Context {
     fn default() -> Self {
         Self::new()
     }

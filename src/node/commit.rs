@@ -145,7 +145,7 @@ impl<J: Jet> CommitNode<J> {
     /// Convert a [`CommitNode`] back to a [`ConstructNode`] by redoing type inference
     pub fn unfinalize_types(
         &self,
-        ctx: &mut Context<J>,
+        ctx: &mut Context,
     ) -> Result<Arc<ConstructNode<J>>, types::Error> {
         self.convert::<MaxSharing<Commit, J>, _, _, Construct, _>(
             |_, inner| {

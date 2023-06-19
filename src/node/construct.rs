@@ -107,99 +107,99 @@ impl<J: Jet> ConstructData<J> {
     }
 }
 
-impl<J: Jet> CoreConstructible<J> for ConstructData<J> {
-    fn iden(ctx: &mut Context<J>) -> Self {
+impl<J: Jet> CoreConstructible for ConstructData<J> {
+    fn iden(ctx: &mut Context) -> Self {
         ConstructData {
             arrow: Arrow::iden(ctx),
             phantom: PhantomData,
         }
     }
 
-    fn unit(ctx: &mut Context<J>) -> Self {
+    fn unit(ctx: &mut Context) -> Self {
         ConstructData {
             arrow: Arrow::unit(ctx),
             phantom: PhantomData,
         }
     }
 
-    fn injl(ctx: &mut Context<J>, child: &Self) -> Self {
+    fn injl(ctx: &mut Context, child: &Self) -> Self {
         ConstructData {
             arrow: Arrow::injl(ctx, &child.arrow),
             phantom: PhantomData,
         }
     }
 
-    fn injr(ctx: &mut Context<J>, child: &Self) -> Self {
+    fn injr(ctx: &mut Context, child: &Self) -> Self {
         ConstructData {
             arrow: Arrow::injr(ctx, &child.arrow),
             phantom: PhantomData,
         }
     }
 
-    fn take(ctx: &mut Context<J>, child: &Self) -> Self {
+    fn take(ctx: &mut Context, child: &Self) -> Self {
         ConstructData {
             arrow: Arrow::take(ctx, &child.arrow),
             phantom: PhantomData,
         }
     }
 
-    fn drop_(ctx: &mut Context<J>, child: &Self) -> Self {
+    fn drop_(ctx: &mut Context, child: &Self) -> Self {
         ConstructData {
             arrow: Arrow::drop_(ctx, &child.arrow),
             phantom: PhantomData,
         }
     }
 
-    fn comp(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, types::Error> {
+    fn comp(ctx: &mut Context, left: &Self, right: &Self) -> Result<Self, types::Error> {
         Ok(ConstructData {
             arrow: Arrow::comp(ctx, &left.arrow, &right.arrow)?,
             phantom: PhantomData,
         })
     }
 
-    fn case(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, types::Error> {
+    fn case(ctx: &mut Context, left: &Self, right: &Self) -> Result<Self, types::Error> {
         Ok(ConstructData {
             arrow: Arrow::case(ctx, &left.arrow, &right.arrow)?,
             phantom: PhantomData,
         })
     }
 
-    fn assertl(ctx: &mut Context<J>, left: &Self, right: Cmr) -> Result<Self, types::Error> {
+    fn assertl(ctx: &mut Context, left: &Self, right: Cmr) -> Result<Self, types::Error> {
         Ok(ConstructData {
             arrow: Arrow::assertl(ctx, &left.arrow, right)?,
             phantom: PhantomData,
         })
     }
 
-    fn assertr(ctx: &mut Context<J>, left: Cmr, right: &Self) -> Result<Self, types::Error> {
+    fn assertr(ctx: &mut Context, left: Cmr, right: &Self) -> Result<Self, types::Error> {
         Ok(ConstructData {
             arrow: Arrow::assertr(ctx, left, &right.arrow)?,
             phantom: PhantomData,
         })
     }
 
-    fn pair(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, types::Error> {
+    fn pair(ctx: &mut Context, left: &Self, right: &Self) -> Result<Self, types::Error> {
         Ok(ConstructData {
             arrow: Arrow::pair(ctx, &left.arrow, &right.arrow)?,
             phantom: PhantomData,
         })
     }
 
-    fn disconnect(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, types::Error> {
+    fn disconnect(ctx: &mut Context, left: &Self, right: &Self) -> Result<Self, types::Error> {
         Ok(ConstructData {
             arrow: Arrow::disconnect(ctx, &left.arrow, &right.arrow)?,
             phantom: PhantomData,
         })
     }
 
-    fn fail(ctx: &mut Context<J>, entropy: FailEntropy) -> Self {
+    fn fail(ctx: &mut Context, entropy: FailEntropy) -> Self {
         ConstructData {
             arrow: Arrow::fail(ctx, entropy),
             phantom: PhantomData,
         }
     }
 
-    fn const_word(ctx: &mut Context<J>, word: Arc<Value>) -> Self {
+    fn const_word(ctx: &mut Context, word: Arc<Value>) -> Self {
         ConstructData {
             arrow: Arrow::const_word(ctx, word),
             phantom: PhantomData,
@@ -207,8 +207,8 @@ impl<J: Jet> CoreConstructible<J> for ConstructData<J> {
     }
 }
 
-impl<'a, J: Jet> WitnessConstructible<&'a NoWitness, J> for ConstructData<J> {
-    fn witness(ctx: &mut Context<J>, witness: &NoWitness) -> Self {
+impl<'a, J: Jet> WitnessConstructible<&'a NoWitness> for ConstructData<J> {
+    fn witness(ctx: &mut Context, witness: &NoWitness) -> Self {
         ConstructData {
             arrow: Arrow::witness(ctx, *witness),
             phantom: PhantomData,
@@ -217,7 +217,7 @@ impl<'a, J: Jet> WitnessConstructible<&'a NoWitness, J> for ConstructData<J> {
 }
 
 impl<J: Jet> JetConstructible<J> for ConstructData<J> {
-    fn jet(ctx: &mut Context<J>, jet: J) -> Self {
+    fn jet(ctx: &mut Context, jet: J) -> Self {
         ConstructData {
             arrow: Arrow::jet(ctx, jet),
             phantom: PhantomData,

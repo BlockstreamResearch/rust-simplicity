@@ -27,16 +27,13 @@ use std::rc::Rc;
 
 impl<Pk: MiniscriptKey + PublicKey32> Policy<Pk> {
     /// Compile the policy into a Simplicity program
-    pub fn compile(
-        &self,
-        context: &mut Context<Elements>,
-    ) -> Result<Rc<CommitNode<Elements>>, Error> {
+    pub fn compile(&self, context: &mut Context) -> Result<Rc<CommitNode<Elements>>, Error> {
         compile(context, self)
     }
 }
 
 fn compute_sha256(
-    context: &mut Context<Elements>,
+    context: &mut Context,
     witness256: Rc<CommitNode<Elements>>,
 ) -> Result<Rc<CommitNode<Elements>>, Error> {
     let ctx = CommitNode::jet(context, Elements::Sha256Ctx8Init);
@@ -48,7 +45,7 @@ fn compute_sha256(
 }
 
 fn verify_bexp(
-    context: &mut Context<Elements>,
+    context: &mut Context,
     input: Rc<CommitNode<Elements>>,
     bexp: Rc<CommitNode<Elements>>,
 ) -> Result<Rc<CommitNode<Elements>>, Error> {
@@ -59,7 +56,7 @@ fn verify_bexp(
 
 /// Compile the given policy into a Simplicity program.
 fn compile<Pk: MiniscriptKey + PublicKey32>(
-    context: &mut Context<Elements>,
+    context: &mut Context,
     policy: &Policy<Pk>,
 ) -> Result<Rc<CommitNode<Elements>>, Error> {
     match policy {
@@ -145,14 +142,14 @@ fn compile<Pk: MiniscriptKey + PublicKey32>(
     }
 }
 
-fn selector(context: &mut Context<Elements>) -> Result<Rc<CommitNode<Elements>>, Error> {
+fn selector(context: &mut Context) -> Result<Rc<CommitNode<Elements>>, Error> {
     let witness = CommitNode::witness(context);
     let unit = CommitNode::unit(context);
     CommitNode::pair(context, witness, unit)
 }
 
 pub(crate) fn and(
-    context: &mut Context<Elements>,
+    context: &mut Context,
     left: Rc<CommitNode<Elements>>,
     right: Rc<CommitNode<Elements>>,
 ) -> Result<Rc<CommitNode<Elements>>, Error> {
@@ -167,7 +164,7 @@ pub(crate) fn and(
 }
 
 pub(crate) fn or(
-    context: &mut Context<Elements>,
+    context: &mut Context,
     left: Rc<CommitNode<Elements>>,
     right: Rc<CommitNode<Elements>>,
     branch: UsedCaseBranch,
@@ -184,7 +181,7 @@ pub(crate) fn or(
 ///
 /// summand(child): 1 → 2^32
 pub(crate) fn thresh_summand(
-    context: &mut Context<Elements>,
+    context: &mut Context,
     child: Rc<CommitNode<Elements>>,
     branch: UsedCaseBranch,
 ) -> Result<Rc<CommitNode<Elements>>, Error> {
@@ -208,7 +205,7 @@ pub(crate) fn thresh_summand(
 ///
 /// add(sum, summand): 1 → 2^32
 pub(crate) fn thresh_add(
-    context: &mut Context<Elements>,
+    context: &mut Context,
     sum: Rc<CommitNode<Elements>>,
     summand: Rc<CommitNode<Elements>>,
 ) -> Result<Rc<CommitNode<Elements>>, Error> {
@@ -231,7 +228,7 @@ pub(crate) fn thresh_add(
 
 /// verify(sum): 1 → 1
 pub(crate) fn thresh_verify(
-    context: &mut Context<Elements>,
+    context: &mut Context,
     sum: Rc<CommitNode<Elements>>,
     k: u32,
 ) -> Result<Rc<CommitNode<Elements>>, Error> {

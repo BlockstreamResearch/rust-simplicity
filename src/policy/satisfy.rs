@@ -60,7 +60,7 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
         Some(program)
     }
 
-    fn compile_no_witness(&self, context: &mut Context<Elements>) -> SatisfierExtData {
+    fn compile_no_witness(&self, context: &mut Context) -> SatisfierExtData {
         SatisfierExtData {
             witness: VecDeque::new(),
             witness_cost: 0,
@@ -69,11 +69,7 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
         }
     }
 
-    fn compile_witness_bytes(
-        &self,
-        context: &mut Context<Elements>,
-        witness: &[u8],
-    ) -> SatisfierExtData {
+    fn compile_witness_bytes(&self, context: &mut Context, witness: &[u8]) -> SatisfierExtData {
         let value = match witness.len() {
             32 => Value::u256_from_slice(witness),
             64 => Value::u512_from_slice(witness),
@@ -94,7 +90,7 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
     fn satisfy_helper<S: Satisfier<Pk>>(
         &self,
         satisfier: &S,
-        context: &mut Context<Elements>,
+        context: &mut Context,
     ) -> Option<SatisfierExtData> {
         match self {
             Policy::Unsatisfiable => None,
@@ -213,7 +209,7 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                 /// Return satisfaction for `i`th child, if it exists, or return dummy instead
                 fn get_sat_or_default<Pk: MiniscriptKey + PublicKey32>(
                     i: usize,
-                    context: &mut Context<Elements>,
+                    context: &mut Context,
                     satisfiable_children: &mut Vec<(SatisfierExtData, usize)>,
                     sub_policies: &[Policy<Pk>],
                 ) -> SatisfierExtData {
@@ -234,7 +230,7 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                 /// Return summand program for `i`th child
                 fn get_summand<Pk: MiniscriptKey + PublicKey32>(
                     i: usize,
-                    context: &mut Context<Elements>,
+                    context: &mut Context,
                     satisfiable_children: &mut Vec<(SatisfierExtData, usize)>,
                     sub_policies: &[Policy<Pk>],
                 ) -> SatisfierExtData {

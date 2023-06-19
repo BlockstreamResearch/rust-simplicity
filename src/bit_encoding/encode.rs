@@ -333,7 +333,7 @@ mod test {
 
     #[test]
     fn encode_decode_witness() {
-        let context = crate::Context::<crate::jet::Core>::new();
+        let context = crate::Context::new();
 
         for n in 1..1000 {
             let witness = vec![Value::u64(n)];

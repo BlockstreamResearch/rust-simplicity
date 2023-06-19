@@ -82,7 +82,7 @@ impl Arrow {
     }
 
     /// Create a unification arrow for a fresh `unit` combinator
-    pub fn for_unit<J: Jet>(context: &mut Context<J>) -> Self {
+    pub fn for_unit(context: &mut Context) -> Self {
         Arrow {
             source: Type::free(context.naming.new_name()),
             target: context.unit_ty(),
@@ -90,7 +90,7 @@ impl Arrow {
     }
 
     /// Create a unification arrow for a fresh `iden` combinator
-    pub fn for_iden<J: Jet>(context: &mut Context<J>) -> Self {
+    pub fn for_iden(context: &mut Context) -> Self {
         // Throughout this module, when two types are the same, we reuse a
         // pointer to them rather than creating distinct types and unifying
         // them. This theoretically could lead to more confusing errors for
@@ -104,7 +104,7 @@ impl Arrow {
     }
 
     /// Create a unification arrow for a fresh `witness` combinator
-    pub fn for_witness<J: Jet>(context: &mut Context<J>) -> Self {
+    pub fn for_witness(context: &mut Context) -> Self {
         Arrow {
             source: Type::free(context.naming.new_name()),
             target: Type::free(context.naming.new_name()),
@@ -112,7 +112,7 @@ impl Arrow {
     }
 
     /// Create a unification arrow for a fresh `fail` combinator
-    pub fn for_fail<J: Jet>(context: &mut Context<J>) -> Self {
+    pub fn for_fail(context: &mut Context) -> Self {
         Arrow {
             source: Type::free(context.naming.new_name()),
             target: Type::free(context.naming.new_name()),
@@ -120,7 +120,7 @@ impl Arrow {
     }
 
     /// Create a unification arrow for a fresh jet combinator
-    pub fn for_jet<J: Jet>(context: &mut Context<J>, jet: J) -> Self {
+    pub fn for_jet<J: Jet>(context: &mut Context, jet: J) -> Self {
         Arrow {
             source: jet.source_ty().to_type(|n| context.nth_power_of_2(n)),
             target: jet.target_ty().to_type(|n| context.nth_power_of_2(n)),
@@ -128,7 +128,7 @@ impl Arrow {
     }
 
     /// Create a unification arrow for a fresh const-word combinator
-    pub fn for_const_word<J: Jet>(context: &mut Context<J>, word: &Value) -> Self {
+    pub fn for_const_word(context: &mut Context, word: &Value) -> Self {
         let len = word.len();
         assert_eq!(len.count_ones(), 1);
         let depth = word.len().trailing_zeros();
@@ -139,7 +139,7 @@ impl Arrow {
     }
 
     /// Create a unification arrow for a fresh `injl` combinator
-    pub fn for_injl<J: Jet>(context: &mut Context<J>, child_arrow: &Arrow) -> Self {
+    pub fn for_injl(context: &mut Context, child_arrow: &Arrow) -> Self {
         Arrow {
             source: child_arrow.source.shallow_clone(),
             target: Type::sum(
@@ -150,7 +150,7 @@ impl Arrow {
     }
 
     /// Create a unification arrow for a fresh `injr` combinator
-    pub fn for_injr<J: Jet>(context: &mut Context<J>, child_arrow: &Arrow) -> Self {
+    pub fn for_injr(context: &mut Context, child_arrow: &Arrow) -> Self {
         Arrow {
             source: child_arrow.source.shallow_clone(),
             target: Type::sum(
@@ -161,7 +161,7 @@ impl Arrow {
     }
 
     /// Create a unification arrow for a fresh `take` combinator
-    pub fn for_take<J: Jet>(context: &mut Context<J>, child_arrow: &Arrow) -> Self {
+    pub fn for_take(context: &mut Context, child_arrow: &Arrow) -> Self {
         Arrow {
             source: Type::product(
                 child_arrow.source.shallow_clone(),
@@ -172,7 +172,7 @@ impl Arrow {
     }
 
     /// Create a unification arrow for a fresh `drop` combinator
-    pub fn for_drop<J: Jet>(context: &mut Context<J>, child_arrow: &Arrow) -> Self {
+    pub fn for_drop(context: &mut Context, child_arrow: &Arrow) -> Self {
         Arrow {
             source: Type::product(
                 Type::free(context.naming.new_name()),
@@ -183,8 +183,8 @@ impl Arrow {
     }
 
     /// Create a unification arrow for a fresh `pair` combinator
-    pub fn for_pair<J: Jet>(
-        _: &mut Context<J>,
+    pub fn for_pair(
+        _: &mut Context,
         lchild_arrow: &Arrow,
         rchild_arrow: &Arrow,
     ) -> Result<Self, Error> {
@@ -202,8 +202,8 @@ impl Arrow {
     }
 
     /// Create a unification arrow for a fresh `comp` combinator
-    pub fn for_comp<J: Jet>(
-        _: &mut Context<J>,
+    pub fn for_comp(
+        _: &mut Context,
         lchild_arrow: &Arrow,
         rchild_arrow: &Arrow,
     ) -> Result<Self, Error> {
@@ -225,8 +225,8 @@ impl Arrow {
     ///
     /// If neither child is provided, this function will not raise an error; it
     /// is the responsibility of the caller to detect this case and error elsewhere.
-    pub fn for_case<J: Jet>(
-        context: &mut Context<J>,
+    pub fn for_case(
+        context: &mut Context,
         lchild_arrow: Option<&Arrow>,
         rchild_arrow: Option<&Arrow>,
     ) -> Result<Self, Error> {
@@ -265,8 +265,8 @@ impl Arrow {
     }
 
     /// Create a unification arrow for a fresh `comp` combinator
-    pub fn for_disconnect<J: Jet>(
-        context: &mut Context<J>,
+    pub fn for_disconnect(
+        context: &mut Context,
         lchild_arrow: &Arrow,
         rchild_arrow: &Arrow,
     ) -> Result<Self, Error> {
@@ -305,72 +305,72 @@ impl Arrow {
     }
 }
 
-impl<J: Jet> CoreConstructible<J> for Arrow {
-    fn iden(ctx: &mut Context<J>) -> Self {
+impl CoreConstructible for Arrow {
+    fn iden(ctx: &mut Context) -> Self {
         Self::for_iden(ctx)
     }
 
-    fn unit(ctx: &mut Context<J>) -> Self {
+    fn unit(ctx: &mut Context) -> Self {
         Self::for_unit(ctx)
     }
 
-    fn injl(ctx: &mut Context<J>, child: &Self) -> Self {
+    fn injl(ctx: &mut Context, child: &Self) -> Self {
         Self::for_injl(ctx, child)
     }
 
-    fn injr(ctx: &mut Context<J>, child: &Self) -> Self {
+    fn injr(ctx: &mut Context, child: &Self) -> Self {
         Self::for_injr(ctx, child)
     }
 
-    fn take(ctx: &mut Context<J>, child: &Self) -> Self {
+    fn take(ctx: &mut Context, child: &Self) -> Self {
         Self::for_take(ctx, child)
     }
 
-    fn drop_(ctx: &mut Context<J>, child: &Self) -> Self {
+    fn drop_(ctx: &mut Context, child: &Self) -> Self {
         Self::for_drop(ctx, child)
     }
 
-    fn comp(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, Error> {
+    fn comp(ctx: &mut Context, left: &Self, right: &Self) -> Result<Self, Error> {
         Self::for_comp(ctx, left, right)
     }
 
-    fn case(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, Error> {
+    fn case(ctx: &mut Context, left: &Self, right: &Self) -> Result<Self, Error> {
         Self::for_case(ctx, Some(left), Some(right))
     }
 
-    fn assertl(ctx: &mut Context<J>, left: &Self, _: crate::Cmr) -> Result<Self, Error> {
+    fn assertl(ctx: &mut Context, left: &Self, _: crate::Cmr) -> Result<Self, Error> {
         Self::for_case(ctx, Some(left), None)
     }
 
-    fn assertr(ctx: &mut Context<J>, _: crate::Cmr, right: &Self) -> Result<Self, Error> {
+    fn assertr(ctx: &mut Context, _: crate::Cmr, right: &Self) -> Result<Self, Error> {
         Self::for_case(ctx, None, Some(right))
     }
 
-    fn pair(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, Error> {
+    fn pair(ctx: &mut Context, left: &Self, right: &Self) -> Result<Self, Error> {
         Self::for_pair(ctx, left, right)
     }
 
-    fn disconnect(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, Error> {
+    fn disconnect(ctx: &mut Context, left: &Self, right: &Self) -> Result<Self, Error> {
         Self::for_disconnect(ctx, left, right)
     }
 
-    fn fail(ctx: &mut Context<J>, _: crate::FailEntropy) -> Self {
+    fn fail(ctx: &mut Context, _: crate::FailEntropy) -> Self {
         Self::for_fail(ctx)
     }
 
-    fn const_word(ctx: &mut Context<J>, word: Arc<Value>) -> Self {
+    fn const_word(ctx: &mut Context, word: Arc<Value>) -> Self {
         Self::for_const_word(ctx, &word)
     }
 }
 
 impl<J: Jet> JetConstructible<J> for Arrow {
-    fn jet(ctx: &mut Context<J>, jet: J) -> Self {
+    fn jet(ctx: &mut Context, jet: J) -> Self {
         Self::for_jet(ctx, jet)
     }
 }
 
-impl<W, J: Jet> WitnessConstructible<W, J> for Arrow {
-    fn witness(ctx: &mut Context<J>, _: W) -> Self {
+impl<W> WitnessConstructible<W> for Arrow {
+    fn witness(ctx: &mut Context, _: W) -> Self {
         Self::for_witness(ctx)
     }
 }

@@ -291,8 +291,8 @@ mod tests {
 
     #[test]
     fn cmr_display_unit() {
-        let mut ctx = crate::Context::<crate::jet::Core>::new();
-        let c = crate::CommitNode::unit(&mut ctx);
+        let mut ctx = crate::Context::new();
+        let c = crate::CommitNode::<crate::jet::Core>::unit(&mut ctx);
 
         assert_eq!(
             c.cmr().to_string(),
@@ -324,8 +324,8 @@ mod tests {
 
     #[test]
     fn bit_cmr() {
-        let mut ctx = Context::<crate::jet::Core>::new();
-        let unit = CommitNode::unit(&mut ctx);
+        let mut ctx = Context::new();
+        let unit = CommitNode::<crate::jet::Core>::unit(&mut ctx);
         let bit0 = CommitNode::injl(&mut ctx, unit.clone());
         assert_eq!(bit0.cmr(), Cmr::BITS[0]);
 
