@@ -57,7 +57,7 @@ pub use bit_encoding::BitIter;
 pub use bit_encoding::BitWriter;
 
 #[cfg(feature = "elements")]
-pub use crate::policy::Policy;
+pub use crate::policy::{Descriptor, Policy};
 
 pub use crate::bit_machine::exec;
 pub use crate::context::Context;

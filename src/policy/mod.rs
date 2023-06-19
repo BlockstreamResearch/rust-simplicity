@@ -35,4 +35,5 @@ pub mod satisfy;
 // pub mod lift;
 
 pub use ast::Policy;
+pub use descriptor::Descriptor;
 pub use error::Error;
