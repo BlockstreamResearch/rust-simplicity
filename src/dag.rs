@@ -800,29 +800,20 @@ impl<D: DagLike, S: SharingTracker<D>> PostOrderIter<D, S> {
         F: FnMut(&D, &mut fmt::Formatter<'_>) -> fmt::Result,
         G: FnMut(&D, &mut fmt::Formatter<'_>) -> fmt::Result,
     {
-        let mut node_to_index = HashMap::new();
+        for data in self {
+            write!(f, "{}: ", data.index)?;
+            display_body(&data.node, f)?;
 
-        for (index, node) in self.map(|data| data.node).enumerate() {
-            write!(f, "{}: ", index)?;
-            display_body(&node, f)?;
-
-            if let Some(left) = node.left_child() {
-                let i_abs = node_to_index.get(&PointerId::from(&left)).unwrap();
-
-                if let Some(right) = node.right_child() {
-                    let j_abs = node_to_index.get(&PointerId::from(&right)).unwrap();
-
+            if let Some(i_abs) = data.left_index {
+                if let Some(j_abs) = data.right_index {
                     write!(f, "({}, {})", i_abs, j_abs)?;
                 } else {
                     write!(f, "({})", i_abs)?;
                 }
             }
-
-            display_aux(&node, f)?;
+            display_aux(&data.node, f)?;
             f.write_str("\n")?;
-            node_to_index.insert(PointerId::from(&node), index);
         }
-
         Ok(())
     }
 }
