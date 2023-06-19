@@ -5,7 +5,6 @@ use crate::types;
 /// Context for constructing a Simplicity program
 #[allow(dead_code)]
 pub struct Context {
-    pub(crate) naming: types::variable::Factory,
     pow2: Vec<types::Type>,
     unit_ty: types::Type,
 }
@@ -25,7 +24,6 @@ impl Context {
         .collect();
 
         Self {
-            naming: types::variable::Factory::new(),
             pow2,
             unit_ty: types::Type::unit(),
         }
