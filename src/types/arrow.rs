@@ -26,7 +26,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use crate::node::{Constructible, NoWitness};
+use crate::node::{CoreConstructible, JetConstructible, WitnessConstructible};
 use crate::types::{Bound, Error, Final, Type};
 use crate::{jet::Jet, Context, Value};
 
@@ -305,7 +305,7 @@ impl Arrow {
     }
 }
 
-impl<J: Jet> Constructible<NoWitness, J> for Arrow {
+impl<J: Jet> CoreConstructible<J> for Arrow {
     fn iden(ctx: &mut Context<J>) -> Self {
         Self::for_iden(ctx)
     }
@@ -354,19 +354,23 @@ impl<J: Jet> Constructible<NoWitness, J> for Arrow {
         Self::for_disconnect(ctx, left, right)
     }
 
-    fn witness(ctx: &mut Context<J>, _: NoWitness) -> Self {
-        Self::for_witness(ctx)
-    }
-
     fn fail(ctx: &mut Context<J>, _: crate::FailEntropy) -> Self {
         Self::for_fail(ctx)
     }
 
+    fn const_word(ctx: &mut Context<J>, word: Arc<Value>) -> Self {
+        Self::for_const_word(ctx, &word)
+    }
+}
+
+impl<J: Jet> JetConstructible<J> for Arrow {
     fn jet(ctx: &mut Context<J>, jet: J) -> Self {
         Self::for_jet(ctx, jet)
     }
+}
 
-    fn const_word(ctx: &mut Context<J>, word: Arc<Value>) -> Self {
-        Self::for_const_word(ctx, &word)
+impl<W, J: Jet> WitnessConstructible<W, J> for Arrow {
+    fn witness(ctx: &mut Context<J>, _: W) -> Self {
+        Self::for_witness(ctx)
     }
 }
