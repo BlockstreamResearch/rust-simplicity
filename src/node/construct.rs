@@ -20,7 +20,8 @@ use crate::{Cmr, Context, FailEntropy, Value};
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use super::{CommitData, CommitNode, Constructible, NoWitness, Node, NodeData};
+use super::{CommitData, CommitNode, NoWitness, Node, NodeData};
+use super::{CoreConstructible, JetConstructible, WitnessConstructible};
 
 /// ID used to share [`ConstructNode`]s.
 ///
@@ -106,7 +107,7 @@ impl<J: Jet> ConstructData<J> {
     }
 }
 
-impl<'a, J: Jet> Constructible<&'a NoWitness, J> for ConstructData<J> {
+impl<J: Jet> CoreConstructible<J> for ConstructData<J> {
     fn iden(ctx: &mut Context<J>) -> Self {
         ConstructData {
             arrow: Arrow::iden(ctx),
@@ -191,13 +192,6 @@ impl<'a, J: Jet> Constructible<&'a NoWitness, J> for ConstructData<J> {
         })
     }
 
-    fn witness(ctx: &mut Context<J>, witness: &NoWitness) -> Self {
-        ConstructData {
-            arrow: Arrow::witness(ctx, *witness),
-            phantom: PhantomData,
-        }
-    }
-
     fn fail(ctx: &mut Context<J>, entropy: FailEntropy) -> Self {
         ConstructData {
             arrow: Arrow::fail(ctx, entropy),
@@ -205,16 +199,27 @@ impl<'a, J: Jet> Constructible<&'a NoWitness, J> for ConstructData<J> {
         }
     }
 
-    fn jet(ctx: &mut Context<J>, jet: J) -> Self {
-        ConstructData {
-            arrow: Arrow::jet(ctx, jet),
-            phantom: PhantomData,
-        }
-    }
-
     fn const_word(ctx: &mut Context<J>, word: Arc<Value>) -> Self {
         ConstructData {
             arrow: Arrow::const_word(ctx, word),
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<'a, J: Jet> WitnessConstructible<&'a NoWitness, J> for ConstructData<J> {
+    fn witness(ctx: &mut Context<J>, witness: &NoWitness) -> Self {
+        ConstructData {
+            arrow: Arrow::witness(ctx, *witness),
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<J: Jet> JetConstructible<J> for ConstructData<J> {
+    fn jet(ctx: &mut Context<J>, jet: J) -> Self {
+        ConstructData {
+            arrow: Arrow::jet(ctx, jet),
             phantom: PhantomData,
         }
     }

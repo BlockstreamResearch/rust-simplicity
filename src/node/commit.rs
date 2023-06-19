@@ -18,9 +18,8 @@ use crate::types;
 use crate::types::arrow::{Arrow, FinalArrow};
 use crate::{Cmr, Context, FirstPassImr, Imr};
 
-use super::{
-    Construct, ConstructData, ConstructNode, Constructible, Inner, NoWitness, Node, NodeData,
-};
+use super::{Construct, ConstructData, ConstructNode, Inner, NoWitness, Node, NodeData};
+use super::{CoreConstructible, JetConstructible, WitnessConstructible};
 
 use std::marker::PhantomData;
 use std::sync::Arc;

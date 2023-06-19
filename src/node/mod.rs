@@ -128,7 +128,17 @@ pub trait NodeData<J: Jet>:
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct NoWitness;
 
-pub trait Constructible<W, J: Jet>: Sized {
+pub trait Constructible<W, J: Jet>:
+    JetConstructible<J> + WitnessConstructible<W, J> + CoreConstructible<J> + Sized
+{
+}
+
+impl<W, J: Jet, T> Constructible<W, J> for T where
+    T: JetConstructible<J> + WitnessConstructible<W, J> + CoreConstructible<J> + Sized
+{
+}
+
+pub trait CoreConstructible<J: Jet>: Sized {
     fn iden(ctx: &mut Context<J>) -> Self;
     fn unit(ctx: &mut Context<J>) -> Self;
     fn injl(ctx: &mut Context<J>, child: &Self) -> Self;
@@ -141,9 +151,7 @@ pub trait Constructible<W, J: Jet>: Sized {
     fn assertr(ctx: &mut Context<J>, left: Cmr, right: &Self) -> Result<Self, types::Error>;
     fn pair(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, types::Error>;
     fn disconnect(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, types::Error>;
-    fn witness(ctx: &mut Context<J>, witness: W) -> Self;
     fn fail(ctx: &mut Context<J>, entropy: FailEntropy) -> Self;
-    fn jet(ctx: &mut Context<J>, jet: J) -> Self;
     fn const_word(ctx: &mut Context<J>, word: Arc<Value>) -> Self;
 
     /// Create a DAG that takes any input and returns `value` as constant output.
@@ -258,6 +266,14 @@ pub trait Constructible<W, J: Jet>: Sized {
     }
 }
 
+pub trait JetConstructible<J: Jet>: Sized {
+    fn jet(ctx: &mut Context<J>, jet: J) -> Self;
+}
+
+pub trait WitnessConstructible<W, J: Jet>: Sized {
+    fn witness(ctx: &mut Context<J>, witness: W) -> Self;
+}
+
 /// A node in a Simplicity expression.
 ///
 /// There are three node types provided by this library: `ConstructNode`, `CommitNode`,
@@ -311,10 +327,10 @@ where
     }
 }
 
-impl<N, J> Constructible<N::Witness, J> for Arc<Node<N, J>>
+impl<N, J> CoreConstructible<J> for Arc<Node<N, J>>
 where
     N: NodeData<J>,
-    N::CachedData: for<'a> Constructible<&'a N::Witness, J>,
+    N::CachedData: CoreConstructible<J>,
     J: Jet,
 {
     fn iden(ctx: &mut Context<J>) -> Self {
@@ -413,14 +429,6 @@ where
         }))
     }
 
-    fn witness(ctx: &mut Context<J>, value: N::Witness) -> Self {
-        Arc::new(Node {
-            cmr: Cmr::witness(),
-            data: N::CachedData::witness(ctx, &value),
-            inner: Inner::Witness(value),
-        })
-    }
-
     fn fail(ctx: &mut Context<J>, entropy: FailEntropy) -> Self {
         Arc::new(Node {
             cmr: Cmr::fail(entropy),
@@ -429,19 +437,41 @@ where
         })
     }
 
-    fn jet(ctx: &mut Context<J>, jet: J) -> Self {
-        Arc::new(Node {
-            cmr: Cmr::jet(jet),
-            data: N::CachedData::jet(ctx, jet),
-            inner: Inner::Jet(jet),
-        })
-    }
-
     fn const_word(ctx: &mut Context<J>, value: Arc<Value>) -> Self {
         Arc::new(Node {
             cmr: Cmr::const_word(&value),
             data: N::CachedData::const_word(ctx, Arc::clone(&value)),
             inner: Inner::Word(value),
+        })
+    }
+}
+
+impl<N, J> WitnessConstructible<N::Witness, J> for Arc<Node<N, J>>
+where
+    N: NodeData<J>,
+    N::CachedData: for<'a> WitnessConstructible<&'a N::Witness, J>,
+    J: Jet,
+{
+    fn witness(ctx: &mut Context<J>, value: N::Witness) -> Self {
+        Arc::new(Node {
+            cmr: Cmr::witness(),
+            data: N::CachedData::witness(ctx, &value),
+            inner: Inner::Witness(value),
+        })
+    }
+}
+
+impl<N, J> JetConstructible<J> for Arc<Node<N, J>>
+where
+    N: NodeData<J>,
+    N::CachedData: JetConstructible<J>,
+    J: Jet,
+{
+    fn jet(ctx: &mut Context<J>, jet: J) -> Self {
+        Arc::new(Node {
+            cmr: Cmr::jet(jet),
+            data: N::CachedData::jet(ctx, jet),
+            inner: Inner::Jet(jet),
         })
     }
 }
