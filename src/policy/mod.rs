@@ -27,6 +27,7 @@
 
 pub mod ast;
 mod compiler;
+pub mod descriptor;
 mod embed;
 mod error;
 pub mod key;

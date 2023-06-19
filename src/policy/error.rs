@@ -7,6 +7,7 @@ pub enum Error {
     Ripemd160,
     Multisig,
     Extensions,
+    CouldNotSatisfy,
 }
 
 impl fmt::Debug for Error {
@@ -18,6 +19,7 @@ impl fmt::Debug for Error {
             Error::Ripemd160 => writeln!(f, "Ripemd160 is not supported"),
             Error::Multisig => writeln!(f, "Multisig is not supported"),
             Error::Extensions => writeln!(f, "Extensions are not supported"),
+            Error::CouldNotSatisfy => writeln!(f, "Could not satisfy the given policy"),
         }
     }
 }
