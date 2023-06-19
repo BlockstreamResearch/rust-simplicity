@@ -79,6 +79,7 @@ pub enum SimplicityErr {
     ExecJet = -38,
     ExecAssert = -40,
     AntiDoS = -42,
+    HiddenRoot = -44,
 }
 
 extern "C" {
@@ -132,6 +133,7 @@ impl SimplicityErr {
             -38 => Err(SimplicityErr::ExecJet),
             -40 => Err(SimplicityErr::ExecAssert),
             -42 => Err(SimplicityErr::AntiDoS),
+            -44 => Err(SimplicityErr::HiddenRoot),
             x => panic!("unexpected error code {}", x),
         }
     }

@@ -28,7 +28,10 @@ actual-serde = { package = "serde", version = "1.0.103", features = ["derive"], 
 simplicity-sys = { version = "0.1.0", path = "./simplicity-sys", features = ["test-utils"] }
 
 [workspace]
-members = ["simplicity-sys", "fuzz"]
+members = ["simplicity-sys"]
 # Should be manually/separately tested since it has a massive dep tree
 # and not follow MSRV
-exclude = ["jets-bench"]
+# FIXME we also need to include 'fuzz' in here because it currently uses
+# a patched bitcoin_hashes. When we remove that, we can move it back
+# to "members"
+exclude = ["jets-bench", "fuzz"]
