@@ -284,8 +284,7 @@ mod tests {
     use crate::exec::BitMachine;
     use crate::jet::elements::ElementsEnv;
     use bitcoin_hashes::{sha256, Hash};
-    use elements::bitcoin;
-    use elements::{secp256k1_zkp, SchnorrSigHashType};
+    use elements::{bitcoin, secp256k1_zkp, PackedLockTime, SchnorrSigHashType};
     use std::convert::TryFrom;
 
     fn get_satisfier(env: &ElementsEnv) -> PolicySatisfier<bitcoin::XOnlyPublicKey> {
@@ -403,6 +402,48 @@ mod tests {
         assert_eq!(preimage, witness_preimage);
 
         execute_successful(program, &env);
+    }
+
+    #[test]
+    fn satisfy_after() {
+        let env = ElementsEnv::dummy_with(PackedLockTime(42), Sequence::ZERO);
+        let satisfier = get_satisfier(&env);
+
+        let policy0 = Policy::After(41);
+        let program = policy0.satisfy(&satisfier).expect("satisfiable");
+        let witness = to_witness(&program);
+        assert!(witness.is_empty());
+        execute_successful(program, &env);
+
+        let policy1 = Policy::After(42);
+        let program = policy1.satisfy(&satisfier).expect("satisfiable");
+        let witness = to_witness(&program);
+        assert!(witness.is_empty());
+        execute_successful(program, &env);
+
+        let policy2 = Policy::After(43);
+        assert!(policy2.satisfy(&satisfier).is_none(), "unsatisfiable");
+    }
+
+    #[test]
+    fn satisfy_older() {
+        let env = ElementsEnv::dummy_with(PackedLockTime::ZERO, Sequence::from_consensus(42));
+        let satisfier = get_satisfier(&env);
+
+        let policy0 = Policy::Older(41);
+        let program = policy0.satisfy(&satisfier).expect("satisfiable");
+        let witness = to_witness(&program);
+        assert!(witness.is_empty());
+        execute_successful(program, &env);
+
+        let policy1 = Policy::Older(42);
+        let program = policy1.satisfy(&satisfier).expect("satisfiable");
+        let witness = to_witness(&program);
+        assert!(witness.is_empty());
+        execute_successful(program, &env);
+
+        let policy2 = Policy::Older(43);
+        assert!(policy2.satisfy(&satisfier).is_none(), "unsatisfiable");
     }
 
     #[test]
