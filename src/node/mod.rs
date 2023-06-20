@@ -131,6 +131,26 @@ pub struct NoWitness;
 pub trait Constructible<W, J: Jet>:
     JetConstructible<J> + WitnessConstructible<W, J> + CoreConstructible<J> + Sized
 {
+    fn from_inner(ctx: &mut Context<J>, inner: Inner<&Self, J, W>) -> Result<Self, types::Error> {
+        match inner {
+            Inner::Iden => Ok(Self::iden(ctx)),
+            Inner::Unit => Ok(Self::unit(ctx)),
+            Inner::InjL(child) => Ok(Self::injl(ctx, child)),
+            Inner::InjR(child) => Ok(Self::injr(ctx, child)),
+            Inner::Take(child) => Ok(Self::take(ctx, child)),
+            Inner::Drop(child) => Ok(Self::drop_(ctx, child)),
+            Inner::Comp(left, right) => Self::comp(ctx, left, right),
+            Inner::Case(left, right) => Self::case(ctx, left, right),
+            Inner::AssertL(left, r_cmr) => Self::assertl(ctx, left, r_cmr),
+            Inner::AssertR(l_cmr, right) => Self::assertr(ctx, l_cmr, right),
+            Inner::Pair(left, right) => Self::pair(ctx, left, right),
+            Inner::Disconnect(left, right) => Self::disconnect(ctx, left, right),
+            Inner::Fail(entropy) => Ok(Self::fail(ctx, entropy)),
+            Inner::Word(ref w) => Ok(Self::const_word(ctx, Arc::clone(w))),
+            Inner::Jet(j) => Ok(Self::jet(ctx, j)),
+            Inner::Witness(w) => Ok(Self::witness(ctx, w)),
+        }
+    }
 }
 
 impl<W, J: Jet, T> Constructible<W, J> for T where
