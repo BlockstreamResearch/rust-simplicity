@@ -512,7 +512,7 @@ mod tests {
             }
         }
 
-        let prog = crate::CommitNode::from_node(&prog);
+        let prog = crate::CommitNode::from_node(prog.as_ref());
         let mut reser_sink = Vec::<u8>::new();
         let mut w = BitWriter::from(&mut reser_sink);
         prog.encode(&mut w)

@@ -15,7 +15,7 @@
 use crate::dag::InternalSharing;
 use crate::jet::Jet;
 use crate::types::{self, arrow::Arrow};
-use crate::{Cmr, Context, FailEntropy, Value};
+use crate::{BitIter, Cmr, Context, FailEntropy, Value};
 
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -85,6 +85,21 @@ impl<J: Jet> ConstructNode<J> {
             },
             |_, _| Ok(NoWitness),
         )
+    }
+
+    /// Decode a Simplicity expression from bits, without witness data.
+    ///
+    /// # Usage
+    ///
+    /// Use this method only if the serialization **does not** include the witness data.
+    /// This means, the program simply has no witness during commitment,
+    /// or the witness is provided by other means.
+    ///
+    /// If the serialization contains the witness data, then use [`RedeemNode::decode()`].
+    pub fn decode<I: Iterator<Item = u8>>(
+        bits: &mut BitIter<I>,
+    ) -> Result<Arc<Self>, crate::decode::Error> {
+        crate::decode::decode_expression(bits)
     }
 }
 

@@ -14,11 +14,11 @@
 
 use crate::analysis::NodeBounds;
 use crate::dag::{DagLike, FullSharing, InternalSharing, NoSharing, PostOrderIter};
-use crate::decode::WitnessDecoder;
 use crate::jet::Jet;
 use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
+use crate::node;
 use crate::types::{self, arrow::FinalArrow};
 use crate::{encode, Error};
 use crate::{BitIter, BitWriter, FailEntropy, Value};
@@ -110,6 +110,43 @@ pub struct RedeemNode<J: Jet> {
 }
 
 impl<J: Jet> RedeemNode<J> {
+    /// [will be removed] create a CommitNode from a newfangled `node::ConstructNode`
+    pub fn from_node(node: &node::RedeemNode<J>) -> Rc<Self> {
+        let mut converted = vec![];
+        for data in node.post_order_iter::<InternalSharing>() {
+            let left = data.left_index.map(|idx| Rc::clone(&converted[idx]));
+            let right = data.right_index.map(|idx| Rc::clone(&converted[idx]));
+            let new_node = Rc::new(RedeemNode {
+                inner: match data.node.inner() {
+                    node::Inner::Iden => RedeemNodeInner::Iden,
+                    node::Inner::Unit => RedeemNodeInner::Unit,
+                    node::Inner::InjL(..) => RedeemNodeInner::InjL(left.unwrap()),
+                    node::Inner::InjR(..) => RedeemNodeInner::InjR(left.unwrap()),
+                    node::Inner::Take(..) => RedeemNodeInner::Take(left.unwrap()),
+                    node::Inner::Drop(..) => RedeemNodeInner::Drop(left.unwrap()),
+                    node::Inner::Comp(..) => RedeemNodeInner::Comp(left.unwrap(), right.unwrap()),
+                    node::Inner::Case(..) => RedeemNodeInner::Case(left.unwrap(), right.unwrap()),
+                    node::Inner::AssertL(_, cmr) => RedeemNodeInner::AssertL(left.unwrap(), *cmr),
+                    node::Inner::AssertR(cmr, _) => RedeemNodeInner::AssertR(*cmr, left.unwrap()),
+                    node::Inner::Pair(..) => RedeemNodeInner::Pair(left.unwrap(), right.unwrap()),
+                    node::Inner::Disconnect(..) => {
+                        RedeemNodeInner::Disconnect(left.unwrap(), right.unwrap())
+                    }
+                    node::Inner::Witness(val) => RedeemNodeInner::Witness(val.as_ref().clone()),
+                    node::Inner::Jet(j) => RedeemNodeInner::Jet(*j),
+                    node::Inner::Word(w) => RedeemNodeInner::Word(w.as_ref().clone()),
+                    node::Inner::Fail(entropy) => RedeemNodeInner::Fail(*entropy),
+                },
+                cmr: data.node.cmr(),
+                imr: data.node.imr(),
+                amr: data.node.amr(),
+                ty: data.node.arrow().shallow_clone(),
+                bounds: data.node.bounds(),
+            });
+            converted.push(new_node);
+        }
+        converted.pop().unwrap()
+    }
     /// Return the left child of the node, if there is such a child.
     pub fn get_left(&self) -> Option<&Self> {
         <&Self as DagLike>::left_child(&self)
@@ -152,25 +189,7 @@ impl<J: Jet> RedeemNode<J> {
 
     /// Decode a Simplicity program from bits, including the witness data.
     pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Rc<Self>, Error> {
-        let commit = crate::bit_encoding::decode::decode_expression(bits)?;
-        let commit = crate::CommitNode::from_node(&commit);
-        let witness = WitnessDecoder::new(bits)?;
-        let program = commit.finalize(witness, false)?;
-
-        let iter = program
-            .as_ref()
-            .post_order_iter::<InternalSharing>()
-            .map(|data| data.node.imr);
-        let fully_shared_iter = program
-            .as_ref()
-            .post_order_iter::<FullSharing>()
-            .map(|data| data.node.imr);
-
-        if iter.eq(fully_shared_iter) {
-            Ok(program)
-        } else {
-            Err(Error::SharingNotMaximal)
-        }
+        Ok(Self::from_node(node::RedeemNode::decode(bits)?.as_ref()))
     }
 
     /// Encode a Simplicity program to bits, including the witness data.

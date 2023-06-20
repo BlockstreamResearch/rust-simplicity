@@ -12,11 +12,11 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use crate::dag::MaxSharing;
+use crate::dag::{DagLike, MaxSharing};
 use crate::jet::Jet;
 use crate::types;
 use crate::types::arrow::{Arrow, FinalArrow};
-use crate::{Cmr, Context, Error, FirstPassImr, Imr, Value};
+use crate::{BitIter, Cmr, Context, Error, FirstPassImr, Imr, Value};
 
 use super::{
     Construct, ConstructData, ConstructNode, Constructible, Inner, NoWitness, Node, NodeData,
@@ -180,5 +180,25 @@ impl<J: Jet> CommitNode<J> {
             },
             |_, _| Ok(NoWitness),
         )
+    }
+
+    /// Decode a Simplicity program from bits, without witness data.
+    ///
+    /// # Usage
+    ///
+    /// Use this method only if the serialization **does not** include the witness data.
+    /// This means, the program simply has no witness during commitment,
+    /// or the witness is provided by other means.
+    ///
+    /// If the serialization contains the witness data, then use [`RedeemNode::decode()`].
+    pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Arc<Self>, Error> {
+        // 1. Decode program with out witnesses.
+        let program = crate::decode::decode_program(bits)?;
+        // 2. Do sharing check, using incomplete IMRs
+        if program.as_ref().is_shared_as::<MaxSharing<Commit, J>>() {
+            Ok(program)
+        } else {
+            Err(Error::SharingNotMaximal)
+        }
     }
 }
