@@ -39,8 +39,9 @@
 
 use crate::dag::PostOrderIterItem;
 use crate::jet::Jet;
+use crate::Value;
 
-use super::{Inner, Node, NodeData};
+use super::{Commit, CommitNode, Inner, NoWitness, Node, NodeData, Redeem, RedeemData, RedeemNode};
 
 use std::sync::Arc;
 
@@ -176,4 +177,58 @@ pub trait Finalizer<N: NodeData<J>, M: NodeData<J>, J: Jet> {
         data: &PostOrderIterItem<&Node<N, J>>,
         inner: Inner<&Arc<Node<M, J>>, J, M::Witness>,
     ) -> Result<Option<M::CachedData>, Self::Error>;
+}
+
+/// Basic finalizer which converts a [`super::CommitNode`] to a [`super::RedeemNode`]
+/// by attaching witness data from an iterator.
+///
+/// Does not do any type-checking and may attach an invalid witness to a combinator.
+// FIXME we should do type checking, but this would require a method to check
+// type compatibility between a Value and a type::Final.
+pub struct SimpleFinalizer<W: Iterator<Item = Arc<Value>>> {
+    iter: W,
+}
+
+impl<W: Iterator<Item = Arc<Value>>> SimpleFinalizer<W> {
+    pub fn new(iter: W) -> Self {
+        SimpleFinalizer { iter }
+    }
+}
+
+impl<W: Iterator<Item = Arc<Value>>, J: Jet> Finalizer<Commit, Redeem, J> for SimpleFinalizer<W> {
+    type Error = crate::Error;
+
+    fn convert_witness(
+        &mut self,
+        _: &PostOrderIterItem<&CommitNode<J>>,
+        _: &NoWitness,
+    ) -> Result<Option<Arc<Value>>, Self::Error> {
+        Ok(self.iter.next())
+    }
+
+    fn prune_case(
+        &mut self,
+        _: &PostOrderIterItem<&CommitNode<J>>,
+        left: Option<&Arc<RedeemNode<J>>>,
+        right: Option<&Arc<RedeemNode<J>>>,
+    ) -> Result<Hide, Self::Error> {
+        Ok(match (left.is_some(), right.is_some()) {
+            (true, true) => Hide::Neither,
+            (false, true) => Hide::Left,
+            (true, false) => Hide::Right,
+            (false, false) => Hide::Both,
+        })
+    }
+
+    fn convert_data(
+        &mut self,
+        data: &PostOrderIterItem<&CommitNode<J>>,
+        inner: Inner<&Arc<RedeemNode<J>>, J, Arc<Value>>,
+    ) -> Result<Option<Arc<RedeemData<J>>>, Self::Error> {
+        let converted_data = inner.map(|node| node.cached_data());
+        Ok(Some(Arc::new(RedeemData::new(
+            data.node.arrow().shallow_clone(),
+            converted_data,
+        ))))
+    }
 }
