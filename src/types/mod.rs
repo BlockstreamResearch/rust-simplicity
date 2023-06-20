@@ -242,6 +242,11 @@ impl Final {
         &self.bound
     }
 
+    /// Returns whether this is the unit type
+    pub fn is_unit(&self) -> bool {
+        self.bound == CompleteBound::Unit
+    }
+
     /// Accessor for both children of the type, if they exist.
     pub fn split(&self) -> Option<(Arc<Self>, Arc<Self>)> {
         match &self.bound {
