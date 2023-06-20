@@ -12,15 +12,15 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use crate::dag::{DagLike, MaxSharing};
+use crate::dag::{DagLike, MaxSharing, NoSharing};
 use crate::jet::Jet;
 use crate::types;
 use crate::types::arrow::{Arrow, FinalArrow};
 use crate::{BitIter, Cmr, Error, FirstPassImr, Imr, Value};
 
 use super::{
-    Construct, ConstructData, ConstructNode, Constructible, Inner, NoWitness, Node, NodeData,
-    RedeemData, RedeemNode,
+    Construct, ConstructData, ConstructNode, Constructible, Finalizer, Inner, NoWitness, Node,
+    NodeData, Redeem, RedeemData, RedeemNode,
 };
 
 use std::marker::PhantomData;
@@ -166,6 +166,32 @@ impl<J: Jet> CommitNode<J> {
                 }
             },
         )
+    }
+
+    /// Finalizes a DAG, by iterating through it in right-to-left order without sharing,
+    /// attaching witnesses, and hiding branches.
+    ///
+    /// Uses right-to-left order to simplify logistics of feeding witness data into
+    /// `case` switches; uses unshared order to simplify tracking of indices.
+    ///
+    ///
+    ///
+    /// For every witness node, it requests a witness from the provided `witness` closure.
+    /// If the closure returns `Some`, the witness is used; otherwise the branch including
+    /// that witness is simply not finalized.
+    ///
+    /// For every `case` node, the `hide_decide` closure decides whether to hide the left or
+    /// right branch of the node (or neither). If a non-finalized branch is kept, then the
+    /// `case` node itself is not finalized, and so on.
+    ///
+    /// If the root node is unfinalized, returns an `IncompleteFinalization` error.
+    pub fn rtl_finalize<E: Into<Error>, F: Finalizer<Commit, Redeem, J, Error = E>>(
+        &self,
+        finalizer: &mut F,
+    ) -> Result<Arc<RedeemNode<J>>, Error> {
+        self.rtl_convert_finalize::<NoSharing, Redeem, _>(finalizer)
+            .map_err(Into::into)
+            .and_then(|opt| opt.ok_or(Error::IncompleteFinalization))
     }
 
     /// Convert a [`CommitNode`] back to a [`ConstructNode`] by redoing type inference
