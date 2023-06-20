@@ -29,6 +29,7 @@ mod ast;
 pub mod descriptor;
 mod embed;
 mod error;
+mod iter;
 //pub mod satisfy;
 
 use crate::jet::Elements;
@@ -43,6 +44,7 @@ use std::sync::Arc;
 
 pub use descriptor::Descriptor;
 pub use error::Error;
+pub use iter::RtlPolicyIterator;
 
 type ArcNode = Arc<ConstructNode<Elements>>;
 
@@ -174,6 +176,11 @@ impl<Pk: ToPublicKey> Policy<Pk> {
     /// Accessor for the CMR of the policy
     pub fn cmr(&self) -> Cmr {
         self.node.cmr()
+    }
+
+    /// Iterates over the policy tree in post
+    pub fn rtl_iter(&self) -> RtlPolicyIterator<Pk> {
+        RtlPolicyIterator::new(self)
     }
 
     /// Serializes the policy as a Simplicity program
