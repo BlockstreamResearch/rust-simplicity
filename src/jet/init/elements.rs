@@ -1,12 +1,10 @@
 /* This file has been automatically generated. */
 
-use crate::bititer::BitIter;
-use crate::bitwriter::BitWriter;
 use crate::jet::type_name::TypeName;
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::decode_bits;
-use crate::Error;
+use crate::{decode, BitIter, BitWriter};
 use bitcoin_hashes::sha256::Midstate;
 use simplicity_sys::CFrameItem;
 use std::io::Write;
@@ -2693,7 +2691,7 @@ impl Jet for Elements {
         w.write_bits_be(n, len)
     }
 
-    fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Self, Error> {
+    fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Self, decode::Error> {
         decode_bits!(bits, {
             0 => {
                 0 => {
@@ -4890,9 +4888,9 @@ impl fmt::Display for Elements {
 }
 
 impl str::FromStr for Elements {
-    type Err = Error;
+    type Err = crate::Error;
 
-    fn from_str(s: &str) -> Result<Self, Error> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "add_16" => Ok(Elements::Add16),
             "add_32" => Ok(Elements::Add32),
@@ -5187,7 +5185,7 @@ impl str::FromStr for Elements {
             "xor_xor_32" => Ok(Elements::XorXor32),
             "xor_xor_64" => Ok(Elements::XorXor64),
             "xor_xor_8" => Ok(Elements::XorXor8),
-            x => Err(Error::InvalidJetName(x.to_owned())),
+            x => Err(crate::Error::InvalidJetName(x.to_owned())),
         }
     }
 }

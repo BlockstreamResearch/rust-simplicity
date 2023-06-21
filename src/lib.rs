@@ -34,7 +34,7 @@ pub use elements_miniscript as miniscript;
 mod macros;
 
 mod analysis;
-pub mod bit_encoding;
+mod bit_encoding;
 pub mod bit_machine;
 pub mod core;
 pub mod dag;
@@ -48,13 +48,10 @@ pub mod types;
 // mod test_progs;
 mod value;
 
-use bit_encoding::bititer; // FIXME used by autogenerator jet code
-pub use bit_encoding::bititer::EarlyEndOfStreamError;
-use bit_encoding::bitwriter; // FIXME used by autogenerator jet code
-use bit_encoding::decode;
-use bit_encoding::encode;
-pub use bit_encoding::BitIter;
+pub use bit_encoding::decode;
+pub use bit_encoding::encode;
 pub use bit_encoding::BitWriter;
+pub use bit_encoding::{BitIter, EarlyEndOfStreamError};
 
 #[cfg(feature = "elements")]
 pub use crate::policy::{Descriptor, Policy};

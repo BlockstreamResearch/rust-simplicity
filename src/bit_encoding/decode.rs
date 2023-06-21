@@ -262,11 +262,7 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
     if bits.read_bit()? {
         // Second bit: 1 for jets, 0 for words
         if bits.read_bit()? {
-            match J::decode(bits) {
-                Err(crate::Error::Decode(e)) => Err(e),
-                Err(_) => unreachable!(), // FIXME need to update generated jet code to directly return a decode::Error
-                Ok(jet) => Ok(DecodeNode::Jet(jet)),
-            }
+            J::decode(bits).map(|jet| DecodeNode::Jet(jet))
         } else {
             let depth = bits.read_natural(Some(32))?;
             let word = decode_power_of_2(bits, 1 << (depth - 1))?;
