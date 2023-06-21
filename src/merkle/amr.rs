@@ -357,18 +357,18 @@ mod tests {
     use super::*;
 
     use crate::jet::Core;
-    use crate::CommitNode;
-    use std::iter;
+    use crate::node::{ConstructNode, JetConstructible};
+    use std::sync::Arc;
 
     #[test]
     fn fixed_amr() {
-        let node = CommitNode::jet(Core::Verify)
-            .finalize(iter::empty(), true)
+        let node = Arc::<ConstructNode<_>>::jet(Core::Verify)
+            .finalize_types_non_program()
             .unwrap();
         // Checked against C implementation
         #[rustfmt::skip]
         assert_eq!(
-            node.amr,
+            node.amr().unwrap(),
             Amr::from_byte_array([
                 0x02, 0x0e, 0x84, 0x01, 0x30, 0x30, 0xec, 0x69,
                 0xd9, 0xa9, 0x3f, 0xec, 0x71, 0x10, 0xe7, 0x27,
