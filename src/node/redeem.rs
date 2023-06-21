@@ -13,13 +13,14 @@
 //
 
 use crate::analysis::NodeBounds;
-use crate::dag::MaxSharing;
+use crate::dag::{DagLike, InternalSharing, MaxSharing};
 use crate::jet::Jet;
 use crate::types::{self, arrow::FinalArrow};
-use crate::{Amr, Cmr, FirstPassImr, Imr, Value};
+use crate::{Amr, BitIter, Cmr, Error, FirstPassImr, Imr, Value};
 
 use super::{CommitData, CommitNode, Inner, NoWitness, Node, NodeData};
 
+use std::collections::HashSet;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -187,5 +188,54 @@ impl<J: Jet> RedeemNode<J> {
             },
             |_, _| Ok(NoWitness),
         )
+    }
+
+    /// Decode a Simplicity program from bits, including the witness data.
+    pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Arc<Self>, Error> {
+        // 1. Decode program without witnesses as CommitNode
+        let commit = crate::decode::decode_program(bits)?;
+
+        // 2. Convert to RedeemNode, reading witnesses as we go
+        let witness_len = if bits.read_bit()? {
+            bits.read_natural(None)?
+        } else {
+            0
+        };
+        let witness_start = bits.n_total_read();
+
+        // Importantly, we do this directly using convert() rather than calling
+        // `.finalize()` because we need to use `InternalSharing` to make sure
+        // that we respect the sharing choices that were actually encoded in the
+        // bitstream.
+        let program: Arc<Self> = commit.convert::<InternalSharing, _, _, _, _>(
+            |data, converted| {
+                let converted_data = converted.map(|node| node.cached_data());
+                Ok(Arc::new(RedeemData::new(
+                    data.node.arrow().shallow_clone(),
+                    converted_data,
+                )))
+            },
+            |data, _| {
+                bits.read_value(&data.node.data.arrow().target)
+                    .map(Arc::new)
+            },
+        )?;
+
+        // 3. Check that we read exactly as much witness data as we expected
+        if bits.n_total_read() != witness_start + witness_len {
+            return Err(Error::InconsistentWitnessLength);
+        }
+
+        // 4. Check sharing
+        // This loop is equivalent to using `program.is_shared_as::<MaxSharing>()`
+        // but is faster since it only runs a single iterator.
+        let mut imrs: HashSet<Imr> = HashSet::new();
+        for data in program.as_ref().post_order_iter::<InternalSharing>() {
+            if !imrs.insert(data.node.imr()) {
+                return Err(Error::SharingNotMaximal);
+            }
+        }
+
+        Ok(program)
     }
 }
