@@ -12,37 +12,16 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-//! Type Variables
-//!
+//! Names for type variables
 
-use std::collections::VecDeque;
-use std::iter::FromIterator;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
-/// Factory for creating free variables with fresh names.
-/// Identifiers are assigned sequentially as follows:
-/// `A`, `B`, `C`, ... `Z`, `AA`, `AB`, `AC`, ...
-pub(crate) struct Factory {
-    next_id: usize,
-}
+/// Global counter used to give type variables unique names.
+static NEXT_ID: AtomicUsize = AtomicUsize::new(1);
 
-impl Factory {
-    /// Create a new factory.
-    pub fn new() -> Self {
-        Self { next_id: 1 }
-    }
-
-    /// Return a free variable with a fresh name.
-    pub fn new_name(&mut self) -> String {
-        let mut n = self.next_id;
-        self.next_id += 1;
-        let mut ascii_bytes = VecDeque::new();
-
-        while n / 26 > 0 {
-            ascii_bytes.push_front((n % 26) as u8 + 65);
-            n /= 26;
-        }
-
-        ascii_bytes.push_front((n % 26) as u8 + 64);
-        String::from_utf8(Vec::from_iter(ascii_bytes.into_iter())).unwrap()
-    }
+/// Obtain a fresh variable name, with the given `prefix` and a unique incrementing
+/// numeric suffix.
+pub fn new_name(prefix: &str) -> String {
+    let id = NEXT_ID.fetch_add(1, Ordering::SeqCst);
+    format!("{}{:02}", prefix, id)
 }

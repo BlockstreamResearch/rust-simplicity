@@ -31,7 +31,7 @@ use std::hash::Hash;
 ///
 /// Bitstrings are represented as a tree of _products_ (a.k.a. a tuple)
 /// with sums of unit as its leaves (a.k.a. bits).
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Value {
     /// Unit value
     Unit,
@@ -224,6 +224,12 @@ impl Value {
     /// Convenience constructor for product of two values
     pub fn prod(a: Value, b: Value) -> Value {
         Value::Prod(Box::new(a), Box::new(b))
+    }
+}
+
+impl fmt::Debug for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(self, f)
     }
 }
 

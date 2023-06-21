@@ -2,7 +2,7 @@ use crate::core::commit::UsedCaseBranch;
 use crate::jet::Elements;
 use crate::policy::compiler;
 use crate::policy::key::PublicKey32;
-use crate::{CommitNode, Context, Policy, RedeemNode, Value};
+use crate::{CommitNode, Policy, RedeemNode, Value};
 use bitcoin_hashes::Hash;
 use elements::locktime::Height;
 use elements::taproot::TapLeafHash;
@@ -54,33 +54,28 @@ impl SatisfierExtData {
 
 impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
     pub fn satisfy<S: Satisfier<Pk>>(&self, satisfier: &S) -> Option<Rc<RedeemNode<Elements>>> {
-        let mut context = Context::default();
-        let ext = self.satisfy_helper(satisfier, &mut context)?;
+        let ext = self.satisfy_helper(satisfier)?;
         let program = ext.program.finalize(ext.witness.into_iter(), true).unwrap();
         Some(program)
     }
 
-    fn compile_no_witness(&self, context: &mut Context<Elements>) -> SatisfierExtData {
+    fn compile_no_witness(&self) -> SatisfierExtData {
         SatisfierExtData {
             witness: VecDeque::new(),
             witness_cost: 0,
-            program: self.compile(context).unwrap(),
+            program: self.compile().unwrap(),
             program_cost: 0,
         }
     }
 
-    fn compile_witness_bytes(
-        &self,
-        context: &mut Context<Elements>,
-        witness: &[u8],
-    ) -> SatisfierExtData {
+    fn compile_witness_bytes(&self, witness: &[u8]) -> SatisfierExtData {
         let value = match witness.len() {
             32 => Value::u256_from_slice(witness),
             64 => Value::u512_from_slice(witness),
             _ => unimplemented!(),
         };
         let witness_data = VecDeque::from_iter(std::iter::once(value));
-        let program = self.compile(context).unwrap();
+        let program = self.compile().unwrap();
         let program_cost = program.len() as u64;
 
         SatisfierExtData {
@@ -91,35 +86,31 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
         }
     }
 
-    fn satisfy_helper<S: Satisfier<Pk>>(
-        &self,
-        satisfier: &S,
-        context: &mut Context<Elements>,
-    ) -> Option<SatisfierExtData> {
+    fn satisfy_helper<S: Satisfier<Pk>>(&self, satisfier: &S) -> Option<SatisfierExtData> {
         match self {
             Policy::Unsatisfiable => None,
-            Policy::Trivial => Some(self.compile_no_witness(context)),
+            Policy::Trivial => Some(self.compile_no_witness()),
             Policy::Key(pk) => satisfier
                 .lookup_tap_leaf_script_sig(pk, &TapLeafHash::all_zeros())
-                .map(|sig| self.compile_witness_bytes(context, sig.sig.as_ref())),
+                .map(|sig| self.compile_witness_bytes(sig.sig.as_ref())),
             Policy::After(n) => {
                 let height = Height::from_consensus(*n).ok()?;
                 if satisfier.check_after(LockTime::Blocks(height)) {
-                    Some(self.compile_no_witness(context))
+                    Some(self.compile_no_witness())
                 } else {
                     None
                 }
             }
             Policy::Older(n) => {
                 if satisfier.check_older(Sequence((*n).into())) {
-                    Some(self.compile_no_witness(context))
+                    Some(self.compile_no_witness())
                 } else {
                     None
                 }
             }
             Policy::Sha256(hash) => satisfier
                 .lookup_sha256(hash)
-                .map(|preimage| self.compile_witness_bytes(context, preimage.as_ref())),
+                .map(|preimage| self.compile_witness_bytes(preimage.as_ref())),
             Policy::And(sub_policies) => {
                 assert_eq!(
                     2,
@@ -127,11 +118,11 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                     "Conjunctions must have exactly two sub-policies"
                 );
 
-                let mut left = sub_policies[0].satisfy_helper(satisfier, context)?;
-                let right = sub_policies[1].satisfy_helper(satisfier, context)?;
+                let mut left = sub_policies[0].satisfy_helper(satisfier)?;
+                let right = sub_policies[1].satisfy_helper(satisfier)?;
                 left.witness.extend(right.witness);
                 left.witness_cost += right.witness_cost;
-                left.program = compiler::and(context, left.program, right.program).ok()?;
+                left.program = compiler::and(left.program, right.program).ok()?;
                 left.program_cost += right.program_cost + 1;
 
                 Some(left)
@@ -144,22 +135,24 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                 );
 
                 // TODO: Replace std::u64::MAX in MSRV >=1.43.0
-                let mut left = sub_policies[0]
-                    .satisfy_helper(satisfier, context)
-                    .unwrap_or(SatisfierExtData {
-                        witness: VecDeque::new(),
-                        witness_cost: std::u64::MAX,
-                        program: sub_policies[0].compile(context).unwrap(),
-                        program_cost: 0,
-                    });
-                let mut right = sub_policies[1]
-                    .satisfy_helper(satisfier, context)
-                    .unwrap_or(SatisfierExtData {
-                        witness: VecDeque::new(),
-                        witness_cost: std::u64::MAX,
-                        program: sub_policies[1].compile(context).unwrap(),
-                        program_cost: 0,
-                    });
+                let mut left =
+                    sub_policies[0]
+                        .satisfy_helper(satisfier)
+                        .unwrap_or(SatisfierExtData {
+                            witness: VecDeque::new(),
+                            witness_cost: std::u64::MAX,
+                            program: sub_policies[0].compile().unwrap(),
+                            program_cost: 0,
+                        });
+                let mut right =
+                    sub_policies[1]
+                        .satisfy_helper(satisfier)
+                        .unwrap_or(SatisfierExtData {
+                            witness: VecDeque::new(),
+                            witness_cost: std::u64::MAX,
+                            program: sub_policies[1].compile().unwrap(),
+                            program_cost: 0,
+                        });
 
                 if left.cost() <= right.cost() {
                     // Both left and right path are unsatisfiable
@@ -171,16 +164,14 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                     left.witness.push_front(Value::u1(0));
                     left.witness_cost += 1;
                     left.program =
-                        compiler::or(context, left.program, right.program, UsedCaseBranch::Left)
-                            .ok()?;
+                        compiler::or(left.program, right.program, UsedCaseBranch::Left).ok()?;
                     left.program_cost += 6;
                     Some(left)
                 } else {
                     right.witness.push_front(Value::u1(1));
                     right.witness_cost += 1;
                     right.program =
-                        compiler::or(context, left.program, right.program, UsedCaseBranch::Right)
-                            .ok()?;
+                        compiler::or(left.program, right.program, UsedCaseBranch::Right).ok()?;
                     right.program_cost += 6;
                     Some(right)
                 }
@@ -194,7 +185,7 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                 let mut satisfiable_children = Vec::new();
 
                 for (index, policy) in sub_policies.iter().enumerate() {
-                    if let Some(ext) = policy.satisfy_helper(satisfier, context) {
+                    if let Some(ext) = policy.satisfy_helper(satisfier) {
                         satisfiable_children.push((ext, index));
                     }
                 }
@@ -213,7 +204,6 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                 /// Return satisfaction for `i`th child, if it exists, or return dummy instead
                 fn get_sat_or_default<Pk: MiniscriptKey + PublicKey32>(
                     i: usize,
-                    context: &mut Context<Elements>,
                     satisfiable_children: &mut Vec<(SatisfierExtData, usize)>,
                     sub_policies: &[Policy<Pk>],
                 ) -> SatisfierExtData {
@@ -226,7 +216,7 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                     SatisfierExtData {
                         witness: VecDeque::new(),
                         witness_cost: 0,
-                        program: sub_policies[i].compile(context).unwrap(),
+                        program: sub_policies[i].compile().unwrap(),
                         program_cost: 0,
                     }
                 }
@@ -234,12 +224,10 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                 /// Return summand program for `i`th child
                 fn get_summand<Pk: MiniscriptKey + PublicKey32>(
                     i: usize,
-                    context: &mut Context<Elements>,
                     satisfiable_children: &mut Vec<(SatisfierExtData, usize)>,
                     sub_policies: &[Policy<Pk>],
                 ) -> SatisfierExtData {
-                    let mut sat =
-                        get_sat_or_default(i, context, satisfiable_children, sub_policies);
+                    let mut sat = get_sat_or_default(i, satisfiable_children, sub_policies);
                     // Satisfactions always have non-zero program cost
                     let branch = if sat.program_cost == 0 {
                         sat.witness.push_front(Value::u1(0));
@@ -249,26 +237,24 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                         UsedCaseBranch::Left
                     };
                     sat.witness_cost += 1;
-                    sat.program = compiler::thresh_summand(context, sat.program, branch).unwrap();
+                    sat.program = compiler::thresh_summand(sat.program, branch).unwrap();
                     sat.program_cost += 9;
 
                     sat
                 }
 
-                let mut sat = get_summand(0, context, &mut satisfiable_children, sub_policies);
+                let mut sat = get_summand(0, &mut satisfiable_children, sub_policies);
 
                 for i in 1..sub_policies.len() {
-                    let child_sat =
-                        get_summand(i, context, &mut satisfiable_children, sub_policies);
+                    let child_sat = get_summand(i, &mut satisfiable_children, sub_policies);
 
                     sat.witness.extend(child_sat.witness);
                     sat.witness_cost += child_sat.witness_cost;
-                    sat.program =
-                        compiler::thresh_add(context, sat.program, child_sat.program).unwrap();
+                    sat.program = compiler::thresh_add(sat.program, child_sat.program).unwrap();
                     sat.program_cost += child_sat.program_cost + 6;
                 }
 
-                sat.program = compiler::thresh_verify(context, sat.program, *k as u32).unwrap();
+                sat.program = compiler::thresh_verify(sat.program, *k as u32).unwrap();
                 sat.program_cost += 4;
 
                 Some(sat)
@@ -341,8 +327,7 @@ mod tests {
 
         assert!(policy.satisfy(&satisfier).is_none());
 
-        let mut context = Context::default();
-        let commit = policy.compile(&mut context).expect("compile");
+        let commit = policy.compile().expect("compile");
         let program = commit.finalize(std::iter::empty(), true).expect("finalize");
         let mut mac = BitMachine::for_program(&program);
 

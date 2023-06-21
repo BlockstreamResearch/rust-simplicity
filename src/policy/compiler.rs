@@ -22,84 +22,76 @@ use crate::jet::Elements;
 use crate::miniscript::MiniscriptKey;
 use crate::policy::key::PublicKey32;
 use crate::types::Error;
-use crate::{Context, FailEntropy, Value};
+use crate::{FailEntropy, Value};
 use std::rc::Rc;
 
 impl<Pk: MiniscriptKey + PublicKey32> Policy<Pk> {
     /// Compile the policy into a Simplicity program
-    pub fn compile(
-        &self,
-        context: &mut Context<Elements>,
-    ) -> Result<Rc<CommitNode<Elements>>, Error> {
-        compile(context, self)
+    pub fn compile(&self) -> Result<Rc<CommitNode<Elements>>, Error> {
+        compile(self)
     }
 }
 
-fn compute_sha256(
-    context: &mut Context<Elements>,
-    witness256: Rc<CommitNode<Elements>>,
-) -> Result<Rc<CommitNode<Elements>>, Error> {
-    let ctx = CommitNode::jet(context, Elements::Sha256Ctx8Init);
-    let pair_ctx_witness = CommitNode::pair(context, ctx, witness256)?;
-    let add256 = CommitNode::jet(context, Elements::Sha256Ctx8Add32);
-    let digest_ctx = CommitNode::comp(context, pair_ctx_witness, add256)?;
-    let finalize = CommitNode::jet(context, Elements::Sha256Ctx8Finalize);
-    CommitNode::comp(context, digest_ctx, finalize)
+fn compute_sha256(witness256: Rc<CommitNode<Elements>>) -> Result<Rc<CommitNode<Elements>>, Error> {
+    let ctx = CommitNode::jet(Elements::Sha256Ctx8Init);
+    let pair_ctx_witness = CommitNode::pair(ctx, witness256)?;
+    let add256 = CommitNode::jet(Elements::Sha256Ctx8Add32);
+    let digest_ctx = CommitNode::comp(pair_ctx_witness, add256)?;
+    let finalize = CommitNode::jet(Elements::Sha256Ctx8Finalize);
+    CommitNode::comp(digest_ctx, finalize)
 }
 
 fn verify_bexp(
-    context: &mut Context<Elements>,
     input: Rc<CommitNode<Elements>>,
     bexp: Rc<CommitNode<Elements>>,
 ) -> Result<Rc<CommitNode<Elements>>, Error> {
-    let computed_bexp = CommitNode::comp(context, input, bexp)?;
-    let verify = CommitNode::jet(context, Elements::Verify);
-    CommitNode::comp(context, computed_bexp, verify)
+    let computed_bexp = CommitNode::comp(input, bexp)?;
+    let verify = CommitNode::jet(Elements::Verify);
+    CommitNode::comp(computed_bexp, verify)
 }
 
 /// Compile the given policy into a Simplicity program.
 fn compile<Pk: MiniscriptKey + PublicKey32>(
-    context: &mut Context<Elements>,
     policy: &Policy<Pk>,
 ) -> Result<Rc<CommitNode<Elements>>, Error> {
     match policy {
         // TODO: Choose specific Merkle roots for unsatisfiable policies
-        Policy::Unsatisfiable => Ok(CommitNode::fail(context, FailEntropy::ZERO)),
-        Policy::Trivial => Ok(CommitNode::unit(context)),
+        Policy::Unsatisfiable => Ok(CommitNode::fail(FailEntropy::ZERO)),
+        Policy::Trivial => Ok(CommitNode::unit()),
         Policy::Key(key) => {
             let key_value = Value::u256_from_slice(&key.to_32_bytes());
-            let const_key = CommitNode::const_word(context, key_value);
-            let sighash_all = CommitNode::jet(context, Elements::SigAllHash);
-            let pair_key_msg = CommitNode::pair(context, const_key, sighash_all)?;
-            let witness = CommitNode::witness(context);
-            let pair_key_msg_sig = CommitNode::pair(context, pair_key_msg, witness)?;
-            let bip_0340_verify = CommitNode::jet(context, Elements::Bip0340Verify);
+            let const_key = CommitNode::const_word(key_value);
+            let sighash_all = CommitNode::jet(Elements::SigAllHash);
+            let pair_key_msg = CommitNode::pair(const_key, sighash_all)?;
+            let witness = CommitNode::witness();
+            let pair_key_msg_sig = CommitNode::pair(pair_key_msg, witness)?;
+            let bip_0340_verify = CommitNode::jet(Elements::Bip0340Verify);
 
-            CommitNode::comp(context, pair_key_msg_sig, bip_0340_verify)
+            CommitNode::comp(pair_key_msg_sig, bip_0340_verify)
         }
         Policy::After(n) => {
             let n_value = Value::u32(*n);
-            let const_n = CommitNode::const_word(context, n_value);
-            let check_lock_height = CommitNode::jet(context, Elements::CheckLockHeight);
+            let const_n = CommitNode::const_word(n_value);
+            let check_lock_height = CommitNode::jet(Elements::CheckLockHeight);
 
-            CommitNode::comp(context, const_n, check_lock_height)
+            CommitNode::comp(const_n, check_lock_height)
         }
         Policy::Older(n) => {
             let n_value = Value::u16(*n);
-            let const_n = CommitNode::const_word(context, n_value);
-            let check_lock_distance = CommitNode::jet(context, Elements::CheckLockDistance);
+            let const_n = CommitNode::const_word(n_value);
+            let check_lock_distance = CommitNode::jet(Elements::CheckLockDistance);
 
-            CommitNode::comp(context, const_n, check_lock_distance)
+            CommitNode::comp(const_n, check_lock_distance)
         }
         Policy::Sha256(hash) => {
             let hash_value = Value::u256_from_slice(&Pk::hash_to_32_bytes(hash));
-            let const_hash = CommitNode::const_word(context, hash_value);
-            let witness256 = CommitNode::witness(context);
-            let computed_hash = compute_sha256(context, witness256)?;
-            let pair_hash_computed_hash = CommitNode::pair(context, const_hash, computed_hash)?;
-            let eq256 = CommitNode::jet(context, Elements::Eq256);
+            let const_hash = CommitNode::const_word(hash_value);
+            let witness256 = CommitNode::witness();
+            let computed_hash = compute_sha256(witness256)?;
+            let pair_hash_computed_hash = CommitNode::pair(const_hash, computed_hash)?;
+            let eq256 = CommitNode::jet(Elements::Eq256);
 
-            verify_bexp(context, pair_hash_computed_hash, eq256)
+            verify_bexp(pair_hash_computed_hash, eq256)
         }
         Policy::And(sub_policies) => {
             assert_eq!(
@@ -108,10 +100,10 @@ fn compile<Pk: MiniscriptKey + PublicKey32>(
                 "Conjunctions must have exactly two sub-policies"
             );
 
-            let left = compile(context, &sub_policies[0])?;
-            let right = compile(context, &sub_policies[1])?;
+            let left = compile(&sub_policies[0])?;
+            let right = compile(&sub_policies[1])?;
 
-            and(context, left, right)
+            and(left, right)
         }
         Policy::Or(sub_policies) => {
             assert_eq!(
@@ -120,10 +112,10 @@ fn compile<Pk: MiniscriptKey + PublicKey32>(
                 "Disjunctions must have exactly two sub-policies"
             );
 
-            let left = compile(context, &sub_policies[0])?;
-            let right = compile(context, &sub_policies[1])?;
+            let left = compile(&sub_policies[0])?;
+            let right = compile(&sub_policies[1])?;
 
-            or(context, left, right, UsedCaseBranch::Both)
+            or(left, right, UsedCaseBranch::Both)
         }
         Policy::Threshold(k, sub_policies) => {
             assert!(
@@ -131,28 +123,27 @@ fn compile<Pk: MiniscriptKey + PublicKey32>(
                 "Thresholds must have at least two sub-policies"
             );
 
-            let child = sub_policies[0].compile(context)?;
-            let mut sum = thresh_summand(context, child, UsedCaseBranch::Both)?;
+            let child = sub_policies[0].compile()?;
+            let mut sum = thresh_summand(child, UsedCaseBranch::Both)?;
 
             for policy in &sub_policies[1..] {
-                let child = policy.compile(context)?;
-                let summand = thresh_summand(context, child, UsedCaseBranch::Both)?;
-                sum = thresh_add(context, sum, summand)?;
+                let child = policy.compile()?;
+                let summand = thresh_summand(child, UsedCaseBranch::Both)?;
+                sum = thresh_add(sum, summand)?;
             }
 
-            thresh_verify(context, sum, *k as u32)
+            thresh_verify(sum, *k as u32)
         }
     }
 }
 
-fn selector(context: &mut Context<Elements>) -> Result<Rc<CommitNode<Elements>>, Error> {
-    let witness = CommitNode::witness(context);
-    let unit = CommitNode::unit(context);
-    CommitNode::pair(context, witness, unit)
+fn selector() -> Result<Rc<CommitNode<Elements>>, Error> {
+    let witness = CommitNode::witness();
+    let unit = CommitNode::unit();
+    CommitNode::pair(witness, unit)
 }
 
 pub(crate) fn and(
-    context: &mut Context<Elements>,
     left: Rc<CommitNode<Elements>>,
     right: Rc<CommitNode<Elements>>,
 ) -> Result<Rc<CommitNode<Elements>>, Error> {
@@ -163,87 +154,83 @@ pub(crate) fn and(
         return Ok(left);
     }
 
-    CommitNode::comp(context, left, right)
+    CommitNode::comp(left, right)
 }
 
 pub(crate) fn or(
-    context: &mut Context<Elements>,
     left: Rc<CommitNode<Elements>>,
     right: Rc<CommitNode<Elements>>,
     branch: UsedCaseBranch,
 ) -> Result<Rc<CommitNode<Elements>>, Error> {
-    let drop_left = CommitNode::drop(context, left);
-    let drop_right = CommitNode::drop(context, right);
-    let case_left_right = CommitNode::case_branch(context, drop_left, drop_right, branch)?;
-    let selector = selector(context)?;
+    let drop_left = CommitNode::drop(left);
+    let drop_right = CommitNode::drop(right);
+    let case_left_right = CommitNode::case_branch(drop_left, drop_right, branch)?;
+    let selector = selector()?;
 
-    CommitNode::comp(context, selector, case_left_right)
+    CommitNode::comp(selector, case_left_right)
 }
 
 /// child: 1 → 1
 ///
 /// summand(child): 1 → 2^32
 pub(crate) fn thresh_summand(
-    context: &mut Context<Elements>,
     child: Rc<CommitNode<Elements>>,
     branch: UsedCaseBranch,
 ) -> Result<Rc<CommitNode<Elements>>, Error> {
     // 1 → 2 x 1
-    let selector = selector(context)?;
+    let selector = selector()?;
 
     // 1 → 2^32
-    let const_one = CommitNode::const_word(context, Value::u32(1));
+    let const_one = CommitNode::const_word(Value::u32(1));
     // 1 → 2^32
-    let child_one = CommitNode::comp(context, child, const_one)?;
+    let child_one = CommitNode::comp(child, const_one)?;
     // 1 → 2^32
-    let const_zero = CommitNode::const_word(context, Value::u32(0));
+    let const_zero = CommitNode::const_word(Value::u32(0));
     // 2 x 1 → 2^32
-    let child_one_or_zero = CommitNode::cond_branch(context, child_one, const_zero, branch)?;
+    let child_one_or_zero = CommitNode::cond_branch(child_one, const_zero, branch)?;
 
     // 1 → 2^32
-    CommitNode::comp(context, selector, child_one_or_zero)
+    CommitNode::comp(selector, child_one_or_zero)
 }
 
 /// acc: 1 → 2^32, summand: 1 → 2^32
 ///
 /// add(sum, summand): 1 → 2^32
 pub(crate) fn thresh_add(
-    context: &mut Context<Elements>,
     sum: Rc<CommitNode<Elements>>,
     summand: Rc<CommitNode<Elements>>,
 ) -> Result<Rc<CommitNode<Elements>>, Error> {
     // 1 → 2^32 × 2^32
-    let pair_sum_summand = CommitNode::pair(context, sum, summand)?;
+    let pair_sum_summand = CommitNode::pair(sum, summand)?;
     // 2^32 × 2^32 → 2 × 2^32
-    let add32 = CommitNode::jet(context, Elements::Add32);
+    let add32 = CommitNode::jet(Elements::Add32);
     // 1 → 2 x 2^32
-    let full_sum = CommitNode::comp(context, pair_sum_summand, add32)?;
+    let full_sum = CommitNode::comp(pair_sum_summand, add32)?;
     // 2^32 → 2^32
-    let iden = CommitNode::iden(context);
+    let iden = CommitNode::iden();
     // 2 × 2^32 → 2^32
-    let drop_iden = CommitNode::drop(context, iden);
+    let drop_iden = CommitNode::drop(iden);
 
     // Discard the overflow bit.
     // FIXME: enforce that sum of weights is less than 2^32
     // 1 → 2^32
-    CommitNode::comp(context, full_sum, drop_iden)
+    CommitNode::comp(full_sum, drop_iden)
 }
 
 /// verify(sum): 1 → 1
 pub(crate) fn thresh_verify(
-    context: &mut Context<Elements>,
     sum: Rc<CommitNode<Elements>>,
     k: u32,
 ) -> Result<Rc<CommitNode<Elements>>, Error> {
     // 1 → 2^32
-    let const_k = CommitNode::const_word(context, Value::u32(k));
+    let const_k = CommitNode::const_word(Value::u32(k));
     // 1 → 2^32 × 2^32
-    let pair_k_sum = CommitNode::pair(context, const_k, sum)?;
+    let pair_k_sum = CommitNode::pair(const_k, sum)?;
     // 2^32 × 2^32 → 2
-    let eq32 = CommitNode::jet(context, Elements::Eq32);
+    let eq32 = CommitNode::jet(Elements::Eq32);
 
     // 1 → 1
-    verify_bexp(context, pair_k_sum, eq32)
+    verify_bexp(pair_k_sum, eq32)
 }
 
 #[cfg(test)]
@@ -255,8 +242,7 @@ mod tests {
     use elements::{bitcoin, secp256k1_zkp};
 
     fn compile(policy: Policy<bitcoin::XOnlyPublicKey>) -> (Rc<CommitNode<Elements>>, ElementsEnv) {
-        let mut context = Context::new();
-        let commit = super::compile(&mut context, &policy).expect("compile");
+        let commit = super::compile(&policy).expect("compile");
         let env = ElementsEnv::dummy();
 
         (commit, env)
@@ -301,8 +287,7 @@ mod tests {
         let signature = keypair.sign_schnorr(message);
 
         let (xonly, _) = keypair.x_only_public_key();
-        let mut context = Context::new();
-        let commit = Policy::Key(xonly).compile(&mut context).expect("compile");
+        let commit = Policy::Key(xonly).compile().expect("compile");
 
         assert!(execute_successful(
             &commit,
@@ -315,19 +300,18 @@ mod tests {
     fn execute_after() {
         let env = ElementsEnv::dummy_with(elements::PackedLockTime(42), elements::Sequence::ZERO);
 
-        let mut context = Context::new();
         let commit = Policy::<bitcoin::XOnlyPublicKey>::After(41)
-            .compile(&mut context)
+            .compile()
             .expect("compile");
         assert!(execute_successful(&commit, vec![], &env));
 
         let commit = Policy::<bitcoin::XOnlyPublicKey>::After(42)
-            .compile(&mut context)
+            .compile()
             .expect("compile");
         assert!(execute_successful(&commit, vec![], &env));
 
         let commit = Policy::<bitcoin::XOnlyPublicKey>::After(43)
-            .compile(&mut context)
+            .compile()
             .expect("compile");
         assert!(!execute_successful(&commit, vec![], &env));
     }
@@ -339,19 +323,18 @@ mod tests {
             elements::Sequence::from_consensus(42),
         );
 
-        let mut context = Context::new();
         let commit = Policy::<bitcoin::XOnlyPublicKey>::Older(41)
-            .compile(&mut context)
+            .compile()
             .expect("compile");
         assert!(execute_successful(&commit, vec![], &env));
 
         let commit = Policy::<bitcoin::XOnlyPublicKey>::Older(42)
-            .compile(&mut context)
+            .compile()
             .expect("compile");
         assert!(execute_successful(&commit, vec![], &env));
 
         let commit = Policy::<bitcoin::XOnlyPublicKey>::Older(43)
-            .compile(&mut context)
+            .compile()
             .expect("compile");
         assert!(!execute_successful(&commit, vec![], &env));
     }

@@ -16,7 +16,7 @@ use crate::dag::MaxSharing;
 use crate::jet::Jet;
 use crate::types;
 use crate::types::arrow::{Arrow, FinalArrow};
-use crate::{Cmr, Context, FirstPassImr, Imr};
+use crate::{Cmr, FirstPassImr, Imr};
 
 use super::{
     Construct, ConstructData, ConstructNode, Constructible, Inner, NoWitness, Node, NodeData,
@@ -143,47 +143,11 @@ impl<J: Jet> CommitNode<J> {
     }
 
     /// Convert a [`CommitNode`] back to a [`ConstructNode`] by redoing type inference
-    pub fn unfinalize_types(
-        &self,
-        ctx: &mut Context<J>,
-    ) -> Result<Arc<ConstructNode<J>>, types::Error> {
-        // Writing e.g. Ok(ConstructData::new(Arrow::iden(ctx))) is a little wordy.
-        macro_rules! ok_new {
-            ($fn:ident($($arg:tt)*)$($question_mark:tt)*) => {
-                Ok(ConstructData::new(Arrow::$fn($($arg)*)$($question_mark)*))
-            }
-        }
-
+    pub fn unfinalize_types(&self) -> Result<Arc<ConstructNode<J>>, types::Error> {
         self.convert::<MaxSharing<Commit, J>, _, _, Construct, _>(
-            |_, inner| match inner {
-                Inner::Iden => ok_new!(iden(ctx)),
-                Inner::Unit => ok_new!(unit(ctx)),
-                Inner::InjL(child) => ok_new!(injl(ctx, child.arrow())),
-                Inner::InjR(child) => ok_new!(injr(ctx, child.arrow())),
-                Inner::Take(child) => ok_new!(take(ctx, child.arrow())),
-                Inner::Drop(child) => ok_new!(drop_(ctx, child.arrow())),
-                Inner::Comp(left, right) => {
-                    ok_new!(comp(ctx, left.arrow(), right.arrow())?)
-                }
-                Inner::Case(left, right) => {
-                    ok_new!(case(ctx, left.arrow(), right.arrow())?)
-                }
-                Inner::AssertL(left, r_cmr) => {
-                    ok_new!(assertl(ctx, left.arrow(), r_cmr)?)
-                }
-                Inner::AssertR(l_cmr, right) => {
-                    ok_new!(assertr(ctx, l_cmr, right.arrow())?)
-                }
-                Inner::Pair(left, right) => {
-                    ok_new!(pair(ctx, left.arrow(), right.arrow())?)
-                }
-                Inner::Disconnect(left, right) => {
-                    ok_new!(disconnect(ctx, left.arrow(), right.arrow())?)
-                }
-                Inner::Witness(..) => ok_new!(witness(ctx, NoWitness)),
-                Inner::Fail(entropy) => ok_new!(fail(ctx, entropy)),
-                Inner::Jet(jet) => ok_new!(jet(ctx, jet)),
-                Inner::Word(ref value) => ok_new!(const_word(ctx, Arc::clone(value))),
+            |_, inner| {
+                let inner = inner.map(|node| node.arrow());
+                Ok(ConstructData::new(Arrow::from_inner(inner)?))
             },
             |_, _| Ok(NoWitness),
         )

@@ -27,7 +27,7 @@ fn do_test(data: &[u8]) {
         Ok(p) => p,
         Err(_) => return,
     };
-    let _ = pol.compile(&mut Default::default());
+    let _ = pol.compile();
 }
 
 fn main() {

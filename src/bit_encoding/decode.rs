@@ -22,7 +22,7 @@ use crate::dag::{Dag, DagLike, InternalSharing};
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::types;
-use crate::{BitIter, CommitNode, Context, FailEntropy, Value};
+use crate::{BitIter, CommitNode, FailEntropy, Value};
 use std::rc::Rc;
 use std::{cell, error, fmt, mem};
 
@@ -187,8 +187,6 @@ pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
         return Err(Error::TooManyNodes(len));
     }
 
-    let mut context = Context::new();
-
     let mut nodes = Vec::with_capacity(len);
     for _ in 0..len {
         let new_node = decode_node(bits, nodes.len())?;
@@ -218,56 +216,47 @@ pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
         }
 
         let new = match nodes[data.node.0] {
-            DecodeNode::Unit => Node(CommitNode::unit(&mut context)),
-            DecodeNode::Iden => Node(CommitNode::iden(&mut context)),
-            DecodeNode::InjL(i) => Node(CommitNode::injl(&mut context, converted[i].get()?)),
-            DecodeNode::InjR(i) => Node(CommitNode::injr(&mut context, converted[i].get()?)),
-            DecodeNode::Take(i) => Node(CommitNode::take(&mut context, converted[i].get()?)),
-            DecodeNode::Drop(i) => Node(CommitNode::drop(&mut context, converted[i].get()?)),
-            DecodeNode::Comp(i, j) => Node(CommitNode::comp(
-                &mut context,
-                converted[i].get()?,
-                converted[j].get()?,
-            )?),
+            DecodeNode::Unit => Node(CommitNode::unit()),
+            DecodeNode::Iden => Node(CommitNode::iden()),
+            DecodeNode::InjL(i) => Node(CommitNode::injl(converted[i].get()?)),
+            DecodeNode::InjR(i) => Node(CommitNode::injr(converted[i].get()?)),
+            DecodeNode::Take(i) => Node(CommitNode::take(converted[i].get()?)),
+            DecodeNode::Drop(i) => Node(CommitNode::drop(converted[i].get()?)),
+            DecodeNode::Comp(i, j) => {
+                Node(CommitNode::comp(converted[i].get()?, converted[j].get()?)?)
+            }
             DecodeNode::Case(i, j) => {
                 // Case is a special case, since it uniquely is allowed to have hidden
                 // children (but only one!) in which case it becomes an assertion.
                 match (&converted[i], &converted[j]) {
-                    (Node(left), Node(right)) => Node(CommitNode::case(
-                        &mut context,
-                        Rc::clone(left),
-                        Rc::clone(right),
-                    )?),
-                    (Node(left), Hidden(cmr)) => {
-                        Node(CommitNode::assertl(&mut context, Rc::clone(left), *cmr)?)
+                    (Node(left), Node(right)) => {
+                        Node(CommitNode::case(Rc::clone(left), Rc::clone(right))?)
                     }
+                    (Node(left), Hidden(cmr)) => Node(CommitNode::assertl(Rc::clone(left), *cmr)?),
                     (Hidden(cmr), Node(right)) => {
-                        Node(CommitNode::assertr(&mut context, *cmr, Rc::clone(right))?)
+                        Node(CommitNode::assertr(*cmr, Rc::clone(right))?)
                     }
                     (Hidden(_), Hidden(_)) => return Err(Error::BothChildrenHidden),
                 }
             }
-            DecodeNode::Pair(i, j) => Node(CommitNode::pair(
-                &mut context,
-                converted[i].get()?,
-                converted[j].get()?,
-            )?),
+            DecodeNode::Pair(i, j) => {
+                Node(CommitNode::pair(converted[i].get()?, converted[j].get()?)?)
+            }
             DecodeNode::Disconnect(i, j) => Node(CommitNode::disconnect(
-                &mut context,
                 converted[i].get()?,
                 converted[j].get()?,
             )?),
-            DecodeNode::Witness => Node(CommitNode::witness(&mut context)),
-            DecodeNode::Fail(entropy) => Node(CommitNode::fail(&mut context, entropy)),
+            DecodeNode::Witness => Node(CommitNode::witness()),
+            DecodeNode::Fail(entropy) => Node(CommitNode::fail(entropy)),
             DecodeNode::Hidden(cmr) => Hidden(cmr),
-            DecodeNode::Jet(j) => Node(CommitNode::jet(&mut context, j)),
+            DecodeNode::Jet(j) => Node(CommitNode::jet(j)),
             DecodeNode::Word(ref w) => {
                 // Since we access each node only once, it is fine to remove the value
                 // when we encounter it and move it into the CommitNode. Doing this
                 // saves us a clone.
                 let w_ref = &mut *w.borrow_mut();
                 let w = mem::replace(w_ref, Value::Unit);
-                Node(CommitNode::const_word(&mut context, w))
+                Node(CommitNode::const_word(w))
             }
         };
         converted.push(new);

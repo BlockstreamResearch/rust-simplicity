@@ -167,6 +167,7 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
         debug_assert!(self.read_bits > 0);
         let cached = self.cached_byte;
         self.cached_byte = self.iter.next().ok_or(EarlyEndOfStreamError)?;
+        self.total_read += 8;
 
         Ok(cached.checked_shl(self.read_bits as u32).unwrap_or(0)
             + (self.cached_byte >> (8 - self.read_bits)))
@@ -319,8 +320,11 @@ mod tests {
 
         let mut full = BitIter::byte_slice_window(&data, 0, 24);
         assert_eq!(full.read_u8(), Ok(0x12));
+        assert_eq!(full.n_total_read(), 8);
         assert_eq!(full.read_u8(), Ok(0x23));
+        assert_eq!(full.n_total_read(), 16);
         assert_eq!(full.read_u8(), Ok(0x34));
+        assert_eq!(full.n_total_read(), 24);
         assert_eq!(full.read_u8(), Err(EarlyEndOfStreamError));
 
         let mut mid = BitIter::byte_slice_window(&data, 8, 16);
