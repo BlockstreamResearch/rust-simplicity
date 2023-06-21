@@ -71,7 +71,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::{cmp, fmt, mem, ops};
 
 pub mod arrow;
-pub mod variable;
+mod variable;
 
 /// Error type for simplicity
 #[non_exhaustive]

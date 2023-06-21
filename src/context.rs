@@ -7,7 +7,6 @@ use crate::types;
 /// Context for constructing a Simplicity program
 #[allow(dead_code)]
 pub struct Context<J: Jet> {
-    pub(crate) naming: types::variable::Factory,
     pow2: Vec<types::Type>,
     unit_ty: types::Type,
     _jet: PhantomData<J>,
@@ -28,7 +27,6 @@ impl<J: Jet> Context<J> {
         .collect();
 
         Self {
-            naming: types::variable::Factory::new(),
             pow2,
             unit_ty: types::Type::unit(),
             _jet: PhantomData,

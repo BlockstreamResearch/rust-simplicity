@@ -30,6 +30,8 @@ use crate::node::{CoreConstructible, JetConstructible, WitnessConstructible};
 use crate::types::{Bound, Error, Final, Type};
 use crate::{jet::Jet, Context, Value};
 
+use super::variable::new_name;
+
 /// A container for an expression's source and target types, whether or not
 /// these types are complete.
 #[derive(Clone, Debug)]
@@ -84,19 +86,19 @@ impl Arrow {
     /// Create a unification arrow for a fresh `unit` combinator
     pub fn for_unit<J: Jet>(context: &mut Context<J>) -> Self {
         Arrow {
-            source: Type::free(context.naming.new_name()),
+            source: Type::free(new_name("unit_src_")),
             target: context.unit_ty(),
         }
     }
 
     /// Create a unification arrow for a fresh `iden` combinator
-    pub fn for_iden<J: Jet>(context: &mut Context<J>) -> Self {
+    pub fn for_iden<J: Jet>(_context: &mut Context<J>) -> Self {
         // Throughout this module, when two types are the same, we reuse a
         // pointer to them rather than creating distinct types and unifying
         // them. This theoretically could lead to more confusing errors for
         // the user during type inference, but in practice type inference
         // is completely opaque and there's no harm in making it moreso.
-        let new = Type::free(context.naming.new_name());
+        let new = Type::free(new_name("iden_src_"));
         Arrow {
             source: new.shallow_clone(),
             target: new,
@@ -104,18 +106,18 @@ impl Arrow {
     }
 
     /// Create a unification arrow for a fresh `witness` combinator
-    pub fn for_witness<J: Jet>(context: &mut Context<J>) -> Self {
+    pub fn for_witness<J: Jet>(_context: &mut Context<J>) -> Self {
         Arrow {
-            source: Type::free(context.naming.new_name()),
-            target: Type::free(context.naming.new_name()),
+            source: Type::free(new_name("witness_src_")),
+            target: Type::free(new_name("witness_tgt_")),
         }
     }
 
     /// Create a unification arrow for a fresh `fail` combinator
-    pub fn for_fail<J: Jet>(context: &mut Context<J>) -> Self {
+    pub fn for_fail<J: Jet>(_context: &mut Context<J>) -> Self {
         Arrow {
-            source: Type::free(context.naming.new_name()),
-            target: Type::free(context.naming.new_name()),
+            source: Type::free(new_name("fail_src_")),
+            target: Type::free(new_name("fail_tgt_")),
         }
     }
 
@@ -139,43 +141,43 @@ impl Arrow {
     }
 
     /// Create a unification arrow for a fresh `injl` combinator
-    pub fn for_injl<J: Jet>(context: &mut Context<J>, child_arrow: &Arrow) -> Self {
+    pub fn for_injl<J: Jet>(_context: &mut Context<J>, child_arrow: &Arrow) -> Self {
         Arrow {
             source: child_arrow.source.shallow_clone(),
             target: Type::sum(
                 child_arrow.target.shallow_clone(),
-                Type::free(context.naming.new_name()),
+                Type::free(new_name("injl_tgt_")),
             ),
         }
     }
 
     /// Create a unification arrow for a fresh `injr` combinator
-    pub fn for_injr<J: Jet>(context: &mut Context<J>, child_arrow: &Arrow) -> Self {
+    pub fn for_injr<J: Jet>(_context: &mut Context<J>, child_arrow: &Arrow) -> Self {
         Arrow {
             source: child_arrow.source.shallow_clone(),
             target: Type::sum(
-                Type::free(context.naming.new_name()),
+                Type::free(new_name("injr_tgt_")),
                 child_arrow.target.shallow_clone(),
             ),
         }
     }
 
     /// Create a unification arrow for a fresh `take` combinator
-    pub fn for_take<J: Jet>(context: &mut Context<J>, child_arrow: &Arrow) -> Self {
+    pub fn for_take<J: Jet>(_context: &mut Context<J>, child_arrow: &Arrow) -> Self {
         Arrow {
             source: Type::product(
                 child_arrow.source.shallow_clone(),
-                Type::free(context.naming.new_name()),
+                Type::free(new_name("take_src_")),
             ),
             target: child_arrow.target.shallow_clone(),
         }
     }
 
     /// Create a unification arrow for a fresh `drop` combinator
-    pub fn for_drop<J: Jet>(context: &mut Context<J>, child_arrow: &Arrow) -> Self {
+    pub fn for_drop<J: Jet>(_context: &mut Context<J>, child_arrow: &Arrow) -> Self {
         Arrow {
             source: Type::product(
-                Type::free(context.naming.new_name()),
+                Type::free(new_name("drop_src_")),
                 child_arrow.source.shallow_clone(),
             ),
             target: child_arrow.target.shallow_clone(),
@@ -226,13 +228,13 @@ impl Arrow {
     /// If neither child is provided, this function will not raise an error; it
     /// is the responsibility of the caller to detect this case and error elsewhere.
     pub fn for_case<J: Jet>(
-        context: &mut Context<J>,
+        _context: &mut Context<J>,
         lchild_arrow: Option<&Arrow>,
         rchild_arrow: Option<&Arrow>,
     ) -> Result<Self, Error> {
-        let a = Type::free(context.naming.new_name());
-        let b = Type::free(context.naming.new_name());
-        let c = Type::free(context.naming.new_name());
+        let a = Type::free(new_name("case_a_"));
+        let b = Type::free(new_name("case_b_"));
+        let c = Type::free(new_name("case_c_"));
 
         let sum_a_b = Type::sum(a.shallow_clone(), b.shallow_clone());
         let prod_sum_a_b_c = Type::product(sum_a_b, c.shallow_clone());
@@ -270,8 +272,8 @@ impl Arrow {
         lchild_arrow: &Arrow,
         rchild_arrow: &Arrow,
     ) -> Result<Self, Error> {
-        let a = Type::free(context.naming.new_name());
-        let b = Type::free(context.naming.new_name());
+        let a = Type::free(new_name("disconnect_a_"));
+        let b = Type::free(new_name("disconnect_b_"));
         let c = rchild_arrow.source.shallow_clone();
         let d = rchild_arrow.target.shallow_clone();
 
