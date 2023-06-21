@@ -34,7 +34,7 @@ use crate::FailEntropy;
 /// given a witness.
 ///
 /// Furthermore, the policy can be normalized and is amenable to semantic analysis.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum Fragment<Pk: ToPublicKey> {
     /// Unsatisfiable
     Unsatisfiable(FailEntropy),

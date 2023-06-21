@@ -1,4 +1,5 @@
-use crate::policy::satisfy::PolicySatisfier;
+#![allow(unused_imports)]
+//use crate::policy::satisfy::PolicySatisfier;
 use crate::{policy, Cmr, Policy};
 use bitcoin_hashes::Hash;
 use elements::schnorr::{TapTweak, XOnlyPublicKey};
@@ -131,6 +132,7 @@ impl<Pk: ToPublicKey> Descriptor<Pk> {
         (script, version)
     }
 
+    /*
     /// Return a satisfying non-malleable witness and script sig with minimum weight
     /// to spend an output controlled by the given descriptor if it is possible to satisfy
     /// given the `satisfier`
@@ -180,6 +182,7 @@ impl<Pk: ToPublicKey> Descriptor<Pk> {
 
         Ok((witness, script_sig))
     }
+    */
 }
 
 impl<Pk: ToPublicKey> fmt::Display for Descriptor<Pk> {
