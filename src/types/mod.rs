@@ -71,6 +71,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::{cmp, fmt, mem, ops};
 
 pub mod arrow;
+mod precomputed;
 mod variable;
 
 /// Error type for simplicity
@@ -186,6 +187,11 @@ impl Final {
             tmr: Tmr::unit(),
             display: Cow::Borrowed("1"),
         }
+    }
+
+    /// Return a precomputed copy of 2^(2^n), for given n.
+    pub fn two_two_n(n: usize) -> Arc<Self> {
+        precomputed::nth_power_of_2(n).final_data().unwrap()
     }
 
     /// (Non-public) constructor for the final data of a sum type
@@ -399,6 +405,11 @@ impl Type {
     /// Return a unit type.
     pub fn unit() -> Self {
         Type::from(Constraint::unit())
+    }
+
+    /// Return a precomputed copy of 2^(2^n), for given n.
+    pub fn two_two_n(n: usize) -> Self {
+        precomputed::nth_power_of_2(n)
     }
 
     /// Return the sum of the given two types.

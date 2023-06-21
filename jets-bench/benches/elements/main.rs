@@ -16,7 +16,7 @@ use rand::rngs::ThreadRng;
 use rand::{thread_rng, RngCore};
 use simplicity::jet::elements::ElementsEnv;
 use simplicity::jet::{Elements, Jet};
-use simplicity::types::{self, Type};
+use simplicity::types;
 use simplicity::Value;
 use simplicity::{bitcoin, elements};
 
@@ -92,17 +92,9 @@ impl ElementsBenchEnvType {
     }
 }
 
-fn jet_arrow(jet: Elements, pows_of_two: &[Type]) -> (Arc<types::Final>, Arc<types::Final>) {
-    let src_ty = jet
-        .source_ty()
-        .to_type(|n| pows_of_two[n].shallow_clone())
-        .final_data()
-        .unwrap();
-    let tgt_ty = jet
-        .target_ty()
-        .to_type(|n| pows_of_two[n].shallow_clone())
-        .final_data()
-        .unwrap();
+fn jet_arrow(jet: Elements) -> (Arc<types::Final>, Arc<types::Final>) {
+    let src_ty = jet.source_ty().to_type().final_data().unwrap();
+    let tgt_ty = jet.target_ty().to_type().final_data().unwrap();
     (src_ty, tgt_ty)
 }
 
@@ -113,7 +105,6 @@ fn bench(c: &mut Criterion) {
         panic!("Sanity checks failed");
     }
 
-    let pows_of_two = Type::powers_of_two(32); // TODO: make this compile time static
     let mut rng = ThreadRng::default();
 
     fn eq_32() -> Value {
@@ -363,7 +354,7 @@ fn bench(c: &mut Criterion) {
         (Elements::CheckSigVerify, InputSampling::Custom(Arc::new(check_sig_verify))),
     ];
     for (jet, sample) in arr {
-        let (src_ty, tgt_ty) = jet_arrow(jet, &pows_of_two);
+        let (src_ty, tgt_ty) = jet_arrow(jet);
 
         let mut group = c.benchmark_group(&jet.to_string());
         let env = EnvSampling::Null.env();
@@ -477,7 +468,7 @@ fn bench(c: &mut Criterion) {
 
     // Elements environment jets
     for (jet, env_sampler) in jets {
-        let (src_ty, tgt_ty) = jet_arrow(jet, &pows_of_two);
+        let (src_ty, tgt_ty) = jet_arrow(jet);
         let env = env_sampler.env();
 
         let mut group = c.benchmark_group(&format!("{}", jet.to_string()));
@@ -537,7 +528,7 @@ fn bench(c: &mut Criterion) {
     ];
 
     for (jet, inp_fn) in arr {
-        let (src_ty, tgt_ty) = jet_arrow(jet, &pows_of_two);
+        let (src_ty, tgt_ty) = jet_arrow(jet);
         let env = EnvSampling::Null.env();
 
         let mut group = c.benchmark_group(&format!("{}", jet.to_string()));
@@ -619,7 +610,7 @@ fn bench(c: &mut Criterion) {
     ];
 
     for (jet, index, env_type) in arr {
-        let (src_ty, tgt_ty) = jet_arrow(jet, &pows_of_two);
+        let (src_ty, tgt_ty) = jet_arrow(jet);
         let env = env_type.env();
         let mut group = c.benchmark_group(&format!("{}", jet.to_string()));
 

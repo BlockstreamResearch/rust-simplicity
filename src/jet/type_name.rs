@@ -52,19 +52,19 @@ impl TypeName {
     // b'+' = 43
     // b'*' = 42
     /// Convert the type name into a type.
-    pub fn to_type<F: FnMut(usize) -> types::Type>(&self, mut pow2s: F) -> types::Type {
+    pub fn to_type(&self) -> types::Type {
         let it = self.0.iter().rev();
         let mut stack = Vec::with_capacity(16);
 
         for c in it {
             match c {
                 b'1' => stack.push(types::Type::unit()),
-                b'2' => stack.push(pow2s(0)),
-                b'c' => stack.push(pow2s(3)),
-                b's' => stack.push(pow2s(4)),
-                b'i' => stack.push(pow2s(5)),
-                b'l' => stack.push(pow2s(6)),
-                b'h' => stack.push(pow2s(8)),
+                b'2' => stack.push(types::Type::two_two_n(0)),
+                b'c' => stack.push(types::Type::two_two_n(3)),
+                b's' => stack.push(types::Type::two_two_n(4)),
+                b'i' => stack.push(types::Type::two_two_n(5)),
+                b'l' => stack.push(types::Type::two_two_n(6)),
+                b'h' => stack.push(types::Type::two_two_n(8)),
                 b'+' | b'*' => {
                     let left = stack.pop().expect("Illegal type name syntax!");
                     let right = stack.pop().expect("Illegal type name syntax!");

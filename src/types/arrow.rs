@@ -84,10 +84,10 @@ impl Arrow {
     }
 
     /// Create a unification arrow for a fresh `unit` combinator
-    pub fn for_unit<J: Jet>(context: &mut Context<J>) -> Self {
+    pub fn for_unit<J: Jet>(_context: &mut Context<J>) -> Self {
         Arrow {
             source: Type::free(new_name("unit_src_")),
-            target: context.unit_ty(),
+            target: Type::unit(),
         }
     }
 
@@ -122,21 +122,21 @@ impl Arrow {
     }
 
     /// Create a unification arrow for a fresh jet combinator
-    pub fn for_jet<J: Jet>(context: &mut Context<J>, jet: J) -> Self {
+    pub fn for_jet<J: Jet>(_context: &mut Context<J>, jet: J) -> Self {
         Arrow {
-            source: jet.source_ty().to_type(|n| context.nth_power_of_2(n)),
-            target: jet.target_ty().to_type(|n| context.nth_power_of_2(n)),
+            source: jet.source_ty().to_type(),
+            target: jet.target_ty().to_type(),
         }
     }
 
     /// Create a unification arrow for a fresh const-word combinator
-    pub fn for_const_word<J: Jet>(context: &mut Context<J>, word: &Value) -> Self {
+    pub fn for_const_word<J: Jet>(_context: &mut Context<J>, word: &Value) -> Self {
         let len = word.len();
         assert_eq!(len.count_ones(), 1);
         let depth = word.len().trailing_zeros();
         Arrow {
-            source: context.unit_ty(),
-            target: context.nth_power_of_2(depth as usize),
+            source: Type::unit(),
+            target: Type::two_two_n(depth as usize),
         }
     }
 
@@ -268,7 +268,7 @@ impl Arrow {
 
     /// Create a unification arrow for a fresh `comp` combinator
     pub fn for_disconnect<J: Jet>(
-        context: &mut Context<J>,
+        _context: &mut Context<J>,
         lchild_arrow: &Arrow,
         rchild_arrow: &Arrow,
     ) -> Result<Self, Error> {
@@ -277,7 +277,7 @@ impl Arrow {
         let c = rchild_arrow.source.shallow_clone();
         let d = rchild_arrow.target.shallow_clone();
 
-        let prod_256_a = Bound::Product(context.nth_power_of_2(8), a.shallow_clone());
+        let prod_256_a = Bound::Product(Type::two_two_n(8), a.shallow_clone());
         let prod_b_c = Bound::Product(b.shallow_clone(), c);
         let prod_b_d = Type::product(b, d);
 
