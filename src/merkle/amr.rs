@@ -21,6 +21,8 @@ use crate::{Cmr, RedeemNode, Tmr, Value};
 use bitcoin_hashes::sha256::Midstate;
 use std::rc::Rc;
 
+use super::FailEntropy;
+
 /// Annotated Merkle root
 ///
 /// A Merkle root that commits to a node's combinator, its source and target type,
@@ -165,9 +167,9 @@ impl Amr {
             .update(b.tmr().into(), Amr::from_byte_array(compact_value(value)))
     }
 
-    /// Produce a CMR for a fail combinator
-    pub fn fail(left: Amr, right: Amr) -> Self {
-        Self::FAIL_IV.update(left, right)
+    /// Produce an AMR for a fail combinator
+    pub fn fail(entropy: FailEntropy) -> Self {
+        Self::FAIL_IV.update_fail_entropy(entropy)
     }
 
     /// Produce a CMR for a jet
@@ -342,7 +344,7 @@ impl Amr {
                 right.as_ref().unwrap().amr,
             ),
             CommitNodeInner::Witness => Self::witness(ty, value.unwrap()),
-            CommitNodeInner::Fail(left, right) => Self::fail(left.into(), right.into()),
+            CommitNodeInner::Fail(entropy) => Self::fail(entropy),
             CommitNodeInner::Jet(j) => Self::jet(j),
             CommitNodeInner::Word(ref w) => Self::const_word(w),
         }

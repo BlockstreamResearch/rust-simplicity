@@ -41,6 +41,7 @@ pub mod core;
 pub mod dag;
 pub mod jet;
 mod merkle;
+pub mod node;
 #[cfg(feature = "elements")]
 pub mod policy;
 pub mod types;
@@ -71,6 +72,7 @@ pub use crate::merkle::{
     cmr::Cmr,
     imr::{FirstPassImr, Imr},
     tmr::Tmr,
+    FailEntropy,
 };
 pub use crate::value::Value;
 pub use simplicity_sys as ffi;

@@ -22,7 +22,7 @@ use crate::dag::{Dag, DagLike, InternalSharing};
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::types;
-use crate::{BitIter, CommitNode, Context, Value};
+use crate::{BitIter, CommitNode, Context, FailEntropy, Value};
 use std::rc::Rc;
 use std::{cell, error, fmt, mem};
 
@@ -121,7 +121,7 @@ enum DecodeNode<J: Jet> {
     Pair(usize, usize),
     Disconnect(usize, usize),
     Witness,
-    Fail(Cmr, Cmr),
+    Fail(FailEntropy),
     Hidden(Cmr),
     Jet(J),
     Word(cell::RefCell<Value>),
@@ -137,21 +137,21 @@ impl<'d, J: Jet> DagLike for (usize, &'d [DecodeNode<J>]) {
     fn as_dag_node(&self) -> Dag<Self> {
         let nodes = &self.1;
         match self.1[self.0] {
-            DecodeNode::Iden => Dag::Iden,
-            DecodeNode::Unit => Dag::Unit,
-            DecodeNode::InjL(i) => Dag::InjL((i, nodes)),
-            DecodeNode::InjR(i) => Dag::InjR((i, nodes)),
-            DecodeNode::Take(i) => Dag::Take((i, nodes)),
-            DecodeNode::Drop(i) => Dag::Drop((i, nodes)),
-            DecodeNode::Comp(li, ri) => Dag::Comp((li, nodes), (ri, nodes)),
-            DecodeNode::Case(li, ri) => Dag::Case((li, nodes), (ri, nodes)),
-            DecodeNode::Pair(li, ri) => Dag::Pair((li, nodes), (ri, nodes)),
+            DecodeNode::Iden
+            | DecodeNode::Unit
+            | DecodeNode::Fail(..)
+            | DecodeNode::Hidden(..)
+            | DecodeNode::Jet(..)
+            | DecodeNode::Word(..) => Dag::Nullary,
+            DecodeNode::InjL(i)
+            | DecodeNode::InjR(i)
+            | DecodeNode::Take(i)
+            | DecodeNode::Drop(i) => Dag::Unary((i, nodes)),
+            DecodeNode::Comp(li, ri) | DecodeNode::Case(li, ri) | DecodeNode::Pair(li, ri) => {
+                Dag::Binary((li, nodes), (ri, nodes))
+            }
             DecodeNode::Disconnect(li, ri) => Dag::Disconnect((li, nodes), (ri, nodes)),
             DecodeNode::Witness => Dag::Witness,
-            DecodeNode::Fail(..) => Dag::Fail,
-            DecodeNode::Hidden(..) => Dag::Hidden,
-            DecodeNode::Jet(..) => Dag::Jet,
-            DecodeNode::Word(..) => Dag::Word,
         }
     }
 }
@@ -258,7 +258,7 @@ pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
                 converted[j].get()?,
             )?),
             DecodeNode::Witness => Node(CommitNode::witness(&mut context)),
-            DecodeNode::Fail(cmr1, cmr2) => Node(CommitNode::fail(&mut context, cmr1, cmr2)),
+            DecodeNode::Fail(entropy) => Node(CommitNode::fail(&mut context, entropy)),
             DecodeNode::Hidden(cmr) => Hidden(cmr),
             DecodeNode::Jet(j) => Node(CommitNode::jet(&mut context, j)),
             DecodeNode::Word(ref w) => {
@@ -328,7 +328,7 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
                 match bits.read_u2()? {
                     u2::_0 => Ok(DecodeNode::Iden),
                     u2::_1 => Ok(DecodeNode::Unit),
-                    u2::_2 => Ok(DecodeNode::Fail(bits.read_cmr()?, bits.read_cmr()?)),
+                    u2::_2 => Ok(DecodeNode::Fail(bits.read_fail_entropy()?)),
                     u2::_3 => Err(Error::StopCode),
                 }
             }

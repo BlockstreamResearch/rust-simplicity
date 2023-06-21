@@ -19,7 +19,7 @@ use crate::types::arrow::FinalArrow;
 use crate::{Cmr, Tmr, Value};
 use bitcoin_hashes::sha256::Midstate;
 
-use super::{bip340_iv, compact_value};
+use super::{bip340_iv, compact_value, FailEntropy};
 
 /// Identity Merkle root (first pass)
 ///
@@ -124,9 +124,9 @@ impl FirstPassImr {
         FirstPassImr(engine.midstate())
     }
 
-    /// Produce a CMR for a fail combinator
-    pub fn fail(left: FirstPassImr, right: FirstPassImr) -> Self {
-        Self::FAIL_IV.update(left, right)
+    /// Produce an IMR for a fail combinator
+    pub fn fail(entropy: FailEntropy) -> Self {
+        Self::FAIL_IV.update_fail_entropy(entropy)
     }
 
     /// Produce a CMR for a jet
@@ -264,7 +264,7 @@ impl FirstPassImr {
             CommitNodeInner::Pair(..) => Self::pair(left.unwrap(), right.unwrap()),
             CommitNodeInner::Disconnect(..) => Self::disconnect(left.unwrap(), right.unwrap()),
             CommitNodeInner::Witness => Self::witness(ty, value.unwrap()),
-            CommitNodeInner::Fail(left, right) => Self::fail(left.into(), right.into()),
+            CommitNodeInner::Fail(entropy) => Self::fail(entropy),
             CommitNodeInner::Jet(j) => Self::jet(j),
             CommitNodeInner::Word(ref w) => Self::const_word(w),
         }

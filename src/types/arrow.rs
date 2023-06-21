@@ -26,6 +26,7 @@
 use std::fmt;
 use std::sync::Arc;
 
+use crate::node::{Constructible, NoWitness};
 use crate::types::{Bound, Error, Final, Type};
 use crate::{jet::Jet, Context, Value};
 
@@ -58,6 +59,16 @@ pub struct FinalArrow {
 impl fmt::Display for FinalArrow {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} → {}", self.source, self.target)
+    }
+}
+
+impl FinalArrow {
+    /// Same as [`Self::clone`] but named to make it clearer that this is cheap
+    pub fn shallow_clone(&self) -> Self {
+        FinalArrow {
+            source: Arc::clone(&self.source),
+            target: Arc::clone(&self.target),
+        }
     }
 }
 
@@ -109,7 +120,7 @@ impl Arrow {
     }
 
     /// Create a unification arrow for a fresh jet combinator
-    pub fn for_jet<J: Jet>(context: &mut Context<J>, jet: &J) -> Self {
+    pub fn for_jet<J: Jet>(context: &mut Context<J>, jet: J) -> Self {
         Arrow {
             source: jet.source_ty().to_type(|n| context.nth_power_of_2(n)),
             target: jet.target_ty().to_type(|n| context.nth_power_of_2(n)),
@@ -283,5 +294,79 @@ impl Arrow {
             source: a,
             target: prod_b_d,
         })
+    }
+
+    /// Same as [`Self::clone`] but named to make it clearer that this is cheap
+    pub fn shallow_clone(&self) -> Self {
+        Arrow {
+            source: self.source.shallow_clone(),
+            target: self.target.shallow_clone(),
+        }
+    }
+}
+
+impl<J: Jet> Constructible<NoWitness, J> for Arrow {
+    fn iden(ctx: &mut Context<J>) -> Self {
+        Self::for_iden(ctx)
+    }
+
+    fn unit(ctx: &mut Context<J>) -> Self {
+        Self::for_unit(ctx)
+    }
+
+    fn injl(ctx: &mut Context<J>, child: &Self) -> Self {
+        Self::for_injl(ctx, child)
+    }
+
+    fn injr(ctx: &mut Context<J>, child: &Self) -> Self {
+        Self::for_injr(ctx, child)
+    }
+
+    fn take(ctx: &mut Context<J>, child: &Self) -> Self {
+        Self::for_take(ctx, child)
+    }
+
+    fn drop_(ctx: &mut Context<J>, child: &Self) -> Self {
+        Self::for_drop(ctx, child)
+    }
+
+    fn comp(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, Error> {
+        Self::for_comp(ctx, left, right)
+    }
+
+    fn case(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, Error> {
+        Self::for_case(ctx, Some(left), Some(right))
+    }
+
+    fn assertl(ctx: &mut Context<J>, left: &Self, _: crate::Cmr) -> Result<Self, Error> {
+        Self::for_case(ctx, Some(left), None)
+    }
+
+    fn assertr(ctx: &mut Context<J>, _: crate::Cmr, right: &Self) -> Result<Self, Error> {
+        Self::for_case(ctx, None, Some(right))
+    }
+
+    fn pair(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, Error> {
+        Self::for_pair(ctx, left, right)
+    }
+
+    fn disconnect(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, Error> {
+        Self::for_disconnect(ctx, left, right)
+    }
+
+    fn witness(ctx: &mut Context<J>, _: NoWitness) -> Self {
+        Self::for_witness(ctx)
+    }
+
+    fn fail(ctx: &mut Context<J>, _: crate::FailEntropy) -> Self {
+        Self::for_fail(ctx)
+    }
+
+    fn jet(ctx: &mut Context<J>, jet: J) -> Self {
+        Self::for_jet(ctx, jet)
+    }
+
+    fn const_word(ctx: &mut Context<J>, word: Arc<Value>) -> Self {
+        Self::for_const_word(ctx, &word)
     }
 }

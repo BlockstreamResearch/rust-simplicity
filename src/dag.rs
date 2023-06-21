@@ -16,49 +16,32 @@
 
 use std::collections::{hash_map::Entry, HashMap};
 use std::rc::Rc;
+use std::sync::Arc;
 use std::{fmt, marker};
 
 use crate::core::commit::{CommitNode, CommitNodeInner};
 use crate::core::redeem::{RedeemNode, RedeemNodeInner};
 use crate::jet;
+use crate::node::{self, Node, NodeData};
 use crate::{Imr, Value};
 
-/// Generic container for Simplicity DAGs
+/// Abstract node of a directed acyclic graph.
+///
+/// Tracks the arity (out-degree) of nodes in a Simplictiy program, as well
+/// as whether they represent `witness` or `disconnect` combinators, which
+/// are treated specially when working with the graph structure of
+/// Simplicty programs.
 pub enum Dag<T> {
-    /// Identity
-    Iden,
-    /// Unit constant
-    Unit,
-    /// Left injection of some child
-    InjL(T),
-    /// Right injection of some child
-    InjR(T),
-    /// Take of some child
-    Take(T),
-    /// Drop of some child
-    Drop(T),
-    /// Composition of a left and right child
-    Comp(T, T),
-    /// Case of a left and right child
-    Case(T, T),
-    /// Left-assertion of a child
-    AssertL(T),
-    /// Right-assertion of a child
-    AssertR(T),
-    /// Pair of a left and right child
-    Pair(T, T),
-    /// Disconnect of a left and right child
-    Disconnect(T, T),
-    /// Witness data (missing during commitment, inserted during redemption)
+    /// Combinator with no children
+    Nullary,
+    /// Combinator with one child
+    Unary(T),
+    /// Combinator with two children
+    Binary(T, T),
+    /// Witness node, which gets special treatment
     Witness,
-    /// Universal fail
-    Fail,
-    /// Hidden CMR
-    Hidden,
-    /// Application jet
-    Jet,
-    /// Constant word
-    Word,
+    /// Disconnect node, which gets special treatment
+    Disconnect(T, T),
 }
 
 /// How much sharing/expansion to do when running an iterator over a DAG
@@ -168,6 +151,52 @@ impl<J: jet::Jet> SharingTracker<&RedeemNode<J>> for FullSharing {
     }
 }
 
+/// Maximal sharing: share every node whose CMR and cached data match
+///
+/// For `RedeemNode`s, this coincides with `FullSharing`; for other
+/// types of nodes it represents "as much sharing as we can currently
+/// safely do".
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct MaxSharing<N: NodeData<J>, J: jet::Jet> {
+    map: HashMap<N::SharingId, usize>,
+}
+
+// Annoyingly we have to implement Default by hand
+impl<N: NodeData<J>, J: jet::Jet> Default for MaxSharing<N, J> {
+    fn default() -> Self {
+        MaxSharing {
+            map: Default::default(),
+        }
+    }
+}
+
+impl<N, J> SharingTracker<&Node<N, J>> for MaxSharing<N, J>
+where
+    J: jet::Jet,
+    N: NodeData<J>,
+{
+    fn record(
+        &mut self,
+        d: &&Node<N, J>,
+        index: usize,
+        _: Option<usize>,
+        _: Option<usize>,
+    ) -> Option<usize> {
+        let id = d.sharing_id()?;
+
+        match self.map.entry(id) {
+            Entry::Occupied(occ) => Some(*occ.get()),
+            Entry::Vacant(vac) => {
+                vac.insert(index);
+                None
+            }
+        }
+    }
+    fn seen_before(&self, d: &&Node<N, J>) -> Option<usize> {
+        d.sharing_id().and_then(|id| self.map.get(&id)).copied()
+    }
+}
+
 /// A wrapper around any other sharing tracker which forces `witness` and
 /// `disconnect` combinators, and their ancestors, to be unshared
 ///
@@ -271,46 +300,22 @@ pub trait DagLike: Sized {
     /// Accessor for the left child of the node, if one exists
     fn left_child(&self) -> Option<Self> {
         match self.as_dag_node() {
-            Dag::Iden => None,
-            Dag::Unit => None,
-            Dag::InjL(sub) => Some(sub),
-            Dag::InjR(sub) => Some(sub),
-            Dag::Take(sub) => Some(sub),
-            Dag::Drop(sub) => Some(sub),
-            Dag::Comp(left, _) => Some(left),
-            Dag::Case(left, _) => Some(left),
-            Dag::AssertL(left) => Some(left),
-            Dag::AssertR(right) => Some(right), // note that we treat the child of an assertR as a left child!
-            Dag::Pair(left, _) => Some(left),
-            Dag::Disconnect(left, _) => Some(left),
+            Dag::Nullary => None,
+            Dag::Unary(sub) => Some(sub),
+            Dag::Binary(left, _) => Some(left),
             Dag::Witness => None,
-            Dag::Fail => None,
-            Dag::Hidden => None,
-            Dag::Jet => None,
-            Dag::Word => None,
+            Dag::Disconnect(left, _) => Some(left),
         }
     }
 
     /// Accessor for the right child of the node, if one exists
     fn right_child(&self) -> Option<Self> {
         match self.as_dag_node() {
-            Dag::Iden => None,
-            Dag::Unit => None,
-            Dag::InjL(_) => None,
-            Dag::InjR(_) => None,
-            Dag::Take(_) => None,
-            Dag::Drop(_) => None,
-            Dag::Comp(_, right) => Some(right),
-            Dag::AssertL(_) => None,
-            Dag::AssertR(_) => None, // note that we treat the child of an assertR as a left child!
-            Dag::Case(_, right) => Some(right),
-            Dag::Pair(_, right) => Some(right),
-            Dag::Disconnect(_, right) => Some(right),
+            Dag::Nullary => None,
+            Dag::Unary(_) => None,
+            Dag::Binary(_, right) => Some(right),
             Dag::Witness => None,
-            Dag::Fail => None,
-            Dag::Hidden => None,
-            Dag::Jet => None,
-            Dag::Word => None,
+            Dag::Disconnect(left, _) => Some(left),
         }
     }
 
@@ -353,22 +358,22 @@ impl<'a, J: jet::Jet> DagLike for &'a CommitNode<J> {
     #[rustfmt::skip]
     fn as_dag_node(&self) -> Dag<Self> {
         match self.inner() {
-            CommitNodeInner::Iden => Dag::Iden,
-            CommitNodeInner::Unit => Dag::Unit,
-            CommitNodeInner::InjL(ref sub) => Dag::InjL(sub),
-            CommitNodeInner::InjR(ref sub) => Dag::InjR(sub),
-            CommitNodeInner::Take(ref sub) => Dag::Take(sub),
-            CommitNodeInner::Drop(ref sub) => Dag::Drop(sub),
-            CommitNodeInner::Comp(ref left, ref right) => Dag::Comp(left, right),
-            CommitNodeInner::Case(ref left, ref right) => Dag::Case(left, right),
-            CommitNodeInner::AssertL(ref left, _) => Dag::AssertL(left),
-            CommitNodeInner::AssertR(_, ref right) => Dag::AssertR(right),
-            CommitNodeInner::Pair(ref left, ref right) => Dag::Pair(left, right),
+            CommitNodeInner::Iden
+            | CommitNodeInner::Unit
+            | CommitNodeInner::Fail(..)
+            | CommitNodeInner::Jet(..)
+            | CommitNodeInner::Word(..) => Dag::Nullary,
+            CommitNodeInner::InjL(ref sub)
+            | CommitNodeInner::InjR(ref sub)
+            | CommitNodeInner::Take(ref sub)
+            | CommitNodeInner::Drop(ref sub)
+            | CommitNodeInner::AssertL(ref sub, _)
+            | CommitNodeInner::AssertR(_, ref sub) => Dag::Unary(sub),
+            CommitNodeInner::Comp(ref left, ref right)
+            | CommitNodeInner::Case(ref left, ref right)
+            | CommitNodeInner::Pair(ref left, ref right) => Dag::Binary(left, right),
             CommitNodeInner::Disconnect(ref left, ref right) => Dag::Disconnect(left, right),
             CommitNodeInner::Witness => Dag::Witness,
-            CommitNodeInner::Fail(..) => Dag::Fail,
-            CommitNodeInner::Jet(..) => Dag::Jet,
-            CommitNodeInner::Word(..) => Dag::Word,
         }
     }
 }
@@ -383,22 +388,22 @@ impl<J: jet::Jet> DagLike for Rc<CommitNode<J>> {
     #[rustfmt::skip]
     fn as_dag_node(&self) -> Dag<Self> {
         match self.inner() {
-            CommitNodeInner::Iden => Dag::Iden,
-            CommitNodeInner::Unit => Dag::Unit,
-            CommitNodeInner::InjL(ref sub) => Dag::InjL(Rc::clone(sub)),
-            CommitNodeInner::InjR(ref sub) => Dag::InjR(Rc::clone(sub)),
-            CommitNodeInner::Take(ref sub) => Dag::Take(Rc::clone(sub)),
-            CommitNodeInner::Drop(ref sub) => Dag::Drop(Rc::clone(sub)),
-            CommitNodeInner::Comp(ref left, ref right) => Dag::Comp(Rc::clone(left), Rc::clone(right)),
-            CommitNodeInner::Case(ref left, ref right) => Dag::Case(Rc::clone(left), Rc::clone(right)),
-            CommitNodeInner::AssertL(ref left, _) => Dag::AssertL(Rc::clone(left)),
-            CommitNodeInner::AssertR(_, ref right) => Dag::AssertR(Rc::clone(right)),
-            CommitNodeInner::Pair(ref left, ref right) => Dag::Pair(Rc::clone(left), Rc::clone(right)),
+            CommitNodeInner::Iden
+            | CommitNodeInner::Unit
+            | CommitNodeInner::Fail(..)
+            | CommitNodeInner::Jet(..)
+            | CommitNodeInner::Word(..) => Dag::Nullary,
+            CommitNodeInner::InjL(ref sub)
+            | CommitNodeInner::InjR(ref sub)
+            | CommitNodeInner::Take(ref sub)
+            | CommitNodeInner::Drop(ref sub)
+            | CommitNodeInner::AssertL(ref sub, _)
+            | CommitNodeInner::AssertR(_, ref sub) => Dag::Unary(Rc::clone(sub)),
+            CommitNodeInner::Comp(ref left, ref right)
+            | CommitNodeInner::Case(ref left, ref right)
+            | CommitNodeInner::Pair(ref left, ref right) => Dag::Binary(Rc::clone(left), Rc::clone(right)),
             CommitNodeInner::Disconnect(ref left, ref right) => Dag::Disconnect(Rc::clone(left), Rc::clone(right)),
             CommitNodeInner::Witness => Dag::Witness,
-            CommitNodeInner::Fail(..) => Dag::Fail,
-            CommitNodeInner::Jet(..) => Dag::Jet,
-            CommitNodeInner::Word(..) => Dag::Word,
         }
     }
 }
@@ -413,22 +418,22 @@ impl<'a, J: jet::Jet> DagLike for &'a RedeemNode<J> {
     #[rustfmt::skip]
     fn as_dag_node(&self) -> Dag<Self> {
         match self.inner {
-            RedeemNodeInner::Iden => Dag::Iden,
-            RedeemNodeInner::Unit => Dag::Unit,
-            RedeemNodeInner::InjL(ref sub) => Dag::InjL(sub),
-            RedeemNodeInner::InjR(ref sub) => Dag::InjR(sub),
-            RedeemNodeInner::Take(ref sub) => Dag::Take(sub),
-            RedeemNodeInner::Drop(ref sub) => Dag::Drop(sub),
-            RedeemNodeInner::Comp(ref left, ref right) => Dag::Comp(left, right),
-            RedeemNodeInner::Case(ref left, ref right) => Dag::Case(left, right),
-            RedeemNodeInner::AssertL(ref left, _) => Dag::AssertL(left),
-            RedeemNodeInner::AssertR(_, ref right) => Dag::AssertR(right),
-            RedeemNodeInner::Pair(ref left, ref right) => Dag::Pair(left, right),
+            RedeemNodeInner::Iden
+            | RedeemNodeInner::Unit
+            | RedeemNodeInner::Fail(..)
+            | RedeemNodeInner::Jet(..)
+            | RedeemNodeInner::Word(..) => Dag::Nullary,
+            RedeemNodeInner::InjL(ref sub)
+            | RedeemNodeInner::InjR(ref sub)
+            | RedeemNodeInner::Take(ref sub)
+            | RedeemNodeInner::Drop(ref sub)
+            | RedeemNodeInner::AssertL(ref sub, _)
+            | RedeemNodeInner::AssertR(_, ref sub) => Dag::Unary(sub),
+            RedeemNodeInner::Comp(ref left, ref right)
+            | RedeemNodeInner::Case(ref left, ref right)
+            | RedeemNodeInner::Pair(ref left, ref right) => Dag::Binary(left, right),
             RedeemNodeInner::Disconnect(ref left, ref right) => Dag::Disconnect(left, right),
             RedeemNodeInner::Witness(..) => Dag::Witness,
-            RedeemNodeInner::Fail(..) => Dag::Fail,
-            RedeemNodeInner::Jet(..) => Dag::Jet,
-            RedeemNodeInner::Word(..) => Dag::Word,
         }
     }
 }
@@ -443,22 +448,82 @@ impl<J: jet::Jet> DagLike for Rc<RedeemNode<J>> {
     #[rustfmt::skip]
     fn as_dag_node(&self) -> Dag<Self> {
         match self.inner {
-            RedeemNodeInner::Iden => Dag::Iden,
-            RedeemNodeInner::Unit => Dag::Unit,
-            RedeemNodeInner::InjL(ref sub) => Dag::InjL(Rc::clone(sub)),
-            RedeemNodeInner::InjR(ref sub) => Dag::InjR(Rc::clone(sub)),
-            RedeemNodeInner::Take(ref sub) => Dag::Take(Rc::clone(sub)),
-            RedeemNodeInner::Drop(ref sub) => Dag::Drop(Rc::clone(sub)),
-            RedeemNodeInner::Comp(ref left, ref right) => Dag::Comp(Rc::clone(left), Rc::clone(right)),
-            RedeemNodeInner::Case(ref left, ref right) => Dag::Case(Rc::clone(left), Rc::clone(right)),
-            RedeemNodeInner::AssertL(ref left, _) => Dag::AssertL(Rc::clone(left)),
-            RedeemNodeInner::AssertR(_, ref right) => Dag::AssertR(Rc::clone(right)),
-            RedeemNodeInner::Pair(ref left, ref right) => Dag::Pair(Rc::clone(left), Rc::clone(right)),
+            RedeemNodeInner::Iden
+            | RedeemNodeInner::Unit
+            | RedeemNodeInner::Fail(..)
+            | RedeemNodeInner::Jet(..)
+            | RedeemNodeInner::Word(..) => Dag::Nullary,
+            RedeemNodeInner::InjL(ref sub)
+            | RedeemNodeInner::InjR(ref sub)
+            | RedeemNodeInner::Take(ref sub)
+            | RedeemNodeInner::Drop(ref sub)
+            | RedeemNodeInner::AssertL(ref sub, _)
+            | RedeemNodeInner::AssertR(_, ref sub) => Dag::Unary(Rc::clone(sub)),
+            RedeemNodeInner::Comp(ref left, ref right)
+            | RedeemNodeInner::Case(ref left, ref right)
+            | RedeemNodeInner::Pair(ref left, ref right) => Dag::Binary(Rc::clone(left), Rc::clone(right)),
             RedeemNodeInner::Disconnect(ref left, ref right) => Dag::Disconnect(Rc::clone(left), Rc::clone(right)),
             RedeemNodeInner::Witness(..) => Dag::Witness,
-            RedeemNodeInner::Fail(..) => Dag::Fail,
-            RedeemNodeInner::Jet(..) => Dag::Jet,
-            RedeemNodeInner::Word(..) => Dag::Word,
+        }
+    }
+}
+
+impl<'a, N: NodeData<J>, J: jet::Jet> DagLike for &'a Node<N, J> {
+    type Node = Node<N, J>;
+
+    fn data(&self) -> &Node<N, J> {
+        self
+    }
+
+    #[rustfmt::skip]
+    fn as_dag_node(&self) -> Dag<Self> {
+        match self.inner() {
+            node::Inner::Iden
+            | node::Inner::Unit
+            | node::Inner::Fail(..)
+            | node::Inner::Jet(..)
+            | node::Inner::Word(..) => Dag::Nullary,
+            node::Inner::InjL(ref sub)
+            | node::Inner::InjR(ref sub)
+            | node::Inner::Take(ref sub)
+            | node::Inner::Drop(ref sub)
+            | node::Inner::AssertL(ref sub, _)
+            | node::Inner::AssertR(_, ref sub) => Dag::Unary(sub),
+            node::Inner::Comp(ref left, ref right)
+            | node::Inner::Case(ref left, ref right)
+            | node::Inner::Pair(ref left, ref right) => Dag::Binary(left, right),
+            node::Inner::Disconnect(ref left, ref right) => Dag::Disconnect(left, right),
+            node::Inner::Witness(..) => Dag::Witness,
+        }
+    }
+}
+
+impl<N: NodeData<J>, J: jet::Jet> DagLike for Arc<Node<N, J>> {
+    type Node = Node<N, J>;
+
+    fn data(&self) -> &Node<N, J> {
+        self
+    }
+
+    #[rustfmt::skip]
+    fn as_dag_node(&self) -> Dag<Self> {
+        match self.inner() {
+            node::Inner::Iden
+            | node::Inner::Unit
+            | node::Inner::Fail(..)
+            | node::Inner::Jet(..)
+            | node::Inner::Word(..) => Dag::Nullary,
+            node::Inner::InjL(ref sub)
+            | node::Inner::InjR(ref sub)
+            | node::Inner::Take(ref sub)
+            | node::Inner::Drop(ref sub)
+            | node::Inner::AssertL(ref sub, _)
+            | node::Inner::AssertR(_, ref sub) => Dag::Unary(Arc::clone(sub)),
+            node::Inner::Comp(ref left, ref right)
+            | node::Inner::Case(ref left, ref right)
+            | node::Inner::Pair(ref left, ref right) => Dag::Binary(Arc::clone(left), Arc::clone(right)),
+            node::Inner::Disconnect(ref left, ref right) => Dag::Disconnect(Arc::clone(left), Arc::clone(right)),
+            node::Inner::Witness(..) => Dag::Witness,
         }
     }
 }
@@ -679,6 +744,25 @@ impl<D: DagLike, S: SharingTracker<D>> Iterator for PostOrderIter<D, S> {
                 return None;
             }
         }
+    }
+}
+
+impl<'a, N: NodeData<J>, J: jet::Jet, S: SharingTracker<&'a Node<N, J>> + Clone>
+    PostOrderIter<&'a Node<N, J>, S>
+{
+    /// Adapt the iterator to only yield witnesses
+    ///
+    /// The witnesses are yielded in the order in which they appear in the DAG
+    /// *except* that each witness is only yielded once, and future occurences
+    /// are skipped.
+    pub fn into_witnesses(self) -> impl Iterator<Item = &'a N::Witness> + Clone {
+        self.filter_map(|data| {
+            if let node::Inner::Witness(value) = data.node.inner() {
+                Some(value)
+            } else {
+                None
+            }
+        })
     }
 }
 

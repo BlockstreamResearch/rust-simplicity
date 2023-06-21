@@ -22,7 +22,7 @@ use super::frame::Frame;
 use crate::core::redeem::RedeemNodeInner;
 use crate::jet::{Jet, JetFailed};
 use crate::{analysis, types};
-use crate::{Cmr, RedeemNode, Value};
+use crate::{Cmr, FailEntropy, RedeemNode, Value};
 use std::fmt;
 use std::{cmp, error};
 
@@ -423,8 +423,8 @@ impl BitMachine {
                 RedeemNodeInner::Witness(value) => self.write_value(value),
                 RedeemNodeInner::Jet(jet) => jet.exec(self, env)?,
                 RedeemNodeInner::Word(value) => self.write_value(value),
-                RedeemNodeInner::Fail(left, right) => {
-                    return Err(ExecutionError::ReachedFailNode(*left, *right))
+                RedeemNodeInner::Fail(entropy) => {
+                    return Err(ExecutionError::ReachedFailNode(*entropy))
                 }
             }
 
@@ -462,7 +462,7 @@ impl BitMachine {
 #[derive(Debug)]
 pub enum ExecutionError {
     /// Reached a fail node
-    ReachedFailNode(Cmr, Cmr),
+    ReachedFailNode(FailEntropy),
     /// Reached a pruned branch
     ReachedPrunedBranch(Cmr),
     /// Jet failed during execution
@@ -472,8 +472,8 @@ pub enum ExecutionError {
 impl fmt::Display for ExecutionError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            ExecutionError::ReachedFailNode(left, right) => {
-                write!(f, "Execution reached a fail node: {} {}", left, right)
+            ExecutionError::ReachedFailNode(entropy) => {
+                write!(f, "Execution reached a fail node: {}", entropy)
             }
             ExecutionError::ReachedPrunedBranch(hash) => {
                 write!(f, "Execution reached a pruned branch: {}", hash)
