@@ -26,7 +26,6 @@
 //!
 
 mod ast;
-mod compiler;
 pub mod descriptor;
 mod embed;
 mod error;
@@ -36,7 +35,7 @@ use crate::jet::Elements;
 use crate::miniscript::{ToPublicKey, Translator};
 use crate::node::{CommitNode, ConstructNode, NoWitness};
 use crate::node::{CoreConstructible, JetConstructible, WitnessConstructible};
-use crate::{FailEntropy, Value};
+use crate::{Cmr, FailEntropy, Value};
 
 use std::convert::TryInto;
 use std::fmt;
@@ -172,6 +171,11 @@ impl<Pk: ToPublicKey> Policy<Pk> {
         }
     }
 
+    /// Accessor for the CMR of the policy
+    pub fn cmr(&self) -> Cmr {
+        self.node.cmr()
+    }
+
     /// Serializes the policy as a Simplicity program
     pub fn serialize(&self) -> Arc<CommitNode<Elements>> {
         self.node.finalize_types().expect("consistent types")
@@ -290,5 +294,286 @@ mod fragment_aux {
 
         // 1 → 1
         verify_bexp(&pair_k_sum, &eq32)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::exec::BitMachine;
+    use crate::jet::elements::ElementsEnv;
+    use crate::node::SimpleFinalizer;
+    use crate::{FailEntropy, Value};
+    use bitcoin_hashes::{sha256, Hash};
+    use elements::{bitcoin, secp256k1_zkp};
+    use std::sync::Arc;
+
+    fn compile(
+        policy: Policy<bitcoin::XOnlyPublicKey>,
+    ) -> (Arc<CommitNode<Elements>>, ElementsEnv) {
+        let commit = policy.serialize();
+        let env = ElementsEnv::dummy();
+
+        (commit, env)
+    }
+
+    fn execute_successful(
+        commit: &CommitNode<Elements>,
+        witness: Vec<Value>,
+        env: &ElementsEnv,
+    ) -> bool {
+        let finalized = commit
+            .finalize(&mut SimpleFinalizer::new(
+                witness.into_iter().rev().map(Arc::new),
+            ))
+            .expect("finalize");
+        let mut mac = BitMachine::for_program(&finalized);
+
+        match mac.exec(&finalized, env) {
+            Ok(output) => output == Value::Unit,
+            Err(_) => false,
+        }
+    }
+
+    #[test]
+    fn execute_unsatisfiable() {
+        let (commit, env) = compile(Policy::unsatisfiable(FailEntropy::ZERO));
+        assert!(!execute_successful(&commit, vec![], &env));
+    }
+
+    #[test]
+    fn execute_trivial() {
+        let (commit, env) = compile(Policy::trivial());
+        assert!(execute_successful(&commit, vec![], &env));
+    }
+
+    #[test]
+    fn execute_pk() {
+        let env = ElementsEnv::dummy();
+
+        let sighash = env.c_tx_env().sighash_all();
+        let secp = secp256k1_zkp::Secp256k1::new();
+        let keypair = secp256k1_zkp::KeyPair::new(&secp, &mut secp256k1_zkp::rand::rngs::OsRng);
+        let message = secp256k1_zkp::Message::from(sighash);
+        let signature = keypair.sign_schnorr(message);
+
+        let (xonly, _) = keypair.x_only_public_key();
+        let commit = Policy::key(xonly).serialize();
+
+        assert!(execute_successful(
+            &commit,
+            vec![Value::u512_from_slice(signature.as_ref())],
+            &env
+        ));
+    }
+
+    #[test]
+    fn execute_after() {
+        let env = ElementsEnv::dummy_with(elements::PackedLockTime(42), elements::Sequence::ZERO);
+
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::after(41).serialize();
+        assert!(execute_successful(&commit, vec![], &env));
+
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::after(42).serialize();
+        assert!(execute_successful(&commit, vec![], &env));
+
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::after(43).serialize();
+        assert!(!execute_successful(&commit, vec![], &env));
+    }
+
+    #[test]
+    fn execute_older() {
+        let env = ElementsEnv::dummy_with(
+            elements::PackedLockTime::ZERO,
+            elements::Sequence::from_consensus(42),
+        );
+
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::older(41).serialize();
+        assert!(execute_successful(&commit, vec![], &env));
+
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::older(42).serialize();
+        assert!(execute_successful(&commit, vec![], &env));
+
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::older(43).serialize();
+        assert!(!execute_successful(&commit, vec![], &env));
+    }
+
+    #[test]
+    fn execute_sha256() {
+        let preimage = [1; 32];
+        let image = sha256::Hash::hash(&preimage);
+        let (commit, env) = compile(Policy::sha256(image));
+
+        let valid_witness = vec![Value::u256_from_slice(&preimage)];
+        assert!(execute_successful(&commit, valid_witness, &env));
+
+        let invalid_witness = vec![Value::u256_from_slice(&[0; 32])];
+        assert!(!execute_successful(&commit, invalid_witness, &env));
+    }
+
+    #[test]
+    fn execute_and() {
+        let preimage0 = [1; 32];
+        let image0 = sha256::Hash::hash(&preimage0);
+        let preimage1 = [2; 32];
+        let image1 = sha256::Hash::hash(&preimage1);
+
+        let (commit, env) = compile(Policy::and(
+            Arc::new(Policy::sha256(image0)),
+            Arc::new(Policy::sha256(image1)),
+        ));
+
+        let valid_witness = vec![
+            Value::u256_from_slice(&preimage0),
+            Value::u256_from_slice(&preimage1),
+        ];
+        assert!(execute_successful(&commit, valid_witness, &env));
+
+        let invalid_witness = vec![
+            Value::u256_from_slice(&preimage0),
+            Value::u256_from_slice(&[0; 32]),
+        ];
+        assert!(!execute_successful(&commit, invalid_witness, &env));
+
+        let invalid_witness = vec![
+            Value::u256_from_slice(&[0; 32]),
+            Value::u256_from_slice(&preimage1),
+        ];
+        assert!(!execute_successful(&commit, invalid_witness, &env));
+    }
+
+    #[test]
+    fn execute_and_true() {
+        let preimage0 = [1; 32];
+        let image0 = sha256::Hash::hash(&preimage0);
+
+        let (commit, env) = compile(Policy::and(
+            Arc::new(Policy::sha256(image0)),
+            Arc::new(Policy::trivial()),
+        ));
+
+        let valid_witness = vec![Value::u256_from_slice(&preimage0)];
+        assert!(execute_successful(&commit, valid_witness, &env));
+
+        let invalid_witness = vec![Value::u256_from_slice(&[0; 32])];
+        assert!(!execute_successful(&commit, invalid_witness, &env));
+    }
+
+    #[test]
+    fn execute_or() {
+        let preimage0 = [1; 32];
+        let image0 = sha256::Hash::hash(&preimage0);
+        let preimage1 = [2; 32];
+        let image1 = sha256::Hash::hash(&preimage1);
+
+        let (commit, env) = compile(Policy::or(
+            Arc::new(Policy::sha256(image0)),
+            Arc::new(Policy::sha256(image1)),
+        ));
+
+        let valid_witness = vec![
+            Value::u1(0),
+            Value::u256_from_slice(&preimage0),
+            Value::u256_from_slice(&[0; 32]),
+        ];
+        assert!(execute_successful(&commit, valid_witness, &env));
+        let valid_witness = vec![
+            Value::u1(1),
+            Value::u256_from_slice(&[0; 32]),
+            Value::u256_from_slice(&preimage1),
+        ];
+        assert!(execute_successful(&commit, valid_witness, &env));
+
+        let invalid_witness = vec![
+            Value::u1(0),
+            Value::u256_from_slice(&[0; 32]),
+            Value::u256_from_slice(&preimage1),
+        ];
+        assert!(!execute_successful(&commit, invalid_witness, &env));
+        let invalid_witness = vec![
+            Value::u1(1),
+            Value::u256_from_slice(&preimage0),
+            Value::u256_from_slice(&[0; 32]),
+        ];
+        assert!(!execute_successful(&commit, invalid_witness, &env));
+    }
+
+    #[test]
+    fn execute_threshold() {
+        let preimage0 = [1; 32];
+        let image0 = sha256::Hash::hash(&preimage0);
+        let preimage1 = [2; 32];
+        let image1 = sha256::Hash::hash(&preimage1);
+        let preimage2 = [3; 32];
+        let image2 = sha256::Hash::hash(&preimage2);
+
+        let (commit, env) = compile(Policy::threshold(
+            2,
+            vec![
+                Policy::sha256(image0),
+                Policy::sha256(image1),
+                Policy::sha256(image2),
+            ],
+        ));
+
+        let valid_witness = vec![
+            Value::u1(1),
+            Value::u256_from_slice(&preimage0),
+            Value::u1(1),
+            Value::u256_from_slice(&preimage1),
+            Value::u1(0),
+            Value::u256_from_slice(&[0; 32]),
+        ];
+        assert!(execute_successful(&commit, valid_witness, &env));
+
+        let valid_witness = vec![
+            Value::u1(1),
+            Value::u256_from_slice(&preimage0),
+            Value::u1(0),
+            Value::u256_from_slice(&[0; 32]),
+            Value::u1(1),
+            Value::u256_from_slice(&preimage2),
+        ];
+        assert!(execute_successful(&commit, valid_witness, &env));
+
+        let valid_witness = vec![
+            Value::u1(0),
+            Value::u256_from_slice(&[0; 32]),
+            Value::u1(1),
+            Value::u256_from_slice(&preimage1),
+            Value::u1(1),
+            Value::u256_from_slice(&preimage2),
+        ];
+        assert!(execute_successful(&commit, valid_witness, &env));
+
+        let invalid_witness = vec![
+            Value::u1(1),
+            Value::u256_from_slice(&preimage0),
+            Value::u1(1),
+            Value::u256_from_slice(&preimage1),
+            Value::u1(1),
+            Value::u256_from_slice(&preimage2),
+        ];
+        assert!(!execute_successful(&commit, invalid_witness, &env));
+
+        let invalid_witness = vec![
+            Value::u1(1),
+            Value::u256_from_slice(&preimage1),
+            Value::u1(1),
+            Value::u256_from_slice(&preimage0),
+            Value::u1(0),
+            Value::u256_from_slice(&[0; 32]),
+        ];
+        assert!(!execute_successful(&commit, invalid_witness, &env));
+
+        let invalid_witness = vec![
+            Value::u1(1),
+            Value::u256_from_slice(&preimage0),
+            Value::u1(0),
+            Value::u256_from_slice(&[0; 32]),
+            Value::u1(0),
+            Value::u256_from_slice(&[0; 32]),
+        ];
+        assert!(!execute_successful(&commit, invalid_witness, &env));
     }
 }
