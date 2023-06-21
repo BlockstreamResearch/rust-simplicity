@@ -285,13 +285,16 @@ impl Cmr {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::CommitNode;
+
+    use crate::jet::Core;
+    use crate::node::{ConstructNode, CoreConstructible};
 
     use std::str::FromStr;
+    use std::sync::Arc;
 
     #[test]
     fn cmr_display_unit() {
-        let c = crate::CommitNode::<crate::jet::Core>::unit();
+        let c = Arc::<ConstructNode<Core>>::unit();
 
         assert_eq!(
             c.cmr().to_string(),
@@ -323,11 +326,11 @@ mod tests {
 
     #[test]
     fn bit_cmr() {
-        let unit = CommitNode::<crate::jet::Core>::unit();
-        let bit0 = CommitNode::injl(unit.clone());
+        let unit = Arc::<ConstructNode<Core>>::unit();
+        let bit0 = Arc::<ConstructNode<Core>>::injl(&unit);
         assert_eq!(bit0.cmr(), Cmr::BITS[0]);
 
-        let bit1 = CommitNode::injr(unit);
+        let bit1 = Arc::<ConstructNode<_>>::injr(&unit);
         assert_eq!(bit1.cmr(), Cmr::BITS[1]);
     }
 
