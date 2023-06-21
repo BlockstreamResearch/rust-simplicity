@@ -36,6 +36,7 @@ pub mod satisfy;
 use crate::miniscript::{MiniscriptKey, Translator};
 
 use std::fmt;
+use std::sync::Arc;
 
 pub use descriptor::Descriptor;
 pub use error::Error;
@@ -95,16 +96,16 @@ impl<Pk: MiniscriptKey> Policy<Pk> {
     }
 
     /// Create a conjunction of two policies.
-    pub fn and(subs: Vec<Self>) -> Self {
+    pub fn and(left: Arc<Self>, right: Arc<Self>) -> Self {
         Policy {
-            fragment: ast::Fragment::And(subs),
+            fragment: ast::Fragment::And { left, right },
         }
     }
 
     /// Create a disjunction of two policies.
-    pub fn or(subs: Vec<Self>) -> Self {
+    pub fn or(left: Arc<Self>, right: Arc<Self>) -> Self {
         Policy {
-            fragment: ast::Fragment::Or(subs),
+            fragment: ast::Fragment::Or { left, right },
         }
     }
 

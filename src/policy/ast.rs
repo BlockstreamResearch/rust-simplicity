@@ -21,6 +21,7 @@
 //! Simplicity expressions to policy.
 
 use std::fmt;
+use std::sync::Arc;
 
 use super::Policy;
 
@@ -46,10 +47,16 @@ pub enum Fragment<Pk: MiniscriptKey> {
     Older(u16),
     /// Provide the preimage of the given SHA256 hash image
     Sha256(Pk::Sha256),
-    /// Satisfy all of the given sub-policies
-    And(Vec<Policy<Pk>>),
+    /// Satisfy both of the given sub-policies
+    And {
+        left: Arc<Policy<Pk>>,
+        right: Arc<Policy<Pk>>,
+    },
     /// Satisfy exactly one of the given sub-policies
-    Or(Vec<Policy<Pk>>),
+    Or {
+        left: Arc<Policy<Pk>>,
+        right: Arc<Policy<Pk>>,
+    },
     /// Satisfy exactly `k` of the given sub-policies
     Threshold(usize, Vec<Policy<Pk>>),
 }
@@ -73,16 +80,20 @@ impl<Pk: MiniscriptKey> Fragment<Pk> {
                     subs.iter().map(|sub| sub.translate(translator)).collect();
                 new_subs.map(|ok| Fragment::Threshold(k, ok))
             }
-            Fragment::And(ref subs) => Ok(Fragment::And(
-                subs.iter()
-                    .map(|sub| sub.translate(translator))
-                    .collect::<Result<Vec<Policy<Q>>, E>>()?,
-            )),
-            Fragment::Or(ref subs) => Ok(Fragment::Or(
-                subs.iter()
-                    .map(|sub| sub.translate(translator))
-                    .collect::<Result<Vec<Policy<Q>>, E>>()?,
-            )),
+            Fragment::And {
+                ref left,
+                ref right,
+            } => Ok(Fragment::And {
+                left: Arc::new(left.translate(translator)?),
+                right: Arc::new(right.translate(translator)?),
+            }),
+            Fragment::Or {
+                ref left,
+                ref right,
+            } => Ok(Fragment::Or {
+                left: Arc::new(left.translate(translator)?),
+                right: Arc::new(right.translate(translator)?),
+            }),
         }
     }
 }
@@ -96,21 +107,8 @@ impl<Pk: MiniscriptKey> fmt::Debug for Fragment<Pk> {
             Fragment::After(n) => write!(f, "after({})", n),
             Fragment::Older(n) => write!(f, "older({})", n),
             Fragment::Sha256(h) => write!(f, "sha256({})", h),
-            Fragment::And(sub_policies) | Fragment::Or(sub_policies) => {
-                match self {
-                    Fragment::And(_) => f.write_str("and(")?,
-                    Fragment::Or(_) => f.write_str("or(")?,
-                    _ => unreachable!(),
-                }
-
-                if !sub_policies.is_empty() {
-                    write!(f, "{:?}", sub_policies[0])?;
-                    for sub in &sub_policies[1..] {
-                        write!(f, ",{:?}", sub)?;
-                    }
-                }
-                f.write_str(")")
-            }
+            Fragment::And { left, right } => write!(f, "and({},{})", left, right),
+            Fragment::Or { left, right } => write!(f, "or({},{})", left, right),
             Fragment::Threshold(k, sub_policies) => {
                 write!(f, "thresh({}", k)?;
                 for sub in sub_policies {
