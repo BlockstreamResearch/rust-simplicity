@@ -1,25 +1,61 @@
-use crate::core::commit::UsedCaseBranch;
+// Simplcity Policy language
+// Written in 2023 by
+//     Andrew Poelstra <apoelstra@blockstream.com>
+//
+// To the extent possible under law, the author(s) have dedicated all
+// copyright and related and neighboring rights to this software to
+// the public domain worldwide. This software is distributed without
+// any warranty.
+//
+// You should have received a copy of the CC0 Public Domain Dedication
+// along with this software.
+// If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+//
+
+//! Abstract Policies
+//!
+//! These policies represent spending conditions in the most simplest form
+//! Policies are combination of `and`, `or` and `thresh` fragments. For example,
+//! or(pk(A),pk(B)) represents a policy that can be spend with either pk(A) or pk(B).
+//! These policies can be compiled to Simplicity and also be lifted back up from
+
+use crate::dag::PostOrderIterItem;
 use crate::jet::Elements;
-use crate::policy::ast::Fragment;
-use crate::policy::compiler;
-use crate::{CommitNode, Policy, RedeemNode, Value};
+use crate::node::{self, Commit, CommitNode, Converter, Hide, NoWitness, Redeem, RedeemData, RedeemNode};
+use crate::{Error, Value};
+
+use super::ast::Fragment;
+use super::{Policy, RtlPolicyIterator};
+
 use bitcoin_hashes::Hash;
 use elements::locktime::Height;
 use elements::taproot::TapLeafHash;
 use elements::{LockTime, Sequence};
-use elements_miniscript::{Preimage32, Satisfier, ToPublicKey};
-use std::collections::{HashMap, VecDeque};
-use std::iter::FromIterator;
-use std::rc::Rc;
+use elements_miniscript::{MiniscriptKey, Preimage32, Satisfier, ToPublicKey};
 
-pub struct PolicySatisfier<'a, Pk: ToPublicKey> {
+use std::collections::HashMap;
+use std::marker::PhantomData;
+use std::sync::Arc;
+
+
+impl<Pk: ToPublicKey> Policy<Pk> {
+    pub fn satisfy<S: Satisfier<Pk>>(&self, satisfier: S) -> Result<Arc<RedeemNode<Elements>>, Error> {
+        let mut finalizer = PolicyFinalizer::new(satisfier, &self);
+        let commit = self.serialize();
+        commit.rtl_finalize(&mut finalizer)
+    }
+}
+
+/// Simple struct containing a transaction environment and maps of wallet
+/// data (including secret keys!) that can be used to satisfy a transaction.
+pub struct PolicySatisfier<'a, Pk: MiniscriptKey> {
     pub preimages: HashMap<Pk::Sha256, Preimage32>,
     pub signatures: HashMap<Pk, elements::SchnorrSig>,
     pub tx: &'a elements::Transaction,
     pub index: usize,
 }
 
-impl<'a, Pk: ToPublicKey + ToPublicKey> Satisfier<Pk> for PolicySatisfier<'a, Pk> {
+impl<'a, Pk: MiniscriptKey + ToPublicKey> Satisfier<Pk> for PolicySatisfier<'a, Pk> {
     fn lookup_tap_leaf_script_sig(&self, pk: &Pk, _: &TapLeafHash) -> Option<elements::SchnorrSig> {
         self.signatures.get(pk).copied()
     }
@@ -39,126 +75,155 @@ impl<'a, Pk: ToPublicKey + ToPublicKey> Satisfier<Pk> for PolicySatisfier<'a, Pk
     }
 }
 
-struct SatisfierExtData {
-    witness: VecDeque<Value>,
-    witness_cost: u64,
-    program: Rc<CommitNode<Elements>>,
-    program_cost: u64,
+pub struct PolicyFinalizer<'pol, Pk: ToPublicKey, S: Satisfier<Pk>> {
+    satisfier: S,
+    policy_iter: RtlPolicyIterator<'pol, Pk>,
+    current: Option<&'pol Policy<Pk>>,
+    last_or_branch: bool,
+    last_thresh_weights: Vec<Option<usize>>,
+    // Idk why this is necessary
+    phantom: PhantomData<Pk>,
 }
 
-impl SatisfierExtData {
-    fn cost(&self) -> u64 {
-        self.witness_cost + self.program_cost * 8
-    }
-}
+impl<'pol, Pk: ToPublicKey, S: Satisfier<Pk>> PolicyFinalizer<'pol, Pk, S> {
+    pub fn new(satisfier: S, policy: &'pol Policy<Pk>) -> Self {
+        let mut policy_iter = RtlPolicyIterator::new(policy);
+        let current = policy_iter.next();
+        PolicyFinalizer {
+            satisfier,
+            policy_iter,
+            current,
+            last_or_branch: false,
+            last_thresh_weights: vec![],
+            phantom: PhantomData,
+        }
 
-impl<Pk: ToPublicKey> Policy<Pk> {
-    pub fn satisfy<S: Satisfier<Pk>>(&self, satisfier: &S) -> Option<Rc<RedeemNode<Elements>>> {
-        let ext = self.satisfy_helper(satisfier)?;
-        let program = ext.program.finalize(ext.witness.into_iter(), true).unwrap();
-        Some(program)
     }
 
-    fn compile_no_witness(&self) -> SatisfierExtData {
-        SatisfierExtData {
-            witness: VecDeque::new(),
-            witness_cost: 0,
-            program: self.compile().unwrap(),
-            program_cost: 0,
+    /// Move finalization state to the next policy fragment
+    fn ratchet_policy_iter(&mut self) {
+        self.current = self.policy_iter.next();
+        if self.current.is_some() {
+            println!("Ratcheted iterator to {}", self.current.as_ref().unwrap());
         }
     }
 
-    fn compile_witness_bytes(&self, witness: &[u8]) -> SatisfierExtData {
-        let value = match witness.len() {
-            32 => Value::u256_from_slice(witness),
-            64 => Value::u512_from_slice(witness),
-            _ => unimplemented!(),
-        };
-        let witness_data = VecDeque::from_iter(std::iter::once(value));
-        let program = self.compile().unwrap();
-        let program_cost = program.len() as u64;
-
-        SatisfierExtData {
-            witness: witness_data,
-            witness_cost: witness.len() as u64 * 8,
-            program,
-            program_cost,
+    fn current_fragment(&self) -> &Fragment<Pk> {
+        match self.current {
+            Some(pol) => &pol.fragment,
+            None => panic!("`current_fragment` should not be called at the end of iteration")
         }
     }
+}
 
-    fn satisfy_helper<S: Satisfier<Pk>>(&self, satisfier: &S) -> Option<SatisfierExtData> {
-        match &self.fragment {
-            Fragment::Unsatisfiable(..) => None,
-            Fragment::Trivial => Some(self.compile_no_witness()),
-            Fragment::Key(pk) => satisfier
-                .lookup_tap_leaf_script_sig(pk, &TapLeafHash::all_zeros())
-                .map(|sig| self.compile_witness_bytes(sig.sig.as_ref())),
-            Fragment::After(n) => {
-                let height = Height::from_consensus(*n).ok()?;
-                if satisfier.check_after(LockTime::Blocks(height)) {
-                    Some(self.compile_no_witness())
-                } else {
-                    None
-                }
-            }
-            Fragment::Older(n) => {
-                if satisfier.check_older(Sequence((*n).into())) {
-                    Some(self.compile_no_witness())
-                } else {
-                    None
-                }
-            }
-            Fragment::Sha256(hash) => satisfier
-                .lookup_sha256(hash)
-                .map(|preimage| self.compile_witness_bytes(preimage.as_ref())),
-            Fragment::And { left, right } => {
-                let mut left = left.satisfy_helper(satisfier)?;
-                let right = right.satisfy_helper(satisfier)?;
-                left.witness.extend(right.witness);
-                left.witness_cost += right.witness_cost;
-                left.program = compiler::and(left.program, right.program).ok()?;
-                left.program_cost += right.program_cost + 1;
+impl<'pol, Pk: ToPublicKey, S: Satisfier<Pk>> Finalizer<Commit, Redeem, Elements> for PolicyFinalizer<'pol, Pk, S> {
+    type Error = Error;
 
-                Some(left)
-            }
-            Fragment::Or { left, right } => {
-                // TODO: Replace std::u64::MAX in MSRV >=1.43.0
-                let mut left = left.satisfy_helper(satisfier).unwrap_or(SatisfierExtData {
-                    witness: VecDeque::new(),
-                    witness_cost: std::u64::MAX,
-                    program: left.compile().unwrap(),
-                    program_cost: 0,
-                });
-                let mut right = right.satisfy_helper(satisfier).unwrap_or(SatisfierExtData {
-                    witness: VecDeque::new(),
-                    witness_cost: std::u64::MAX,
-                    program: right.compile().unwrap(),
-                    program_cost: 0,
-                });
+    fn visit_node(&mut self, data: &PostOrderIterItem<&CommitNode<Elements>>) {
+        println!("Visiting {}", data.node.inner());
+        assert!( 
+            self.current.is_some(),
+            "a current fragment should be available until the very last iteration",
+        );
+        if Some(data.node.cmr()) == self.current.map(|pol| pol.node.cmr()) {
+            self.ratchet_policy_iter();
 
-                if left.cost() <= right.cost() {
-                    // Both left and right path are unsatisfiable
-                    // TODO: Replace std::u64::MAX in MSRV >=1.43.0
-                    if left.cost() == std::u64::MAX {
-                        return None;
+            // For thresholds specifically we have to do lookahead to figure out the
+            // cost/feasibility of every child.
+            //
+            // What we do is spawn a new satisfier for each child, record its weight
+            if let Some(pol) = self.current {
+                if let Fragment::Threshold(k, ref subs) = pol.fragment {
+                    self.last_thresh_weights = vec![None; subs.len()];
+                    for (weight, sub) in self.last_thresh_weights.iter_mut().zip(subs.iter()) {
+                        /*
+                        //TODO
+                        if sub.satisfy(self.satisfier).is_ok() {
+                            *weight = Some(1); // FIXME
+                        }
+                        */
+                        println!("Entered threshold {}/{}; looking at sub {}", k, subs.len(), sub);
                     }
-
-                    left.witness.push_front(Value::u1(0));
-                    left.witness_cost += 1;
-                    left.program =
-                        compiler::or(left.program, right.program, UsedCaseBranch::Left).ok()?;
-                    left.program_cost += 6;
-                    Some(left)
-                } else {
-                    right.witness.push_front(Value::u1(1));
-                    right.witness_cost += 1;
-                    right.program =
-                        compiler::or(left.program, right.program, UsedCaseBranch::Right).ok()?;
-                    right.program_cost += 6;
-                    Some(right)
                 }
             }
-            Fragment::Threshold(k, sub_policies) => {
+        }
+    }
+
+    fn convert_witness(
+        &mut self,
+        _: &PostOrderIterItem<&CommitNode<Elements>>,
+        _: &NoWitness,
+    ) -> Result<Option<Arc<Value>>, Self::Error> {
+        Ok(match self.current_fragment() {
+            Fragment::Trivial
+            | Fragment::Unsatisfiable(..) => unreachable!(),
+            Fragment::Key(pk) => self
+                .satisfier
+                .lookup_tap_leaf_script_sig(pk, &TapLeafHash::all_zeros())
+                .map(|sig| Arc::new(Value::u512_from_slice(sig.sig.as_ref()))),
+            Fragment::Sha256(hash) => self
+                .satisfier
+                .lookup_sha256(hash)
+                .map(|preimage| Arc::new(Value::u256_from_slice(&preimage))),
+            Fragment::After(..)
+            | Fragment::Older(..)
+            | Fragment::And { .. } => unreachable!(),
+            Fragment::Or { .. } => Some(Arc::new(Value::u1(self.last_or_branch.into()))),
+            Fragment::Threshold { .. } => unreachable!(),
+        })
+    }
+
+    fn prune_case(
+        &mut self,
+        _: &PostOrderIterItem<&CommitNode<Elements>>,
+        left: Option<&Arc<RedeemNode<Elements>>>,
+        right: Option<&Arc<RedeemNode<Elements>>>,
+    ) -> Result<Hide, Self::Error> {
+        let ret = match (left.is_some(), right.is_some()) {
+            (true, true) => Hide::Left, // FIXME look at weights and make an optimal decision
+            (false, true) => Hide::Left,
+            (true, false) => Hide::Right,
+            (false, false) => Hide::Both,
+        };
+        self.last_or_branch = ret == Hide::Left;
+        Ok(ret)
+    }
+
+    fn convert_data(
+        &mut self,
+        data: &PostOrderIterItem<&CommitNode<Elements>>,
+        inner: node::Inner<&Arc<RedeemNode<Elements>>, Elements, Arc<Value>>,
+    ) -> Result<Option<Arc<RedeemData<Elements>>>, Self::Error> {
+        // Handle inner/after nodes
+        if let node::Inner::Jet(..) = inner {
+            match self.current_fragment() {
+                Fragment::After(n) => {
+                    let height = Height::from_consensus(*n).expect("valid locktime");
+                    if !self.satisfier.check_after(LockTime::Blocks(height)) {
+                        return Ok(None);
+                    }
+                }
+                Fragment::Older(n) => {
+                    if !self.satisfier.check_older(Sequence((*n).into())) {
+                        return Ok(None)
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // Copied from `SimpleFinalizer`
+        let converted_data = inner.map(|node| node.cached_data());
+        Ok(Some(Arc::new(RedeemData::new(
+            data.node.arrow().shallow_clone(),
+            converted_data,
+        ))))
+    }
+}
+
+
+/*
+            Policy::Threshold(k, sub_policies) => {
                 assert!(
                     sub_policies.len() >= 2,
                     "Thresholds must have at least two sub-policies"
@@ -184,7 +249,7 @@ impl<Pk: ToPublicKey> Policy<Pk> {
                 satisfiable_children.sort_by(|(_, i), (_, j)| j.cmp(i));
 
                 /// Return satisfaction for `i`th child, if it exists, or return dummy instead
-                fn get_sat_or_default<Pk: ToPublicKey>(
+                fn get_sat_or_default<Pk: MiniscriptKey>(
                     i: usize,
                     satisfiable_children: &mut Vec<(SatisfierExtData, usize)>,
                     sub_policies: &[Policy<Pk>],
@@ -198,13 +263,13 @@ impl<Pk: ToPublicKey> Policy<Pk> {
                     SatisfierExtData {
                         witness: VecDeque::new(),
                         witness_cost: 0,
-                        program: sub_policies[i].compile().unwrap(),
+ //                       program: sub_policies[i].compile(context).unwrap(),
                         program_cost: 0,
                     }
                 }
 
                 /// Return summand program for `i`th child
-                fn get_summand<Pk: ToPublicKey>(
+                fn get_summand<Pk: MiniscriptKey>(
                     i: usize,
                     satisfiable_children: &mut Vec<(SatisfierExtData, usize)>,
                     sub_policies: &[Policy<Pk>],
@@ -213,13 +278,10 @@ impl<Pk: ToPublicKey> Policy<Pk> {
                     // Satisfactions always have non-zero program cost
                     let branch = if sat.program_cost == 0 {
                         sat.witness.push_front(Value::u1(0));
-                        UsedCaseBranch::Right
                     } else {
                         sat.witness.push_front(Value::u1(1));
-                        UsedCaseBranch::Left
                     };
                     sat.witness_cost += 1;
-                    sat.program = compiler::thresh_summand(sat.program, branch).unwrap();
                     sat.program_cost += 9;
 
                     sat
@@ -232,11 +294,12 @@ impl<Pk: ToPublicKey> Policy<Pk> {
 
                     sat.witness.extend(child_sat.witness);
                     sat.witness_cost += child_sat.witness_cost;
-                    sat.program = compiler::thresh_add(sat.program, child_sat.program).unwrap();
+//                    sat.program =
+//                        compiler::thresh_add(context, sat.program, child_sat.program).unwrap();
                     sat.program_cost += child_sat.program_cost + 6;
                 }
 
-                sat.program = compiler::thresh_verify(sat.program, *k as u32).unwrap();
+//                sat.program = compiler::thresh_verify(context, sat.program, *k as u32).unwrap();
                 sat.program_cost += 4;
 
                 Some(sat)
@@ -244,6 +307,7 @@ impl<Pk: ToPublicKey> Policy<Pk> {
         }
     }
 }
+*/
 
 #[cfg(test)]
 mod tests {
@@ -255,9 +319,10 @@ mod tests {
     use bitcoin_hashes::{sha256, Hash};
     use elements::{bitcoin, secp256k1_zkp, PackedLockTime, SchnorrSigHashType};
     use std::convert::TryFrom;
-    use std::sync::Arc;
 
-    fn get_satisfier(env: &ElementsEnv) -> PolicySatisfier<bitcoin::XOnlyPublicKey> {
+    type PubKey = bitcoin::XOnlyPublicKey;
+
+    fn get_satisfier(env: &ElementsEnv) -> PolicySatisfier<PubKey> {
         let mut preimages = HashMap::new();
         let mut signatures = HashMap::new();
 
@@ -291,13 +356,12 @@ mod tests {
         }
     }
 
-    fn execute_successful(program: Rc<RedeemNode<Elements>>, env: &ElementsEnv) {
-        let program = program.to_node();
-        let mut mac = BitMachine::for_program(&program);
-        assert!(mac.exec(&program, env).is_ok());
+    fn execute_successful(program: &RedeemNode<Elements>, env: &ElementsEnv) {
+        let mut mac = BitMachine::for_program(program);
+        assert!(mac.exec(program, env).is_ok());
     }
 
-    fn to_witness(program: &RedeemNode<Elements>) -> Vec<&Value> {
+    fn to_witness(program: &RedeemNode<Elements>) -> Vec<&Arc<Value>> {
         program
             .post_order_iter::<NoSharing>()
             .into_witnesses()
@@ -308,40 +372,36 @@ mod tests {
     fn satisfy_unsatisfiable() {
         let env = ElementsEnv::dummy();
         let satisfier = get_satisfier(&env);
+
         let policy = Policy::unsatisfiable(FailEntropy::ZERO);
-
-        assert!(policy.satisfy(&satisfier).is_none());
-
-        let commit = policy.compile().expect("compile");
-        let program = commit.finalize(std::iter::empty(), true).expect("finalize");
-        let program = program.to_node();
-        let mut mac = BitMachine::for_program(&program);
-
-        assert!(mac.exec(&program, &env).is_err());
+        assert!(policy.satisfy(&satisfier).is_err());
     }
 
     #[test]
     fn satisfy_trivial() {
         let env = ElementsEnv::dummy();
         let satisfier = get_satisfier(&env);
+
         let policy = Policy::trivial();
-
         let program = policy.satisfy(&satisfier).expect("satisfiable");
-        let witness = to_witness(&program);
-        assert_eq!(Vec::<&Value>::new(), witness);
 
-        execute_successful(program, &env);
+        let witness = to_witness(&program);
+        assert!(witness.is_empty());
+
+        execute_successful(&program, &env);
     }
 
     #[test]
     fn satisfy_pk() {
         let env = ElementsEnv::dummy();
         let satisfier = get_satisfier(&env);
+
         let mut it = satisfier.signatures.keys();
-        let xonly = it.next().unwrap();
-        let policy = Policy::key(*xonly);
+        let xonly = *it.next().unwrap();
+        let policy = Policy::key(xonly);
 
         let program = policy.satisfy(&satisfier).expect("satisfiable");
+
         let witness = to_witness(&program);
         assert_eq!(1, witness.len());
 
@@ -350,20 +410,22 @@ mod tests {
         let signature_bytes = witness[0].try_to_bytes().expect("to bytes");
         let signature =
             secp256k1_zkp::schnorr::Signature::from_slice(&signature_bytes).expect("to signature");
-        assert!(signature.verify(&message, xonly).is_ok());
+        assert!(signature.verify(&message, &xonly).is_ok());
 
-        execute_successful(program, &env);
+        execute_successful(&program, &env);
     }
 
     #[test]
     fn satisfy_sha256() {
         let env = ElementsEnv::dummy();
         let satisfier = get_satisfier(&env);
+
         let mut it = satisfier.preimages.keys();
         let image = *it.next().unwrap();
         let policy = Policy::sha256(image);
 
         let program = policy.satisfy(&satisfier).expect("satisfiable");
+
         let witness = to_witness(&program);
         assert_eq!(1, witness.len());
 
@@ -372,7 +434,7 @@ mod tests {
         let preimage = *satisfier.preimages.get(&image).unwrap();
         assert_eq!(preimage, witness_preimage);
 
-        execute_successful(program, &env);
+        execute_successful(&program, &env);
     }
 
     #[test]
@@ -384,16 +446,16 @@ mod tests {
         let program = policy0.satisfy(&satisfier).expect("satisfiable");
         let witness = to_witness(&program);
         assert!(witness.is_empty());
-        execute_successful(program, &env);
+        execute_successful(&program, &env);
 
         let policy1 = Policy::after(42);
         let program = policy1.satisfy(&satisfier).expect("satisfiable");
         let witness = to_witness(&program);
         assert!(witness.is_empty());
-        execute_successful(program, &env);
+        execute_successful(&program, &env);
 
         let policy2 = Policy::after(43);
-        assert!(policy2.satisfy(&satisfier).is_none(), "unsatisfiable");
+        assert!(policy2.satisfy(&satisfier).is_err(), "unsatisfiable");
     }
 
     #[test]
@@ -405,22 +467,23 @@ mod tests {
         let program = policy0.satisfy(&satisfier).expect("satisfiable");
         let witness = to_witness(&program);
         assert!(witness.is_empty());
-        execute_successful(program, &env);
+        execute_successful(&program, &env);
 
         let policy1 = Policy::older(42);
         let program = policy1.satisfy(&satisfier).expect("satisfiable");
         let witness = to_witness(&program);
         assert!(witness.is_empty());
-        execute_successful(program, &env);
+        execute_successful(&program, &env);
 
         let policy2 = Policy::older(43);
-        assert!(policy2.satisfy(&satisfier).is_none(), "unsatisfiable");
+        assert!(policy2.satisfy(&satisfier).is_err(), "unsatisfiable");
     }
 
     #[test]
     fn satisfy_and() {
-        let env = ElementsEnv::dummy();
+        let env = ElementsEnv::dummy_with(PackedLockTime::ZERO, Sequence::from_consensus(42));
         let satisfier = get_satisfier(&env);
+
         let images: Vec<_> = satisfier.preimages.keys().copied().collect();
         let preimages: Vec<_> = images
             .iter()
@@ -428,11 +491,10 @@ mod tests {
             .collect();
 
         // Policy 0
-
-        let policy0 = Policy::and(
-            Arc::new(Policy::sha256(images[0])),
-            Arc::new(Policy::sha256(images[1])),
-        );
+        let bad = Arc::new(Policy::sha256(sha256::Hash::from_inner([0; 32])));
+        let left = Arc::new(Policy::sha256(images[0]));
+        let right = Arc::new(Policy::sha256(images[1]));
+        let policy0 = Policy::and(Arc::clone(&left), Arc::clone(&right));
         let program = policy0.satisfy(&satisfier).expect("satisfiable");
         let witness = to_witness(&program);
         assert_eq!(2, witness.len());
@@ -444,93 +506,76 @@ mod tests {
             assert_eq!(preimages[i], &witness_preimage);
         }
 
-        execute_successful(program, &env);
+        execute_successful(&program, &env);
 
         // Policy 1
-
-        let policy1 = Policy::and(
-            Arc::new(Policy::sha256(sha256::Hash::from_inner([0; 32]))),
-            Arc::new(Policy::sha256(images[1])),
-        );
-        assert!(policy1.satisfy(&satisfier).is_none());
+        let policy1 = Policy::and(Arc::clone(&bad), Arc::clone(&right));
+        assert!(policy1.satisfy(&satisfier).is_err());
 
         // Policy 2
 
-        let policy2 = Policy::and(
-            Arc::new(Policy::sha256(images[0])),
-            Arc::new(Policy::sha256(sha256::Hash::from_inner([0; 32]))),
-        );
-        assert!(policy2.satisfy(&satisfier).is_none());
+        let policy2 = Policy::and(Arc::clone(&left), Arc::clone(&bad));
+        assert!(policy2.satisfy(&satisfier).is_err());
     }
 
     #[test]
     fn satisfy_or() {
-        let env = ElementsEnv::dummy();
+        let env = ElementsEnv::dummy_with(PackedLockTime::ZERO, Sequence::from_consensus(42));
         let satisfier = get_satisfier(&env);
+
         let images: Vec<_> = satisfier.preimages.keys().copied().collect();
         let preimages: Vec<_> = images
             .iter()
             .map(|x| satisfier.preimages.get(x).unwrap())
             .collect();
 
-        let assert_branch = |policy: &Policy<bitcoin::XOnlyPublicKey>, bit: bool| {
+        let assert_branch = |policy: &Policy<PubKey>, bit: bool| {
             let program = policy.satisfy(&satisfier).expect("satisfiable");
             let witness = to_witness(&program);
             assert_eq!(2, witness.len());
 
-            assert_eq!(&Value::u1(bit as u8), witness[0]);
+            assert_eq!(Value::u1(bit.into()), **witness[0]);
             let preimage_bytes = witness[1].try_to_bytes().expect("to bytes");
             let witness_preimage =
                 Preimage32::try_from(preimage_bytes.as_slice()).expect("to array");
-            assert_eq!(preimages[bit as usize], &witness_preimage);
+            assert_eq!(preimages[usize::from(bit)], &witness_preimage);
 
-            execute_successful(program, &env);
+            execute_successful(&program, &env);
         };
 
         // Policy 0
+        let bad = Arc::new(Policy::sha256(sha256::Hash::from_inner([0; 32])));
+        let left = Arc::new(Policy::sha256(images[0]));
+        let right = Arc::new(Policy::sha256(images[1]));
 
-        let policy0 = Policy::or(
-            Arc::new(Policy::sha256(images[0])),
-            Arc::new(Policy::sha256(images[1])),
-        );
-        assert_branch(&policy0, false);
+        let policy0 = Policy::or(Arc::clone(&left), Arc::clone(&right));
+        assert_branch(&policy0, true);
 
         // Policy 1
-
-        let policy1 = Policy::or(
-            Arc::new(Policy::sha256(images[0])),
-            Arc::new(Policy::sha256(sha256::Hash::from_inner([1; 32]))),
-        );
-        assert_branch(&policy1, false);
+        let policy1 = Policy::or(Arc::clone(&bad), Arc::clone(&right));
+        assert_branch(&policy1, true);
 
         // Policy 2
-
-        let policy2 = Policy::or(
-            Arc::new(Policy::sha256(sha256::Hash::from_inner([0; 32]))),
-            Arc::new(Policy::sha256(images[1])),
-        );
-        assert_branch(&policy2, true);
+        let policy2 = Policy::or(Arc::clone(&left), Arc::clone(&bad));
+        assert_branch(&policy2, false);
 
         // Policy 3
-
-        let policy3 = Policy::or(
-            Arc::new(Policy::sha256(sha256::Hash::from_inner([0; 32]))),
-            Arc::new(Policy::sha256(sha256::Hash::from_inner([1; 32]))),
-        );
-        assert!(policy3.satisfy(&satisfier).is_none());
+        let policy3 = Policy::or(Arc::clone(&bad), Arc::clone(&bad));
+        assert!(policy3.satisfy(&satisfier).is_err());
     }
 
     #[test]
     fn satisfy_thresh() {
         let env = ElementsEnv::dummy();
         let satisfier = get_satisfier(&env);
+
         let images: Vec<_> = satisfier.preimages.keys().copied().collect();
         let preimages: Vec<_> = images
             .iter()
             .map(|x| satisfier.preimages.get(x).unwrap())
             .collect();
 
-        let assert_branches = |policy: &Policy<bitcoin::XOnlyPublicKey>, bits: &[bool]| {
+        let assert_branches = |policy: &Policy<PubKey>, bits: &[bool]| {
             let program = policy.satisfy(&satisfier).expect("satisfiable");
             let witness = to_witness(&program);
             assert_eq!(
@@ -540,7 +585,7 @@ mod tests {
 
             let mut witidx = 0;
             for (bit_n, bit) in bits.iter().copied().enumerate() {
-                assert_eq!(witness[witidx], &Value::u1(bit.into()));
+                assert_eq!(**witness[witidx], Value::u1(bit.into()));
                 witidx += 1;
                 if bit {
                     let preimage_bytes = witness[witidx].try_to_bytes().expect("to bytes");
@@ -581,7 +626,7 @@ mod tests {
                     match bit0 as u8 + bit1 as u8 + bit2 as u8 {
                         3 => assert_branches(&policy, &[bit0, bit1, false]),
                         2 => assert_branches(&policy, &[bit0, bit1, bit2]),
-                        _ => assert!(policy.satisfy(&satisfier).is_none()),
+                        _ => assert!(policy.satisfy(&satisfier).is_err()),
                     }
                 }
             }

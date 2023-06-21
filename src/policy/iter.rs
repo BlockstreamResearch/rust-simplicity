@@ -45,7 +45,7 @@ impl<'pol, Pk: ToPublicKey> RtlPolicyIterator<'pol, Pk> {
             Fragment::Sha256(..) => 0,
             Fragment::And { .. } => 2,
             Fragment::Or { .. } => 2,
-            Fragment::Threshold(k, _) => k,
+            Fragment::Threshold(_, ref subs) => subs.len(),
         };
         self.stack.push((pol, max_index));
     }
@@ -57,6 +57,7 @@ impl<'pol, Pk: ToPublicKey> Iterator for RtlPolicyIterator<'pol, Pk> {
     fn next(&mut self) -> Option<&'pol Policy<Pk>> {
         loop {
             let (top, n) = self.stack.pop()?;
+            println!("RTL ITERATOR: top {}   k {}", top.fragment, n);
             if n == 0 {
                 return Some(top);
             }

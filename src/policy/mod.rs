@@ -30,7 +30,7 @@ pub mod descriptor;
 mod embed;
 mod error;
 mod iter;
-//pub mod satisfy;
+pub mod satisfy;
 
 use crate::jet::Elements;
 use crate::miniscript::{ToPublicKey, Translator};
