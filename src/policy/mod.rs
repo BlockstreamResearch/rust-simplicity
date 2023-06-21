@@ -30,10 +30,9 @@ mod compiler;
 pub mod descriptor;
 mod embed;
 mod error;
-pub mod key;
 pub mod satisfy;
 
-use crate::miniscript::{MiniscriptKey, Translator};
+use crate::miniscript::{ToPublicKey, Translator};
 use crate::FailEntropy;
 
 use std::fmt;
@@ -49,11 +48,11 @@ pub use error::Error;
 ///
 /// Policies can be normalized and are amenable to semantic analysis.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Policy<Pk: MiniscriptKey> {
+pub struct Policy<Pk: ToPublicKey> {
     fragment: ast::Fragment<Pk>,
 }
 
-impl<Pk: MiniscriptKey> Policy<Pk> {
+impl<Pk: ToPublicKey> Policy<Pk> {
     /// Create an unsatisfiable policy.
     pub fn unsatisfiable(entropy: FailEntropy) -> Self {
         Policy {
@@ -121,7 +120,7 @@ impl<Pk: MiniscriptKey> Policy<Pk> {
     pub fn translate<T, Q, E>(&self, translator: &mut T) -> Result<Policy<Q>, E>
     where
         T: Translator<Pk, Q, E>,
-        Q: MiniscriptKey,
+        Q: ToPublicKey,
     {
         Ok(Policy {
             fragment: self.fragment.translate(translator)?,
@@ -129,13 +128,13 @@ impl<Pk: MiniscriptKey> Policy<Pk> {
     }
 }
 
-impl<Pk: MiniscriptKey> fmt::Debug for Policy<Pk> {
+impl<Pk: ToPublicKey> fmt::Debug for Policy<Pk> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(&self.fragment, f)
     }
 }
 
-impl<Pk: MiniscriptKey> fmt::Display for Policy<Pk> {
+impl<Pk: ToPublicKey> fmt::Display for Policy<Pk> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self.fragment, f)
     }

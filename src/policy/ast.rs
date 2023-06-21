@@ -25,7 +25,7 @@ use std::sync::Arc;
 
 use super::Policy;
 
-use crate::miniscript::{MiniscriptKey, Translator};
+use crate::miniscript::{ToPublicKey, Translator};
 use crate::FailEntropy;
 
 /// Policy that expresses spending conditions for Simplicity.
@@ -35,7 +35,7 @@ use crate::FailEntropy;
 ///
 /// Furthermore, the policy can be normalized and is amenable to semantic analysis.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Fragment<Pk: MiniscriptKey> {
+pub enum Fragment<Pk: ToPublicKey> {
     /// Unsatisfiable
     Unsatisfiable(FailEntropy),
     /// Trivially satisfiable
@@ -62,12 +62,12 @@ pub enum Fragment<Pk: MiniscriptKey> {
     Threshold(usize, Vec<Policy<Pk>>),
 }
 
-impl<Pk: MiniscriptKey> Fragment<Pk> {
+impl<Pk: ToPublicKey> Fragment<Pk> {
     /// Convert a fragment using one kind of public key to another type of public key
     pub fn translate<T, Q, E>(&self, translator: &mut T) -> Result<Fragment<Q>, E>
     where
         T: Translator<Pk, Q, E>,
-        Q: MiniscriptKey,
+        Q: ToPublicKey,
     {
         match *self {
             Fragment::Unsatisfiable(entropy) => Ok(Fragment::Unsatisfiable(entropy)),
@@ -99,7 +99,7 @@ impl<Pk: MiniscriptKey> Fragment<Pk> {
     }
 }
 
-impl<Pk: MiniscriptKey> fmt::Debug for Fragment<Pk> {
+impl<Pk: ToPublicKey> fmt::Debug for Fragment<Pk> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Fragment::Unsatisfiable(..) => f.write_str("UNSATISFIABLE"),
@@ -121,7 +121,7 @@ impl<Pk: MiniscriptKey> fmt::Debug for Fragment<Pk> {
     }
 }
 
-impl<Pk: MiniscriptKey> fmt::Display for Fragment<Pk> {
+impl<Pk: ToPublicKey> fmt::Display for Fragment<Pk> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(self, f)
     }

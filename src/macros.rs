@@ -25,7 +25,7 @@ macro_rules! serde_string_impl_pk {
         #[cfg(feature = "serde")]
         impl<'de, Pk $(, $gen)*> $crate::serde::Deserialize<'de> for $name<Pk $(, $gen)*>
         where
-            Pk: crate::miniscript::MiniscriptKey + core::str::FromStr,
+            Pk: crate::miniscript::ToPublicKey + core::str::FromStr,
             Pk::Sha256: core::str::FromStr,
             Pk::Hash256: core::str::FromStr,
             Pk::Ripemd160: core::str::FromStr,
@@ -53,7 +53,7 @@ macro_rules! serde_string_impl_pk {
                 struct Visitor<Pk $(, $gen)*>(PhantomData<(Pk $(, $gen)*)>);
                 impl<'de, Pk $(, $gen)*> $crate::serde::de::Visitor<'de> for Visitor<Pk $(, $gen)*>
                 where
-                    Pk: crate::miniscript::MiniscriptKey + core::str::FromStr,
+                    Pk: crate::miniscript::ToPublicKey + core::str::FromStr,
                     Pk::Sha256: core::str::FromStr,
                     Pk::Hash256: core::str::FromStr,
                     Pk::Ripemd160: core::str::FromStr,
@@ -104,7 +104,7 @@ macro_rules! serde_string_impl_pk {
         #[cfg(feature = "serde")]
         impl<'de, Pk $(, $gen)*> $crate::serde::Serialize for $name<Pk $(, $gen)*>
         where
-            Pk: crate::miniscript::MiniscriptKey,
+            Pk: crate::miniscript::ToPublicKey,
             $($gen: $gen_con,)*
         {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

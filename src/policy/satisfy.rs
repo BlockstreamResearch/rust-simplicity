@@ -2,25 +2,24 @@ use crate::core::commit::UsedCaseBranch;
 use crate::jet::Elements;
 use crate::policy::ast::Fragment;
 use crate::policy::compiler;
-use crate::policy::key::PublicKey32;
 use crate::{CommitNode, Policy, RedeemNode, Value};
 use bitcoin_hashes::Hash;
 use elements::locktime::Height;
 use elements::taproot::TapLeafHash;
 use elements::{LockTime, Sequence};
-use elements_miniscript::{MiniscriptKey, Preimage32, Satisfier, ToPublicKey};
+use elements_miniscript::{Preimage32, Satisfier, ToPublicKey};
 use std::collections::{HashMap, VecDeque};
 use std::iter::FromIterator;
 use std::rc::Rc;
 
-pub struct PolicySatisfier<'a, Pk: MiniscriptKey> {
+pub struct PolicySatisfier<'a, Pk: ToPublicKey> {
     pub preimages: HashMap<Pk::Sha256, Preimage32>,
     pub signatures: HashMap<Pk, elements::SchnorrSig>,
     pub tx: &'a elements::Transaction,
     pub index: usize,
 }
 
-impl<'a, Pk: MiniscriptKey + ToPublicKey> Satisfier<Pk> for PolicySatisfier<'a, Pk> {
+impl<'a, Pk: ToPublicKey + ToPublicKey> Satisfier<Pk> for PolicySatisfier<'a, Pk> {
     fn lookup_tap_leaf_script_sig(&self, pk: &Pk, _: &TapLeafHash) -> Option<elements::SchnorrSig> {
         self.signatures.get(pk).copied()
     }
@@ -53,7 +52,7 @@ impl SatisfierExtData {
     }
 }
 
-impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
+impl<Pk: ToPublicKey> Policy<Pk> {
     pub fn satisfy<S: Satisfier<Pk>>(&self, satisfier: &S) -> Option<Rc<RedeemNode<Elements>>> {
         let ext = self.satisfy_helper(satisfier)?;
         let program = ext.program.finalize(ext.witness.into_iter(), true).unwrap();
@@ -185,7 +184,7 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                 satisfiable_children.sort_by(|(_, i), (_, j)| j.cmp(i));
 
                 /// Return satisfaction for `i`th child, if it exists, or return dummy instead
-                fn get_sat_or_default<Pk: MiniscriptKey + PublicKey32>(
+                fn get_sat_or_default<Pk: ToPublicKey>(
                     i: usize,
                     satisfiable_children: &mut Vec<(SatisfierExtData, usize)>,
                     sub_policies: &[Policy<Pk>],
@@ -205,7 +204,7 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                 }
 
                 /// Return summand program for `i`th child
-                fn get_summand<Pk: MiniscriptKey + PublicKey32>(
+                fn get_summand<Pk: ToPublicKey>(
                     i: usize,
                     satisfiable_children: &mut Vec<(SatisfierExtData, usize)>,
                     sub_policies: &[Policy<Pk>],
