@@ -36,7 +36,6 @@ mod macros;
 mod analysis;
 pub mod bit_encoding;
 pub mod bit_machine;
-mod context;
 pub mod core;
 pub mod dag;
 pub mod jet;
@@ -61,7 +60,6 @@ pub use bit_encoding::BitWriter;
 pub use crate::policy::{Descriptor, Policy};
 
 pub use crate::bit_machine::exec;
-pub use crate::context::Context;
 pub use crate::core::commit::CommitNodeInner;
 pub use crate::core::redeem::RedeemNodeInner;
 pub use crate::core::{CommitNode, RedeemNode};

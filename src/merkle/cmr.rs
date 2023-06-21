@@ -285,14 +285,13 @@ impl Cmr {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{CommitNode, Context};
+    use crate::CommitNode;
 
     use std::str::FromStr;
 
     #[test]
     fn cmr_display_unit() {
-        let mut ctx = crate::Context::<crate::jet::Core>::new();
-        let c = crate::CommitNode::unit(&mut ctx);
+        let c = crate::CommitNode::<crate::jet::Core>::unit();
 
         assert_eq!(
             c.cmr().to_string(),
@@ -324,12 +323,11 @@ mod tests {
 
     #[test]
     fn bit_cmr() {
-        let mut ctx = Context::<crate::jet::Core>::new();
-        let unit = CommitNode::unit(&mut ctx);
-        let bit0 = CommitNode::injl(&mut ctx, unit.clone());
+        let unit = CommitNode::<crate::jet::Core>::unit();
+        let bit0 = CommitNode::injl(unit.clone());
         assert_eq!(bit0.cmr(), Cmr::BITS[0]);
 
-        let bit1 = CommitNode::injr(&mut ctx, unit);
+        let bit1 = CommitNode::injr(unit);
         assert_eq!(bit1.cmr(), Cmr::BITS[1]);
     }
 

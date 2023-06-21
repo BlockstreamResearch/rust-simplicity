@@ -357,13 +357,12 @@ mod tests {
     use super::*;
 
     use crate::jet::Core;
-    use crate::{CommitNode, Context};
+    use crate::CommitNode;
     use std::iter;
 
     #[test]
     fn fixed_amr() {
-        let mut ctx = Context::new();
-        let node = CommitNode::jet(&mut ctx, Core::Verify)
+        let node = CommitNode::jet(Core::Verify)
             .finalize(iter::empty(), true)
             .unwrap();
         // Checked against C implementation

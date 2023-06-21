@@ -16,7 +16,7 @@ use crate::dag::MaxSharing;
 use crate::jet::Jet;
 use crate::types;
 use crate::types::arrow::{Arrow, FinalArrow};
-use crate::{Cmr, Context, FirstPassImr, Imr};
+use crate::{Cmr, FirstPassImr, Imr};
 
 use super::{
     Construct, ConstructData, ConstructNode, Constructible, Inner, NoWitness, Node, NodeData,
@@ -143,14 +143,11 @@ impl<J: Jet> CommitNode<J> {
     }
 
     /// Convert a [`CommitNode`] back to a [`ConstructNode`] by redoing type inference
-    pub fn unfinalize_types(
-        &self,
-        ctx: &mut Context<J>,
-    ) -> Result<Arc<ConstructNode<J>>, types::Error> {
+    pub fn unfinalize_types(&self) -> Result<Arc<ConstructNode<J>>, types::Error> {
         self.convert::<MaxSharing<Commit, J>, _, _, Construct, _>(
             |_, inner| {
                 let inner = inner.map(|node| node.arrow());
-                Ok(ConstructData::new(Arrow::from_inner(ctx, inner)?))
+                Ok(ConstructData::new(Arrow::from_inner(inner)?))
             },
             |_, _| Ok(NoWitness),
         )

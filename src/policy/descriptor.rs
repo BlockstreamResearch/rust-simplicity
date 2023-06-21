@@ -1,6 +1,6 @@
 use crate::policy::key::PublicKey32;
 use crate::policy::satisfy::PolicySatisfier;
-use crate::{policy, Cmr, Context, Policy};
+use crate::{policy, Cmr, Policy};
 use bitcoin_hashes::Hash;
 use elements::schnorr::TapTweak;
 use elements::secp256k1_zkp;
@@ -52,8 +52,7 @@ impl<Pk: PublicKey32 + ToPublicKey> Descriptor<Pk> {
     /// Create a new descriptor from the given internal key and
     /// policy which will become a single tap leaf
     pub fn new(internal_key: Pk, policy: Policy<Pk>) -> Result<Self, crate::Error> {
-        let mut context = Context::default();
-        let commit = policy.compile(&mut context)?;
+        let commit = policy.compile()?;
         let cmr = commit.cmr();
         let script = elements::Script::from(Vec::from(cmr.as_ref()));
         let version = leaf_version();

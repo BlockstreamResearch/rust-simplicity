@@ -84,7 +84,7 @@
 
 use crate::dag::{DagLike, MaxSharing, PostOrderIterItem, SharingTracker};
 use crate::jet::Jet;
-use crate::{types, Cmr, Context, FailEntropy, Value};
+use crate::{types, Cmr, FailEntropy, Value};
 
 use std::sync::Arc;
 use std::{fmt, hash};
@@ -129,69 +129,69 @@ pub trait NodeData<J: Jet>:
 pub struct NoWitness;
 
 pub trait Constructible<W, J: Jet>:
-    JetConstructible<J> + WitnessConstructible<W, J> + CoreConstructible<J> + Sized
+    JetConstructible<J> + WitnessConstructible<W> + CoreConstructible + Sized
 {
-    fn from_inner(ctx: &mut Context<J>, inner: Inner<&Self, J, W>) -> Result<Self, types::Error> {
+    fn from_inner(inner: Inner<&Self, J, W>) -> Result<Self, types::Error> {
         match inner {
-            Inner::Iden => Ok(Self::iden(ctx)),
-            Inner::Unit => Ok(Self::unit(ctx)),
-            Inner::InjL(child) => Ok(Self::injl(ctx, child)),
-            Inner::InjR(child) => Ok(Self::injr(ctx, child)),
-            Inner::Take(child) => Ok(Self::take(ctx, child)),
-            Inner::Drop(child) => Ok(Self::drop_(ctx, child)),
-            Inner::Comp(left, right) => Self::comp(ctx, left, right),
-            Inner::Case(left, right) => Self::case(ctx, left, right),
-            Inner::AssertL(left, r_cmr) => Self::assertl(ctx, left, r_cmr),
-            Inner::AssertR(l_cmr, right) => Self::assertr(ctx, l_cmr, right),
-            Inner::Pair(left, right) => Self::pair(ctx, left, right),
-            Inner::Disconnect(left, right) => Self::disconnect(ctx, left, right),
-            Inner::Fail(entropy) => Ok(Self::fail(ctx, entropy)),
-            Inner::Word(ref w) => Ok(Self::const_word(ctx, Arc::clone(w))),
-            Inner::Jet(j) => Ok(Self::jet(ctx, j)),
-            Inner::Witness(w) => Ok(Self::witness(ctx, w)),
+            Inner::Iden => Ok(Self::iden()),
+            Inner::Unit => Ok(Self::unit()),
+            Inner::InjL(child) => Ok(Self::injl(child)),
+            Inner::InjR(child) => Ok(Self::injr(child)),
+            Inner::Take(child) => Ok(Self::take(child)),
+            Inner::Drop(child) => Ok(Self::drop_(child)),
+            Inner::Comp(left, right) => Self::comp(left, right),
+            Inner::Case(left, right) => Self::case(left, right),
+            Inner::AssertL(left, r_cmr) => Self::assertl(left, r_cmr),
+            Inner::AssertR(l_cmr, right) => Self::assertr(l_cmr, right),
+            Inner::Pair(left, right) => Self::pair(left, right),
+            Inner::Disconnect(left, right) => Self::disconnect(left, right),
+            Inner::Fail(entropy) => Ok(Self::fail(entropy)),
+            Inner::Word(ref w) => Ok(Self::const_word(Arc::clone(w))),
+            Inner::Jet(j) => Ok(Self::jet(j)),
+            Inner::Witness(w) => Ok(Self::witness(w)),
         }
     }
 }
 
 impl<W, J: Jet, T> Constructible<W, J> for T where
-    T: JetConstructible<J> + WitnessConstructible<W, J> + CoreConstructible<J> + Sized
+    T: JetConstructible<J> + WitnessConstructible<W> + CoreConstructible + Sized
 {
 }
 
-pub trait CoreConstructible<J: Jet>: Sized {
-    fn iden(ctx: &mut Context<J>) -> Self;
-    fn unit(ctx: &mut Context<J>) -> Self;
-    fn injl(ctx: &mut Context<J>, child: &Self) -> Self;
-    fn injr(ctx: &mut Context<J>, child: &Self) -> Self;
-    fn take(ctx: &mut Context<J>, child: &Self) -> Self;
-    fn drop_(ctx: &mut Context<J>, child: &Self) -> Self;
-    fn comp(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, types::Error>;
-    fn case(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, types::Error>;
-    fn assertl(ctx: &mut Context<J>, left: &Self, right: Cmr) -> Result<Self, types::Error>;
-    fn assertr(ctx: &mut Context<J>, left: Cmr, right: &Self) -> Result<Self, types::Error>;
-    fn pair(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, types::Error>;
-    fn disconnect(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, types::Error>;
-    fn fail(ctx: &mut Context<J>, entropy: FailEntropy) -> Self;
-    fn const_word(ctx: &mut Context<J>, word: Arc<Value>) -> Self;
+pub trait CoreConstructible: Sized {
+    fn iden() -> Self;
+    fn unit() -> Self;
+    fn injl(child: &Self) -> Self;
+    fn injr(child: &Self) -> Self;
+    fn take(child: &Self) -> Self;
+    fn drop_(child: &Self) -> Self;
+    fn comp(left: &Self, right: &Self) -> Result<Self, types::Error>;
+    fn case(left: &Self, right: &Self) -> Result<Self, types::Error>;
+    fn assertl(left: &Self, right: Cmr) -> Result<Self, types::Error>;
+    fn assertr(left: Cmr, right: &Self) -> Result<Self, types::Error>;
+    fn pair(left: &Self, right: &Self) -> Result<Self, types::Error>;
+    fn disconnect(left: &Self, right: &Self) -> Result<Self, types::Error>;
+    fn fail(entropy: FailEntropy) -> Self;
+    fn const_word(word: Arc<Value>) -> Self;
 
     /// Create a DAG that takes any input and returns `value` as constant output.
     ///
     /// _Overall type: A → B where value: B_
-    fn scribe(context: &mut Context<J>, value: &Value) -> Self {
+    fn scribe(value: &Value) -> Self {
         match value {
-            Value::Unit => Self::unit(context),
+            Value::Unit => Self::unit(),
             Value::SumL(l) => {
-                let l = Self::scribe(context, l);
-                Self::injl(context, &l)
+                let l = Self::scribe(l);
+                Self::injl(&l)
             }
             Value::SumR(r) => {
-                let r = Self::scribe(context, r);
-                Self::injr(context, &r)
+                let r = Self::scribe(r);
+                Self::injr(&r)
             }
             Value::Prod(l, r) => {
-                let l = Self::scribe(context, l);
-                let r = Self::scribe(context, r);
-                Self::pair(context, &l, &r).expect("source of scribe has no constraints")
+                let l = Self::scribe(l);
+                let r = Self::scribe(r);
+                Self::pair(&l, &r).expect("source of scribe has no constraints")
             }
         }
     }
@@ -199,17 +199,17 @@ pub trait CoreConstructible<J: Jet>: Sized {
     /// Create a DAG that takes any input and returns bit `0` as constant output.
     ///
     /// _Overall type: A → 2_
-    fn bit_false(context: &mut Context<J>) -> Self {
-        let unit = Self::unit(context);
-        Self::injl(context, &unit)
+    fn bit_false() -> Self {
+        let unit = Self::unit();
+        Self::injl(&unit)
     }
 
     /// Create a DAG that takes any input and returns bit `1` as constant output.
     ///
     /// _Overall type: A → 2_
-    fn bit_true(context: &mut Context<J>) -> Self {
-        let unit = Self::unit(context);
-        Self::injr(context, &unit)
+    fn bit_true() -> Self {
+        let unit = Self::unit();
+        Self::injr(&unit)
     }
 
     /// Create a DAG that takes a bit and an input,
@@ -219,10 +219,10 @@ pub trait CoreConstructible<J: Jet>: Sized {
     /// _Overall type: 2 × A → B where `left`: A → B and `right`: A → B_
     ///
     /// _Type inference will fail if children are not of the correct type._
-    fn cond(context: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, types::Error> {
-        let drop_left = Self::drop_(context, left);
-        let drop_right = Self::drop_(context, right);
-        Self::case(context, &drop_right, &drop_left)
+    fn cond(left: &Self, right: &Self) -> Result<Self, types::Error> {
+        let drop_left = Self::drop_(left);
+        let drop_right = Self::drop_(right);
+        Self::case(&drop_right, &drop_left)
     }
 
     /// Create a DAG that asserts that its child returns `true`, and fails otherwise.
@@ -231,12 +231,12 @@ pub trait CoreConstructible<J: Jet>: Sized {
     /// _Overall type: A → 1 where `child`: A → 2_
     ///
     /// _Type inference will fail if children are not of the correct type._
-    fn assert(context: &mut Context<J>, child: &Self, hash: Cmr) -> Result<Self, types::Error> {
-        let unit = Self::unit(context);
-        let pair_child_unit = Self::pair(context, child, &unit)?;
-        let assertr_hidden_unit = Self::assertr(context, hash, &unit)?;
+    fn assert(child: &Self, hash: Cmr) -> Result<Self, types::Error> {
+        let unit = Self::unit();
+        let pair_child_unit = Self::pair(child, &unit)?;
+        let assertr_hidden_unit = Self::assertr(hash, &unit)?;
 
-        Self::comp(context, &pair_child_unit, &assertr_hidden_unit)
+        Self::comp(&pair_child_unit, &assertr_hidden_unit)
     }
 
     /// Create a DAG that computes Boolean _NOT_ of the `child`.
@@ -245,14 +245,14 @@ pub trait CoreConstructible<J: Jet>: Sized {
     ///
     /// _Type inference will fail if children are not of the correct type._
     #[allow(clippy::should_implement_trait)]
-    fn not(context: &mut Context<J>, child: &Self) -> Result<Self, types::Error> {
-        let unit = Self::unit(context);
-        let pair_child_unit = Self::pair(context, child, &unit)?;
-        let bit_true = Self::bit_true(context);
-        let bit_false = Self::bit_false(context);
-        let case_true_false = Self::case(context, &bit_true, &bit_false)?;
+    fn not(child: &Self) -> Result<Self, types::Error> {
+        let unit = Self::unit();
+        let pair_child_unit = Self::pair(child, &unit)?;
+        let bit_true = Self::bit_true();
+        let bit_false = Self::bit_false();
+        let case_true_false = Self::case(&bit_true, &bit_false)?;
 
-        Self::comp(context, &pair_child_unit, &case_true_false)
+        Self::comp(&pair_child_unit, &case_true_false)
     }
 
     /// Create a DAG that computes Boolean _AND_ of the `left` and `right` child.
@@ -260,14 +260,14 @@ pub trait CoreConstructible<J: Jet>: Sized {
     /// _Overall type: A → 2 where `left`: A → 2 and `right`: A → 2_
     ///
     /// _Type inference will fail if children are not of the correct type._
-    fn and(context: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, types::Error> {
-        let iden = Self::iden(context);
-        let pair_left_iden = Self::pair(context, left, &iden)?;
-        let bit_false = Self::bit_false(context);
-        let drop_right = Self::drop_(context, right);
-        let case_false_right = Self::case(context, &bit_false, &drop_right)?;
+    fn and(left: &Self, right: &Self) -> Result<Self, types::Error> {
+        let iden = Self::iden();
+        let pair_left_iden = Self::pair(left, &iden)?;
+        let bit_false = Self::bit_false();
+        let drop_right = Self::drop_(right);
+        let case_false_right = Self::case(&bit_false, &drop_right)?;
 
-        Self::comp(context, &pair_left_iden, &case_false_right)
+        Self::comp(&pair_left_iden, &case_false_right)
     }
 
     /// Create a DAG that computes Boolean _OR_ of the `left` and `right`.
@@ -275,23 +275,23 @@ pub trait CoreConstructible<J: Jet>: Sized {
     /// _Overall type: A → 2 where `left`: A → 2 and `right`: A → 2_
     ///
     /// _Type inference will fail if children are not of the correct type._
-    fn or(context: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, types::Error> {
-        let iden = Self::iden(context);
-        let pair_left_iden = Self::pair(context, left, &iden)?;
-        let drop_right = Self::drop_(context, right);
-        let bit_true = Self::bit_true(context);
-        let case_right_true = Self::case(context, &drop_right, &bit_true)?;
+    fn or(left: &Self, right: &Self) -> Result<Self, types::Error> {
+        let iden = Self::iden();
+        let pair_left_iden = Self::pair(left, &iden)?;
+        let drop_right = Self::drop_(right);
+        let bit_true = Self::bit_true();
+        let case_right_true = Self::case(&drop_right, &bit_true)?;
 
-        Self::comp(context, &pair_left_iden, &case_right_true)
+        Self::comp(&pair_left_iden, &case_right_true)
     }
 }
 
 pub trait JetConstructible<J: Jet>: Sized {
-    fn jet(ctx: &mut Context<J>, jet: J) -> Self;
+    fn jet(jet: J) -> Self;
 }
 
-pub trait WitnessConstructible<W, J: Jet>: Sized {
-    fn witness(ctx: &mut Context<J>, witness: W) -> Self;
+pub trait WitnessConstructible<W>: Sized {
+    fn witness(witness: W) -> Self;
 }
 
 /// A node in a Simplicity expression.
@@ -347,135 +347,135 @@ where
     }
 }
 
-impl<N, J> CoreConstructible<J> for Arc<Node<N, J>>
+impl<N, J> CoreConstructible for Arc<Node<N, J>>
 where
     N: NodeData<J>,
-    N::CachedData: CoreConstructible<J>,
+    N::CachedData: CoreConstructible,
     J: Jet,
 {
-    fn iden(ctx: &mut Context<J>) -> Self {
+    fn iden() -> Self {
         Arc::new(Node {
             cmr: Cmr::iden(),
-            data: N::CachedData::iden(ctx),
+            data: N::CachedData::iden(),
             inner: Inner::Iden,
         })
     }
 
-    fn unit(ctx: &mut Context<J>) -> Self {
+    fn unit() -> Self {
         Arc::new(Node {
             cmr: Cmr::unit(),
-            data: N::CachedData::unit(ctx),
+            data: N::CachedData::unit(),
             inner: Inner::Unit,
         })
     }
 
-    fn injl(ctx: &mut Context<J>, child: &Self) -> Self {
+    fn injl(child: &Self) -> Self {
         Arc::new(Node {
             cmr: Cmr::injl(child.cmr()),
-            data: N::CachedData::injl(ctx, &child.data),
+            data: N::CachedData::injl(&child.data),
             inner: Inner::InjL(Arc::clone(child)),
         })
     }
 
-    fn injr(ctx: &mut Context<J>, child: &Self) -> Self {
+    fn injr(child: &Self) -> Self {
         Arc::new(Node {
             cmr: Cmr::injr(child.cmr()),
-            data: N::CachedData::injr(ctx, &child.data),
+            data: N::CachedData::injr(&child.data),
             inner: Inner::InjR(Arc::clone(child)),
         })
     }
 
-    fn take(ctx: &mut Context<J>, child: &Self) -> Self {
+    fn take(child: &Self) -> Self {
         Arc::new(Node {
             cmr: Cmr::take(child.cmr()),
-            data: N::CachedData::take(ctx, &child.data),
+            data: N::CachedData::take(&child.data),
             inner: Inner::Take(Arc::clone(child)),
         })
     }
 
-    fn drop_(ctx: &mut Context<J>, child: &Self) -> Self {
+    fn drop_(child: &Self) -> Self {
         Arc::new(Node {
             cmr: Cmr::drop(child.cmr()),
-            data: N::CachedData::drop_(ctx, &child.data),
+            data: N::CachedData::drop_(&child.data),
             inner: Inner::Drop(Arc::clone(child)),
         })
     }
 
-    fn comp(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, types::Error> {
+    fn comp(left: &Self, right: &Self) -> Result<Self, types::Error> {
         Ok(Arc::new(Node {
             cmr: Cmr::comp(left.cmr(), right.cmr()),
-            data: N::CachedData::comp(ctx, &left.data, &right.data)?,
+            data: N::CachedData::comp(&left.data, &right.data)?,
             inner: Inner::Comp(Arc::clone(left), Arc::clone(right)),
         }))
     }
 
-    fn case(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, types::Error> {
+    fn case(left: &Self, right: &Self) -> Result<Self, types::Error> {
         Ok(Arc::new(Node {
             cmr: Cmr::case(left.cmr(), right.cmr()),
-            data: N::CachedData::case(ctx, &left.data, &right.data)?,
+            data: N::CachedData::case(&left.data, &right.data)?,
             inner: Inner::Case(Arc::clone(left), Arc::clone(right)),
         }))
     }
 
-    fn assertl(ctx: &mut Context<J>, left: &Self, r_cmr: Cmr) -> Result<Self, types::Error> {
+    fn assertl(left: &Self, r_cmr: Cmr) -> Result<Self, types::Error> {
         Ok(Arc::new(Node {
             cmr: Cmr::case(left.cmr(), r_cmr),
-            data: N::CachedData::assertl(ctx, &left.data, r_cmr)?,
+            data: N::CachedData::assertl(&left.data, r_cmr)?,
             inner: Inner::AssertL(Arc::clone(left), r_cmr),
         }))
     }
 
-    fn assertr(ctx: &mut Context<J>, l_cmr: Cmr, right: &Self) -> Result<Self, types::Error> {
+    fn assertr(l_cmr: Cmr, right: &Self) -> Result<Self, types::Error> {
         Ok(Arc::new(Node {
             cmr: Cmr::case(l_cmr, right.cmr()),
-            data: N::CachedData::assertr(ctx, l_cmr, &right.data)?,
+            data: N::CachedData::assertr(l_cmr, &right.data)?,
             inner: Inner::AssertR(l_cmr, Arc::clone(right)),
         }))
     }
 
-    fn pair(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, types::Error> {
+    fn pair(left: &Self, right: &Self) -> Result<Self, types::Error> {
         Ok(Arc::new(Node {
             cmr: Cmr::pair(left.cmr(), right.cmr()),
-            data: N::CachedData::pair(ctx, &left.data, &right.data)?,
+            data: N::CachedData::pair(&left.data, &right.data)?,
             inner: Inner::Pair(Arc::clone(left), Arc::clone(right)),
         }))
     }
 
-    fn disconnect(ctx: &mut Context<J>, left: &Self, right: &Self) -> Result<Self, types::Error> {
+    fn disconnect(left: &Self, right: &Self) -> Result<Self, types::Error> {
         Ok(Arc::new(Node {
             cmr: Cmr::disconnect(left.cmr()),
-            data: N::CachedData::disconnect(ctx, &left.data, &right.data)?,
+            data: N::CachedData::disconnect(&left.data, &right.data)?,
             inner: Inner::Disconnect(Arc::clone(left), Arc::clone(right)),
         }))
     }
 
-    fn fail(ctx: &mut Context<J>, entropy: FailEntropy) -> Self {
+    fn fail(entropy: FailEntropy) -> Self {
         Arc::new(Node {
             cmr: Cmr::fail(entropy),
-            data: N::CachedData::fail(ctx, entropy),
+            data: N::CachedData::fail(entropy),
             inner: Inner::Fail(entropy),
         })
     }
 
-    fn const_word(ctx: &mut Context<J>, value: Arc<Value>) -> Self {
+    fn const_word(value: Arc<Value>) -> Self {
         Arc::new(Node {
             cmr: Cmr::const_word(&value),
-            data: N::CachedData::const_word(ctx, Arc::clone(&value)),
+            data: N::CachedData::const_word(Arc::clone(&value)),
             inner: Inner::Word(value),
         })
     }
 }
 
-impl<N, J> WitnessConstructible<N::Witness, J> for Arc<Node<N, J>>
+impl<N, J> WitnessConstructible<N::Witness> for Arc<Node<N, J>>
 where
     N: NodeData<J>,
-    N::CachedData: for<'a> WitnessConstructible<&'a N::Witness, J>,
+    N::CachedData: for<'a> WitnessConstructible<&'a N::Witness>,
     J: Jet,
 {
-    fn witness(ctx: &mut Context<J>, value: N::Witness) -> Self {
+    fn witness(value: N::Witness) -> Self {
         Arc::new(Node {
             cmr: Cmr::witness(),
-            data: N::CachedData::witness(ctx, &value),
+            data: N::CachedData::witness(&value),
             inner: Inner::Witness(value),
         })
     }
@@ -487,10 +487,10 @@ where
     N::CachedData: JetConstructible<J>,
     J: Jet,
 {
-    fn jet(ctx: &mut Context<J>, jet: J) -> Self {
+    fn jet(jet: J) -> Self {
         Arc::new(Node {
             cmr: Cmr::jet(jet),
-            data: N::CachedData::jet(ctx, jet),
+            data: N::CachedData::jet(jet),
             inner: Inner::Jet(jet),
         })
     }
