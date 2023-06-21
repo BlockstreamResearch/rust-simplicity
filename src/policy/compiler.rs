@@ -256,6 +256,7 @@ mod tests {
         let finalized = commit
             .finalize(witness.into_iter(), true)
             .expect("finalize");
+        let finalized = finalized.to_node();
         let mut mac = BitMachine::for_program(&finalized);
 
         match mac.exec(&finalized, env) {

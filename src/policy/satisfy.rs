@@ -308,6 +308,7 @@ mod tests {
     }
 
     fn execute_successful(program: Rc<RedeemNode<Elements>>, env: &ElementsEnv) {
+        let program = program.to_node();
         let mut mac = BitMachine::for_program(&program);
         assert!(mac.exec(&program, env).is_ok());
     }
@@ -329,6 +330,7 @@ mod tests {
 
         let commit = policy.compile().expect("compile");
         let program = commit.finalize(std::iter::empty(), true).expect("finalize");
+        let program = program.to_node();
         let mut mac = BitMachine::for_program(&program);
 
         assert!(mac.exec(&program, &env).is_err());

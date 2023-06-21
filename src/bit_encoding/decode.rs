@@ -793,7 +793,6 @@ mod tests {
             assert_eq!(counter, 2..100);
 
             // Execute the program to confirm that it worked
-            let diff1_final = crate::RedeemNode::from_node(diff1_final.as_ref());
             let mut mac = BitMachine::for_program(&diff1_final);
             mac.exec(&diff1_final, &()).unwrap();
         }
