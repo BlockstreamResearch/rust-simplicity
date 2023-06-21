@@ -16,10 +16,11 @@ use crate::dag::MaxSharing;
 use crate::jet::Jet;
 use crate::types;
 use crate::types::arrow::{Arrow, FinalArrow};
-use crate::{Cmr, FirstPassImr, Imr};
+use crate::{Cmr, Error, FirstPassImr, Imr, Value};
 
 use super::{
     Construct, ConstructData, ConstructNode, Constructible, Inner, NoWitness, Node, NodeData,
+    RedeemData, RedeemNode,
 };
 
 use std::marker::PhantomData;
@@ -140,6 +141,31 @@ impl<J: Jet> CommitNode<J> {
     /// Accessor for the node's IMR, if known
     pub fn imr(&self) -> Option<Imr> {
         self.data.imr
+    }
+
+    /// Finalize the [`CommitNode`], assuming it has no witnesses. Does not do any
+    /// pruning.
+    ///
+    /// It will populate unit witnesses, to make this method a bit more useful for
+    /// testing purposes. But for any other witness nodes, it will error out with
+    /// [`Error::NoMoreWitnesses`].
+    pub fn finalize_no_witnesses(&self) -> Result<Arc<RedeemNode<J>>, Error> {
+        self.convert::<MaxSharing<Commit, J>, _, _, _, _>(
+            |data, converted| {
+                let converted_data = converted.map(|node| node.cached_data());
+                Ok(Arc::new(RedeemData::new(
+                    data.node.data.arrow.shallow_clone(),
+                    converted_data,
+                )))
+            },
+            |data, _| {
+                if data.node.arrow().target.is_unit() {
+                    Ok(Arc::new(Value::Unit))
+                } else {
+                    Err(Error::NoMoreWitnesses)
+                }
+            },
+        )
     }
 
     /// Convert a [`CommitNode`] back to a [`ConstructNode`] by redoing type inference
