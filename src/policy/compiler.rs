@@ -24,7 +24,7 @@ use crate::jet::Elements;
 use crate::miniscript::MiniscriptKey;
 use crate::policy::key::PublicKey32;
 use crate::types::Error;
-use crate::{FailEntropy, Value};
+use crate::Value;
 use std::rc::Rc;
 
 impl<Pk: MiniscriptKey + PublicKey32> Policy<Pk> {
@@ -58,7 +58,7 @@ fn compile<Pk: MiniscriptKey + PublicKey32>(
 ) -> Result<Rc<CommitNode<Elements>>, Error> {
     match &policy.fragment {
         // TODO: Choose specific Merkle roots for unsatisfiable policies
-        Fragment::Unsatisfiable => Ok(CommitNode::fail(FailEntropy::ZERO)),
+        Fragment::Unsatisfiable(entropy) => Ok(CommitNode::fail(*entropy)),
         Fragment::Trivial => Ok(CommitNode::unit()),
         Fragment::Key(key) => {
             let key_value = Value::u256_from_slice(&key.to_32_bytes());
@@ -226,6 +226,7 @@ mod tests {
     use super::*;
     use crate::exec::BitMachine;
     use crate::jet::elements::ElementsEnv;
+    use crate::FailEntropy;
     use bitcoin_hashes::{sha256, Hash};
     use elements::{bitcoin, secp256k1_zkp};
     use std::sync::Arc;
@@ -256,7 +257,7 @@ mod tests {
 
     #[test]
     fn execute_unsatisfiable() {
-        let (commit, env) = compile(Policy::unsatisfiable());
+        let (commit, env) = compile(Policy::unsatisfiable(FailEntropy::ZERO));
         assert!(!execute_successful(&commit, vec![], &env));
     }
 

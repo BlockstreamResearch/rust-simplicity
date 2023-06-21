@@ -8,7 +8,7 @@ use crate::miniscript::{expression, Miniscript, ScriptContext, Terminal};
 use crate::{miniscript, policy};
 
 use crate::policy::Policy;
-use crate::Error;
+use crate::{Error, FailEntropy};
 
 serde_string_impl_pk!(Policy, "a Simplicity policy");
 
@@ -43,7 +43,7 @@ where
     fn from_tree(top: &expression::Tree) -> Result<Policy<Pk>, msError> {
         use miniscript::policy::concrete::PolicyError as MsPolicyError;
         match (top.name, top.args.len() as u32) {
-            ("UNSATISFIABLE", 0) => Ok(Policy::unsatisfiable()),
+            ("UNSATISFIABLE", 0) => Ok(Policy::unsatisfiable(FailEntropy::ZERO)),
             ("TRIVIAL", 0) => Ok(Policy::trivial()),
             ("pk", 1) => expression::terminal(&top.args[0], |pk| Pk::from_str(pk).map(Policy::key)),
             ("after", 1) => expression::terminal(&top.args[0], |x| {
@@ -106,7 +106,7 @@ impl<'a, Pk: MiniscriptKey, Ctx: ScriptContext> TryFrom<&'a Miniscript<Pk, Ctx>>
     fn try_from(top: &Miniscript<Pk, Ctx>) -> Result<Self, Self::Error> {
         match &top.node {
             Terminal::True => Ok(Policy::trivial()),
-            Terminal::False => Ok(Policy::unsatisfiable()),
+            Terminal::False => Ok(Policy::unsatisfiable(FailEntropy::ZERO)),
             Terminal::PkK(key) => Ok(Policy::key(key.clone())),
             Terminal::PkH(_) | Terminal::RawPkH(_) => {
                 Err(Error::Policy(policy::Error::PublicKeyHash))

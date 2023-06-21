@@ -34,6 +34,7 @@ pub mod key;
 pub mod satisfy;
 
 use crate::miniscript::{MiniscriptKey, Translator};
+use crate::FailEntropy;
 
 use std::fmt;
 use std::sync::Arc;
@@ -54,9 +55,9 @@ pub struct Policy<Pk: MiniscriptKey> {
 
 impl<Pk: MiniscriptKey> Policy<Pk> {
     /// Create an unsatisfiable policy.
-    pub fn unsatisfiable() -> Self {
+    pub fn unsatisfiable(entropy: FailEntropy) -> Self {
         Policy {
-            fragment: ast::Fragment::Unsatisfiable,
+            fragment: ast::Fragment::Unsatisfiable(entropy),
         }
     }
 

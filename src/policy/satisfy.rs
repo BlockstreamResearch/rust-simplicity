@@ -89,7 +89,7 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
 
     fn satisfy_helper<S: Satisfier<Pk>>(&self, satisfier: &S) -> Option<SatisfierExtData> {
         match &self.fragment {
-            Fragment::Unsatisfiable => None,
+            Fragment::Unsatisfiable(..) => None,
             Fragment::Trivial => Some(self.compile_no_witness()),
             Fragment::Key(pk) => satisfier
                 .lookup_tap_leaf_script_sig(pk, &TapLeafHash::all_zeros())
@@ -252,6 +252,7 @@ mod tests {
     use crate::dag::{DagLike, NoSharing};
     use crate::exec::BitMachine;
     use crate::jet::elements::ElementsEnv;
+    use crate::FailEntropy;
     use bitcoin_hashes::{sha256, Hash};
     use elements::{bitcoin, secp256k1_zkp, PackedLockTime, SchnorrSigHashType};
     use std::convert::TryFrom;
@@ -308,7 +309,7 @@ mod tests {
     fn satisfy_unsatisfiable() {
         let env = ElementsEnv::dummy();
         let satisfier = get_satisfier(&env);
-        let policy = Policy::unsatisfiable();
+        let policy = Policy::unsatisfiable(FailEntropy::ZERO);
 
         assert!(policy.satisfy(&satisfier).is_none());
 

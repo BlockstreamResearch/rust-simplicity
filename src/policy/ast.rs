@@ -26,6 +26,7 @@ use std::sync::Arc;
 use super::Policy;
 
 use crate::miniscript::{MiniscriptKey, Translator};
+use crate::FailEntropy;
 
 /// Policy that expresses spending conditions for Simplicity.
 ///
@@ -36,7 +37,7 @@ use crate::miniscript::{MiniscriptKey, Translator};
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Fragment<Pk: MiniscriptKey> {
     /// Unsatisfiable
-    Unsatisfiable,
+    Unsatisfiable(FailEntropy),
     /// Trivially satisfiable
     Trivial,
     /// Provide a signature that matches the given public key and some given message hash
@@ -69,7 +70,7 @@ impl<Pk: MiniscriptKey> Fragment<Pk> {
         Q: MiniscriptKey,
     {
         match *self {
-            Fragment::Unsatisfiable => Ok(Fragment::Unsatisfiable),
+            Fragment::Unsatisfiable(entropy) => Ok(Fragment::Unsatisfiable(entropy)),
             Fragment::Trivial => Ok(Fragment::Trivial),
             Fragment::Key(ref pk) => translator.pk(pk).map(Fragment::Key),
             Fragment::Sha256(ref h) => translator.sha256(h).map(Fragment::Sha256),
@@ -101,7 +102,7 @@ impl<Pk: MiniscriptKey> Fragment<Pk> {
 impl<Pk: MiniscriptKey> fmt::Debug for Fragment<Pk> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Fragment::Unsatisfiable => f.write_str("UNSATISFIABLE"),
+            Fragment::Unsatisfiable(..) => f.write_str("UNSATISFIABLE"),
             Fragment::Trivial => f.write_str("TRIVIAL"),
             Fragment::Key(pk) => write!(f, "pk({})", pk),
             Fragment::After(n) => write!(f, "after({})", n),
