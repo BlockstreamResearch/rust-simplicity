@@ -16,7 +16,9 @@
 //! Currently the policy compilation is one to one mapping
 //! between policy fragment and a simplicity program.
 
-use super::ast::Policy;
+use super::ast::Fragment;
+use super::Policy;
+
 use crate::core::commit::{CommitNode, CommitNodeInner, UsedCaseBranch};
 use crate::jet::Elements;
 use crate::miniscript::MiniscriptKey;
@@ -54,11 +56,11 @@ fn verify_bexp(
 fn compile<Pk: MiniscriptKey + PublicKey32>(
     policy: &Policy<Pk>,
 ) -> Result<Rc<CommitNode<Elements>>, Error> {
-    match policy {
+    match &policy.fragment {
         // TODO: Choose specific Merkle roots for unsatisfiable policies
-        Policy::Unsatisfiable => Ok(CommitNode::fail(FailEntropy::ZERO)),
-        Policy::Trivial => Ok(CommitNode::unit()),
-        Policy::Key(key) => {
+        Fragment::Unsatisfiable => Ok(CommitNode::fail(FailEntropy::ZERO)),
+        Fragment::Trivial => Ok(CommitNode::unit()),
+        Fragment::Key(key) => {
             let key_value = Value::u256_from_slice(&key.to_32_bytes());
             let const_key = CommitNode::const_word(key_value);
             let sighash_all = CommitNode::jet(Elements::SigAllHash);
@@ -69,21 +71,21 @@ fn compile<Pk: MiniscriptKey + PublicKey32>(
 
             CommitNode::comp(pair_key_msg_sig, bip_0340_verify)
         }
-        Policy::After(n) => {
+        Fragment::After(n) => {
             let n_value = Value::u32(*n);
             let const_n = CommitNode::const_word(n_value);
             let check_lock_height = CommitNode::jet(Elements::CheckLockHeight);
 
             CommitNode::comp(const_n, check_lock_height)
         }
-        Policy::Older(n) => {
+        Fragment::Older(n) => {
             let n_value = Value::u16(*n);
             let const_n = CommitNode::const_word(n_value);
             let check_lock_distance = CommitNode::jet(Elements::CheckLockDistance);
 
             CommitNode::comp(const_n, check_lock_distance)
         }
-        Policy::Sha256(hash) => {
+        Fragment::Sha256(hash) => {
             let hash_value = Value::u256_from_slice(&Pk::hash_to_32_bytes(hash));
             let const_hash = CommitNode::const_word(hash_value);
             let witness256 = CommitNode::witness();
@@ -93,7 +95,7 @@ fn compile<Pk: MiniscriptKey + PublicKey32>(
 
             verify_bexp(pair_hash_computed_hash, eq256)
         }
-        Policy::And(sub_policies) => {
+        Fragment::And(sub_policies) => {
             assert_eq!(
                 2,
                 sub_policies.len(),
@@ -105,7 +107,7 @@ fn compile<Pk: MiniscriptKey + PublicKey32>(
 
             and(left, right)
         }
-        Policy::Or(sub_policies) => {
+        Fragment::Or(sub_policies) => {
             assert_eq!(
                 2,
                 sub_policies.len(),
@@ -117,7 +119,7 @@ fn compile<Pk: MiniscriptKey + PublicKey32>(
 
             or(left, right, UsedCaseBranch::Both)
         }
-        Policy::Threshold(k, sub_policies) => {
+        Fragment::Threshold(k, sub_policies) => {
             assert!(
                 sub_policies.len() >= 2,
                 "Thresholds must have at least two sub-policies"
@@ -267,13 +269,13 @@ mod tests {
 
     #[test]
     fn execute_unsatisfiable() {
-        let (commit, env) = compile(Policy::Unsatisfiable);
+        let (commit, env) = compile(Policy::unsatisfiable());
         assert!(!execute_successful(&commit, vec![], &env));
     }
 
     #[test]
     fn execute_trivial() {
-        let (commit, env) = compile(Policy::Trivial);
+        let (commit, env) = compile(Policy::trivial());
         assert!(execute_successful(&commit, vec![], &env));
     }
 
@@ -288,7 +290,7 @@ mod tests {
         let signature = keypair.sign_schnorr(message);
 
         let (xonly, _) = keypair.x_only_public_key();
-        let commit = Policy::Key(xonly).compile().expect("compile");
+        let commit = Policy::key(xonly).compile().expect("compile");
 
         assert!(execute_successful(
             &commit,
@@ -301,17 +303,17 @@ mod tests {
     fn execute_after() {
         let env = ElementsEnv::dummy_with(elements::PackedLockTime(42), elements::Sequence::ZERO);
 
-        let commit = Policy::<bitcoin::XOnlyPublicKey>::After(41)
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::after(41)
             .compile()
             .expect("compile");
         assert!(execute_successful(&commit, vec![], &env));
 
-        let commit = Policy::<bitcoin::XOnlyPublicKey>::After(42)
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::after(42)
             .compile()
             .expect("compile");
         assert!(execute_successful(&commit, vec![], &env));
 
-        let commit = Policy::<bitcoin::XOnlyPublicKey>::After(43)
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::after(43)
             .compile()
             .expect("compile");
         assert!(!execute_successful(&commit, vec![], &env));
@@ -324,17 +326,17 @@ mod tests {
             elements::Sequence::from_consensus(42),
         );
 
-        let commit = Policy::<bitcoin::XOnlyPublicKey>::Older(41)
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::older(41)
             .compile()
             .expect("compile");
         assert!(execute_successful(&commit, vec![], &env));
 
-        let commit = Policy::<bitcoin::XOnlyPublicKey>::Older(42)
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::older(42)
             .compile()
             .expect("compile");
         assert!(execute_successful(&commit, vec![], &env));
 
-        let commit = Policy::<bitcoin::XOnlyPublicKey>::Older(43)
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::older(43)
             .compile()
             .expect("compile");
         assert!(!execute_successful(&commit, vec![], &env));
@@ -344,7 +346,7 @@ mod tests {
     fn execute_sha256() {
         let preimage = [1; 32];
         let image = sha256::Hash::hash(&preimage);
-        let (commit, env) = compile(Policy::Sha256(image));
+        let (commit, env) = compile(Policy::sha256(image));
 
         let valid_witness = vec![Value::u256_from_slice(&preimage)];
         assert!(execute_successful(&commit, valid_witness, &env));
@@ -360,9 +362,9 @@ mod tests {
         let preimage1 = [2; 32];
         let image1 = sha256::Hash::hash(&preimage1);
 
-        let (commit, env) = compile(Policy::And(vec![
-            Policy::Sha256(image0),
-            Policy::Sha256(image1),
+        let (commit, env) = compile(Policy::and(vec![
+            Policy::sha256(image0),
+            Policy::sha256(image1),
         ]));
 
         let valid_witness = vec![
@@ -389,7 +391,7 @@ mod tests {
         let preimage0 = [1; 32];
         let image0 = sha256::Hash::hash(&preimage0);
 
-        let (commit, env) = compile(Policy::And(vec![Policy::Sha256(image0), Policy::Trivial]));
+        let (commit, env) = compile(Policy::and(vec![Policy::sha256(image0), Policy::trivial()]));
 
         let valid_witness = vec![Value::u256_from_slice(&preimage0)];
         assert!(execute_successful(&commit, valid_witness, &env));
@@ -405,9 +407,9 @@ mod tests {
         let preimage1 = [2; 32];
         let image1 = sha256::Hash::hash(&preimage1);
 
-        let (commit, env) = compile(Policy::Or(vec![
-            Policy::Sha256(image0),
-            Policy::Sha256(image1),
+        let (commit, env) = compile(Policy::or(vec![
+            Policy::sha256(image0),
+            Policy::sha256(image1),
         ]));
 
         let valid_witness = vec![
@@ -446,12 +448,12 @@ mod tests {
         let preimage2 = [3; 32];
         let image2 = sha256::Hash::hash(&preimage2);
 
-        let (commit, env) = compile(Policy::Threshold(
+        let (commit, env) = compile(Policy::threshold(
             2,
             vec![
-                Policy::Sha256(image0),
-                Policy::Sha256(image1),
-                Policy::Sha256(image2),
+                Policy::sha256(image0),
+                Policy::sha256(image1),
+                Policy::sha256(image2),
             ],
         ));
 

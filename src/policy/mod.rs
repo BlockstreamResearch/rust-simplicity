@@ -25,7 +25,7 @@
 //! these with BIP32 paths, pay-to-contract instructions, etc.
 //!
 
-pub mod ast;
+mod ast;
 mod compiler;
 pub mod descriptor;
 mod embed;
@@ -33,6 +33,108 @@ mod error;
 pub mod key;
 pub mod satisfy;
 
-pub use ast::Policy;
+use crate::miniscript::{MiniscriptKey, Translator};
+
+use std::fmt;
+
 pub use descriptor::Descriptor;
 pub use error::Error;
+
+/// Policy that expresses spending conditions for Simplicity.
+///
+/// The policy can be encoded directly as a Simplicity program which can be committed to the
+/// blockchain; when finalized, it can executed on the Bit Machine.
+///
+/// Policies can be normalized and are amenable to semantic analysis.
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Policy<Pk: MiniscriptKey> {
+    fragment: ast::Fragment<Pk>,
+}
+
+impl<Pk: MiniscriptKey> Policy<Pk> {
+    /// Create an unsatisfiable policy.
+    pub fn unsatisfiable() -> Self {
+        Policy {
+            fragment: ast::Fragment::Unsatisfiable,
+        }
+    }
+
+    /// Create a trivial policy.
+    pub fn trivial() -> Self {
+        Policy {
+            fragment: ast::Fragment::Trivial,
+        }
+    }
+
+    /// Create a signature check.
+    pub fn key(key: Pk) -> Self {
+        Policy {
+            fragment: ast::Fragment::Key(key),
+        }
+    }
+
+    /// Create an absolute locktime check.
+    pub fn after(n: u32) -> Self {
+        Policy {
+            fragment: ast::Fragment::After(n),
+        }
+    }
+
+    /// Create a relative locktime check.
+    pub fn older(n: u16) -> Self {
+        Policy {
+            fragment: ast::Fragment::Older(n),
+        }
+    }
+
+    /// Create a SHA256 preimage check.
+    pub fn sha256(hash: Pk::Sha256) -> Self {
+        Policy {
+            fragment: ast::Fragment::Sha256(hash),
+        }
+    }
+
+    /// Create a conjunction of two policies.
+    pub fn and(subs: Vec<Self>) -> Self {
+        Policy {
+            fragment: ast::Fragment::And(subs),
+        }
+    }
+
+    /// Create a disjunction of two policies.
+    pub fn or(subs: Vec<Self>) -> Self {
+        Policy {
+            fragment: ast::Fragment::Or(subs),
+        }
+    }
+
+    /// Create a disjunction of two policies.
+    pub fn threshold(k: usize, subs: Vec<Self>) -> Self {
+        Policy {
+            fragment: ast::Fragment::Threshold(k, subs),
+        }
+    }
+
+    /// Convert a fragment using one kind of public key to another type of public key
+    pub fn translate<T, Q, E>(&self, translator: &mut T) -> Result<Policy<Q>, E>
+    where
+        T: Translator<Pk, Q, E>,
+        Q: MiniscriptKey,
+    {
+        Ok(Policy {
+            fragment: self.fragment.translate(translator)?,
+        })
+    }
+}
+
+impl<Pk: MiniscriptKey> fmt::Debug for Policy<Pk> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&self.fragment, f)
+    }
+}
+
+impl<Pk: MiniscriptKey> fmt::Display for Policy<Pk> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self.fragment, f)
+    }
+}

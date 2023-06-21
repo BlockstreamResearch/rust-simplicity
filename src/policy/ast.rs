@@ -22,6 +22,8 @@
 
 use std::fmt;
 
+use super::Policy;
+
 use crate::miniscript::{MiniscriptKey, Translator};
 
 /// Policy that expresses spending conditions for Simplicity.
@@ -31,7 +33,7 @@ use crate::miniscript::{MiniscriptKey, Translator};
 ///
 /// Furthermore, the policy can be normalized and is amenable to semantic analysis.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Policy<Pk: MiniscriptKey> {
+pub enum Fragment<Pk: MiniscriptKey> {
     /// Unsatisfiable
     Unsatisfiable,
     /// Trivially satisfiable
@@ -52,118 +54,52 @@ pub enum Policy<Pk: MiniscriptKey> {
     Threshold(usize, Vec<Policy<Pk>>),
 }
 
-impl<Pk: MiniscriptKey> Policy<Pk> {
-    /// Convert a policy using one kind of public key to another
-    /// type of public key
-    pub fn translate<T, Q, E>(&self, translator: &mut T) -> Result<Policy<Q>, E>
+impl<Pk: MiniscriptKey> Fragment<Pk> {
+    /// Convert a fragment using one kind of public key to another type of public key
+    pub fn translate<T, Q, E>(&self, translator: &mut T) -> Result<Fragment<Q>, E>
     where
         T: Translator<Pk, Q, E>,
         Q: MiniscriptKey,
     {
         match *self {
-            Policy::Unsatisfiable => Ok(Policy::Unsatisfiable),
-            Policy::Trivial => Ok(Policy::Trivial),
-            Policy::Key(ref pk) => translator.pk(pk).map(Policy::Key),
-            Policy::Sha256(ref h) => translator.sha256(h).map(Policy::Sha256),
-            Policy::After(n) => Ok(Policy::After(n)),
-            Policy::Older(n) => Ok(Policy::Older(n)),
-            Policy::Threshold(k, ref subs) => {
+            Fragment::Unsatisfiable => Ok(Fragment::Unsatisfiable),
+            Fragment::Trivial => Ok(Fragment::Trivial),
+            Fragment::Key(ref pk) => translator.pk(pk).map(Fragment::Key),
+            Fragment::Sha256(ref h) => translator.sha256(h).map(Fragment::Sha256),
+            Fragment::After(n) => Ok(Fragment::After(n)),
+            Fragment::Older(n) => Ok(Fragment::Older(n)),
+            Fragment::Threshold(k, ref subs) => {
                 let new_subs: Result<Vec<Policy<Q>>, _> =
                     subs.iter().map(|sub| sub.translate(translator)).collect();
-                new_subs.map(|ok| Policy::Threshold(k, ok))
+                new_subs.map(|ok| Fragment::Threshold(k, ok))
             }
-            Policy::And(ref subs) => Ok(Policy::And(
+            Fragment::And(ref subs) => Ok(Fragment::And(
                 subs.iter()
                     .map(|sub| sub.translate(translator))
                     .collect::<Result<Vec<Policy<Q>>, E>>()?,
             )),
-            Policy::Or(ref subs) => Ok(Policy::Or(
+            Fragment::Or(ref subs) => Ok(Fragment::Or(
                 subs.iter()
                     .map(|sub| sub.translate(translator))
                     .collect::<Result<Vec<Policy<Q>>, E>>()?,
             )),
-        }
-    }
-
-    /// Flatten out trees of `And`s and `Or`s; eliminate `Trivial` and
-    /// `Unsatisfiable`s. Does not reorder any branches; use `.sort`.
-    pub fn normalized(self) -> Policy<Pk> {
-        match self {
-            Policy::And(subs) => {
-                let mut ret_subs = Vec::with_capacity(subs.len());
-                for sub in subs {
-                    match sub.normalized() {
-                        Policy::Trivial => {}
-                        Policy::Unsatisfiable => return Policy::Unsatisfiable,
-                        Policy::And(and_subs) => ret_subs.extend(and_subs),
-                        x => ret_subs.push(x),
-                    }
-                }
-                match ret_subs.len() {
-                    0 => Policy::Trivial,
-                    1 => ret_subs.pop().unwrap(),
-                    _ => Policy::And(ret_subs),
-                }
-            }
-            Policy::Or(subs) => {
-                let mut ret_subs = Vec::with_capacity(subs.len());
-                for sub in subs {
-                    match sub {
-                        Policy::Trivial => return Policy::Trivial,
-                        Policy::Unsatisfiable => {}
-                        Policy::Or(or_subs) => ret_subs.extend(or_subs),
-                        x => ret_subs.push(x),
-                    }
-                }
-                match ret_subs.len() {
-                    0 => Policy::Trivial,
-                    1 => ret_subs.pop().unwrap(),
-                    _ => Policy::Or(ret_subs),
-                }
-            }
-            x => x,
-        }
-    }
-
-    /// "Sort" a policy to bring it into a canonical form to allow comparisons.
-    /// Does **not** allow policies to be compared for functional equivalence;
-    /// in general this appears to require Gröbner basis techniques that are not
-    /// implemented.
-    pub fn sorted(self) -> Policy<Pk> {
-        match self {
-            Policy::And(subs) => {
-                let mut new_subs: Vec<_> = subs.into_iter().map(Policy::sorted).collect();
-                new_subs.sort();
-                Policy::And(new_subs)
-            }
-            Policy::Or(subs) => {
-                let mut new_subs: Vec<_> = subs.into_iter().map(Policy::sorted).collect();
-                new_subs.sort();
-                Policy::Or(new_subs)
-            }
-            Policy::Threshold(k, subs) => {
-                let mut new_subs: Vec<_> = subs.into_iter().map(Policy::sorted).collect();
-                new_subs.sort();
-                Policy::Threshold(k, new_subs)
-            }
-            x => x,
         }
     }
 }
 
-impl<Pk: MiniscriptKey> fmt::Debug for Policy<Pk> {
+impl<Pk: MiniscriptKey> fmt::Debug for Fragment<Pk> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Policy::Unsatisfiable => f.write_str("UNSATISFIABLE"),
-            Policy::Trivial => f.write_str("TRIVIAL"),
-            Policy::Key(pk) => write!(f, "pk({})", pk),
-            Policy::After(n) => write!(f, "after({})", n),
-            Policy::Older(n) => write!(f, "older({})", n),
-            Policy::Sha256(h) => write!(f, "sha256({})", h),
-            Policy::And(sub_policies) | Policy::Or(sub_policies) => {
+            Fragment::Unsatisfiable => f.write_str("UNSATISFIABLE"),
+            Fragment::Trivial => f.write_str("TRIVIAL"),
+            Fragment::Key(pk) => write!(f, "pk({})", pk),
+            Fragment::After(n) => write!(f, "after({})", n),
+            Fragment::Older(n) => write!(f, "older({})", n),
+            Fragment::Sha256(h) => write!(f, "sha256({})", h),
+            Fragment::And(sub_policies) | Fragment::Or(sub_policies) => {
                 match self {
-                    Policy::And(_) => f.write_str("and(")?,
-                    Policy::Or(_) => f.write_str("or(")?,
+                    Fragment::And(_) => f.write_str("and(")?,
+                    Fragment::Or(_) => f.write_str("or(")?,
                     _ => unreachable!(),
                 }
 
@@ -175,7 +111,7 @@ impl<Pk: MiniscriptKey> fmt::Debug for Policy<Pk> {
                 }
                 f.write_str(")")
             }
-            Policy::Threshold(k, sub_policies) => {
+            Fragment::Threshold(k, sub_policies) => {
                 write!(f, "thresh({}", k)?;
                 for sub in sub_policies {
                     write!(f, ",{:?}", sub)?;
@@ -186,7 +122,7 @@ impl<Pk: MiniscriptKey> fmt::Debug for Policy<Pk> {
     }
 }
 
-impl<Pk: MiniscriptKey> fmt::Display for Policy<Pk> {
+impl<Pk: MiniscriptKey> fmt::Display for Fragment<Pk> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(self, f)
     }

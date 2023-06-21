@@ -1,5 +1,6 @@
 use crate::core::commit::UsedCaseBranch;
 use crate::jet::Elements;
+use crate::policy::ast::Fragment;
 use crate::policy::compiler;
 use crate::policy::key::PublicKey32;
 use crate::{CommitNode, Policy, RedeemNode, Value};
@@ -87,13 +88,13 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
     }
 
     fn satisfy_helper<S: Satisfier<Pk>>(&self, satisfier: &S) -> Option<SatisfierExtData> {
-        match self {
-            Policy::Unsatisfiable => None,
-            Policy::Trivial => Some(self.compile_no_witness()),
-            Policy::Key(pk) => satisfier
+        match &self.fragment {
+            Fragment::Unsatisfiable => None,
+            Fragment::Trivial => Some(self.compile_no_witness()),
+            Fragment::Key(pk) => satisfier
                 .lookup_tap_leaf_script_sig(pk, &TapLeafHash::all_zeros())
                 .map(|sig| self.compile_witness_bytes(sig.sig.as_ref())),
-            Policy::After(n) => {
+            Fragment::After(n) => {
                 let height = Height::from_consensus(*n).ok()?;
                 if satisfier.check_after(LockTime::Blocks(height)) {
                     Some(self.compile_no_witness())
@@ -101,17 +102,17 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                     None
                 }
             }
-            Policy::Older(n) => {
+            Fragment::Older(n) => {
                 if satisfier.check_older(Sequence((*n).into())) {
                     Some(self.compile_no_witness())
                 } else {
                     None
                 }
             }
-            Policy::Sha256(hash) => satisfier
+            Fragment::Sha256(hash) => satisfier
                 .lookup_sha256(hash)
                 .map(|preimage| self.compile_witness_bytes(preimage.as_ref())),
-            Policy::And(sub_policies) => {
+            Fragment::And(sub_policies) => {
                 assert_eq!(
                     2,
                     sub_policies.len(),
@@ -127,7 +128,7 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
 
                 Some(left)
             }
-            Policy::Or(sub_policies) => {
+            Fragment::Or(sub_policies) => {
                 assert_eq!(
                     2,
                     sub_policies.len(),
@@ -176,7 +177,7 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
                     Some(right)
                 }
             }
-            Policy::Threshold(k, sub_policies) => {
+            Fragment::Threshold(k, sub_policies) => {
                 assert!(
                     sub_policies.len() >= 2,
                     "Thresholds must have at least two sub-policies"
@@ -324,7 +325,7 @@ mod tests {
     fn satisfy_unsatisfiable() {
         let env = ElementsEnv::dummy();
         let satisfier = get_satisfier(&env);
-        let policy = Policy::Unsatisfiable;
+        let policy = Policy::unsatisfiable();
 
         assert!(policy.satisfy(&satisfier).is_none());
 
@@ -340,7 +341,7 @@ mod tests {
     fn satisfy_trivial() {
         let env = ElementsEnv::dummy();
         let satisfier = get_satisfier(&env);
-        let policy = Policy::Trivial;
+        let policy = Policy::trivial();
 
         let program = policy.satisfy(&satisfier).expect("satisfiable");
         let witness = to_witness(&program);
@@ -355,7 +356,7 @@ mod tests {
         let satisfier = get_satisfier(&env);
         let mut it = satisfier.signatures.keys();
         let xonly = it.next().unwrap();
-        let policy = Policy::Key(*xonly);
+        let policy = Policy::key(*xonly);
 
         let program = policy.satisfy(&satisfier).expect("satisfiable");
         let witness = to_witness(&program);
@@ -377,7 +378,7 @@ mod tests {
         let satisfier = get_satisfier(&env);
         let mut it = satisfier.preimages.keys();
         let image = *it.next().unwrap();
-        let policy = Policy::Sha256(image);
+        let policy = Policy::sha256(image);
 
         let program = policy.satisfy(&satisfier).expect("satisfiable");
         let witness = to_witness(&program);
@@ -396,19 +397,19 @@ mod tests {
         let env = ElementsEnv::dummy_with(PackedLockTime(42), Sequence::ZERO);
         let satisfier = get_satisfier(&env);
 
-        let policy0 = Policy::After(41);
+        let policy0 = Policy::after(41);
         let program = policy0.satisfy(&satisfier).expect("satisfiable");
         let witness = to_witness(&program);
         assert!(witness.is_empty());
         execute_successful(program, &env);
 
-        let policy1 = Policy::After(42);
+        let policy1 = Policy::after(42);
         let program = policy1.satisfy(&satisfier).expect("satisfiable");
         let witness = to_witness(&program);
         assert!(witness.is_empty());
         execute_successful(program, &env);
 
-        let policy2 = Policy::After(43);
+        let policy2 = Policy::after(43);
         assert!(policy2.satisfy(&satisfier).is_none(), "unsatisfiable");
     }
 
@@ -417,19 +418,19 @@ mod tests {
         let env = ElementsEnv::dummy_with(PackedLockTime::ZERO, Sequence::from_consensus(42));
         let satisfier = get_satisfier(&env);
 
-        let policy0 = Policy::Older(41);
+        let policy0 = Policy::older(41);
         let program = policy0.satisfy(&satisfier).expect("satisfiable");
         let witness = to_witness(&program);
         assert!(witness.is_empty());
         execute_successful(program, &env);
 
-        let policy1 = Policy::Older(42);
+        let policy1 = Policy::older(42);
         let program = policy1.satisfy(&satisfier).expect("satisfiable");
         let witness = to_witness(&program);
         assert!(witness.is_empty());
         execute_successful(program, &env);
 
-        let policy2 = Policy::Older(43);
+        let policy2 = Policy::older(43);
         assert!(policy2.satisfy(&satisfier).is_none(), "unsatisfiable");
     }
 
@@ -445,7 +446,7 @@ mod tests {
 
         // Policy 0
 
-        let policy0 = Policy::And(vec![Policy::Sha256(images[0]), Policy::Sha256(images[1])]);
+        let policy0 = Policy::and(vec![Policy::sha256(images[0]), Policy::sha256(images[1])]);
         let program = policy0.satisfy(&satisfier).expect("satisfiable");
         let witness = to_witness(&program);
         assert_eq!(2, witness.len());
@@ -461,17 +462,17 @@ mod tests {
 
         // Policy 1
 
-        let policy1 = Policy::And(vec![
-            Policy::Sha256(sha256::Hash::from_inner([0; 32])),
-            Policy::Sha256(images[1]),
+        let policy1 = Policy::and(vec![
+            Policy::sha256(sha256::Hash::from_inner([0; 32])),
+            Policy::sha256(images[1]),
         ]);
         assert!(policy1.satisfy(&satisfier).is_none());
 
         // Policy 2
 
-        let policy2 = Policy::And(vec![
-            Policy::Sha256(images[0]),
-            Policy::Sha256(sha256::Hash::from_inner([0; 32])),
+        let policy2 = Policy::and(vec![
+            Policy::sha256(images[0]),
+            Policy::sha256(sha256::Hash::from_inner([0; 32])),
         ]);
         assert!(policy2.satisfy(&satisfier).is_none());
     }
@@ -502,30 +503,30 @@ mod tests {
 
         // Policy 0
 
-        let policy0 = Policy::Or(vec![Policy::Sha256(images[0]), Policy::Sha256(images[1])]);
+        let policy0 = Policy::or(vec![Policy::sha256(images[0]), Policy::sha256(images[1])]);
         assert_branch(&policy0, false);
 
         // Policy 1
 
-        let policy1 = Policy::Or(vec![
-            Policy::Sha256(images[0]),
-            Policy::Sha256(sha256::Hash::from_inner([1; 32])),
+        let policy1 = Policy::or(vec![
+            Policy::sha256(images[0]),
+            Policy::sha256(sha256::Hash::from_inner([1; 32])),
         ]);
         assert_branch(&policy1, false);
 
         // Policy 2
 
-        let policy2 = Policy::Or(vec![
-            Policy::Sha256(sha256::Hash::from_inner([0; 32])),
-            Policy::Sha256(images[1]),
+        let policy2 = Policy::or(vec![
+            Policy::sha256(sha256::Hash::from_inner([0; 32])),
+            Policy::sha256(images[1]),
         ]);
         assert_branch(&policy2, true);
 
         // Policy 3
 
-        let policy3 = Policy::Or(vec![
-            Policy::Sha256(sha256::Hash::from_inner([0; 32])),
-            Policy::Sha256(sha256::Hash::from_inner([1; 32])),
+        let policy3 = Policy::or(vec![
+            Policy::sha256(sha256::Hash::from_inner([0; 32])),
+            Policy::sha256(sha256::Hash::from_inner([1; 32])),
         ]);
         assert!(policy3.satisfy(&satisfier).is_none());
     }
@@ -579,12 +580,12 @@ mod tests {
                 for &bit2 in &[true, false] {
                     let image2 = image_from_bit(bit2, 2);
 
-                    let policy = Policy::Threshold(
+                    let policy = Policy::threshold(
                         2,
                         vec![
-                            Policy::Sha256(image0),
-                            Policy::Sha256(image1),
-                            Policy::Sha256(image2),
+                            Policy::sha256(image0),
+                            Policy::sha256(image1),
+                            Policy::sha256(image2),
                         ],
                     );
 

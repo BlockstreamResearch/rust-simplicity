@@ -6,7 +6,7 @@ use crate::miniscript::MiniscriptKey;
 use crate::miniscript::{expression, Miniscript, ScriptContext, Terminal};
 use crate::{miniscript, policy};
 
-use crate::policy::ast::Policy;
+use crate::policy::Policy;
 use crate::Error;
 
 serde_string_impl_pk!(Policy, "a Simplicity policy");
@@ -46,17 +46,17 @@ where
     fn from_tree(top: &expression::Tree) -> Result<Policy<Pk>, msError> {
         use miniscript::policy::concrete::PolicyError as MsPolicyError;
         match (top.name, top.args.len() as u32) {
-            ("UNSATISFIABLE", 0) => Ok(Policy::Unsatisfiable),
-            ("TRIVIAL", 0) => Ok(Policy::Trivial),
-            ("pk", 1) => expression::terminal(&top.args[0], |pk| Pk::from_str(pk).map(Policy::Key)),
+            ("UNSATISFIABLE", 0) => Ok(Policy::unsatisfiable()),
+            ("TRIVIAL", 0) => Ok(Policy::trivial()),
+            ("pk", 1) => expression::terminal(&top.args[0], |pk| Pk::from_str(pk).map(Policy::key)),
             ("after", 1) => expression::terminal(&top.args[0], |x| {
-                expression::parse_num(x).map(Policy::After)
+                expression::parse_num(x).map(Policy::after)
             }),
             ("older", 1) => expression::terminal(&top.args[0], |x| {
-                expression::parse_num(x).map(Policy::Older)
+                expression::parse_num(x).map(Policy::older)
             }),
             ("sha256", 1) => expression::terminal(&top.args[0], |x| {
-                Pk::Sha256::from_str(x).map(Policy::Sha256)
+                Pk::Sha256::from_str(x).map(Policy::sha256)
             }),
             ("and", _) => {
                 if top.args.len() != 2 {
@@ -66,7 +66,7 @@ where
                 for arg in &top.args {
                     subs.push(Policy::from_tree(arg)?);
                 }
-                Ok(Policy::And(subs))
+                Ok(Policy::and(subs))
             }
             ("or", _) => {
                 if top.args.len() != 2 {
@@ -76,7 +76,7 @@ where
                 for arg in &top.args {
                     subs.push(Policy::from_tree(arg)?);
                 }
-                Ok(Policy::Or(subs))
+                Ok(Policy::or(subs))
             }
             ("thresh", nsubs) => {
                 if nsubs == 0 {
@@ -100,7 +100,7 @@ where
                 for arg in &top.args[1..] {
                     subs.push(Policy::from_tree(arg)?);
                 }
-                Ok(Policy::Threshold(thresh as usize, subs))
+                Ok(Policy::threshold(thresh as usize, subs))
             }
             _ => Err(msError::Unexpected(top.name.to_owned())),
         }
@@ -112,42 +112,42 @@ impl<'a, Pk: MiniscriptKey, Ctx: ScriptContext> TryFrom<&'a Miniscript<Pk, Ctx>>
 
     fn try_from(top: &Miniscript<Pk, Ctx>) -> Result<Self, Self::Error> {
         match &top.node {
-            Terminal::True => Ok(Policy::Trivial),
-            Terminal::False => Ok(Policy::Unsatisfiable),
-            Terminal::PkK(key) => Ok(Policy::Key(key.clone())),
+            Terminal::True => Ok(Policy::trivial()),
+            Terminal::False => Ok(Policy::unsatisfiable()),
+            Terminal::PkK(key) => Ok(Policy::key(key.clone())),
             Terminal::PkH(_) | Terminal::RawPkH(_) => {
                 Err(Error::Policy(policy::Error::PublicKeyHash))
             }
-            Terminal::After(n) => Ok(Policy::After(n.0)),
+            Terminal::After(n) => Ok(Policy::after(n.0)),
             Terminal::Older(n) => {
                 if !n.is_height_locked() {
                     return Err(Error::Policy(policy::Error::InvalidSequence));
                 }
 
                 let low_16 = n.0 as u16;
-                Ok(Policy::Older(low_16))
+                Ok(Policy::older(low_16))
             }
-            Terminal::Sha256(h) => Ok(Policy::Sha256(h.clone())),
+            Terminal::Sha256(h) => Ok(Policy::sha256(h.clone())),
             Terminal::Hash256(_h) => Err(Error::Policy(policy::Error::Sha256d)),
             Terminal::Ripemd160(_) | Terminal::Hash160(_) => {
                 Err(Error::Policy(policy::Error::Ripemd160))
             }
             Terminal::AndV(x, y) | Terminal::AndB(x, y) => {
                 let inner = vec![x.as_ref().try_into()?, y.as_ref().try_into()?];
-                Ok(Policy::And(inner))
+                Ok(Policy::and(inner))
             }
             Terminal::AndOr(x, y, z) => {
                 let inner_and = vec![x.as_ref().try_into()?, y.as_ref().try_into()?];
-                let and = Policy::And(inner_and);
+                let and = Policy::and(inner_and);
                 let inner_or = vec![and, z.as_ref().try_into()?];
-                Ok(Policy::Or(inner_or))
+                Ok(Policy::or(inner_or))
             }
             Terminal::OrB(x, y)
             | Terminal::OrD(x, y)
             | Terminal::OrC(x, y)
             | Terminal::OrI(x, y) => {
                 let inner = vec![x.as_ref().try_into()?, y.as_ref().try_into()?];
-                Ok(Policy::Or(inner))
+                Ok(Policy::or(inner))
             }
             Terminal::Thresh(k, sub_policies) => {
                 let mut translated_sub_policies = Vec::with_capacity(sub_policies.len());
@@ -156,7 +156,7 @@ impl<'a, Pk: MiniscriptKey, Ctx: ScriptContext> TryFrom<&'a Miniscript<Pk, Ctx>>
                     translated_sub_policies.push(sub.as_ref().try_into()?);
                 }
 
-                Ok(Policy::Threshold(*k, translated_sub_policies))
+                Ok(Policy::threshold(*k, translated_sub_policies))
             }
             Terminal::Alt(x)
             | Terminal::Swap(x)
