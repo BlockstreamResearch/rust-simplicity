@@ -13,15 +13,14 @@
 //
 
 use crate::analysis::NodeBounds;
-use crate::dag::{DagLike, FullSharing, InternalSharing, NoSharing, PostOrderIter};
+use crate::dag::{DagLike, InternalSharing, NoSharing, PostOrderIter};
 use crate::jet::Jet;
 use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
 use crate::node;
 use crate::types::{self, arrow::FinalArrow};
-use crate::{encode, Error};
-use crate::{BitIter, BitWriter, FailEntropy, Value};
+use crate::{BitIter, BitWriter, Error, FailEntropy, Value};
 use std::rc::Rc;
 use std::sync::Arc;
 use std::{fmt, io};
@@ -280,11 +279,7 @@ impl<J: Jet> RedeemNode<J> {
 
     /// Encode a Simplicity program to bits, including the witness data.
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
-        let sharing_iter = self.post_order_iter::<FullSharing>();
-        let program_bits = encode::encode_program(&self.to_node(), w)?;
-        let witness_bits = encode::encode_witness(sharing_iter.into_witnesses(), w)?;
-        w.flush_all()?;
-        Ok(program_bits + witness_bits)
+        self.to_node().encode(w)
     }
 
     /// Encode a Simplicity program to a vector of bytes, including the witness data.

@@ -13,10 +13,12 @@
 //
 
 use crate::dag::{InternalSharing, PostOrderIterItem};
+use crate::encode;
 use crate::jet::Jet;
 use crate::types::{self, arrow::Arrow};
-use crate::{BitIter, Cmr, FailEntropy, Value};
+use crate::{BitIter, BitWriter, Cmr, FailEntropy, Value};
 
+use std::io;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -116,6 +118,13 @@ impl<J: Jet> ConstructNode<J> {
         bits: &mut BitIter<I>,
     ) -> Result<Arc<Self>, crate::decode::Error> {
         crate::decode::decode_expression(bits)
+    }
+
+    /// Encode a Simplicity expression to bits, with no witness data
+    pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
+        let program_bits = encode::encode_program(self, w)?;
+        w.flush_all()?;
+        Ok(program_bits)
     }
 }
 
