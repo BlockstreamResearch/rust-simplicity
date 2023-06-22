@@ -264,3 +264,32 @@ impl<J: Jet> JetConstructible<J> for ConstructData<J> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::jet::Core;
+
+    #[test]
+    fn occurs_check_error() {
+        let iden = Arc::<ConstructNode<Core>>::iden();
+        let node = Arc::<ConstructNode<Core>>::disconnect(&iden, &iden).unwrap();
+
+        if let Err(types::Error::OccursCheck { .. }) = node.finalize_types_non_program() {
+        } else {
+            panic!("Expected occurs check error")
+        }
+    }
+
+    #[test]
+    fn type_check_error() {
+        let unit = Arc::<ConstructNode<Core>>::unit();
+        let case = Arc::<ConstructNode<Core>>::case(&unit, &unit).unwrap();
+
+        if let Err(types::Error::Bind { .. }) = Arc::<ConstructNode<Core>>::disconnect(&case, &unit)
+        {
+        } else {
+            panic!("Expected type check error")
+        }
+    }
+}
