@@ -14,15 +14,16 @@
 
 use crate::dag::{DagLike, MaxSharing, NoSharing, PostOrderIterItem};
 use crate::jet::Jet;
-use crate::types;
 use crate::types::arrow::{Arrow, FinalArrow};
-use crate::{BitIter, Cmr, Error, FirstPassImr, Imr};
+use crate::{encode, types};
+use crate::{BitIter, BitWriter, Cmr, Error, FirstPassImr, Imr};
 
 use super::{
     Construct, ConstructData, ConstructNode, Constructible, Converter, Inner, NoWitness, Node,
     NodeData, Redeem, RedeemNode,
 };
 
+use std::io;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -200,5 +201,12 @@ impl<J: Jet> CommitNode<J> {
         } else {
             Err(Error::SharingNotMaximal)
         }
+    }
+
+    /// Encode a Simplicity expression to bits without any witness data
+    pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
+        let program_bits = encode::encode_program(self, w)?;
+        w.flush_all()?;
+        Ok(program_bits)
     }
 }

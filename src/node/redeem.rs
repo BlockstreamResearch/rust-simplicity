@@ -14,13 +14,15 @@
 
 use crate::analysis::NodeBounds;
 use crate::dag::{DagLike, InternalSharing, MaxSharing, PostOrderIterItem};
+use crate::encode;
 use crate::jet::Jet;
 use crate::types::{self, arrow::FinalArrow};
-use crate::{Amr, BitIter, Cmr, Error, FirstPassImr, Imr, Value};
+use crate::{Amr, BitIter, BitWriter, Cmr, Error, FirstPassImr, Imr, Value};
 
 use super::{Commit, CommitData, CommitNode, Converter, Inner, NoWitness, Node, NodeData};
 
 use std::collections::HashSet;
+use std::io;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -288,5 +290,15 @@ impl<J: Jet> RedeemNode<J> {
         }
 
         Ok(program)
+    }
+
+    /// Encode a Simplicity program to bits, including the witness data.
+    pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
+        let sharing_iter = self.post_order_iter::<MaxSharing<Redeem, J>>();
+        let program_bits = encode::encode_program(self, w)?;
+        let witness_bits =
+            encode::encode_witness(sharing_iter.into_witnesses().map(Arc::as_ref), w)?;
+        w.flush_all()?;
+        Ok(program_bits + witness_bits)
     }
 }

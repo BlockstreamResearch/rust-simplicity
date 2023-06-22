@@ -449,9 +449,8 @@ mod tests {
     use crate::encode;
     use crate::exec::BitMachine;
     use crate::jet::Core;
-    use crate::node::SimpleFinalizer;
+    use crate::node::{CommitNode, RedeemNode, SimpleFinalizer};
     use crate::BitWriter;
-    use crate::CommitNode;
     use bitcoin_hashes::hex::ToHex;
     use std::iter;
 
@@ -460,11 +459,11 @@ mod tests {
         cmr_str: &str,
         amr_str: Option<&str>,
         imr_str: Option<&str>,
-    ) -> std::rc::Rc<crate::CommitNode<J>> {
+    ) -> Arc<CommitNode<J>> {
         let prog_hex = prog_bytes.to_hex();
 
         let mut iter = BitIter::from(prog_bytes);
-        let prog = match decode_expression::<_, J>(&mut iter) {
+        let prog = match decode_program::<_, J>(&mut iter) {
             Ok(prog) => prog,
             Err(e) => panic!("program {} failed: {}", prog_hex, e),
         };
@@ -479,8 +478,6 @@ mod tests {
         );
         if amr_str.is_some() || imr_str.is_some() {
             let fprog = prog
-                .finalize_types()
-                .expect("finalizing types")
                 .finalize(&mut SimpleFinalizer::new(iter::repeat(Arc::new(
                     Value::Unit,
                 ))))
@@ -507,7 +504,6 @@ mod tests {
             }
         }
 
-        let prog = crate::CommitNode::from_node(prog.as_ref());
         let mut reser_sink = Vec::<u8>::new();
         let mut w = BitWriter::from(&mut reser_sink);
         prog.encode(&mut w)
@@ -523,12 +519,12 @@ mod tests {
         prog
     }
 
-    fn assert_program_not_deserializable<J: Jet>(prog: &[u8], err: Error) {
+    fn assert_program_not_deserializable<J: Jet>(prog: &[u8], err: &dyn fmt::Display) {
         let prog_hex = prog.to_hex();
         let err_str = err.to_string();
 
         let mut iter = BitIter::from(prog);
-        match decode_program::<_, J>(&mut iter) {
+        match CommitNode::<J>::decode(&mut iter) {
             Ok(prog) => panic!(
                 "Program {} succeded (expected error {}). Program parsed as:\n{}",
                 prog_hex, err, prog
@@ -546,12 +542,12 @@ mod tests {
         // "main = comp unit iden", but with the iden serialized before the unit
         // To obtain this test vector I temporarily swapped `get_left` and `get_right`
         // in the implementation of `PostOrderIter`
-        assert_program_not_deserializable::<Core>(&[0xa8, 0x48, 0x10], Error::NotInCanonicalOrder);
+        assert_program_not_deserializable::<Core>(&[0xa8, 0x48, 0x10], &Error::NotInCanonicalOrder);
 
         // "main = iden", but prefixed by some unused nodes, the first of which is also iden.
         assert_program_not_deserializable::<Core>(
             &[0xc1, 0x00, 0x06, 0x20],
-            Error::NotInCanonicalOrder,
+            &Error::NotInCanonicalOrder,
         );
     }
 
@@ -691,7 +687,7 @@ mod tests {
             0x7e, 0xf5, 0x6d, 0xf7, 0x7e, 0xf5, 0x6d, 0xf7,
             78,
         ];
-        assert_program_not_deserializable::<Core>(&hidden, Error::HiddenNode);
+        assert_program_not_deserializable::<Core>(&hidden, &Error::HiddenNode);
 
         // main = comp witness hidden deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
         let hidden = [
@@ -699,7 +695,7 @@ mod tests {
             0xd5, 0xb7, 0xdd, 0xfb, 0xd5, 0xb7, 0xdd, 0xfb, 0xd5, 0xb7, 0xdd, 0xfb, 0xd5, 0xb7,
             0xdd, 0xfb, 0xd5, 0xb7, 0xdd, 0xe0, 0x80,
         ];
-        assert_program_not_deserializable::<Core>(&hidden, Error::HiddenNode);
+        assert_program_not_deserializable::<Core>(&hidden, &Error::HiddenNode);
     }
 
     #[test]
@@ -714,7 +710,7 @@ mod tests {
             0xdf, 0xbd, 0x5b, 0x7d, 0xdf, 0xbd, 0x5b, 0x7d,
             0xde, 0x10,
         ];
-        assert_program_not_deserializable::<Core>(&hidden, Error::BothChildrenHidden);
+        assert_program_not_deserializable::<Core>(&hidden, &Error::BothChildrenHidden);
     }
 
     #[test]
@@ -734,25 +730,48 @@ mod tests {
         // wit_diff = comp (comp (pair wit1 wit2) jet_subtract_32) (drop iden) :: 1 -> 2^32
         // diff_is_one = comp (pair wit_diff jet_one_32) jet_eq_32             :: 1 -> 2
         // main = comp diff_is_one jet_verify                                  :: 1 -> 1
+
+        #[rustfmt::skip]
+        let bad_diff1s = vec![
+            // Above program, but with both witness nodes shared (note they have
+            // the same type and CMR)
+            vec![
+                0xda, 0xe2, 0x39, 0xa3, 0x10, 0x42, 0x0e, 0x05,
+                0x71, 0x88, 0xa3, 0x6d, 0xc4, 0x11, 0x80, 0x80
+            ],
+            // Same program but with each `witness` replaced by `comp iden witness`, which
+            // is semantically the same but buries the offending witness nodes a bit to
+            // trip up naive sharing logic.
+            vec![
+                0xde, 0x87, 0x04, 0x08, 0xe6, 0x8c, 0x41, 0x08,
+                0x38, 0x15, 0xc6, 0x22, 0x8d, 0xb7, 0x10, 0x46,
+                0x02, 0x00,
+            ],
+        ];
+        for bad_diff1 in bad_diff1s {
+            assert_program_not_deserializable::<Core>(&bad_diff1, &crate::Error::SharingNotMaximal);
+        }
+
         #[rustfmt::skip]
         let diff1s = vec![
             (
+                // Sharing corrected
                 vec![
-                    0xda, 0xe2, 0x39, 0xa3, 0x10, 0x42, 0x0e, 0x05,
-                    0x71, 0x88, 0xa3, 0x6d, 0xc4, 0x11, 0x80, 0x80
+                    0xdc, 0xee, 0x28, 0xe6, 0x8c, 0x41, 0x08, 0x38,
+                    0x15, 0xc6, 0x22, 0x8d, 0xb7, 0x10, 0x46, 0x02,
+                    0x00,
                 ],
                 // CMR not checked against C code, since C won't give us any data without witnesses
                 "a2ad9852818c0dc9307b476464cb9366c5c97896ba128f2f526b51910218293c",
                 None,
                 None,
             ),
-            // Same program but with each `witness` replaced by `comp iden witness`, which
-            // is semantically the same but will trip up naive witness-unsharing logic.
+            // Same program but with each `witness` replaced by `comp iden witness`.
             (
                 vec![
-                    0xde, 0x87, 0x04, 0x08, 0xe6, 0x8c, 0x41, 0x08,
-                    0x38, 0x15, 0xc6, 0x22, 0x8d, 0xb7, 0x10, 0x46,
-                    0x02, 0x00,
+                    0xe0, 0x28, 0x70, 0x43, 0x83, 0x00, 0xab, 0x9a,
+                    0x31, 0x04, 0x20, 0xe0, 0x57, 0x18, 0x8a, 0x36,
+                    0xdc, 0x41, 0x18, 0x08, 
                 ],
                 // CMR not checked against C code, since C won't give us any data without witnesses
                 "f4583eca2a35aa48e8895235b58cfe90ba2196fbf7722b7d847c3c55eb6bdc0e",
@@ -767,11 +786,14 @@ mod tests {
             // Attempt to finalize, providing 32-bit witnesses 0, 1, ..., and then
             // counting how many were consumed afterward.
             let mut counter = 0..100;
-            let mut witness_iter = (&mut counter).rev().map(Value::u32);
-            let diff1_final = diff1_prog.finalize(&mut witness_iter, true).unwrap();
-            assert_eq!(counter, 0..98);
+            let witness_iter = (&mut counter).map(Value::u32).map(Arc::new);
+            let diff1_final = diff1_prog
+                .finalize(&mut SimpleFinalizer::new(witness_iter))
+                .unwrap();
+            assert_eq!(counter, 2..100);
 
             // Execute the program to confirm that it worked
+            let diff1_final = crate::RedeemNode::from_node(diff1_final.as_ref());
             let mut mac = BitMachine::for_program(&diff1_final);
             mac.exec(&diff1_final, &()).unwrap();
         }
@@ -781,19 +803,22 @@ mod tests {
     fn root_unit_to_unit() {
         // main = jet_eq_32 :: 2^64 -> 2 # 7387d279
         let justjet = vec![0x6d, 0xb8, 0x80];
-        // Should be able to decode this as a CommitNode...
+        // Should be able to decode this as an expression...
         let mut iter = BitIter::from(&justjet[..]);
-        CommitNode::<Core>::decode::<_>(&mut iter).unwrap();
-        // ...but not as a program
+        decode_expression::<_, Core>(&mut iter).unwrap();
+        // ...but NOT as a CommitNode
         let mut iter = BitIter::from(&justjet[..]);
-        decode_program::<_, Core>(&mut iter).unwrap_err();
+        CommitNode::<Core>::decode::<_>(&mut iter).unwrap_err();
+        // ...or as a RedeemNode
+        let mut iter = BitIter::from(&justjet[..]);
+        RedeemNode::<Core>::decode::<_>(&mut iter).unwrap_err();
     }
 
     #[test]
     fn extra_nodes() {
         // main = comp unit unit # but with an extra unconnected `unit` stuck on the beginning
         // I created this unit test by hand
-        assert_program_not_deserializable::<Core>(&[0xa9, 0x48, 0x00], Error::NotInCanonicalOrder);
+        assert_program_not_deserializable::<Core>(&[0xa9, 0x48, 0x00], &Error::NotInCanonicalOrder);
     }
 
     #[test]
