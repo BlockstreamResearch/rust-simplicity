@@ -449,9 +449,11 @@ mod tests {
     use crate::encode;
     use crate::exec::BitMachine;
     use crate::jet::Core;
+    use crate::node::SimpleFinalizer;
     use crate::BitWriter;
     use crate::CommitNode;
     use bitcoin_hashes::hex::ToHex;
+    use std::iter;
 
     fn assert_program_deserializable<J: Jet>(
         prog_bytes: &[u8],
@@ -479,7 +481,9 @@ mod tests {
             let fprog = prog
                 .finalize_types()
                 .expect("finalizing types")
-                .finalize_no_witnesses()
+                .finalize(&mut SimpleFinalizer::new(iter::repeat(Arc::new(
+                    Value::Unit,
+                ))))
                 .expect("can't be finalized without witnesses; can't check AMR or IMR");
             if let Some(amr) = amr_str {
                 assert_eq!(
