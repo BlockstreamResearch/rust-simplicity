@@ -97,6 +97,9 @@ pub enum Error {
     Policy(policy::Error),
     /// Program does not have maximal sharing
     SharingNotMaximal,
+    /// Finalization led to the root node being hidden, because not enough witnesses
+    /// were provided (or some branches incomplete branches were kept instead of pruned).
+    IncompleteFinalization,
 }
 
 impl fmt::Display for Error {
@@ -113,6 +116,9 @@ impl fmt::Display for Error {
             #[cfg(feature = "elements")]
             Error::Policy(ref e) => fmt::Display::fmt(e, f),
             Error::SharingNotMaximal => f.write_str("Decoded programs must have maximal sharing"),
+            Error::IncompleteFinalization => {
+                f.write_str("finalization did not complete (missing witnesses)")
+            }
         }
     }
 }
@@ -129,6 +135,7 @@ impl std::error::Error for Error {
             Error::MiniscriptError(ref e) => Some(e),
             #[cfg(feature = "elements")]
             Error::Policy(ref e) => Some(e),
+            Error::IncompleteFinalization => None,
         }
     }
 }

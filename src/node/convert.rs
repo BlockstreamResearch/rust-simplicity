@@ -29,8 +29,9 @@
 
 use crate::dag::PostOrderIterItem;
 use crate::jet::Jet;
+use crate::Value;
 
-use super::{Inner, Node, NodeData};
+use super::{Commit, CommitNode, Inner, NoWitness, Node, NodeData, Redeem, RedeemData, RedeemNode};
 
 use std::sync::Arc;
 
@@ -134,4 +135,44 @@ pub trait Converter<N: NodeData<J>, M: NodeData<J>, J: Jet> {
         data: &PostOrderIterItem<&Node<N, J>>,
         inner: Inner<&Arc<Node<M, J>>, J, &M::Witness>,
     ) -> Result<M::CachedData, Self::Error>;
+}
+
+/// Basic finalizer which converts a [`super::CommitNode`] to a [`super::RedeemNode`]
+/// by attaching witness data from an iterator.
+///
+/// Does not do any type-checking and may attach an invalid witness to a combinator.
+// FIXME we should do type checking, but this would require a method to check
+// type compatibility between a Value and a type::Final.
+pub struct SimpleFinalizer<W: Iterator<Item = Arc<Value>>> {
+    iter: W,
+}
+
+impl<W: Iterator<Item = Arc<Value>>> SimpleFinalizer<W> {
+    pub fn new(iter: W) -> Self {
+        SimpleFinalizer { iter }
+    }
+}
+
+impl<W: Iterator<Item = Arc<Value>>, J: Jet> Converter<Commit, Redeem, J> for SimpleFinalizer<W> {
+    type Error = crate::Error;
+
+    fn convert_witness(
+        &mut self,
+        _: &PostOrderIterItem<&CommitNode<J>>,
+        _: &NoWitness,
+    ) -> Result<Arc<Value>, Self::Error> {
+        self.iter.next().ok_or(crate::Error::NoMoreWitnesses)
+    }
+
+    fn convert_data(
+        &mut self,
+        data: &PostOrderIterItem<&CommitNode<J>>,
+        inner: Inner<&Arc<RedeemNode<J>>, J, &Arc<Value>>,
+    ) -> Result<Arc<RedeemData<J>>, Self::Error> {
+        let converted_data = inner.map(|node| node.cached_data()).map_witness(Arc::clone);
+        Ok(Arc::new(RedeemData::new(
+            data.node.arrow().shallow_clone(),
+            converted_data,
+        )))
+    }
 }

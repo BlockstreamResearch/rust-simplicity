@@ -12,15 +12,15 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use crate::dag::{DagLike, MaxSharing, PostOrderIterItem};
+use crate::dag::{DagLike, MaxSharing, NoSharing, PostOrderIterItem};
 use crate::jet::Jet;
 use crate::types;
 use crate::types::arrow::{Arrow, FinalArrow};
-use crate::{BitIter, Cmr, Error, FirstPassImr, Imr, Value};
+use crate::{BitIter, Cmr, Error, FirstPassImr, Imr};
 
 use super::{
     Construct, ConstructData, ConstructNode, Constructible, Converter, Inner, NoWitness, Node,
-    NodeData, Redeem, RedeemData, RedeemNode,
+    NodeData, Redeem, RedeemNode,
 };
 
 use std::marker::PhantomData;
@@ -143,43 +143,16 @@ impl<J: Jet> CommitNode<J> {
         self.data.imr
     }
 
-    /// Finalize the [`CommitNode`], assuming it has no witnesses. Does not do any
-    /// pruning.
+    /// Finalizes a DAG, by iterating through through it without sharing, attaching
+    /// witnesses, and hiding branches.
     ///
-    /// It will populate unit witnesses, to make this method a bit more useful for
-    /// testing purposes. But for any other witness nodes, it will error out with
-    /// [`Error::NoMoreWitnesses`].
-    pub fn finalize_no_witnesses(&self) -> Result<Arc<RedeemNode<J>>, Error> {
-        struct SimpleFinalizer<J: Jet>(PhantomData<J>);
-
-        impl<J: Jet> Converter<Commit, Redeem, J> for SimpleFinalizer<J> {
-            type Error = Error;
-            fn convert_witness(
-                &mut self,
-                data: &PostOrderIterItem<&CommitNode<J>>,
-                _: &NoWitness,
-            ) -> Result<Arc<Value>, Self::Error> {
-                if data.node.arrow().target.is_unit() {
-                    Ok(Arc::new(Value::Unit))
-                } else {
-                    Err(Error::NoMoreWitnesses)
-                }
-            }
-
-            fn convert_data(
-                &mut self,
-                data: &PostOrderIterItem<&CommitNode<J>>,
-                inner: Inner<&Arc<RedeemNode<J>>, J, &Arc<Value>>,
-            ) -> Result<Arc<RedeemData<J>>, Self::Error> {
-                let converted_data = inner.map(|node| node.cached_data()).map_witness(Arc::clone);
-                Ok(Arc::new(RedeemData::new(
-                    data.node.data.arrow.shallow_clone(),
-                    converted_data,
-                )))
-            }
-        }
-
-        self.convert::<MaxSharing<Commit, J>, _, _>(&mut SimpleFinalizer(PhantomData))
+    /// This is a thin wrapper around [`Node::convert`] which fixes a few types to make
+    /// it easier to use.
+    pub fn finalize<C: Converter<Commit, Redeem, J>>(
+        &self,
+        converter: &mut C,
+    ) -> Result<Arc<RedeemNode<J>>, C::Error> {
+        self.convert::<NoSharing, Redeem, _>(converter)
     }
 
     /// Convert a [`CommitNode`] back to a [`ConstructNode`] by redoing type inference

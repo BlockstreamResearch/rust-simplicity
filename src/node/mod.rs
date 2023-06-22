@@ -97,7 +97,7 @@ mod redeem;
 
 pub use commit::{Commit, CommitData, CommitNode};
 pub use construct::{Construct, ConstructData, ConstructNode};
-pub use convert::{Converter, Hide};
+pub use convert::{Converter, Hide, SimpleFinalizer};
 pub use inner::Inner;
 pub use redeem::{Redeem, RedeemData, RedeemNode};
 
