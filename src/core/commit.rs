@@ -20,6 +20,7 @@ use crate::jet::Jet;
 use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::{FirstPassImr, Imr};
+use crate::node;
 use crate::types::{self, arrow::Arrow};
 use crate::{analysis, Error};
 use crate::{BitIter, BitWriter, FailEntropy, RedeemNode, Value};
@@ -128,6 +129,41 @@ pub enum UsedCaseBranch {
 }
 
 impl<J: Jet> CommitNode<J> {
+    /// [will be removed] create a CommitNode from a newfangled `node::ConstructNode`
+    pub fn from_node(node: &node::ConstructNode<J>) -> Rc<Self> {
+        let mut converted = vec![];
+        for data in node.post_order_iter::<InternalSharing>() {
+            let left = data.left_index.map(|idx| Rc::clone(&converted[idx]));
+            let right = data.right_index.map(|idx| Rc::clone(&converted[idx]));
+            let new_node = Rc::new(CommitNode {
+                inner: match data.node.inner() {
+                    node::Inner::Iden => CommitNodeInner::Iden,
+                    node::Inner::Unit => CommitNodeInner::Unit,
+                    node::Inner::InjL(..) => CommitNodeInner::InjL(left.unwrap()),
+                    node::Inner::InjR(..) => CommitNodeInner::InjR(left.unwrap()),
+                    node::Inner::Take(..) => CommitNodeInner::Take(left.unwrap()),
+                    node::Inner::Drop(..) => CommitNodeInner::Drop(left.unwrap()),
+                    node::Inner::Comp(..) => CommitNodeInner::Comp(left.unwrap(), right.unwrap()),
+                    node::Inner::Case(..) => CommitNodeInner::Case(left.unwrap(), right.unwrap()),
+                    node::Inner::AssertL(_, cmr) => CommitNodeInner::AssertL(left.unwrap(), *cmr),
+                    node::Inner::AssertR(cmr, _) => CommitNodeInner::AssertR(*cmr, left.unwrap()),
+                    node::Inner::Pair(..) => CommitNodeInner::Pair(left.unwrap(), right.unwrap()),
+                    node::Inner::Disconnect(..) => {
+                        CommitNodeInner::Disconnect(left.unwrap(), right.unwrap())
+                    }
+                    node::Inner::Witness(..) => CommitNodeInner::Witness,
+                    node::Inner::Jet(j) => CommitNodeInner::Jet(*j),
+                    node::Inner::Word(w) => CommitNodeInner::Word(w.as_ref().clone()),
+                    node::Inner::Fail(entropy) => CommitNodeInner::Fail(*entropy),
+                },
+                cmr: data.node.cmr(),
+                arrow: data.node.arrow().shallow_clone(),
+            });
+            converted.push(new_node);
+        }
+        converted.pop().unwrap()
+    }
+
     /// Accessor for the node's "inner value", i.e. its combinator
     pub fn inner(&self) -> &CommitNodeInner<J> {
         &self.inner
@@ -636,7 +672,7 @@ impl<J: Jet> CommitNode<J> {
     pub fn decode<I: Iterator<Item = u8>>(
         bits: &mut BitIter<I>,
     ) -> Result<Rc<Self>, crate::decode::Error> {
-        crate::decode::decode_expression(bits)
+        Ok(Self::from_node(node::ConstructNode::decode(bits)?.as_ref()))
     }
 
     /// Encode a Simplicity program to bits, without witness data.

@@ -331,6 +331,23 @@ pub trait DagLike: Sized {
         }
     }
 
+    /// Checks whether a DAG's internal sharing (as expressed by shared pointers)
+    /// matches the given target sharing.
+    #[allow(clippy::wrong_self_convention)] // clippy doesn't like is_* taking a pointer by value
+    fn is_shared_as<S: SharingTracker<Self> + Default>(self) -> bool
+    where
+        Self: Clone,
+    {
+        let iter_is = self.clone().post_order_iter::<InternalSharing>();
+        let iter_ought = self.post_order_iter::<S>();
+        for (data_is, data_ought) in iter_is.zip(iter_ought) {
+            if PointerId::from(&data_is.node) != PointerId::from(&data_ought.node) {
+                return false;
+            }
+        }
+        true
+    }
+
     /// Obtains an post-order iterator of all the nodes rooted at DAG, using the
     /// given tracker.
     ///

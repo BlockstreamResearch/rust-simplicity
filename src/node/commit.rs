@@ -12,14 +12,15 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use crate::dag::MaxSharing;
+use crate::dag::{DagLike, MaxSharing};
 use crate::jet::Jet;
 use crate::types;
 use crate::types::arrow::{Arrow, FinalArrow};
-use crate::{Cmr, FirstPassImr, Imr};
+use crate::{BitIter, Cmr, Error, FirstPassImr, Imr, Value};
 
 use super::{
     Construct, ConstructData, ConstructNode, Constructible, Inner, NoWitness, Node, NodeData,
+    RedeemData, RedeemNode,
 };
 
 use std::marker::PhantomData;
@@ -142,6 +143,31 @@ impl<J: Jet> CommitNode<J> {
         self.data.imr
     }
 
+    /// Finalize the [`CommitNode`], assuming it has no witnesses. Does not do any
+    /// pruning.
+    ///
+    /// It will populate unit witnesses, to make this method a bit more useful for
+    /// testing purposes. But for any other witness nodes, it will error out with
+    /// [`Error::NoMoreWitnesses`].
+    pub fn finalize_no_witnesses(&self) -> Result<Arc<RedeemNode<J>>, Error> {
+        self.convert::<MaxSharing<Commit, J>, _, _, _, _>(
+            |data, converted| {
+                let converted_data = converted.map(|node| node.cached_data());
+                Ok(Arc::new(RedeemData::new(
+                    data.node.data.arrow.shallow_clone(),
+                    converted_data,
+                )))
+            },
+            |data, _| {
+                if data.node.arrow().target.is_unit() {
+                    Ok(Arc::new(Value::Unit))
+                } else {
+                    Err(Error::NoMoreWitnesses)
+                }
+            },
+        )
+    }
+
     /// Convert a [`CommitNode`] back to a [`ConstructNode`] by redoing type inference
     pub fn unfinalize_types(&self) -> Result<Arc<ConstructNode<J>>, types::Error> {
         self.convert::<MaxSharing<Commit, J>, _, _, Construct, _>(
@@ -151,5 +177,25 @@ impl<J: Jet> CommitNode<J> {
             },
             |_, _| Ok(NoWitness),
         )
+    }
+
+    /// Decode a Simplicity program from bits, without witness data.
+    ///
+    /// # Usage
+    ///
+    /// Use this method only if the serialization **does not** include the witness data.
+    /// This means, the program simply has no witness during commitment,
+    /// or the witness is provided by other means.
+    ///
+    /// If the serialization contains the witness data, then use [`RedeemNode::decode()`].
+    pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Arc<Self>, Error> {
+        // 1. Decode program with out witnesses.
+        let program = crate::decode::decode_program(bits)?;
+        // 2. Do sharing check, using incomplete IMRs
+        if program.as_ref().is_shared_as::<MaxSharing<Commit, J>>() {
+            Ok(program)
+        } else {
+            Err(Error::SharingNotMaximal)
+        }
     }
 }
