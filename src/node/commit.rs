@@ -16,7 +16,7 @@ use crate::dag::{DagLike, MaxSharing, NoSharing, PostOrderIterItem};
 use crate::jet::Jet;
 use crate::types::arrow::{Arrow, FinalArrow};
 use crate::{encode, types};
-use crate::{BitIter, BitWriter, Cmr, Error, FirstPassImr, Imr};
+use crate::{Amr, BitIter, BitWriter, Cmr, Error, FirstPassImr, Imr};
 
 use super::{
     Construct, ConstructData, ConstructNode, Constructible, Converter, Inner, NoWitness, Node,
@@ -46,6 +46,9 @@ pub struct CommitData<J: Jet> {
     arrow: FinalArrow,
     /// The first-pass IMR of the node if it exists.
     first_pass_imr: Option<FirstPassImr>,
+    /// The AMR of the node if it exists, meaning, if it is not (an ancestor of)
+    /// a witness or disconnect node.
+    amr: Option<Amr>,
     /// The IMR of the node if it exists, meaning, if it is not (an ancestor of)
     /// a witness or disconnect node.
     imr: Option<Imr>,
@@ -69,6 +72,40 @@ impl<J: Jet> CommitData<J> {
     /// Accessor for the node's arrow
     pub fn arrow(&self) -> &FinalArrow {
         &self.arrow
+    }
+
+    /// Helper function to compute a cached AMR
+    fn incomplete_amr(inner: Inner<&Arc<Self>, J, &NoWitness>, arrow: &FinalArrow) -> Option<Amr> {
+        match inner {
+            Inner::Iden => Some(Amr::iden(arrow)),
+            Inner::Unit => Some(Amr::unit(arrow)),
+            Inner::InjL(child) => child.amr.map(|amr| Amr::injl(arrow, amr)),
+            Inner::InjR(child) => child.amr.map(|amr| Amr::injr(arrow, amr)),
+            Inner::Take(child) => child.amr.map(|amr| Amr::take(arrow, amr)),
+            Inner::Drop(child) => child.amr.map(|amr| Amr::drop(arrow, amr)),
+            Inner::Comp(left, right) => left
+                .amr
+                .zip(right.amr)
+                .map(|(a, b)| Amr::comp(arrow, &left.arrow, a, b)),
+            Inner::Case(left, right) => {
+                left.amr.zip(right.amr).map(|(a, b)| Amr::case(arrow, a, b))
+            }
+            Inner::AssertL(left, r_cmr) => left
+                .amr
+                .map(|l_amr| Amr::assertl(arrow, l_amr, r_cmr.into())),
+            Inner::AssertR(l_cmr, right) => right
+                .amr
+                .map(|r_amr| Amr::assertr(arrow, l_cmr.into(), r_amr)),
+            Inner::Pair(left, right) => left
+                .amr
+                .zip(right.amr)
+                .map(|(a, b)| Amr::pair(arrow, &left.arrow, &right.arrow, a, b)),
+            Inner::Disconnect(..) => None,
+            Inner::Witness(..) => None,
+            Inner::Fail(entropy) => Some(Amr::fail(entropy)),
+            Inner::Jet(jet) => Some(Amr::jet(jet)),
+            Inner::Word(ref val) => Some(Amr::const_word(val)),
+        }
     }
 
     /// Helper function to compute a cached first-pass IMR
@@ -111,9 +148,11 @@ impl<J: Jet> CommitData<J> {
         inner: Inner<&Arc<Self>, J, &NoWitness>,
     ) -> Result<Self, types::Error> {
         let final_arrow = arrow.finalize()?;
-        let first_pass_imr = Self::first_pass_imr(inner);
+        let first_pass_imr = Self::first_pass_imr(inner.clone());
+        let amr = Self::incomplete_amr(inner, &final_arrow);
         Ok(CommitData {
             first_pass_imr,
+            amr,
             imr: first_pass_imr.map(|imr| Imr::compute_pass2(imr, &final_arrow)),
             arrow: final_arrow,
             phantom: PhantomData,
@@ -121,9 +160,11 @@ impl<J: Jet> CommitData<J> {
     }
 
     pub fn from_final(arrow: FinalArrow, inner: Inner<&Arc<Self>, J, &NoWitness>) -> Self {
-        let first_pass_imr = Self::first_pass_imr(inner);
+        let first_pass_imr = Self::first_pass_imr(inner.clone());
+        let amr = Self::incomplete_amr(inner, &arrow);
         CommitData {
             first_pass_imr,
+            amr,
             imr: first_pass_imr.map(|imr| Imr::compute_pass2(imr, &arrow)),
             arrow,
             phantom: PhantomData,
@@ -137,6 +178,11 @@ impl<J: Jet> CommitNode<J> {
     /// Accessor for the node's arrow
     pub fn arrow(&self) -> &FinalArrow {
         &self.data.arrow
+    }
+
+    /// Accessor for the node's AMR, if known
+    pub fn amr(&self) -> Option<Amr> {
+        self.data.amr
     }
 
     /// Accessor for the node's IMR, if known
