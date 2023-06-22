@@ -315,7 +315,7 @@ pub trait DagLike: Sized {
             Dag::Unary(_) => None,
             Dag::Binary(_, right) => Some(right),
             Dag::Witness => None,
-            Dag::Disconnect(left, _) => Some(left),
+            Dag::Disconnect(_, right) => Some(right),
         }
     }
 
