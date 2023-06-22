@@ -28,7 +28,7 @@ actual-serde = { package = "serde", version = "1.0.103", features = ["derive"], 
 simplicity-sys = { version = "0.1.0", path = "./simplicity-sys", features = ["test-utils"] }
 
 [workspace]
-members = ["simplicity-sys"]
+members = ["simpcli", "simplicity-sys"]
 # Should be manually/separately tested since it has a massive dep tree
 # and not follow MSRV
 # FIXME we also need to include 'fuzz' in here because it currently uses
