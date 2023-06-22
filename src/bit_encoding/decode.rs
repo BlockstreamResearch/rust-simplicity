@@ -623,6 +623,60 @@ mod tests {
     }
 
     #[test]
+    #[rustfmt::skip]
+    #[cfg(feature = "elements")]
+    fn disconnect2() {
+        // Program that Russell posted on IRC 2023-06-22 that tickled `Dag::right_child`
+        // bug that had been introduced that day. Probably not the most minimal test
+        // vector but might as well include it as it seems like an interesting program.
+        //
+        // We don't test the AMR or IMR here because the program has nontrivial witnessses
+        // and `assert_program_deserializable` currently can't handle those. But you can
+        // check this program in the `c_rust_merkle` fuzztest to verify that C and Rust
+        // agree on all three Merkle roots when you parse this as a RedeemNode.
+        //
+        // # Witnesses
+        // wit1 = witness :: 1 -> 2^512
+        //
+        // # Constants
+        // const1 = word_jet 0x00000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c63 :: 1 -> 2^256 # cmr a9e3dbca...
+        //
+        // # Program code
+        // id1 = iden                 :: (2^256 * 1) -> (2^256 * 1)     # cmr dbfefcfc...
+        // jt2 = jet_sig_all_hash     :: 1 -> 2^256                     # cmr 9902bc0f...
+        // disc3 = disconnect id1 jt2 :: 1 -> 2^512                     # cmr 6968f10e...
+        // pr4 = pair const1 disc3    :: 1 -> (2^256 * 2^512)           # cmr 378ad609...
+        // pr5 = pair pr4 wit1        :: 1 -> ((2^256 * 2^512) * 2^512) # cmr 0d51ff00...
+        // jt6 = jet_check_sig_verify :: ((2^256 * 2^512) * 2^512) -> 1 # cmr 297459d8...
+        //
+        // main = comp pr5 jt6        :: 1 -> 1                         # cmr 14a5e0cc...
+        assert_program_deserializable::<crate::jet::Elements>(
+            &[
+                0xd3, 0x69, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x3b, 0x78, 0xce,
+                0x56, 0x3f, 0x89, 0xa0, 0xed, 0x94, 0x14, 0xf5,
+                0xaa, 0x28, 0xad, 0x0d, 0x96, 0xd6, 0x79, 0x5f,
+                0x9c, 0x63, 0x47, 0x07, 0x02, 0xc0, 0xe2, 0x8d,
+                0x88, 0x10,
+                // (Delete the above line and uncomment all these
+                // to add a valid witness to the program.)
+                //0x88, 0x11, 0xe9, 0x00, 0x00, 0x00, 0x00, 0x00,
+                //0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1d,
+                //0xbc, 0x67, 0x2b, 0x1f, 0xc4, 0xd0, 0x76, 0xca,
+                //0x0a, 0x7a, 0xd5, 0x14, 0x56, 0x86, 0xcb, 0x6b,
+                //0x3c, 0xaf, 0xce, 0x31, 0xed, 0xc3, 0x46, 0xa2,
+                //0xd0, 0x5e, 0x0e, 0x8c, 0x80, 0x98, 0x15, 0xe4,
+                //0x3d, 0x43, 0x8e, 0x78, 0xac, 0x71, 0x5e, 0xf1,
+                //0x67, 0xd3, 0x22, 0xd4, 0x4a, 0xe0, 0xda, 0x2e,
+                //0xb4, 0x75, 0x12, 0x60, 0x00,
+            ],
+            "14a5e0cc13da9acdd5f758ae7186802137143e06c8dcba10019ffec790359ee7",
+            None,
+            None,
+        );
+    }
+
+    #[test]
     fn hidden_node() {
         // main = hidden deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
         #[rustfmt::skip]
