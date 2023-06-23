@@ -118,7 +118,7 @@ impl<J: Jet> RedeemData<J> {
                 NodeBounds::pair(left.bounds, right.bounds),
             ),
             Inner::Disconnect(left, right) => (
-                Amr::disconnect(&arrow, &left.arrow, left.amr, right.amr),
+                Amr::disconnect(&arrow, &right.arrow, left.amr, right.amr),
                 FirstPassImr::disconnect(left.first_pass_imr, right.first_pass_imr),
                 NodeBounds::disconnect(
                     left.bounds,
