@@ -20,12 +20,11 @@ use crate::jet::Jet;
 use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::{FirstPassImr, Imr};
-use crate::node;
 use crate::types::{self, arrow::Arrow};
 use crate::{analysis, Error};
-use crate::{BitIter, BitWriter, FailEntropy, RedeemNode, Value};
+use crate::{FailEntropy, RedeemNode, Value};
+use std::fmt;
 use std::rc::Rc;
-use std::{fmt, io};
 
 /// Underlying combinator of a [`CommitNode`].
 /// May contain references to children, hash payloads or jets.
@@ -129,41 +128,6 @@ pub enum UsedCaseBranch {
 }
 
 impl<J: Jet> CommitNode<J> {
-    /// [will be removed] create a CommitNode from a newfangled `node::ConstructNode`
-    pub fn from_node(node: &node::ConstructNode<J>) -> Rc<Self> {
-        let mut converted = vec![];
-        for data in node.post_order_iter::<InternalSharing>() {
-            let left = data.left_index.map(|idx| Rc::clone(&converted[idx]));
-            let right = data.right_index.map(|idx| Rc::clone(&converted[idx]));
-            let new_node = Rc::new(CommitNode {
-                inner: match data.node.inner() {
-                    node::Inner::Iden => CommitNodeInner::Iden,
-                    node::Inner::Unit => CommitNodeInner::Unit,
-                    node::Inner::InjL(..) => CommitNodeInner::InjL(left.unwrap()),
-                    node::Inner::InjR(..) => CommitNodeInner::InjR(left.unwrap()),
-                    node::Inner::Take(..) => CommitNodeInner::Take(left.unwrap()),
-                    node::Inner::Drop(..) => CommitNodeInner::Drop(left.unwrap()),
-                    node::Inner::Comp(..) => CommitNodeInner::Comp(left.unwrap(), right.unwrap()),
-                    node::Inner::Case(..) => CommitNodeInner::Case(left.unwrap(), right.unwrap()),
-                    node::Inner::AssertL(_, cmr) => CommitNodeInner::AssertL(left.unwrap(), *cmr),
-                    node::Inner::AssertR(cmr, _) => CommitNodeInner::AssertR(*cmr, left.unwrap()),
-                    node::Inner::Pair(..) => CommitNodeInner::Pair(left.unwrap(), right.unwrap()),
-                    node::Inner::Disconnect(..) => {
-                        CommitNodeInner::Disconnect(left.unwrap(), right.unwrap())
-                    }
-                    node::Inner::Witness(..) => CommitNodeInner::Witness,
-                    node::Inner::Jet(j) => CommitNodeInner::Jet(*j),
-                    node::Inner::Word(w) => CommitNodeInner::Word(w.as_ref().clone()),
-                    node::Inner::Fail(entropy) => CommitNodeInner::Fail(*entropy),
-                },
-                cmr: data.node.cmr(),
-                arrow: data.node.arrow().shallow_clone(),
-            });
-            converted.push(new_node);
-        }
-        converted.pop().unwrap()
-    }
-
     /// Accessor for the node's "inner value", i.e. its combinator
     pub fn inner(&self) -> &CommitNodeInner<J> {
         &self.inner
@@ -182,13 +146,6 @@ impl<J: Jet> CommitNode<J> {
     /// Return an iterator over the unshared nodes of the program
     pub fn iter(&self) -> PostOrderIter<&Self, NoSharing> {
         <&Self as DagLike>::post_order_iter(self)
-    }
-
-    /// Return an iterator over the nodes of the program, returning
-    /// refcounted pointers to each node. Each refcounted pointer
-    /// is returned only once.
-    pub fn rc_iter(self: Rc<Self>) -> PostOrderIter<Rc<Self>, InternalSharing> {
-        <Rc<Self> as DagLike>::post_order_iter(self)
     }
 
     // FIXME: Compute length without iterating over entire DAG?
@@ -658,33 +615,6 @@ impl<J: Jet> CommitNode<J> {
         }
         witness.finish()?;
         Ok(finalized.pop().unwrap())
-    }
-
-    /// Decode a Simplicity program from bits, without the witness data.
-    ///
-    /// # Usage
-    ///
-    /// Use this method only if the serialization **does not** include the witness data.
-    /// This means, the program simply has no witness during commitment,
-    /// or the witness is provided by other means.
-    ///
-    /// If the serialization contains the witness data, then use [`RedeemNode::decode()`].
-    pub fn decode<I: Iterator<Item = u8>>(
-        bits: &mut BitIter<I>,
-    ) -> Result<Rc<Self>, crate::decode::Error> {
-        Ok(Self::from_node(node::ConstructNode::decode(bits)?.as_ref()))
-    }
-
-    /// Encode a Simplicity program to bits, without witness data.
-    ///
-    /// # Usage
-    ///
-    /// Use this method only if the program has no witness data.
-    /// Otherwise, add the witness via [`Self::finalize()`] and use [`RedeemNode::encode()`].
-    pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
-        let empty_witness = std::iter::repeat(Value::Unit);
-        let program = self.finalize(empty_witness, false).expect("finalize");
-        program.encode(w)
     }
 }
 

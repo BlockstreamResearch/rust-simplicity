@@ -139,7 +139,7 @@ impl<Pk: PublicKey32 + ToPublicKey> Descriptor<Pk> {
         //     .exec(&program, &satisfier.env)
         //     .expect("sanity check");
 
-        let program_and_witness_bytes = program.encode_to_vec();
+        let program_and_witness_bytes = program.to_node().encode_to_vec();
         let cmr_bytes = Vec::from(program.cmr.as_ref());
 
         // Single leaf: leaf hash = merkle root

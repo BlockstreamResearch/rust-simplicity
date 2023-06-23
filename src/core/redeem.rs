@@ -13,17 +13,17 @@
 //
 
 use crate::analysis::NodeBounds;
-use crate::dag::{DagLike, InternalSharing, NoSharing, PostOrderIter};
+use crate::dag::{DagLike, InternalSharing};
 use crate::jet::Jet;
 use crate::merkle::amr::Amr;
 use crate::merkle::cmr::Cmr;
 use crate::merkle::imr::Imr;
 use crate::node;
-use crate::types::{self, arrow::FinalArrow};
-use crate::{BitIter, BitWriter, Error, FailEntropy, Value};
+use crate::types::arrow::FinalArrow;
+use crate::{FailEntropy, Value};
+use std::fmt;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::{fmt, io};
 
 /// Underlying combinator of a [`RedeemNode`].
 ///
@@ -111,44 +111,6 @@ pub struct RedeemNode<J: Jet> {
 
 impl<J: Jet> RedeemNode<J> {
     /// [will be removed] create a CommitNode from a newfangled `node::ConstructNode`
-    pub fn from_node(node: &node::RedeemNode<J>) -> Rc<Self> {
-        let mut converted = vec![];
-        for data in node.post_order_iter::<InternalSharing>() {
-            let left = data.left_index.map(|idx| Rc::clone(&converted[idx]));
-            let right = data.right_index.map(|idx| Rc::clone(&converted[idx]));
-            let new_node = Rc::new(RedeemNode {
-                inner: match data.node.inner() {
-                    node::Inner::Iden => RedeemNodeInner::Iden,
-                    node::Inner::Unit => RedeemNodeInner::Unit,
-                    node::Inner::InjL(..) => RedeemNodeInner::InjL(left.unwrap()),
-                    node::Inner::InjR(..) => RedeemNodeInner::InjR(left.unwrap()),
-                    node::Inner::Take(..) => RedeemNodeInner::Take(left.unwrap()),
-                    node::Inner::Drop(..) => RedeemNodeInner::Drop(left.unwrap()),
-                    node::Inner::Comp(..) => RedeemNodeInner::Comp(left.unwrap(), right.unwrap()),
-                    node::Inner::Case(..) => RedeemNodeInner::Case(left.unwrap(), right.unwrap()),
-                    node::Inner::AssertL(_, cmr) => RedeemNodeInner::AssertL(left.unwrap(), *cmr),
-                    node::Inner::AssertR(cmr, _) => RedeemNodeInner::AssertR(*cmr, left.unwrap()),
-                    node::Inner::Pair(..) => RedeemNodeInner::Pair(left.unwrap(), right.unwrap()),
-                    node::Inner::Disconnect(..) => {
-                        RedeemNodeInner::Disconnect(left.unwrap(), right.unwrap())
-                    }
-                    node::Inner::Witness(val) => RedeemNodeInner::Witness(val.as_ref().clone()),
-                    node::Inner::Jet(j) => RedeemNodeInner::Jet(*j),
-                    node::Inner::Word(w) => RedeemNodeInner::Word(w.as_ref().clone()),
-                    node::Inner::Fail(entropy) => RedeemNodeInner::Fail(*entropy),
-                },
-                cmr: data.node.cmr(),
-                imr: data.node.imr(),
-                amr: data.node.amr(),
-                ty: data.node.arrow().shallow_clone(),
-                bounds: data.node.bounds(),
-            });
-            converted.push(new_node);
-        }
-        converted.pop().unwrap()
-    }
-
-    /// [will be removed] create a CommitNode from a newfangled `node::ConstructNode`
     pub fn to_node(&self) -> Arc<node::RedeemNode<J>> {
         let mut converted = Vec::<Arc<node::RedeemNode<J>>>::new();
         for data in self.post_order_iter::<InternalSharing>() {
@@ -231,76 +193,10 @@ impl<J: Jet> RedeemNode<J> {
         }
         converted.pop().unwrap()
     }
-
-    /// Return the left child of the node, if there is such a child.
-    pub fn get_left(&self) -> Option<&Self> {
-        <&Self as DagLike>::left_child(&self)
-    }
-
-    /// Return the right child of the node, if there is such a child.
-    pub fn get_right(&self) -> Option<&Self> {
-        <&Self as DagLike>::right_child(&self)
-    }
-
-    /// Return an iterator over the unshared nodes of the program
-    pub fn iter(&self) -> PostOrderIter<&Self, NoSharing> {
-        <&Self as DagLike>::post_order_iter(self)
-    }
-
-    /// Return an iterator over the nodes of the program, returning
-    /// refcounted pointers to each node. Each refcounted pointer
-    /// is returned only once.
-    pub fn rc_iter(self: Rc<Self>) -> PostOrderIter<Rc<Self>, InternalSharing> {
-        <Rc<Self> as DagLike>::post_order_iter(self)
-    }
-
-    // FIXME: Compute length without iterating over entire DAG?
-    /// Return the number of unshared nodes in the program
-    #[allow(clippy::len_without_is_empty)]
-    pub fn len(&self) -> usize {
-        self.iter().count()
-    }
-
-    /// Return an iterator over the types of values that make up a valid witness for the program.
-    pub fn get_witness_types(&self) -> impl Iterator<Item = &types::Final> {
-        self.iter().filter_map(|data| {
-            if let RedeemNodeInner::Witness(_) = &data.node.inner {
-                Some(data.node.ty.target.as_ref())
-            } else {
-                None
-            }
-        })
-    }
-
-    /// Decode a Simplicity program from bits, including the witness data.
-    pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Rc<Self>, Error> {
-        Ok(Self::from_node(node::RedeemNode::decode(bits)?.as_ref()))
-    }
-
-    /// Encode a Simplicity program to bits, including the witness data.
-    pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
-        self.to_node().encode(w)
-    }
-
-    /// Encode a Simplicity program to a vector of bytes, including the witness data.
-    pub fn encode_to_vec(&self) -> Vec<u8> {
-        let mut program_and_witness_bytes = Vec::<u8>::new();
-        let mut writer = BitWriter::new(&mut program_and_witness_bytes);
-        self.encode(&mut writer)
-            .expect("write to vector never fails");
-        writer.flush_all().expect("flushing vector never fails");
-        debug_assert!(!program_and_witness_bytes.is_empty());
-
-        program_and_witness_bytes
-    }
 }
 
 impl<J: Jet> fmt::Display for RedeemNode<J> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.iter().into_display(
-            f,
-            |node, f| fmt::Display::fmt(&node.inner, f),
-            |node, f| write!(f, ": {}", node.ty),
-        )
+        fmt::Display::fmt(&self.to_node(), f)
     }
 }
