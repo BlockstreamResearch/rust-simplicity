@@ -197,6 +197,31 @@ where
     }
 }
 
+// Need to explicitly allow swapping children for `MaxSharing`; the other
+// sharing styles have blanket implementations for `D: DagLike` so they
+// automatically allow it.
+impl<N, J, D> SharingTracker<SwapChildren<D>> for MaxSharing<N, J>
+where
+    D: DagLike,
+    MaxSharing<N, J>: SharingTracker<D>,
+    J: jet::Jet,
+    N: NodeData<J>,
+{
+    fn record(
+        &mut self,
+        d: &SwapChildren<D>,
+        index: usize,
+        left_child: Option<usize>,
+        right_child: Option<usize>,
+    ) -> Option<usize> {
+        self.record(&d.0, index, left_child, right_child)
+    }
+
+    fn seen_before(&self, d: &SwapChildren<D>) -> Option<usize> {
+        self.seen_before(&d.0)
+    }
+}
+
 /// A wrapper around any other sharing tracker which forces `witness` and
 /// `disconnect` combinators, and their ancestors, to be unshared
 ///
@@ -283,6 +308,12 @@ impl<D: DagLike> From<&D> for PointerId {
     }
 }
 
+/// Return type of the [`DagLike::rtl_post_order_iter`] method.
+pub type RtlPostOrderIter<D, S> = std::iter::Map<
+    PostOrderIter<SwapChildren<D>, S>,
+    fn(PostOrderIterItem<SwapChildren<D>>) -> PostOrderIterItem<D>,
+>;
+
 /// A trait for any structure which has the shape of a Simplicity DAG
 ///
 /// This should be implemented on any reference type for `CommitNode` and `RedeemNode`;
@@ -317,6 +348,31 @@ pub trait DagLike: Sized {
             Dag::Witness => None,
             Dag::Disconnect(_, right) => Some(right),
         }
+    }
+
+    /// Obtains an iterator of all the nodes rooted at the DAG, in right-to-left post order.
+    ///
+    /// An ordinary post-order iterator yields children in the order
+    /// left-child, right-child, node. This one instead yields them in
+    /// the order right-child, left-child, node.
+    ///
+    /// This is useful when implementing satisfiers, specifically for
+    /// handling the `comp` combinator, by allowing the user to see the
+    /// right child (and e.g. make decisions about what branches to prune
+    /// or what witnesses to provide) before the left child (which may
+    /// involve populating witnesses consistent with that choice).
+    fn rtl_post_order_iter<S: SharingTracker<SwapChildren<Self>> + Default>(
+        self,
+    ) -> RtlPostOrderIter<Self, S> {
+        PostOrderIter {
+            index: 0,
+            stack: vec![IterStackItem::unprocessed(
+                SwapChildren(self),
+                Previous::Root,
+            )],
+            tracker: Default::default(),
+        }
+        .map(PostOrderIterItem::unswap)
     }
 
     /// Obtains an iterator of all the nodes rooted at the DAG, in post order.
@@ -485,6 +541,41 @@ impl<J: jet::Jet> DagLike for Rc<RedeemNode<J>> {
     }
 }
 
+/// A wrapper around a DAG-like reference that swaps the two children
+///
+/// This can be useful to modify the `PostOrderIter` behaviour to yield
+/// right children before left children.
+///
+/// Since it works by relabelling the children, when iterating with this
+/// adaptor, the "left" and "right" child indices will be inconsistent
+/// with the returned nodes. To correct this, you need to call
+/// [`PostOrderIterItem::unswap`].
+///
+/// To avoid confusion, this structure cannot be directly costructed.
+/// Instead it is implicit in the [`DagLike::rtl_post_order_iter`]
+/// method.
+pub struct SwapChildren<D: DagLike>(D);
+
+impl<D: DagLike> DagLike for SwapChildren<D> {
+    type Node = D::Node;
+
+    fn data(&self) -> &Self::Node {
+        self.0.data()
+    }
+
+    fn as_dag_node(&self) -> Dag<Self> {
+        match self.0.as_dag_node() {
+            Dag::Nullary => Dag::Nullary,
+            Dag::Unary(sub) => Dag::Unary(SwapChildren(sub)),
+            Dag::Binary(left, right) => Dag::Binary(SwapChildren(right), SwapChildren(left)),
+            Dag::Witness => Dag::Witness,
+            Dag::Disconnect(left, right) => {
+                Dag::Disconnect(SwapChildren(right), SwapChildren(left))
+            }
+        }
+    }
+}
+
 impl<'a, N: NodeData<J>, J: jet::Jet> DagLike for &'a Node<N, J> {
     type Node = Node<N, J>;
 
@@ -640,6 +731,26 @@ pub struct PostOrderIterItem<D: DagLike> {
     pub left_index: Option<usize>,
     /// The index of this node's right child, if it has a left child
     pub right_index: Option<usize>,
+}
+
+impl<D: DagLike> PostOrderIterItem<SwapChildren<D>> {
+    /// When iterating in right-to-left mode using the [`SwapChildren`] adaptor,
+    /// use this method to correct the child indices. See documentation on
+    /// [`SwapChildren`] or [`DagLike::rtl_post_order_iter`].
+    fn unswap(mut self) -> PostOrderIterItem<D> {
+        if matches!(
+            self.node.as_dag_node(),
+            Dag::Binary(..) | Dag::Disconnect(..)
+        ) {
+            std::mem::swap(&mut self.left_index, &mut self.right_index);
+        }
+        PostOrderIterItem {
+            node: self.node.0,
+            index: self.index,
+            left_index: self.left_index,
+            right_index: self.right_index,
+        }
+    }
 }
 
 impl<D: DagLike, S: SharingTracker<D>> Iterator for PostOrderIter<D, S> {

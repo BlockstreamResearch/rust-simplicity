@@ -12,15 +12,15 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use crate::dag::{DagLike, MaxSharing};
+use crate::dag::{DagLike, MaxSharing, NoSharing, PostOrderIterItem};
 use crate::jet::Jet;
 use crate::types;
 use crate::types::arrow::{Arrow, FinalArrow};
-use crate::{BitIter, Cmr, Error, FirstPassImr, Imr, Value};
+use crate::{BitIter, Cmr, Error, FirstPassImr, Imr};
 
 use super::{
-    Construct, ConstructData, ConstructNode, Constructible, Inner, NoWitness, Node, NodeData,
-    RedeemData, RedeemNode,
+    Construct, ConstructData, ConstructNode, Constructible, Converter, Inner, NoWitness, Node,
+    NodeData, Redeem, RedeemNode,
 };
 
 use std::marker::PhantomData;
@@ -71,7 +71,7 @@ impl<J: Jet> CommitData<J> {
     }
 
     /// Helper function to compute a cached first-pass IMR
-    fn first_pass_imr(inner: Inner<&Arc<Self>, J, NoWitness>) -> Option<FirstPassImr> {
+    fn first_pass_imr(inner: Inner<&Arc<Self>, J, &NoWitness>) -> Option<FirstPassImr> {
         match inner {
             Inner::Iden => Some(FirstPassImr::iden()),
             Inner::Unit => Some(FirstPassImr::unit()),
@@ -107,7 +107,7 @@ impl<J: Jet> CommitData<J> {
 
     pub fn new(
         arrow: &Arrow,
-        inner: Inner<&Arc<Self>, J, NoWitness>,
+        inner: Inner<&Arc<Self>, J, &NoWitness>,
     ) -> Result<Self, types::Error> {
         let final_arrow = arrow.finalize()?;
         let first_pass_imr = Self::first_pass_imr(inner);
@@ -119,7 +119,7 @@ impl<J: Jet> CommitData<J> {
         })
     }
 
-    pub fn from_final(arrow: FinalArrow, inner: Inner<&Arc<Self>, J, NoWitness>) -> Self {
+    pub fn from_final(arrow: FinalArrow, inner: Inner<&Arc<Self>, J, &NoWitness>) -> Self {
         let first_pass_imr = Self::first_pass_imr(inner);
         CommitData {
             first_pass_imr,
@@ -143,40 +143,43 @@ impl<J: Jet> CommitNode<J> {
         self.data.imr
     }
 
-    /// Finalize the [`CommitNode`], assuming it has no witnesses. Does not do any
-    /// pruning.
+    /// Finalizes a DAG, by iterating through through it without sharing, attaching
+    /// witnesses, and hiding branches.
     ///
-    /// It will populate unit witnesses, to make this method a bit more useful for
-    /// testing purposes. But for any other witness nodes, it will error out with
-    /// [`Error::NoMoreWitnesses`].
-    pub fn finalize_no_witnesses(&self) -> Result<Arc<RedeemNode<J>>, Error> {
-        self.convert::<MaxSharing<Commit, J>, _, _, _, _>(
-            |data, converted| {
-                let converted_data = converted.map(|node| node.cached_data());
-                Ok(Arc::new(RedeemData::new(
-                    data.node.data.arrow.shallow_clone(),
-                    converted_data,
-                )))
-            },
-            |data, _| {
-                if data.node.arrow().target.is_unit() {
-                    Ok(Arc::new(Value::Unit))
-                } else {
-                    Err(Error::NoMoreWitnesses)
-                }
-            },
-        )
+    /// This is a thin wrapper around [`Node::convert`] which fixes a few types to make
+    /// it easier to use.
+    pub fn finalize<C: Converter<Commit, Redeem, J>>(
+        &self,
+        converter: &mut C,
+    ) -> Result<Arc<RedeemNode<J>>, C::Error> {
+        self.convert::<NoSharing, Redeem, _>(converter)
     }
 
     /// Convert a [`CommitNode`] back to a [`ConstructNode`] by redoing type inference
     pub fn unfinalize_types(&self) -> Result<Arc<ConstructNode<J>>, types::Error> {
-        self.convert::<MaxSharing<Commit, J>, _, _, Construct, _>(
-            |_, inner| {
+        struct UnfinalizeTypes<J: Jet>(PhantomData<J>);
+
+        impl<J: Jet> Converter<Commit, Construct, J> for UnfinalizeTypes<J> {
+            type Error = types::Error;
+            fn convert_witness(
+                &mut self,
+                _: &PostOrderIterItem<&CommitNode<J>>,
+                _: &NoWitness,
+            ) -> Result<NoWitness, Self::Error> {
+                Ok(NoWitness)
+            }
+
+            fn convert_data(
+                &mut self,
+                _: &PostOrderIterItem<&CommitNode<J>>,
+                inner: Inner<&Arc<ConstructNode<J>>, J, &NoWitness>,
+            ) -> Result<ConstructData<J>, Self::Error> {
                 let inner = inner.map(|node| node.arrow());
                 Ok(ConstructData::new(Arrow::from_inner(inner)?))
-            },
-            |_, _| Ok(NoWitness),
-        )
+            }
+        }
+
+        self.convert::<MaxSharing<Commit, J>, _, _>(&mut UnfinalizeTypes(PhantomData))
     }
 
     /// Decode a Simplicity program from bits, without witness data.
