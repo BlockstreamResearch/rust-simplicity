@@ -625,6 +625,27 @@ mod tests {
     }
 
     #[test]
+    #[rustfmt::skip]
+    #[cfg(feature = "elements")]
+    fn disconnect3() {
+        // Yet another disconnect-based program that hit a bug in our AMR computation
+        // (passing left arrow in place of right arrow to the AMR constructor.)
+        // # Program code
+        // id1 = iden                 :: (2^256 * 1) -> (2^256 * 1) # cmr dbfefcfc...
+        // ut2 = unit                 :: 1 -> 1                     # cmr 62274a89...
+        // jl3 = injl ut2             :: 1 -> 2                     # cmr bd0cce93...
+        // disc4 = disconnect id1 jl3 :: 1 -> (2^256 * 2)           # cmr 6968f10e...
+        // ut5 = unit                 :: (2^256 * 2) -> 1           # cmr 62274a89...
+        // main = comp disc4 ut5      :: 1 -> 1                     # cmr a8c9cc7a...
+        assert_program_deserializable::<crate::jet::Elements>(
+            &[0xc9, 0x09, 0x20, 0x74, 0x90, 0x40],
+            "a8c9cc7a83518d0886afe1078d88eabca8353509e8c2e3b5c72cf559c713c9f5",
+            Some("97f77a7e7d7f3b2b1ac790bf54b39d47d6db8dcab7ed3c0a48df12f2c940af58"),
+            Some("ed8152948589d65e0dea6d84f90eb752f63df818041f46bdc8f959f33299cbd3"),
+        );
+    }
+
+    #[test]
     fn hidden_node() {
         // main = hidden deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
         #[rustfmt::skip]

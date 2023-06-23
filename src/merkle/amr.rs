@@ -158,7 +158,7 @@ impl Amr {
 
     /// Produce a CMR for a witness combinator
     pub fn witness(ty: &FinalArrow, value: &Value) -> Self {
-        let a = &ty.source; // will always be unit
+        let a = &ty.source;
         let b = &ty.target;
         Self::WITNESS_IV
             .update_1(a.tmr().into())
