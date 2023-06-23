@@ -62,6 +62,7 @@ impl From<elements::TxOut> for ElementsUtxo {
 //
 // Similar story if we tried to use a &'a elements::Transaction rather than
 // an Arc: we'd have a lifetime parameter <'a> that would cause us trouble.
+#[allow(dead_code)]
 pub struct ElementsEnv {
     /// The CTxEnv struct
     pub(super) c_tx_env: CElementsTxEnv,

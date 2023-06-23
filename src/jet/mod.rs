@@ -26,8 +26,6 @@
 
 #[cfg(feature = "bitcoin")]
 pub mod bitcoin;
-#[allow(dead_code)]
-pub mod core;
 #[cfg(feature = "elements")]
 pub mod elements;
 mod init;

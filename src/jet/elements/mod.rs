@@ -14,8 +14,6 @@
 
 mod c_env;
 mod environment;
-#[allow(dead_code)]
-mod exec;
 #[cfg(test)]
 mod tests;
 
