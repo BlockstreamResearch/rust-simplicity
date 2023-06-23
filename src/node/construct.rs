@@ -247,10 +247,10 @@ impl<J: Jet> CoreConstructible for ConstructData<J> {
     }
 }
 
-impl<'a, J: Jet> WitnessConstructible<&'a NoWitness> for ConstructData<J> {
-    fn witness(witness: &NoWitness) -> Self {
+impl<J: Jet> WitnessConstructible<NoWitness> for ConstructData<J> {
+    fn witness(witness: NoWitness) -> Self {
         ConstructData {
-            arrow: Arrow::witness(*witness),
+            arrow: Arrow::witness(witness),
             phantom: PhantomData,
         }
     }
