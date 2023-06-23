@@ -786,11 +786,11 @@ mod tests {
             // Attempt to finalize, providing 32-bit witnesses 0, 1, ..., and then
             // counting how many were consumed afterward.
             let mut counter = 0..100;
-            let witness_iter = (&mut counter).map(Value::u32).map(Arc::new);
+            let witness_iter = (&mut counter).rev().map(Value::u32).map(Arc::new);
             let diff1_final = diff1_prog
                 .finalize(&mut SimpleFinalizer::new(witness_iter))
                 .unwrap();
-            assert_eq!(counter, 2..100);
+            assert_eq!(counter, 0..98);
 
             // Execute the program to confirm that it worked
             let mut mac = BitMachine::for_program(&diff1_final);
