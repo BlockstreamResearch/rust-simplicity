@@ -14,13 +14,15 @@
 
 use crate::analysis::NodeBounds;
 use crate::dag::{DagLike, InternalSharing, MaxSharing, PostOrderIterItem};
+use crate::encode;
 use crate::jet::Jet;
 use crate::types::{self, arrow::FinalArrow};
-use crate::{Amr, BitIter, Cmr, Error, FirstPassImr, Imr, Value};
+use crate::{Amr, BitIter, BitWriter, Cmr, Error, FirstPassImr, Imr, Value};
 
 use super::{Commit, CommitData, CommitNode, Converter, Inner, NoWitness, Node, NodeData};
 
 use std::collections::HashSet;
+use std::io;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -175,6 +177,18 @@ impl<J: Jet> RedeemNode<J> {
         self.data.bounds
     }
 
+    pub fn new(
+        arrow: FinalArrow,
+        inner: Inner<Arc<Self>, J, Arc<Value>>,
+        inner_cached: Inner<&Arc<RedeemData<J>>, J, Arc<Value>>,
+    ) -> Result<Self, types::Error> {
+        Ok(RedeemNode {
+            cmr: Cmr::unit(),
+            inner,
+            data: Arc::new(RedeemData::new(arrow, inner_cached)),
+        })
+    }
+
     /// Convert a [`RedeemNode`] back to a [`CommitNode`] by forgetting witnesses
     /// and cached data.
     pub fn unfinalize(&self) -> Result<Arc<CommitNode<J>>, types::Error> {
@@ -276,5 +290,88 @@ impl<J: Jet> RedeemNode<J> {
         }
 
         Ok(program)
+    }
+
+    /// Encode a Simplicity program to bits, including the witness data.
+    pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
+        let sharing_iter = self.post_order_iter::<MaxSharing<Redeem, J>>();
+        let program_bits = encode::encode_program(self, w)?;
+        let witness_bits =
+            encode::encode_witness(sharing_iter.into_witnesses().map(Arc::as_ref), w)?;
+        w.flush_all()?;
+        Ok(program_bits + witness_bits)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::jet::Core;
+    use crate::node::SimpleFinalizer;
+
+    #[test]
+    fn encode_shared_witnesses() {
+        // # Program code:
+        // wit1 = witness :: 1 -> 2^32
+        // wit2 = witness :: 1 -> 2^32
+        //
+        // wits_are_equal = comp (pair wit1 wit2) jet_eq_32 :: 1 -> 2
+        // main = comp wits_are_equal jet_verify            :: 1 -> 1
+        let eqwits = vec![0xcd, 0xdc, 0x51, 0xb6, 0xe2, 0x08, 0xc0, 0x40];
+        let mut iter = BitIter::from(&eqwits[..]);
+        let eqwits_prog = CommitNode::<Core>::decode(&mut iter).unwrap();
+
+        let eqwits_final = eqwits_prog
+            .finalize(&mut SimpleFinalizer::new(std::iter::repeat(Arc::new(
+                Value::u32(0xDEADBEEF),
+            ))))
+            .unwrap();
+        let mut output = vec![];
+        let mut writer = BitWriter::new(&mut output);
+        eqwits_final.encode(&mut writer).unwrap();
+
+        assert_eq!(
+            output,
+            [0xc9, 0xc4, 0x6d, 0xb8, 0x82, 0x30, 0x11, 0xe2, 0x0d, 0xea, 0xdb, 0xee, 0xf0],
+        );
+    }
+
+    #[test]
+    fn decode_shared_witnesses() {
+        // This program is exactly the output from the `encode_shared_witnesses` test.
+        // The point of this is to make sure that our witness-unsharing logic doesn't
+        // get confused here and try to read two witnesses when there are only one.
+        let eqwits = vec![
+            0xc9, 0xc4, 0x6d, 0xb8, 0x82, 0x30, 0x11, 0xe2, 0x0d, 0xea, 0xdb, 0xee, 0xf0,
+        ];
+        let mut iter = BitIter::from(&eqwits[..]);
+        RedeemNode::<crate::jet::Core>::decode(&mut iter).unwrap();
+    }
+
+    #[test]
+    fn unshared_child() {
+        // # id1 and id2 should be shared, but are not!
+        // id1 = iden          :: A -> A # cmr dbfefcfc...
+        // id2 = iden          :: A -> A # cmr dbfefcfc...
+        // cp3 = comp id1 id2  :: A -> A # cmr c1ae55b5...
+        // main = comp cp3 cp3 :: A -> A # cmr 314e2879...
+        let bad = [0xc1, 0x08, 0x04, 0x00, 0x00, 0x74, 0x74, 0x74];
+        let mut iter = BitIter::from(&bad[..]);
+        let err = RedeemNode::<crate::jet::Core>::decode(&mut iter).unwrap_err();
+        assert!(matches!(err, crate::Error::SharingNotMaximal));
+    }
+
+    #[test]
+    fn witness_consumed() {
+        // "main = unit", but with a witness attached. Found by fuzzer.
+        let badwit = vec![0x27, 0x00];
+        let mut iter = BitIter::from(&badwit[..]);
+        if let Err(Error::InconsistentWitnessLength) =
+            RedeemNode::<crate::jet::Core>::decode(&mut iter)
+        {
+            // ok
+        } else {
+            panic!("accepted program with bad witness length")
+        }
     }
 }

@@ -697,33 +697,3 @@ impl<J: Jet> fmt::Display for CommitNode<J> {
         )
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::jet::Core;
-
-    #[test]
-    fn occurs_check_error() {
-        let iden = CommitNode::<Core>::iden();
-        let node = CommitNode::<Core>::disconnect(iden.clone(), iden).unwrap();
-
-        if let Err(Error::Type(types::Error::OccursCheck { .. })) =
-            node.finalize(std::iter::empty(), false)
-        {
-        } else {
-            panic!("Expected occurs check error")
-        }
-    }
-
-    #[test]
-    fn type_check_error() {
-        let unit = CommitNode::<Core>::unit();
-        let case = CommitNode::<Core>::case(unit.clone(), unit.clone()).unwrap();
-
-        if let Err(types::Error::Bind { .. }) = CommitNode::disconnect(case, unit) {
-        } else {
-            panic!("Expected type check error")
-        }
-    }
-}

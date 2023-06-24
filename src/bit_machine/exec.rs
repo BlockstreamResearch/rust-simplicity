@@ -19,10 +19,10 @@
 //!
 
 use super::frame::Frame;
-use crate::core::redeem::RedeemNodeInner;
 use crate::jet::{Jet, JetFailed};
+use crate::node::{self, RedeemNode};
 use crate::{analysis, types};
-use crate::{Cmr, FailEntropy, RedeemNode, Value};
+use crate::{Cmr, FailEntropy, Value};
 use std::fmt;
 use std::{cmp, error};
 
@@ -42,13 +42,13 @@ pub struct BitMachine {
 impl BitMachine {
     /// Construct a Bit Machine with enough space to execute the given program.
     pub fn for_program<J: Jet>(program: &RedeemNode<J>) -> Self {
-        let io_width = program.ty.source.bit_width() + program.ty.target.bit_width();
+        let io_width = program.arrow().source.bit_width() + program.arrow().target.bit_width();
 
         Self {
-            data: vec![0; (io_width + program.bounds.extra_cells + 7) / 8],
+            data: vec![0; (io_width + program.bounds().extra_cells + 7) / 8],
             next_frame_start: 0,
-            read: Vec::with_capacity(program.bounds.extra_frames + analysis::IO_EXTRA_FRAMES),
-            write: Vec::with_capacity(program.bounds.extra_frames + analysis::IO_EXTRA_FRAMES),
+            read: Vec::with_capacity(program.bounds().extra_frames + analysis::IO_EXTRA_FRAMES),
+            write: Vec::with_capacity(program.bounds().extra_frames + analysis::IO_EXTRA_FRAMES),
         }
     }
 
@@ -290,12 +290,12 @@ impl BitMachine {
         let mut call_stack = vec![];
         let mut iterations = 0u64;
 
-        let input_width = ip.ty.source.bit_width();
+        let input_width = ip.arrow().source.bit_width();
         // TODO: convert into crate::Error
         if input_width > 0 && self.read.is_empty() {
             panic!("Program requires a non-empty input to execute");
         }
-        let output_width = ip.ty.target.bit_width();
+        let output_width = ip.arrow().target.bit_width();
         if output_width > 0 {
             self.new_frame(output_width);
         }
@@ -306,40 +306,42 @@ impl BitMachine {
                 println!("({:5} M) exec {:?}", iterations / 1_000_000, ip);
             }
 
-            match &ip.inner {
-                RedeemNodeInner::Unit => {}
-                RedeemNodeInner::Iden => {
-                    let size_a = ip.ty.source.bit_width();
+            match ip.inner() {
+                node::Inner::Unit => {}
+                node::Inner::Iden => {
+                    let size_a = ip.arrow().source.bit_width();
                     self.copy(size_a);
                 }
-                RedeemNodeInner::InjL(left) => {
-                    let padl_b_c = if let types::CompleteBound::Sum(b, _) = &ip.ty.target.bound() {
-                        ip.ty.target.bit_width() - b.bit_width() - 1
-                    } else {
-                        unreachable!()
-                    };
+                node::Inner::InjL(left) => {
+                    let padl_b_c =
+                        if let types::CompleteBound::Sum(b, _) = &ip.arrow().target.bound() {
+                            ip.arrow().target.bit_width() - b.bit_width() - 1
+                        } else {
+                            unreachable!()
+                        };
 
                     self.write_bit(false);
                     self.skip(padl_b_c);
                     call_stack.push(CallStack::Goto(left));
                 }
-                RedeemNodeInner::InjR(left) => {
-                    let padr_b_c = if let types::CompleteBound::Sum(_, c) = &ip.ty.target.bound() {
-                        ip.ty.target.bit_width() - c.bit_width() - 1
-                    } else {
-                        unreachable!()
-                    };
+                node::Inner::InjR(left) => {
+                    let padr_b_c =
+                        if let types::CompleteBound::Sum(_, c) = &ip.arrow().target.bound() {
+                            ip.arrow().target.bit_width() - c.bit_width() - 1
+                        } else {
+                            unreachable!()
+                        };
 
                     self.write_bit(true);
                     self.skip(padr_b_c);
                     call_stack.push(CallStack::Goto(left));
                 }
-                RedeemNodeInner::Pair(left, right) => {
+                node::Inner::Pair(left, right) => {
                     call_stack.push(CallStack::Goto(right));
                     call_stack.push(CallStack::Goto(left));
                 }
-                RedeemNodeInner::Comp(left, right) => {
-                    let size_b = left.ty.target.bit_width();
+                node::Inner::Comp(left, right) => {
+                    let size_b = left.arrow().target.bit_width();
 
                     self.new_frame(size_b);
                     call_stack.push(CallStack::DropFrame);
@@ -347,14 +349,14 @@ impl BitMachine {
                     call_stack.push(CallStack::MoveFrame);
                     call_stack.push(CallStack::Goto(left));
                 }
-                RedeemNodeInner::Disconnect(left, right) => {
-                    let size_prod_256_a = left.ty.source.bit_width();
+                node::Inner::Disconnect(left, right) => {
+                    let size_prod_256_a = left.arrow().source.bit_width();
                     let size_a = size_prod_256_a - 256;
-                    let size_prod_b_c = left.ty.target.bit_width();
-                    let size_b = size_prod_b_c - right.ty.source.bit_width();
+                    let size_prod_b_c = left.arrow().target.bit_width();
+                    let size_b = size_prod_b_c - right.arrow().source.bit_width();
 
                     self.new_frame(size_prod_256_a);
-                    self.write_bytes(right.cmr.as_ref());
+                    self.write_bytes(right.cmr().as_ref());
                     self.copy(size_a);
                     self.move_frame();
                     self.new_frame(size_prod_b_c);
@@ -367,63 +369,62 @@ impl BitMachine {
                     call_stack.push(CallStack::MoveFrame);
                     call_stack.push(CallStack::Goto(left));
                 }
-                RedeemNodeInner::Take(left) => call_stack.push(CallStack::Goto(left)),
-                RedeemNodeInner::Drop(left) => {
-                    let size_a = if let types::CompleteBound::Product(a, _) = &ip.ty.source.bound()
-                    {
-                        a.bit_width()
-                    } else {
-                        unreachable!()
-                    };
+                node::Inner::Take(left) => call_stack.push(CallStack::Goto(left)),
+                node::Inner::Drop(left) => {
+                    let size_a =
+                        if let types::CompleteBound::Product(a, _) = &ip.arrow().source.bound() {
+                            a.bit_width()
+                        } else {
+                            unreachable!()
+                        };
 
                     self.fwd(size_a);
                     call_stack.push(CallStack::Back(size_a));
                     call_stack.push(CallStack::Goto(left));
                 }
-                RedeemNodeInner::Case(..)
-                | RedeemNodeInner::AssertL(..)
-                | RedeemNodeInner::AssertR(..) => {
+                node::Inner::Case(..) | node::Inner::AssertL(..) | node::Inner::AssertR(..) => {
                     let choice_bit = self.read[self.read.len() - 1].peek_bit(&self.data);
 
-                    let (size_a, size_b) =
-                        if let types::CompleteBound::Product(sum_a_b, _c) = &ip.ty.source.bound() {
-                            if let types::CompleteBound::Sum(a, b) = &sum_a_b.bound() {
-                                (a.bit_width(), b.bit_width())
-                            } else {
-                                unreachable!()
-                            }
+                    let (size_a, size_b) = if let types::CompleteBound::Product(sum_a_b, _c) =
+                        &ip.arrow().source.bound()
+                    {
+                        if let types::CompleteBound::Sum(a, b) = &sum_a_b.bound() {
+                            (a.bit_width(), b.bit_width())
                         } else {
                             unreachable!()
-                        };
+                        }
+                    } else {
+                        unreachable!()
+                    };
 
-                    match (&ip.inner, choice_bit) {
-                        (RedeemNodeInner::Case(_, right), true)
-                        | (RedeemNodeInner::AssertR(_, right), true) => {
+                    match (ip.inner(), choice_bit) {
+                        (node::Inner::Case(_, right), true)
+                        | (node::Inner::AssertR(_, right), true) => {
                             let padr_a_b = cmp::max(size_a, size_b) - size_b;
                             self.fwd(1 + padr_a_b);
                             call_stack.push(CallStack::Back(1 + padr_a_b));
                             call_stack.push(CallStack::Goto(right));
                         }
-                        (RedeemNodeInner::Case(left, _), false)
-                        | (RedeemNodeInner::AssertL(left, _), false) => {
+                        (node::Inner::Case(left, _), false)
+                        | (node::Inner::AssertL(left, _), false) => {
                             let padl_a_b = cmp::max(size_a, size_b) - size_a;
                             self.fwd(1 + padl_a_b);
                             call_stack.push(CallStack::Back(1 + padl_a_b));
                             call_stack.push(CallStack::Goto(left));
                         }
-                        (RedeemNodeInner::AssertL(_, r_cmr), true) => {
+                        (node::Inner::AssertL(_, r_cmr), true) => {
                             return Err(ExecutionError::ReachedPrunedBranch(*r_cmr))
                         }
-                        (RedeemNodeInner::AssertR(l_cmr, _), false) => {
+                        (node::Inner::AssertR(l_cmr, _), false) => {
                             return Err(ExecutionError::ReachedPrunedBranch(*l_cmr))
                         }
                         _ => unreachable!(),
                     }
                 }
-                RedeemNodeInner::Witness(value) => self.write_value(value),
-                RedeemNodeInner::Jet(jet) => jet.exec(self, env)?,
-                RedeemNodeInner::Word(value) => self.write_value(value),
-                RedeemNodeInner::Fail(entropy) => {
+                node::Inner::Witness(value) => self.write_value(value),
+                node::Inner::Jet(jet) => jet.exec(self, env)?,
+                node::Inner::Word(value) => self.write_value(value),
+                node::Inner::Fail(entropy) => {
                     return Err(ExecutionError::ReachedFailNode(*entropy))
                 }
             }
@@ -448,7 +449,7 @@ impl BitMachine {
             out_frame.reset_cursor();
             let value = out_frame
                 .as_bit_iter(&self.data)
-                .read_value(&program.ty.target)
+                .read_value(&program.arrow().target)
                 .expect("Decode value of output frame");
 
             Ok(value)

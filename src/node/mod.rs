@@ -61,16 +61,9 @@
 //!    error, in case of infinitely-sized types or in the case that the unit
 //!    bounds cannot be applied.
 //!
-//! 2. [`CommitNode::rtl_finalize`] converts a [`CommitNode`] to a [`RedeemNode`]
+//! 2. [`CommitNode::finalize`] converts a [`CommitNode`] to a [`RedeemNode`]
 //!    by attaching witnesses to each witness node, and deciding whether to hide
-//!    branches for each `case` node. It iterates through the entire program, in
-//!    right-to-left post-order, to ensure that both children of every `case`
-//!    are encountered before the `case` does, and that every `case` will be
-//!    encountered before any witness data that feeds into it (via `comp`).
-//!
-//!    If witnesses are not available for a given node, this is fine; that node
-//!    and its ancestors are not finalized. Any non-finalized nodes must be
-//!    pruned, or else the method will return an error.
+//!    branches for each `case` node.
 //!
 //! 3. [`CommitNode::unfinalize_types`] converts a [`CommitNode`] to a
 //!    [`ConstructNode`] by throwing away all types and re-inferring them. It
@@ -82,7 +75,7 @@
 //!    completeness.
 //!
 
-use crate::dag::{DagLike, MaxSharing, SharingTracker, SwapChildren};
+use crate::dag::{DagLike, MaxSharing, SharingTracker};
 use crate::jet::Jet;
 use crate::{types, Cmr, FailEntropy, Value};
 
@@ -528,12 +521,12 @@ impl<N: NodeData<J>, J: Jet> Node<N, J> {
     /// See the documentation for [`Converter`] for details.
     pub fn convert<S, M, C>(&self, converter: &mut C) -> Result<Arc<Node<M, J>>, C::Error>
     where
-        S: for<'a> SharingTracker<SwapChildren<&'a Self>> + Default,
+        S: for<'a> SharingTracker<&'a Self> + Default,
         M: NodeData<J>,
         C: Converter<N, M, J>,
     {
         let mut converted: Vec<Arc<Node<M, J>>> = vec![];
-        for data in self.rtl_post_order_iter::<S>() {
+        for data in self.post_order_iter::<S>() {
             // First, tell the converter about the iterator state..
             converter.visit_node(&data);
 
