@@ -107,7 +107,7 @@ impl BitMachine {
 
     /// Move the cursor of the active write frame forward by
     /// a specified number of bits
-    pub(crate) fn skip(&mut self, n: usize) {
+    fn skip(&mut self, n: usize) {
         // short circuit n = 0
         if n == 0 {
             return;
@@ -150,14 +150,6 @@ impl BitMachine {
         self.read[idx].move_cursor_backward(n);
     }
 
-    /// Write a big-endian u64 value to the active write frame
-    pub(crate) fn write_u64(&mut self, value: u64) {
-        self.write
-            .last_mut()
-            .expect("Empty write frame stack")
-            .write_u64(value, &mut self.data);
-    }
-
     /// Write a big-endian u8 value to the active write frame
     fn write_u8(&mut self, value: u8) {
         self.write
@@ -175,7 +167,7 @@ impl BitMachine {
     }
 
     /// Write a bit string to the active write frame
-    pub(crate) fn write_bytes(&mut self, bytes: &[u8]) {
+    fn write_bytes(&mut self, bytes: &[u8]) {
         for bit in bytes {
             self.write_u8(*bit);
         }

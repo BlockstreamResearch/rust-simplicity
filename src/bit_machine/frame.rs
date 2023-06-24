@@ -86,13 +86,6 @@ impl Frame {
         }
     }
 
-    /// Write a big-endian u8 value and advance the cursor.
-    pub(super) fn write_u64(&mut self, value: u64, data: &mut [u8]) {
-        for idx in 0..64 {
-            self.write_bit(value & (1 << (63 - idx)) != 0, data);
-        }
-    }
-
     /// Move the cursor forward by the given length.
     pub(super) fn move_cursor_forward(&mut self, len: usize) {
         self.cursor += len;
