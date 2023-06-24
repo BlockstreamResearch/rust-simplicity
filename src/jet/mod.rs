@@ -41,10 +41,10 @@ pub use init::elements::Elements;
 use simplicity_sys::c_jets::frame_ffi::{c_readBit, c_writeBit, CFrameItem};
 use simplicity_sys::c_jets::round_u_word;
 
+use crate::decode;
 use crate::exec::BitMachine;
 use crate::jet::type_name::TypeName;
 use crate::merkle::cmr::Cmr;
-use crate::Error;
 use crate::{BitIter, BitWriter};
 use std::hash::Hash;
 use std::io::Write;
@@ -90,7 +90,7 @@ pub trait Jet: Copy + Eq + Ord + Hash + std::fmt::Debug + std::fmt::Display {
     fn encode<W: Write>(&self, w: &mut BitWriter<W>) -> std::io::Result<usize>;
 
     /// Decode a jet from bits.
-    fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Self, Error>;
+    fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Self, decode::Error>;
 
     /// Obtains a C FFI compatible environment for the jet.
     fn c_jet_env<'env>(&self, env: &'env Self::Environment) -> &'env Self::CJetEnvironment;
