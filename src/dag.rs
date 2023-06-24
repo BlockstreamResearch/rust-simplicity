@@ -375,6 +375,14 @@ pub trait DagLike: Sized {
         .map(PostOrderIterItem::unswap)
     }
 
+    /// Obtains an iterator of all the nodes rooted at the DAG, in pre-order.
+    fn pre_order_iter<S: SharingTracker<Self> + Default>(self) -> PreOrderIter<Self, S> {
+        PreOrderIter {
+            stack: vec![self],
+            tracker: Default::default(),
+        }
+    }
+
     /// Obtains an iterator of all the nodes rooted at the DAG, in post order.
     ///
     /// Each node is only yielded once, at the leftmost position that it
@@ -943,5 +951,47 @@ impl<D: DagLike, S: SharingTracker<D>> PostOrderIter<D, S> {
             f.write_str("\n")?;
         }
         Ok(())
+    }
+}
+
+/// Iterates over a DAG in _pre order_.
+///
+/// Unlike the post-order iterator, this one does not keep track of indices
+/// (this would be impractical since when we yield a node we have not yet
+/// yielded its children, so we cannot know their indices). If you do need
+/// the indices for some reason, the best strategy may be to run the
+/// post-order iterator, collect into a vector, then iterate through that
+/// backward.
+#[derive(Clone, Debug)]
+pub struct PreOrderIter<D: DagLike, S: SharingTracker<D>> {
+    /// A stack of elements to be yielded. As items are yielded, their right
+    /// children are put onto the stack followed by their left, so that the
+    /// appropriate one will be yielded on the next iteration.
+    stack: Vec<D>,
+    /// Data which tracks which nodes have been yielded already and therefore
+    /// should be skipped.
+    tracker: S,
+}
+
+impl<D: DagLike, S: SharingTracker<D>> Iterator for PreOrderIter<D, S> {
+    type Item = D;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // This algorithm is _significantly_ simpler than the post-order one,
+        // mainly because we don't care about indices.
+        while let Some(top) = self.stack.pop() {
+            // Only yield if this is the first time we have seen this node.
+            if self.tracker.record(&top, 0, None, None).is_none() {
+                // If so, mark its children as to-yield, then yield it.
+                if let Some(child) = top.right_child() {
+                    self.stack.push(child);
+                }
+                if let Some(child) = top.left_child() {
+                    self.stack.push(child);
+                }
+                return Some(top);
+            }
+        }
+        None
     }
 }
