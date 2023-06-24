@@ -1,2 +1,2 @@
 pub mod exec;
-pub(crate) mod frame;
+mod frame;
