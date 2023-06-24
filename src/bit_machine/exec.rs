@@ -52,6 +52,22 @@ impl BitMachine {
         }
     }
 
+    #[cfg(test)]
+    pub fn test_exec<J: Jet>(
+        program: std::sync::Arc<crate::node::ConstructNode<J>>,
+        env: &J::Environment,
+    ) -> Result<Value, ExecutionError> {
+        use crate::node::SimpleFinalizer;
+
+        let prog = program
+            .finalize_types_non_program()
+            .expect("finalizing types")
+            .finalize(&mut SimpleFinalizer::new(None.into_iter()))
+            .expect("finalizing");
+        let mut mac = BitMachine::for_program(&prog);
+        mac.exec(&prog, env)
+    }
+
     /// Push a new frame of given size onto the write frame stack
     pub(crate) fn new_frame(&mut self, len: usize) {
         debug_assert!(

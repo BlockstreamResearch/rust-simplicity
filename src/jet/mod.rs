@@ -166,50 +166,41 @@ pub trait Jet: Copy + Eq + Ord + Hash + std::fmt::Debug + std::fmt::Display {
 
 #[cfg(test)]
 mod tests {
-    use crate::{exec::BitMachine, jet::Jet};
+    use crate::node::{ConstructNode, CoreConstructible, JetConstructible};
+    use crate::Value;
+    use crate::{exec::BitMachine, jet::Core};
+    use std::sync::Arc;
 
     #[test]
     fn test_ffi_jet() {
-        // Indirectly create bit machine
-        let mut mac = BitMachine {
-            data: vec![0u8; 1024],
-            next_frame_start: 0,
-            read: vec![],
-            write: vec![],
-        };
-        mac.new_frame_unchecked(64);
-        mac.write_u32(2);
-        mac.write_u32(16);
-        mac.move_frame();
-
-        mac.new_frame_unchecked(33);
-        let env = ();
-        let jet = super::init::core::Core::Add32;
-        jet.exec(&mut mac, &env).unwrap();
-
-        mac.move_frame();
-        let carry = mac.read_bit();
-        let res = mac.read_u32();
-        assert_eq!(carry, false);
-        assert_eq!(res, 2 + 16);
+        let two_words = Arc::<ConstructNode<_>>::comp(
+            &Arc::<ConstructNode<_>>::pair(
+                &Arc::<ConstructNode<_>>::const_word(Arc::new(Value::u32(2))),
+                &Arc::<ConstructNode<_>>::const_word(Arc::new(Value::u32(16))),
+            )
+            .unwrap(),
+            &Arc::<ConstructNode<_>>::jet(Core::Add32),
+        )
+        .unwrap();
+        assert_eq!(
+            BitMachine::test_exec(two_words, &()).expect("executing"),
+            Value::Prod(
+                Box::new(Value::u1(0)),       // carry bit
+                Box::new(Value::u32(2 + 16)), // result
+            ),
+        );
     }
 
     #[test]
     fn test_simple() {
-        let mut mac = BitMachine {
-            data: vec![0u8; 1024],
-            next_frame_start: 0,
-            read: vec![],
-            write: vec![],
-        };
-
-        mac.new_frame_unchecked(64);
-        mac.write_u32(2);
-        mac.write_u32(16);
-        mac.move_frame();
-        let x = mac.read_u32();
-        let y = mac.read_u32();
-        assert_eq!(x, 2);
-        assert_eq!(y, 16);
+        let two_words = Arc::<ConstructNode<Core>>::pair(
+            &Arc::<ConstructNode<_>>::const_word(Arc::new(Value::u32(2))),
+            &Arc::<ConstructNode<_>>::const_word(Arc::new(Value::u16(16))),
+        )
+        .unwrap();
+        assert_eq!(
+            BitMachine::test_exec(two_words, &()).expect("executing"),
+            Value::Prod(Box::new(Value::u32(2)), Box::new(Value::u16(16))),
+        );
     }
 }

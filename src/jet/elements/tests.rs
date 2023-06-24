@@ -2,8 +2,9 @@ use std::sync::Arc;
 
 use crate::exec::BitMachine;
 use crate::jet::elements::{ElementsEnv, ElementsUtxo};
-use crate::jet::{Elements, Jet};
-use crate::merkle::cmr::Cmr;
+use crate::jet::Elements;
+use crate::node::{ConstructNode, JetConstructible};
+use crate::{Cmr, Value};
 use bitcoin_hashes::sha256::Midstate;
 use bitcoin_hashes::Hash;
 use elements::secp256k1_zkp::Tweak;
@@ -96,21 +97,11 @@ fn test_ffi_env() {
         BlockHash::all_zeros(),
     );
 
-    let mut mac = BitMachine {
-        data: vec![0; 1000],
-        next_frame_start: 0,
-        read: Vec::with_capacity(5),
-        write: Vec::with_capacity(5),
-    };
-    let jet = Elements::LockTime;
-    mac.new_frame(100);
-    mac.write_u32(2);
-    mac.move_frame();
-    mac.new_frame(35);
-    jet.exec(&mut mac, &env).unwrap();
-    mac.move_frame();
-    let res = mac.read_u32();
-    assert_eq!(res, 100);
+    let prog = Arc::<ConstructNode<_>>::jet(Elements::LockTime);
+    assert_eq!(
+        BitMachine::test_exec(prog, &env).expect("executing"),
+        Value::u32(100),
+    );
 }
 
 fn hex_script(s: &str) -> elements::Script {
