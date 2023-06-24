@@ -137,6 +137,7 @@ pub trait Jet: Copy + Eq + Ord + Hash + std::fmt::Debug + std::fmt::Display {
                 c_writeBit(&mut a_frame, bit);
             }
         }
+        mac.back(src_ty_bit_width);
 
         // 2. Execute the jet. src = A read frame, dst = B write frame
         // Precondition satisfied: src_ptr is the start of slice of UWORDs of A.

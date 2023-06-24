@@ -125,7 +125,7 @@ impl BitMachine {
 
     /// Move the cursor of the active read frame back
     /// by the given number of bits
-    fn back(&mut self, n: usize) {
+    pub(crate) fn back(&mut self, n: usize) {
         // short circuit n = 0
         if n == 0 {
             return;
@@ -277,13 +277,25 @@ impl BitMachine {
         program: &RedeemNode<J>,
         env: &J::Environment,
     ) -> Result<Value, ExecutionError> {
-        // Rust cannot use `J` from parent function
         enum CallStack<'a, J: Jet> {
             Goto(&'a RedeemNode<J>),
             MoveFrame,
             DropFrame,
             CopyFwd(usize),
             Back(usize),
+        }
+
+        // Not used, but useful for debugging, so keep it around
+        impl<'a, J: Jet> fmt::Debug for CallStack<'a, J> {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                match self {
+                    CallStack::Goto(ins) => write!(f, "goto {}", ins.inner()),
+                    CallStack::MoveFrame => f.write_str("move frame"),
+                    CallStack::DropFrame => f.write_str("drop frame"),
+                    CallStack::CopyFwd(n) => write!(f, "copy/fwd {}", n),
+                    CallStack::Back(n) => write!(f, "back {}", n),
+                }
+            }
         }
 
         let mut ip = program;
