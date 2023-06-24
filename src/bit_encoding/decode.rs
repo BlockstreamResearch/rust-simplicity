@@ -150,11 +150,11 @@ impl<'d, J: Jet> DagLike for (usize, &'d [DecodeNode<J>]) {
             | DecodeNode::InjR(i)
             | DecodeNode::Take(i)
             | DecodeNode::Drop(i) => Dag::Unary((i, nodes)),
-            DecodeNode::Comp(li, ri) | DecodeNode::Case(li, ri) | DecodeNode::Pair(li, ri) => {
-                Dag::Binary((li, nodes), (ri, nodes))
-            }
-            DecodeNode::Disconnect(li, ri) => Dag::Disconnect((li, nodes), (ri, nodes)),
-            DecodeNode::Witness => Dag::Witness,
+            DecodeNode::Comp(li, ri)
+            | DecodeNode::Case(li, ri)
+            | DecodeNode::Pair(li, ri)
+            | DecodeNode::Disconnect(li, ri) => Dag::Binary((li, nodes), (ri, nodes)),
+            DecodeNode::Witness => Dag::Nullary,
         }
     }
 }
