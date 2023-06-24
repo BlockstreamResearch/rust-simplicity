@@ -515,3 +515,89 @@ impl BitMachine {
         self.next_frame_start += len;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    #[cfg(feature = "elements")]
+    use super::*;
+
+    #[cfg(feature = "elements")]
+    use crate::bitcoin_hashes::hex::ToHex;
+    #[cfg(feature = "elements")]
+    use crate::jet::{elements::ElementsEnv, Elements};
+    #[cfg(feature = "elements")]
+    use crate::{node::RedeemNode, BitIter};
+
+    #[cfg(feature = "elements")]
+    fn run_program_elements(
+        prog_bytes: &[u8],
+        cmr_str: &str,
+        amr_str: &str,
+        imr_str: &str,
+    ) -> Result<Value, ExecutionError> {
+        let prog_hex = prog_bytes.to_hex();
+
+        let mut iter = BitIter::from(prog_bytes);
+        let prog = match RedeemNode::<Elements>::decode(&mut iter) {
+            Ok(prog) => prog,
+            Err(e) => panic!("program {} failed: {}", prog_hex, e),
+        };
+
+        // Check Merkle roots; check AMR last because the AMR is a more complicated
+        // calculation and historically has been much more likely to be wrong.
+        assert_eq!(
+            prog.cmr().to_string(),
+            cmr_str,
+            "CMR mismatch (got {} expected {}) for program {}",
+            prog.cmr().to_string(),
+            cmr_str,
+            prog_hex,
+        );
+        assert_eq!(
+            prog.imr().to_string(),
+            imr_str,
+            "IMR mismatch (got {} expected {}) for program {}",
+            prog.imr().to_string(),
+            imr_str,
+            prog_hex,
+        );
+        assert_eq!(
+            prog.amr().to_string(),
+            amr_str,
+            "AMR mismatch (got {} expected {}) for program {}",
+            prog.amr().to_string(),
+            amr_str,
+            prog_hex,
+        );
+
+        // Try to run it on the bit machine and return the result
+        let env = ElementsEnv::dummy();
+        BitMachine::for_program(&prog).exec(&prog, &env)
+    }
+
+    #[test]
+    #[cfg(feature = "elements")]
+    fn crash_regression1() {
+        // cfe18fb44028870400
+        // This program caused an array OOB.
+        // # Witnesses
+        // wit1 = witness :: (((1 + (1 + 2^256)) * (1 + (1 + 2^256))) + 1) -> 1
+        //
+        // # Program code
+        // jt1 = jet_num_outputs    :: 1 -> 2^32                                          # cmr 447165a3...
+        // jt2 = jet_issuance_token :: 2^32 -> (1 + (1 + 2^256))                          # cmr 85e9591c...
+        // pr3 = pair jt2 jt2       :: 2^32 -> ((1 + (1 + 2^256)) * (1 + (1 + 2^256)))    # cmr 45d40848...
+        // cp4 = comp jt1 pr3       :: 1 -> ((1 + (1 + 2^256)) * (1 + (1 + 2^256)))       # cmr 7bb1824f...
+        // jl5 = injl cp4           :: 1 -> (((1 + (1 + 2^256)) * (1 + (1 + 2^256))) + 1) # cmr 277ee32c...
+        //
+        // main = comp jl5 wit1     :: 1 -> 1                                             # cmr 7050c4a6...
+
+        let res = run_program_elements(
+            &[0xcf, 0xe1, 0x8f, 0xb4, 0x40, 0x28, 0x87, 0x04, 0x00],
+            "7050c4a60140e0ded5d6205d8471b645580f883918f508a9ee3cff590c633286",
+            "50fecf371c06d1aeaf599d267cb305d81d00e7412ffb9172d4098394b3a20533",
+            "2539210870790f5a74f636a5582c03be95428dfe96619b69d103804b089ceef8",
+        );
+        assert_eq!(res.unwrap(), Value::Unit);
+    }
+}
