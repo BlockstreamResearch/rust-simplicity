@@ -34,10 +34,6 @@ pub enum Dag<T> {
     Unary(T),
     /// Combinator with two children
     Binary(T, T),
-    /// Witness node, which gets special treatment
-    Witness,
-    /// Disconnect node, which gets special treatment
-    Disconnect(T, T),
 }
 
 /// How much sharing/expansion to do when running an iterator over a DAG
@@ -229,8 +225,6 @@ pub trait DagLike: Sized {
             Dag::Nullary => None,
             Dag::Unary(sub) => Some(sub),
             Dag::Binary(left, _) => Some(left),
-            Dag::Witness => None,
-            Dag::Disconnect(left, _) => Some(left),
         }
     }
 
@@ -240,8 +234,6 @@ pub trait DagLike: Sized {
             Dag::Nullary => None,
             Dag::Unary(_) => None,
             Dag::Binary(_, right) => Some(right),
-            Dag::Witness => None,
-            Dag::Disconnect(_, right) => Some(right),
         }
     }
 
@@ -252,9 +244,9 @@ pub trait DagLike: Sized {
     /// manually.
     fn n_children(&self) -> usize {
         match self.as_dag_node() {
-            Dag::Nullary | Dag::Witness => 0,
+            Dag::Nullary => 0,
             Dag::Unary(..) => 1,
-            Dag::Binary(..) | Dag::Disconnect(..) => 2,
+            Dag::Binary(..) => 2,
         }
     }
 
@@ -383,10 +375,6 @@ impl<D: DagLike> DagLike for SwapChildren<D> {
             Dag::Nullary => Dag::Nullary,
             Dag::Unary(sub) => Dag::Unary(SwapChildren(sub)),
             Dag::Binary(left, right) => Dag::Binary(SwapChildren(right), SwapChildren(left)),
-            Dag::Witness => Dag::Witness,
-            Dag::Disconnect(left, right) => {
-                Dag::Disconnect(SwapChildren(right), SwapChildren(left))
-            }
         }
     }
 }
@@ -414,9 +402,9 @@ impl<'a, N: NodeData<J>, J: jet::Jet> DagLike for &'a Node<N, J> {
             | node::Inner::AssertR(_, ref sub) => Dag::Unary(sub),
             node::Inner::Comp(ref left, ref right)
             | node::Inner::Case(ref left, ref right)
-            | node::Inner::Pair(ref left, ref right) => Dag::Binary(left, right),
-            node::Inner::Disconnect(ref left, ref right) => Dag::Disconnect(left, right),
-            node::Inner::Witness(..) => Dag::Witness,
+            | node::Inner::Pair(ref left, ref right)
+            | node::Inner::Disconnect(ref left, ref right) => Dag::Binary(left, right),
+            node::Inner::Witness(..) => Dag::Nullary,
         }
     }
 }
@@ -444,9 +432,9 @@ impl<N: NodeData<J>, J: jet::Jet> DagLike for Arc<Node<N, J>> {
             | node::Inner::AssertR(_, ref sub) => Dag::Unary(Arc::clone(sub)),
             node::Inner::Comp(ref left, ref right)
             | node::Inner::Case(ref left, ref right)
-            | node::Inner::Pair(ref left, ref right) => Dag::Binary(Arc::clone(left), Arc::clone(right)),
-            node::Inner::Disconnect(ref left, ref right) => Dag::Disconnect(Arc::clone(left), Arc::clone(right)),
-            node::Inner::Witness(..) => Dag::Witness,
+            | node::Inner::Pair(ref left, ref right)
+            | node::Inner::Disconnect(ref left, ref right) => Dag::Binary(Arc::clone(left), Arc::clone(right)),
+            node::Inner::Witness(..) => Dag::Nullary,
         }
     }
 }
@@ -553,10 +541,7 @@ impl<D: DagLike> PostOrderIterItem<SwapChildren<D>> {
     /// use this method to correct the child indices. See documentation on
     /// [`SwapChildren`] or [`DagLike::rtl_post_order_iter`].
     fn unswap(mut self) -> PostOrderIterItem<D> {
-        if matches!(
-            self.node.as_dag_node(),
-            Dag::Binary(..) | Dag::Disconnect(..)
-        ) {
+        if matches!(self.node.as_dag_node(), Dag::Binary(..)) {
             std::mem::swap(&mut self.left_index, &mut self.right_index);
         }
         PostOrderIterItem {

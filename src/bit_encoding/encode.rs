@@ -55,7 +55,8 @@ impl<'n, N: NodeData<J>, J: Jet> DagLike for EncodeNode<'n, N, J> {
             | node::Inner::Drop(sub) => Dag::Unary(EncodeNode::Node(sub)),
             node::Inner::Comp(left, right)
             | node::Inner::Case(left, right)
-            | node::Inner::Pair(left, right) => {
+            | node::Inner::Pair(left, right)
+            | node::Inner::Disconnect(left, right) => {
                 Dag::Binary(EncodeNode::Node(left), EncodeNode::Node(right))
             }
             node::Inner::AssertL(left, rcmr) => {
@@ -64,10 +65,7 @@ impl<'n, N: NodeData<J>, J: Jet> DagLike for EncodeNode<'n, N, J> {
             node::Inner::AssertR(lcmr, right) => {
                 Dag::Binary(EncodeNode::Hidden(*lcmr), EncodeNode::Node(right))
             }
-            node::Inner::Disconnect(left, right) => {
-                Dag::Disconnect(EncodeNode::Node(left), EncodeNode::Node(right))
-            }
-            node::Inner::Witness(..) => Dag::Witness,
+            node::Inner::Witness(..) => Dag::Nullary,
         }
     }
 }
