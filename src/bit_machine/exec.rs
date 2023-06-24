@@ -30,13 +30,13 @@ use std::{cmp, error};
 pub struct BitMachine {
     /// Space for bytes that read and write frames point to.
     /// (De)allocation happens LIFO from left to right
-    pub(crate) data: Vec<u8>,
+    data: Vec<u8>,
     /// Top of data stack; index of first unused bit
-    pub(crate) next_frame_start: usize,
+    next_frame_start: usize,
     /// Read frame stack
-    pub(crate) read: Vec<Frame>,
+    read: Vec<Frame>,
     /// Write frame stack
-    pub(crate) write: Vec<Frame>,
+    write: Vec<Frame>,
 }
 
 impl BitMachine {
@@ -69,7 +69,7 @@ impl BitMachine {
     }
 
     /// Push a new frame of given size onto the write frame stack
-    pub(crate) fn new_frame(&mut self, len: usize) {
+    fn new_frame(&mut self, len: usize) {
         debug_assert!(
             self.next_frame_start + len <= self.data.len() * 8,
             "Data out of bounds: number of cells"
@@ -84,14 +84,14 @@ impl BitMachine {
     }
 
     /// Move the active write frame to the read frame stack
-    pub(crate) fn move_frame(&mut self) {
+    fn move_frame(&mut self) {
         let mut _active_write_frame = self.write.pop().unwrap();
         _active_write_frame.reset_cursor();
         self.read.push(_active_write_frame);
     }
 
     /// Drop the active read frame
-    pub(crate) fn drop_frame(&mut self) {
+    fn drop_frame(&mut self) {
         let active_read_frame = self.read.pop().unwrap();
         self.next_frame_start -= active_read_frame.len;
         assert_eq!(self.next_frame_start, active_read_frame.start);
@@ -158,60 +158,12 @@ impl BitMachine {
             .write_u64(value, &mut self.data);
     }
 
-    /// Write a big-endian u32 value to the active write frame
-    pub(crate) fn write_u32(&mut self, value: u32) {
-        self.write
-            .last_mut()
-            .expect("Empty write frame stack")
-            .write_u32(value, &mut self.data);
-    }
-
-    /// Write a big-endian u16 value to the active write frame
-    pub(crate) fn write_u16(&mut self, value: u16) {
-        self.write
-            .last_mut()
-            .expect("Empty write frame stack")
-            .write_u16(value, &mut self.data);
-    }
-
     /// Write a big-endian u8 value to the active write frame
-    pub(crate) fn write_u8(&mut self, value: u8) {
+    fn write_u8(&mut self, value: u8) {
         self.write
             .last_mut()
             .expect("Empty write frame stack")
             .write_u8(value, &mut self.data);
-    }
-
-    /// Read a big-endian u64 value from the active read frame
-    pub(crate) fn read_u64(&mut self) -> u64 {
-        self.read
-            .last_mut()
-            .expect("Empty read frame stack")
-            .read_u64(&self.data)
-    }
-
-    /// Read a big-endian u32 value from the active read frame
-    pub(crate) fn read_u32(&mut self) -> u32 {
-        self.read
-            .last_mut()
-            .expect("Empty read frame stack")
-            .read_u32(&self.data)
-    }
-
-    /// Read a big-endian u16 value from the active read frame
-    pub(crate) fn read_u16(&mut self) -> u16 {
-        self.read
-            .last_mut()
-            .expect("Empty read frame stack")
-            .read_u16(&self.data)
-    }
-
-    /// Read a big-endian u8 value from the active read frame
-    pub(crate) fn read_u8(&mut self) -> u8 {
-        self.read
-            .last_mut()
-            .expect("Empty read frame stack")
-            .read_u8(&self.data)
     }
 
     /// Read a bit from the active read frame
@@ -222,33 +174,6 @@ impl BitMachine {
             .read_bit(&self.data)
     }
 
-    /// Read 32 bytes from the active read frame
-    pub(crate) fn read_32bytes(&mut self) -> [u8; 32] {
-        let mut ret = [0u8; 32];
-        for byte in &mut ret {
-            *byte = self
-                .read
-                .last_mut()
-                .expect("Empty read frame stack")
-                .read_u8(&self.data);
-        }
-        ret
-    }
-
-    /// Read the given number of bytes from the active read frame
-    pub(crate) fn read_bytes(&mut self, n: usize) -> Vec<u8> {
-        let mut ret = Vec::with_capacity(n);
-        for _i in 0..n {
-            ret.push(
-                self.read
-                    .last_mut()
-                    .expect("Empty read frame stack")
-                    .read_u8(&self.data),
-            );
-        }
-        ret
-    }
-
     /// Write a bit string to the active write frame
     pub(crate) fn write_bytes(&mut self, bytes: &[u8]) {
         for bit in bytes {
@@ -257,7 +182,7 @@ impl BitMachine {
     }
 
     /// Write a value to the current write frame
-    pub(crate) fn write_value(&mut self, val: &Value) {
+    fn write_value(&mut self, val: &Value) {
         // FIXME don't recurse
         match *val {
             Value::Unit => {}
@@ -517,18 +442,6 @@ impl error::Error for ExecutionError {}
 impl From<JetFailed> for ExecutionError {
     fn from(jet_failed: JetFailed) -> Self {
         ExecutionError::JetFailed(jet_failed)
-    }
-}
-
-#[cfg(test)]
-impl BitMachine {
-    /// Push a new frame of given size onto the write frame stack
-    /// without checking any assertions on IO. This is really handy when
-    /// we want to construct a BitMachine for testing purposes.
-    /// DO NOT USE THIS WITH REAL PROGRAMS. IT WILL FAIL.
-    pub(crate) fn new_frame_unchecked(&mut self, len: usize) {
-        self.write.push(Frame::new(self.next_frame_start, len));
-        self.next_frame_start += len;
     }
 }
 
