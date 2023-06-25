@@ -66,13 +66,15 @@
 
 use crate::merkle::tmr::Tmr;
 
-use std::borrow::Cow;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::{cmp, fmt, mem, ops};
 
 pub mod arrow;
+mod final_data;
 mod precomputed;
 mod variable;
+
+pub use final_data::{CompleteBound, Final};
 
 /// Error type for simplicity
 #[non_exhaustive]
@@ -164,112 +166,6 @@ impl TypeInner {
     }
 }
 
-/// Data related to a finalized type, which can be extracted from a `Type`
-/// if (and only if) it is finalized.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub struct Final {
-    /// Underlying type
-    bound: CompleteBound,
-    /// Width of the type, in bits, in the bit machine
-    bit_width: usize,
-    /// TMR of the type
-    tmr: Tmr,
-    /// Cached string representation of the type
-    display: Cow<'static, str>,
-}
-
-impl Final {
-    /// (Non-public) constructor for the final data of the unit type
-    const fn unit() -> Self {
-        Final {
-            bound: CompleteBound::Unit,
-            bit_width: 0,
-            tmr: Tmr::unit(),
-            display: Cow::Borrowed("1"),
-        }
-    }
-
-    /// Return a precomputed copy of 2^(2^n), for given n.
-    pub fn two_two_n(n: usize) -> Arc<Self> {
-        precomputed::nth_power_of_2(n).final_data().unwrap()
-    }
-
-    /// (Non-public) constructor for the final data of a sum type
-    fn sum(left: Arc<Self>, right: Arc<Self>) -> Self {
-        Final {
-            tmr: Tmr::sum(left.tmr, right.tmr),
-            bit_width: 1 + cmp::max(left.bit_width, right.bit_width),
-            display: if left.bound == CompleteBound::Unit && right.bound == CompleteBound::Unit {
-                "2".into()
-            } else {
-                format!("({} + {})", left.display, right.display).into()
-            },
-            bound: CompleteBound::Sum(left, right),
-        }
-    }
-
-    /// (Non-public) constructor for the final data of a product type
-    fn product(left: Arc<Self>, right: Arc<Self>) -> Self {
-        Final {
-            tmr: Tmr::product(left.tmr, right.tmr),
-            bit_width: left.bit_width + right.bit_width,
-            display: if left.display == right.display {
-                match left.display.as_ref() {
-                    "2" => "2^2".into(),
-                    "2^2" => "2^4".into(),
-                    "2^4" => "2^8".into(),
-                    "2^8" => "2^16".into(),
-                    "2^16" => "2^32".into(),
-                    "2^32" => "2^64".into(),
-                    "2^64" => "2^128".into(),
-                    "2^128" => "2^256".into(),
-                    "2^256" => "2^512".into(),
-                    _ => format!("({} × {})", left.display, right.display).into(),
-                }
-            } else {
-                format!("({} × {})", left.display, right.display).into()
-            },
-            bound: CompleteBound::Product(left, right),
-        }
-    }
-
-    /// Accessor for the TMR
-    pub fn tmr(&self) -> Tmr {
-        self.tmr
-    }
-
-    /// Accessor for the Bit Machine bit-width of the type
-    pub fn bit_width(&self) -> usize {
-        self.bit_width
-    }
-
-    /// Accessor for the type bound
-    pub fn bound(&self) -> &CompleteBound {
-        &self.bound
-    }
-
-    /// Returns whether this is the unit type
-    pub fn is_unit(&self) -> bool {
-        self.bound == CompleteBound::Unit
-    }
-
-    /// Accessor for both children of the type, if they exist.
-    pub fn split(&self) -> Option<(Arc<Self>, Arc<Self>)> {
-        match &self.bound {
-            CompleteBound::Unit => None,
-            CompleteBound::Sum(left, right) | CompleteBound::Product(left, right) => {
-                Some((Arc::clone(left), Arc::clone(right)))
-            }
-        }
-    }
-}
-
-impl fmt::Display for Final {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.display, f)
-    }
-}
-
 /// Internal structure used to add mutability controls to the mutex guarding the
 /// internal data of a `Type`.
 ///
@@ -350,17 +246,6 @@ pub enum Bound {
     Sum(Type, Type),
     /// A product of two other types
     Product(Type, Type),
-}
-
-/// A finalized type bound, whose tree is accessible without any mutex locking
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub enum CompleteBound {
-    /// The unit type
-    Unit,
-    /// A sum of two other types
-    Sum(Arc<Final>, Arc<Final>),
-    /// A product of two other types
-    Product(Arc<Final>, Arc<Final>),
 }
 
 impl Constraint {
@@ -581,7 +466,7 @@ impl Type {
             // If both are finalized, unification just means checking that
             // they're equal.
             (Some(xdata), Some(ydata)) => {
-                if xdata.tmr == ydata.tmr {
+                if xdata.tmr() == ydata.tmr() {
                     return Ok(());
                 } else {
                     return Err(Error::CompleteTypeMismatch {
@@ -654,7 +539,7 @@ impl Type {
     pub fn tmr(&self) -> Option<Tmr> {
         let root = self.find_root(); // Final data is only actually set on root nodes
         let root_lock = root.inner_lock();
-        root_lock.final_data().map(|data| data.tmr)
+        root_lock.final_data().map(|data| data.tmr())
     }
 
     /// Accessor for the data of this type, if it is complete
