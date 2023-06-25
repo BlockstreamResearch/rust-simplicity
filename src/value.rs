@@ -239,42 +239,31 @@ impl fmt::Debug for Value {
 
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        #[derive(PartialEq, Eq)]
-        enum Parent {
-            Sum,
-            ProdL,
-            ProdR,
-        }
-
-        let mut parent_stack = vec![];
-        for val in self.pre_order_iter::<NoSharing>() {
-            match val {
+        for data in self.verbose_pre_order_iter::<NoSharing>() {
+            match data.node {
                 Value::Unit => {
-                    if parent_stack.last() != Some(&Parent::Sum) {
+                    if data.n_children_yielded == 0
+                        && !matches!(data.parent, Some(Value::SumL(_)) | Some(Value::SumR(_)))
+                    {
                         f.write_str("ε")?;
-                    }
-                    while let Some(parent) = parent_stack.pop() {
-                        if parent == Parent::ProdL {
-                            f.write_str(",")?;
-                            parent_stack.push(Parent::ProdR);
-                            break;
-                        } else if parent == Parent::ProdR {
-                            f.write_str(")")?;
-                        }
                     }
                 }
                 Value::SumL(..) => {
-                    f.write_str("0")?;
-                    parent_stack.push(Parent::Sum);
+                    if data.n_children_yielded == 0 {
+                        f.write_str("0")?;
+                    }
                 }
                 Value::SumR(..) => {
-                    f.write_str("1")?;
-                    parent_stack.push(Parent::Sum);
+                    if data.n_children_yielded == 0 {
+                        f.write_str("1")?;
+                    }
                 }
-                Value::Prod(..) => {
-                    f.write_str("(")?;
-                    parent_stack.push(Parent::ProdL);
-                }
+                Value::Prod(..) => match data.n_children_yielded {
+                    0 => f.write_str("(")?,
+                    1 => f.write_str(",")?,
+                    2 => f.write_str(")")?,
+                    _ => unreachable!(),
+                },
             }
         }
         Ok(())
