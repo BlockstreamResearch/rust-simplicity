@@ -93,7 +93,7 @@ pub enum Error {
         hint: &'static str,
     },
     /// A type is recursive (i.e., occurs within itself), violating the "occurs check"
-    OccursCheck { incomplete_bound: Bound },
+    OccursCheck { incomplete_type: Type },
 }
 
 impl fmt::Display for Error {
@@ -122,12 +122,12 @@ impl fmt::Display for Error {
                 )
             }
             Error::OccursCheck {
-                ref incomplete_bound,
+                ref incomplete_type,
             } => {
                 write!(
                     f,
-                    "occurs check failed (incomplete bound: {})",
-                    incomplete_bound,
+                    "occurs check failed (incomplete type: {})",
+                    incomplete_type,
                 )
             }
         }
@@ -151,6 +151,10 @@ pub struct Type {
 struct TypeInner {
     /// The type's status according to the union-bound algorithm.
     constraint: Constraint,
+    /// Used during finalization; whether this type has been seen before while
+    /// traversing the type tree. If it has, it means we have a type containing
+    /// itself, which is illegal. This is referred to as the "occurs check".
+    occurs_check: bool,
     /// The rank of the type which provides an ordering within disjoint sets
     /// during the union-bound type inference algorithm.
     rank: usize,
@@ -227,10 +231,6 @@ enum Constraint {
         bound: Bound,
         /// If this bound defines a complete type, its cached type data
         final_data: Option<Arc<Final>>,
-        /// Used during finalization; whether this type has been seen before while
-        /// traversing the type tree. If it has, it means we have a type containing
-        /// itself, which is illegal. This is referred to as the "occurs check".
-        occurs_check: bool,
     },
     /// Type is equal to another type, which is referred to as the "parent" of
     /// the type.
@@ -255,7 +255,6 @@ impl Constraint {
 
     fn unit() -> Self {
         Constraint::Bound {
-            occurs_check: false,
             bound: Bound::Unit,
             final_data: Some(Arc::new(Final::unit())),
         }
@@ -263,7 +262,6 @@ impl Constraint {
 
     fn sum(a: Type, b: Type) -> Self {
         Constraint::Bound {
-            occurs_check: false,
             final_data: if let (Some(adata), Some(bdata)) = (a.final_data(), b.final_data()) {
                 Some(Arc::new(Final::sum(adata, bdata)))
             } else {
@@ -275,7 +273,6 @@ impl Constraint {
 
     fn product(a: Type, b: Type) -> Self {
         Constraint::Bound {
-            occurs_check: false,
             final_data: if let (Some(adata), Some(bdata)) = (a.final_data(), b.final_data()) {
                 Some(Arc::new(Final::product(adata, bdata)))
             } else {
@@ -383,7 +380,6 @@ impl Type {
                 lock.constraint = Constraint::Bound {
                     bound,
                     final_data: final_data.as_ref().map(Arc::clone),
-                    occurs_check: false,
                 };
                 Ok(())
             }
@@ -574,26 +570,21 @@ impl Type {
         // at this point that it is not, so we are free to use `.into_mutable()`
         // to edit it.
         let mut root_lock = root.inner_lock().into_mutable();
+        if root_lock.occurs_check {
+            return Err(Error::OccursCheck {
+                incomplete_type: root.shallow_clone(),
+            });
+        }
+        root_lock.occurs_check = true;
         let data = match root_lock.constraint {
             Constraint::Free(_) => {
                 root_lock.constraint = Constraint::Bound {
-                    occurs_check: false,
                     bound: Bound::Unit,
                     final_data: None, // will be overwritten below
                 };
                 Arc::new(Final::unit())
             }
-            Constraint::Bound {
-                ref bound,
-                ref mut occurs_check,
-                ..
-            } => {
-                if *occurs_check {
-                    return Err(Error::OccursCheck {
-                        incomplete_bound: bound.shallow_clone(),
-                    });
-                }
-                *occurs_check = true;
+            Constraint::Bound { ref bound, .. } => {
                 Arc::new(match bound {
                     Bound::Unit => Final::unit(),
                     Bound::Sum(ref ty1, ref ty2) => {
@@ -693,6 +684,7 @@ impl From<Constraint> for Type {
         Type {
             inner: Arc::new(Mutex::new(TypeInner {
                 rank: 0,
+                occurs_check: false,
                 constraint,
             })),
         }
