@@ -162,8 +162,11 @@ struct TypeInner {
 
 impl TypeInner {
     fn final_data(&self) -> Option<&Arc<Final>> {
-        if let Constraint::Bound { ref final_data, .. } = self.constraint {
-            final_data.as_ref()
+        if let Constraint::Bound {
+            bound: Bound::Complete(ref final_data),
+        } = self.constraint
+        {
+            Some(final_data)
         } else {
             None
         }
@@ -227,8 +230,6 @@ enum Constraint {
     Bound {
         /// The bound
         bound: Bound,
-        /// If this bound defines a complete type, its cached type data
-        final_data: Option<Arc<Final>>,
     },
     /// Type is equal to another type, which is referred to as the "parent" of
     /// the type.
@@ -240,8 +241,8 @@ enum Constraint {
 pub enum Bound {
     /// Unconstrained type
     Free(String),
-    /// The unit type which has one value
-    Unit,
+    /// Fully-constrained (i.e. complete) type, which has no free variables.
+    Complete(Arc<Final>),
     /// A sum of two other types
     Sum(Type, Type),
     /// A product of two other types
@@ -252,36 +253,32 @@ impl Constraint {
     fn free(name: String) -> Self {
         Constraint::Bound {
             bound: Bound::Free(name),
-            final_data: None,
         }
     }
 
     fn unit() -> Self {
         Constraint::Bound {
-            bound: Bound::Unit,
-            final_data: Some(Arc::new(Final::unit())),
+            bound: Bound::Complete(Arc::new(Final::unit())),
         }
     }
 
     fn sum(a: Type, b: Type) -> Self {
         Constraint::Bound {
-            final_data: if let (Some(adata), Some(bdata)) = (a.final_data(), b.final_data()) {
-                Some(Arc::new(Final::sum(adata, bdata)))
+            bound: if let (Some(adata), Some(bdata)) = (a.final_data(), b.final_data()) {
+                Bound::Complete(Arc::new(Final::sum(adata, bdata)))
             } else {
-                None
+                Bound::Sum(a, b)
             },
-            bound: Bound::Sum(a, b),
         }
     }
 
     fn product(a: Type, b: Type) -> Self {
         Constraint::Bound {
-            final_data: if let (Some(adata), Some(bdata)) = (a.final_data(), b.final_data()) {
-                Some(Arc::new(Final::product(adata, bdata)))
+            bound: if let (Some(adata), Some(bdata)) = (a.final_data(), b.final_data()) {
+                Bound::Complete(Arc::new(Final::product(adata, bdata)))
             } else {
-                None
+                Bound::Product(a, b)
             },
-            bound: Bound::Product(a, b),
         }
     }
 }
@@ -368,12 +365,7 @@ impl Type {
     /// hint to the error.
     ///
     /// Fails if the type has an existing incompatible bound.
-    pub fn bind(
-        &self,
-        bound: Bound,
-        bound_final_data: &Option<Arc<Final>>,
-        hint: &'static str,
-    ) -> Result<(), Error> {
+    pub fn bind(&self, bound: Bound, hint: &'static str) -> Result<(), Error> {
         let root = self.find_root();
         let lock = root.inner_lock();
         match lock.constraint {
@@ -381,53 +373,77 @@ impl Type {
             // the existing bound with the new one.
             Constraint::Bound {
                 bound: ref existing_bound,
-                ref final_data,
-                ..
             } => {
+                let bind_error = || Error::Bind {
+                    existing_bound: existing_bound.shallow_clone(),
+                    new_bound: bound.shallow_clone(),
+                    hint,
+                };
+
                 match (&existing_bound, &bound) {
                     // Binding a free type to anything is a no-op
                     (_, Bound::Free(_)) => Ok(()),
                     // Free types are simply dropped and replaced by the new bound
                     (Bound::Free(_), _) => {
                         let mut lock = lock.into_mutable(); // free means non-finalized
-                        lock.constraint = Constraint::Bound {
-                            bound,
-                            final_data: bound_final_data.as_ref().map(Arc::clone),
-                        };
+                        lock.constraint = Constraint::Bound { bound };
                         Ok(())
                     }
-                    (Bound::Unit, Bound::Unit) => Ok(()),
+                    // Binding complete->complete shouldn't ever happen, but if so, we just
+                    // compare the two types and return a pass/fail
+                    (Bound::Complete(ref existing_final), Bound::Complete(ref new_final)) => {
+                        if existing_final == new_final {
+                            Ok(())
+                        } else {
+                            Err(bind_error())
+                        }
+                    }
+                    // Binding an incomplete to a complete type requires recursion.
+                    (Bound::Complete(ref complete), incomplete)
+                    | (&incomplete, Bound::Complete(ref complete)) => {
+                        match (complete.bound(), incomplete) {
+                            // A unit might match a Bound::Free(..) or a Bound::Complete(..),
+                            // and both cases were handled above. So this is an error.
+                            (CompleteBound::Unit, _) => Err(bind_error()),
+                            (
+                                CompleteBound::Product(ref comp1, ref comp2),
+                                Bound::Product(ref ty1, ref ty2),
+                            )
+                            | (
+                                CompleteBound::Sum(ref comp1, ref comp2),
+                                Bound::Sum(ref ty1, ref ty2),
+                            ) => {
+                                ty1.bind(Bound::Complete(Arc::clone(comp1)), hint)?;
+                                ty2.bind(Bound::Complete(Arc::clone(comp2)), hint)
+                            }
+                            _ => Err(bind_error()),
+                        }
+                    }
                     (Bound::Sum(ref x1, ref x2), Bound::Sum(ref y1, ref y2))
                     | (Bound::Product(ref x1, ref x2), Bound::Product(ref y1, ref y2)) => {
                         // Before recursing we need to drop the lock, and before
                         // that we need to clone some types from inside it.
                         let x1 = x1.shallow_clone();
                         let x2 = x2.shallow_clone();
-                        let is_not_finalized = final_data.is_none();
                         drop(lock); // drop lock before recursing
                         x1.unify(y1, hint)?;
                         x2.unify(y2, hint)?;
-                        if is_not_finalized {
-                            // If this type is not complete, it may be after unification, giving us
-                            // an opportunity to finaliize it. We do this eagerly to make sure that
-                            // "complete" (no free children) is always equivalent to "finalized" (the
-                            // `final_data` field being populated), even during inference.
-                            //
-                            // It also gives the user access to more information about the type,
-                            // prior to finalization.
-                            if let (Some(data1), Some(data2)) = (y1.final_data(), y2.final_data()) {
-                                let mut lock = root.inner_lock().into_mutable(); // ok, we are in a `if is_not_finalized` block
-                                if let Constraint::Bound {
-                                    ref mut final_data, ..
-                                } = lock.constraint
-                                {
-                                    if let Bound::Sum(..) = bound {
-                                        *final_data = Some(Arc::new(Final::sum(data1, data2)));
-                                    } else {
-                                        *final_data = Some(Arc::new(Final::product(data1, data2)));
-                                    }
-                                }
-                            }
+                        // This type was not complete, but it may be after unification, giving us
+                        // an opportunity to finaliize it. We do this eagerly to make sure that
+                        // "complete" (no free children) is always equivalent to "finalized" (the
+                        // bound field having variant Bound::Complete(..)), even during inference.
+                        //
+                        // It also gives the user access to more information about the type,
+                        // prior to finalization.
+                        if let (Some(data1), Some(data2)) = (y1.final_data(), y2.final_data()) {
+                            let mut lock = root.inner_lock().into_mutable(); // ok, we are in a `if is_not_finalized` block
+                            lock.constraint = Constraint::Bound {
+                                bound: Bound::Complete(Arc::new(if let Bound::Sum(..) = bound {
+                                    Final::sum(data1, data2)
+                                } else {
+                                    Final::product(data1, data2)
+                                })),
+                            };
                         }
                         Ok(())
                     }
@@ -515,23 +531,19 @@ impl Type {
         drop(y_lock);
         match old_y_constraint {
             // If y was already bound to a type, then x must be bound, too
-            Constraint::Bound {
-                bound: y_bound,
-                final_data,
-                ..
-            } => x_root.bind(y_bound, &final_data, hint),
+            Constraint::Bound { bound: y_bound } => x_root.bind(y_bound, hint),
             Constraint::EqualTo { .. } => unreachable!("y_lock is a root node"),
         }
     }
 
     /// Accessor for this type's bound
-    pub fn bound(&self) -> Option<Bound> {
+    pub fn bound(&self) -> Bound {
         let root = self.find_root();
         let root_lock = root.inner_lock();
         if let Constraint::Bound { ref bound, .. } = root_lock.constraint {
-            Some(bound.shallow_clone())
+            bound.shallow_clone()
         } else {
-            None
+            panic!("Bound is the only variant for Constraint now")
         }
     }
 
@@ -582,8 +594,9 @@ impl Type {
         root_lock.occurs_check = true;
         let data = match root_lock.constraint {
             Constraint::Bound { ref bound, .. } => {
-                Arc::new(match bound {
-                    Bound::Free(_) | Bound::Unit => Final::unit(),
+                match bound {
+                    Bound::Free(_) => Arc::new(Final::unit()),
+                    Bound::Complete(ref arc) => Arc::clone(arc),
                     Bound::Sum(ref ty1, ref ty2) => {
                         // Drop the lock before recursing
                         let ty1 = ty1.clone();
@@ -593,7 +606,7 @@ impl Type {
                         let data2 = ty2.finalize()?;
                         // Then re-lock to update own final data
                         root_lock = root.inner_lock().into_mutable();
-                        Final::sum(data1, data2)
+                        Arc::new(Final::sum(data1, data2))
                     }
                     Bound::Product(ref ty1, ref ty2) => {
                         // Drop the lock before recursing
@@ -604,20 +617,17 @@ impl Type {
                         let data2 = ty2.finalize()?;
                         // Then re-lock to update own final data
                         root_lock = root.inner_lock().into_mutable();
-                        Final::product(data1, data2)
+                        Arc::new(Final::product(data1, data2))
                     }
-                })
+                }
             }
             Constraint::EqualTo { .. } => unreachable!("lock is a root node"),
         };
 
         // After the above code, we definitely have a `Constraint::Bound` with
         // a populated `final_data` field.
-        if let Constraint::Bound {
-            ref mut final_data, ..
-        } = root_lock.constraint
-        {
-            *final_data = Some(Arc::clone(&data));
+        if let Constraint::Bound { ref mut bound, .. } = root_lock.constraint {
+            *bound = Bound::Complete(Arc::clone(&data));
             Ok(data)
         } else {
             unreachable!("we just set the constraint to Bound and now it's not Bound")
@@ -643,11 +653,7 @@ impl fmt::Display for Type {
         let root = self.find_root();
         let lock = root.inner_lock();
         match lock.constraint {
-            Constraint::Bound {
-                final_data: Some(ref data),
-                ..
-            } => fmt::Display::fmt(data, f),
-            Constraint::Bound { ref bound, .. } => fmt::Display::fmt(bound, f),
+            Constraint::Bound { ref bound } => fmt::Display::fmt(bound, f),
             Constraint::EqualTo { ref parent } => fmt::Display::fmt(parent, f),
         }
     }
@@ -668,7 +674,7 @@ impl fmt::Display for Bound {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Bound::Free(ref name) => f.write_str(name),
-            Bound::Unit => f.write_str("1"),
+            Bound::Complete(ref data) => fmt::Display::fmt(data, f),
             Bound::Sum(ref a, ref b) => write!(f, "({} + {})", a, b),
             Bound::Product(ref a, ref b) => write!(f, "({} × {})", a, b),
         }
