@@ -222,8 +222,6 @@ impl<'g> ops::Deref for ReadOnlyMutexGuard<'g> {
 /// Whether a `Type` is free, bound to some `Bound`, or equal to another `Type`
 #[derive(Clone, Debug)]
 enum Constraint {
-    /// Unconstrained type
-    Free(String),
     /// Type bound to a particular `Bound`. If the type is complete, this bound
     /// fully specifies the type.
     Bound {
@@ -240,6 +238,8 @@ enum Constraint {
 /// The structure that a `Type` is bound to
 #[derive(Clone, Debug)]
 pub enum Bound {
+    /// Unconstrained type
+    Free(String),
     /// The unit type which has one value
     Unit,
     /// A sum of two other types
@@ -250,7 +250,10 @@ pub enum Bound {
 
 impl Constraint {
     fn free(name: String) -> Self {
-        Constraint::Free(name)
+        Constraint::Bound {
+            bound: Bound::Free(name),
+            final_data: None,
+        }
     }
 
     fn unit() -> Self {
@@ -368,21 +371,12 @@ impl Type {
     pub fn bind(
         &self,
         bound: Bound,
-        final_data: &Option<Arc<Final>>,
+        bound_final_data: &Option<Arc<Final>>,
         hint: &'static str,
     ) -> Result<(), Error> {
         let root = self.find_root();
         let lock = root.inner_lock();
         match lock.constraint {
-            // Free types are simply dropped and replaced by the new bound
-            Constraint::Free(_) => {
-                let mut lock = lock.into_mutable(); // free means non-finalized
-                lock.constraint = Constraint::Bound {
-                    bound,
-                    final_data: final_data.as_ref().map(Arc::clone),
-                };
-                Ok(())
-            }
             // Types with bounds are more interesting: we have to recursively unify
             // the existing bound with the new one.
             Constraint::Bound {
@@ -391,6 +385,17 @@ impl Type {
                 ..
             } => {
                 match (&existing_bound, &bound) {
+                    // Binding a free type to anything is a no-op
+                    (_, Bound::Free(_)) => Ok(()),
+                    // Free types are simply dropped and replaced by the new bound
+                    (Bound::Free(_), _) => {
+                        let mut lock = lock.into_mutable(); // free means non-finalized
+                        lock.constraint = Constraint::Bound {
+                            bound,
+                            final_data: bound_final_data.as_ref().map(Arc::clone),
+                        };
+                        Ok(())
+                    }
                     (Bound::Unit, Bound::Unit) => Ok(()),
                     (Bound::Sum(ref x1, ref x2), Bound::Sum(ref y1, ref y2))
                     | (Bound::Product(ref x1, ref x2), Bound::Product(ref y1, ref y2)) => {
@@ -509,7 +514,6 @@ impl Type {
         drop(x_lock);
         drop(y_lock);
         match old_y_constraint {
-            Constraint::Free(_) => Ok(()),
             // If y was already bound to a type, then x must be bound, too
             Constraint::Bound {
                 bound: y_bound,
@@ -577,16 +581,9 @@ impl Type {
         }
         root_lock.occurs_check = true;
         let data = match root_lock.constraint {
-            Constraint::Free(_) => {
-                root_lock.constraint = Constraint::Bound {
-                    bound: Bound::Unit,
-                    final_data: None, // will be overwritten below
-                };
-                Arc::new(Final::unit())
-            }
             Constraint::Bound { ref bound, .. } => {
                 Arc::new(match bound {
-                    Bound::Unit => Final::unit(),
+                    Bound::Free(_) | Bound::Unit => Final::unit(),
                     Bound::Sum(ref ty1, ref ty2) => {
                         // Drop the lock before recursing
                         let ty1 = ty1.clone();
@@ -646,7 +643,6 @@ impl fmt::Display for Type {
         let root = self.find_root();
         let lock = root.inner_lock();
         match lock.constraint {
-            Constraint::Free(ref id) => fmt::Display::fmt(id, f),
             Constraint::Bound {
                 final_data: Some(ref data),
                 ..
@@ -671,6 +667,7 @@ impl Bound {
 impl fmt::Display for Bound {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            Bound::Free(ref name) => f.write_str(name),
             Bound::Unit => f.write_str("1"),
             Bound::Sum(ref a, ref b) => write!(f, "({} + {})", a, b),
             Bound::Product(ref a, ref b) => write!(f, "({} × {})", a, b),
