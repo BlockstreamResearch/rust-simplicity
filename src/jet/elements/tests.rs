@@ -1,10 +1,9 @@
 use std::sync::Arc;
 
-use crate::exec::BitMachine;
 use crate::jet::elements::{ElementsEnv, ElementsUtxo};
 use crate::jet::Elements;
 use crate::node::{ConstructNode, JetConstructible};
-use crate::{Cmr, Value};
+use crate::{BitMachine, Cmr, Value};
 use bitcoin_hashes::sha256::Midstate;
 use bitcoin_hashes::Hash;
 use elements::secp256k1_zkp::Tweak;

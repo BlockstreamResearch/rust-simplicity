@@ -236,8 +236,8 @@ pub(crate) fn thresh_verify(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::exec::BitMachine;
     use crate::jet::elements::ElementsEnv;
+    use crate::BitMachine;
     use bitcoin_hashes::{sha256, Hash};
     use elements::{bitcoin, secp256k1_zkp};
 

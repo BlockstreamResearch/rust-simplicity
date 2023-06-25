@@ -267,8 +267,8 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
 mod tests {
     use super::*;
     use crate::dag::{DagLike, NoSharing};
-    use crate::exec::BitMachine;
     use crate::jet::elements::ElementsEnv;
+    use crate::BitMachine;
     use bitcoin_hashes::{sha256, Hash};
     use elements::{bitcoin, secp256k1_zkp, PackedLockTime, SchnorrSigHashType};
     use std::convert::TryFrom;

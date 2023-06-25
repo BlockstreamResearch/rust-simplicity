@@ -97,9 +97,9 @@ pub trait Jet: Copy + Eq + Ord + Hash + std::fmt::Debug + std::fmt::Display {
 
 #[cfg(test)]
 mod tests {
+    use crate::jet::Core;
     use crate::node::{ConstructNode, CoreConstructible, JetConstructible};
-    use crate::Value;
-    use crate::{exec::BitMachine, jet::Core};
+    use crate::{BitMachine, Value};
     use std::sync::Arc;
 
     #[test]
