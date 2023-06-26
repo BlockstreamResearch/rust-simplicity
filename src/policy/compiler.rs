@@ -18,15 +18,15 @@
 
 use super::Policy;
 
-use crate::core::commit::CommitNode;
 use crate::jet::Elements;
 use crate::miniscript::ToPublicKey;
-use std::rc::Rc;
+use crate::node::ConstructNode;
+use std::sync::Arc;
 
 impl<Pk: ToPublicKey> Policy<Pk> {
     /// Compile the policy into a Simplicity program
-    pub fn compile(&self) -> Rc<CommitNode<Elements>> {
-        CommitNode::from_node(&self.serialize_no_witness())
+    pub fn compile(&self) -> Arc<ConstructNode<Elements>> {
+        self.serialize_no_witness()
     }
 }
 
@@ -34,12 +34,15 @@ impl<Pk: ToPublicKey> Policy<Pk> {
 mod tests {
     use super::*;
     use crate::jet::elements::ElementsEnv;
+    use crate::node::SimpleFinalizer;
     use crate::{BitMachine, FailEntropy, Value};
     use bitcoin_hashes::{sha256, Hash};
     use elements::{bitcoin, secp256k1_zkp};
     use std::sync::Arc;
 
-    fn compile(policy: Policy<bitcoin::XOnlyPublicKey>) -> (Rc<CommitNode<Elements>>, ElementsEnv) {
+    fn compile(
+        policy: Policy<bitcoin::XOnlyPublicKey>,
+    ) -> (Arc<ConstructNode<Elements>>, ElementsEnv) {
         let commit = policy.compile();
         let env = ElementsEnv::dummy();
 
@@ -47,14 +50,15 @@ mod tests {
     }
 
     fn execute_successful(
-        commit: &CommitNode<Elements>,
+        commit: &ConstructNode<Elements>,
         witness: Vec<Value>,
         env: &ElementsEnv,
     ) -> bool {
         let finalized = commit
-            .finalize(witness.into_iter(), true)
+            .finalize_types()
+            .expect("finalize types")
+            .finalize(&mut SimpleFinalizer::new(witness.into_iter().map(Arc::new)))
             .expect("finalize");
-        let finalized = finalized.to_node();
         let mut mac = BitMachine::for_program(&finalized);
 
         match mac.exec(&finalized, env) {

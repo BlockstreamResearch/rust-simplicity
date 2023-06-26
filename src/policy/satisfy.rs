@@ -177,6 +177,7 @@ mod tests {
     use super::*;
     use crate::dag::{DagLike, NoSharing};
     use crate::jet::elements::ElementsEnv;
+    use crate::node::SimpleFinalizer;
     use crate::{BitMachine, FailEntropy};
     use bitcoin_hashes::{sha256, Hash};
     use elements::{bitcoin, secp256k1_zkp, PackedLockTime, SchnorrSigHashType};
@@ -237,8 +238,11 @@ mod tests {
         assert!(policy.satisfy(&satisfier).is_err());
 
         let commit = policy.compile();
-        let program = commit.finalize(std::iter::empty(), true).expect("finalize");
-        let program = program.to_node();
+        let program = commit
+            .finalize_types()
+            .expect("finalize types")
+            .finalize(&mut SimpleFinalizer::new(std::iter::empty()))
+            .expect("finalize");
         let mut mac = BitMachine::for_program(&program);
 
         assert!(mac.exec(&program, &env).is_err());
