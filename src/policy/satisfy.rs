@@ -111,15 +111,9 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
             Policy::Sha256(hash) => satisfier
                 .lookup_sha256(hash)
                 .map(|preimage| self.compile_witness_bytes(preimage.as_ref())),
-            Policy::And(sub_policies) => {
-                assert_eq!(
-                    2,
-                    sub_policies.len(),
-                    "Conjunctions must have exactly two sub-policies"
-                );
-
-                let mut left = sub_policies[0].satisfy_helper(satisfier)?;
-                let right = sub_policies[1].satisfy_helper(satisfier)?;
+            Policy::And { left, right } => {
+                let mut left = left.satisfy_helper(satisfier)?;
+                let right = right.satisfy_helper(satisfier)?;
                 left.witness.extend(right.witness);
                 left.witness_cost += right.witness_cost;
                 left.program = compiler::and(left.program, right.program).ok()?;
@@ -127,32 +121,20 @@ impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
 
                 Some(left)
             }
-            Policy::Or(sub_policies) => {
-                assert_eq!(
-                    2,
-                    sub_policies.len(),
-                    "Disjunctions must have exactly two sub-policies"
-                );
-
+            Policy::Or { left, right } => {
                 // TODO: Replace std::u64::MAX in MSRV >=1.43.0
-                let mut left =
-                    sub_policies[0]
-                        .satisfy_helper(satisfier)
-                        .unwrap_or(SatisfierExtData {
-                            witness: VecDeque::new(),
-                            witness_cost: std::u64::MAX,
-                            program: sub_policies[0].compile().unwrap(),
-                            program_cost: 0,
-                        });
-                let mut right =
-                    sub_policies[1]
-                        .satisfy_helper(satisfier)
-                        .unwrap_or(SatisfierExtData {
-                            witness: VecDeque::new(),
-                            witness_cost: std::u64::MAX,
-                            program: sub_policies[1].compile().unwrap(),
-                            program_cost: 0,
-                        });
+                let mut left = left.satisfy_helper(satisfier).unwrap_or(SatisfierExtData {
+                    witness: VecDeque::new(),
+                    witness_cost: std::u64::MAX,
+                    program: left.compile().unwrap(),
+                    program_cost: 0,
+                });
+                let mut right = right.satisfy_helper(satisfier).unwrap_or(SatisfierExtData {
+                    witness: VecDeque::new(),
+                    witness_cost: std::u64::MAX,
+                    program: right.compile().unwrap(),
+                    program_cost: 0,
+                });
 
                 if left.cost() <= right.cost() {
                     // Both left and right path are unsatisfiable
@@ -272,6 +254,7 @@ mod tests {
     use bitcoin_hashes::{sha256, Hash};
     use elements::{bitcoin, secp256k1_zkp, PackedLockTime, SchnorrSigHashType};
     use std::convert::TryFrom;
+    use std::sync::Arc;
 
     fn get_satisfier(env: &ElementsEnv) -> PolicySatisfier<bitcoin::XOnlyPublicKey> {
         let mut preimages = HashMap::new();
@@ -445,7 +428,10 @@ mod tests {
 
         // Policy 0
 
-        let policy0 = Policy::And(vec![Policy::Sha256(images[0]), Policy::Sha256(images[1])]);
+        let policy0 = Policy::And {
+            left: Arc::new(Policy::Sha256(images[0])),
+            right: Arc::new(Policy::Sha256(images[1])),
+        };
         let program = policy0.satisfy(&satisfier).expect("satisfiable");
         let witness = to_witness(&program);
         assert_eq!(2, witness.len());
@@ -461,18 +447,18 @@ mod tests {
 
         // Policy 1
 
-        let policy1 = Policy::And(vec![
-            Policy::Sha256(sha256::Hash::from_inner([0; 32])),
-            Policy::Sha256(images[1]),
-        ]);
+        let policy1 = Policy::And {
+            left: Arc::new(Policy::Sha256(sha256::Hash::from_inner([0; 32]))),
+            right: Arc::new(Policy::Sha256(images[1])),
+        };
         assert!(policy1.satisfy(&satisfier).is_none());
 
         // Policy 2
 
-        let policy2 = Policy::And(vec![
-            Policy::Sha256(images[0]),
-            Policy::Sha256(sha256::Hash::from_inner([0; 32])),
-        ]);
+        let policy2 = Policy::And {
+            left: Arc::new(Policy::Sha256(images[0])),
+            right: Arc::new(Policy::Sha256(sha256::Hash::from_inner([0; 32]))),
+        };
         assert!(policy2.satisfy(&satisfier).is_none());
     }
 
@@ -502,31 +488,34 @@ mod tests {
 
         // Policy 0
 
-        let policy0 = Policy::Or(vec![Policy::Sha256(images[0]), Policy::Sha256(images[1])]);
+        let policy0 = Policy::Or {
+            left: Arc::new(Policy::Sha256(images[0])),
+            right: Arc::new(Policy::Sha256(images[1])),
+        };
         assert_branch(&policy0, false);
 
         // Policy 1
 
-        let policy1 = Policy::Or(vec![
-            Policy::Sha256(images[0]),
-            Policy::Sha256(sha256::Hash::from_inner([1; 32])),
-        ]);
+        let policy1 = Policy::Or {
+            left: Arc::new(Policy::Sha256(images[0])),
+            right: Arc::new(Policy::Sha256(sha256::Hash::from_inner([1; 32]))),
+        };
         assert_branch(&policy1, false);
 
         // Policy 2
 
-        let policy2 = Policy::Or(vec![
-            Policy::Sha256(sha256::Hash::from_inner([0; 32])),
-            Policy::Sha256(images[1]),
-        ]);
+        let policy2 = Policy::Or {
+            left: Arc::new(Policy::Sha256(sha256::Hash::from_inner([0; 32]))),
+            right: Arc::new(Policy::Sha256(images[1])),
+        };
         assert_branch(&policy2, true);
 
         // Policy 3
 
-        let policy3 = Policy::Or(vec![
-            Policy::Sha256(sha256::Hash::from_inner([0; 32])),
-            Policy::Sha256(sha256::Hash::from_inner([1; 32])),
-        ]);
+        let policy3 = Policy::Or {
+            left: Arc::new(Policy::Sha256(sha256::Hash::from_inner([0; 32]))),
+            right: Arc::new(Policy::Sha256(sha256::Hash::from_inner([1; 32]))),
+        };
         assert!(policy3.satisfy(&satisfier).is_none());
     }
 

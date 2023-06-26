@@ -1,5 +1,6 @@
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
+use std::sync::Arc;
 
 use crate::miniscript::Error as msError;
 use crate::miniscript::MiniscriptKey;
@@ -32,10 +33,6 @@ where
     }
 }
 
-// FIXME: export macro from miniscript, avoid code repeatation
-// miniscript::serde_string_impl_pk!(Policy, "a simplicity abstract policy");
-
-// FIXME: Make a generic module for parsing recusrive structure with it's own error type.
 impl<Pk> expression::FromTree for Policy<Pk>
 where
     Pk: MiniscriptKey + FromStr,
@@ -62,21 +59,17 @@ where
                 if top.args.len() != 2 {
                     return Err(msError::PolicyError(MsPolicyError::NonBinaryArgAnd));
                 }
-                let mut subs = Vec::with_capacity(top.args.len());
-                for arg in &top.args {
-                    subs.push(Policy::from_tree(arg)?);
-                }
-                Ok(Policy::And(subs))
+                let left = Arc::new(Policy::from_tree(&top.args[0])?);
+                let right = Arc::new(Policy::from_tree(&top.args[0])?);
+                Ok(Policy::And { left, right })
             }
             ("or", _) => {
                 if top.args.len() != 2 {
                     return Err(msError::PolicyError(MsPolicyError::NonBinaryArgOr));
                 }
-                let mut subs = Vec::with_capacity(top.args.len());
-                for arg in &top.args {
-                    subs.push(Policy::from_tree(arg)?);
-                }
-                Ok(Policy::Or(subs))
+                let left = Arc::new(Policy::from_tree(&top.args[0])?);
+                let right = Arc::new(Policy::from_tree(&top.args[0])?);
+                Ok(Policy::Or { left, right })
             }
             ("thresh", nsubs) => {
                 if nsubs == 0 {
@@ -133,21 +126,30 @@ impl<'a, Pk: MiniscriptKey, Ctx: ScriptContext> TryFrom<&'a Miniscript<Pk, Ctx>>
                 Err(Error::Policy(policy::Error::Ripemd160))
             }
             Terminal::AndV(x, y) | Terminal::AndB(x, y) => {
-                let inner = vec![x.as_ref().try_into()?, y.as_ref().try_into()?];
-                Ok(Policy::And(inner))
+                let left = Arc::new(x.as_ref().try_into()?);
+                let right = Arc::new(y.as_ref().try_into()?);
+                Ok(Policy::And { left, right })
             }
             Terminal::AndOr(x, y, z) => {
-                let inner_and = vec![x.as_ref().try_into()?, y.as_ref().try_into()?];
-                let and = Policy::And(inner_and);
-                let inner_or = vec![and, z.as_ref().try_into()?];
-                Ok(Policy::Or(inner_or))
+                let and_left = Arc::new(x.as_ref().try_into()?);
+                let and_right = Arc::new(y.as_ref().try_into()?);
+                let and = Arc::new(Policy::And {
+                    left: and_left,
+                    right: and_right,
+                });
+                let or_right = Arc::new(z.as_ref().try_into()?);
+                Ok(Policy::Or {
+                    left: and,
+                    right: or_right,
+                })
             }
             Terminal::OrB(x, y)
             | Terminal::OrD(x, y)
             | Terminal::OrC(x, y)
             | Terminal::OrI(x, y) => {
-                let inner = vec![x.as_ref().try_into()?, y.as_ref().try_into()?];
-                Ok(Policy::Or(inner))
+                let left = Arc::new(x.as_ref().try_into()?);
+                let right = Arc::new(y.as_ref().try_into()?);
+                Ok(Policy::Or { left, right })
             }
             Terminal::Thresh(k, sub_policies) => {
                 let mut translated_sub_policies = Vec::with_capacity(sub_policies.len());

@@ -15,7 +15,7 @@
 use honggfuzz::fuzz;
 
 use simplicity::bitcoin::XOnlyPublicKey;
-use simplicity::policy::ast::Policy;
+use simplicity::policy::Policy;
 use std::str::{self, FromStr};
 
 fn do_test(data: &[u8]) {

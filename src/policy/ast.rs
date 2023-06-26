@@ -20,7 +20,8 @@
 //! These policies can be compiled to Simplicity and also be lifted back up from
 //! Simplicity expressions to policy.
 
-use std::fmt;
+use std::sync::Arc;
+use std::{fmt, mem};
 
 use crate::miniscript::{MiniscriptKey, Translator};
 
@@ -44,10 +45,16 @@ pub enum Policy<Pk: MiniscriptKey> {
     Older(u16),
     /// Provide the preimage of the given SHA256 hash image
     Sha256(Pk::Sha256),
-    /// Satisfy all of the given sub-policies
-    And(Vec<Policy<Pk>>),
+    /// Satisfy both of the given sub-policies
+    And {
+        left: Arc<Policy<Pk>>,
+        right: Arc<Policy<Pk>>,
+    },
     /// Satisfy exactly one of the given sub-policies
-    Or(Vec<Policy<Pk>>),
+    Or {
+        left: Arc<Policy<Pk>>,
+        right: Arc<Policy<Pk>>,
+    },
     /// Satisfy exactly `k` of the given sub-policies
     Threshold(usize, Vec<Policy<Pk>>),
 }
@@ -72,16 +79,20 @@ impl<Pk: MiniscriptKey> Policy<Pk> {
                     subs.iter().map(|sub| sub.translate(translator)).collect();
                 new_subs.map(|ok| Policy::Threshold(k, ok))
             }
-            Policy::And(ref subs) => Ok(Policy::And(
-                subs.iter()
-                    .map(|sub| sub.translate(translator))
-                    .collect::<Result<Vec<Policy<Q>>, E>>()?,
-            )),
-            Policy::Or(ref subs) => Ok(Policy::Or(
-                subs.iter()
-                    .map(|sub| sub.translate(translator))
-                    .collect::<Result<Vec<Policy<Q>>, E>>()?,
-            )),
+            Policy::And {
+                ref left,
+                ref right,
+            } => Ok(Policy::And {
+                left: Arc::new(left.translate(translator)?),
+                right: Arc::new(right.translate(translator)?),
+            }),
+            Policy::Or {
+                ref left,
+                ref right,
+            } => Ok(Policy::Or {
+                left: Arc::new(left.translate(translator)?),
+                right: Arc::new(right.translate(translator)?),
+            }),
         }
     }
 
@@ -89,36 +100,32 @@ impl<Pk: MiniscriptKey> Policy<Pk> {
     /// `Unsatisfiable`s. Does not reorder any branches; use `.sort`.
     pub fn normalized(self) -> Policy<Pk> {
         match self {
-            Policy::And(subs) => {
-                let mut ret_subs = Vec::with_capacity(subs.len());
-                for sub in subs {
-                    match sub.normalized() {
-                        Policy::Trivial => {}
-                        Policy::Unsatisfiable => return Policy::Unsatisfiable,
-                        Policy::And(and_subs) => ret_subs.extend(and_subs),
-                        x => ret_subs.push(x),
+            Policy::And { left, right } => {
+                if *left == Policy::Unsatisfiable || *right == Policy::Unsatisfiable {
+                    Policy::Unsatisfiable
+                } else if *left == Policy::Trivial {
+                    right.as_ref().clone().normalized()
+                } else if *right == Policy::Trivial {
+                    left.as_ref().clone().normalized()
+                } else {
+                    Policy::And {
+                        left: Arc::new(left.as_ref().clone().normalized()),
+                        right: Arc::new(right.as_ref().clone().normalized()),
                     }
-                }
-                match ret_subs.len() {
-                    0 => Policy::Trivial,
-                    1 => ret_subs.pop().unwrap(),
-                    _ => Policy::And(ret_subs),
                 }
             }
-            Policy::Or(subs) => {
-                let mut ret_subs = Vec::with_capacity(subs.len());
-                for sub in subs {
-                    match sub {
-                        Policy::Trivial => return Policy::Trivial,
-                        Policy::Unsatisfiable => {}
-                        Policy::Or(or_subs) => ret_subs.extend(or_subs),
-                        x => ret_subs.push(x),
+            Policy::Or { left, right } => {
+                if *left == Policy::Trivial || *right == Policy::Trivial {
+                    Policy::Trivial
+                } else if *left == Policy::Unsatisfiable {
+                    right.as_ref().clone().normalized()
+                } else if *right == Policy::Unsatisfiable {
+                    left.as_ref().clone().normalized()
+                } else {
+                    Policy::Or {
+                        left: Arc::new(left.as_ref().clone().normalized()),
+                        right: Arc::new(right.as_ref().clone().normalized()),
                     }
-                }
-                match ret_subs.len() {
-                    0 => Policy::Trivial,
-                    1 => ret_subs.pop().unwrap(),
-                    _ => Policy::Or(ret_subs),
                 }
             }
             x => x,
@@ -129,24 +136,34 @@ impl<Pk: MiniscriptKey> Policy<Pk> {
     /// Does **not** allow policies to be compared for functional equivalence;
     /// in general this appears to require Gröbner basis techniques that are not
     /// implemented.
-    pub fn sorted(self) -> Policy<Pk> {
+    pub fn sorted(mut self) -> Policy<Pk> {
+        self.sort();
+        self
+    }
+
+    fn sort(&mut self) {
         match self {
-            Policy::And(subs) => {
-                let mut new_subs: Vec<_> = subs.into_iter().map(Policy::sorted).collect();
-                new_subs.sort();
-                Policy::And(new_subs)
+            Policy::And {
+                ref mut left,
+                ref mut right,
             }
-            Policy::Or(subs) => {
-                let mut new_subs: Vec<_> = subs.into_iter().map(Policy::sorted).collect();
-                new_subs.sort();
-                Policy::Or(new_subs)
+            | Policy::Or {
+                ref mut left,
+                ref mut right,
+            } => {
+                left.as_ref().clone().sort();
+                right.as_ref().clone().sort();
+                if right > left {
+                    mem::swap(left, right);
+                }
             }
-            Policy::Threshold(k, subs) => {
-                let mut new_subs: Vec<_> = subs.into_iter().map(Policy::sorted).collect();
-                new_subs.sort();
-                Policy::Threshold(k, new_subs)
+            Policy::Threshold(_, ref mut subs) => {
+                for sub in &mut *subs {
+                    sub.sort();
+                }
+                subs.sort();
             }
-            x => x,
+            _ => {}
         }
     }
 }
@@ -160,21 +177,8 @@ impl<Pk: MiniscriptKey> fmt::Debug for Policy<Pk> {
             Policy::After(n) => write!(f, "after({})", n),
             Policy::Older(n) => write!(f, "older({})", n),
             Policy::Sha256(h) => write!(f, "sha256({})", h),
-            Policy::And(sub_policies) | Policy::Or(sub_policies) => {
-                match self {
-                    Policy::And(_) => f.write_str("and(")?,
-                    Policy::Or(_) => f.write_str("or(")?,
-                    _ => unreachable!(),
-                }
-
-                if !sub_policies.is_empty() {
-                    write!(f, "{:?}", sub_policies[0])?;
-                    for sub in &sub_policies[1..] {
-                        write!(f, ",{:?}", sub)?;
-                    }
-                }
-                f.write_str(")")
-            }
+            Policy::And { left, right } => write!(f, "and({},{})", left, right),
+            Policy::Or { left, right } => write!(f, "or({},{})", left, right),
             Policy::Threshold(k, sub_policies) => {
                 write!(f, "thresh({}", k)?;
                 for sub in sub_policies {

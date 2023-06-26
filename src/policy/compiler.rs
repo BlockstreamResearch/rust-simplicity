@@ -93,28 +93,14 @@ fn compile<Pk: MiniscriptKey + PublicKey32>(
 
             verify_bexp(pair_hash_computed_hash, eq256)
         }
-        Policy::And(sub_policies) => {
-            assert_eq!(
-                2,
-                sub_policies.len(),
-                "Conjunctions must have exactly two sub-policies"
-            );
-
-            let left = compile(&sub_policies[0])?;
-            let right = compile(&sub_policies[1])?;
-
+        Policy::And { left, right } => {
+            let left = compile(left)?;
+            let right = compile(right)?;
             and(left, right)
         }
-        Policy::Or(sub_policies) => {
-            assert_eq!(
-                2,
-                sub_policies.len(),
-                "Disjunctions must have exactly two sub-policies"
-            );
-
-            let left = compile(&sub_policies[0])?;
-            let right = compile(&sub_policies[1])?;
-
+        Policy::Or { left, right } => {
+            let left = compile(left)?;
+            let right = compile(right)?;
             or(left, right, UsedCaseBranch::Both)
         }
         Policy::Threshold(k, sub_policies) => {
@@ -240,6 +226,7 @@ mod tests {
     use crate::BitMachine;
     use bitcoin_hashes::{sha256, Hash};
     use elements::{bitcoin, secp256k1_zkp};
+    use std::sync::Arc;
 
     fn compile(policy: Policy<bitcoin::XOnlyPublicKey>) -> (Rc<CommitNode<Elements>>, ElementsEnv) {
         let commit = super::compile(&policy).expect("compile");
@@ -360,10 +347,10 @@ mod tests {
         let preimage1 = [2; 32];
         let image1 = sha256::Hash::hash(&preimage1);
 
-        let (commit, env) = compile(Policy::And(vec![
-            Policy::Sha256(image0),
-            Policy::Sha256(image1),
-        ]));
+        let (commit, env) = compile(Policy::And {
+            left: Arc::new(Policy::Sha256(image0)),
+            right: Arc::new(Policy::Sha256(image1)),
+        });
 
         let valid_witness = vec![
             Value::u256_from_slice(&preimage0),
@@ -389,7 +376,10 @@ mod tests {
         let preimage0 = [1; 32];
         let image0 = sha256::Hash::hash(&preimage0);
 
-        let (commit, env) = compile(Policy::And(vec![Policy::Sha256(image0), Policy::Trivial]));
+        let (commit, env) = compile(Policy::And {
+            left: Arc::new(Policy::Sha256(image0)),
+            right: Arc::new(Policy::Trivial),
+        });
 
         let valid_witness = vec![Value::u256_from_slice(&preimage0)];
         assert!(execute_successful(&commit, valid_witness, &env));
@@ -405,10 +395,10 @@ mod tests {
         let preimage1 = [2; 32];
         let image1 = sha256::Hash::hash(&preimage1);
 
-        let (commit, env) = compile(Policy::Or(vec![
-            Policy::Sha256(image0),
-            Policy::Sha256(image1),
-        ]));
+        let (commit, env) = compile(Policy::Or {
+            left: Arc::new(Policy::Sha256(image0)),
+            right: Arc::new(Policy::Sha256(image1)),
+        });
 
         let valid_witness = vec![
             Value::u1(0),

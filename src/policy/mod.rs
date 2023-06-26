@@ -25,7 +25,7 @@
 //! these with BIP32 paths, pay-to-contract instructions, etc.
 //!
 
-pub mod ast;
+mod ast;
 mod compiler;
 pub mod descriptor;
 mod embed;
