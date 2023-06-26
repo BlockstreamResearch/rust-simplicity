@@ -173,6 +173,20 @@ pub fn decode_program<I: Iterator<Item = u8>, J: Jet>(
 pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
 ) -> Result<ArcNode<J>, Error> {
+    enum Converted<J: Jet> {
+        Node(ArcNode<J>),
+        Hidden(Cmr),
+    }
+    use Converted::{Hidden, Node};
+    impl<J: Jet> Converted<J> {
+        fn get(&self) -> Result<&ArcNode<J>, Error> {
+            match self {
+                Node(arc) => Ok(arc),
+                Hidden(_) => Err(Error::HiddenNode),
+            }
+        }
+    }
+
     let len = bits.read_natural(None)?;
 
     if len == 0 {
@@ -187,20 +201,6 @@ pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
     for _ in 0..len {
         let new_node = decode_node(bits, nodes.len())?;
         nodes.push(new_node);
-    }
-
-    enum Converted<J: Jet> {
-        Node(ArcNode<J>),
-        Hidden(Cmr),
-    }
-    use Converted::{Hidden, Node};
-    impl<J: Jet> Converted<J> {
-        fn get(&self) -> Result<&ArcNode<J>, Error> {
-            match self {
-                Node(arc) => Ok(arc),
-                Hidden(_) => Err(Error::HiddenNode),
-            }
-        }
     }
 
     // Convert the DecodeNode structure into a CommitNode structure
@@ -323,12 +323,12 @@ pub fn decode_power_of_2<I: Iterator<Item = bool>>(
     iter: &mut I,
     exp: usize,
 ) -> Result<Value, Error> {
-    assert_eq!(exp.count_ones(), 1, "exp must be a power of 2");
-
     struct StackElem {
         value: Value,
         width: usize,
     }
+
+    assert_eq!(exp.count_ones(), 1, "exp must be a power of 2");
 
     let mut stack = Vec::with_capacity(32);
     for _ in 0..exp {
