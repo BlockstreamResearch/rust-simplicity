@@ -24,6 +24,7 @@ use std::sync::Arc;
 use std::{fmt, mem};
 
 use crate::miniscript::{MiniscriptKey, Translator};
+use crate::FailEntropy;
 
 /// Policy that expresses spending conditions for Simplicity.
 ///
@@ -34,7 +35,7 @@ use crate::miniscript::{MiniscriptKey, Translator};
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Policy<Pk: MiniscriptKey> {
     /// Unsatisfiable
-    Unsatisfiable,
+    Unsatisfiable(FailEntropy),
     /// Trivially satisfiable
     Trivial,
     /// Provide a signature that matches the given public key and some given message hash
@@ -68,7 +69,7 @@ impl<Pk: MiniscriptKey> Policy<Pk> {
         Q: MiniscriptKey,
     {
         match *self {
-            Policy::Unsatisfiable => Ok(Policy::Unsatisfiable),
+            Policy::Unsatisfiable(entropy) => Ok(Policy::Unsatisfiable(entropy)),
             Policy::Trivial => Ok(Policy::Trivial),
             Policy::Key(ref pk) => translator.pk(pk).map(Policy::Key),
             Policy::Sha256(ref h) => translator.sha256(h).map(Policy::Sha256),
@@ -101,8 +102,10 @@ impl<Pk: MiniscriptKey> Policy<Pk> {
     pub fn normalized(self) -> Policy<Pk> {
         match self {
             Policy::And { left, right } => {
-                if *left == Policy::Unsatisfiable || *right == Policy::Unsatisfiable {
-                    Policy::Unsatisfiable
+                if let Policy::Unsatisfiable(entropy) = *left {
+                    Policy::Unsatisfiable(entropy)
+                } else if let Policy::Unsatisfiable(entropy) = *right {
+                    Policy::Unsatisfiable(entropy)
                 } else if *left == Policy::Trivial {
                     right.as_ref().clone().normalized()
                 } else if *right == Policy::Trivial {
@@ -117,9 +120,9 @@ impl<Pk: MiniscriptKey> Policy<Pk> {
             Policy::Or { left, right } => {
                 if *left == Policy::Trivial || *right == Policy::Trivial {
                     Policy::Trivial
-                } else if *left == Policy::Unsatisfiable {
+                } else if let Policy::Unsatisfiable(..) = *left {
                     right.as_ref().clone().normalized()
-                } else if *right == Policy::Unsatisfiable {
+                } else if let Policy::Unsatisfiable(..) = *right {
                     left.as_ref().clone().normalized()
                 } else {
                     Policy::Or {
@@ -171,7 +174,7 @@ impl<Pk: MiniscriptKey> Policy<Pk> {
 impl<Pk: MiniscriptKey> fmt::Debug for Policy<Pk> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Policy::Unsatisfiable => f.write_str("UNSATISFIABLE"),
+            Policy::Unsatisfiable(..) => f.write_str("UNSATISFIABLE"),
             Policy::Trivial => f.write_str("TRIVIAL"),
             Policy::Key(pk) => write!(f, "pk({})", pk),
             Policy::After(n) => write!(f, "after({})", n),
