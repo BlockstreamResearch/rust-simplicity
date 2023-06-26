@@ -475,3 +475,28 @@ impl From<Bound> for Type {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use crate::jet::Core;
+    use crate::node::{ConstructNode, CoreConstructible};
+
+    #[test]
+    fn inference_failure() {
+        // unit: A -> 1
+        let unit = Arc::<ConstructNode<Core>>::unit(); // 1 -> 1
+
+        // Force unit to be 1->1
+        Arc::<ConstructNode<Core>>::comp(&unit, &unit).unwrap();
+
+        // take unit: 1 * B -> 1
+        let take_unit = Arc::<ConstructNode<Core>>::take(&unit); // 1*1 -> 1
+
+        // Pair will try to unify 1 and 1*B
+        Arc::<ConstructNode<Core>>::pair(&unit, &take_unit).unwrap_err();
+        // Trying to do it again should not work.
+        Arc::<ConstructNode<Core>>::pair(&unit, &take_unit).unwrap_err();
+    }
+}
