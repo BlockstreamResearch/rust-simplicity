@@ -1,5 +1,5 @@
 use crate::policy::satisfy::PolicySatisfier;
-use crate::{policy, Cmr, Policy};
+use crate::{Cmr, Error, Policy};
 use bitcoin_hashes::Hash;
 use elements::schnorr::{TapTweak, XOnlyPublicKey};
 use elements::secp256k1_zkp;
@@ -60,7 +60,7 @@ pub struct Descriptor<Pk: MiniscriptKey> {
 impl<Pk: ToPublicKey> Descriptor<Pk> {
     /// Create a new descriptor from the given internal key and
     /// policy which will become a single tap leaf
-    pub fn new(internal_key: Pk, policy: Policy<Pk>) -> Result<Self, crate::Error> {
+    pub fn new(internal_key: Pk, policy: Policy<Pk>) -> Result<Self, Error> {
         let commit = policy.compile();
         let cmr = commit.cmr();
         let script = elements::Script::from(Vec::from(cmr.as_ref()));
@@ -85,7 +85,7 @@ impl<Pk: ToPublicKey> Descriptor<Pk> {
     /// Create a new descriptor from the given policy which will become a single tap leaf
     ///
     /// The internal key is set to a constant that is provably not spendable
-    pub fn single_leaf(policy: Policy<Pk>) -> Result<Self, crate::Error>
+    pub fn single_leaf(policy: Policy<Pk>) -> Result<Self, Error>
     where
         Pk: UnspendableKey,
     {
@@ -137,11 +137,8 @@ impl<Pk: ToPublicKey> Descriptor<Pk> {
     pub fn get_satisfaction(
         &self,
         satisfier: &PolicySatisfier<Pk>,
-    ) -> Result<(Vec<Vec<u8>>, elements::Script), policy::Error> {
-        let program = self
-            .policy
-            .satisfy(satisfier)
-            .ok_or(policy::Error::CouldNotSatisfy)?;
+    ) -> Result<(Vec<Vec<u8>>, elements::Script), Error> {
+        let program = self.policy.satisfy(satisfier)?;
 
         // Uncomment code below for sanity check
         // that program successfully runs on Bit Machine
@@ -151,7 +148,7 @@ impl<Pk: ToPublicKey> Descriptor<Pk> {
         //     .expect("sanity check");
 
         let program_and_witness_bytes = program.encode_to_vec();
-        let cmr_bytes = Vec::from(program.cmr.as_ref());
+        let cmr_bytes = Vec::from(program.cmr().as_ref());
 
         // Single leaf: leaf hash = merkle root
         let (script, leaf_version) = self.leaf();
@@ -195,7 +192,7 @@ where
     <Pk as FromStr>::Err: ToString,
     <Pk::Sha256 as FromStr>::Err: ToString,
 {
-    type Err = crate::Error;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let policy = Policy::from_str(s)?;

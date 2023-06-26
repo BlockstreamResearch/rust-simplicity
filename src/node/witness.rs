@@ -47,6 +47,7 @@ pub type WitnessNode<J> = Node<Witness, J>;
 
 impl<J: Jet> WitnessNode<J> {
     /// Creates a copy of the node (and its entire DAG with the prune bit set)
+    #[must_use]
     pub fn pruned(&self) -> Arc<Self> {
         let new_data = WitnessData {
             must_prune: true,
@@ -110,14 +111,21 @@ impl<J: Jet> WitnessNode<J> {
 
             fn convert_data(
                 &mut self,
-                _: &PostOrderIterItem<&WitnessNode<J>>,
+                data: &PostOrderIterItem<&WitnessNode<J>>,
                 inner: Inner<&Arc<WitnessNode<J>>, J, &Option<Arc<Value>>>,
             ) -> Result<WitnessData<J>, Self::Error> {
                 let converted_inner = inner
                     .map(|node| node.cached_data())
                     .map_witness(|wit| wit.as_ref().map(Arc::clone));
                 // This next line does the actual retyping.
-                WitnessData::from_inner(converted_inner)
+                let mut retyped = WitnessData::from_inner(converted_inner)?;
+                // Sometimes we set the prune bit on nodes without setting that
+                // of their children; in this case the prune bit inferred from
+                // `converted_inner` will be incorrect.
+                if data.node.data.must_prune {
+                    retyped.must_prune = true;
+                }
+                Ok(retyped)
             }
         }
 
