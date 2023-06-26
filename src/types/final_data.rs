@@ -23,11 +23,11 @@
 //! structure, since this structure is immutable.
 //!
 
+use crate::dag::{Dag, DagLike, NoSharing};
 use crate::Tmr;
 
-use std::borrow::Cow;
 use std::sync::Arc;
-use std::{cmp, fmt};
+use std::{cmp, fmt, hash};
 
 /// A finalized type bound, whose tree is accessible without any mutex locking
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
@@ -42,7 +42,7 @@ pub enum CompleteBound {
 
 /// Data related to a finalized type, which can be extracted from a [`super::Type`]
 /// if (and only if) it is finalized.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+#[derive(Clone)]
 pub struct Final {
     /// Underlying type
     bound: CompleteBound,
@@ -50,8 +50,96 @@ pub struct Final {
     bit_width: usize,
     /// TMR of the type
     tmr: Tmr,
-    /// Cached string representation of the type
-    display: Cow<'static, str>,
+}
+
+impl PartialEq for Final {
+    fn eq(&self, other: &Self) -> bool {
+        self.tmr == other.tmr
+    }
+}
+impl Eq for Final {}
+
+impl PartialOrd for Final {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        self.tmr.partial_cmp(&other.tmr)
+    }
+}
+impl Ord for Final {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        self.tmr.cmp(&other.tmr)
+    }
+}
+impl hash::Hash for Final {
+    fn hash<H: hash::Hasher>(&self, hasher: &mut H) {
+        self.tmr.hash(hasher)
+    }
+}
+
+impl fmt::Debug for Final {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{{ tmr: {}, bit_width: {}, bound: {} }}",
+            self.tmr, self.bit_width, self
+        )
+    }
+}
+
+impl fmt::Display for Final {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut skipping: Option<Tmr> = None;
+        for data in self.verbose_pre_order_iter::<NoSharing>() {
+            if let Some(skip) = skipping {
+                if data.is_complete && data.node.tmr == skip {
+                    skipping = None;
+                }
+                continue;
+            } else {
+                if data.node.tmr == Tmr::POWERS_OF_TWO[0] {
+                    f.write_str("2")?;
+                    skipping = Some(data.node.tmr);
+                }
+                for (n, tmr) in Tmr::POWERS_OF_TWO.iter().enumerate().skip(1) {
+                    if data.node.tmr == *tmr {
+                        write!(f, "2^{}", 1 << n)?;
+                        skipping = Some(data.node.tmr);
+                    }
+                }
+            }
+            if skipping.is_some() {
+                continue;
+            }
+
+            match (&data.node.bound, data.n_children_yielded) {
+                (CompleteBound::Unit, _) => {
+                    f.write_str("1")?;
+                }
+                (CompleteBound::Sum(..), 0) | (CompleteBound::Product(..), 0) => {
+                    f.write_str("(")?;
+                }
+                (CompleteBound::Sum(..), 2) | (CompleteBound::Product(..), 2) => {
+                    f.write_str(")")?;
+                }
+                (CompleteBound::Sum(..), _) => f.write_str(" + ")?,
+                (CompleteBound::Product(..), _) => f.write_str(" × ")?,
+            }
+        }
+        Ok(())
+    }
+}
+
+impl<'a> DagLike for &'a Final {
+    type Node = Final;
+    fn data(&self) -> &Final {
+        self
+    }
+    fn as_dag_node(&self) -> Dag<Self> {
+        match self.bound {
+            CompleteBound::Unit => Dag::Nullary,
+            CompleteBound::Sum(ref left, ref right)
+            | CompleteBound::Product(ref left, ref right) => Dag::Binary(left, right),
+        }
+    }
 }
 
 impl Final {
@@ -61,7 +149,6 @@ impl Final {
             bound: CompleteBound::Unit,
             bit_width: 0,
             tmr: Tmr::unit(),
-            display: Cow::Borrowed("1"),
         }
     }
 
@@ -75,11 +162,6 @@ impl Final {
         Final {
             tmr: Tmr::sum(left.tmr, right.tmr),
             bit_width: 1 + cmp::max(left.bit_width, right.bit_width),
-            display: if left.bound == CompleteBound::Unit && right.bound == CompleteBound::Unit {
-                "2".into()
-            } else {
-                format!("({} + {})", left.display, right.display).into()
-            },
             bound: CompleteBound::Sum(left, right),
         }
     }
@@ -89,22 +171,6 @@ impl Final {
         Final {
             tmr: Tmr::product(left.tmr, right.tmr),
             bit_width: left.bit_width + right.bit_width,
-            display: if left.display == right.display {
-                match left.display.as_ref() {
-                    "2" => "2^2".into(),
-                    "2^2" => "2^4".into(),
-                    "2^4" => "2^8".into(),
-                    "2^8" => "2^16".into(),
-                    "2^16" => "2^32".into(),
-                    "2^32" => "2^64".into(),
-                    "2^64" => "2^128".into(),
-                    "2^128" => "2^256".into(),
-                    "2^256" => "2^512".into(),
-                    _ => format!("({} × {})", left.display, right.display).into(),
-                }
-            } else {
-                format!("({} × {})", left.display, right.display).into()
-            },
             bound: CompleteBound::Product(left, right),
         }
     }
@@ -140,8 +206,19 @@ impl Final {
     }
 }
 
-impl fmt::Display for Final {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.display, f)
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn final_stringify() {
+        let ty1 = Final::two_two_n(10);
+        assert_eq!(ty1.to_string(), "2^1024");
+
+        let sum = Final::sum(Final::two_two_n(5), Final::two_two_n(10));
+        assert_eq!(sum.to_string(), "(2^32 + 2^1024)");
+
+        let prod = Final::product(Final::two_two_n(5), Final::two_two_n(10));
+        assert_eq!(prod.to_string(), "(2^32 × 2^1024)");
     }
 }
