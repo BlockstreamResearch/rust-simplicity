@@ -1,0 +1,233 @@
+// Rust Simplicity Library
+// Written in 2023 by
+//   Andrew Poelstra <apoelstra@blockstream.com>
+//
+// To the extent possible under law, the author(s) have dedicated all
+// copyright and related and neighboring rights to this software to
+// the public domain worldwide. This software is distributed without
+// any warranty.
+//
+// You should have received a copy of the CC0 Public Domain Dedication
+// along with this software.
+// If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+//
+
+//! The Union-Bound Algorithm
+//!
+//! Type inference proceeds using the union-bound algorithm, which maintains a
+//! set of equivalence classes of types. Initially every type is free and lives
+//! in its own equivalence class. As inference proceeds, types are constrained
+//! to be equal to each other, and their equivalence classes are merged.
+//!
+//! The union-bound algorithm provides a very efficient way of tracking these
+//! equivalence classes. Each type is stored in an [`UbElement`], an opaque data
+//! structure which only provides access to the underlying data via the
+//! [`UbElement::root`] method, which returns the representative of the element's
+//! class.
+//!
+//! Merging classes is done using the [`UbElement::unify`] method. Since when two
+//! classes are merged, there is no longer any way to distinguish elements of
+//! either, it is essential that they actually be equal. This is accomplished by
+//! the `bind_fn` parameter to `unify`, which takes the representatives of the
+//! original classes, checks that they are equal (or uses interior mutability to
+//! manipulate them to be equal), and returns either success or failure.
+//!
+//! If `bind_fn` returns an error, this error is returned by `unify`, and the
+//! classes are not merged.
+//!
+//! This is a classic CS algorithm. We use the "path-halving" variant of it, which
+//! was inspired by the same algorithm in the C implementation of the code, which
+//! cites ``Worst-Case Analysis of Set Union Algorithms'' by Robert E. Tarjan and
+//! Jan van Leeuwen (1984) as giving amortized time complexity of O(InvAck(n)).
+//!
+
+use std::sync::{Arc, Mutex};
+use std::{cmp, fmt, mem};
+
+pub struct UbElement<T> {
+    inner: Arc<Mutex<UbInner<T>>>,
+}
+
+impl<T> Clone for UbElement<T> {
+    fn clone(&self) -> Self {
+        UbElement {
+            inner: Arc::clone(&self.inner),
+        }
+    }
+}
+
+impl<T: fmt::Debug> fmt::Debug for UbElement<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&self.root(), f)
+    }
+}
+
+struct UbInner<T> {
+    data: UbData<T>,
+    rank: usize,
+}
+
+enum UbData<T> {
+    Root(Arc<T>),
+    EqualTo(UbElement<T>),
+}
+
+impl<T> UbData<T> {
+    fn shallow_clone(&self) -> Self {
+        match self {
+            UbData::Root(x) => UbData::Root(Arc::clone(x)),
+            UbData::EqualTo(eq) => UbData::EqualTo(eq.shallow_clone()),
+        }
+    }
+
+    fn unwrap_root(&self) -> &Arc<T> {
+        match self {
+            UbData::Root(ref x) => x,
+            UbData::EqualTo(..) => unreachable!(),
+        }
+    }
+}
+
+impl<T> UbElement<T> {
+    /// Turns an existing piece of data into a singleton union-bound set.
+    pub fn new(data: Arc<T>) -> Self {
+        UbElement {
+            inner: Arc::new(Mutex::new(UbInner {
+                data: UbData::Root(data),
+                rank: 0,
+            })),
+        }
+    }
+
+    /// Clones the `UbElement`.
+    ///
+    /// This is the same as just calling `.clone()` but has a different name to
+    /// emphasize that what's being cloned is internally just an Arc.
+    pub fn shallow_clone(&self) -> Self {
+        self.clone()
+    }
+
+    /// Find the representative of this object in its disjoint set.
+    pub fn root(&self) -> Arc<T> {
+        let root = self.root_element();
+        let inner_lock = root.inner.lock().unwrap();
+        Arc::clone(inner_lock.data.unwrap_root())
+    }
+
+    /// Find the representative of this object in its disjoint set.
+    fn root_element(&self) -> Self {
+        let mut x: Self = self.shallow_clone();
+        loop {
+            let x_inner_lock = x.inner.lock().unwrap();
+            // Find the parent of the current target, if there is one. If not, we
+            // are done, so return.
+            let parent: Self = match x_inner_lock.data {
+                UbData::Root(..) => return x.shallow_clone(),
+                UbData::EqualTo(ref parent) => {
+                    let parent = parent.shallow_clone();
+                    drop(x_inner_lock);
+                    parent
+                }
+            };
+
+            let mut parent_inner_lock = parent.inner.lock().unwrap();
+            // If the parent has a parent, remove the intermediate link. (This is
+            // the "halving" variant of union-bound.)
+            match parent_inner_lock.data {
+                // If there is no grandparent, return the parent.
+                UbData::Root(..) => return parent.shallow_clone(),
+                UbData::EqualTo(ref grandparent) => {
+                    let grandparent = grandparent.shallow_clone();
+                    // Okay to lock both grandparent and parent at once because the
+                    // algorithm guarantees there are no cycles.
+                    let gp_inner_lock = grandparent.inner.lock().unwrap();
+                    parent_inner_lock.data = gp_inner_lock.data.shallow_clone();
+                    drop(gp_inner_lock);
+                    drop(parent_inner_lock);
+                    x = grandparent.shallow_clone();
+                }
+            }
+        }
+    }
+
+    /// Combine two sets.
+    ///
+    /// When the two sets are combined, the representative of one will be replaced
+    /// by the representative of the other. The user must force these two elements
+    /// to actually be equal. This is accomplished with the `bind_fn` function,
+    /// which takes two arguments: the **new representative that will be kept**
+    /// followed by the **old representative that will be dropped**.
+    pub fn unify<E, Bind: FnOnce(Arc<T>, &Arc<T>) -> Result<(), E>>(
+        &self,
+        other: &Self,
+        bind_fn: Bind,
+    ) -> Result<(), E> {
+        let x_root = self.root_element();
+        let y_root = other.root_element();
+
+        // In the case that we are unifying literally the same variable with
+        // itself, there is nothing to do. We need to do this early check now
+        // so that we don't deadlock in the next lines when we lock the
+        // mutexes for both x and y.
+        if Arc::ptr_eq(&x_root.inner, &y_root.inner) {
+            return Ok(());
+        }
+
+        // Lock both x and y.
+        let mut x_lock = x_root.inner.lock().unwrap();
+        let mut y_lock = y_root.inner.lock().unwrap();
+
+        // If our two variables are not literally the same, but through
+        // unification have become the same, we detect _this_ and exit early.
+        if Arc::ptr_eq(x_lock.data.unwrap_root(), y_lock.data.unwrap_root()) {
+            return Ok(());
+        }
+
+        // We need to swap x_root and y_root below, and the only way to make the
+        // borrowck okay with that is to replace both types by references
+        // to themselves.
+        let mut x_root = &x_root;
+        let mut y_root = &y_root;
+
+        // Swap so that x always has rank >= y. Then x will become the parent of
+        // y, meaning that y's root will be replaced by x's root.
+        let rank_ord = x_lock.rank.cmp(&y_lock.rank);
+        match rank_ord {
+            cmp::Ordering::Less => {
+                mem::swap(&mut x_root, &mut y_root);
+                mem::swap(&mut x_lock, &mut y_lock)
+            }
+            cmp::Ordering::Equal => {
+                assert_ne!(
+                    x_lock.rank,
+                    usize::MAX,
+                    "Attempted to unify two frozen variables",
+                );
+                x_lock.rank += 1;
+            }
+            _ => {}
+        }
+
+        let x_data = match x_lock.data {
+            UbData::Root(ref arc) => Arc::clone(arc),
+            UbData::EqualTo(..) => unreachable!(),
+        };
+        drop(x_lock);
+        let old_y_data = mem::replace(&mut y_lock.data, UbData::EqualTo(x_root.shallow_clone()));
+        drop(y_lock);
+
+        match old_y_data {
+            UbData::Root(ref y_data) => {
+                match bind_fn(x_data, y_data) {
+                    Ok(()) => Ok(()),
+                    Err(e) => {
+                        // In case of error, put the old data back.
+                        y_root.inner.lock().unwrap().data = old_y_data;
+                        Err(e)
+                    }
+                }
+            }
+            UbData::EqualTo(..) => unreachable!(),
+        }
+    }
+}

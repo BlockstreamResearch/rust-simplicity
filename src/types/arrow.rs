@@ -233,15 +233,16 @@ impl Arrow {
         let target = Type::free(String::new());
         if let Some(lchild_arrow) = lchild_arrow {
             lchild_arrow.source.bind(
-                Bound::Product(a, c.shallow_clone()),
+                Arc::new(Bound::Product(a, c.shallow_clone())),
                 "case combinator: left source = A × C",
             )?;
             target.unify(&lchild_arrow.target, "").unwrap();
         }
         if let Some(rchild_arrow) = rchild_arrow {
-            rchild_arrow
-                .source
-                .bind(Bound::Product(b, c), "case combinator: left source = B × C")?;
+            rchild_arrow.source.bind(
+                Arc::new(Bound::Product(b, c)),
+                "case combinator: left source = B × C",
+            )?;
             target.unify(
                 &rchild_arrow.target,
                 "case combinator: left target = right target",
@@ -265,12 +266,14 @@ impl Arrow {
         let prod_b_c = Bound::Product(b.shallow_clone(), c);
         let prod_b_d = Type::product(b, d);
 
-        lchild_arrow
-            .source
-            .bind(prod_256_a, "disconnect combinator: left source = 2^256 × A")?;
-        lchild_arrow
-            .target
-            .bind(prod_b_c, "disconnect combinator: left target = B × C")?;
+        lchild_arrow.source.bind(
+            Arc::new(prod_256_a),
+            "disconnect combinator: left source = 2^256 × A",
+        )?;
+        lchild_arrow.target.bind(
+            Arc::new(prod_b_c),
+            "disconnect combinator: left target = B × C",
+        )?;
 
         Ok(Arrow {
             source: a,
