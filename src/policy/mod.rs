@@ -25,14 +25,13 @@
 //! these with BIP32 paths, pay-to-contract instructions, etc.
 //!
 
-pub mod ast;
+mod ast;
 mod compiler;
 pub mod descriptor;
 mod embed;
 mod error;
 pub mod key;
 pub mod satisfy;
-// pub mod lift;
 
 pub use ast::Policy;
 pub use descriptor::Descriptor;

@@ -499,10 +499,7 @@ mod tests {
             }
         }
 
-        let mut reser_sink = Vec::<u8>::new();
-        let mut w = BitWriter::from(&mut reser_sink);
-        prog.encode(&mut w)
-            .expect("reserializing program into vector");
+        let reser_sink = prog.encode_to_vec();
         assert_eq!(
             prog_bytes,
             &reser_sink[..],

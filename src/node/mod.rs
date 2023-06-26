@@ -464,13 +464,13 @@ where
 impl<N, J> WitnessConstructible<N::Witness> for Arc<Node<N, J>>
 where
     N: NodeData<J>,
-    N::CachedData: for<'a> WitnessConstructible<&'a N::Witness>,
+    N::CachedData: WitnessConstructible<N::Witness>,
     J: Jet,
 {
     fn witness(value: N::Witness) -> Self {
         Arc::new(Node {
             cmr: Cmr::witness(),
-            data: N::CachedData::witness(&value),
+            data: N::CachedData::witness(value.clone()),
             inner: Inner::Witness(value),
         })
     }
