@@ -56,7 +56,7 @@ pub use bit_encoding::{BitIter, EarlyEndOfStreamError};
 #[cfg(feature = "elements")]
 pub use crate::policy::{Descriptor, Policy};
 
-pub use crate::bit_machine::exec;
+pub use crate::bit_machine::BitMachine;
 pub use crate::core::commit::CommitNodeInner;
 pub use crate::core::redeem::RedeemNodeInner;
 pub use crate::core::{CommitNode, RedeemNode};

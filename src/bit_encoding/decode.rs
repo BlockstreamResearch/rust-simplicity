@@ -443,10 +443,9 @@ pub fn decode_natural<I: Iterator<Item = bool>>(
 mod tests {
     use super::*;
     use crate::encode;
-    use crate::exec::BitMachine;
     use crate::jet::Core;
     use crate::node::{CommitNode, RedeemNode, SimpleFinalizer};
-    use crate::BitWriter;
+    use crate::{BitMachine, BitWriter};
     use bitcoin_hashes::hex::ToHex;
     use std::iter;
 

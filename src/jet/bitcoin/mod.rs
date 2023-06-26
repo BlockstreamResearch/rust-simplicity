@@ -13,7 +13,5 @@
 //
 
 mod environment;
-#[allow(dead_code)]
-mod exec;
 
 pub use environment::BitcoinEnv;
