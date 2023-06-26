@@ -1,8 +1,7 @@
-use crate::policy::key::PublicKey32;
 use crate::policy::satisfy::PolicySatisfier;
 use crate::{policy, Cmr, Policy};
 use bitcoin_hashes::Hash;
-use elements::schnorr::TapTweak;
+use elements::schnorr::{TapTweak, XOnlyPublicKey};
 use elements::secp256k1_zkp;
 use elements::taproot::{
     ControlBlock, LeafVersion, TapBranchHash, TapLeafHash, TaprootBuilder, TaprootMerkleBranch,
@@ -11,6 +10,16 @@ use elements::taproot::{
 use elements_miniscript::{MiniscriptKey, ToPublicKey};
 use std::fmt;
 use std::str::FromStr;
+
+pub trait UnspendableKey: MiniscriptKey {
+    fn unspendable() -> Self;
+}
+
+impl UnspendableKey for XOnlyPublicKey {
+    fn unspendable() -> Self {
+        XOnlyPublicKey::from_slice(&UNSPENDABLE_PUBLIC_KEY).expect("unspendable pubkey is valid")
+    }
+}
 
 /// Bytes of x-only public key whose discrete logarithm (secret key) is unknown
 ///
@@ -48,7 +57,7 @@ pub struct Descriptor<Pk: MiniscriptKey> {
     cmr: Cmr,
 }
 
-impl<Pk: PublicKey32 + ToPublicKey> Descriptor<Pk> {
+impl<Pk: ToPublicKey> Descriptor<Pk> {
     /// Create a new descriptor from the given internal key and
     /// policy which will become a single tap leaf
     pub fn new(internal_key: Pk, policy: Policy<Pk>) -> Result<Self, crate::Error> {
@@ -76,9 +85,11 @@ impl<Pk: PublicKey32 + ToPublicKey> Descriptor<Pk> {
     /// Create a new descriptor from the given policy which will become a single tap leaf
     ///
     /// The internal key is set to a constant that is provably not spendable
-    pub fn single_leaf(policy: Policy<Pk>) -> Result<Self, crate::Error> {
-        let bytes = Vec::<u8>::from(UNSPENDABLE_PUBLIC_KEY);
-        let internal_key = Pk::from_32_bytes(&bytes);
+    pub fn single_leaf(policy: Policy<Pk>) -> Result<Self, crate::Error>
+    where
+        Pk: UnspendableKey,
+    {
+        let internal_key = Pk::unspendable();
         Self::new(internal_key, policy)
     }
 
@@ -179,10 +190,10 @@ impl<Pk: MiniscriptKey> fmt::Display for Descriptor<Pk> {
 
 impl<Pk> FromStr for Descriptor<Pk>
 where
-    Pk: PublicKey32 + ToPublicKey + FromStr,
-    <Pk as MiniscriptKey>::Sha256: FromStr,
-    <Pk as FromStr>::Err: fmt::Display,
-    <<Pk as MiniscriptKey>::Sha256 as FromStr>::Err: fmt::Display,
+    Pk: UnspendableKey + ToPublicKey + FromStr,
+    Pk::Sha256: FromStr,
+    <Pk as FromStr>::Err: ToString,
+    <Pk::Sha256 as FromStr>::Err: ToString,
 {
     type Err = crate::Error;
 

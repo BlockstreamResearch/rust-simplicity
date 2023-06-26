@@ -19,13 +19,12 @@
 use super::ast::Policy;
 use crate::core::commit::{CommitNode, CommitNodeInner, UsedCaseBranch};
 use crate::jet::Elements;
-use crate::miniscript::MiniscriptKey;
-use crate::policy::key::PublicKey32;
+use crate::miniscript::ToPublicKey;
 use crate::types::Error;
 use crate::Value;
 use std::rc::Rc;
 
-impl<Pk: MiniscriptKey + PublicKey32> Policy<Pk> {
+impl<Pk: ToPublicKey> Policy<Pk> {
     /// Compile the policy into a Simplicity program
     pub fn compile(&self) -> Result<Rc<CommitNode<Elements>>, Error> {
         compile(self)
@@ -51,14 +50,12 @@ fn verify_bexp(
 }
 
 /// Compile the given policy into a Simplicity program.
-fn compile<Pk: MiniscriptKey + PublicKey32>(
-    policy: &Policy<Pk>,
-) -> Result<Rc<CommitNode<Elements>>, Error> {
+fn compile<Pk: ToPublicKey>(policy: &Policy<Pk>) -> Result<Rc<CommitNode<Elements>>, Error> {
     match policy {
         Policy::Unsatisfiable(entropy) => Ok(CommitNode::fail(*entropy)),
         Policy::Trivial => Ok(CommitNode::unit()),
         Policy::Key(key) => {
-            let key_value = Value::u256_from_slice(&key.to_32_bytes());
+            let key_value = Value::u256_from_slice(&key.to_x_only_pubkey().serialize());
             let const_key = CommitNode::const_word(key_value);
             let sighash_all = CommitNode::jet(Elements::SigAllHash);
             let pair_key_msg = CommitNode::pair(const_key, sighash_all)?;
@@ -83,7 +80,7 @@ fn compile<Pk: MiniscriptKey + PublicKey32>(
             CommitNode::comp(const_n, check_lock_distance)
         }
         Policy::Sha256(hash) => {
-            let hash_value = Value::u256_from_slice(&Pk::hash_to_32_bytes(hash));
+            let hash_value = Value::u256_from_slice(Pk::to_sha256(hash).as_ref());
             let const_hash = CommitNode::const_word(hash_value);
             let witness256 = CommitNode::witness();
             let computed_hash = compute_sha256(witness256)?;
