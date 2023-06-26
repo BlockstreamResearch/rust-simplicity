@@ -29,42 +29,60 @@
 //! that its left child's target type be the same as its right child's source
 //! type), and by unifying all these constraints, all types can be inferred.
 //!
-//! If a type has no free children we refer to it as "complete". The inference
-//! code, when it notices that a type has become complete, populates its cached
-//! `Final` structure, which can then be accessed using the `final_data` method.
-//! If this structure is populated we refer to the type as "finalized".
+//! In this module, during inference types are characterized by their [`Bound`],
+//! which describes the constraints on the type. The bound of a type can be
+//! obtained by the [`Type::bound`] method, and is an enum with four variants:
 //!
-//! Generally speaking, "complete" and "finalized" can be considered synonyms,
-//! though this is not strictly true because types may become complete indirectly,
-//! by their children becoming complete, without the inference algorithm updating
-//! the `Final` structure.
+//! * [`Bound::Free`] means that the type has no constraints; it is a free
+//!   variable. The type has a name which can be used to identify it in error
+//!   messages.
+//! * [`Bound::Sum`] and [`Bound::Product`] means that the the type is a sum
+//!   (resp. product) of two other types, which are characterized by their
+//!   own bounds.
+//! * [`Bound::Complete`] means that the type has no free variables at all,
+//!   and has an already-computed [`Final`] structure suitable for use in
+//!   contexts that require complete types. (Unit types are always complete,
+//!   and therefore use this variant rather than getting their own.)
 //!
-//! It may be the case that some types are still free even after all constraints
-//! are considered. The `finalize` function completes all types by setting any
-//! free types to the unit type.
+//! During inference, it is possible for a type to be complete, in the sense
+//! of having no free variables, without its bound being [`Bound::Complete`].
+//! This occurs, for example, if a type is a sum of two incomplete types, then
+//! the child types are completed during type inference on an unrelated part
+//! of the type hierarchy. The type would then have a [`Bound::Sum`] with two
+//! children, both of which are complete.
 //!
-//! In addition to requiring that type inference succeeds (i.e. no constraints
-//! are in conflict with each other), there is one additional check, the "occurs
-//! check", which ensures that there are no infinitely-sized types. Such types
-//! occur when a type has itself as a child, and are illegal in Simplicity. This
-//! check is explicitly done by `finalize`, to avoid infinitely looping, but any
-//! final type is guaranteed to pass the occurs-check, whether it was finalized
-//! explicitly or during unification.
+//! The inference engine makes an effort to notice when this happens and set
+//! the bound of complete types to [`Bound::Complete`], but since type inference
+//! is inherently non-local this cannot always be done.
 //!
-//! There are four main types in this module:
-//!   * `Type` is the main type representing a Simplicity type, whether it is
-//!     complete or not. Internally it contains a mutex holding a `TypeInner`
-//!     which in turn contains a `Constraint`, but these are not public types
-//!     and not exposed to users.
+//! When the distinction matters, we say a type is "finalized" only if its bound
+//! is `Complete` and "complete" if it has no free variables. But the distinction
+//! usually does not matter, so we prefer to use the word "complete".
+//!
+//! Type inference is done progressively during construction of Simplicity
+//! expressions. It is completed by the [`Type::finalize`] method, which
+//! recursively completes types by setting any remaining free variables to unit.
+//! If any type constraints are incompatible with each other (e.g. a type is
+//! bound to be both a product and a sum type) then inference fails at that point
+//! by returning an error.
+//!
+//! In addition to completing types [`Type::finalize`], does one additional
+//! check, the "occurs check", to ensures that there are no infinitely-sized
+//! types. Such types occur when a type has itself as a child, are illegal in
+//! Simplicity, and could not be represented by our data structures.
+//!
+//! There are three main types in this module:
+//!   * [`Type`] is the main type representing a Simplicity type, whether it is
+//!     complete or not. Its main methods are [`Type::bound`] which returns the
+//!     current state of the type and [`Type::bind`] which adds a new constraint
+//!     to the type.
 //!   * `Final` is a mutex-free structure that can be obtained from a complete
 //!     type. It includes the TMR and the complete bound describing the type.
-//!   * `Constraint` defines whether a given type is free, bound to a particular
-//!     `Bound`, or equal to another type.
-//!   * `Bound` defines the structure of a type: whether it is a unit, or the
-//!     sum or product of two other types.
+//!   * `Bound` defines the structure of a type: whether it is free, complete,
+//!     or a sum or product of other types.
 //!
 
-use crate::merkle::tmr::Tmr;
+use crate::Tmr;
 
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::{cmp, fmt, mem, ops};
@@ -236,10 +254,10 @@ enum Constraint {
     EqualTo { parent: Type },
 }
 
-/// The structure that a `Type` is bound to
+/// The state of a [`Type`] based on all constraints currently imposed on it.
 #[derive(Clone, Debug)]
 pub enum Bound {
-    /// Unconstrained type
+    /// Fully-unconstrained type
     Free(String),
     /// Fully-constrained (i.e. complete) type, which has no free variables.
     Complete(Arc<Final>),
@@ -564,10 +582,10 @@ impl Type {
     /// Whether this type is known to be final
     ///
     /// During type inference this may be false even though the type is, in fact,
-    /// finalized, since its children may have been unified to a complete type.
-    /// To ensure this value is consistent, first call `attempt_finalize`.
+    /// complete, since its children may have been unified to a complete type. To
+    /// ensure a type is complete, call [`Type::finalize`].
     pub fn is_final(&self) -> bool {
-        self.tmr().is_some()
+        self.final_data().is_some()
     }
 
     /// If a type is finalized, return its final type. Otherwise panic.
