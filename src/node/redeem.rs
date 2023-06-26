@@ -177,18 +177,6 @@ impl<J: Jet> RedeemNode<J> {
         self.data.bounds
     }
 
-    pub fn new(
-        arrow: FinalArrow,
-        inner: Inner<Arc<Self>, J, Arc<Value>>,
-        inner_cached: Inner<&Arc<RedeemData<J>>, J, Arc<Value>>,
-    ) -> Result<Self, types::Error> {
-        Ok(RedeemNode {
-            cmr: Cmr::unit(),
-            inner,
-            data: Arc::new(RedeemData::new(arrow, inner_cached)),
-        })
-    }
-
     /// Convert a [`RedeemNode`] back to a [`CommitNode`] by forgetting witnesses
     /// and cached data.
     pub fn unfinalize(&self) -> Result<Arc<CommitNode<J>>, types::Error> {

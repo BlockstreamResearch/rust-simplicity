@@ -15,15 +15,11 @@
 //! General DAG iteration utilities
 
 use std::collections::{hash_map::Entry, HashMap};
-use std::rc::Rc;
+use std::fmt;
 use std::sync::Arc;
-use std::{fmt, marker};
 
-use crate::core::commit::{CommitNode, CommitNodeInner};
-use crate::core::redeem::{RedeemNode, RedeemNodeInner};
 use crate::jet;
 use crate::node::{self, Node, NodeData};
-use crate::{Imr, Value};
 
 /// Abstract node of a directed acyclic graph.
 ///
@@ -122,35 +118,6 @@ impl<D: DagLike> SharingTracker<D> for InternalSharing {
     }
 }
 
-/// Full sharing: yield a node with each IMR only once. This can only be
-/// used with `RedeemNode`s, since `CommitNode`s do not have enough
-/// information to determine their IMRs.
-#[derive(Clone, Debug, Default)]
-pub struct FullSharing {
-    map: HashMap<Imr, usize>,
-}
-
-impl<J: jet::Jet> SharingTracker<&RedeemNode<J>> for FullSharing {
-    fn record(
-        &mut self,
-        d: &&RedeemNode<J>,
-        index: usize,
-        _: Option<usize>,
-        _: Option<usize>,
-    ) -> Option<usize> {
-        match self.map.entry(d.imr) {
-            Entry::Occupied(occ) => Some(*occ.get()),
-            Entry::Vacant(vac) => {
-                vac.insert(index);
-                None
-            }
-        }
-    }
-    fn seen_before(&self, d: &&RedeemNode<J>) -> Option<usize> {
-        self.map.get(&d.imr).copied()
-    }
-}
-
 /// Maximal sharing: share every node whose CMR and cached data match
 ///
 /// For `RedeemNode`s, this coincides with `FullSharing`; for other
@@ -222,79 +189,6 @@ where
     }
 }
 
-/// A wrapper around any other sharing tracker which forces `witness` and
-/// `disconnect` combinators, and their ancestors, to be unshared
-///
-/// This is useful when providing tools for users to manipulate non-final
-/// programs (programs without witnesses), they should always be presented
-/// with a view in which witness and disconnect nodes are unshared, since
-/// these nodes take input data which is not committed in the CMR.
-///
-/// If these nodes were shared, it may create the impression that data
-/// attached to the node along one path is automatically attached to the
-/// node along every other path, which is dangerously untrue. If the user
-/// actually wants to access the same witness data from multiple places
-/// in the tree, they must write explicit logic which enforces that both
-/// locations have the same data.
-#[derive(Clone, Debug, Default)]
-pub struct UnshareWitnessDisconnect<D: DagLike, T: SharingTracker<D>> {
-    /// The underlying sharing tracker
-    inner: T,
-    /// Map from a node's pointer ID to whether it is a witness node
-    ptrid_witness: HashMap<PointerId, bool>,
-    /// Map from a node's index to whether it is a witness node (needed to
-    /// determine whether a nodes' children are witnesses
-    index_witness: HashMap<usize, bool>,
-    phantom: marker::PhantomData<D>,
-}
-
-impl<D: DagLike, T: SharingTracker<D>> UnshareWitnessDisconnect<D, T> {
-    /// Wrap an existing sharing tracker in the witness-unsharing tracker
-    pub fn new(inner: T) -> Self {
-        UnshareWitnessDisconnect {
-            inner,
-            ptrid_witness: HashMap::new(),
-            index_witness: HashMap::new(),
-            phantom: marker::PhantomData,
-        }
-    }
-}
-
-impl<D: DagLike, T: SharingTracker<D>> SharingTracker<D> for UnshareWitnessDisconnect<D, T> {
-    fn record(
-        &mut self,
-        d: &D,
-        index: usize,
-        left_child: Option<usize>,
-        right_child: Option<usize>,
-    ) -> Option<usize> {
-        let mut is_witness = false;
-        is_witness |= left_child
-            .map(|idx| self.index_witness[&idx])
-            .unwrap_or(false);
-        is_witness |= right_child
-            .map(|idx| self.index_witness[&idx])
-            .unwrap_or(false);
-        is_witness |= matches!(d.as_dag_node(), Dag::Disconnect(..) | Dag::Witness);
-        self.ptrid_witness.insert(PointerId::from(d), is_witness);
-        self.index_witness.insert(index, is_witness);
-
-        // Only record non-witnesses in the underlying tracker.
-        if !is_witness {
-            self.inner.record(d, index, left_child, right_child)
-        } else {
-            None
-        }
-    }
-
-    fn seen_before(&self, d: &D) -> Option<usize> {
-        match self.ptrid_witness.get(&PointerId::from(d)) {
-            Some(true) => None,
-            _ => self.inner.seen_before(d),
-        }
-    }
-}
-
 /// Object representing pointer identity of a DAG node
 ///
 /// Used to populate a hashset to determine whether or not a given node has
@@ -316,8 +210,9 @@ pub type RtlPostOrderIter<D, S> = std::iter::Map<
 
 /// A trait for any structure which has the shape of a Simplicity DAG
 ///
-/// This should be implemented on any reference type for `CommitNode` and `RedeemNode`;
-/// it cannot be implemented on these structures themselves because they depend on
+/// This should be implemented on any reference type for `Node`, though it
+/// cannot be implemented on the actual structure because it assumes that
+/// the node type is the same as the type contained in each variant.
 pub trait DagLike: Sized {
     /// The type of the DAG node, with no references or wrappers
     type Node;
@@ -457,126 +352,6 @@ pub trait DagLike: Sized {
             index: 0,
             stack: vec![IterStackItem::unprocessed(self, Previous::Root)],
             tracker,
-        }
-    }
-}
-
-impl<'a, J: jet::Jet> DagLike for &'a CommitNode<J> {
-    type Node = CommitNode<J>;
-
-    fn data(&self) -> &CommitNode<J> {
-        self
-    }
-
-    #[rustfmt::skip]
-    fn as_dag_node(&self) -> Dag<Self> {
-        match self.inner() {
-            CommitNodeInner::Iden
-            | CommitNodeInner::Unit
-            | CommitNodeInner::Fail(..)
-            | CommitNodeInner::Jet(..)
-            | CommitNodeInner::Word(..) => Dag::Nullary,
-            CommitNodeInner::InjL(ref sub)
-            | CommitNodeInner::InjR(ref sub)
-            | CommitNodeInner::Take(ref sub)
-            | CommitNodeInner::Drop(ref sub)
-            | CommitNodeInner::AssertL(ref sub, _)
-            | CommitNodeInner::AssertR(_, ref sub) => Dag::Unary(sub),
-            CommitNodeInner::Comp(ref left, ref right)
-            | CommitNodeInner::Case(ref left, ref right)
-            | CommitNodeInner::Pair(ref left, ref right) => Dag::Binary(left, right),
-            CommitNodeInner::Disconnect(ref left, ref right) => Dag::Disconnect(left, right),
-            CommitNodeInner::Witness => Dag::Witness,
-        }
-    }
-}
-
-impl<J: jet::Jet> DagLike for Rc<CommitNode<J>> {
-    type Node = CommitNode<J>;
-
-    fn data(&self) -> &CommitNode<J> {
-        self
-    }
-
-    #[rustfmt::skip]
-    fn as_dag_node(&self) -> Dag<Self> {
-        match self.inner() {
-            CommitNodeInner::Iden
-            | CommitNodeInner::Unit
-            | CommitNodeInner::Fail(..)
-            | CommitNodeInner::Jet(..)
-            | CommitNodeInner::Word(..) => Dag::Nullary,
-            CommitNodeInner::InjL(ref sub)
-            | CommitNodeInner::InjR(ref sub)
-            | CommitNodeInner::Take(ref sub)
-            | CommitNodeInner::Drop(ref sub)
-            | CommitNodeInner::AssertL(ref sub, _)
-            | CommitNodeInner::AssertR(_, ref sub) => Dag::Unary(Rc::clone(sub)),
-            CommitNodeInner::Comp(ref left, ref right)
-            | CommitNodeInner::Case(ref left, ref right)
-            | CommitNodeInner::Pair(ref left, ref right) => Dag::Binary(Rc::clone(left), Rc::clone(right)),
-            CommitNodeInner::Disconnect(ref left, ref right) => Dag::Disconnect(Rc::clone(left), Rc::clone(right)),
-            CommitNodeInner::Witness => Dag::Witness,
-        }
-    }
-}
-
-impl<'a, J: jet::Jet> DagLike for &'a RedeemNode<J> {
-    type Node = RedeemNode<J>;
-
-    fn data(&self) -> &RedeemNode<J> {
-        self
-    }
-
-    #[rustfmt::skip]
-    fn as_dag_node(&self) -> Dag<Self> {
-        match self.inner {
-            RedeemNodeInner::Iden
-            | RedeemNodeInner::Unit
-            | RedeemNodeInner::Fail(..)
-            | RedeemNodeInner::Jet(..)
-            | RedeemNodeInner::Word(..) => Dag::Nullary,
-            RedeemNodeInner::InjL(ref sub)
-            | RedeemNodeInner::InjR(ref sub)
-            | RedeemNodeInner::Take(ref sub)
-            | RedeemNodeInner::Drop(ref sub)
-            | RedeemNodeInner::AssertL(ref sub, _)
-            | RedeemNodeInner::AssertR(_, ref sub) => Dag::Unary(sub),
-            RedeemNodeInner::Comp(ref left, ref right)
-            | RedeemNodeInner::Case(ref left, ref right)
-            | RedeemNodeInner::Pair(ref left, ref right) => Dag::Binary(left, right),
-            RedeemNodeInner::Disconnect(ref left, ref right) => Dag::Disconnect(left, right),
-            RedeemNodeInner::Witness(..) => Dag::Witness,
-        }
-    }
-}
-
-impl<J: jet::Jet> DagLike for Rc<RedeemNode<J>> {
-    type Node = RedeemNode<J>;
-
-    fn data(&self) -> &RedeemNode<J> {
-        self
-    }
-
-    #[rustfmt::skip]
-    fn as_dag_node(&self) -> Dag<Self> {
-        match self.inner {
-            RedeemNodeInner::Iden
-            | RedeemNodeInner::Unit
-            | RedeemNodeInner::Fail(..)
-            | RedeemNodeInner::Jet(..)
-            | RedeemNodeInner::Word(..) => Dag::Nullary,
-            RedeemNodeInner::InjL(ref sub)
-            | RedeemNodeInner::InjR(ref sub)
-            | RedeemNodeInner::Take(ref sub)
-            | RedeemNodeInner::Drop(ref sub)
-            | RedeemNodeInner::AssertL(ref sub, _)
-            | RedeemNodeInner::AssertR(_, ref sub) => Dag::Unary(Rc::clone(sub)),
-            RedeemNodeInner::Comp(ref left, ref right)
-            | RedeemNodeInner::Case(ref left, ref right)
-            | RedeemNodeInner::Pair(ref left, ref right) => Dag::Binary(Rc::clone(left), Rc::clone(right)),
-            RedeemNodeInner::Disconnect(ref left, ref right) => Dag::Disconnect(Rc::clone(left), Rc::clone(right)),
-            RedeemNodeInner::Witness(..) => Dag::Witness,
         }
     }
 }
@@ -926,25 +701,6 @@ impl<'a, N: NodeData<J>, J: jet::Jet, S: SharingTracker<&'a Node<N, J>> + Clone>
     pub fn into_witnesses(self) -> impl Iterator<Item = &'a N::Witness> + Clone {
         self.filter_map(|data| {
             if let node::Inner::Witness(value) = data.node.inner() {
-                Some(value)
-            } else {
-                None
-            }
-        })
-    }
-}
-
-impl<'a, J: jet::Jet, S: SharingTracker<&'a RedeemNode<J>> + Clone>
-    PostOrderIter<&'a RedeemNode<J>, S>
-{
-    /// Adapt the iterator to only yield witnesses
-    ///
-    /// The witnesses are yielded in the order in which they appear in the DAG
-    /// *except* that each witness is only yielded once, and future occurences
-    /// are skipped.
-    pub fn into_witnesses(self) -> impl Iterator<Item = &'a Value> + Clone {
-        self.filter_map(|data| {
-            if let RedeemNodeInner::Witness(value) = &data.node.inner {
                 Some(value)
             } else {
                 None

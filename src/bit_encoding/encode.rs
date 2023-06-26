@@ -348,10 +348,8 @@ pub fn encode_natural<W: io::Write>(n: usize, w: &mut BitWriter<W>) -> io::Resul
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::core::iter::WitnessIterator;
+
     use crate::decode;
-    use crate::decode::WitnessDecoder;
-    use crate::types;
     use crate::BitIter;
 
     #[test]
@@ -364,26 +362,6 @@ mod test {
             let m = decode::decode_natural(&mut BitIter::from(sink.into_iter()), None)
                 .expect("decoding from vector");
             assert_eq!(n, m);
-        }
-    }
-
-    #[test]
-    fn encode_decode_witness() {
-        for n in 1..1000 {
-            let witness = vec![Value::u64(n)];
-            let it = witness.iter();
-
-            let mut sink = Vec::<u8>::new();
-            let mut w = BitWriter::from(&mut sink);
-            encode_witness(it, &mut w).expect("encoding to vector");
-            w.flush_all().expect("flushing");
-
-            let mut bits = BitIter::from(sink.into_iter());
-            let mut decoder = WitnessDecoder::new(&mut bits).expect("decoding from vector");
-            assert_eq!(
-                witness[0],
-                decoder.next(&types::Final::two_two_n(6)).unwrap()
-            );
         }
     }
 }

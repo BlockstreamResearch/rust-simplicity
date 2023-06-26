@@ -17,14 +17,12 @@
 //! Functionality to decode Simplicity programs.
 //! Refer to [`crate::encode`] for information on the encoding.
 
-use crate::core::iter::WitnessIterator;
 use crate::dag::{Dag, DagLike, InternalSharing};
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::node::{
     CommitNode, ConstructNode, CoreConstructible, JetConstructible, NoWitness, WitnessConstructible,
 };
-use crate::types;
 use crate::{BitIter, FailEntropy, Value};
 use std::sync::Arc;
 use std::{error, fmt};
@@ -312,48 +310,6 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
                     Ok(DecodeNode::Hidden(bits.read_cmr()?))
                 }
             }
-        }
-    }
-}
-
-/// Implementation of [`WitnessIterator`] for an underlying [`BitIter`].
-#[derive(Debug)]
-pub struct WitnessDecoder<'a, I: Iterator<Item = u8>> {
-    pub bits: &'a mut BitIter<I>,
-    pub max_n: usize,
-}
-
-impl<'a, I: Iterator<Item = u8>> WitnessDecoder<'a, I> {
-    /// Create a new witness decoder for the given bit iterator.
-    ///
-    /// # Usage
-    ///
-    /// This method must be used **after** the program serialization has been read by the iterator.
-    pub fn new(bits: &'a mut BitIter<I>) -> Result<Self, Error> {
-        let bit_len = match bits.next() {
-            Some(false) => 0,
-            Some(true) => bits.read_natural(None)?,
-            None => return Err(Error::EndOfStream),
-        };
-        let n_start = bits.n_total_read();
-
-        Ok(Self {
-            bits,
-            max_n: n_start + bit_len,
-        })
-    }
-}
-
-impl<'a, I: Iterator<Item = u8>> WitnessIterator for WitnessDecoder<'a, I> {
-    fn next(&mut self, ty: &types::Final) -> Result<Value, crate::Error> {
-        self.bits.read_value(ty).map_err(crate::Error::from)
-    }
-
-    fn finish(self) -> Result<(), crate::Error> {
-        if self.bits.n_total_read() != self.max_n {
-            Err(crate::Error::InconsistentWitnessLength)
-        } else {
-            Ok(())
         }
     }
 }

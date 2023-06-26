@@ -12,14 +12,12 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use crate::core::commit::CommitNodeInner;
 use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
 use crate::merkle::compact_value;
 use crate::types::arrow::FinalArrow;
-use crate::{Cmr, RedeemNode, Tmr, Value};
+use crate::{Cmr, Tmr, Value};
 use bitcoin_hashes::sha256::Midstate;
-use std::rc::Rc;
 
 use super::FailEntropy;
 
@@ -296,59 +294,6 @@ impl Amr {
         0x9b, 0xde, 0x3a, 0x42, 0xfa, 0x2a, 0xc3, 0x8e,
         0xc7, 0x47, 0x52, 0xc1, 0x67, 0xdc, 0xbf, 0x59,
     ]));
-
-    /// Compute the AMR of the given node (once finalized).
-    ///
-    /// Nodes with left children require their finalized left child,
-    /// while nodes with right children require their finalized right child.
-    /// Witness nodes require their value.
-    /// All nodes require their node type.
-    pub fn compute<J: Jet>(
-        node: &CommitNodeInner<J>,
-        left: Option<Rc<RedeemNode<J>>>,
-        right: Option<Rc<RedeemNode<J>>>,
-        value: Option<&Value>,
-        ty: &FinalArrow,
-    ) -> Amr {
-        match *node {
-            CommitNodeInner::Iden => Self::iden(ty),
-            CommitNodeInner::Unit => Self::unit(ty),
-            CommitNodeInner::InjL(..) => Self::injl(ty, left.unwrap().amr),
-            CommitNodeInner::InjR(..) => Self::injr(ty, left.unwrap().amr),
-            CommitNodeInner::Take(..) => Self::take(ty, left.unwrap().amr),
-            CommitNodeInner::Drop(..) => Self::drop(ty, left.unwrap().amr),
-            CommitNodeInner::Comp(..) => Self::comp(
-                ty,
-                &left.as_ref().unwrap().ty,
-                left.as_ref().unwrap().amr,
-                right.as_ref().unwrap().amr,
-            ),
-            CommitNodeInner::Case(..) => Self::case(ty, left.unwrap().amr, right.unwrap().amr),
-            CommitNodeInner::AssertL(_, r_cmr) => {
-                Self::assertl(ty, left.unwrap().amr, r_cmr.into())
-            }
-            CommitNodeInner::AssertR(l_cmr, _) => {
-                Self::assertr(ty, l_cmr.into(), left.unwrap().amr)
-            }
-            CommitNodeInner::Pair(..) => Self::pair(
-                ty,
-                &left.as_ref().unwrap().ty,
-                &right.as_ref().unwrap().ty,
-                left.as_ref().unwrap().amr,
-                right.as_ref().unwrap().amr,
-            ),
-            CommitNodeInner::Disconnect(..) => Self::disconnect(
-                ty,
-                &right.as_ref().unwrap().ty,
-                left.as_ref().unwrap().amr,
-                right.as_ref().unwrap().amr,
-            ),
-            CommitNodeInner::Witness => Self::witness(ty, value.unwrap()),
-            CommitNodeInner::Fail(entropy) => Self::fail(entropy),
-            CommitNodeInner::Jet(j) => Self::jet(j),
-            CommitNodeInner::Word(ref w) => Self::const_word(w),
-        }
-    }
 }
 
 #[cfg(test)]

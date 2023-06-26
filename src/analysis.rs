@@ -12,12 +12,7 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use crate::core::commit::CommitNodeInner;
-use crate::jet::Jet;
-use crate::types::arrow::FinalArrow;
-use crate::{CommitNode, RedeemNode};
 use std::cmp;
-use std::rc::Rc;
 
 /// Bounds on the resources required by a node during execution on the Bit Machine
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -147,98 +142,3 @@ impl NodeBounds {
 
 /// Number of frames required for the input and output of a Simplicity expression
 pub(crate) const IO_EXTRA_FRAMES: usize = 2;
-
-/// Return the bounds for the given node, once finalized.
-///
-/// Nodes with left children require their finalized left child,
-/// while nodes with right children require their finalized right child.
-/// Witness nodes require their node type.
-pub(crate) fn compute_bounds<J: Jet>(
-    untyped_node: &CommitNode<J>,
-    left: Option<Rc<RedeemNode<J>>>,
-    right: Option<Rc<RedeemNode<J>>>,
-    ty: &FinalArrow,
-) -> NodeBounds {
-    NodeBounds {
-        extra_cells: compute_extra_cells_bound(untyped_node, left.clone(), right.clone(), ty),
-        extra_frames: compute_extra_frames_bound(untyped_node, left, right),
-    }
-}
-
-/// Return an upper bound on the number of cells required
-/// by the given node during execution on the Bit Machine.
-fn compute_extra_cells_bound<J: Jet>(
-    untyped_node: &CommitNode<J>,
-    left: Option<Rc<RedeemNode<J>>>,
-    right: Option<Rc<RedeemNode<J>>>,
-    ty: &FinalArrow,
-) -> usize {
-    match untyped_node.inner() {
-        CommitNodeInner::Iden
-        | CommitNodeInner::Unit
-        | CommitNodeInner::Fail(_)
-        | CommitNodeInner::Jet(_)
-        | CommitNodeInner::Word(_) => 0,
-        CommitNodeInner::InjL(_)
-        | CommitNodeInner::InjR(_)
-        | CommitNodeInner::Take(_)
-        | CommitNodeInner::Drop(_)
-        | CommitNodeInner::AssertL(_, _)
-        | CommitNodeInner::AssertR(_, _) => left.unwrap().bounds.extra_cells,
-        CommitNodeInner::Comp(_, _) => {
-            let left = left.unwrap();
-            left.ty.target.bit_width()
-                + cmp::max(left.bounds.extra_cells, right.unwrap().bounds.extra_cells)
-        }
-        CommitNodeInner::Case(_, _) | CommitNodeInner::Pair(_, _) => cmp::max(
-            left.unwrap().bounds.extra_cells,
-            right.unwrap().bounds.extra_cells,
-        ),
-        CommitNodeInner::Disconnect(_, _) => {
-            let left = left.unwrap();
-            left.ty.source.bit_width()
-                + left.ty.target.bit_width()
-                + cmp::max(left.bounds.extra_cells, right.unwrap().bounds.extra_cells)
-        }
-        CommitNodeInner::Witness => ty.target.bit_width(),
-    }
-}
-
-/// Return an upper bound on the number of frames required
-/// by the given node during execution on the Bit Machine.
-fn compute_extra_frames_bound<J: Jet>(
-    untyped_node: &CommitNode<J>,
-    left: Option<Rc<RedeemNode<J>>>,
-    right: Option<Rc<RedeemNode<J>>>,
-) -> usize {
-    match untyped_node.inner() {
-        CommitNodeInner::Iden
-        | CommitNodeInner::Unit
-        | CommitNodeInner::Witness
-        | CommitNodeInner::Fail(_)
-        | CommitNodeInner::Jet(_)
-        | CommitNodeInner::Word(_) => 0,
-        CommitNodeInner::InjL(_)
-        | CommitNodeInner::InjR(_)
-        | CommitNodeInner::Take(_)
-        | CommitNodeInner::Drop(_)
-        | CommitNodeInner::AssertL(_, _)
-        | CommitNodeInner::AssertR(_, _) => left.unwrap().bounds.extra_frames,
-        CommitNodeInner::Comp(_, _) => {
-            1 + cmp::max(
-                left.unwrap().bounds.extra_frames,
-                right.unwrap().bounds.extra_frames,
-            )
-        }
-        CommitNodeInner::Case(_, _) | CommitNodeInner::Pair(_, _) => cmp::max(
-            left.unwrap().bounds.extra_frames,
-            right.unwrap().bounds.extra_frames,
-        ),
-        CommitNodeInner::Disconnect(_, _) => {
-            2 + cmp::max(
-                left.unwrap().bounds.extra_frames,
-                right.unwrap().bounds.extra_frames,
-            )
-        }
-    }
-}
