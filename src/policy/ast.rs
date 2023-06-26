@@ -20,11 +20,16 @@
 //! These policies can be compiled to Simplicity and also be lifted back up from
 //! Simplicity expressions to policy.
 
+use std::convert::TryFrom;
 use std::sync::Arc;
-use std::{fmt, mem};
+use std::{fmt, iter, mem};
 
-use crate::miniscript::{MiniscriptKey, Translator};
+use crate::jet::Elements;
+use crate::miniscript::{MiniscriptKey, ToPublicKey, Translator};
+use crate::node::{ConstructNode, NoWitness};
 use crate::FailEntropy;
+
+use super::serialize;
 
 /// Policy that expresses spending conditions for Simplicity.
 ///
@@ -61,6 +66,47 @@ pub enum Policy<Pk: MiniscriptKey> {
 }
 
 impl<Pk: MiniscriptKey> Policy<Pk> {
+    /// Serializes the policy as a Simplicity fragment, with all witness nodes unpopulated.
+    pub fn serialize_no_witness(&self) -> Arc<ConstructNode<Elements>>
+    where
+        Pk: ToPublicKey,
+    {
+        match *self {
+            Policy::Unsatisfiable(entropy) => serialize::unsatisfiable(entropy),
+            Policy::Trivial => serialize::trivial(),
+            Policy::After(n) => serialize::after(n),
+            Policy::Older(n) => serialize::older(n),
+            Policy::Key(ref key) => serialize::key(key, NoWitness),
+            Policy::Sha256(ref hash) => serialize::sha256::<_, Pk>(hash, NoWitness),
+            Policy::And {
+                ref left,
+                ref right,
+            } => {
+                let left = left.serialize_no_witness();
+                let right = right.serialize_no_witness();
+                serialize::and(&left, &right)
+            }
+            Policy::Or {
+                ref left,
+                ref right,
+            } => {
+                let left = left.serialize_no_witness();
+                let right = right.serialize_no_witness();
+                serialize::or(&left, &right, NoWitness)
+            }
+            Policy::Threshold(k, ref subs) => {
+                let k = u32::try_from(k).expect("can have k at most 2^32 in a threshold");
+                let subs = subs
+                    .iter()
+                    .map(Self::serialize_no_witness)
+                    .collect::<Vec<Arc<ConstructNode<Elements>>>>();
+                let wits = iter::repeat(NoWitness)
+                    .take(subs.len())
+                    .collect::<Vec<NoWitness>>();
+                serialize::threshold(k, &subs, &wits)
+            }
+        }
+    }
     /// Convert a policy using one kind of public key to another
     /// type of public key
     pub fn translate<T, Q, E>(&self, translator: &mut T) -> Result<Policy<Q>, E>
