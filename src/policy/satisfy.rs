@@ -62,7 +62,7 @@ impl<Pk: ToPublicKey> Policy<Pk> {
         SatisfierExtData {
             witness: VecDeque::new(),
             witness_cost: 0,
-            program: self.compile().unwrap(),
+            program: self.compile(),
             program_cost: 0,
         }
     }
@@ -74,7 +74,7 @@ impl<Pk: ToPublicKey> Policy<Pk> {
             _ => unimplemented!(),
         };
         let witness_data = VecDeque::from_iter(std::iter::once(value));
-        let program = self.compile().unwrap();
+        let program = self.compile();
         let program_cost = program.len() as u64;
 
         SatisfierExtData {
@@ -125,13 +125,13 @@ impl<Pk: ToPublicKey> Policy<Pk> {
                 let mut left = left.satisfy_helper(satisfier).unwrap_or(SatisfierExtData {
                     witness: VecDeque::new(),
                     witness_cost: std::u64::MAX,
-                    program: left.compile().unwrap(),
+                    program: left.compile(),
                     program_cost: 0,
                 });
                 let mut right = right.satisfy_helper(satisfier).unwrap_or(SatisfierExtData {
                     witness: VecDeque::new(),
                     witness_cost: std::u64::MAX,
-                    program: right.compile().unwrap(),
+                    program: right.compile(),
                     program_cost: 0,
                 });
 
@@ -197,7 +197,7 @@ impl<Pk: ToPublicKey> Policy<Pk> {
                     SatisfierExtData {
                         witness: VecDeque::new(),
                         witness_cost: 0,
-                        program: sub_policies[i].compile().unwrap(),
+                        program: sub_policies[i].compile(),
                         program_cost: 0,
                     }
                 }
@@ -310,7 +310,7 @@ mod tests {
 
         assert!(policy.satisfy(&satisfier).is_none());
 
-        let commit = policy.compile().expect("compile");
+        let commit = policy.compile();
         let program = commit.finalize(std::iter::empty(), true).expect("finalize");
         let program = program.to_node();
         let mut mac = BitMachine::for_program(&program);

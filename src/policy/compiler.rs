@@ -16,7 +16,8 @@
 //! Currently the policy compilation is one to one mapping
 //! between policy fragment and a simplicity program.
 
-use super::ast::Policy;
+use super::Policy;
+
 use crate::core::commit::{CommitNode, CommitNodeInner, UsedCaseBranch};
 use crate::jet::Elements;
 use crate::miniscript::ToPublicKey;
@@ -26,18 +27,9 @@ use std::rc::Rc;
 
 impl<Pk: ToPublicKey> Policy<Pk> {
     /// Compile the policy into a Simplicity program
-    pub fn compile(&self) -> Result<Rc<CommitNode<Elements>>, Error> {
+    pub fn compile(&self) -> Rc<CommitNode<Elements>> {
         compile(self)
     }
-}
-
-fn compute_sha256(witness256: Rc<CommitNode<Elements>>) -> Result<Rc<CommitNode<Elements>>, Error> {
-    let ctx = CommitNode::jet(Elements::Sha256Ctx8Init);
-    let pair_ctx_witness = CommitNode::pair(ctx, witness256)?;
-    let add256 = CommitNode::jet(Elements::Sha256Ctx8Add32);
-    let digest_ctx = CommitNode::comp(pair_ctx_witness, add256)?;
-    let finalize = CommitNode::jet(Elements::Sha256Ctx8Finalize);
-    CommitNode::comp(digest_ctx, finalize)
 }
 
 fn verify_bexp(
@@ -50,73 +42,8 @@ fn verify_bexp(
 }
 
 /// Compile the given policy into a Simplicity program.
-fn compile<Pk: ToPublicKey>(policy: &Policy<Pk>) -> Result<Rc<CommitNode<Elements>>, Error> {
-    match policy {
-        Policy::Unsatisfiable(entropy) => Ok(CommitNode::fail(*entropy)),
-        Policy::Trivial => Ok(CommitNode::unit()),
-        Policy::Key(key) => {
-            let key_value = Value::u256_from_slice(&key.to_x_only_pubkey().serialize());
-            let const_key = CommitNode::const_word(key_value);
-            let sighash_all = CommitNode::jet(Elements::SigAllHash);
-            let pair_key_msg = CommitNode::pair(const_key, sighash_all)?;
-            let witness = CommitNode::witness();
-            let pair_key_msg_sig = CommitNode::pair(pair_key_msg, witness)?;
-            let bip_0340_verify = CommitNode::jet(Elements::Bip0340Verify);
-
-            CommitNode::comp(pair_key_msg_sig, bip_0340_verify)
-        }
-        Policy::After(n) => {
-            let n_value = Value::u32(*n);
-            let const_n = CommitNode::const_word(n_value);
-            let check_lock_height = CommitNode::jet(Elements::CheckLockHeight);
-
-            CommitNode::comp(const_n, check_lock_height)
-        }
-        Policy::Older(n) => {
-            let n_value = Value::u16(*n);
-            let const_n = CommitNode::const_word(n_value);
-            let check_lock_distance = CommitNode::jet(Elements::CheckLockDistance);
-
-            CommitNode::comp(const_n, check_lock_distance)
-        }
-        Policy::Sha256(hash) => {
-            let hash_value = Value::u256_from_slice(Pk::to_sha256(hash).as_ref());
-            let const_hash = CommitNode::const_word(hash_value);
-            let witness256 = CommitNode::witness();
-            let computed_hash = compute_sha256(witness256)?;
-            let pair_hash_computed_hash = CommitNode::pair(const_hash, computed_hash)?;
-            let eq256 = CommitNode::jet(Elements::Eq256);
-
-            verify_bexp(pair_hash_computed_hash, eq256)
-        }
-        Policy::And { left, right } => {
-            let left = compile(left)?;
-            let right = compile(right)?;
-            and(left, right)
-        }
-        Policy::Or { left, right } => {
-            let left = compile(left)?;
-            let right = compile(right)?;
-            or(left, right, UsedCaseBranch::Both)
-        }
-        Policy::Threshold(k, sub_policies) => {
-            assert!(
-                sub_policies.len() >= 2,
-                "Thresholds must have at least two sub-policies"
-            );
-
-            let child = sub_policies[0].compile()?;
-            let mut sum = thresh_summand(child, UsedCaseBranch::Both)?;
-
-            for policy in &sub_policies[1..] {
-                let child = policy.compile()?;
-                let summand = thresh_summand(child, UsedCaseBranch::Both)?;
-                sum = thresh_add(sum, summand)?;
-            }
-
-            thresh_verify(sum, *k as u32)
-        }
-    }
+fn compile<Pk: ToPublicKey>(policy: &Policy<Pk>) -> Rc<CommitNode<Elements>> {
+    CommitNode::from_node(&policy.serialize_no_witness())
 }
 
 fn selector() -> Result<Rc<CommitNode<Elements>>, Error> {
@@ -225,7 +152,7 @@ mod tests {
     use std::sync::Arc;
 
     fn compile(policy: Policy<bitcoin::XOnlyPublicKey>) -> (Rc<CommitNode<Elements>>, ElementsEnv) {
-        let commit = super::compile(&policy).expect("compile");
+        let commit = super::compile(&policy);
         let env = ElementsEnv::dummy();
 
         (commit, env)
@@ -271,7 +198,7 @@ mod tests {
         let signature = keypair.sign_schnorr(message);
 
         let (xonly, _) = keypair.x_only_public_key();
-        let commit = Policy::Key(xonly).compile().expect("compile");
+        let commit = Policy::Key(xonly).compile();
 
         assert!(execute_successful(
             &commit,
@@ -284,19 +211,13 @@ mod tests {
     fn execute_after() {
         let env = ElementsEnv::dummy_with(elements::PackedLockTime(42), elements::Sequence::ZERO);
 
-        let commit = Policy::<bitcoin::XOnlyPublicKey>::After(41)
-            .compile()
-            .expect("compile");
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::After(41).compile();
         assert!(execute_successful(&commit, vec![], &env));
 
-        let commit = Policy::<bitcoin::XOnlyPublicKey>::After(42)
-            .compile()
-            .expect("compile");
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::After(42).compile();
         assert!(execute_successful(&commit, vec![], &env));
 
-        let commit = Policy::<bitcoin::XOnlyPublicKey>::After(43)
-            .compile()
-            .expect("compile");
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::After(43).compile();
         assert!(!execute_successful(&commit, vec![], &env));
     }
 
@@ -307,19 +228,13 @@ mod tests {
             elements::Sequence::from_consensus(42),
         );
 
-        let commit = Policy::<bitcoin::XOnlyPublicKey>::Older(41)
-            .compile()
-            .expect("compile");
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::Older(41).compile();
         assert!(execute_successful(&commit, vec![], &env));
 
-        let commit = Policy::<bitcoin::XOnlyPublicKey>::Older(42)
-            .compile()
-            .expect("compile");
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::Older(42).compile();
         assert!(execute_successful(&commit, vec![], &env));
 
-        let commit = Policy::<bitcoin::XOnlyPublicKey>::Older(43)
-            .compile()
-            .expect("compile");
+        let commit = Policy::<bitcoin::XOnlyPublicKey>::Older(43).compile();
         assert!(!execute_successful(&commit, vec![], &env));
     }
 
