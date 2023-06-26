@@ -83,6 +83,7 @@
 //!
 
 use self::union_bound::UbElement;
+use crate::dag::{Dag, DagLike, NoSharing};
 use crate::Tmr;
 
 use std::fmt;
@@ -148,19 +149,6 @@ impl fmt::Display for Error {
 }
 
 impl std::error::Error for Error {}
-
-/// Source or target type of a Simplicity expression
-///
-/// This is just a mutex holding the actual data, which defined by the
-/// `TypeInner` type.
-#[derive(Clone, Debug)]
-pub struct Type {
-    /// A set of constraints, which maintained by the union-bound algorithm and
-    /// is progressively tightened as type inference proceeds.
-    bound: UbElement<bound_mutex::BoundMutex>,
-    /// Used during finalization to detect infinitely-sized types.
-    occurs_check: Arc<AtomicBool>,
-}
 
 mod bound_mutex {
     use super::{Bound, CompleteBound, Error, Final};
@@ -273,7 +261,7 @@ mod bound_mutex {
 }
 
 /// The state of a [`Type`] based on all constraints currently imposed on it.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum Bound {
     /// Fully-unconstrained type
     Free(String),
@@ -320,15 +308,67 @@ impl Bound {
     }
 }
 
+impl fmt::Debug for Bound {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let arc = Arc::new(self.shallow_clone());
+        for data in arc.verbose_pre_order_iter::<NoSharing>() {
+            match (&*data.node, data.n_children_yielded) {
+                (Bound::Free(ref s), _) => f.write_str(s)?,
+                (Bound::Complete(ref comp), _) => fmt::Debug::fmt(comp, f)?,
+                (Bound::Sum(..), 0) | (Bound::Product(..), 0) => f.write_str("(")?,
+                (Bound::Sum(..), 2) | (Bound::Product(..), 2) => f.write_str(")")?,
+                (Bound::Sum(..), _) => f.write_str(" + ")?,
+                (Bound::Product(..), _) => f.write_str(" × ")?,
+            }
+        }
+        Ok(())
+    }
+}
+
 impl fmt::Display for Bound {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Bound::Free(ref name) => f.write_str(name),
-            Bound::Complete(ref data) => fmt::Display::fmt(data, f),
-            Bound::Sum(ref a, ref b) => write!(f, "({} + {})", a, b),
-            Bound::Product(ref a, ref b) => write!(f, "({} × {})", a, b),
+        let arc = Arc::new(self.shallow_clone());
+        for data in arc.verbose_pre_order_iter::<NoSharing>() {
+            match (&*data.node, data.n_children_yielded) {
+                (Bound::Free(ref s), _) => f.write_str(s)?,
+                (Bound::Complete(ref comp), _) => fmt::Display::fmt(comp, f)?,
+                (Bound::Sum(..), 0) | (Bound::Product(..), 0) => f.write_str("(")?,
+                (Bound::Sum(..), 2) | (Bound::Product(..), 2) => f.write_str(")")?,
+                (Bound::Sum(..), _) => f.write_str(" + ")?,
+                (Bound::Product(..), _) => f.write_str(" × ")?,
+            }
+        }
+        Ok(())
+    }
+}
+
+impl DagLike for Arc<Bound> {
+    type Node = Bound;
+    fn data(&self) -> &Bound {
+        self
+    }
+
+    fn as_dag_node(&self) -> Dag<Self> {
+        match **self {
+            Bound::Free(..) | Bound::Complete(..) => Dag::Nullary,
+            Bound::Sum(ref ty1, ref ty2) | Bound::Product(ref ty1, ref ty2) => {
+                Dag::Binary(ty1.bound.root().get(), ty2.bound.root().get())
+            }
         }
     }
+}
+
+/// Source or target type of a Simplicity expression
+///
+/// This is just a mutex holding the actual data, which defined by the
+/// `TypeInner` type.
+#[derive(Clone, Debug)]
+pub struct Type {
+    /// A set of constraints, which maintained by the union-bound algorithm and
+    /// is progressively tightened as type inference proceeds.
+    bound: UbElement<bound_mutex::BoundMutex>,
+    /// Used during finalization to detect infinitely-sized types.
+    occurs_check: Arc<AtomicBool>,
 }
 
 impl Type {
