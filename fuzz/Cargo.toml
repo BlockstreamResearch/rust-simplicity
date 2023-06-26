@@ -21,10 +21,6 @@ name = "decode_program"
 path = "fuzz_targets/decode_program.rs"
 
 [[bin]]
-name = "decode_witness"
-path = "fuzz_targets/decode_witness.rs"
-
-[[bin]]
 name = "parse_compile"
 path = "fuzz_targets/parse_compile.rs"
 

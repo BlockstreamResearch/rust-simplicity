@@ -34,15 +34,15 @@ fn do_test(data: &[u8]) {
             /*
             use simplicity::dag::{DagLike, InternalSharing};
             for data in rust_data.as_ref().post_order_iter::<InternalSharing>() {
-                println!("{}: {} [{:?} {:?}]", data.index, data.node.inner, data.left_index, data.right_index);
+                println!("{}: {} [{:?} {:?}]", data.index, data.node.inner(), data.left_index, data.right_index);
             }
-            println!("{}", rust_data.cmr);
-            println!("{}", rust_data.amr);
-            println!("{}", rust_data.imr);
+            println!("{}", rust_data.cmr());
+            println!("{}", rust_data.amr());
+            println!("{}", rust_data.imr());
             */
-            assert_eq!(&Midstate::from(c_data.cmr)[..], rust_data.cmr.as_ref(),);
-            assert_eq!(&Midstate::from(c_data.amr)[..], rust_data.amr.as_ref(),);
-            assert_eq!(&Midstate::from(c_data.imr)[..], rust_data.imr.as_ref(),);
+            assert_eq!(&Midstate::from(c_data.cmr)[..], rust_data.cmr().as_ref(),);
+            assert_eq!(&Midstate::from(c_data.amr)[..], rust_data.amr().as_ref(),);
+            assert_eq!(&Midstate::from(c_data.imr)[..], rust_data.imr().as_ref(),);
         }
     }
 }

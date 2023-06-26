@@ -12,7 +12,6 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use crate::core::commit::CommitNodeInner;
 use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
 use crate::{FailEntropy, Tmr, Value};
@@ -258,28 +257,6 @@ impl Cmr {
             0x10, 0x43, 0x24, 0xee, 0x39, 0x1b, 0xff, 0x9d,
         ])),
     ];
-
-    /// Compute the CMR of the given node.
-    pub(crate) fn compute<J: Jet>(node: &CommitNodeInner<J>) -> Cmr {
-        match node {
-            CommitNodeInner::Iden => Self::iden(),
-            CommitNodeInner::Unit => Self::unit(),
-            CommitNodeInner::InjL(child) => Self::injl(child.cmr()),
-            CommitNodeInner::InjR(child) => Self::injr(child.cmr()),
-            CommitNodeInner::Take(child) => Self::take(child.cmr()),
-            CommitNodeInner::Drop(child) => Self::drop(child.cmr()),
-            CommitNodeInner::Comp(left, right) => Self::comp(left.cmr(), right.cmr()),
-            CommitNodeInner::Case(left, right) => Self::case(left.cmr(), right.cmr()),
-            CommitNodeInner::AssertL(left, r_cmr) => Self::case(left.cmr(), *r_cmr),
-            CommitNodeInner::AssertR(l_cmr, right) => Self::case(*l_cmr, right.cmr()),
-            CommitNodeInner::Pair(left, right) => Self::pair(left.cmr(), right.cmr()),
-            CommitNodeInner::Disconnect(left, _) => Self::disconnect(left.cmr()),
-            CommitNodeInner::Witness => Self::witness(),
-            CommitNodeInner::Fail(entropy) => Self::fail(*entropy),
-            CommitNodeInner::Jet(j) => Self::jet(*j),
-            CommitNodeInner::Word(w) => Self::const_word(w),
-        }
-    }
 }
 
 #[cfg(test)]

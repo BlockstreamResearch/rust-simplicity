@@ -36,7 +36,6 @@ mod macros;
 mod analysis;
 mod bit_encoding;
 pub mod bit_machine;
-pub mod core;
 pub mod dag;
 pub mod jet;
 mod merkle;
@@ -57,10 +56,6 @@ pub use bit_encoding::{BitIter, EarlyEndOfStreamError};
 pub use crate::policy::{Descriptor, Policy};
 
 pub use crate::bit_machine::BitMachine;
-pub use crate::core::commit::CommitNodeInner;
-pub use crate::core::redeem::RedeemNodeInner;
-pub use crate::core::{CommitNode, RedeemNode};
-pub use crate::decode::WitnessDecoder;
 pub use crate::encode::{encode_natural, encode_value, encode_witness};
 pub use crate::merkle::{
     amr::Amr,
@@ -69,6 +64,7 @@ pub use crate::merkle::{
     tmr::Tmr,
     FailEntropy,
 };
+pub use crate::node::{CommitNode, ConstructNode, RedeemNode, WitnessNode};
 pub use crate::value::Value;
 pub use simplicity_sys as ffi;
 use std::fmt;
