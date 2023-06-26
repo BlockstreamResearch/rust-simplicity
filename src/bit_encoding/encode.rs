@@ -115,7 +115,7 @@ pub struct EncodeSharing<N: NodeData<J>, J: Jet> {
 impl<N: NodeData<J>, J: Jet> Default for EncodeSharing<N, J> {
     fn default() -> Self {
         EncodeSharing {
-            map: Default::default(),
+            map: HashMap::default(),
         }
     }
 }
@@ -321,7 +321,7 @@ pub fn encode_value<W: io::Write>(value: &Value, w: &mut BitWriter<W>) -> io::Re
 /// Encode a hash to bits.
 pub fn encode_hash<W: io::Write>(h: &[u8], w: &mut BitWriter<W>) -> io::Result<()> {
     for byte in h {
-        w.write_bits_be(*byte as u64, 8)?;
+        w.write_bits_be(u64::from(*byte), 8)?;
     }
 
     Ok(())

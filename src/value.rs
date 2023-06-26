@@ -83,9 +83,7 @@ impl Value {
     pub fn u2(n: u8) -> Value {
         let b0 = (n & 2) / 2;
         let b1 = n & 1;
-        if n > 3 {
-            panic!("{} out of range for Value::u2", n);
-        }
+        assert!(n <= 3, "{} out of range for Value::u2", n);
         Value::Prod(Box::new(Value::u1(b0)), Box::new(Value::u1(b1)))
     }
 
@@ -93,9 +91,7 @@ impl Value {
     pub fn u4(n: u8) -> Value {
         let w0 = (n & 12) / 4;
         let w1 = n & 3;
-        if n > 15 {
-            panic!("{} out of range for Value::u4", n);
-        }
+        assert!(n <= 15, "{} out of range for Value::u2", n);
         Value::Prod(Box::new(Value::u2(w0)), Box::new(Value::u2(w1)))
     }
 
@@ -199,7 +195,11 @@ impl Value {
             unfinished_byte.push(bit);
 
             if unfinished_byte.len() == 8 {
-                bytes.push(unfinished_byte.iter().fold(0, |acc, &b| acc * 2 + b as u8));
+                bytes.push(
+                    unfinished_byte
+                        .iter()
+                        .fold(0, |acc, &b| acc * 2 + u8::from(b)),
+                );
                 unfinished_byte.clear();
             }
         };
@@ -209,7 +209,11 @@ impl Value {
 
         if !unfinished_byte.is_empty() {
             unfinished_byte.resize(8, false);
-            bytes.push(unfinished_byte.iter().fold(0, |acc, &b| acc * 2 + b as u8));
+            bytes.push(
+                unfinished_byte
+                    .iter()
+                    .fold(0, |acc, &b| acc * 2 + u8::from(b)),
+            );
         }
 
         (bytes, bit_length)

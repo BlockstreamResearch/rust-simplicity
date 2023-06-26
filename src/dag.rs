@@ -128,7 +128,7 @@ pub struct MaxSharing<N: NodeData<J>, J: jet::Jet> {
 impl<N: NodeData<J>, J: jet::Jet> Default for MaxSharing<N, J> {
     fn default() -> Self {
         MaxSharing {
-            map: Default::default(),
+            map: HashMap::default(),
         }
     }
 }

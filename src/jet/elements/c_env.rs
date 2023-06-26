@@ -106,7 +106,7 @@ fn new_tx_data(tx: &elements::Transaction, in_utxos: &[ElementsUtxo]) -> RawTran
         };
         tx_data.inputs.push(inp_data);
     }
-    for out in tx.output.iter() {
+    for out in &tx.output {
         let out_data = RawOutputData {
             asset: serialize(&out.asset),
             value: serialize(&out.value),
