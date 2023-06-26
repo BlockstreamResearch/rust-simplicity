@@ -280,7 +280,7 @@ where
     let start_n = w.n_total_written();
 
     for value in witness.clone() {
-        bit_len += get_bit_len(value);
+        bit_len += value.len();
     }
 
     if bit_len == 0 {
@@ -295,16 +295,6 @@ where
     }
 
     Ok(w.n_total_written() - start_n)
-}
-
-/// Return the bit length of the given `value` when encoded.
-pub fn get_bit_len(value: &Value) -> usize {
-    match value {
-        Value::Unit => 0,
-        Value::SumL(left) => 1 + get_bit_len(left),
-        Value::SumR(right) => 1 + get_bit_len(right),
-        Value::Prod(left, right) => get_bit_len(left) + get_bit_len(right),
-    }
 }
 
 /// Encode a value to bits.

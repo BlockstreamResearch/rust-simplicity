@@ -292,4 +292,29 @@ mod tests {
             panic!("Expected type check error")
         }
     }
+
+    #[test]
+    fn scribe() {
+        let unit = Arc::<ConstructNode<Core>>::unit();
+        let bit0 = Arc::<ConstructNode<Core>>::injl(&unit);
+        let bit1 = Arc::<ConstructNode<Core>>::injr(&unit);
+        let bits01 = Arc::<ConstructNode<Core>>::pair(&bit0, &bit1).unwrap();
+
+        assert_eq!(
+            unit.cmr(),
+            Arc::<ConstructNode<Core>>::scribe(&Value::Unit).cmr()
+        );
+        assert_eq!(
+            bit0.cmr(),
+            Arc::<ConstructNode<Core>>::scribe(&Value::u1(0)).cmr()
+        );
+        assert_eq!(
+            bit1.cmr(),
+            Arc::<ConstructNode<Core>>::scribe(&Value::u1(1)).cmr()
+        );
+        assert_eq!(
+            bits01.cmr(),
+            Arc::<ConstructNode<Core>>::scribe(&Value::u2(1)).cmr()
+        );
+    }
 }

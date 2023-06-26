@@ -20,6 +20,7 @@
 
 mod frame;
 
+use crate::dag::{DagLike, NoSharing};
 use crate::jet::{Jet, JetFailed};
 use crate::node::{self, RedeemNode};
 use crate::{analysis, types};
@@ -177,20 +178,12 @@ impl BitMachine {
 
     /// Write a value to the current write frame
     fn write_value(&mut self, val: &Value) {
-        // FIXME don't recurse
-        match *val {
-            Value::Unit => {}
-            Value::SumL(ref a) => {
-                self.write_bit(false);
-                self.write_value(a);
-            }
-            Value::SumR(ref a) => {
-                self.write_bit(true);
-                self.write_value(a);
-            }
-            Value::Prod(ref a, ref b) => {
-                self.write_value(a);
-                self.write_value(b);
+        for val in val.pre_order_iter::<NoSharing>() {
+            match val {
+                Value::Unit => {}
+                Value::SumL(..) => self.write_bit(false),
+                Value::SumR(..) => self.write_bit(true),
+                Value::Prod(..) => {}
             }
         }
     }
