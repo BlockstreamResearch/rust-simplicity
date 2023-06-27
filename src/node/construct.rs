@@ -282,6 +282,53 @@ mod tests {
     }
 
     #[test]
+    fn occurs_check_2() {
+        // A more complicated occurs-check test that caused a deadlock in the past.
+        let iden = Arc::<ConstructNode<Core>>::iden();
+        let injr = Arc::<ConstructNode<Core>>::injr(&iden);
+        let pair = Arc::<ConstructNode<Core>>::pair(&injr, &iden).unwrap();
+        let drop = Arc::<ConstructNode<Core>>::drop_(&pair);
+
+        let case1 = Arc::<ConstructNode<Core>>::case(&drop, &drop).unwrap();
+        let case2 = Arc::<ConstructNode<Core>>::case(&case1, &case1).unwrap();
+
+        let comp1 = Arc::<ConstructNode<Core>>::comp(&case2, &case2).unwrap();
+        let comp2 = Arc::<ConstructNode<Core>>::comp(&comp1, &case1).unwrap();
+
+        if let Err(types::Error::OccursCheck { .. }) = comp2.finalize_types_non_program() {
+        } else {
+            panic!("Expected occurs check error")
+        }
+    }
+
+    #[test]
+    fn occurs_check_3() {
+        // A similar example that caused a slightly different deadlock in the past.
+        let wit = Arc::<ConstructNode<Core>>::witness(NoWitness);
+        let drop = Arc::<ConstructNode<Core>>::drop_(&wit);
+
+        let comp1 = Arc::<ConstructNode<Core>>::comp(&drop, &drop).unwrap();
+        let comp2 = Arc::<ConstructNode<Core>>::comp(&comp1, &comp1).unwrap();
+        let comp3 = Arc::<ConstructNode<Core>>::comp(&comp2, &comp2).unwrap();
+        let comp4 = Arc::<ConstructNode<Core>>::comp(&comp3, &comp3).unwrap();
+        let comp5 = Arc::<ConstructNode<Core>>::comp(&comp4, &comp4).unwrap();
+
+        let case = Arc::<ConstructNode<Core>>::case(&comp5, &comp4).unwrap();
+        let drop2 = Arc::<ConstructNode<Core>>::drop_(&case);
+        let case2 = Arc::<ConstructNode<Core>>::case(&drop2, &case).unwrap();
+        let comp6 = Arc::<ConstructNode<Core>>::comp(&case2, &case2).unwrap();
+        let case3 = Arc::<ConstructNode<Core>>::case(&comp6, &comp6).unwrap();
+
+        let comp7 = Arc::<ConstructNode<Core>>::comp(&case3, &case3).unwrap();
+        let comp8 = Arc::<ConstructNode<Core>>::comp(&comp7, &comp7).unwrap();
+
+        if let Err(types::Error::OccursCheck { .. }) = comp8.finalize_types_non_program() {
+        } else {
+            panic!("Expected occurs check error")
+        }
+    }
+
+    #[test]
     fn type_check_error() {
         let unit = Arc::<ConstructNode<Core>>::unit();
         let case = Arc::<ConstructNode<Core>>::case(&unit, &unit).unwrap();
