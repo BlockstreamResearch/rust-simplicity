@@ -282,6 +282,22 @@ mod tests {
     }
 
     #[test]
+    fn occurs_check_3() {
+        let iden = Arc::<ConstructNode<Core>>::iden();
+        let injr = Arc::<ConstructNode<Core>>::injr(&iden);
+        let pair = Arc::<ConstructNode<Core>>::pair(&injr, &iden).unwrap();
+        let drop = Arc::<ConstructNode<Core>>::drop_(&pair);
+
+        let case1 = Arc::<ConstructNode<Core>>::case(&drop, &drop).unwrap();
+        let case2 = Arc::<ConstructNode<Core>>::case(&case1, &case1).unwrap();
+
+        let comp1 = Arc::<ConstructNode<Core>>::comp(&case2, &case2).unwrap();
+        let comp2 = Arc::<ConstructNode<Core>>::comp(&comp1, &case1).unwrap();
+
+        comp2.finalize_types_non_program().unwrap_err();
+    }
+
+    #[test]
     fn type_check_error() {
         let unit = Arc::<ConstructNode<Core>>::unit();
         let case = Arc::<ConstructNode<Core>>::case(&unit, &unit).unwrap();

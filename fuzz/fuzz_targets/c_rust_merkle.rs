@@ -77,7 +77,7 @@ mod unit_tests {
     #[test]
     fn duplicate_crash() {
         let mut a = Vec::new();
-        extend_vec_from_hex("7b88f500", &mut a);
+        extend_vec_from_hex("d482848704080000003131313131313131313131313131313131313131313131313131313131313131313198310000000010d1d1d100e38e38e38e38e3ffffffffffffff0fd1d1d1d1d1aaaeffffffffffffff01ffffffaaab3800380000000400000003000400325e31383400000000000000000000621886611886", &mut a);
         super::do_test(&a);
     }
 }
