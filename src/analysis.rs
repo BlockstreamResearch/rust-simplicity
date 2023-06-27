@@ -12,6 +12,8 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
+use crate::jet::Jet;
+use crate::Value;
 use std::{cmp, fmt};
 
 /// CPU cost of a Simplicity expression.
@@ -80,42 +82,58 @@ pub struct NodeBounds {
     /// Upper bound on the required number of frames (sum of read and write frames).
     /// The root additionally requires two frames (input, output)
     pub extra_frames: usize,
+    /// CPU cost
+    pub cost: Cost,
 }
 
 impl NodeBounds {
-    const ZERO: Self = NodeBounds {
+    const NOP: Self = NodeBounds {
         extra_cells: 0,
         extra_frames: 0,
+        cost: Cost::OVERHEAD,
     };
+    const NEVER_EXECUTED: Self = NodeBounds {
+        extra_cells: 0,
+        extra_frames: 0,
+        cost: Cost::NEVER_EXECUTED,
+    };
+
+    fn from_child(child: Self) -> Self {
+        NodeBounds {
+            extra_cells: child.extra_cells,
+            extra_frames: child.extra_frames,
+            cost: Cost::OVERHEAD + child.cost,
+        }
+    }
 
     /// Node bounds for an `iden` node
     pub const fn iden() -> NodeBounds {
-        NodeBounds::ZERO
+        NodeBounds::NOP
     }
 
     /// Node bounds for a `unit` node
     pub const fn unit() -> NodeBounds {
-        NodeBounds::ZERO
+        NodeBounds::NOP
     }
 
     /// Node bounds for an `injl` node
-    pub const fn injl(child: Self) -> NodeBounds {
-        child
+    pub fn injl(child: Self) -> NodeBounds {
+        Self::from_child(child)
     }
 
     /// Node bounds for an `injr` node
-    pub const fn injr(child: Self) -> NodeBounds {
-        child
+    pub fn injr(child: Self) -> NodeBounds {
+        Self::from_child(child)
     }
 
     /// Node bounds for a `take` node
-    pub const fn take(child: Self) -> NodeBounds {
-        child
+    pub fn take(child: Self) -> NodeBounds {
+        Self::from_child(child)
     }
 
     /// Node bounds for a `drop` node
-    pub const fn drop(child: Self) -> NodeBounds {
-        child
+    pub fn drop(child: Self) -> NodeBounds {
+        Self::from_child(child)
     }
 
     /// Node bounds for a `comp` node
@@ -123,6 +141,7 @@ impl NodeBounds {
         NodeBounds {
             extra_cells: mid_ty_bit_width + cmp::max(left.extra_cells, right.extra_cells),
             extra_frames: 1 + cmp::max(left.extra_frames, right.extra_frames),
+            cost: Cost::OVERHEAD + Cost::of_type(mid_ty_bit_width) + left.cost + right.cost,
         }
     }
 
@@ -131,17 +150,18 @@ impl NodeBounds {
         NodeBounds {
             extra_cells: cmp::max(left.extra_cells, right.extra_cells),
             extra_frames: cmp::max(left.extra_frames, right.extra_frames),
+            cost: Cost::OVERHEAD + cmp::max(left.cost, right.cost),
         }
     }
 
     /// Node bounds for a `assertl` node
-    pub const fn assertl(child: Self) -> NodeBounds {
-        child
+    pub fn assertl(child: Self) -> NodeBounds {
+        Self::from_child(child)
     }
 
     /// Node bounds for a `assertr` node
-    pub const fn assertr(child: Self) -> NodeBounds {
-        child
+    pub fn assertr(child: Self) -> NodeBounds {
+        Self::from_child(child)
     }
 
     /// Node bounds for a `pair` node
@@ -149,6 +169,7 @@ impl NodeBounds {
         NodeBounds {
             extra_cells: cmp::max(left.extra_cells, right.extra_cells),
             extra_frames: cmp::max(left.extra_frames, right.extra_frames),
+            cost: Cost::OVERHEAD + left.cost + right.cost,
         }
     }
 
@@ -165,6 +186,12 @@ impl NodeBounds {
                 + left_target_bit_width
                 + cmp::max(left.extra_cells, right.extra_cells),
             extra_frames: 2 + cmp::max(left.extra_frames, right.extra_frames),
+            cost: Cost::OVERHEAD
+                + Cost::of_type(left_source_bit_width)
+                + Cost::of_type(left_source_bit_width)
+                + Cost::of_type(left_target_bit_width)
+                + left.cost
+                + right.cost,
         }
     }
 
@@ -173,17 +200,26 @@ impl NodeBounds {
         NodeBounds {
             extra_cells: target_ty_bit_width,
             extra_frames: 0,
+            cost: Cost::OVERHEAD + Cost::of_type(target_ty_bit_width),
         }
     }
 
     /// Node bounds for an arbitrary jet node
-    pub const fn jet() -> NodeBounds {
-        NodeBounds::ZERO
+    pub fn jet<J: Jet>(jet: J) -> NodeBounds {
+        NodeBounds {
+            extra_cells: 0,
+            extra_frames: 0,
+            cost: jet.cost(),
+        }
     }
 
     /// Node bounds for an arbitrary constant word node
-    pub const fn const_word() -> NodeBounds {
-        NodeBounds::ZERO
+    pub fn const_word(value: &Value) -> NodeBounds {
+        NodeBounds {
+            extra_cells: 0,
+            extra_frames: 0,
+            cost: Cost::OVERHEAD + Cost::of_type(value.len()),
+        }
     }
 
     /// Node bounds for a `fail` node.
@@ -193,7 +229,7 @@ impl NodeBounds {
     /// executed, it will fail the "no unexecuted nodes" check. But to analyze
     /// arbitrary programs, we need it.
     pub const fn fail() -> NodeBounds {
-        NodeBounds::ZERO
+        NodeBounds::NEVER_EXECUTED
     }
 }
 
