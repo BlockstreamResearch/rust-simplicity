@@ -29,6 +29,17 @@ use std::{cmp, fmt};
 /// to the number of allocated or written bits.
 /// Frame moves / drops or cursor moves are one-step operations
 /// that are covered by the overhead.
+///
+/// The cost of a program is compared to its _budget_.
+/// A program is valid if it does not exceed its budget.
+///
+/// The budget is the size of the witness stack
+/// of the transaction input that includes the program.
+/// Users pay for their Simplicity programs in terms of fees
+/// which are based on transaction size, like normal Tapscript.
+///
+/// Programs that are CPU-heavy need to be padded
+/// so that the witness stack provides a large-enough budget.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Cost(usize);
 
@@ -43,6 +54,21 @@ impl Cost {
     /// **This should only be used for `fail` nodes!**
     const NEVER_EXECUTED: Self = Cost(0);
 
+    /// Maximum cost allowed by consensus.
+    ///
+    /// This is equal to the maximum budget that any program
+    /// can have inside a Taproot transaction:
+    /// 4 million weight units plus 50 free weight units for validation.
+    ///
+    /// This assumes a block that consists of a single transaction
+    /// which in turn consists of nothing but its witness stack.
+    ///
+    /// Transactions include other data besides the witness stack.
+    /// Also, transaction may have multiple inputs and
+    /// blocks usually include multiple transactions.
+    /// This means that the maximum budget is an unreachable upper bound.
+    const CONSENSUS_MAX: Self = Cost(4_000_050_000);
+
     /// Convert the cost to weight units.
     pub const fn to_weight(self) -> usize {
         (self.0 + 999) / 1000
@@ -56,6 +82,22 @@ impl Cost {
     /// Convert the given milli weight units into cost.
     pub const fn from_milliweight(milliweight: usize) -> Self {
         Cost(milliweight)
+    }
+
+    /// Return whether the cost is allowed by consensus.
+    ///
+    /// This means the cost is within the maximum budget
+    /// that any program inside a Taproot transaction can have.
+    pub fn is_consensus_valid(&self) -> bool {
+        self <= &Self::CONSENSUS_MAX
+    }
+
+    /// Return whether the cost is within the budget of
+    /// the given transaction input.
+    #[cfg(feature = "elements")]
+    pub fn is_budget_valid(&self, txin: &elements::TxIn) -> bool {
+        let budget = txin.witness.script_witness.iter().map(|el| el.len()).sum();
+        self.to_weight() <= budget
     }
 }
 
