@@ -114,7 +114,7 @@ pub enum Error {
         hint: &'static str,
     },
     /// A type is recursive (i.e., occurs within itself), violating the "occurs check"
-    OccursCheck { incomplete_bound: Arc<Bound> },
+    OccursCheck,
 }
 
 impl fmt::Display for Error {
@@ -142,15 +142,7 @@ impl fmt::Display for Error {
                     type1, type2, hint,
                 )
             }
-            Error::OccursCheck {
-                ref incomplete_bound,
-            } => {
-                write!(
-                    f,
-                    "occurs check failed (incomplete bound: {})",
-                    incomplete_bound,
-                )
-            }
+            Error::OccursCheck => f.write_str("detected infinitely-sized type"),
         }
     }
 }
@@ -431,9 +423,7 @@ impl Type {
         // of the logic) in case the same type is being finalized from multiple
         // threads at once.
         if self.occurs_check.fetch_or(true, Ordering::SeqCst) {
-            return Err(Error::OccursCheck {
-                incomplete_bound: bound,
-            });
+            return Err(Error::OccursCheck);
         }
 
         let data = match *bound {
