@@ -86,8 +86,8 @@ use self::union_bound::UbElement;
 use crate::dag::{Dag, DagLike, NoSharing};
 use crate::Tmr;
 
+use std::collections::HashSet;
 use std::fmt;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 pub mod arrow;
@@ -367,8 +367,6 @@ pub struct Type {
     /// A set of constraints, which maintained by the union-bound algorithm and
     /// is progressively tightened as type inference proceeds.
     bound: UbElement<bound_mutex::BoundMutex>,
-    /// Used during finalization to detect infinitely-sized types.
-    occurs_check: Arc<AtomicBool>,
 }
 
 impl Type {
@@ -459,31 +457,44 @@ impl Type {
             return Ok(Arc::clone(data));
         }
 
-        // FIXME there is a race condition (which actually predates this version
-        // of the logic) in case the same type is being finalized from multiple
-        // threads at once.
-        if self.occurs_check.fetch_or(true, Ordering::SeqCst) {
-            return Err(Error::OccursCheck);
+        // First, do occurs-check to ensure that we have no infinitely sized types.
+        let mut occurs_check = HashSet::new();
+        for data in bound.verbose_pre_order_iter::<NoSharing>() {
+            if data.is_complete {
+                occurs_check.remove(&(data.node.as_ref() as *const _));
+            } else if data.n_children_yielded == 0
+                && !occurs_check.insert(data.node.as_ref() as *const _)
+            {
+                return Err(Error::OccursCheck);
+            }
         }
 
-        let data = match *bound {
-            Bound::Free(_) => Arc::new(Final::unit()),
-            Bound::Complete(ref arc) => Arc::clone(arc),
-            Bound::Sum(ref ty1, ref ty2) => {
-                let data1 = ty1.finalize()?;
-                let data2 = ty2.finalize()?;
-                Arc::new(Final::sum(data1, data2))
+        // Now that we know our types have finite size, we can safely use a
+        // post-order iterator to finalize them.
+        let mut finalized = vec![];
+        for data in self.shallow_clone().post_order_iter::<NoSharing>() {
+            let bound = data.node.bound.root();
+            let bound_get = bound.get();
+            let final_data = match *bound_get {
+                Bound::Free(_) => Arc::new(Final::unit()),
+                Bound::Complete(ref arc) => Arc::clone(arc),
+                Bound::Sum(..) => Arc::new(Final::sum(
+                    Arc::clone(&finalized[data.left_index.unwrap()]),
+                    Arc::clone(&finalized[data.right_index.unwrap()]),
+                )),
+                Bound::Product(..) => Arc::new(Final::product(
+                    Arc::clone(&finalized[data.left_index.unwrap()]),
+                    Arc::clone(&finalized[data.right_index.unwrap()]),
+                )),
+            };
+
+            if !matches!(*bound_get, Bound::Complete(..)) {
+                // set() ok because we are if-guarded on this variable not being complete
+                bound.set(Arc::new(Bound::Complete(Arc::clone(&final_data))));
             }
-            Bound::Product(ref ty1, ref ty2) => {
-                let data1 = ty1.finalize()?;
-                let data2 = ty2.finalize()?;
-                Arc::new(Final::product(data1, data2))
-            }
-        };
-        // We checked at the start of the function that this type was not final,
-        // so set() is okay here.
-        root.set(Arc::new(Bound::Complete(Arc::clone(&data))));
-        Ok(data)
+            finalized.push(final_data);
+        }
+        Ok(finalized.pop().unwrap())
     }
 
     /// Return a vector containing the types 2^(2^i) for i from 0 to n-1.
@@ -511,7 +522,22 @@ impl From<Bound> for Type {
     fn from(bound: Bound) -> Type {
         Type {
             bound: UbElement::new(Arc::new(bound_mutex::BoundMutex::new(bound))),
-            occurs_check: Arc::new(AtomicBool::new(false)),
+        }
+    }
+}
+
+impl DagLike for Type {
+    type Node = Type;
+    fn data(&self) -> &Type {
+        self
+    }
+
+    fn as_dag_node(&self) -> Dag<Self> {
+        match *self.bound.root().get() {
+            Bound::Free(..) | Bound::Complete(..) => Dag::Nullary,
+            Bound::Sum(ref ty1, ref ty2) | Bound::Product(ref ty1, ref ty2) => {
+                Dag::Binary(ty1.shallow_clone(), ty2.shallow_clone())
+            }
         }
     }
 }
