@@ -350,6 +350,19 @@ pub trait DagLike: Sized {
         }
     }
 
+    /// Number of children that the node has.
+    ///
+    /// This has a default implementation which simply inspects the children, but
+    /// in some cases it may be more efficient for implementors to implement this
+    /// manually.
+    fn n_children(&self) -> usize {
+        match self.as_dag_node() {
+            Dag::Nullary | Dag::Witness => 0,
+            Dag::Unary(..) => 1,
+            Dag::Binary(..) | Dag::Disconnect(..) => 2,
+        }
+    }
+
     /// Obtains an iterator of all the nodes rooted at the DAG, in right-to-left post order.
     ///
     /// An ordinary post-order iterator yields children in the order
@@ -373,6 +386,33 @@ pub trait DagLike: Sized {
             tracker: Default::default(),
         }
         .map(PostOrderIterItem::unswap)
+    }
+
+    /// Obtains an iterator of all the nodes rooted at the DAG, in pre-order.
+    fn pre_order_iter<S: SharingTracker<Self> + Default>(self) -> PreOrderIter<Self, S> {
+        PreOrderIter {
+            stack: vec![self],
+            tracker: Default::default(),
+        }
+    }
+
+    /// Obtains a verbose iterator of all the nodes rooted at the DAG, in pre-order.
+    ///
+    /// See the documentation of [`VerbosePreOrderIter`] for more information about what
+    /// this does. Essentially, if you find yourself using [`Self::pre_order_iter`] and
+    /// then adding a stack to manually track which items and their children have been
+    /// yielded, you may be better off using this iterator instead.
+    fn verbose_pre_order_iter<S: SharingTracker<Self> + Default>(
+        self,
+    ) -> VerbosePreOrderIter<Self, S>
+    where
+        Self: Clone,
+    {
+        VerbosePreOrderIter {
+            stack: vec![PreOrderIterItem::initial(self, None)],
+            index: 0,
+            tracker: Default::default(),
+        }
     }
 
     /// Obtains an iterator of all the nodes rooted at the DAG, in post order.
@@ -943,5 +983,171 @@ impl<D: DagLike, S: SharingTracker<D>> PostOrderIter<D, S> {
             f.write_str("\n")?;
         }
         Ok(())
+    }
+}
+
+/// Iterates over a DAG in _pre order_.
+///
+/// Unlike the post-order iterator, this one does not keep track of indices
+/// (this would be impractical since when we yield a node we have not yet
+/// yielded its children, so we cannot know their indices). If you do need
+/// the indices for some reason, the best strategy may be to run the
+/// post-order iterator, collect into a vector, then iterate through that
+/// backward.
+#[derive(Clone, Debug)]
+pub struct PreOrderIter<D: DagLike, S: SharingTracker<D>> {
+    /// A stack of elements to be yielded. As items are yielded, their right
+    /// children are put onto the stack followed by their left, so that the
+    /// appropriate one will be yielded on the next iteration.
+    stack: Vec<D>,
+    /// Data which tracks which nodes have been yielded already and therefore
+    /// should be skipped.
+    tracker: S,
+}
+
+impl<D: DagLike, S: SharingTracker<D>> Iterator for PreOrderIter<D, S> {
+    type Item = D;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // This algorithm is _significantly_ simpler than the post-order one,
+        // mainly because we don't care about child indices.
+        while let Some(top) = self.stack.pop() {
+            // Only yield if this is the first time we have seen this node.
+            if self.tracker.record(&top, 0, None, None).is_none() {
+                // If so, mark its children as to-yield, then yield it.
+                if let Some(child) = top.right_child() {
+                    self.stack.push(child);
+                }
+                if let Some(child) = top.left_child() {
+                    self.stack.push(child);
+                }
+                return Some(top);
+            }
+        }
+        None
+    }
+}
+
+/// Iterates over a DAG in "verbose pre order", yielding extra state changes.
+///
+/// This yields nodes followed by their children, followed by the node *again*
+/// after each child. This means that each node will be yielded a total of
+/// (n+1) times, where n is its number of children.
+///
+/// The different times that a node is yielded can be distinguished by looking
+/// at the [`PreOrderIterItem::n_children_yielded`]  (which, in particular,
+/// will be 0 on the first yield) and [`PreOrderIterItem::is_complete`] (which
+/// will be true on the last yield) fields of the yielded item.
+///
+/// If you use this iterator with a non-trivial sharing tracker, then any
+/// items which have been initially yielded before will not be initially
+/// yielded again.
+///
+/// If node's *children* have been initially yielded before, they will be
+/// skipped, but the node itself will still be re-yielded as many times
+/// as it has children.
+#[derive(Clone, Debug)]
+pub struct VerbosePreOrderIter<D: DagLike + Clone, S: SharingTracker<D>> {
+    /// A stack of elements to be yielded. As items are yielded, their right
+    /// children are put onto the stack followed by their left, so that the
+    /// appropriate one will be yielded on the next iteration.
+    stack: Vec<PreOrderIterItem<D>>,
+    /// The index of the next item to be yielded.
+    ///
+    /// Note that unlike the [`PostOrderIter`], this value is not monotonic
+    /// and not equivalent to just using `enumerate` on the iterator, because
+    /// elements may be yielded multiple times.
+    index: usize,
+    /// Data which tracks which nodes have been yielded already and therefore
+    /// should be skipped.
+    tracker: S,
+}
+
+impl<D: DagLike + Clone, S: SharingTracker<D>> Iterator for VerbosePreOrderIter<D, S> {
+    type Item = PreOrderIterItem<D>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        // This algorithm is still simpler than the post-order one, because while
+        // we care about node indices, we don't care about their childrens' indices.
+        while let Some(mut top) = self.stack.pop() {
+            // If this is the *first* time we'd be yielding this element, act
+            // like the non-verbose pre-order iterator.
+            if top.n_children_yielded == 0 {
+                // If we've seen the node before, skip it.
+                if self.tracker.record(&top.node, 0, None, None).is_some() {
+                    continue;
+                }
+                // Set its index.
+                top.index = self.index;
+                self.index += 1;
+            }
+            // Push the next child.
+            match (top.n_children_yielded, top.node.n_children()) {
+                (0, 0) => {}
+                (0, n) => {
+                    self.stack.push(top.clone().increment(n == 1));
+                    let child = top.node.left_child().unwrap();
+                    self.stack
+                        .push(PreOrderIterItem::initial(child, Some(top.node.clone())));
+                }
+                (1, 0) => unreachable!(),
+                (1, 1) => {}
+                (1, _) => {
+                    self.stack.push(top.clone().increment(true));
+                    let child = top.node.right_child().unwrap();
+                    self.stack
+                        .push(PreOrderIterItem::initial(child, Some(top.node.clone())));
+                }
+                (_, _) => {}
+            }
+            // Then yield the element.
+            return Some(top);
+        }
+        None
+    }
+}
+
+/// A set of data yielded by a [`VerbosePreOrderIter`].
+#[derive(Clone, Debug)]
+pub struct PreOrderIterItem<D: DagLike + Clone> {
+    /// The actual element being yielded.
+    pub node: D,
+    /// The parent of this node. `None` for the initial node, but will be
+    /// populated for all other nodes.
+    pub parent: Option<D>,
+    /// The index when the element was first yielded.
+    pub index: usize,
+    /// How many of this item's children have been yielded.
+    ///
+    /// This can also be interpreted as a count of how many times this
+    /// item has been yielded before.
+    pub n_children_yielded: usize,
+    /// Whether this item is done (will not be yielded again).
+    pub is_complete: bool,
+}
+
+impl<D: DagLike + Clone> PreOrderIterItem<D> {
+    /// Creates a `PreOrderIterItem` which yields a given element for the first time.
+    ///
+    /// Marks the index as 0. The index must be manually set before yielding.
+    fn initial(d: D, parent: Option<D>) -> Self {
+        PreOrderIterItem {
+            is_complete: matches!(d.as_dag_node(), Dag::Nullary),
+            node: d,
+            parent,
+            index: 0,
+            n_children_yielded: 0,
+        }
+    }
+
+    /// Creates a `PreOrderIterItem` which yields a given element again.
+    fn increment(self, is_complete: bool) -> Self {
+        PreOrderIterItem {
+            node: self.node,
+            index: self.index,
+            parent: self.parent,
+            n_children_yielded: self.n_children_yielded + 1,
+            is_complete,
+        }
     }
 }

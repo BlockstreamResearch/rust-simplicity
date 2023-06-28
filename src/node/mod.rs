@@ -75,7 +75,7 @@
 //!    completeness.
 //!
 
-use crate::dag::{DagLike, MaxSharing, SharingTracker};
+use crate::dag::{DagLike, MaxSharing, NoSharing, SharingTracker};
 use crate::jet::Jet;
 use crate::{types, Cmr, FailEntropy, Value};
 
@@ -175,22 +175,29 @@ pub trait CoreConstructible: Sized {
     ///
     /// _Overall type: A → B where value: B_
     fn scribe(value: &Value) -> Self {
-        match value {
-            Value::Unit => Self::unit(),
-            Value::SumL(l) => {
-                let l = Self::scribe(l);
-                Self::injl(&l)
-            }
-            Value::SumR(r) => {
-                let r = Self::scribe(r);
-                Self::injr(&r)
-            }
-            Value::Prod(l, r) => {
-                let l = Self::scribe(l);
-                let r = Self::scribe(r);
-                Self::pair(&l, &r).expect("source of scribe has no constraints")
+        let mut stack = vec![];
+        for data in value.post_order_iter::<NoSharing>() {
+            match data.node {
+                Value::Unit => stack.push(Self::unit()),
+                Value::SumL(..) => {
+                    let child = stack.pop().unwrap();
+                    stack.push(Self::injl(&child));
+                }
+                Value::SumR(..) => {
+                    let child = stack.pop().unwrap();
+                    stack.push(Self::injr(&child));
+                }
+                Value::Prod(..) => {
+                    let right = stack.pop().unwrap();
+                    let left = stack.pop().unwrap();
+                    stack.push(
+                        Self::pair(&left, &right).expect("source of scribe has no constraints"),
+                    );
+                }
             }
         }
+        assert_eq!(stack.len(), 1);
+        stack.pop().unwrap()
     }
 
     /// Create a DAG that takes any input and returns bit `0` as constant output.

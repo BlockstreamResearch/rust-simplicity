@@ -18,6 +18,8 @@
 //! Simplicity processes data in terms of [`Value`]s,
 //! i.e., inputs, intermediate results and outputs.
 
+use crate::dag::{Dag, DagLike, NoSharing};
+
 use std::convert::TryInto;
 use std::fmt;
 use std::hash::Hash;
@@ -43,16 +45,29 @@ pub enum Value {
     Prod(Box<Value>, Box<Value>),
 }
 
+impl<'a> DagLike for &'a Value {
+    type Node = Value;
+
+    fn data(&self) -> &Value {
+        self
+    }
+
+    fn as_dag_node(&self) -> Dag<Self> {
+        match self {
+            Value::Unit => Dag::Nullary,
+            Value::SumL(child) | Value::SumR(child) => Dag::Unary(child),
+            Value::Prod(left, right) => Dag::Binary(left, right),
+        }
+    }
+}
+
 impl Value {
     #![allow(clippy::len_without_is_empty)]
     /// The length, in bits, of the value when encoded in the Bit Machine
     pub fn len(&self) -> usize {
-        match *self {
-            Value::Unit => 0,
-            Value::SumL(ref s) => 1 + s.len(),
-            Value::SumR(ref s) => 1 + s.len(),
-            Value::Prod(ref s, ref t) => s.len() + t.len(),
-        }
+        self.pre_order_iter::<NoSharing>()
+            .filter(|inner| matches!(inner, Value::SumL(_) | Value::SumR(_)))
+            .count()
     }
 
     /// Encode a single bit as a value. Will panic if the input is out of range
@@ -152,23 +167,12 @@ impl Value {
     where
         F: FnMut(bool),
     {
-        let mut value_stack = vec![self];
-
-        while let Some(value) = value_stack.pop() {
-            match value {
+        for val in self.pre_order_iter::<NoSharing>() {
+            match val {
                 Value::Unit => {}
-                Value::SumL(l) => {
-                    f(false);
-                    value_stack.push(l);
-                }
-                Value::SumR(r) => {
-                    f(true);
-                    value_stack.push(r);
-                }
-                Value::Prod(l, r) => {
-                    value_stack.push(r);
-                    value_stack.push(l);
-                }
+                Value::SumL(..) => f(false),
+                Value::SumR(..) => f(true),
+                Value::Prod(..) => {}
             }
         }
     }
@@ -235,28 +239,47 @@ impl fmt::Debug for Value {
 
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Value::Unit => f.write_str("ε"),
-            Value::SumL(ref sub) => {
-                f.write_str("0")?;
-                if **sub != Value::Unit {
-                    write!(f, "{}", sub)
-                } else {
-                    Ok(())
+        for data in self.verbose_pre_order_iter::<NoSharing>() {
+            match data.node {
+                Value::Unit => {
+                    if data.n_children_yielded == 0
+                        && !matches!(data.parent, Some(Value::SumL(_)) | Some(Value::SumR(_)))
+                    {
+                        f.write_str("ε")?;
+                    }
                 }
-            }
-            Value::SumR(ref sub) => {
-                f.write_str("1")?;
-                if **sub != Value::Unit {
-                    write!(f, "{}", sub)
-                } else {
-                    Ok(())
+                Value::SumL(..) => {
+                    if data.n_children_yielded == 0 {
+                        f.write_str("0")?;
+                    }
                 }
-            }
-            Value::Prod(ref l, ref r) => {
-                write!(f, "({},", l)?;
-                write!(f, "{})", r)
+                Value::SumR(..) => {
+                    if data.n_children_yielded == 0 {
+                        f.write_str("1")?;
+                    }
+                }
+                Value::Prod(..) => match data.n_children_yielded {
+                    0 => f.write_str("(")?,
+                    1 => f.write_str(",")?,
+                    2 => f.write_str(")")?,
+                    _ => unreachable!(),
+                },
             }
         }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn value_display() {
+        // Only test a couple values becasue we probably want to change this
+        // at some point and will have to redo this test.
+        assert_eq!(Value::u1(0).to_string(), "0",);
+        assert_eq!(Value::u1(1).to_string(), "1",);
+        assert_eq!(Value::u4(6).to_string(), "((0,1),(1,0))",);
     }
 }
