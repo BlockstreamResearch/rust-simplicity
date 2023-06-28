@@ -237,7 +237,7 @@ mod tests {
 
         assert!(policy.satisfy(&satisfier).is_err());
 
-        let commit = policy.compile();
+        let commit = policy.serialize_no_witness();
         let program = commit
             .finalize_types()
             .expect("finalize types")
