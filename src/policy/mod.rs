@@ -30,8 +30,8 @@ mod compiler;
 pub mod descriptor;
 mod embed;
 mod error;
-pub mod key;
 pub mod satisfy;
+mod serialize;
 
 pub use ast::Policy;
 pub use descriptor::Descriptor;

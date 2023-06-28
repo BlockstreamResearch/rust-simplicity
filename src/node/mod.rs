@@ -87,12 +87,14 @@ mod construct;
 mod convert;
 mod inner;
 mod redeem;
+mod witness;
 
 pub use commit::{Commit, CommitData, CommitNode};
 pub use construct::{Construct, ConstructData, ConstructNode};
 pub use convert::{Converter, Hide, SimpleFinalizer};
 pub use inner::Inner;
 pub use redeem::{Redeem, RedeemData, RedeemNode};
+pub use witness::{Witness, WitnessData, WitnessNode};
 
 // This trait should only be implemented on empty types, so we can demand
 // every trait bound under the sun. Doing so will make #[derive]s easier

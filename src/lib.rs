@@ -83,6 +83,8 @@ pub enum Error {
     Type(crate::types::Error),
     /// Witness iterator ended early
     NoMoreWitnesses,
+    /// Finalization failed; did not have enough witness data to satisfy program.
+    IncompleteFinalization,
     /// Witness has different length than defined in its preamble
     InconsistentWitnessLength,
     /// Tried to parse a jet but the name wasn't recognized
@@ -101,6 +103,7 @@ impl fmt::Display for Error {
         match self {
             Error::Decode(ref e) => fmt::Display::fmt(e, f),
             Error::Type(ref e) => fmt::Display::fmt(e, f),
+            Error::IncompleteFinalization => f.write_str("unable to satisfy program"),
             Error::InconsistentWitnessLength => {
                 f.write_str("witness has different length than defined in its preamble")
             }
@@ -120,6 +123,7 @@ impl std::error::Error for Error {
             Error::Decode(ref e) => Some(e),
             Error::Type(ref e) => Some(e),
             Error::NoMoreWitnesses => None,
+            Error::IncompleteFinalization => None,
             Error::InconsistentWitnessLength => None,
             Error::InvalidJetName(..) => None,
             Error::SharingNotMaximal => None,

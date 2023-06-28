@@ -3,7 +3,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::miniscript::Error as msError;
-use crate::miniscript::MiniscriptKey;
+use crate::miniscript::ToPublicKey;
 use crate::miniscript::{expression, Miniscript, ScriptContext, Terminal};
 use crate::{miniscript, policy};
 
@@ -14,7 +14,7 @@ serde_string_impl_pk!(Policy, "a Simplicity policy");
 
 impl<Pk> FromStr for Policy<Pk>
 where
-    Pk: MiniscriptKey + FromStr,
+    Pk: ToPublicKey + FromStr,
     Pk::Sha256: FromStr,
     <Pk as FromStr>::Err: ToString,
     <Pk::Sha256 as FromStr>::Err: ToString,
@@ -35,7 +35,7 @@ where
 
 impl<Pk> expression::FromTree for Policy<Pk>
 where
-    Pk: MiniscriptKey + FromStr,
+    Pk: ToPublicKey + FromStr,
     Pk::Sha256: FromStr,
     <Pk as FromStr>::Err: ToString,
     <Pk::Sha256 as FromStr>::Err: ToString,
@@ -100,7 +100,7 @@ where
     }
 }
 
-impl<'a, Pk: MiniscriptKey, Ctx: ScriptContext> TryFrom<&'a Miniscript<Pk, Ctx>> for Policy<Pk> {
+impl<'a, Pk: ToPublicKey, Ctx: ScriptContext> TryFrom<&'a Miniscript<Pk, Ctx>> for Policy<Pk> {
     type Error = Error;
 
     fn try_from(top: &Miniscript<Pk, Ctx>) -> Result<Self, Self::Error> {
@@ -178,40 +178,41 @@ impl<'a, Pk: MiniscriptKey, Ctx: ScriptContext> TryFrom<&'a Miniscript<Pk, Ctx>>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::miniscript::bitcoin::XOnlyPublicKey;
 
     #[test]
     fn parse_bad_thresh() {
         assert_eq!(
-            Policy::<String>::from_str("thresh()"),
+            Policy::<XOnlyPublicKey>::from_str("thresh()"),
             Err(msError::Unexpected(
                 "thresh must have a threshold value and at least 2 children".to_string()
             )),
         );
 
         assert_eq!(
-            Policy::<String>::from_str("thresh"),
+            Policy::<XOnlyPublicKey>::from_str("thresh"),
             Err(msError::Unexpected("thresh without args".to_string())),
         );
 
         assert_eq!(
-            Policy::<String>::from_str("thresh(0)"),
+            Policy::<XOnlyPublicKey>::from_str("thresh(0)"),
             Err(msError::Unexpected(
                 "thresh must have a threshold value and at least 2 children".to_string()
             )),
         );
 
         assert_eq!(
-            Policy::<String>::from_str("thresh(0,TRIVIAL)"),
+            Policy::<XOnlyPublicKey>::from_str("thresh(0,TRIVIAL)"),
             Err(msError::Unexpected(
                 "thresh must have a threshold value and at least 2 children".to_string()
             )),
         );
 
-        assert!(Policy::<String>::from_str("thresh(0,TRIVIAL,TRIVIAL)").is_ok());
-        assert!(Policy::<String>::from_str("thresh(2,TRIVIAL,TRIVIAL)").is_ok());
+        assert!(Policy::<XOnlyPublicKey>::from_str("thresh(0,TRIVIAL,TRIVIAL)").is_ok());
+        assert!(Policy::<XOnlyPublicKey>::from_str("thresh(2,TRIVIAL,TRIVIAL)").is_ok());
 
         assert_eq!(
-            Policy::<String>::from_str("thresh(3,TRIVIAL,TRIVIAL)"),
+            Policy::<XOnlyPublicKey>::from_str("thresh(3,TRIVIAL,TRIVIAL)"),
             Err(msError::Unexpected("3".to_string())),
         );
     }

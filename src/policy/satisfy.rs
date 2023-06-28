@@ -1,16 +1,16 @@
-use crate::core::commit::UsedCaseBranch;
 use crate::jet::Elements;
-use crate::policy::compiler;
-use crate::policy::key::PublicKey32;
-use crate::{CommitNode, Policy, RedeemNode, Value};
+use crate::node::{RedeemNode, WitnessNode};
+use crate::{Error, Policy, Value};
+
 use bitcoin_hashes::Hash;
 use elements::locktime::Height;
 use elements::taproot::TapLeafHash;
 use elements::{LockTime, Sequence};
 use elements_miniscript::{MiniscriptKey, Preimage32, Satisfier, ToPublicKey};
-use std::collections::{HashMap, VecDeque};
-use std::iter::FromIterator;
-use std::rc::Rc;
+
+use std::collections::HashMap;
+use std::convert::TryFrom;
+use std::sync::Arc;
 
 pub struct PolicySatisfier<'a, Pk: MiniscriptKey> {
     pub preimages: HashMap<Pk::Sha256, Preimage32>,
@@ -19,7 +19,7 @@ pub struct PolicySatisfier<'a, Pk: MiniscriptKey> {
     pub index: usize,
 }
 
-impl<'a, Pk: MiniscriptKey + ToPublicKey> Satisfier<Pk> for PolicySatisfier<'a, Pk> {
+impl<'a, Pk: ToPublicKey> Satisfier<Pk> for PolicySatisfier<'a, Pk> {
     fn lookup_tap_leaf_script_sig(&self, pk: &Pk, _: &TapLeafHash) -> Option<elements::SchnorrSig> {
         self.signatures.get(pk).copied()
     }
@@ -39,208 +39,135 @@ impl<'a, Pk: MiniscriptKey + ToPublicKey> Satisfier<Pk> for PolicySatisfier<'a, 
     }
 }
 
-struct SatisfierExtData {
-    witness: VecDeque<Value>,
-    witness_cost: u64,
-    program: Rc<CommitNode<Elements>>,
-    program_cost: u64,
-}
-
-impl SatisfierExtData {
-    fn cost(&self) -> u64 {
-        self.witness_cost + self.program_cost * 8
-    }
-}
-
-impl<Pk: MiniscriptKey + PublicKey32 + ToPublicKey> Policy<Pk> {
-    pub fn satisfy<S: Satisfier<Pk>>(&self, satisfier: &S) -> Option<Rc<RedeemNode<Elements>>> {
-        let ext = self.satisfy_helper(satisfier)?;
-        let program = ext.program.finalize(ext.witness.into_iter(), true).unwrap();
-        Some(program)
-    }
-
-    fn compile_no_witness(&self) -> SatisfierExtData {
-        SatisfierExtData {
-            witness: VecDeque::new(),
-            witness_cost: 0,
-            program: self.compile().unwrap(),
-            program_cost: 0,
-        }
-    }
-
-    fn compile_witness_bytes(&self, witness: &[u8]) -> SatisfierExtData {
-        let value = match witness.len() {
-            32 => Value::u256_from_slice(witness),
-            64 => Value::u512_from_slice(witness),
-            _ => unimplemented!(),
-        };
-        let witness_data = VecDeque::from_iter(std::iter::once(value));
-        let program = self.compile().unwrap();
-        let program_cost = program.len() as u64;
-
-        SatisfierExtData {
-            witness: witness_data,
-            witness_cost: witness.len() as u64 * 8,
-            program,
-            program_cost,
-        }
-    }
-
-    fn satisfy_helper<S: Satisfier<Pk>>(&self, satisfier: &S) -> Option<SatisfierExtData> {
-        match self {
-            Policy::Unsatisfiable(..) => None,
-            Policy::Trivial => Some(self.compile_no_witness()),
-            Policy::Key(pk) => satisfier
-                .lookup_tap_leaf_script_sig(pk, &TapLeafHash::all_zeros())
-                .map(|sig| self.compile_witness_bytes(sig.sig.as_ref())),
+impl<Pk: ToPublicKey> Policy<Pk> {
+    pub fn satisfy_internal<S: Satisfier<Pk>>(
+        &self,
+        satisfier: &S,
+    ) -> Result<Arc<WitnessNode<Elements>>, Error> {
+        let node = match *self {
+            Policy::Unsatisfiable(entropy) => super::serialize::unsatisfiable(entropy),
+            Policy::Trivial => super::serialize::trivial(),
+            Policy::Key(ref key) => {
+                let sig_wit = satisfier
+                    .lookup_tap_leaf_script_sig(key, &TapLeafHash::all_zeros())
+                    .map(|sig| Arc::new(Value::u512_from_slice(sig.sig.as_ref())));
+                super::serialize::key(key, sig_wit)
+            }
             Policy::After(n) => {
-                let height = Height::from_consensus(*n).ok()?;
+                let node = super::serialize::after(n);
+                let height = Height::from_consensus(n).expect("timelock is valid");
                 if satisfier.check_after(LockTime::Blocks(height)) {
-                    Some(self.compile_no_witness())
+                    node
                 } else {
-                    None
+                    node.pruned()
                 }
             }
             Policy::Older(n) => {
-                if satisfier.check_older(Sequence((*n).into())) {
-                    Some(self.compile_no_witness())
+                let node = super::serialize::older(n);
+                if satisfier.check_older(Sequence((n).into())) {
+                    node
                 } else {
-                    None
+                    node.pruned()
                 }
             }
-            Policy::Sha256(hash) => satisfier
-                .lookup_sha256(hash)
-                .map(|preimage| self.compile_witness_bytes(preimage.as_ref())),
-            Policy::And { left, right } => {
-                let mut left = left.satisfy_helper(satisfier)?;
-                let right = right.satisfy_helper(satisfier)?;
-                left.witness.extend(right.witness);
-                left.witness_cost += right.witness_cost;
-                left.program = compiler::and(left.program, right.program).ok()?;
-                left.program_cost += right.program_cost + 1;
-
-                Some(left)
+            Policy::Sha256(ref hash) => {
+                let preimage_wit = satisfier
+                    .lookup_sha256(hash)
+                    .map(|preimage| Arc::new(Value::u256_from_slice(preimage.as_ref())));
+                super::serialize::sha256::<_, Pk>(hash, preimage_wit)
             }
-            Policy::Or { left, right } => {
-                // TODO: Replace std::u64::MAX in MSRV >=1.43.0
-                let mut left = left.satisfy_helper(satisfier).unwrap_or(SatisfierExtData {
-                    witness: VecDeque::new(),
-                    witness_cost: std::u64::MAX,
-                    program: left.compile().unwrap(),
-                    program_cost: 0,
-                });
-                let mut right = right.satisfy_helper(satisfier).unwrap_or(SatisfierExtData {
-                    witness: VecDeque::new(),
-                    witness_cost: std::u64::MAX,
-                    program: right.compile().unwrap(),
-                    program_cost: 0,
-                });
+            Policy::And {
+                ref left,
+                ref right,
+            } => {
+                let left = left.satisfy_internal(satisfier)?;
+                let right = right.satisfy_internal(satisfier)?;
+                super::serialize::and(&left, &right)
+            }
+            Policy::Or {
+                ref left,
+                ref right,
+            } => {
+                let left = left.satisfy_internal(satisfier)?;
+                let right = right.satisfy_internal(satisfier)?;
 
-                if left.cost() <= right.cost() {
-                    // Both left and right path are unsatisfiable
-                    // TODO: Replace std::u64::MAX in MSRV >=1.43.0
-                    if left.cost() == std::u64::MAX {
-                        return None;
+                // FIXME use a more intelligent cost function
+                let take_right = match (left.must_prune(), right.must_prune()) {
+                    (false, false) => {
+                        let left_cost = left.finalize()?.bounds().extra_cells;
+                        let right_cost = right.finalize()?.bounds().extra_cells;
+                        left_cost > right_cost
                     }
+                    (false, true) => false,
+                    (true, false) => true,
+                    // If both children are must_prune the choice doesn't matter,
+                    // the case node itself will be marked must_prune.
+                    (true, true) => false,
+                };
 
-                    left.witness.push_front(Value::u1(0));
-                    left.witness_cost += 1;
-                    left.program =
-                        compiler::or(left.program, right.program, UsedCaseBranch::Left).ok()?;
-                    left.program_cost += 6;
-                    Some(left)
+                if take_right {
+                    super::serialize::or(&left.pruned(), &right, Some(Arc::new(Value::u1(1))))
                 } else {
-                    right.witness.push_front(Value::u1(1));
-                    right.witness_cost += 1;
-                    right.program =
-                        compiler::or(left.program, right.program, UsedCaseBranch::Right).ok()?;
-                    right.program_cost += 6;
-                    Some(right)
+                    super::serialize::or(&left, &right.pruned(), Some(Arc::new(Value::u1(0))))
                 }
+                .prune_and_retype()
             }
-            Policy::Threshold(k, sub_policies) => {
-                assert!(
-                    sub_policies.len() >= 2,
-                    "Thresholds must have at least two sub-policies"
-                );
+            Policy::Threshold(k, ref subs) => {
+                let nodes: Result<Vec<Arc<WitnessNode<_>>>, Error> = subs
+                    .iter()
+                    .map(|sub| sub.satisfy_internal(satisfier))
+                    .collect();
+                let mut nodes = nodes?;
+                let mut costs = vec![usize::MAX; subs.len()];
+                // 0 means skip, 1 means don't skip
+                let mut witness_bits = vec![Some(Arc::new(Value::u1(0))); subs.len()];
 
-                let mut satisfiable_children = Vec::new();
-
-                for (index, policy) in sub_policies.iter().enumerate() {
-                    if let Some(ext) = policy.satisfy_helper(satisfier) {
-                        satisfiable_children.push((ext, index));
+                for (cost, node) in costs.iter_mut().zip(nodes.iter()) {
+                    if !node.must_prune() {
+                        // FIXME use a more intelligent cost function
+                        *cost = node.finalize()?.bounds().extra_cells;
                     }
                 }
 
-                if satisfiable_children.len() < *k {
-                    return None;
-                }
-
-                // 1) Sort by witness cost
-                // 2) Select k best satisfactions
-                // 3) Sort by index in decreasing order
-                satisfiable_children.sort_by_key(|(sat, _)| sat.cost());
-                satisfiable_children.truncate(*k);
-                satisfiable_children.sort_by(|(_, i), (_, j)| j.cmp(i));
-
-                /// Return satisfaction for `i`th child, if it exists, or return dummy instead
-                fn get_sat_or_default<Pk: MiniscriptKey + PublicKey32>(
-                    i: usize,
-                    satisfiable_children: &mut Vec<(SatisfierExtData, usize)>,
-                    sub_policies: &[Policy<Pk>],
-                ) -> SatisfierExtData {
-                    if let Some(x) = satisfiable_children.last() {
-                        if x.1 == i {
-                            return satisfiable_children.pop().unwrap().0;
-                        }
+                // Sort by witness cost and mark everything except the cheapest k as to-prune
+                let mut sorted_costs: Vec<_> = costs.iter().copied().enumerate().collect();
+                sorted_costs.sort_by_key(|pair| pair.1);
+                let b1 = Arc::new(Value::u1(1));
+                let mut threshold_failed = false;
+                for &(idx, _) in &sorted_costs[..k] {
+                    if nodes[idx].must_prune() {
+                        // Unlike in the `or` case, where two pruned branches will automatically
+                        // cause the `or` itself to be pruned, with thresholds we have to track
+                        // this manually.
+                        threshold_failed = true;
                     }
-
-                    SatisfierExtData {
-                        witness: VecDeque::new(),
-                        witness_cost: 0,
-                        program: sub_policies[i].compile().unwrap(),
-                        program_cost: 0,
-                    }
+                    witness_bits[idx] = Some(Arc::clone(&b1));
+                }
+                for &(idx, _) in &sorted_costs[k..] {
+                    nodes[idx] = nodes[idx].pruned();
                 }
 
-                /// Return summand program for `i`th child
-                fn get_summand<Pk: MiniscriptKey + PublicKey32>(
-                    i: usize,
-                    satisfiable_children: &mut Vec<(SatisfierExtData, usize)>,
-                    sub_policies: &[Policy<Pk>],
-                ) -> SatisfierExtData {
-                    let mut sat = get_sat_or_default(i, satisfiable_children, sub_policies);
-                    // Satisfactions always have non-zero program cost
-                    let branch = if sat.program_cost == 0 {
-                        sat.witness.push_front(Value::u1(0));
-                        UsedCaseBranch::Right
-                    } else {
-                        sat.witness.push_front(Value::u1(1));
-                        UsedCaseBranch::Left
-                    };
-                    sat.witness_cost += 1;
-                    sat.program = compiler::thresh_summand(sat.program, branch).unwrap();
-                    sat.program_cost += 9;
-
-                    sat
+                let k = u32::try_from(k).expect("k less than 2^32");
+                if threshold_failed {
+                    super::serialize::threshold(k, &nodes, &witness_bits).pruned()
+                } else {
+                    super::serialize::threshold(k, &nodes, &witness_bits)
                 }
-
-                let mut sat = get_summand(0, &mut satisfiable_children, sub_policies);
-
-                for i in 1..sub_policies.len() {
-                    let child_sat = get_summand(i, &mut satisfiable_children, sub_policies);
-
-                    sat.witness.extend(child_sat.witness);
-                    sat.witness_cost += child_sat.witness_cost;
-                    sat.program = compiler::thresh_add(sat.program, child_sat.program).unwrap();
-                    sat.program_cost += child_sat.program_cost + 6;
-                }
-
-                sat.program = compiler::thresh_verify(sat.program, *k as u32).unwrap();
-                sat.program_cost += 4;
-
-                Some(sat)
+                .prune_and_retype()
             }
+        };
+        Ok(node)
+    }
+
+    pub fn satisfy<S: Satisfier<Pk>>(
+        &self,
+        satisfier: &S,
+    ) -> Result<Arc<RedeemNode<Elements>>, Error> {
+        let witnode = self.satisfy_internal(satisfier)?;
+        if witnode.must_prune() {
+            Err(Error::IncompleteFinalization)
+        } else {
+            WitnessNode::finalize(&witnode.prune_and_retype())
         }
     }
 }
@@ -253,7 +180,6 @@ mod tests {
     use crate::{BitMachine, FailEntropy};
     use bitcoin_hashes::{sha256, Hash};
     use elements::{bitcoin, secp256k1_zkp, PackedLockTime, SchnorrSigHashType};
-    use std::convert::TryFrom;
     use std::sync::Arc;
 
     fn get_satisfier(env: &ElementsEnv) -> PolicySatisfier<bitcoin::XOnlyPublicKey> {
@@ -290,13 +216,12 @@ mod tests {
         }
     }
 
-    fn execute_successful(program: Rc<RedeemNode<Elements>>, env: &ElementsEnv) {
-        let program = program.to_node();
+    fn execute_successful(program: Arc<RedeemNode<Elements>>, env: &ElementsEnv) {
         let mut mac = BitMachine::for_program(&program);
         assert!(mac.exec(&program, env).is_ok());
     }
 
-    fn to_witness(program: &RedeemNode<Elements>) -> Vec<&Value> {
+    fn to_witness(program: &RedeemNode<Elements>) -> Vec<&Arc<Value>> {
         program
             .post_order_iter::<NoSharing>()
             .into_witnesses()
@@ -309,9 +234,9 @@ mod tests {
         let satisfier = get_satisfier(&env);
         let policy = Policy::Unsatisfiable(FailEntropy::ZERO);
 
-        assert!(policy.satisfy(&satisfier).is_none());
+        assert!(policy.satisfy(&satisfier).is_err());
 
-        let commit = policy.compile().expect("compile");
+        let commit = policy.compile();
         let program = commit.finalize(std::iter::empty(), true).expect("finalize");
         let program = program.to_node();
         let mut mac = BitMachine::for_program(&program);
@@ -327,7 +252,7 @@ mod tests {
 
         let program = policy.satisfy(&satisfier).expect("satisfiable");
         let witness = to_witness(&program);
-        assert_eq!(Vec::<&Value>::new(), witness);
+        assert!(witness.is_empty());
 
         execute_successful(program, &env);
     }
@@ -392,7 +317,7 @@ mod tests {
         execute_successful(program, &env);
 
         let policy2 = Policy::After(43);
-        assert!(policy2.satisfy(&satisfier).is_none(), "unsatisfiable");
+        assert!(policy2.satisfy(&satisfier).is_err(), "unsatisfiable");
     }
 
     #[test]
@@ -413,7 +338,7 @@ mod tests {
         execute_successful(program, &env);
 
         let policy2 = Policy::Older(43);
-        assert!(policy2.satisfy(&satisfier).is_none(), "unsatisfiable");
+        assert!(policy2.satisfy(&satisfier).is_err(), "unsatisfiable");
     }
 
     #[test]
@@ -451,7 +376,7 @@ mod tests {
             left: Arc::new(Policy::Sha256(sha256::Hash::from_inner([0; 32]))),
             right: Arc::new(Policy::Sha256(images[1])),
         };
-        assert!(policy1.satisfy(&satisfier).is_none());
+        assert!(policy1.satisfy(&satisfier).is_err());
 
         // Policy 2
 
@@ -459,7 +384,7 @@ mod tests {
             left: Arc::new(Policy::Sha256(images[0])),
             right: Arc::new(Policy::Sha256(sha256::Hash::from_inner([0; 32]))),
         };
-        assert!(policy2.satisfy(&satisfier).is_none());
+        assert!(policy2.satisfy(&satisfier).is_err());
     }
 
     #[test]
@@ -477,7 +402,7 @@ mod tests {
             let witness = to_witness(&program);
             assert_eq!(2, witness.len());
 
-            assert_eq!(&Value::u1(bit as u8), witness[0]);
+            assert_eq!(Value::u1(bit as u8), **witness[0]);
             let preimage_bytes = witness[1].try_to_bytes().expect("to bytes");
             let witness_preimage =
                 Preimage32::try_from(preimage_bytes.as_slice()).expect("to array");
@@ -516,7 +441,7 @@ mod tests {
             left: Arc::new(Policy::Sha256(sha256::Hash::from_inner([0; 32]))),
             right: Arc::new(Policy::Sha256(sha256::Hash::from_inner([1; 32]))),
         };
-        assert!(policy3.satisfy(&satisfier).is_none());
+        assert!(policy3.satisfy(&satisfier).is_err());
     }
 
     #[test]
@@ -539,7 +464,7 @@ mod tests {
 
             let mut witidx = 0;
             for (bit_n, bit) in bits.iter().copied().enumerate() {
-                assert_eq!(witness[witidx], &Value::u1(bit.into()));
+                assert_eq!(**witness[witidx], Value::u1(bit.into()));
                 witidx += 1;
                 if bit {
                     let preimage_bytes = witness[witidx].try_to_bytes().expect("to bytes");
@@ -580,7 +505,7 @@ mod tests {
                     match bit0 as u8 + bit1 as u8 + bit2 as u8 {
                         3 => assert_branches(&policy, &[bit0, bit1, false]),
                         2 => assert_branches(&policy, &[bit0, bit1, bit2]),
-                        _ => assert!(policy.satisfy(&satisfier).is_none()),
+                        _ => assert!(policy.satisfy(&satisfier).is_err()),
                     }
                 }
             }
