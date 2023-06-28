@@ -155,9 +155,9 @@ impl Drop for FreeOnDrop {
 /// This is mostly a direct port of `run_program` in C `tests.c`.
 pub fn run_program(program: &[u8], test_up_to: TestUpTo) -> Result<TestOutput, SimplicityErr> {
     let mut result = TestOutput {
-        amr: Default::default(),
-        cmr: Default::default(),
-        imr: Default::default(),
+        amr: CSha256Midstate::default(),
+        cmr: CSha256Midstate::default(),
+        imr: CSha256Midstate::default(),
         eval_result: SimplicityErr::NoError,
     };
 

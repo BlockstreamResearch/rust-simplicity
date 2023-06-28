@@ -12,7 +12,6 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use crate::core::commit::CommitNodeInner;
 use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
 use crate::types::arrow::FinalArrow;
@@ -237,38 +236,6 @@ impl FirstPassImr {
         0xa4, 0x33, 0x97, 0xae, 0x48, 0x79, 0x6b, 0x0c,
         0x40, 0x23, 0xba, 0xf9, 0x97, 0x1f, 0x15, 0x66,
     ]));
-
-    /// Compute the IMR of the given node (once finalized).
-    ///
-    /// Nodes with left children require their finalized left child,
-    /// while nodes with right children require their finalized right child.
-    /// Witness nodes require their value and node type.
-    pub fn compute<J: Jet>(
-        node: &CommitNodeInner<J>,
-        left: Option<FirstPassImr>,
-        right: Option<FirstPassImr>,
-        value: Option<&Value>,
-        ty: &FinalArrow,
-    ) -> FirstPassImr {
-        match *node {
-            CommitNodeInner::Iden => Self::iden(),
-            CommitNodeInner::Unit => Self::unit(),
-            CommitNodeInner::InjL(..) => Self::injl(left.unwrap()),
-            CommitNodeInner::InjR(..) => Self::injr(left.unwrap()),
-            CommitNodeInner::Take(..) => Self::take(left.unwrap()),
-            CommitNodeInner::Drop(..) => Self::drop(left.unwrap()),
-            CommitNodeInner::Comp(..) => Self::comp(left.unwrap(), right.unwrap()),
-            CommitNodeInner::Case(..) => Self::case(left.unwrap(), right.unwrap()),
-            CommitNodeInner::AssertL(_, r_cmr) => Self::case(left.unwrap(), r_cmr.into()),
-            CommitNodeInner::AssertR(l_cmr, _) => Self::case(l_cmr.into(), left.unwrap()),
-            CommitNodeInner::Pair(..) => Self::pair(left.unwrap(), right.unwrap()),
-            CommitNodeInner::Disconnect(..) => Self::disconnect(left.unwrap(), right.unwrap()),
-            CommitNodeInner::Witness => Self::witness(ty, value.unwrap()),
-            CommitNodeInner::Fail(entropy) => Self::fail(entropy),
-            CommitNodeInner::Jet(j) => Self::jet(j),
-            CommitNodeInner::Word(ref w) => Self::const_word(w),
-        }
-    }
 }
 
 impl Imr {

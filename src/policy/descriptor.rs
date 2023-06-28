@@ -61,7 +61,7 @@ impl<Pk: ToPublicKey> Descriptor<Pk> {
     /// Create a new descriptor from the given internal key and
     /// policy which will become a single tap leaf
     pub fn new(internal_key: Pk, policy: Policy<Pk>) -> Result<Self, Error> {
-        let commit = policy.compile();
+        let commit = policy.serialize_no_witness();
         let cmr = commit.cmr();
         let script = elements::Script::from(Vec::from(cmr.as_ref()));
         let version = leaf_version();

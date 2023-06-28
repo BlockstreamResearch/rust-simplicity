@@ -55,7 +55,8 @@ impl<'n, N: NodeData<J>, J: Jet> DagLike for EncodeNode<'n, N, J> {
             | node::Inner::Drop(sub) => Dag::Unary(EncodeNode::Node(sub)),
             node::Inner::Comp(left, right)
             | node::Inner::Case(left, right)
-            | node::Inner::Pair(left, right) => {
+            | node::Inner::Pair(left, right)
+            | node::Inner::Disconnect(left, right) => {
                 Dag::Binary(EncodeNode::Node(left), EncodeNode::Node(right))
             }
             node::Inner::AssertL(left, rcmr) => {
@@ -64,10 +65,7 @@ impl<'n, N: NodeData<J>, J: Jet> DagLike for EncodeNode<'n, N, J> {
             node::Inner::AssertR(lcmr, right) => {
                 Dag::Binary(EncodeNode::Hidden(*lcmr), EncodeNode::Node(right))
             }
-            node::Inner::Disconnect(left, right) => {
-                Dag::Disconnect(EncodeNode::Node(left), EncodeNode::Node(right))
-            }
-            node::Inner::Witness(..) => Dag::Witness,
+            node::Inner::Witness(..) => Dag::Nullary,
         }
     }
 }
@@ -117,7 +115,7 @@ pub struct EncodeSharing<N: NodeData<J>, J: Jet> {
 impl<N: NodeData<J>, J: Jet> Default for EncodeSharing<N, J> {
     fn default() -> Self {
         EncodeSharing {
-            map: Default::default(),
+            map: HashMap::default(),
         }
     }
 }
@@ -323,7 +321,7 @@ pub fn encode_value<W: io::Write>(value: &Value, w: &mut BitWriter<W>) -> io::Re
 /// Encode a hash to bits.
 pub fn encode_hash<W: io::Write>(h: &[u8], w: &mut BitWriter<W>) -> io::Result<()> {
     for byte in h {
-        w.write_bits_be(*byte as u64, 8)?;
+        w.write_bits_be(u64::from(*byte), 8)?;
     }
 
     Ok(())
@@ -348,10 +346,8 @@ pub fn encode_natural<W: io::Write>(n: usize, w: &mut BitWriter<W>) -> io::Resul
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::core::iter::WitnessIterator;
+
     use crate::decode;
-    use crate::decode::WitnessDecoder;
-    use crate::types;
     use crate::BitIter;
 
     #[test]
@@ -364,26 +360,6 @@ mod test {
             let m = decode::decode_natural(&mut BitIter::from(sink.into_iter()), None)
                 .expect("decoding from vector");
             assert_eq!(n, m);
-        }
-    }
-
-    #[test]
-    fn encode_decode_witness() {
-        for n in 1..1000 {
-            let witness = vec![Value::u64(n)];
-            let it = witness.iter();
-
-            let mut sink = Vec::<u8>::new();
-            let mut w = BitWriter::from(&mut sink);
-            encode_witness(it, &mut w).expect("encoding to vector");
-            w.flush_all().expect("flushing");
-
-            let mut bits = BitIter::from(sink.into_iter());
-            let mut decoder = WitnessDecoder::new(&mut bits).expect("decoding from vector");
-            assert_eq!(
-                witness[0],
-                decoder.next(&types::Final::two_two_n(6)).unwrap()
-            );
         }
     }
 }

@@ -17,14 +17,12 @@
 //! Functionality to decode Simplicity programs.
 //! Refer to [`crate::encode`] for information on the encoding.
 
-use crate::core::iter::WitnessIterator;
 use crate::dag::{Dag, DagLike, InternalSharing};
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::node::{
     CommitNode, ConstructNode, CoreConstructible, JetConstructible, NoWitness, WitnessConstructible,
 };
-use crate::types;
 use crate::{BitIter, FailEntropy, Value};
 use std::sync::Arc;
 use std::{error, fmt};
@@ -152,11 +150,11 @@ impl<'d, J: Jet> DagLike for (usize, &'d [DecodeNode<J>]) {
             | DecodeNode::InjR(i)
             | DecodeNode::Take(i)
             | DecodeNode::Drop(i) => Dag::Unary((i, nodes)),
-            DecodeNode::Comp(li, ri) | DecodeNode::Case(li, ri) | DecodeNode::Pair(li, ri) => {
-                Dag::Binary((li, nodes), (ri, nodes))
-            }
-            DecodeNode::Disconnect(li, ri) => Dag::Disconnect((li, nodes), (ri, nodes)),
-            DecodeNode::Witness => Dag::Witness,
+            DecodeNode::Comp(li, ri)
+            | DecodeNode::Case(li, ri)
+            | DecodeNode::Pair(li, ri)
+            | DecodeNode::Disconnect(li, ri) => Dag::Binary((li, nodes), (ri, nodes)),
+            DecodeNode::Witness => Dag::Nullary,
         }
     }
 }
@@ -175,6 +173,20 @@ pub fn decode_program<I: Iterator<Item = u8>, J: Jet>(
 pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
 ) -> Result<ArcNode<J>, Error> {
+    enum Converted<J: Jet> {
+        Node(ArcNode<J>),
+        Hidden(Cmr),
+    }
+    use Converted::{Hidden, Node};
+    impl<J: Jet> Converted<J> {
+        fn get(&self) -> Result<&ArcNode<J>, Error> {
+            match self {
+                Node(arc) => Ok(arc),
+                Hidden(_) => Err(Error::HiddenNode),
+            }
+        }
+    }
+
     let len = bits.read_natural(None)?;
 
     if len == 0 {
@@ -189,20 +201,6 @@ pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
     for _ in 0..len {
         let new_node = decode_node(bits, nodes.len())?;
         nodes.push(new_node);
-    }
-
-    enum Converted<J: Jet> {
-        Node(ArcNode<J>),
-        Hidden(Cmr),
-    }
-    use Converted::{Hidden, Node};
-    impl<J: Jet> Converted<J> {
-        fn get(&self) -> Result<&ArcNode<J>, Error> {
-            match self {
-                Node(arc) => Ok(arc),
-                Hidden(_) => Err(Error::HiddenNode),
-            }
-        }
     }
 
     // Convert the DecodeNode structure into a CommitNode structure
@@ -316,48 +314,6 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
     }
 }
 
-/// Implementation of [`WitnessIterator`] for an underlying [`BitIter`].
-#[derive(Debug)]
-pub struct WitnessDecoder<'a, I: Iterator<Item = u8>> {
-    pub bits: &'a mut BitIter<I>,
-    pub max_n: usize,
-}
-
-impl<'a, I: Iterator<Item = u8>> WitnessDecoder<'a, I> {
-    /// Create a new witness decoder for the given bit iterator.
-    ///
-    /// # Usage
-    ///
-    /// This method must be used **after** the program serialization has been read by the iterator.
-    pub fn new(bits: &'a mut BitIter<I>) -> Result<Self, Error> {
-        let bit_len = match bits.next() {
-            Some(false) => 0,
-            Some(true) => bits.read_natural(None)?,
-            None => return Err(Error::EndOfStream),
-        };
-        let n_start = bits.n_total_read();
-
-        Ok(Self {
-            bits,
-            max_n: n_start + bit_len,
-        })
-    }
-}
-
-impl<'a, I: Iterator<Item = u8>> WitnessIterator for WitnessDecoder<'a, I> {
-    fn next(&mut self, ty: &types::Final) -> Result<Value, crate::Error> {
-        self.bits.read_value(ty).map_err(crate::Error::from)
-    }
-
-    fn finish(self) -> Result<(), crate::Error> {
-        if self.bits.n_total_read() != self.max_n {
-            Err(crate::Error::InconsistentWitnessLength)
-        } else {
-            Ok(())
-        }
-    }
-}
-
 /// Decode a value from bits, of the form 2^exp
 ///
 /// # Panics
@@ -367,12 +323,12 @@ pub fn decode_power_of_2<I: Iterator<Item = bool>>(
     iter: &mut I,
     exp: usize,
 ) -> Result<Value, Error> {
-    assert_eq!(exp.count_ones(), 1, "exp must be a power of 2");
-
     struct StackElem {
         value: Value,
         width: usize,
     }
+
+    assert_eq!(exp.count_ones(), 1, "exp must be a power of 2");
 
     let mut stack = Vec::with_capacity(32);
     for _ in 0..exp {
@@ -665,6 +621,27 @@ mod tests {
             "14a5e0cc13da9acdd5f758ae7186802137143e06c8dcba10019ffec790359ee7",
             None,
             None,
+        );
+    }
+
+    #[test]
+    #[rustfmt::skip]
+    #[cfg(feature = "elements")]
+    fn disconnect3() {
+        // Yet another disconnect-based program that hit a bug in our AMR computation
+        // (passing left arrow in place of right arrow to the AMR constructor.)
+        // # Program code
+        // id1 = iden                 :: (2^256 * 1) -> (2^256 * 1) # cmr dbfefcfc...
+        // ut2 = unit                 :: 1 -> 1                     # cmr 62274a89...
+        // jl3 = injl ut2             :: 1 -> 2                     # cmr bd0cce93...
+        // disc4 = disconnect id1 jl3 :: 1 -> (2^256 * 2)           # cmr 6968f10e...
+        // ut5 = unit                 :: (2^256 * 2) -> 1           # cmr 62274a89...
+        // main = comp disc4 ut5      :: 1 -> 1                     # cmr a8c9cc7a...
+        assert_program_deserializable::<crate::jet::Elements>(
+            &[0xc9, 0x09, 0x20, 0x74, 0x90, 0x40],
+            "a8c9cc7a83518d0886afe1078d88eabca8353509e8c2e3b5c72cf559c713c9f5",
+            Some("97f77a7e7d7f3b2b1ac790bf54b39d47d6db8dcab7ed3c0a48df12f2c940af58"),
+            Some("ed8152948589d65e0dea6d84f90eb752f63df818041f46bdc8f959f33299cbd3"),
         );
     }
 

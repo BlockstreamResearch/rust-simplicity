@@ -118,7 +118,7 @@ impl<J: Jet> RedeemData<J> {
                 NodeBounds::pair(left.bounds, right.bounds),
             ),
             Inner::Disconnect(left, right) => (
-                Amr::disconnect(&arrow, &left.arrow, left.amr, right.amr),
+                Amr::disconnect(&arrow, &right.arrow, left.amr, right.amr),
                 FirstPassImr::disconnect(left.first_pass_imr, right.first_pass_imr),
                 NodeBounds::disconnect(
                     left.bounds,
@@ -175,18 +175,6 @@ impl<J: Jet> RedeemNode<J> {
     /// Accessor for the node's bit machine bounds
     pub fn bounds(&self) -> NodeBounds {
         self.data.bounds
-    }
-
-    pub fn new(
-        arrow: FinalArrow,
-        inner: Inner<Arc<Self>, J, Arc<Value>>,
-        inner_cached: Inner<&Arc<RedeemData<J>>, J, Arc<Value>>,
-    ) -> Result<Self, types::Error> {
-        Ok(RedeemNode {
-            cmr: Cmr::unit(),
-            inner,
-            data: Arc::new(RedeemData::new(arrow, inner_cached)),
-        })
     }
 
     /// Convert a [`RedeemNode`] back to a [`CommitNode`] by forgetting witnesses

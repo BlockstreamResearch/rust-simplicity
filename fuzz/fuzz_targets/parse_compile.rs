@@ -27,7 +27,7 @@ fn do_test(data: &[u8]) {
         Ok(p) => p,
         Err(_) => return,
     };
-    let _ = pol.compile();
+    let _ = pol.serialize_no_witness();
 }
 
 fn main() {
