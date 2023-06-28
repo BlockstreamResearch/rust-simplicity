@@ -358,10 +358,12 @@ impl DagLike for Arc<Bound> {
     }
 }
 
-/// Source or target type of a Simplicity expression
+/// Source or target type of a Simplicity expression.
 ///
-/// This is just a mutex holding the actual data, which defined by the
-/// `TypeInner` type.
+/// Internally this type is essentially just a refcounted pointer; it is
+/// therefore quite cheap to clone, but be aware that cloning will not
+/// actually create a new independent type, just a second pointer to the
+/// first one.
 #[derive(Clone, Debug)]
 pub struct Type {
     /// A set of constraints, which maintained by the union-bound algorithm and
