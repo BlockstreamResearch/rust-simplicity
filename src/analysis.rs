@@ -67,7 +67,7 @@ impl Cost {
     /// Also, transaction may have multiple inputs and
     /// blocks usually include multiple transactions.
     /// This means that the maximum budget is an unreachable upper bound.
-    const CONSENSUS_MAX: Self = Cost(4_000_050_000);
+    pub const CONSENSUS_MAX: Self = Cost(4_000_050_000);
 
     /// Convert the cost to weight units.
     pub const fn to_weight(self) -> usize {

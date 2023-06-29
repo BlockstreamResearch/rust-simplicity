@@ -8,6 +8,7 @@ use elements::taproot::TapLeafHash;
 use elements::{LockTime, Sequence};
 use elements_miniscript::{MiniscriptKey, Preimage32, Satisfier, ToPublicKey};
 
+use crate::analysis::Cost;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::sync::Arc;
@@ -91,11 +92,10 @@ impl<Pk: ToPublicKey> Policy<Pk> {
                 let left = left.satisfy_internal(satisfier)?;
                 let right = right.satisfy_internal(satisfier)?;
 
-                // FIXME use a more intelligent cost function
                 let take_right = match (left.must_prune(), right.must_prune()) {
                     (false, false) => {
-                        let left_cost = left.finalize()?.bounds().extra_cells;
-                        let right_cost = right.finalize()?.bounds().extra_cells;
+                        let left_cost = left.finalize()?.bounds().cost;
+                        let right_cost = right.finalize()?.bounds().cost;
                         left_cost > right_cost
                     }
                     (false, true) => false,
@@ -118,14 +118,13 @@ impl<Pk: ToPublicKey> Policy<Pk> {
                     .map(|sub| sub.satisfy_internal(satisfier))
                     .collect();
                 let mut nodes = nodes?;
-                let mut costs = vec![usize::MAX; subs.len()];
+                let mut costs = vec![Cost::CONSENSUS_MAX; subs.len()];
                 // 0 means skip, 1 means don't skip
                 let mut witness_bits = vec![Some(Arc::new(Value::u1(0))); subs.len()];
 
                 for (cost, node) in costs.iter_mut().zip(nodes.iter()) {
                     if !node.must_prune() {
-                        // FIXME use a more intelligent cost function
-                        *cost = node.finalize()?.bounds().extra_cells;
+                        *cost = node.finalize()?.bounds().cost;
                     }
                 }
 
