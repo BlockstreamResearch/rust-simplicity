@@ -12,7 +12,64 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use std::cmp;
+use std::{cmp, fmt};
+
+/// CPU cost of a Simplicity expression.
+///
+/// The cost is measured in milli weight units
+/// and can be converted into weight units using the appropriate method.
+///
+/// Roughly speaking, the operational semantics of a combinator
+/// on the Bit Machine determine its cost.
+///
+/// First, every combinator has a fixed overhead cost.
+/// Frame allocations, copy and write operations cost proportional
+/// to the number of allocated or written bits.
+/// Frame moves / drops or cursor moves are one-step operations
+/// that are covered by the overhead.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct Cost(usize);
+
+impl Cost {
+    /// Overhead constant.
+    ///
+    /// Every combinator that is executed has this overhead added to its cost.
+    const OVERHEAD: Self = Cost(10);
+
+    /// Cost of combinators that are never executed.
+    ///
+    /// **This should only be used for `fail` nodes!**
+    const NEVER_EXECUTED: Self = Cost(0);
+
+    /// Convert the cost to weight units.
+    pub const fn to_weight(self) -> usize {
+        (self.0 + 999) / 1000
+    }
+
+    /// Return the cost of a type with the given bit width.
+    pub const fn of_type(bit_width: usize) -> Self {
+        Cost(bit_width)
+    }
+
+    /// Convert the given milli weight units into cost.
+    pub const fn from_milliweight(milliweight: usize) -> Self {
+        Cost(milliweight)
+    }
+}
+
+impl fmt::Display for Cost {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
+
+impl std::ops::Add for Cost {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Cost(self.0.saturating_add(rhs.0))
+    }
+}
 
 /// Bounds on the resources required by a node during execution on the Bit Machine
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
