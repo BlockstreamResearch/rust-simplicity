@@ -43,8 +43,6 @@ pub mod node;
 #[cfg(feature = "elements")]
 pub mod policy;
 pub mod types;
-// #[cfg(test)]
-// mod test_progs;
 mod value;
 
 pub use bit_encoding::decode;
