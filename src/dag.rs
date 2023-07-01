@@ -160,6 +160,33 @@ where
     }
 }
 
+impl<N, J> SharingTracker<Arc<Node<N, J>>> for MaxSharing<N, J>
+where
+    J: jet::Jet,
+    N: NodeData<J>,
+{
+    fn record(
+        &mut self,
+        d: &Arc<Node<N, J>>,
+        index: usize,
+        _: Option<usize>,
+        _: Option<usize>,
+    ) -> Option<usize> {
+        let id = d.sharing_id()?;
+
+        match self.map.entry(id) {
+            Entry::Occupied(occ) => Some(*occ.get()),
+            Entry::Vacant(vac) => {
+                vac.insert(index);
+                None
+            }
+        }
+    }
+    fn seen_before(&self, d: &Arc<Node<N, J>>) -> Option<usize> {
+        d.sharing_id().and_then(|id| self.map.get(&id)).copied()
+    }
+}
+
 // Need to explicitly allow swapping children for `MaxSharing`; the other
 // sharing styles have blanket implementations for `D: DagLike` so they
 // automatically allow it.
