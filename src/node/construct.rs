@@ -50,7 +50,7 @@ pub type ConstructNode<J> = Node<Construct, J>;
 impl<J: Jet> ConstructNode<J> {
     /// Accessor for the node's arrow
     pub fn arrow(&self) -> &Arrow {
-        &self.data.arrow
+        self.data.arrow()
     }
 
     /// Sets the source and target type of the node to unit
@@ -144,6 +144,11 @@ impl<J: Jet> ConstructData<J> {
             arrow,
             phantom: PhantomData,
         }
+    }
+
+    /// Accessor for the node's arrow
+    pub fn arrow(&self) -> &Arrow {
+        &self.arrow
     }
 }
 

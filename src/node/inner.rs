@@ -13,6 +13,7 @@
 //
 
 use super::FailEntropy;
+use crate::dag::Dag;
 use crate::jet::Jet;
 use crate::{Cmr, Value};
 
@@ -206,6 +207,28 @@ impl<C, J: Jet, W> Inner<C, J, W> {
             Inner::Word(w) => Inner::Word(w),
         })
     }
+
+    /// Collapse the node information to a `Dag`
+    pub fn into_dag(self) -> Dag<C> {
+        match self {
+            Inner::Iden
+            | Inner::Unit
+            | Inner::Witness(_)
+            | Inner::Fail(_)
+            | Inner::Jet(_)
+            | Inner::Word(_) => Dag::Nullary,
+            Inner::InjL(c)
+            | Inner::InjR(c)
+            | Inner::Take(c)
+            | Inner::Drop(c)
+            | Inner::AssertL(c, _)
+            | Inner::AssertR(_, c) => Dag::Unary(c),
+            Inner::Comp(cl, cr)
+            | Inner::Case(cl, cr)
+            | Inner::Pair(cl, cr)
+            | Inner::Disconnect(cl, cr) => Dag::Binary(cl, cr),
+        }
+    }
 }
 
 impl<C, J: Jet, W> Inner<Option<C>, J, W> {
@@ -253,6 +276,16 @@ impl<C, J: Jet, W> Inner<C, J, Option<W>> {
             Inner::Jet(j) => Inner::Jet(j),
             Inner::Word(w) => Inner::Word(w),
         })
+    }
+}
+
+impl<C, J: Jet, W: Copy> Inner<C, J, &W> {
+    /// Copies witness data.
+    ///
+    /// Useful in conjunction with [`Inner::as_ref`] when you don't want to
+    /// take a reference to witness data.
+    pub fn copy_witness(self) -> Inner<C, J, W> {
+        self.map_witness(|w| *w)
     }
 }
 

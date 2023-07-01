@@ -521,6 +521,37 @@ impl<N: NodeData<J>, J: Jet> Node<N, J> {
         &self.data
     }
 
+    /// Contruct a node from its constituent parts.
+    ///
+    /// This method can be used to directly costruct a node. It will compute the CMR
+    /// automatically based on the value of `inner` but requires that `cached_data`
+    /// be provided.
+    ///
+    /// If available, [`Constructible'] and its dependent traits will be easier to
+    /// use.
+    pub fn from_parts(inner: Inner<Arc<Self>, J, N::Witness>, data: N::CachedData) -> Self {
+        let cmr = match inner {
+            Inner::Unit => Cmr::unit(),
+            Inner::Iden => Cmr::iden(),
+            Inner::InjL(ref c) => Cmr::injl(c.cmr()),
+            Inner::InjR(ref c) => Cmr::injl(c.cmr()),
+            Inner::Take(ref c) => Cmr::take(c.cmr()),
+            Inner::Drop(ref c) => Cmr::drop(c.cmr()),
+            Inner::Comp(ref cl, ref cr) => Cmr::comp(cl.cmr(), cr.cmr()),
+            Inner::Case(ref cl, ref cr) => Cmr::case(cl.cmr(), cr.cmr()),
+            Inner::AssertL(ref c, cmr) => Cmr::case(c.cmr(), cmr),
+            Inner::AssertR(cmr, ref c) => Cmr::case(cmr, c.cmr()),
+            Inner::Pair(ref cl, ref cr) => Cmr::pair(cl.cmr(), cr.cmr()),
+            Inner::Disconnect(ref cl, _) => Cmr::disconnect(cl.cmr()),
+            Inner::Witness(_) => Cmr::witness(),
+            Inner::Fail(entropy) => Cmr::fail(entropy),
+            Inner::Jet(j) => Cmr::jet(j),
+            Inner::Word(ref w) => Cmr::const_word(w),
+        };
+
+        Node { cmr, inner, data }
+    }
+
     /// Generic conversion function from one type of node to another, with the
     /// ability to prune during the conversion.
     ///
