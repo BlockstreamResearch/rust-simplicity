@@ -121,13 +121,7 @@ impl<N: NodeData<J>, J: Jet> Default for EncodeSharing<N, J> {
 }
 
 impl<'n, N: NodeData<J>, J: Jet> SharingTracker<EncodeNode<'n, N, J>> for EncodeSharing<N, J> {
-    fn record(
-        &mut self,
-        d: &EncodeNode<N, J>,
-        index: usize,
-        _: Option<usize>,
-        _: Option<usize>,
-    ) -> Option<usize> {
+    fn record(&mut self, d: &EncodeNode<N, J>, index: usize) -> Option<usize> {
         let id = match d {
             EncodeNode::Node(n) => EncodeId::Node(n.sharing_id()?),
             EncodeNode::Hidden(cmr) => EncodeId::Hidden(*cmr),

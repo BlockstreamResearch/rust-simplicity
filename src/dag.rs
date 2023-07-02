@@ -50,13 +50,7 @@ pub trait SharingTracker<D: DagLike> {
     ///
     /// If the object was already seen, does **not** update the index,
     /// and instead returns the original one.
-    fn record(
-        &mut self,
-        object: &D,
-        index: usize,
-        left_child: Option<usize>,
-        right_child: Option<usize>,
-    ) -> Option<usize>;
+    fn record(&mut self, object: &D, index: usize) -> Option<usize>;
 
     /// Check whether an object has been seen before; if so, return
     /// the index it was recorded at.
@@ -65,14 +59,8 @@ pub trait SharingTracker<D: DagLike> {
 
 // Annoyingly we need to implement this explicitly
 impl<D: DagLike> SharingTracker<D> for &mut dyn SharingTracker<D> {
-    fn record(
-        &mut self,
-        object: &D,
-        index: usize,
-        left_child: Option<usize>,
-        right_child: Option<usize>,
-    ) -> Option<usize> {
-        (**self).record(object, index, left_child, right_child)
+    fn record(&mut self, object: &D, index: usize) -> Option<usize> {
+        (**self).record(object, index)
     }
     fn seen_before(&self, object: &D) -> Option<usize> {
         (**self).seen_before(object)
@@ -84,7 +72,7 @@ impl<D: DagLike> SharingTracker<D> for &mut dyn SharingTracker<D> {
 pub struct NoSharing;
 
 impl<D: DagLike> SharingTracker<D> for NoSharing {
-    fn record(&mut self, _: &D, _: usize, _: Option<usize>, _: Option<usize>) -> Option<usize> {
+    fn record(&mut self, _: &D, _: usize) -> Option<usize> {
         None
     }
     fn seen_before(&self, _: &D) -> Option<usize> {
@@ -100,7 +88,7 @@ pub struct InternalSharing {
 }
 
 impl<D: DagLike> SharingTracker<D> for InternalSharing {
-    fn record(&mut self, d: &D, index: usize, _: Option<usize>, _: Option<usize>) -> Option<usize> {
+    fn record(&mut self, d: &D, index: usize) -> Option<usize> {
         match self.map.entry(PointerId::from(d)) {
             Entry::Occupied(occ) => Some(*occ.get()),
             Entry::Vacant(vac) => {
@@ -138,13 +126,7 @@ where
     J: jet::Jet,
     N: NodeData<J>,
 {
-    fn record(
-        &mut self,
-        d: &&Node<N, J>,
-        index: usize,
-        _: Option<usize>,
-        _: Option<usize>,
-    ) -> Option<usize> {
+    fn record(&mut self, d: &&Node<N, J>, index: usize) -> Option<usize> {
         let id = d.sharing_id()?;
 
         match self.map.entry(id) {
@@ -165,13 +147,7 @@ where
     J: jet::Jet,
     N: NodeData<J>,
 {
-    fn record(
-        &mut self,
-        d: &Arc<Node<N, J>>,
-        index: usize,
-        _: Option<usize>,
-        _: Option<usize>,
-    ) -> Option<usize> {
+    fn record(&mut self, d: &Arc<Node<N, J>>, index: usize) -> Option<usize> {
         let id = d.sharing_id()?;
 
         match self.map.entry(id) {
@@ -197,14 +173,8 @@ where
     J: jet::Jet,
     N: NodeData<J>,
 {
-    fn record(
-        &mut self,
-        d: &SwapChildren<D>,
-        index: usize,
-        left_child: Option<usize>,
-        right_child: Option<usize>,
-    ) -> Option<usize> {
-        self.record(&d.0, index, left_child, right_child)
+    fn record(&mut self, d: &SwapChildren<D>, index: usize) -> Option<usize> {
+        self.record(&d.0, index)
     }
 
     fn seen_before(&self, d: &SwapChildren<D>) -> Option<usize> {
@@ -649,12 +619,7 @@ impl<D: DagLike, S: SharingTracker<D>> Iterator for PostOrderIter<D, S> {
                     // this is a DAG, not a tree). In this case we want to skip it.
                     //
                     // Check whether this is the case, and record the item's new index if not.
-                    let current_index = self.tracker.record(
-                        &current.elem,
-                        self.index,
-                        current.left_idx,
-                        current.right_idx,
-                    );
+                    let current_index = self.tracker.record(&current.elem, self.index);
                     let already_yielded = current_index.is_some();
                     let current_index = current_index.unwrap_or(self.index);
 
@@ -781,7 +746,7 @@ impl<D: DagLike, S: SharingTracker<D>> Iterator for PreOrderIter<D, S> {
         // mainly because we don't care about child indices.
         while let Some(top) = self.stack.pop() {
             // Only yield if this is the first time we have seen this node.
-            if self.tracker.record(&top, 0, None, None).is_none() {
+            if self.tracker.record(&top, 0).is_none() {
                 // If so, mark its children as to-yield, then yield it.
                 if let Some(child) = top.right_child() {
                     self.stack.push(child);
@@ -842,7 +807,7 @@ impl<D: DagLike + Clone, S: SharingTracker<D>> Iterator for VerbosePreOrderIter<
             // like the non-verbose pre-order iterator.
             if top.n_children_yielded == 0 {
                 // If we've seen the node before, skip it.
-                if self.tracker.record(&top.node, 0, None, None).is_some() {
+                if self.tracker.record(&top.node, 0).is_some() {
                     continue;
                 }
                 // Set its index.
