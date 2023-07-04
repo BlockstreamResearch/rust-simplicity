@@ -641,6 +641,14 @@ mod tests {
     }
 
     #[test]
+    fn circular_program() {
+        error_contains(
+            parse::<Core>("main := comp main unit"),
+            "name `main` is referred to but does not exist",
+        );
+    }
+
+    #[test]
     #[cfg(feature = "elements")]
     fn bip340_program() {
         use crate::jet::Elements;
