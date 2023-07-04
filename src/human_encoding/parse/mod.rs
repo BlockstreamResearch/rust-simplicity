@@ -455,7 +455,15 @@ pub fn parse<J: Jet + 'static>(
                     None
                 }
                 ResolvedInner::Reference(..) => {
-                    converted.push(left);
+                    // For chains of references we make an effort to preserve the name.
+                    // So if you have main := a; a := b; b := c, then the `main` node
+                    // will retain the name `main` (and absent any other references,
+                    // the `a` and `b` names will simply be dropped).
+                    let mut child = left;
+                    if let Some(name) = data.node.name.as_ref() {
+                        child = child.map(|node| Arc::new(node.renamed(Arc::clone(name))));
+                    }
+                    converted.push(child);
                     continue;
                 }
                 ResolvedInner::AssertL(..) => left.zip(right).map(|(left, right)| {
@@ -574,6 +582,7 @@ pub fn parse<J: Jet + 'static>(
 mod tests {
     use super::*;
 
+    use crate::human_encoding::Forest;
     use crate::jet::{Core, Jet};
 
     fn assert_single_cmr<J: Jet>(s: &str, cmr: &str) {
@@ -646,6 +655,12 @@ mod tests {
             parse::<Core>("main := comp main unit"),
             "name `main` is referred to but does not exist",
         );
+    }
+
+    #[test]
+    fn preserve_name() {
+        let program = &Forest::<Core>::parse("main := x    x := unit").unwrap();
+        assert!(program.string_serialize().contains("main := unit"));
     }
 
     #[test]

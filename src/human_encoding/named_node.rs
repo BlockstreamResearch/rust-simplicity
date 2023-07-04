@@ -186,6 +186,18 @@ impl<J: Jet> NamedConstructNode<J> {
         Ok(Node::from_parts(inner, named_data))
     }
 
+    /// Creates a copy of a node with a different name.
+    pub fn renamed(&self, new_name: Arc<str>) -> Self {
+        let data = NamedConstructData {
+            internal: self.cached_data().internal.clone(),
+            user_source_types: Arc::clone(&self.cached_data().user_source_types),
+            user_target_types: Arc::clone(&self.cached_data().user_target_types),
+            name: new_name,
+            position: self.position(),
+        };
+        Self::from_parts(self.inner().clone(), data)
+    }
+
     /// Accessor for the node's name
     pub fn name(&self) -> &Arc<str> {
         &self.cached_data().name
