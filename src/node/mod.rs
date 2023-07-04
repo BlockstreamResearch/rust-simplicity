@@ -99,7 +99,7 @@ pub use witness::{Witness, WitnessData, WitnessNode};
 // This trait should only be implemented on empty types, so we can demand
 // every trait bound under the sun. Doing so will make #[derive]s easier
 // for downstream users.
-pub trait Marker<J: Jet>:
+pub trait Marker:
     Copy + Clone + PartialEq + Eq + PartialOrd + Ord + fmt::Debug + hash::Hash
 {
     /// Precomputed data about the node, such as its type arrow or various Merkle roots.
@@ -112,6 +112,9 @@ pub trait Marker<J: Jet>:
     /// A type which uniquely identifies a node, for purposes of sharing
     /// during iteration over the DAG.
     type SharingId: hash::Hash + Clone + Eq;
+
+    /// The jet catalogue used with this node type.
+    type Jet: Jet;
 
     /// Yields the sharing ID for a given type, starting from its CMR and its cached data.
     ///
@@ -312,13 +315,13 @@ pub trait WitnessConstructible<W>: Sized {
 /// for [`Marker::CachedData`] and think carefully about whether and how to
 /// implement the [`std::hash::Hash`] or equality traits.
 #[derive(Debug)]
-pub struct Node<N: Marker<J>, J: Jet> {
-    inner: Inner<Arc<Node<N, J>>, J, N::Witness>,
+pub struct Node<N: Marker> {
+    inner: Inner<Arc<Node<N>>, N::Jet, N::Witness>,
     cmr: Cmr,
     data: N::CachedData,
 }
 
-impl<N: Marker<J>, J: Jet> PartialEq for Node<N, J>
+impl<N: Marker> PartialEq for Node<N>
 where
     N::CachedData: PartialEq,
 {
@@ -326,9 +329,9 @@ where
         self.cmr == other.cmr && self.data == other.data
     }
 }
-impl<N: Marker<J>, J: Jet> Eq for Node<N, J> where N::CachedData: Eq {}
+impl<N: Marker> Eq for Node<N> where N::CachedData: Eq {}
 
-impl<N: Marker<J>, J: Jet> hash::Hash for Node<N, J>
+impl<N: Marker> hash::Hash for Node<N>
 where
     N::CachedData: hash::Hash,
 {
@@ -338,12 +341,12 @@ where
     }
 }
 
-impl<N: Marker<J>, J: Jet> fmt::Display for Node<N, J>
+impl<N: Marker> fmt::Display for Node<N>
 where
-    for<'a> &'a Node<N, J>: DagLike,
+    for<'a> &'a Node<N>: DagLike,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.post_order_iter::<MaxSharing<N, J>>().into_display(
+        self.post_order_iter::<MaxSharing<N>>().into_display(
             f,
             |node, f| fmt::Display::fmt(&node.inner, f),
             |_, _| Ok(()),
@@ -351,11 +354,10 @@ where
     }
 }
 
-impl<N, J> CoreConstructible for Arc<Node<N, J>>
+impl<N> CoreConstructible for Arc<Node<N>>
 where
-    N: Marker<J>,
+    N: Marker,
     N::CachedData: CoreConstructible,
-    J: Jet,
 {
     fn iden() -> Self {
         Arc::new(Node {
@@ -470,11 +472,10 @@ where
     }
 }
 
-impl<N, J> WitnessConstructible<N::Witness> for Arc<Node<N, J>>
+impl<N> WitnessConstructible<N::Witness> for Arc<Node<N>>
 where
-    N: Marker<J>,
+    N: Marker,
     N::CachedData: WitnessConstructible<N::Witness>,
-    J: Jet,
 {
     fn witness(value: N::Witness) -> Self {
         Arc::new(Node {
@@ -485,13 +486,12 @@ where
     }
 }
 
-impl<N, J> JetConstructible<J> for Arc<Node<N, J>>
+impl<N> JetConstructible<N::Jet> for Arc<Node<N>>
 where
-    N: Marker<J>,
-    N::CachedData: JetConstructible<J>,
-    J: Jet,
+    N: Marker,
+    N::CachedData: JetConstructible<N::Jet>,
 {
-    fn jet(jet: J) -> Self {
+    fn jet(jet: N::Jet) -> Self {
         Arc::new(Node {
             cmr: Cmr::jet(jet),
             data: N::CachedData::jet(jet),
@@ -500,9 +500,9 @@ where
     }
 }
 
-impl<N: Marker<J>, J: Jet> Node<N, J> {
+impl<N: Marker> Node<N> {
     /// Accessor for the node's "inner value", i.e. its combinator
-    pub fn inner(&self) -> &Inner<Arc<Node<N, J>>, J, N::Witness> {
+    pub fn inner(&self) -> &Inner<Arc<Node<N>>, N::Jet, N::Witness> {
         &self.inner
     }
 
@@ -529,7 +529,7 @@ impl<N: Marker<J>, J: Jet> Node<N, J> {
     ///
     /// If available, [`Constructible'] and its dependent traits will be easier to
     /// use.
-    pub fn from_parts(inner: Inner<Arc<Self>, J, N::Witness>, data: N::CachedData) -> Self {
+    pub fn from_parts(inner: Inner<Arc<Self>, N::Jet, N::Witness>, data: N::CachedData) -> Self {
         let cmr = match inner {
             Inner::Unit => Cmr::unit(),
             Inner::Iden => Cmr::iden(),
@@ -559,13 +559,13 @@ impl<N: Marker<J>, J: Jet> Node<N, J> {
     /// DAG, and what conversion logic to use.
     ///
     /// See the documentation for [`Converter`] for details.
-    pub fn convert<S, M, C>(&self, converter: &mut C) -> Result<Arc<Node<M, J>>, C::Error>
+    pub fn convert<S, M, C>(&self, converter: &mut C) -> Result<Arc<Node<M>>, C::Error>
     where
         S: for<'a> SharingTracker<&'a Self> + Default,
-        M: Marker<J>,
-        C: Converter<N, M, J>,
+        M: Marker<Jet = <N as Marker>::Jet>,
+        C: Converter<N, M>,
     {
-        let mut converted: Vec<Arc<Node<M, J>>> = vec![];
+        let mut converted: Vec<Arc<Node<M>>> = vec![];
         for data in self.post_order_iter::<S>() {
             // First, tell the converter about the iterator state..
             converter.visit_node(&data);
@@ -573,20 +573,20 @@ impl<N: Marker<J>, J: Jet> Node<N, J> {
             // Construct an Inner<usize> where pointers are replaced by indices.
             // Note that `map_left_right`'s internal logic will ensure that these
             // `unwrap`s are only called when they will succeed.
-            let indexed_inner: Inner<usize, J, &N::Witness> = data
+            let indexed_inner: Inner<usize, N::Jet, &N::Witness> = data
                 .node
                 .inner
                 .as_ref()
                 .map_left_right(|_| data.left_index.unwrap(), |_| data.right_index.unwrap());
 
             // Then, convert witness data, if this is a witness node.
-            let witness_inner: Inner<&usize, J, M::Witness> = indexed_inner
+            let witness_inner: Inner<&usize, M::Jet, M::Witness> = indexed_inner
                 .as_ref()
                 .map_witness_result(|wit| converter.convert_witness(&data, wit))?;
 
             // Then put the converted nodes in place (it's easier to do this in this
             // order because of the way the reference types work out).
-            let converted_inner: Inner<Arc<Node<M, J>>, J, M::Witness> =
+            let converted_inner: Inner<Arc<Node<M>>, M::Jet, M::Witness> =
                 witness_inner.map(|idx| Arc::clone(&converted[*idx]));
 
             // Next, prune case nodes into asserts, if applicable

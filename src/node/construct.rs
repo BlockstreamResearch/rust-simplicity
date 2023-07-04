@@ -33,19 +33,25 @@ use super::{CoreConstructible, JetConstructible, WitnessConstructible};
 pub enum ConstructId {}
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub enum Construct {}
+pub struct Construct<J: Jet> {
+    /// Makes the type non-constructible.
+    never: std::convert::Infallible,
+    /// Required by Rust.
+    phantom: std::marker::PhantomData<J>,
+}
 
-impl<J: Jet> Marker<J> for Construct {
+impl<J: Jet> Marker for Construct<J> {
     type CachedData = ConstructData<J>;
     type Witness = NoWitness;
     type SharingId = ConstructId;
+    type Jet = J;
 
     fn compute_sharing_id(_: Cmr, _: &ConstructData<J>) -> Option<ConstructId> {
         None
     }
 }
 
-pub type ConstructNode<J> = Node<Construct, J>;
+pub type ConstructNode<J> = Node<Construct<J>>;
 
 impl<J: Jet> ConstructNode<J> {
     /// Accessor for the node's arrow
@@ -82,7 +88,7 @@ impl<J: Jet> ConstructNode<J> {
     pub fn finalize_types_non_program(&self) -> Result<Arc<CommitNode<J>>, types::Error> {
         struct FinalizeTypes<J: Jet>(PhantomData<J>);
 
-        impl<J: Jet> Converter<Construct, Commit, J> for FinalizeTypes<J> {
+        impl<J: Jet> Converter<Construct<J>, Commit<J>> for FinalizeTypes<J> {
             type Error = types::Error;
             fn convert_witness(
                 &mut self,

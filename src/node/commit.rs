@@ -28,12 +28,18 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub enum Commit {}
+pub struct Commit<J: Jet> {
+    /// Makes the type non-constructible.
+    never: std::convert::Infallible,
+    /// Required by Rust.
+    phantom: std::marker::PhantomData<J>,
+}
 
-impl<J: Jet> Marker<J> for Commit {
+impl<J: Jet> Marker for Commit<J> {
     type CachedData = Arc<CommitData<J>>;
     type Witness = NoWitness;
     type SharingId = Imr;
+    type Jet = J;
 
     fn compute_sharing_id(_: Cmr, cached_data: &Arc<CommitData<J>>) -> Option<Imr> {
         cached_data.imr
@@ -172,7 +178,7 @@ impl<J: Jet> CommitData<J> {
     }
 }
 
-pub type CommitNode<J> = Node<Commit, J>;
+pub type CommitNode<J> = Node<Commit<J>>;
 
 impl<J: Jet> CommitNode<J> {
     /// Accessor for the node's arrow
@@ -195,18 +201,18 @@ impl<J: Jet> CommitNode<J> {
     ///
     /// This is a thin wrapper around [`Node::convert`] which fixes a few types to make
     /// it easier to use.
-    pub fn finalize<C: Converter<Commit, Redeem, J>>(
+    pub fn finalize<C: Converter<Commit<J>, Redeem<J>>>(
         &self,
         converter: &mut C,
     ) -> Result<Arc<RedeemNode<J>>, C::Error> {
-        self.convert::<NoSharing, Redeem, _>(converter)
+        self.convert::<NoSharing, Redeem<J>, _>(converter)
     }
 
     /// Convert a [`CommitNode`] back to a [`ConstructNode`] by redoing type inference
     pub fn unfinalize_types(&self) -> Result<Arc<ConstructNode<J>>, types::Error> {
         struct UnfinalizeTypes<J: Jet>(PhantomData<J>);
 
-        impl<J: Jet> Converter<Commit, Construct, J> for UnfinalizeTypes<J> {
+        impl<J: Jet> Converter<Commit<J>, Construct<J>> for UnfinalizeTypes<J> {
             type Error = types::Error;
             fn convert_witness(
                 &mut self,
@@ -226,7 +232,7 @@ impl<J: Jet> CommitNode<J> {
             }
         }
 
-        self.convert::<MaxSharing<Commit, J>, _, _>(&mut UnfinalizeTypes(PhantomData))
+        self.convert::<MaxSharing<Commit<J>>, _, _>(&mut UnfinalizeTypes(PhantomData))
     }
 
     /// Decode a Simplicity program from bits, without witness data.
@@ -242,7 +248,7 @@ impl<J: Jet> CommitNode<J> {
         // 1. Decode program with out witnesses.
         let program = crate::decode::decode_program(bits)?;
         // 2. Do sharing check, using incomplete IMRs
-        if program.as_ref().is_shared_as::<MaxSharing<Commit, J>>() {
+        if program.as_ref().is_shared_as::<MaxSharing<Commit<J>>>() {
             Ok(program)
         } else {
             Err(Error::SharingNotMaximal)

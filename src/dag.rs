@@ -18,7 +18,6 @@ use std::collections::{hash_map::Entry, HashMap};
 use std::fmt;
 use std::sync::Arc;
 
-use crate::jet;
 use crate::node::{self, Node};
 
 /// Abstract node of a directed acyclic graph.
@@ -108,12 +107,12 @@ impl<D: DagLike> SharingTracker<D> for InternalSharing {
 /// types of nodes it represents "as much sharing as we can currently
 /// safely do".
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MaxSharing<N: node::Marker<J>, J: jet::Jet> {
+pub struct MaxSharing<N: node::Marker> {
     map: HashMap<N::SharingId, usize>,
 }
 
 // Annoyingly we have to implement Default by hand
-impl<N: node::Marker<J>, J: jet::Jet> Default for MaxSharing<N, J> {
+impl<N: node::Marker> Default for MaxSharing<N> {
     fn default() -> Self {
         MaxSharing {
             map: HashMap::default(),
@@ -121,12 +120,8 @@ impl<N: node::Marker<J>, J: jet::Jet> Default for MaxSharing<N, J> {
     }
 }
 
-impl<N, J> SharingTracker<&Node<N, J>> for MaxSharing<N, J>
-where
-    J: jet::Jet,
-    N: node::Marker<J>,
-{
-    fn record(&mut self, d: &&Node<N, J>, index: usize) -> Option<usize> {
+impl<N: node::Marker> SharingTracker<&Node<N>> for MaxSharing<N> {
+    fn record(&mut self, d: &&Node<N>, index: usize) -> Option<usize> {
         let id = d.sharing_id()?;
 
         match self.map.entry(id) {
@@ -137,17 +132,13 @@ where
             }
         }
     }
-    fn seen_before(&self, d: &&Node<N, J>) -> Option<usize> {
+    fn seen_before(&self, d: &&Node<N>) -> Option<usize> {
         d.sharing_id().and_then(|id| self.map.get(&id)).copied()
     }
 }
 
-impl<N, J> SharingTracker<Arc<Node<N, J>>> for MaxSharing<N, J>
-where
-    J: jet::Jet,
-    N: node::Marker<J>,
-{
-    fn record(&mut self, d: &Arc<Node<N, J>>, index: usize) -> Option<usize> {
+impl<N: node::Marker> SharingTracker<Arc<Node<N>>> for MaxSharing<N> {
+    fn record(&mut self, d: &Arc<Node<N>>, index: usize) -> Option<usize> {
         let id = d.sharing_id()?;
 
         match self.map.entry(id) {
@@ -158,7 +149,7 @@ where
             }
         }
     }
-    fn seen_before(&self, d: &Arc<Node<N, J>>) -> Option<usize> {
+    fn seen_before(&self, d: &Arc<Node<N>>) -> Option<usize> {
         d.sharing_id().and_then(|id| self.map.get(&id)).copied()
     }
 }
@@ -166,12 +157,11 @@ where
 // Need to explicitly allow swapping children for `MaxSharing`; the other
 // sharing styles have blanket implementations for `D: DagLike` so they
 // automatically allow it.
-impl<N, J, D> SharingTracker<SwapChildren<D>> for MaxSharing<N, J>
+impl<N, D> SharingTracker<SwapChildren<D>> for MaxSharing<N>
 where
     D: DagLike,
-    MaxSharing<N, J>: SharingTracker<D>,
-    J: jet::Jet,
-    N: node::Marker<J>,
+    MaxSharing<N>: SharingTracker<D>,
+    N: node::Marker,
 {
     fn record(&mut self, d: &SwapChildren<D>, index: usize) -> Option<usize> {
         self.record(&d.0, index)
@@ -376,10 +366,10 @@ impl<D: DagLike> DagLike for SwapChildren<D> {
     }
 }
 
-impl<'a, N: node::Marker<J>, J: jet::Jet> DagLike for &'a Node<N, J> {
-    type Node = Node<N, J>;
+impl<'a, N: node::Marker> DagLike for &'a Node<N> {
+    type Node = Node<N>;
 
-    fn data(&self) -> &Node<N, J> {
+    fn data(&self) -> &Node<N> {
         self
     }
 
@@ -406,10 +396,10 @@ impl<'a, N: node::Marker<J>, J: jet::Jet> DagLike for &'a Node<N, J> {
     }
 }
 
-impl<N: node::Marker<J>, J: jet::Jet> DagLike for Arc<Node<N, J>> {
-    type Node = Node<N, J>;
+impl<N: node::Marker> DagLike for Arc<Node<N>> {
+    type Node = Node<N>;
 
-    fn data(&self) -> &Node<N, J> {
+    fn data(&self) -> &Node<N> {
         self
     }
 
@@ -667,9 +657,7 @@ impl<D: DagLike, S: SharingTracker<D>> Iterator for PostOrderIter<D, S> {
     }
 }
 
-impl<'a, N: node::Marker<J>, J: jet::Jet, S: SharingTracker<&'a Node<N, J>> + Clone>
-    PostOrderIter<&'a Node<N, J>, S>
-{
+impl<'a, N: node::Marker, S: SharingTracker<&'a Node<N>> + Clone> PostOrderIter<&'a Node<N>, S> {
     /// Adapt the iterator to only yield witnesses
     ///
     /// The witnesses are yielded in the order in which they appear in the DAG

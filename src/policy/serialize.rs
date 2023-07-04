@@ -23,11 +23,11 @@ use crate::{FailEntropy, Value};
 use std::convert::TryFrom;
 use std::sync::Arc;
 
-pub type ArcNode<N> = Arc<Node<N, Elements>>;
+pub type ArcNode<N> = Arc<Node<N>>;
 
 pub fn unsatisfiable<N>(entropy: FailEntropy) -> ArcNode<N>
 where
-    N: node::Marker<Elements>,
+    N: node::Marker,
     ArcNode<N>: CoreConstructible,
 {
     ArcNode::fail(entropy)
@@ -35,7 +35,7 @@ where
 
 pub fn trivial<N>() -> ArcNode<N>
 where
-    N: node::Marker<Elements>,
+    N: node::Marker,
     ArcNode<N>: CoreConstructible,
 {
     ArcNode::unit()
@@ -44,7 +44,7 @@ where
 pub fn key<N, Pk>(key: &Pk, witness: N::Witness) -> ArcNode<N>
 where
     Pk: ToPublicKey,
-    N: node::Marker<Elements>,
+    N: node::Marker,
     ArcNode<N>: CoreConstructible + JetConstructible<Elements> + WitnessConstructible<N::Witness>,
 {
     let key_value = Arc::new(Value::u256_from_slice(&key.to_x_only_pubkey().serialize()));
@@ -60,7 +60,7 @@ where
 
 pub fn after<N>(n: u32) -> ArcNode<N>
 where
-    N: node::Marker<Elements>,
+    N: node::Marker,
     ArcNode<N>: CoreConstructible + JetConstructible<Elements>,
 {
     let n_value = Arc::new(Value::u32(n));
@@ -72,7 +72,7 @@ where
 
 pub fn older<N>(n: u16) -> ArcNode<N>
 where
-    N: node::Marker<Elements>,
+    N: node::Marker,
     ArcNode<N>: CoreConstructible + JetConstructible<Elements>,
 {
     let n_value = Arc::new(Value::u16(n));
@@ -84,7 +84,7 @@ where
 
 fn compute_sha256<N>(witness256: &ArcNode<N>) -> ArcNode<N>
 where
-    N: node::Marker<Elements>,
+    N: node::Marker,
     ArcNode<N>: CoreConstructible + JetConstructible<Elements>,
 {
     let ctx = ArcNode::jet(Elements::Sha256Ctx8Init);
@@ -97,7 +97,7 @@ where
 
 fn verify_bexp<N>(input: &ArcNode<N>, bexp: &ArcNode<N>) -> ArcNode<N>
 where
-    N: node::Marker<Elements>,
+    N: node::Marker,
     ArcNode<N>: CoreConstructible + JetConstructible<Elements>,
 {
     let computed_bexp = ArcNode::comp(input, bexp).expect("consistent types");
@@ -108,7 +108,7 @@ where
 pub fn sha256<N, Pk>(hash: &Pk::Sha256, witness: N::Witness) -> ArcNode<N>
 where
     Pk: ToPublicKey,
-    N: node::Marker<Elements>,
+    N: node::Marker,
     ArcNode<N>: CoreConstructible + JetConstructible<Elements> + WitnessConstructible<N::Witness>,
 {
     let hash_value = Arc::new(Value::u256_from_slice(Pk::to_sha256(hash).as_ref()));
@@ -124,7 +124,7 @@ where
 
 pub fn and<N>(left: &ArcNode<N>, right: &ArcNode<N>) -> ArcNode<N>
 where
-    N: node::Marker<Elements>,
+    N: node::Marker,
     ArcNode<N>: CoreConstructible,
 {
     ArcNode::comp(left, right).expect("consistent types")
@@ -132,7 +132,7 @@ where
 
 fn selector<N>(witness_bit: N::Witness) -> ArcNode<N>
 where
-    N: node::Marker<Elements>,
+    N: node::Marker,
     ArcNode<N>: CoreConstructible + WitnessConstructible<N::Witness>,
 {
     let witness = ArcNode::witness(witness_bit);
@@ -142,7 +142,7 @@ where
 
 pub fn or<N>(left: &ArcNode<N>, right: &ArcNode<N>, witness_bit: N::Witness) -> ArcNode<N>
 where
-    N: node::Marker<Elements>,
+    N: node::Marker,
     ArcNode<N>: CoreConstructible + WitnessConstructible<N::Witness>,
 {
     let drop_left = ArcNode::drop_(left);
@@ -158,7 +158,7 @@ where
 /// summand(child): 1 → 2^32
 fn thresh_summand<N>(child: &ArcNode<N>, witness_bit: N::Witness) -> ArcNode<N>
 where
-    N: node::Marker<Elements>,
+    N: node::Marker,
     ArcNode<N>: CoreConstructible + WitnessConstructible<N::Witness>,
 {
     // 1 → 2 x 1
@@ -187,7 +187,7 @@ where
 /// add(sum, summand): 1 → 2^32
 fn thresh_add<N>(sum: &ArcNode<N>, summand: &ArcNode<N>) -> ArcNode<N>
 where
-    N: node::Marker<Elements>,
+    N: node::Marker,
     ArcNode<N>: CoreConstructible + JetConstructible<Elements> + WitnessConstructible<N::Witness>,
 {
     // 1 → 2^32 × 2^32
@@ -210,7 +210,7 @@ where
 /// verify(sum): 1 → 1
 fn thresh_verify<N>(sum: &ArcNode<N>, k: u32) -> ArcNode<N>
 where
-    N: node::Marker<Elements>,
+    N: node::Marker,
     ArcNode<N>: CoreConstructible + JetConstructible<Elements> + WitnessConstructible<N::Witness>,
 {
     // 1 → 2^32
@@ -226,7 +226,7 @@ where
 
 pub fn threshold<N>(k: u32, subs: &[ArcNode<N>], witness_bits: &[N::Witness]) -> ArcNode<N>
 where
-    N: node::Marker<Elements>,
+    N: node::Marker,
     ArcNode<N>: CoreConstructible + JetConstructible<Elements> + WitnessConstructible<N::Witness>,
 {
     let n = u32::try_from(subs.len()).expect("can have at most 2^32 children in a threshold");

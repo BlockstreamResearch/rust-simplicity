@@ -27,12 +27,12 @@ use std::collections::{hash_map::Entry, HashMap};
 use std::{hash, io, mem};
 
 #[derive(Copy, Clone)]
-enum EncodeNode<'n, N: node::Marker<J>, J: Jet> {
-    Node(&'n node::Node<N, J>),
+enum EncodeNode<'n, N: node::Marker> {
+    Node(&'n node::Node<N>),
     Hidden(Cmr),
 }
 
-impl<'n, N: node::Marker<J>, J: Jet> DagLike for EncodeNode<'n, N, J> {
+impl<'n, N: node::Marker> DagLike for EncodeNode<'n, N> {
     type Node = Self;
     fn data(&self) -> &Self {
         self
@@ -71,13 +71,13 @@ impl<'n, N: node::Marker<J>, J: Jet> DagLike for EncodeNode<'n, N, J> {
 }
 
 #[derive(Clone)]
-enum EncodeId<N: node::Marker<J>, J: Jet> {
+enum EncodeId<N: node::Marker> {
     Node(N::SharingId),
     Hidden(Cmr),
 }
 
 // Have to implement these manually because Rust sucks.
-impl<N: node::Marker<J>, J: Jet> PartialEq for EncodeId<N, J> {
+impl<N: node::Marker> PartialEq for EncodeId<N> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (EncodeId::Node(left), EncodeId::Node(right)) => left == right,
@@ -87,9 +87,9 @@ impl<N: node::Marker<J>, J: Jet> PartialEq for EncodeId<N, J> {
     }
 }
 
-impl<N: node::Marker<J>, J: Jet> Eq for EncodeId<N, J> {}
+impl<N: node::Marker> Eq for EncodeId<N> {}
 
-impl<N: node::Marker<J>, J: Jet> hash::Hash for EncodeId<N, J> {
+impl<N: node::Marker> hash::Hash for EncodeId<N> {
     fn hash<H: hash::Hasher>(&self, hasher: &mut H) {
         match self {
             EncodeId::Node(id) => {
@@ -107,12 +107,12 @@ impl<N: node::Marker<J>, J: Jet> hash::Hash for EncodeId<N, J> {
 /// Shares nodes based on IMR, *except* for Hidden nodes, which are identified
 /// solely by the hash they contain
 #[derive(Clone)]
-pub struct EncodeSharing<N: node::Marker<J>, J: Jet> {
-    map: HashMap<EncodeId<N, J>, usize>,
+pub struct EncodeSharing<N: node::Marker> {
+    map: HashMap<EncodeId<N>, usize>,
 }
 
 // Annoyingly we have to implement Default by hand
-impl<N: node::Marker<J>, J: Jet> Default for EncodeSharing<N, J> {
+impl<N: node::Marker> Default for EncodeSharing<N> {
     fn default() -> Self {
         EncodeSharing {
             map: HashMap::default(),
@@ -120,8 +120,8 @@ impl<N: node::Marker<J>, J: Jet> Default for EncodeSharing<N, J> {
     }
 }
 
-impl<'n, N: node::Marker<J>, J: Jet> SharingTracker<EncodeNode<'n, N, J>> for EncodeSharing<N, J> {
-    fn record(&mut self, d: &EncodeNode<N, J>, index: usize) -> Option<usize> {
+impl<'n, N: node::Marker> SharingTracker<EncodeNode<'n, N>> for EncodeSharing<N> {
+    fn record(&mut self, d: &EncodeNode<N>, index: usize) -> Option<usize> {
         let id = match d {
             EncodeNode::Node(n) => EncodeId::Node(n.sharing_id()?),
             EncodeNode::Hidden(cmr) => EncodeId::Hidden(*cmr),
@@ -136,7 +136,7 @@ impl<'n, N: node::Marker<J>, J: Jet> SharingTracker<EncodeNode<'n, N, J>> for En
         }
     }
 
-    fn seen_before(&self, d: &EncodeNode<N, J>) -> Option<usize> {
+    fn seen_before(&self, d: &EncodeNode<N>) -> Option<usize> {
         let id = match d {
             EncodeNode::Node(n) => EncodeId::Node(n.sharing_id()?),
             EncodeNode::Hidden(cmr) => EncodeId::Hidden(*cmr),
@@ -149,11 +149,11 @@ impl<'n, N: node::Marker<J>, J: Jet> SharingTracker<EncodeNode<'n, N, J>> for En
 /// Encode a Simplicity program to bits, without witness data.
 ///
 /// Returns the number of written bits.
-pub fn encode_program<W: io::Write, N: node::Marker<J>, J: Jet>(
-    program: &node::Node<N, J>,
+pub fn encode_program<W: io::Write, N: node::Marker>(
+    program: &node::Node<N>,
     w: &mut BitWriter<W>,
 ) -> io::Result<usize> {
-    let iter = EncodeNode::Node(program).post_order_iter::<EncodeSharing<N, J>>();
+    let iter = EncodeNode::Node(program).post_order_iter::<EncodeSharing<N>>();
 
     let len = iter.clone().count();
     let start_n = w.n_total_written();
@@ -167,8 +167,8 @@ pub fn encode_program<W: io::Write, N: node::Marker<J>, J: Jet>(
 }
 
 /// Encode a node to bits.
-fn encode_node<W: io::Write, N: node::Marker<J>, J: Jet>(
-    data: PostOrderIterItem<EncodeNode<N, J>>,
+fn encode_node<W: io::Write, N: node::Marker>(
+    data: PostOrderIterItem<EncodeNode<N>>,
     w: &mut BitWriter<W>,
 ) -> io::Result<()> {
     // Handle Hidden nodes specially

@@ -31,19 +31,25 @@ use super::{Converter, Hide, Inner, Marker, NoWitness, Node, Redeem, RedeemData,
 pub enum WitnessId {}
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub enum Witness {}
+pub struct Witness<J: Jet> {
+    /// Makes the type non-constructible.
+    never: std::convert::Infallible,
+    /// Required by Rust.
+    phantom: std::marker::PhantomData<J>,
+}
 
-impl<J: Jet> Marker<J> for Witness {
+impl<J: Jet> Marker for Witness<J> {
     type CachedData = WitnessData<J>;
     type Witness = Option<Arc<Value>>;
     type SharingId = WitnessId;
+    type Jet = J;
 
     fn compute_sharing_id(_: Cmr, _: &WitnessData<J>) -> Option<WitnessId> {
         None
     }
 }
 
-pub type WitnessNode<J> = Node<Witness, J>;
+pub type WitnessNode<J> = Node<Witness<J>>;
 
 impl<J: Jet> WitnessNode<J> {
     /// Creates a copy of the node (and its entire DAG with the prune bit set)
@@ -77,7 +83,7 @@ impl<J: Jet> WitnessNode<J> {
     pub fn prune_and_retype(&self) -> Arc<Self> {
         struct Retyper<J: Jet>(PhantomData<J>);
 
-        impl<J: Jet> Converter<Witness, Witness, J> for Retyper<J> {
+        impl<J: Jet> Converter<Witness<J>, Witness<J>> for Retyper<J> {
             type Error = types::Error;
             fn convert_witness(
                 &mut self,
@@ -139,7 +145,7 @@ impl<J: Jet> WitnessNode<J> {
         // 0. Setup some structure for the WitnessNode->RedeemNode conversion
         struct Finalizer<J>(PhantomData<J>);
 
-        impl<J: Jet> Converter<Witness, Redeem, J> for Finalizer<J> {
+        impl<J: Jet> Converter<Witness<J>, Redeem<J>> for Finalizer<J> {
             type Error = Error;
             fn convert_witness(
                 &mut self,
