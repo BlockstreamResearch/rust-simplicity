@@ -46,7 +46,7 @@ impl<J: Jet> Marker for Commit<J> {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CommitData<J> {
     /// The source and target types of the node
     arrow: FinalArrow,
@@ -62,16 +62,6 @@ pub struct CommitData<J> {
     /// struct has a <J> parameter, since it forces the choice of jets to
     /// be consistent without the user needing to specify it too many times.
     phantom: PhantomData<J>,
-}
-
-impl<J> PartialEq for CommitData<J> {
-    // Two nodes are equal if they both have IMRs and those IMRs are equal.
-    fn eq(&self, other: &Self) -> bool {
-        self.imr
-            .zip(other.imr)
-            .map(|(a, b)| a == b)
-            .unwrap_or(false)
-    }
 }
 
 impl<J: Jet> CommitData<J> {
