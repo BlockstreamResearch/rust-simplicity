@@ -99,7 +99,7 @@ pub use witness::{Witness, WitnessData, WitnessNode};
 // This trait should only be implemented on empty types, so we can demand
 // every trait bound under the sun. Doing so will make #[derive]s easier
 // for downstream users.
-pub trait NodeData<J: Jet>:
+pub trait Marker<J: Jet>:
     Copy + Clone + PartialEq + Eq + PartialOrd + Ord + fmt::Debug + hash::Hash
 {
     /// Precomputed data about the node, such as its type arrow or various Merkle roots.
@@ -121,7 +121,7 @@ pub trait NodeData<J: Jet>:
     fn compute_sharing_id(cmr: Cmr, cached_data: &Self::CachedData) -> Option<Self::SharingId>;
 }
 
-/// Null data type used as dummy for [`NodeData::Witness`]
+/// Null data type used as dummy for [`Marker::Witness`]
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct NoWitness;
 
@@ -309,16 +309,16 @@ pub trait WitnessConstructible<W>: Sized {
 ///
 /// For equality and hashing purposes, nodes are characterized entirely by their
 /// CMR and cached data. Users who create custom nodes should define a custom type
-/// for [`NodeData::CachedData`] and think carefully about whether and how to
+/// for [`Marker::CachedData`] and think carefully about whether and how to
 /// implement the [`std::hash::Hash`] or equality traits.
 #[derive(Debug)]
-pub struct Node<N: NodeData<J>, J: Jet> {
+pub struct Node<N: Marker<J>, J: Jet> {
     inner: Inner<Arc<Node<N, J>>, J, N::Witness>,
     cmr: Cmr,
     data: N::CachedData,
 }
 
-impl<N: NodeData<J>, J: Jet> PartialEq for Node<N, J>
+impl<N: Marker<J>, J: Jet> PartialEq for Node<N, J>
 where
     N::CachedData: PartialEq,
 {
@@ -326,9 +326,9 @@ where
         self.cmr == other.cmr && self.data == other.data
     }
 }
-impl<N: NodeData<J>, J: Jet> Eq for Node<N, J> where N::CachedData: Eq {}
+impl<N: Marker<J>, J: Jet> Eq for Node<N, J> where N::CachedData: Eq {}
 
-impl<N: NodeData<J>, J: Jet> hash::Hash for Node<N, J>
+impl<N: Marker<J>, J: Jet> hash::Hash for Node<N, J>
 where
     N::CachedData: hash::Hash,
 {
@@ -338,7 +338,7 @@ where
     }
 }
 
-impl<N: NodeData<J>, J: Jet> fmt::Display for Node<N, J>
+impl<N: Marker<J>, J: Jet> fmt::Display for Node<N, J>
 where
     for<'a> &'a Node<N, J>: DagLike,
 {
@@ -353,7 +353,7 @@ where
 
 impl<N, J> CoreConstructible for Arc<Node<N, J>>
 where
-    N: NodeData<J>,
+    N: Marker<J>,
     N::CachedData: CoreConstructible,
     J: Jet,
 {
@@ -472,7 +472,7 @@ where
 
 impl<N, J> WitnessConstructible<N::Witness> for Arc<Node<N, J>>
 where
-    N: NodeData<J>,
+    N: Marker<J>,
     N::CachedData: WitnessConstructible<N::Witness>,
     J: Jet,
 {
@@ -487,7 +487,7 @@ where
 
 impl<N, J> JetConstructible<J> for Arc<Node<N, J>>
 where
-    N: NodeData<J>,
+    N: Marker<J>,
     N::CachedData: JetConstructible<J>,
     J: Jet,
 {
@@ -500,7 +500,7 @@ where
     }
 }
 
-impl<N: NodeData<J>, J: Jet> Node<N, J> {
+impl<N: Marker<J>, J: Jet> Node<N, J> {
     /// Accessor for the node's "inner value", i.e. its combinator
     pub fn inner(&self) -> &Inner<Arc<Node<N, J>>, J, N::Witness> {
         &self.inner
@@ -562,7 +562,7 @@ impl<N: NodeData<J>, J: Jet> Node<N, J> {
     pub fn convert<S, M, C>(&self, converter: &mut C) -> Result<Arc<Node<M, J>>, C::Error>
     where
         S: for<'a> SharingTracker<&'a Self> + Default,
-        M: NodeData<J>,
+        M: Marker<J>,
         C: Converter<N, M, J>,
     {
         let mut converted: Vec<Arc<Node<M, J>>> = vec![];

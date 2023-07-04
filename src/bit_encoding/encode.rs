@@ -21,18 +21,18 @@
 
 use crate::dag::{Dag, DagLike, PostOrderIterItem, SharingTracker};
 use crate::jet::Jet;
-use crate::node::{self, NodeData};
+use crate::node;
 use crate::{BitWriter, Cmr, Value};
 use std::collections::{hash_map::Entry, HashMap};
 use std::{hash, io, mem};
 
 #[derive(Copy, Clone)]
-enum EncodeNode<'n, N: NodeData<J>, J: Jet> {
+enum EncodeNode<'n, N: node::Marker<J>, J: Jet> {
     Node(&'n node::Node<N, J>),
     Hidden(Cmr),
 }
 
-impl<'n, N: NodeData<J>, J: Jet> DagLike for EncodeNode<'n, N, J> {
+impl<'n, N: node::Marker<J>, J: Jet> DagLike for EncodeNode<'n, N, J> {
     type Node = Self;
     fn data(&self) -> &Self {
         self
@@ -71,13 +71,13 @@ impl<'n, N: NodeData<J>, J: Jet> DagLike for EncodeNode<'n, N, J> {
 }
 
 #[derive(Clone)]
-enum EncodeId<N: NodeData<J>, J: Jet> {
+enum EncodeId<N: node::Marker<J>, J: Jet> {
     Node(N::SharingId),
     Hidden(Cmr),
 }
 
 // Have to implement these manually because Rust sucks.
-impl<N: NodeData<J>, J: Jet> PartialEq for EncodeId<N, J> {
+impl<N: node::Marker<J>, J: Jet> PartialEq for EncodeId<N, J> {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (EncodeId::Node(left), EncodeId::Node(right)) => left == right,
@@ -87,9 +87,9 @@ impl<N: NodeData<J>, J: Jet> PartialEq for EncodeId<N, J> {
     }
 }
 
-impl<N: NodeData<J>, J: Jet> Eq for EncodeId<N, J> {}
+impl<N: node::Marker<J>, J: Jet> Eq for EncodeId<N, J> {}
 
-impl<N: NodeData<J>, J: Jet> hash::Hash for EncodeId<N, J> {
+impl<N: node::Marker<J>, J: Jet> hash::Hash for EncodeId<N, J> {
     fn hash<H: hash::Hasher>(&self, hasher: &mut H) {
         match self {
             EncodeId::Node(id) => {
@@ -107,12 +107,12 @@ impl<N: NodeData<J>, J: Jet> hash::Hash for EncodeId<N, J> {
 /// Shares nodes based on IMR, *except* for Hidden nodes, which are identified
 /// solely by the hash they contain
 #[derive(Clone)]
-pub struct EncodeSharing<N: NodeData<J>, J: Jet> {
+pub struct EncodeSharing<N: node::Marker<J>, J: Jet> {
     map: HashMap<EncodeId<N, J>, usize>,
 }
 
 // Annoyingly we have to implement Default by hand
-impl<N: NodeData<J>, J: Jet> Default for EncodeSharing<N, J> {
+impl<N: node::Marker<J>, J: Jet> Default for EncodeSharing<N, J> {
     fn default() -> Self {
         EncodeSharing {
             map: HashMap::default(),
@@ -120,7 +120,7 @@ impl<N: NodeData<J>, J: Jet> Default for EncodeSharing<N, J> {
     }
 }
 
-impl<'n, N: NodeData<J>, J: Jet> SharingTracker<EncodeNode<'n, N, J>> for EncodeSharing<N, J> {
+impl<'n, N: node::Marker<J>, J: Jet> SharingTracker<EncodeNode<'n, N, J>> for EncodeSharing<N, J> {
     fn record(&mut self, d: &EncodeNode<N, J>, index: usize) -> Option<usize> {
         let id = match d {
             EncodeNode::Node(n) => EncodeId::Node(n.sharing_id()?),
@@ -149,7 +149,7 @@ impl<'n, N: NodeData<J>, J: Jet> SharingTracker<EncodeNode<'n, N, J>> for Encode
 /// Encode a Simplicity program to bits, without witness data.
 ///
 /// Returns the number of written bits.
-pub fn encode_program<W: io::Write, N: NodeData<J>, J: Jet>(
+pub fn encode_program<W: io::Write, N: node::Marker<J>, J: Jet>(
     program: &node::Node<N, J>,
     w: &mut BitWriter<W>,
 ) -> io::Result<usize> {
@@ -167,7 +167,7 @@ pub fn encode_program<W: io::Write, N: NodeData<J>, J: Jet>(
 }
 
 /// Encode a node to bits.
-fn encode_node<W: io::Write, N: NodeData<J>, J: Jet>(
+fn encode_node<W: io::Write, N: node::Marker<J>, J: Jet>(
     data: PostOrderIterItem<EncodeNode<N, J>>,
     w: &mut BitWriter<W>,
 ) -> io::Result<()> {

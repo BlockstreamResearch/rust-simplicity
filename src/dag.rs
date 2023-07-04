@@ -19,7 +19,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use crate::jet;
-use crate::node::{self, Node, NodeData};
+use crate::node::{self, Node};
 
 /// Abstract node of a directed acyclic graph.
 ///
@@ -108,12 +108,12 @@ impl<D: DagLike> SharingTracker<D> for InternalSharing {
 /// types of nodes it represents "as much sharing as we can currently
 /// safely do".
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MaxSharing<N: NodeData<J>, J: jet::Jet> {
+pub struct MaxSharing<N: node::Marker<J>, J: jet::Jet> {
     map: HashMap<N::SharingId, usize>,
 }
 
 // Annoyingly we have to implement Default by hand
-impl<N: NodeData<J>, J: jet::Jet> Default for MaxSharing<N, J> {
+impl<N: node::Marker<J>, J: jet::Jet> Default for MaxSharing<N, J> {
     fn default() -> Self {
         MaxSharing {
             map: HashMap::default(),
@@ -124,7 +124,7 @@ impl<N: NodeData<J>, J: jet::Jet> Default for MaxSharing<N, J> {
 impl<N, J> SharingTracker<&Node<N, J>> for MaxSharing<N, J>
 where
     J: jet::Jet,
-    N: NodeData<J>,
+    N: node::Marker<J>,
 {
     fn record(&mut self, d: &&Node<N, J>, index: usize) -> Option<usize> {
         let id = d.sharing_id()?;
@@ -145,7 +145,7 @@ where
 impl<N, J> SharingTracker<Arc<Node<N, J>>> for MaxSharing<N, J>
 where
     J: jet::Jet,
-    N: NodeData<J>,
+    N: node::Marker<J>,
 {
     fn record(&mut self, d: &Arc<Node<N, J>>, index: usize) -> Option<usize> {
         let id = d.sharing_id()?;
@@ -171,7 +171,7 @@ where
     D: DagLike,
     MaxSharing<N, J>: SharingTracker<D>,
     J: jet::Jet,
-    N: NodeData<J>,
+    N: node::Marker<J>,
 {
     fn record(&mut self, d: &SwapChildren<D>, index: usize) -> Option<usize> {
         self.record(&d.0, index)
@@ -376,7 +376,7 @@ impl<D: DagLike> DagLike for SwapChildren<D> {
     }
 }
 
-impl<'a, N: NodeData<J>, J: jet::Jet> DagLike for &'a Node<N, J> {
+impl<'a, N: node::Marker<J>, J: jet::Jet> DagLike for &'a Node<N, J> {
     type Node = Node<N, J>;
 
     fn data(&self) -> &Node<N, J> {
@@ -406,7 +406,7 @@ impl<'a, N: NodeData<J>, J: jet::Jet> DagLike for &'a Node<N, J> {
     }
 }
 
-impl<N: NodeData<J>, J: jet::Jet> DagLike for Arc<Node<N, J>> {
+impl<N: node::Marker<J>, J: jet::Jet> DagLike for Arc<Node<N, J>> {
     type Node = Node<N, J>;
 
     fn data(&self) -> &Node<N, J> {
@@ -667,7 +667,7 @@ impl<D: DagLike, S: SharingTracker<D>> Iterator for PostOrderIter<D, S> {
     }
 }
 
-impl<'a, N: NodeData<J>, J: jet::Jet, S: SharingTracker<&'a Node<N, J>> + Clone>
+impl<'a, N: node::Marker<J>, J: jet::Jet, S: SharingTracker<&'a Node<N, J>> + Clone>
     PostOrderIter<&'a Node<N, J>, S>
 {
     /// Adapt the iterator to only yield witnesses

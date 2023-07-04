@@ -19,8 +19,8 @@ use crate::{encode, types};
 use crate::{Amr, BitIter, BitWriter, Cmr, Error, FirstPassImr, Imr};
 
 use super::{
-    Construct, ConstructData, ConstructNode, Constructible, Converter, Inner, NoWitness, Node,
-    NodeData, Redeem, RedeemNode,
+    Construct, ConstructData, ConstructNode, Constructible, Converter, Inner, Marker, NoWitness,
+    Node, Redeem, RedeemNode,
 };
 
 use std::io;
@@ -30,7 +30,7 @@ use std::sync::Arc;
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub enum Commit {}
 
-impl<J: Jet> NodeData<J> for Commit {
+impl<J: Jet> Marker<J> for Commit {
     type CachedData = Arc<CommitData<J>>;
     type Witness = NoWitness;
     type SharingId = Imr;

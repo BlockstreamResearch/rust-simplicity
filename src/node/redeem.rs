@@ -19,7 +19,7 @@ use crate::jet::Jet;
 use crate::types::{self, arrow::FinalArrow};
 use crate::{Amr, BitIter, BitWriter, Cmr, Error, FirstPassImr, Imr, Value};
 
-use super::{Commit, CommitData, CommitNode, Converter, Inner, NoWitness, Node, NodeData};
+use super::{Commit, CommitData, CommitNode, Converter, Inner, Marker, NoWitness, Node};
 
 use std::collections::HashSet;
 use std::io;
@@ -29,7 +29,7 @@ use std::sync::Arc;
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub enum Redeem {}
 
-impl<J: Jet> NodeData<J> for Redeem {
+impl<J: Jet> Marker<J> for Redeem {
     type CachedData = Arc<RedeemData<J>>;
     type Witness = Arc<Value>;
     type SharingId = Imr;

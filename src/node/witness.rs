@@ -21,7 +21,7 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use super::{Constructible, CoreConstructible, JetConstructible, WitnessConstructible};
-use super::{Converter, Hide, Inner, NoWitness, Node, NodeData, Redeem, RedeemData, RedeemNode};
+use super::{Converter, Hide, Inner, Marker, NoWitness, Node, Redeem, RedeemData, RedeemNode};
 
 /// ID used to share [`WitnessNode`]s.
 ///
@@ -33,7 +33,7 @@ pub enum WitnessId {}
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub enum Witness {}
 
-impl<J: Jet> NodeData<J> for Witness {
+impl<J: Jet> Marker<J> for Witness {
     type CachedData = WitnessData<J>;
     type Witness = Option<Arc<Value>>;
     type SharingId = WitnessId;

@@ -31,7 +31,7 @@ use crate::dag::PostOrderIterItem;
 use crate::jet::Jet;
 use crate::Value;
 
-use super::{Commit, CommitNode, Inner, NoWitness, Node, NodeData, Redeem, RedeemData, RedeemNode};
+use super::{Commit, CommitNode, Inner, Marker, NoWitness, Node, Redeem, RedeemData, RedeemNode};
 
 use std::sync::Arc;
 
@@ -76,7 +76,7 @@ pub enum Hide {
 ///
 /// The finalization method will not return any errors except those returned by
 /// methods on [`Converter`].
-pub trait Converter<N: NodeData<J>, M: NodeData<J>, J: Jet> {
+pub trait Converter<N: Marker<J>, M: Marker<J>, J: Jet> {
     /// The error type returned by the methods on this trait.
     type Error;
 

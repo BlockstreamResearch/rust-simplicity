@@ -22,7 +22,7 @@ use std::io;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use super::{Commit, CommitData, CommitNode, Converter, Inner, NoWitness, Node, NodeData};
+use super::{Commit, CommitData, CommitNode, Converter, Inner, Marker, NoWitness, Node};
 use super::{CoreConstructible, JetConstructible, WitnessConstructible};
 
 /// ID used to share [`ConstructNode`]s.
@@ -35,7 +35,7 @@ pub enum ConstructId {}
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub enum Construct {}
 
-impl<J: Jet> NodeData<J> for Construct {
+impl<J: Jet> Marker<J> for Construct {
     type CachedData = ConstructData<J>;
     type Witness = NoWitness;
     type SharingId = ConstructId;
