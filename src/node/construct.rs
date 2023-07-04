@@ -33,7 +33,7 @@ use super::{CoreConstructible, JetConstructible, WitnessConstructible};
 pub enum ConstructId {}
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub struct Construct<J: Jet> {
+pub struct Construct<J> {
     /// Makes the type non-constructible.
     never: std::convert::Infallible,
     /// Required by Rust.
@@ -135,7 +135,7 @@ impl<J: Jet> ConstructNode<J> {
 }
 
 #[derive(Clone, Debug)]
-pub struct ConstructData<J: Jet> {
+pub struct ConstructData<J> {
     arrow: Arrow,
     /// This isn't really necessary, but it helps type inference if every
     /// struct has a <J> parameter, since it forces the choice of jets to
@@ -158,7 +158,7 @@ impl<J: Jet> ConstructData<J> {
     }
 }
 
-impl<J: Jet> CoreConstructible for ConstructData<J> {
+impl<J> CoreConstructible for ConstructData<J> {
     fn iden() -> Self {
         ConstructData {
             arrow: Arrow::iden(),
@@ -258,7 +258,7 @@ impl<J: Jet> CoreConstructible for ConstructData<J> {
     }
 }
 
-impl<J: Jet> WitnessConstructible<NoWitness> for ConstructData<J> {
+impl<J> WitnessConstructible<NoWitness> for ConstructData<J> {
     fn witness(witness: NoWitness) -> Self {
         ConstructData {
             arrow: Arrow::witness(witness),

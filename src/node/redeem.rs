@@ -27,7 +27,7 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub struct Redeem<J: Jet> {
+pub struct Redeem<J> {
     /// Makes the type non-constructible.
     never: std::convert::Infallible,
     /// Required by Rust.
@@ -48,7 +48,7 @@ impl<J: Jet> Marker for Redeem<J> {
 pub type RedeemNode<J> = Node<Redeem<J>>;
 
 #[derive(Clone, Debug)]
-pub struct RedeemData<J: Jet> {
+pub struct RedeemData<J> {
     amr: Amr,
     first_pass_imr: FirstPassImr,
     imr: Imr,
@@ -60,14 +60,14 @@ pub struct RedeemData<J: Jet> {
     phantom: PhantomData<J>,
 }
 
-impl<J: Jet> PartialEq for RedeemData<J> {
+impl<J> PartialEq for RedeemData<J> {
     fn eq(&self, other: &Self) -> bool {
         self.imr == other.imr
     }
 }
-impl<J: Jet> Eq for RedeemData<J> {}
+impl<J> Eq for RedeemData<J> {}
 
-impl<J: Jet> std::hash::Hash for RedeemData<J> {
+impl<J> std::hash::Hash for RedeemData<J> {
     fn hash<H: std::hash::Hasher>(&self, hasher: &mut H) {
         self.imr.hash(hasher)
     }
@@ -186,7 +186,7 @@ impl<J: Jet> RedeemNode<J> {
     /// Convert a [`RedeemNode`] back to a [`CommitNode`] by forgetting witnesses
     /// and cached data.
     pub fn unfinalize(&self) -> Result<Arc<CommitNode<J>>, types::Error> {
-        struct Unfinalizer<J: Jet>(PhantomData<J>);
+        struct Unfinalizer<J>(PhantomData<J>);
 
         impl<J: Jet> Converter<Redeem<J>, Commit<J>> for Unfinalizer<J> {
             type Error = types::Error;

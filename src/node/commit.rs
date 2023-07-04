@@ -28,7 +28,7 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub struct Commit<J: Jet> {
+pub struct Commit<J> {
     /// Makes the type non-constructible.
     never: std::convert::Infallible,
     /// Required by Rust.
@@ -47,7 +47,7 @@ impl<J: Jet> Marker for Commit<J> {
 }
 
 #[derive(Clone, Debug)]
-pub struct CommitData<J: Jet> {
+pub struct CommitData<J> {
     /// The source and target types of the node
     arrow: FinalArrow,
     /// The first-pass IMR of the node if it exists.
@@ -64,7 +64,7 @@ pub struct CommitData<J: Jet> {
     phantom: PhantomData<J>,
 }
 
-impl<J: Jet> PartialEq for CommitData<J> {
+impl<J> PartialEq for CommitData<J> {
     // Two nodes are equal if they both have IMRs and those IMRs are equal.
     fn eq(&self, other: &Self) -> bool {
         self.imr

@@ -31,7 +31,7 @@ use super::{Converter, Hide, Inner, Marker, NoWitness, Node, Redeem, RedeemData,
 pub enum WitnessId {}
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub struct Witness<J: Jet> {
+pub struct Witness<J> {
     /// Makes the type non-constructible.
     never: std::convert::Infallible,
     /// Required by Rust.
@@ -81,7 +81,7 @@ impl<J: Jet> WitnessNode<J> {
     }
 
     pub fn prune_and_retype(&self) -> Arc<Self> {
-        struct Retyper<J: Jet>(PhantomData<J>);
+        struct Retyper<J>(PhantomData<J>);
 
         impl<J: Jet> Converter<Witness<J>, Witness<J>> for Retyper<J> {
             type Error = types::Error;
@@ -195,7 +195,7 @@ impl<J: Jet> WitnessNode<J> {
 }
 
 #[derive(Clone, Debug)]
-pub struct WitnessData<J: Jet> {
+pub struct WitnessData<J> {
     arrow: Arrow,
     must_prune: bool,
     /// This isn't really necessary, but it helps type inference if every
@@ -204,7 +204,7 @@ pub struct WitnessData<J: Jet> {
     phantom: PhantomData<J>,
 }
 
-impl<J: Jet> CoreConstructible for WitnessData<J> {
+impl<J> CoreConstructible for WitnessData<J> {
     fn iden() -> Self {
         WitnessData {
             arrow: Arrow::iden(),
@@ -322,7 +322,7 @@ impl<J: Jet> CoreConstructible for WitnessData<J> {
     }
 }
 
-impl<J: Jet> WitnessConstructible<Option<Arc<Value>>> for WitnessData<J> {
+impl<J> WitnessConstructible<Option<Arc<Value>>> for WitnessData<J> {
     fn witness(witness: Option<Arc<Value>>) -> Self {
         WitnessData {
             arrow: Arrow::witness(NoWitness),

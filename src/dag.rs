@@ -348,7 +348,7 @@ pub trait DagLike: Sized {
 /// To avoid confusion, this structure cannot be directly costructed.
 /// Instead it is implicit in the [`DagLike::rtl_post_order_iter`]
 /// method.
-pub struct SwapChildren<D: DagLike>(D);
+pub struct SwapChildren<D>(D);
 
 impl<D: DagLike> DagLike for SwapChildren<D> {
     type Node = D::Node;
@@ -445,7 +445,7 @@ enum Previous {
 }
 
 #[derive(Clone, Debug)]
-struct IterStackItem<D: DagLike> {
+struct IterStackItem<D> {
     /// The element on the stack
     elem: D,
     /// Whether we have dealt with this item (and pushed its children,
@@ -499,7 +499,7 @@ impl<D: DagLike> IterStackItem<D> {
 /// Nodes may be repeated or not, based on the `S` parameter which defines how
 /// the iterator treats sharing.
 #[derive(Clone, Debug)]
-pub struct PostOrderIter<D: DagLike, S: SharingTracker<D>> {
+pub struct PostOrderIter<D, S> {
     /// The index of the next item to be yielded
     index: usize,
     /// A stack of elements to be yielded; each element is a node, then its left
@@ -511,7 +511,7 @@ pub struct PostOrderIter<D: DagLike, S: SharingTracker<D>> {
 }
 
 /// A set of data yielded by a `PostOrderIter`
-pub struct PostOrderIterItem<D: DagLike> {
+pub struct PostOrderIterItem<D> {
     /// The actual node data
     pub node: D,
     /// The index of this node (equivalent to if you'd called `.enumerate()` on
@@ -716,7 +716,7 @@ impl<D: DagLike, S: SharingTracker<D>> PostOrderIter<D, S> {
 /// post-order iterator, collect into a vector, then iterate through that
 /// backward.
 #[derive(Clone, Debug)]
-pub struct PreOrderIter<D: DagLike, S: SharingTracker<D>> {
+pub struct PreOrderIter<D, S> {
     /// A stack of elements to be yielded. As items are yielded, their right
     /// children are put onto the stack followed by their left, so that the
     /// appropriate one will be yielded on the next iteration.
@@ -768,7 +768,7 @@ impl<D: DagLike, S: SharingTracker<D>> Iterator for PreOrderIter<D, S> {
 /// skipped, but the node itself will still be re-yielded as many times
 /// as it has children.
 #[derive(Clone, Debug)]
-pub struct VerbosePreOrderIter<D: DagLike + Clone, S: SharingTracker<D>> {
+pub struct VerbosePreOrderIter<D, S> {
     /// A stack of elements to be yielded. As items are yielded, their right
     /// children are put onto the stack followed by their left, so that the
     /// appropriate one will be yielded on the next iteration.
@@ -830,7 +830,7 @@ impl<D: DagLike + Clone, S: SharingTracker<D>> Iterator for VerbosePreOrderIter<
 
 /// A set of data yielded by a [`VerbosePreOrderIter`].
 #[derive(Clone, Debug)]
-pub struct PreOrderIterItem<D: DagLike + Clone> {
+pub struct PreOrderIterItem<D> {
     /// The actual element being yielded.
     pub node: D,
     /// The parent of this node. `None` for the initial node, but will be

@@ -128,7 +128,7 @@ pub trait Marker:
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct NoWitness;
 
-pub trait Constructible<W, J: Jet>:
+pub trait Constructible<W, J>:
     JetConstructible<J> + WitnessConstructible<W> + CoreConstructible + Sized
 {
     fn from_inner(inner: Inner<&Self, J, W>) -> Result<Self, types::Error> {
@@ -153,7 +153,7 @@ pub trait Constructible<W, J: Jet>:
     }
 }
 
-impl<W, J: Jet, T> Constructible<W, J> for T where
+impl<W, J, T> Constructible<W, J> for T where
     T: JetConstructible<J> + WitnessConstructible<W> + CoreConstructible + Sized
 {
 }
@@ -293,7 +293,7 @@ pub trait CoreConstructible: Sized {
     }
 }
 
-pub trait JetConstructible<J: Jet>: Sized {
+pub trait JetConstructible<J>: Sized {
     fn jet(jet: J) -> Self;
 }
 
