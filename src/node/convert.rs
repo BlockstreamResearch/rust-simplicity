@@ -31,7 +31,7 @@ use crate::dag::PostOrderIterItem;
 use crate::jet::Jet;
 use crate::Value;
 
-use super::{Commit, CommitNode, Inner, NoWitness, Node, NodeData, Redeem, RedeemData, RedeemNode};
+use super::{Commit, CommitNode, Inner, Marker, NoWitness, Node, Redeem, RedeemData, RedeemNode};
 
 use std::sync::Arc;
 
@@ -76,7 +76,7 @@ pub enum Hide {
 ///
 /// The finalization method will not return any errors except those returned by
 /// methods on [`Converter`].
-pub trait Converter<N: NodeData<J>, M: NodeData<J>, J: Jet> {
+pub trait Converter<N: Marker, M: Marker> {
     /// The error type returned by the methods on this trait.
     type Error;
 
@@ -84,7 +84,7 @@ pub trait Converter<N: NodeData<J>, M: NodeData<J>, J: Jet> {
     /// state of the iterator.
     ///
     /// No action needs to be taken. The default implementation does nothing.
-    fn visit_node(&mut self, _data: &PostOrderIterItem<&Node<N, J>>) {}
+    fn visit_node(&mut self, _data: &PostOrderIterItem<&Node<N>>) {}
 
     /// For witness nodes, this method is called first to attach witness data to
     /// the node.
@@ -98,7 +98,7 @@ pub trait Converter<N: NodeData<J>, M: NodeData<J>, J: Jet> {
     /// actually matches the type of the combinator that it is being attached to.
     fn convert_witness(
         &mut self,
-        data: &PostOrderIterItem<&Node<N, J>>,
+        data: &PostOrderIterItem<&Node<N>>,
         witness: &N::Witness,
     ) -> Result<M::Witness, Self::Error>;
 
@@ -111,9 +111,9 @@ pub trait Converter<N: NodeData<J>, M: NodeData<J>, J: Jet> {
     /// The default implementation doesn't do any hiding.
     fn prune_case(
         &mut self,
-        _data: &PostOrderIterItem<&Node<N, J>>,
-        _left: &Arc<Node<M, J>>,
-        _right: &Arc<Node<M, J>>,
+        _data: &PostOrderIterItem<&Node<N>>,
+        _left: &Arc<Node<M>>,
+        _right: &Arc<Node<M>>,
     ) -> Result<Hide, Self::Error> {
         Ok(Hide::Neither)
     }
@@ -132,8 +132,8 @@ pub trait Converter<N: NodeData<J>, M: NodeData<J>, J: Jet> {
     /// Returns new cached data which will be attached to the newly-converted node.
     fn convert_data(
         &mut self,
-        data: &PostOrderIterItem<&Node<N, J>>,
-        inner: Inner<&Arc<Node<M, J>>, J, &M::Witness>,
+        data: &PostOrderIterItem<&Node<N>>,
+        inner: Inner<&Arc<Node<M>>, M::Jet, &M::Witness>,
     ) -> Result<M::CachedData, Self::Error>;
 }
 
@@ -153,7 +153,9 @@ impl<W: Iterator<Item = Arc<Value>>> SimpleFinalizer<W> {
     }
 }
 
-impl<W: Iterator<Item = Arc<Value>>, J: Jet> Converter<Commit, Redeem, J> for SimpleFinalizer<W> {
+impl<W: Iterator<Item = Arc<Value>>, J: Jet> Converter<Commit<J>, Redeem<J>>
+    for SimpleFinalizer<W>
+{
     type Error = crate::Error;
 
     fn convert_witness(

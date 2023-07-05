@@ -19,7 +19,7 @@ use crate::jet::Jet;
 use crate::types::{self, arrow::FinalArrow};
 use crate::{Amr, BitIter, BitWriter, Cmr, Error, FirstPassImr, Imr, Value};
 
-use super::{Commit, CommitData, CommitNode, Converter, Inner, NoWitness, Node, NodeData};
+use super::{Commit, CommitData, CommitNode, Converter, Inner, Marker, NoWitness, Node};
 
 use std::collections::HashSet;
 use std::io;
@@ -27,22 +27,28 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub enum Redeem {}
+pub struct Redeem<J> {
+    /// Makes the type non-constructible.
+    never: std::convert::Infallible,
+    /// Required by Rust.
+    phantom: std::marker::PhantomData<J>,
+}
 
-impl<J: Jet> NodeData<J> for Redeem {
+impl<J: Jet> Marker for Redeem<J> {
     type CachedData = Arc<RedeemData<J>>;
     type Witness = Arc<Value>;
     type SharingId = Imr;
+    type Jet = J;
 
     fn compute_sharing_id(_: Cmr, cached_data: &Arc<RedeemData<J>>) -> Option<Imr> {
         Some(cached_data.imr)
     }
 }
 
-pub type RedeemNode<J> = Node<Redeem, J>;
+pub type RedeemNode<J> = Node<Redeem<J>>;
 
 #[derive(Clone, Debug)]
-pub struct RedeemData<J: Jet> {
+pub struct RedeemData<J> {
     amr: Amr,
     first_pass_imr: FirstPassImr,
     imr: Imr,
@@ -54,14 +60,14 @@ pub struct RedeemData<J: Jet> {
     phantom: PhantomData<J>,
 }
 
-impl<J: Jet> PartialEq for RedeemData<J> {
+impl<J> PartialEq for RedeemData<J> {
     fn eq(&self, other: &Self) -> bool {
         self.imr == other.imr
     }
 }
-impl<J: Jet> Eq for RedeemData<J> {}
+impl<J> Eq for RedeemData<J> {}
 
-impl<J: Jet> std::hash::Hash for RedeemData<J> {
+impl<J> std::hash::Hash for RedeemData<J> {
     fn hash<H: std::hash::Hasher>(&self, hasher: &mut H) {
         self.imr.hash(hasher)
     }
@@ -180,9 +186,9 @@ impl<J: Jet> RedeemNode<J> {
     /// Convert a [`RedeemNode`] back to a [`CommitNode`] by forgetting witnesses
     /// and cached data.
     pub fn unfinalize(&self) -> Result<Arc<CommitNode<J>>, types::Error> {
-        struct Unfinalizer<J: Jet>(PhantomData<J>);
+        struct Unfinalizer<J>(PhantomData<J>);
 
-        impl<J: Jet> Converter<Redeem, Commit, J> for Unfinalizer<J> {
+        impl<J: Jet> Converter<Redeem<J>, Commit<J>> for Unfinalizer<J> {
             type Error = types::Error;
             fn convert_witness(
                 &mut self,
@@ -205,7 +211,7 @@ impl<J: Jet> RedeemNode<J> {
             }
         }
 
-        self.convert::<MaxSharing<Redeem, J>, _, _>(&mut Unfinalizer(PhantomData))
+        self.convert::<MaxSharing<Redeem<J>>, _, _>(&mut Unfinalizer(PhantomData))
     }
 
     /// Decode a Simplicity program from bits, including the witness data.
@@ -216,7 +222,7 @@ impl<J: Jet> RedeemNode<J> {
             phantom: PhantomData<J>,
         }
 
-        impl<'bits, J: Jet, I: Iterator<Item = u8>> Converter<Commit, Redeem, J>
+        impl<'bits, J: Jet, I: Iterator<Item = u8>> Converter<Commit<J>, Redeem<J>>
             for DecodeFinalizer<'bits, J, I>
         {
             type Error = Error;
@@ -282,7 +288,7 @@ impl<J: Jet> RedeemNode<J> {
 
     /// Encode a Simplicity program to bits, including the witness data.
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
-        let sharing_iter = self.post_order_iter::<MaxSharing<Redeem, J>>();
+        let sharing_iter = self.post_order_iter::<MaxSharing<Redeem<J>>>();
         let program_bits = encode::encode_program(self, w)?;
         let witness_bits =
             encode::encode_witness(sharing_iter.into_witnesses().map(Arc::as_ref), w)?;

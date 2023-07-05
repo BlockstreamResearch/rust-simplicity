@@ -22,7 +22,7 @@ use std::io;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use super::{Commit, CommitData, CommitNode, Converter, Inner, NoWitness, Node, NodeData};
+use super::{Commit, CommitData, CommitNode, Converter, Inner, Marker, NoWitness, Node};
 use super::{CoreConstructible, JetConstructible, WitnessConstructible};
 
 /// ID used to share [`ConstructNode`]s.
@@ -33,24 +33,30 @@ use super::{CoreConstructible, JetConstructible, WitnessConstructible};
 pub enum ConstructId {}
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub enum Construct {}
+pub struct Construct<J> {
+    /// Makes the type non-constructible.
+    never: std::convert::Infallible,
+    /// Required by Rust.
+    phantom: std::marker::PhantomData<J>,
+}
 
-impl<J: Jet> NodeData<J> for Construct {
+impl<J: Jet> Marker for Construct<J> {
     type CachedData = ConstructData<J>;
     type Witness = NoWitness;
     type SharingId = ConstructId;
+    type Jet = J;
 
     fn compute_sharing_id(_: Cmr, _: &ConstructData<J>) -> Option<ConstructId> {
         None
     }
 }
 
-pub type ConstructNode<J> = Node<Construct, J>;
+pub type ConstructNode<J> = Node<Construct<J>>;
 
 impl<J: Jet> ConstructNode<J> {
     /// Accessor for the node's arrow
     pub fn arrow(&self) -> &Arrow {
-        &self.data.arrow
+        self.data.arrow()
     }
 
     /// Sets the source and target type of the node to unit
@@ -82,7 +88,7 @@ impl<J: Jet> ConstructNode<J> {
     pub fn finalize_types_non_program(&self) -> Result<Arc<CommitNode<J>>, types::Error> {
         struct FinalizeTypes<J: Jet>(PhantomData<J>);
 
-        impl<J: Jet> Converter<Construct, Commit, J> for FinalizeTypes<J> {
+        impl<J: Jet> Converter<Construct<J>, Commit<J>> for FinalizeTypes<J> {
             type Error = types::Error;
             fn convert_witness(
                 &mut self,
@@ -129,7 +135,7 @@ impl<J: Jet> ConstructNode<J> {
 }
 
 #[derive(Clone, Debug)]
-pub struct ConstructData<J: Jet> {
+pub struct ConstructData<J> {
     arrow: Arrow,
     /// This isn't really necessary, but it helps type inference if every
     /// struct has a <J> parameter, since it forces the choice of jets to
@@ -145,9 +151,14 @@ impl<J: Jet> ConstructData<J> {
             phantom: PhantomData,
         }
     }
+
+    /// Accessor for the node's arrow
+    pub fn arrow(&self) -> &Arrow {
+        &self.arrow
+    }
 }
 
-impl<J: Jet> CoreConstructible for ConstructData<J> {
+impl<J> CoreConstructible for ConstructData<J> {
     fn iden() -> Self {
         ConstructData {
             arrow: Arrow::iden(),
@@ -247,7 +258,7 @@ impl<J: Jet> CoreConstructible for ConstructData<J> {
     }
 }
 
-impl<J: Jet> WitnessConstructible<NoWitness> for ConstructData<J> {
+impl<J> WitnessConstructible<NoWitness> for ConstructData<J> {
     fn witness(witness: NoWitness) -> Self {
         ConstructData {
             arrow: Arrow::witness(witness),

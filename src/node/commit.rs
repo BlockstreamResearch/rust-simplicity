@@ -19,8 +19,8 @@ use crate::{encode, types};
 use crate::{Amr, BitIter, BitWriter, Cmr, Error, FirstPassImr, Imr};
 
 use super::{
-    Construct, ConstructData, ConstructNode, Constructible, Converter, Inner, NoWitness, Node,
-    NodeData, Redeem, RedeemNode,
+    Construct, ConstructData, ConstructNode, Constructible, Converter, Inner, Marker, NoWitness,
+    Node, Redeem, RedeemNode,
 };
 
 use std::io;
@@ -28,20 +28,26 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub enum Commit {}
+pub struct Commit<J> {
+    /// Makes the type non-constructible.
+    never: std::convert::Infallible,
+    /// Required by Rust.
+    phantom: std::marker::PhantomData<J>,
+}
 
-impl<J: Jet> NodeData<J> for Commit {
+impl<J: Jet> Marker for Commit<J> {
     type CachedData = Arc<CommitData<J>>;
     type Witness = NoWitness;
     type SharingId = Imr;
+    type Jet = J;
 
     fn compute_sharing_id(_: Cmr, cached_data: &Arc<CommitData<J>>) -> Option<Imr> {
         cached_data.imr
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct CommitData<J: Jet> {
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct CommitData<J> {
     /// The source and target types of the node
     arrow: FinalArrow,
     /// The first-pass IMR of the node if it exists.
@@ -56,16 +62,6 @@ pub struct CommitData<J: Jet> {
     /// struct has a <J> parameter, since it forces the choice of jets to
     /// be consistent without the user needing to specify it too many times.
     phantom: PhantomData<J>,
-}
-
-impl<J: Jet> PartialEq for CommitData<J> {
-    // Two nodes are equal if they both have IMRs and those IMRs are equal.
-    fn eq(&self, other: &Self) -> bool {
-        self.imr
-            .zip(other.imr)
-            .map(|(a, b)| a == b)
-            .unwrap_or(false)
-    }
 }
 
 impl<J: Jet> CommitData<J> {
@@ -172,7 +168,7 @@ impl<J: Jet> CommitData<J> {
     }
 }
 
-pub type CommitNode<J> = Node<Commit, J>;
+pub type CommitNode<J> = Node<Commit<J>>;
 
 impl<J: Jet> CommitNode<J> {
     /// Accessor for the node's arrow
@@ -195,18 +191,18 @@ impl<J: Jet> CommitNode<J> {
     ///
     /// This is a thin wrapper around [`Node::convert`] which fixes a few types to make
     /// it easier to use.
-    pub fn finalize<C: Converter<Commit, Redeem, J>>(
+    pub fn finalize<C: Converter<Commit<J>, Redeem<J>>>(
         &self,
         converter: &mut C,
     ) -> Result<Arc<RedeemNode<J>>, C::Error> {
-        self.convert::<NoSharing, Redeem, _>(converter)
+        self.convert::<NoSharing, Redeem<J>, _>(converter)
     }
 
     /// Convert a [`CommitNode`] back to a [`ConstructNode`] by redoing type inference
     pub fn unfinalize_types(&self) -> Result<Arc<ConstructNode<J>>, types::Error> {
         struct UnfinalizeTypes<J: Jet>(PhantomData<J>);
 
-        impl<J: Jet> Converter<Commit, Construct, J> for UnfinalizeTypes<J> {
+        impl<J: Jet> Converter<Commit<J>, Construct<J>> for UnfinalizeTypes<J> {
             type Error = types::Error;
             fn convert_witness(
                 &mut self,
@@ -226,7 +222,7 @@ impl<J: Jet> CommitNode<J> {
             }
         }
 
-        self.convert::<MaxSharing<Commit, J>, _, _>(&mut UnfinalizeTypes(PhantomData))
+        self.convert::<MaxSharing<Commit<J>>, _, _>(&mut UnfinalizeTypes(PhantomData))
     }
 
     /// Decode a Simplicity program from bits, without witness data.
@@ -242,7 +238,7 @@ impl<J: Jet> CommitNode<J> {
         // 1. Decode program with out witnesses.
         let program = crate::decode::decode_program(bits)?;
         // 2. Do sharing check, using incomplete IMRs
-        if program.as_ref().is_shared_as::<MaxSharing<Commit, J>>() {
+        if program.as_ref().is_shared_as::<MaxSharing<Commit<J>>>() {
             Ok(program)
         } else {
             Err(Error::SharingNotMaximal)

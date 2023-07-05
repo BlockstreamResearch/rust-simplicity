@@ -13,7 +13,7 @@
 //
 
 use super::FailEntropy;
-use crate::jet::Jet;
+use crate::dag::Dag;
 use crate::{Cmr, Value};
 
 use std::fmt;
@@ -24,7 +24,7 @@ use std::sync::Arc;
 /// This structure is used to indicate the type of a node and provide
 /// pointers or references to its children, if any.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub enum Inner<C, J: Jet, W> {
+pub enum Inner<C, J, W> {
     /// Identity
     Iden,
     /// Unit constant
@@ -59,7 +59,7 @@ pub enum Inner<C, J: Jet, W> {
     Word(Arc<Value>),
 }
 
-impl<C, J: Jet, W> Inner<C, J, W> {
+impl<C, J: Clone, W> Inner<C, J, W> {
     /// Convert a node's combinator data to a different type.
     pub fn map<D, F: FnMut(C) -> D>(self, mut f: F) -> Inner<D, J, W> {
         match self {
@@ -155,7 +155,7 @@ impl<C, J: Jet, W> Inner<C, J, W> {
             Inner::Disconnect(cl, cr) => Inner::Disconnect(cl, cr),
             Inner::Witness(w) => Inner::Witness(w),
             Inner::Fail(entropy) => Inner::Fail(*entropy),
-            Inner::Jet(j) => Inner::Jet(*j),
+            Inner::Jet(j) => Inner::Jet(j.clone()),
             Inner::Word(w) => Inner::Word(Arc::clone(w)),
         }
     }
@@ -206,9 +206,31 @@ impl<C, J: Jet, W> Inner<C, J, W> {
             Inner::Word(w) => Inner::Word(w),
         })
     }
+
+    /// Collapse the node information to a `Dag`
+    pub fn into_dag(self) -> Dag<C> {
+        match self {
+            Inner::Iden
+            | Inner::Unit
+            | Inner::Witness(_)
+            | Inner::Fail(_)
+            | Inner::Jet(_)
+            | Inner::Word(_) => Dag::Nullary,
+            Inner::InjL(c)
+            | Inner::InjR(c)
+            | Inner::Take(c)
+            | Inner::Drop(c)
+            | Inner::AssertL(c, _)
+            | Inner::AssertR(_, c) => Dag::Unary(c),
+            Inner::Comp(cl, cr)
+            | Inner::Case(cl, cr)
+            | Inner::Pair(cl, cr)
+            | Inner::Disconnect(cl, cr) => Dag::Binary(cl, cr),
+        }
+    }
 }
 
-impl<C, J: Jet, W> Inner<Option<C>, J, W> {
+impl<C, J, W> Inner<Option<C>, J, W> {
     /// Convert an `Inner<Option<C>, J, W>` to an `Option<Inner<C, J, W>>`.
     pub fn transpose(self) -> Option<Inner<C, J, W>> {
         Some(match self {
@@ -232,7 +254,7 @@ impl<C, J: Jet, W> Inner<Option<C>, J, W> {
     }
 }
 
-impl<C, J: Jet, W> Inner<C, J, Option<W>> {
+impl<C, J, W> Inner<C, J, Option<W>> {
     /// Convert an `Inner<C, J, Option<W>>` to an `Option<Inner<C, J, W>>`.
     pub fn transpose_witness(self) -> Option<Inner<C, J, W>> {
         Some(match self {
@@ -256,7 +278,17 @@ impl<C, J: Jet, W> Inner<C, J, Option<W>> {
     }
 }
 
-impl<C, J: Jet, W> fmt::Display for Inner<C, J, W> {
+impl<C, J: Clone, W: Clone> Inner<C, J, &W> {
+    /// Copies witness data.
+    ///
+    /// Useful in conjunction with [`Inner::as_ref`] when you don't want to
+    /// take a reference to witness data.
+    pub fn copy_witness(self) -> Inner<C, J, W> {
+        self.map_witness(W::clone)
+    }
+}
+
+impl<C, J: fmt::Display, W> fmt::Display for Inner<C, J, W> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Inner::Iden => f.write_str("iden"),
