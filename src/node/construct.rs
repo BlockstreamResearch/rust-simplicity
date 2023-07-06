@@ -67,7 +67,7 @@ impl<J: Jet> ConstructNode<J> {
             .unify(&unit_ty, "setting root source to unit")?;
         self.arrow()
             .target
-            .unify(&unit_ty, "setting root source to unit")?;
+            .unify(&unit_ty, "setting root target to unit")?;
         Ok(())
     }
 
