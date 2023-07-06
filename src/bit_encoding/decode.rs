@@ -51,6 +51,8 @@ pub enum Error {
     NaturalOverflow,
     /// Program is not encoded in canonical order
     NotInCanonicalOrder,
+    /// Program does not have maximal sharing
+    SharingNotMaximal,
     /// Program encoded a stop code
     StopCode,
     /// Tried to allocate too many nodes in a program
@@ -84,6 +86,7 @@ impl fmt::Display for Error {
             Error::InvalidJet => write!(f, "unrecognized jet"),
             Error::NaturalOverflow => f.write_str("encoded number exceeded 32 bits"),
             Error::NotInCanonicalOrder => f.write_str("program not in canonical order"),
+            Error::SharingNotMaximal => f.write_str("Decoded programs must have maximal sharing"),
             Error::StopCode => f.write_str("program contained a stop code"),
             Error::TooManyNodes(k) => {
                 write!(f, "program has too many nodes ({})", k)
@@ -104,6 +107,7 @@ impl error::Error for Error {
             Error::InvalidJet => None,
             Error::NaturalOverflow => None,
             Error::NotInCanonicalOrder => None,
+            Error::SharingNotMaximal => None,
             Error::StopCode => None,
             Error::TooManyNodes(..) => None,
             Error::Type(ref e) => Some(e),
@@ -718,7 +722,7 @@ mod tests {
             ],
         ];
         for bad_diff1 in bad_diff1s {
-            assert_program_not_deserializable::<Core>(&bad_diff1, &crate::Error::SharingNotMaximal);
+            assert_program_not_deserializable::<Core>(&bad_diff1, &Error::SharingNotMaximal);
         }
 
         #[rustfmt::skip]

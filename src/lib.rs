@@ -88,8 +88,6 @@ pub enum Error {
     /// Policy error
     #[cfg(feature = "elements")]
     Policy(policy::Error),
-    /// Program does not have maximal sharing
-    SharingNotMaximal,
 }
 
 impl fmt::Display for Error {
@@ -106,7 +104,6 @@ impl fmt::Display for Error {
             Error::MiniscriptError(ref e) => fmt::Display::fmt(e, f),
             #[cfg(feature = "elements")]
             Error::Policy(ref e) => fmt::Display::fmt(e, f),
-            Error::SharingNotMaximal => f.write_str("Decoded programs must have maximal sharing"),
         }
     }
 }
@@ -120,7 +117,6 @@ impl std::error::Error for Error {
             Error::IncompleteFinalization => None,
             Error::InconsistentWitnessLength => None,
             Error::InvalidJetName(..) => None,
-            Error::SharingNotMaximal => None,
             Error::MiniscriptError(ref e) => Some(e),
             #[cfg(feature = "elements")]
             Error::Policy(ref e) => Some(e),

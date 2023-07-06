@@ -279,7 +279,7 @@ impl<J: Jet> RedeemNode<J> {
         let mut imrs: HashSet<Imr> = HashSet::new();
         for data in program.as_ref().post_order_iter::<InternalSharing>() {
             if !imrs.insert(data.node.imr()) {
-                return Err(Error::SharingNotMaximal);
+                return Err(Error::Decode(crate::decode::Error::SharingNotMaximal));
             }
         }
 
@@ -361,7 +361,10 @@ mod tests {
         let bad = [0xc1, 0x08, 0x04, 0x00, 0x00, 0x74, 0x74, 0x74];
         let mut iter = BitIter::from(&bad[..]);
         let err = RedeemNode::<crate::jet::Core>::decode(&mut iter).unwrap_err();
-        assert!(matches!(err, crate::Error::SharingNotMaximal));
+        assert!(matches!(
+            err,
+            Error::Decode(crate::decode::Error::SharingNotMaximal)
+        ));
     }
 
     #[test]

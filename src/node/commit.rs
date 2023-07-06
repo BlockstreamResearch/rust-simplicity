@@ -241,7 +241,7 @@ impl<J: Jet> CommitNode<J> {
         if program.as_ref().is_shared_as::<MaxSharing<Commit<J>>>() {
             Ok(program)
         } else {
-            Err(Error::SharingNotMaximal)
+            Err(Error::Decode(crate::decode::Error::SharingNotMaximal))
         }
     }
 
