@@ -365,6 +365,15 @@ impl DisconnectConstructible<NoDisconnect> for Arrow {
     }
 }
 
+impl DisconnectConstructible<Option<&Arrow>> for Arrow {
+    fn disconnect(left: &Self, right: &Option<&Self>) -> Result<Self, Error> {
+        match *right {
+            Some(right) => Self::disconnect(left, right),
+            None => Self::disconnect(left, &NoDisconnect),
+        }
+    }
+}
+
 impl<J: Jet> JetConstructible<J> for Arrow {
     fn jet(jet: J) -> Self {
         Self::for_jet(jet)

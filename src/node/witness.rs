@@ -44,7 +44,7 @@ pub struct Witness<J> {
 impl<J: Jet> Marker for Witness<J> {
     type CachedData = WitnessData<J>;
     type Witness = Option<Arc<Value>>;
-    type Disconnect = Arc<WitnessNode<J>>;
+    type Disconnect = Option<Arc<WitnessNode<J>>>;
     type SharingId = WitnessId;
     type Jet = J;
 
@@ -70,7 +70,7 @@ impl<J: Jet> WitnessNode<J> {
                 .inner
                 .as_ref()
                 .map(Arc::clone)
-                .map_disconnect(Arc::clone)
+                .map_disconnect(Option::<Arc<_>>::clone)
                 .map_witness(|wit| wit.as_ref().map(Arc::clone)),
         })
     }
@@ -123,16 +123,21 @@ impl<J: Jet> WitnessNode<J> {
             fn convert_disconnect(
                 &mut self,
                 _: &PostOrderIterItem<&WitnessNode<J>>,
-                _: Option<&Arc<WitnessNode<J>>>,
-                wit: &Arc<WitnessNode<J>>,
-            ) -> Result<Arc<WitnessNode<J>>, Self::Error> {
-                Ok(Arc::clone(wit))
+                maybe_converted: Option<&Arc<WitnessNode<J>>>,
+                _: &Option<Arc<WitnessNode<J>>>,
+            ) -> Result<Option<Arc<WitnessNode<J>>>, Self::Error> {
+                Ok(maybe_converted.map(Arc::clone))
             }
 
             fn convert_data(
                 &mut self,
                 data: &PostOrderIterItem<&WitnessNode<J>>,
-                inner: Inner<&Arc<WitnessNode<J>>, J, &Arc<WitnessNode<J>>, &Option<Arc<Value>>>,
+                inner: Inner<
+                    &Arc<WitnessNode<J>>,
+                    J,
+                    &Option<Arc<WitnessNode<J>>>,
+                    &Option<Arc<Value>>,
+                >,
             ) -> Result<WitnessData<J>, Self::Error> {
                 let converted_inner = inner
                     .map(|node| node.cached_data())
@@ -176,13 +181,13 @@ impl<J: Jet> WitnessNode<J> {
             fn convert_disconnect(
                 &mut self,
                 _: &PostOrderIterItem<&WitnessNode<J>>,
-                right: Option<&Arc<RedeemNode<J>>>,
-                _: &Arc<WitnessNode<J>>,
+                maybe_converted: Option<&Arc<RedeemNode<J>>>,
+                _: &Option<Arc<WitnessNode<J>>>,
             ) -> Result<Arc<RedeemNode<J>>, Self::Error> {
-                if let Some(child) = right {
+                if let Some(child) = maybe_converted {
                     Ok(Arc::clone(child))
                 } else {
-                    Err(crate::Error::DisconnectRedeemTime)
+                    Err(Error::DisconnectRedeemTime)
                 }
             }
 
@@ -344,11 +349,12 @@ impl<J> CoreConstructible for WitnessData<J> {
     }
 }
 
-impl<J: Jet> DisconnectConstructible<Arc<WitnessNode<J>>> for WitnessData<J> {
-    fn disconnect(left: &Self, right: &Arc<WitnessNode<J>>) -> Result<Self, types::Error> {
+impl<J: Jet> DisconnectConstructible<Option<Arc<WitnessNode<J>>>> for WitnessData<J> {
+    fn disconnect(left: &Self, right: &Option<Arc<WitnessNode<J>>>) -> Result<Self, types::Error> {
+        let right = right.as_ref();
         Ok(WitnessData {
-            arrow: Arrow::disconnect(&left.arrow, right.arrow())?,
-            must_prune: left.must_prune || right.must_prune(),
+            arrow: Arrow::disconnect(&left.arrow, &right.map(|n| n.arrow()))?,
+            must_prune: left.must_prune || right.map(|n| n.must_prune()).unwrap_or(false),
             phantom: PhantomData,
         })
     }
