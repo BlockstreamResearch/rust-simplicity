@@ -55,8 +55,6 @@ pub enum Error {
     NotInCanonicalOrder,
     /// Program does not have maximal sharing
     SharingNotMaximal,
-    /// Program encoded a stop code
-    StopCode,
     /// Tried to allocate too many nodes in a program
     TooManyNodes(usize),
     /// Type-checking error
@@ -89,7 +87,6 @@ impl fmt::Display for Error {
             Error::NaturalOverflow => f.write_str("encoded number exceeded 32 bits"),
             Error::NotInCanonicalOrder => f.write_str("program not in canonical order"),
             Error::SharingNotMaximal => f.write_str("Decoded programs must have maximal sharing"),
-            Error::StopCode => f.write_str("program contained a stop code"),
             Error::TooManyNodes(k) => {
                 write!(f, "program has too many nodes ({})", k)
             }
@@ -110,7 +107,6 @@ impl error::Error for Error {
             Error::NaturalOverflow => None,
             Error::NotInCanonicalOrder => None,
             Error::SharingNotMaximal => None,
-            Error::StopCode => None,
             Error::TooManyNodes(..) => None,
             Error::Type(ref e) => Some(e),
         }
@@ -128,6 +124,7 @@ enum DecodeNode<J: Jet> {
     Comp(usize, usize),
     Case(usize, usize),
     Pair(usize, usize),
+    Disconnect1(usize),
     Disconnect(usize, usize),
     Witness,
     Fail(FailEntropy),
@@ -155,7 +152,8 @@ impl<'d, J: Jet> DagLike for (usize, &'d [DecodeNode<J>]) {
             DecodeNode::InjL(i)
             | DecodeNode::InjR(i)
             | DecodeNode::Take(i)
-            | DecodeNode::Drop(i) => Dag::Unary((i, nodes)),
+            | DecodeNode::Drop(i)
+            | DecodeNode::Disconnect1(i) => Dag::Unary((i, nodes)),
             DecodeNode::Comp(li, ri)
             | DecodeNode::Case(li, ri)
             | DecodeNode::Pair(li, ri)
@@ -231,6 +229,7 @@ pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
             DecodeNode::Pair(i, j) => {
                 Node(ArcNode::pair(converted[i].get()?, converted[j].get()?)?)
             }
+            DecodeNode::Disconnect1(i) => Node(ArcNode::disconnect(converted[i].get()?, &None)?),
             DecodeNode::Disconnect(i, j) => Node(ArcNode::disconnect(
                 converted[i].get()?,
                 &Some(Arc::clone(converted[j].get()?)),
@@ -301,7 +300,10 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
                     u2::_0 => Ok(DecodeNode::Iden),
                     u2::_1 => Ok(DecodeNode::Unit),
                     u2::_2 => Ok(DecodeNode::Fail(bits.read_fail_entropy()?)),
-                    u2::_3 => Err(Error::StopCode),
+                    u2::_3 => {
+                        let i_abs = index - bits.read_natural(Some(index))?;
+                        Ok(DecodeNode::Disconnect1(i_abs))
+                    }
                 }
             }
             u2::_3 => {

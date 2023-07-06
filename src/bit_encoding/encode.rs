@@ -240,6 +240,9 @@ fn encode_node<W: io::Write, N: node::Marker>(
                 node::Inner::Drop(_) => {
                     w.write_bits_be(0b00111, 5)?;
                 }
+                node::Inner::Disconnect(_, _) => {
+                    w.write_bits_be(0b01011, 5)?;
+                }
                 _ => unreachable!(),
             };
 
