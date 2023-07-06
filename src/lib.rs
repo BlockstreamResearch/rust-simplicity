@@ -73,6 +73,10 @@ use std::fmt;
 pub enum Error {
     /// Decoder error
     Decode(crate::decode::Error),
+    /// A disconnect node was populated at commitment time
+    DisconnectCommitTime,
+    /// A disconnect node was *not* populated at redeem time
+    DisconnectRedeemTime,
     /// Type-checking error
     Type(crate::types::Error),
     /// Witness iterator ended early
@@ -94,6 +98,12 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Error::Decode(ref e) => fmt::Display::fmt(e, f),
+            Error::DisconnectCommitTime => {
+                f.write_str("disconnect node had two children (commit time); must have one")
+            }
+            Error::DisconnectRedeemTime => {
+                f.write_str("disconnect node had one child (redeem time); must have two")
+            }
             Error::Type(ref e) => fmt::Display::fmt(e, f),
             Error::IncompleteFinalization => f.write_str("unable to satisfy program"),
             Error::InconsistentWitnessLength => {
@@ -112,6 +122,8 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match *self {
             Error::Decode(ref e) => Some(e),
+            Error::DisconnectCommitTime => None,
+            Error::DisconnectRedeemTime => None,
             Error::Type(ref e) => Some(e),
             Error::NoMoreWitnesses => None,
             Error::IncompleteFinalization => None,
