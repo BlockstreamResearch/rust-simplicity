@@ -19,7 +19,10 @@ use crate::jet::Jet;
 use crate::types::{self, arrow::FinalArrow};
 use crate::{Amr, BitIter, BitWriter, Cmr, Error, FirstPassImr, Imr, Value};
 
-use super::{Commit, CommitData, CommitNode, Converter, Inner, Marker, NoWitness, Node};
+use super::{
+    Commit, CommitData, CommitNode, Construct, ConstructNode, Converter, Inner, Marker, NoWitness,
+    Node,
+};
 
 use std::collections::HashSet;
 use std::io;
@@ -222,36 +225,36 @@ impl<J: Jet> RedeemNode<J> {
             phantom: PhantomData<J>,
         }
 
-        impl<'bits, J: Jet, I: Iterator<Item = u8>> Converter<Commit<J>, Redeem<J>>
+        impl<'bits, J: Jet, I: Iterator<Item = u8>> Converter<Construct<J>, Redeem<J>>
             for DecodeFinalizer<'bits, J, I>
         {
             type Error = Error;
             fn convert_witness(
                 &mut self,
-                data: &PostOrderIterItem<&CommitNode<J>>,
+                data: &PostOrderIterItem<&ConstructNode<J>>,
                 _: &NoWitness,
             ) -> Result<Arc<Value>, Self::Error> {
+                let target_ty = data.node.data.arrow().target.finalize()?;
                 self.bits
-                    .read_value(&data.node.data.arrow().target)
+                    .read_value(&target_ty)
                     .map(Arc::new)
                     .map_err(Error::from)
             }
 
             fn convert_data(
                 &mut self,
-                data: &PostOrderIterItem<&CommitNode<J>>,
+                data: &PostOrderIterItem<&ConstructNode<J>>,
                 inner: Inner<&Arc<RedeemNode<J>>, J, &Arc<Value>>,
             ) -> Result<Arc<RedeemData<J>>, Self::Error> {
+                let arrow = data.node.data.arrow().finalize()?;
                 let converted_data = inner.map(|node| node.cached_data()).map_witness(Arc::clone);
-                Ok(Arc::new(RedeemData::new(
-                    data.node.arrow().shallow_clone(),
-                    converted_data,
-                )))
+                Ok(Arc::new(RedeemData::new(arrow, converted_data)))
             }
         }
 
-        // 1. Decode program without witnesses as CommitNode
-        let commit = crate::decode::decode_program(bits)?;
+        // 1. Decode program without witnesses as ConstructNode
+        let construct = crate::decode::decode_expression(bits)?;
+        construct.set_arrow_to_program()?;
 
         // 2. Convert to RedeemNode, reading witnesses as we go
         let witness_len = if bits.read_bit()? {
@@ -263,10 +266,11 @@ impl<J: Jet> RedeemNode<J> {
 
         // Importantly, we  use `InternalSharing` here to make sure that we respect
         // the sharing choices that were actually encoded in the bitstream.
-        let program: Arc<Self> = commit.convert::<InternalSharing, _, _>(&mut DecodeFinalizer {
-            bits,
-            phantom: PhantomData,
-        })?;
+        let program: Arc<Self> =
+            construct.convert::<InternalSharing, _, _>(&mut DecodeFinalizer {
+                bits,
+                phantom: PhantomData,
+            })?;
 
         // 3. Check that we read exactly as much witness data as we expected
         if bits.n_total_read() != witness_start + witness_len {
