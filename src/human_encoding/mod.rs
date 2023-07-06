@@ -33,6 +33,17 @@ use std::sync::Arc;
 
 pub use self::named_node::NamedCommitNode;
 
+/// Line/column pair
+///
+/// There is a similar type provided by the `santiago` library but it does not implement
+/// `Copy`, among many other traits, which makes it unergonomic to use. Santiago positions
+/// can be converted using `.into()`.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
+pub struct Position {
+    line: usize,
+    column: usize,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Forest<J: Jet> {
     roots: HashMap<Arc<str>, Arc<NamedCommitNode<J>>>,

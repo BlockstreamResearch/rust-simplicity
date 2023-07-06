@@ -14,14 +14,18 @@
 
 //! Human-readable Nodes
 
-use crate::dag::{MaxSharing, PostOrderIterItem};
+use crate::dag::{InternalSharing, MaxSharing, PostOrderIterItem};
 use crate::encode;
+use crate::human_encoding::Position;
 use crate::jet::Jet;
 use crate::node::{self, Commit, CommitData, CommitNode, Converter, NoDisconnect, NoWitness, Node};
-use crate::types::arrow::FinalArrow;
+use crate::node::{Construct, ConstructData, Constructible};
+use crate::types;
+use crate::types::arrow::{Arrow, FinalArrow};
 use crate::{BitWriter, Cmr};
 
 use std::io;
+use std::marker::PhantomData;
 use std::sync::Arc;
 
 pub type NamedCommitNode<J> = Node<Named<Commit<J>>>;
@@ -50,7 +54,7 @@ impl<J: Jet> node::Marker for Named<Commit<J>> {
 pub struct NamedCommitData<J> {
     /// Data related to the node itself
     internal: Arc<CommitData<J>>,
-    /// Name assigned to the node
+    /// Name assigned to the node.
     name: Arc<str>,
 }
 
@@ -87,6 +91,182 @@ impl<J: Jet> NamedCommitNode<J> {
         debug_assert!(!program_and_witness_bytes.is_empty());
 
         program_and_witness_bytes
+    }
+}
+
+pub type NamedConstructNode<J> = Node<Named<Construct<J>>>;
+
+impl<J: Jet> node::Marker for Named<Construct<J>> {
+    type CachedData = NamedConstructData<J>;
+    type Witness = <Construct<J> as node::Marker>::Witness;
+    type Disconnect = NoDisconnect;
+    type SharingId = Arc<str>;
+    type Jet = J;
+
+    fn compute_sharing_id(_: Cmr, cached_data: &Self::CachedData) -> Option<Arc<str>> {
+        Some(Arc::clone(&cached_data.name))
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct NamedConstructData<J> {
+    /// Data related to the node itself
+    internal: ConstructData<J>,
+    /// Name assigned to the node
+    name: Arc<str>,
+    /// Position of the node, if it comes from source code.
+    position: Position,
+    /// User-provided type bounds on the source (will be checked for consistency
+    /// but only after the type checking has completed.)
+    user_source_types: Arc<[types::Type]>,
+    /// User-provided type bounds on the target (will be checked for consistency
+    /// but only after the type checking has completed.)
+    user_target_types: Arc<[types::Type]>,
+}
+
+impl<J: Jet> NamedConstructNode<J> {
+    /// Construct a named construct node from parts.
+    pub fn new(
+        name: Arc<str>,
+        position: Position,
+        user_source_types: Arc<[types::Type]>,
+        user_target_types: Arc<[types::Type]>,
+        inner: node::Inner<Arc<Self>, J, NoDisconnect, NoWitness>,
+    ) -> Result<Self, types::Error> {
+        let construct_data = ConstructData::from_inner(
+            inner
+                .as_ref()
+                .map(|data| &data.cached_data().internal)
+                .map_disconnect(|_| &None)
+                .copy_witness(),
+        )?;
+        let named_data = NamedConstructData {
+            internal: construct_data,
+            name,
+            position,
+            user_source_types,
+            user_target_types,
+        };
+        Ok(Node::from_parts(inner, named_data))
+    }
+
+    /// Accessor for the node's name
+    pub fn name(&self) -> &Arc<str> {
+        &self.cached_data().name
+    }
+
+    /// Accessor for the node's position
+    pub fn position(&self) -> Position {
+        self.cached_data().position
+    }
+
+    /// Accessor for the node's arrow
+    pub fn arrow(&self) -> &Arrow {
+        self.cached_data().internal.arrow()
+    }
+
+    /// Finalizes the types of the underlying [`ConstructNode`].
+    pub fn finalize_types_main(&self) -> Result<Arc<NamedCommitNode<J>>, types::Error> {
+        self.finalize_types_inner(true)
+    }
+
+    /// Finalizes the types of the underlying [`ConstructNode`], without setting
+    /// the root node's arrow to 1->1.
+    pub fn finalize_types_non_main(&self) -> Result<Arc<NamedCommitNode<J>>, types::Error> {
+        self.finalize_types_inner(false)
+    }
+
+    pub fn finalize_types_inner(
+        &self,
+        for_main: bool,
+    ) -> Result<Arc<NamedCommitNode<J>>, types::Error> {
+        struct FinalizeTypes<J: Jet> {
+            for_main: bool,
+            phantom: PhantomData<J>,
+        }
+
+        impl<J: Jet> Converter<Named<Construct<J>>, Named<Commit<J>>> for FinalizeTypes<J> {
+            type Error = types::Error;
+            fn convert_witness(
+                &mut self,
+                _: &PostOrderIterItem<&NamedConstructNode<J>>,
+                _: &NoWitness,
+            ) -> Result<NoWitness, Self::Error> {
+                Ok(NoWitness)
+            }
+
+            fn convert_disconnect(
+                &mut self,
+                _: &PostOrderIterItem<&NamedConstructNode<J>>,
+                _: Option<&Arc<NamedCommitNode<J>>>,
+                _: &NoDisconnect,
+            ) -> Result<NoDisconnect, Self::Error> {
+                Ok(NoDisconnect)
+            }
+
+            fn convert_data(
+                &mut self,
+                data: &PostOrderIterItem<&NamedConstructNode<J>>,
+                inner: node::Inner<&Arc<NamedCommitNode<J>>, J, &NoDisconnect, &NoWitness>,
+            ) -> Result<NamedCommitData<J>, Self::Error> {
+                let converted_data = inner.map(|node| &node.cached_data().internal);
+
+                if !self.for_main {
+                    // For non-`main` fragments, treat the ascriptions as normative, and apply them
+                    // before finalizing the type.
+                    let arrow = data.node.arrow();
+                    for ty in data.node.cached_data().user_source_types.as_ref() {
+                        arrow.source.unify(ty, "binding source type annotation")?;
+                    }
+                    for ty in data.node.cached_data().user_target_types.as_ref() {
+                        arrow.target.unify(ty, "binding target type annotation")?;
+                    }
+                }
+
+                let commit_data = Arc::new(CommitData::new(data.node.arrow(), converted_data)?);
+
+                if self.for_main {
+                    // For `main`, only apply type ascriptions *after* inference has completely
+                    // determined the type.
+                    let source_bound =
+                        types::Bound::Complete(Arc::clone(&commit_data.arrow().source));
+                    let source_ty = types::Type::from(source_bound);
+                    for ty in data.node.cached_data().user_source_types.as_ref() {
+                        source_ty.unify(ty, "binding source type annotation")?;
+                    }
+                    let target_bound =
+                        types::Bound::Complete(Arc::clone(&commit_data.arrow().target));
+                    let target_ty = types::Type::from(target_bound);
+                    for ty in data.node.cached_data().user_target_types.as_ref() {
+                        target_ty.unify(ty, "binding target type annotation")?;
+                    }
+                }
+
+                Ok(NamedCommitData {
+                    name: Arc::clone(&data.node.cached_data().name),
+                    internal: commit_data,
+                })
+            }
+        }
+
+        if for_main {
+            let unit_ty = types::Type::unit();
+            if self.cached_data().user_source_types.is_empty() {
+                self.arrow()
+                    .source
+                    .unify(&unit_ty, "setting root source to unit")?;
+            }
+            if self.cached_data().user_target_types.is_empty() {
+                self.arrow()
+                    .target
+                    .unify(&unit_ty, "setting root source to unit")?;
+            }
+        }
+
+        self.convert::<InternalSharing, _, _>(&mut FinalizeTypes {
+            for_main,
+            phantom: PhantomData,
+        })
     }
 }
 
