@@ -21,7 +21,7 @@ use crate::dag::{Dag, DagLike, InternalSharing};
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::node::{
-    CommitNode, ConstructNode, CoreConstructible, JetConstructible, NoWitness, WitnessConstructible,
+    ConstructNode, CoreConstructible, JetConstructible, NoWitness, WitnessConstructible,
 };
 use crate::{BitIter, FailEntropy, Value};
 use std::collections::HashSet;
@@ -162,17 +162,6 @@ impl<'d, J: Jet> DagLike for (usize, &'d [DecodeNode<J>]) {
             DecodeNode::Witness => Dag::Nullary,
         }
     }
-}
-
-/// Decode a Simplicity program from bits, without the witness data.
-///
-/// If witness data is present, it should be encoded after the program, and the
-/// user must deserialize it separately.
-pub fn decode_program<I: Iterator<Item = u8>, J: Jet>(
-    bits: &mut BitIter<I>,
-) -> Result<Arc<CommitNode<J>>, Error> {
-    let root = decode_expression(bits)?;
-    root.finalize_types().map_err(Error::from)
 }
 
 pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
@@ -426,7 +415,7 @@ mod tests {
         let prog_hex = prog_bytes.to_hex();
 
         let mut iter = BitIter::from(prog_bytes);
-        let prog = match decode_program::<_, J>(&mut iter) {
+        let prog = match CommitNode::<J>::decode(&mut iter) {
             Ok(prog) => prog,
             Err(e) => panic!("program {} failed: {}", prog_hex, e),
         };
@@ -840,7 +829,7 @@ mod tests {
         //       witness data, which we don't parse and won't reseriaize.
         let mut iter = BitIter::from(&schnorr0[..]);
         let prog =
-            decode_program::<_, crate::jet::Elements>(&mut iter).expect("can't decode schnorr0");
+            CommitNode::<crate::jet::Elements>::decode(&mut iter).expect("can't decode schnorr0");
 
         // Matches C source code
         #[rustfmt::skip]
