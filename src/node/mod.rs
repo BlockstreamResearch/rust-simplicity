@@ -314,7 +314,6 @@ pub trait WitnessConstructible<W>: Sized {
 /// CMR and cached data. Users who create custom nodes should define a custom type
 /// for [`Marker::CachedData`] and think carefully about whether and how to
 /// implement the [`std::hash::Hash`] or equality traits.
-#[derive(Debug)]
 pub struct Node<N: Marker> {
     inner: Inner<Arc<Node<N>>, N::Jet, N::Witness>,
     cmr: Cmr,
@@ -338,6 +337,15 @@ where
     fn hash<H: hash::Hasher>(&self, h: &mut H) {
         self.cmr.hash(h);
         self.data.hash(h);
+    }
+}
+
+impl<N: Marker> fmt::Debug for Node<N>
+where
+    for<'a> &'a Node<N>: DagLike,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
     }
 }
 
