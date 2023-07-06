@@ -40,6 +40,7 @@ pub struct Redeem<J> {
 impl<J: Jet> Marker for Redeem<J> {
     type CachedData = Arc<RedeemData<J>>;
     type Witness = Arc<Value>;
+    type Disconnect = Arc<RedeemNode<J>>;
     type SharingId = Imr;
     type Jet = J;
 
@@ -77,7 +78,7 @@ impl<J> std::hash::Hash for RedeemData<J> {
 }
 
 impl<J: Jet> RedeemData<J> {
-    pub fn new(arrow: FinalArrow, inner: Inner<&Arc<Self>, J, Arc<Value>>) -> Self {
+    pub fn new(arrow: FinalArrow, inner: Inner<&Arc<Self>, J, &Arc<Self>, Arc<Value>>) -> Self {
         let (amr, first_pass_imr, bounds) = match inner {
             Inner::Iden => (Amr::iden(&arrow), FirstPassImr::iden(), NodeBounds::iden()),
             Inner::Unit => (Amr::unit(&arrow), FirstPassImr::unit(), NodeBounds::unit()),
@@ -204,9 +205,11 @@ impl<J: Jet> RedeemNode<J> {
             fn convert_data(
                 &mut self,
                 data: &PostOrderIterItem<&RedeemNode<J>>,
-                inner: Inner<&Arc<CommitNode<J>>, J, &NoWitness>,
+                inner: Inner<&Arc<CommitNode<J>>, J, &Arc<CommitNode<J>>, &NoWitness>,
             ) -> Result<Arc<CommitData<J>>, Self::Error> {
-                let converted_data = inner.map(|node| node.cached_data());
+                let converted_data = inner
+                    .map(|node| node.cached_data())
+                    .map_disconnect(|node| node.cached_data());
                 Ok(Arc::new(CommitData::from_final(
                     data.node.data.arrow.shallow_clone(),
                     converted_data,
@@ -244,10 +247,13 @@ impl<J: Jet> RedeemNode<J> {
             fn convert_data(
                 &mut self,
                 data: &PostOrderIterItem<&ConstructNode<J>>,
-                inner: Inner<&Arc<RedeemNode<J>>, J, &Arc<Value>>,
+                inner: Inner<&Arc<RedeemNode<J>>, J, &Arc<RedeemNode<J>>, &Arc<Value>>,
             ) -> Result<Arc<RedeemData<J>>, Self::Error> {
                 let arrow = data.node.data.arrow().finalize()?;
-                let converted_data = inner.map(|node| node.cached_data()).map_witness(Arc::clone);
+                let converted_data = inner
+                    .map(|node| node.cached_data())
+                    .map_disconnect(|node| node.cached_data())
+                    .map_witness(Arc::clone);
                 Ok(Arc::new(RedeemData::new(arrow, converted_data)))
             }
         }

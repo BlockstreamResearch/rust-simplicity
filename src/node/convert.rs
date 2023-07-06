@@ -133,7 +133,7 @@ pub trait Converter<N: Marker, M: Marker> {
     fn convert_data(
         &mut self,
         data: &PostOrderIterItem<&Node<N>>,
-        inner: Inner<&Arc<Node<M>>, M::Jet, &M::Witness>,
+        inner: Inner<&Arc<Node<M>>, M::Jet, &M::Disconnect, &M::Witness>,
     ) -> Result<M::CachedData, Self::Error>;
 }
 
@@ -169,9 +169,12 @@ impl<W: Iterator<Item = Arc<Value>>, J: Jet> Converter<Commit<J>, Redeem<J>>
     fn convert_data(
         &mut self,
         data: &PostOrderIterItem<&CommitNode<J>>,
-        inner: Inner<&Arc<RedeemNode<J>>, J, &Arc<Value>>,
+        inner: Inner<&Arc<RedeemNode<J>>, J, &Arc<RedeemNode<J>>, &Arc<Value>>,
     ) -> Result<Arc<RedeemData<J>>, Self::Error> {
-        let converted_data = inner.map(|node| node.cached_data()).map_witness(Arc::clone);
+        let converted_data = inner
+            .map(|node| node.cached_data())
+            .map_disconnect(|node| node.cached_data())
+            .map_witness(Arc::clone);
         Ok(Arc::new(RedeemData::new(
             data.node.arrow().shallow_clone(),
             converted_data,

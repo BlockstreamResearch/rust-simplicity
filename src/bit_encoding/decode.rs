@@ -21,7 +21,8 @@ use crate::dag::{Dag, DagLike, InternalSharing};
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::node::{
-    ConstructNode, CoreConstructible, JetConstructible, NoWitness, WitnessConstructible,
+    ConstructNode, CoreConstructible, DisconnectConstructible, JetConstructible, NoWitness,
+    WitnessConstructible,
 };
 use crate::{BitIter, FailEntropy, Value};
 use std::collections::HashSet;

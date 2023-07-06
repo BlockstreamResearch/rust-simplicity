@@ -20,7 +20,10 @@ use crate::{Cmr, Error, FailEntropy, Value};
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use super::{Constructible, CoreConstructible, JetConstructible, WitnessConstructible};
+use super::{
+    Constructible, CoreConstructible, DisconnectConstructible, JetConstructible,
+    WitnessConstructible,
+};
 use super::{Converter, Hide, Inner, Marker, NoWitness, Node, Redeem, RedeemData, RedeemNode};
 
 /// ID used to share [`WitnessNode`]s.
@@ -41,6 +44,7 @@ pub struct Witness<J> {
 impl<J: Jet> Marker for Witness<J> {
     type CachedData = WitnessData<J>;
     type Witness = Option<Arc<Value>>;
+    type Disconnect = Arc<WitnessNode<J>>;
     type SharingId = WitnessId;
     type Jet = J;
 
@@ -66,6 +70,7 @@ impl<J: Jet> WitnessNode<J> {
                 .inner
                 .as_ref()
                 .map(Arc::clone)
+                .map_disconnect(Arc::clone)
                 .map_witness(|wit| wit.as_ref().map(Arc::clone)),
         })
     }
@@ -118,7 +123,7 @@ impl<J: Jet> WitnessNode<J> {
             fn convert_data(
                 &mut self,
                 data: &PostOrderIterItem<&WitnessNode<J>>,
-                inner: Inner<&Arc<WitnessNode<J>>, J, &Option<Arc<Value>>>,
+                inner: Inner<&Arc<WitnessNode<J>>, J, &Arc<WitnessNode<J>>, &Option<Arc<Value>>>,
             ) -> Result<WitnessData<J>, Self::Error> {
                 let converted_inner = inner
                     .map(|node| node.cached_data())
@@ -162,9 +167,12 @@ impl<J: Jet> WitnessNode<J> {
             fn convert_data(
                 &mut self,
                 data: &PostOrderIterItem<&WitnessNode<J>>,
-                inner: Inner<&Arc<RedeemNode<J>>, J, &Arc<Value>>,
+                inner: Inner<&Arc<RedeemNode<J>>, J, &Arc<RedeemNode<J>>, &Arc<Value>>,
             ) -> Result<Arc<RedeemData<J>>, Self::Error> {
-                let converted_data = inner.map(|node| node.cached_data()).map_witness(Arc::clone);
+                let converted_data = inner
+                    .map(|node| node.cached_data())
+                    .map_disconnect(|node| node.cached_data())
+                    .map_witness(Arc::clone);
                 Ok(Arc::new(RedeemData::new(
                     data.node.arrow().finalize()?,
                     converted_data,
@@ -296,14 +304,6 @@ impl<J> CoreConstructible for WitnessData<J> {
         })
     }
 
-    fn disconnect(left: &Self, right: &Self) -> Result<Self, types::Error> {
-        Ok(WitnessData {
-            arrow: Arrow::disconnect(&left.arrow, &right.arrow)?,
-            must_prune: left.must_prune || right.must_prune,
-            phantom: PhantomData,
-        })
-    }
-
     fn fail(entropy: FailEntropy) -> Self {
         // Fail nodes always get pruned.
         WitnessData {
@@ -319,6 +319,16 @@ impl<J> CoreConstructible for WitnessData<J> {
             must_prune: false,
             phantom: PhantomData,
         }
+    }
+}
+
+impl<J: Jet> DisconnectConstructible<Arc<WitnessNode<J>>> for WitnessData<J> {
+    fn disconnect(left: &Self, right: &Arc<WitnessNode<J>>) -> Result<Self, types::Error> {
+        Ok(WitnessData {
+            arrow: Arrow::disconnect(&left.arrow, right.arrow())?,
+            must_prune: left.must_prune || right.must_prune(),
+            phantom: PhantomData,
+        })
     }
 }
 

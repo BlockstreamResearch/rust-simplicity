@@ -38,6 +38,7 @@ pub struct Commit<J> {
 impl<J: Jet> Marker for Commit<J> {
     type CachedData = Arc<CommitData<J>>;
     type Witness = NoWitness;
+    type Disconnect = Arc<CommitNode<J>>;
     type SharingId = Imr;
     type Jet = J;
 
@@ -71,7 +72,10 @@ impl<J: Jet> CommitData<J> {
     }
 
     /// Helper function to compute a cached AMR
-    fn incomplete_amr(inner: Inner<&Arc<Self>, J, &NoWitness>, arrow: &FinalArrow) -> Option<Amr> {
+    fn incomplete_amr(
+        inner: Inner<&Arc<Self>, J, &Arc<Self>, &NoWitness>,
+        arrow: &FinalArrow,
+    ) -> Option<Amr> {
         match inner {
             Inner::Iden => Some(Amr::iden(arrow)),
             Inner::Unit => Some(Amr::unit(arrow)),
@@ -105,7 +109,7 @@ impl<J: Jet> CommitData<J> {
     }
 
     /// Helper function to compute a cached first-pass IMR
-    fn first_pass_imr(inner: Inner<&Arc<Self>, J, &NoWitness>) -> Option<FirstPassImr> {
+    fn first_pass_imr(inner: Inner<&Arc<Self>, J, &Arc<Self>, &NoWitness>) -> Option<FirstPassImr> {
         match inner {
             Inner::Iden => Some(FirstPassImr::iden()),
             Inner::Unit => Some(FirstPassImr::unit()),
@@ -141,7 +145,7 @@ impl<J: Jet> CommitData<J> {
 
     pub fn new(
         arrow: &Arrow,
-        inner: Inner<&Arc<Self>, J, &NoWitness>,
+        inner: Inner<&Arc<Self>, J, &Arc<Self>, &NoWitness>,
     ) -> Result<Self, types::Error> {
         let final_arrow = arrow.finalize()?;
         let first_pass_imr = Self::first_pass_imr(inner.clone());
@@ -155,7 +159,10 @@ impl<J: Jet> CommitData<J> {
         })
     }
 
-    pub fn from_final(arrow: FinalArrow, inner: Inner<&Arc<Self>, J, &NoWitness>) -> Self {
+    pub fn from_final(
+        arrow: FinalArrow,
+        inner: Inner<&Arc<Self>, J, &Arc<Self>, &NoWitness>,
+    ) -> Self {
         let first_pass_imr = Self::first_pass_imr(inner.clone());
         let amr = Self::incomplete_amr(inner, &arrow);
         CommitData {
@@ -215,9 +222,11 @@ impl<J: Jet> CommitNode<J> {
             fn convert_data(
                 &mut self,
                 _: &PostOrderIterItem<&CommitNode<J>>,
-                inner: Inner<&Arc<ConstructNode<J>>, J, &NoWitness>,
+                inner: Inner<&Arc<ConstructNode<J>>, J, &Arc<ConstructNode<J>>, &NoWitness>,
             ) -> Result<ConstructData<J>, Self::Error> {
-                let inner = inner.map(|node| node.arrow());
+                let inner = inner
+                    .map(|node| node.arrow())
+                    .map_disconnect(|node| node.arrow());
                 Ok(ConstructData::new(Arrow::from_inner(inner)?))
             }
         }

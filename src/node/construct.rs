@@ -23,7 +23,7 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use super::{Commit, CommitData, CommitNode, Converter, Inner, Marker, NoWitness, Node};
-use super::{CoreConstructible, JetConstructible, WitnessConstructible};
+use super::{CoreConstructible, DisconnectConstructible, JetConstructible, WitnessConstructible};
 
 /// ID used to share [`ConstructNode`]s.
 ///
@@ -43,6 +43,7 @@ pub struct Construct<J> {
 impl<J: Jet> Marker for Construct<J> {
     type CachedData = ConstructData<J>;
     type Witness = NoWitness;
+    type Disconnect = Arc<ConstructNode<J>>;
     type SharingId = ConstructId;
     type Jet = J;
 
@@ -101,9 +102,11 @@ impl<J: Jet> ConstructNode<J> {
             fn convert_data(
                 &mut self,
                 data: &PostOrderIterItem<&ConstructNode<J>>,
-                inner: Inner<&Arc<CommitNode<J>>, J, &NoWitness>,
+                inner: Inner<&Arc<CommitNode<J>>, J, &Arc<CommitNode<J>>, &NoWitness>,
             ) -> Result<Arc<CommitData<J>>, Self::Error> {
-                let converted_data = inner.map(|node| node.cached_data());
+                let converted_data = inner
+                    .map(|node| node.cached_data())
+                    .map_disconnect(|node| node.cached_data());
                 CommitData::new(&data.node.data.arrow, converted_data)
                     .map(Arc::new)
                     .map_err(crate::Error::from)
@@ -238,13 +241,6 @@ impl<J> CoreConstructible for ConstructData<J> {
         })
     }
 
-    fn disconnect(left: &Self, right: &Self) -> Result<Self, types::Error> {
-        Ok(ConstructData {
-            arrow: Arrow::disconnect(&left.arrow, &right.arrow)?,
-            phantom: PhantomData,
-        })
-    }
-
     fn fail(entropy: FailEntropy) -> Self {
         ConstructData {
             arrow: Arrow::fail(entropy),
@@ -257,6 +253,15 @@ impl<J> CoreConstructible for ConstructData<J> {
             arrow: Arrow::const_word(word),
             phantom: PhantomData,
         }
+    }
+}
+
+impl<J: Jet> DisconnectConstructible<Arc<ConstructNode<J>>> for ConstructData<J> {
+    fn disconnect(left: &Self, right: &Arc<ConstructNode<J>>) -> Result<Self, types::Error> {
+        Ok(ConstructData {
+            arrow: Arrow::disconnect(&left.arrow, right.arrow())?,
+            phantom: PhantomData,
+        })
     }
 }
 
