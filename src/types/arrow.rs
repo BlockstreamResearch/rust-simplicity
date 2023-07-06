@@ -27,7 +27,8 @@ use std::fmt;
 use std::sync::Arc;
 
 use crate::node::{
-    CoreConstructible, DisconnectConstructible, JetConstructible, WitnessConstructible,
+    CoreConstructible, DisconnectConstructible, JetConstructible, NoDisconnect,
+    WitnessConstructible,
 };
 use crate::types::{Bound, Error, Final, Type};
 use crate::{jet::Jet, Value};
@@ -349,6 +350,18 @@ impl CoreConstructible for Arrow {
 impl DisconnectConstructible<Arrow> for Arrow {
     fn disconnect(left: &Self, right: &Self) -> Result<Self, Error> {
         Self::for_disconnect(left, right)
+    }
+}
+
+impl DisconnectConstructible<NoDisconnect> for Arrow {
+    fn disconnect(left: &Self, _: &NoDisconnect) -> Result<Self, Error> {
+        Self::for_disconnect(
+            left,
+            &Arrow {
+                source: Type::free("disc_src".into()),
+                target: Type::free("disc_tgt".into()),
+            },
+        )
     }
 }
 

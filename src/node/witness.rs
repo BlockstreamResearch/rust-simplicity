@@ -120,6 +120,15 @@ impl<J: Jet> WitnessNode<J> {
                 }
             }
 
+            fn convert_disconnect(
+                &mut self,
+                _: &PostOrderIterItem<&WitnessNode<J>>,
+                _: Option<&Arc<WitnessNode<J>>>,
+                wit: &Arc<WitnessNode<J>>,
+            ) -> Result<Arc<WitnessNode<J>>, Self::Error> {
+                Ok(Arc::clone(wit))
+            }
+
             fn convert_data(
                 &mut self,
                 data: &PostOrderIterItem<&WitnessNode<J>>,
@@ -161,6 +170,19 @@ impl<J: Jet> WitnessNode<J> {
                     Ok(Arc::clone(wit))
                 } else {
                     Err(Error::IncompleteFinalization)
+                }
+            }
+
+            fn convert_disconnect(
+                &mut self,
+                _: &PostOrderIterItem<&WitnessNode<J>>,
+                right: Option<&Arc<RedeemNode<J>>>,
+                _: &Arc<WitnessNode<J>>,
+            ) -> Result<Arc<RedeemNode<J>>, Self::Error> {
+                if let Some(child) = right {
+                    Ok(Arc::clone(child))
+                } else {
+                    Err(crate::Error::DisconnectRedeemTime)
                 }
             }
 

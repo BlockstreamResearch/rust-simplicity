@@ -31,7 +31,10 @@ use crate::dag::PostOrderIterItem;
 use crate::jet::Jet;
 use crate::Value;
 
-use super::{Commit, CommitNode, Inner, Marker, NoWitness, Node, Redeem, RedeemData, RedeemNode};
+use super::{
+    Commit, CommitNode, Inner, Marker, NoDisconnect, NoWitness, Node, Redeem, RedeemData,
+    RedeemNode,
+};
 
 use std::sync::Arc;
 
@@ -102,6 +105,24 @@ pub trait Converter<N: Marker, M: Marker> {
         witness: &N::Witness,
     ) -> Result<M::Witness, Self::Error>;
 
+    /// For disconnect nodes, this method is called first to attach a disconnected
+    /// expression to the node.
+    ///
+    /// It takes the iteration data of the current node, as well as the current
+    /// disconnected expression (which in a typical scenario will be an empty
+    /// structure, but with custom node types may be a placeholder or other
+    /// useful information)
+    ///
+    /// No typechecking or other sanity-checking is done on the returned expression.
+    /// It is the caller's responsibility to make sure that the provided expression
+    /// actually matches the type of the combinator that it is being attached to.
+    fn convert_disconnect(
+        &mut self,
+        data: &PostOrderIterItem<&Node<N>>,
+        maybe_converted: Option<&Arc<Node<M>>>,
+        disconnect: &N::Disconnect,
+    ) -> Result<M::Disconnect, Self::Error>;
+
     /// For case nodes, this method is called first to decide which, if any, children
     /// to prune.
     ///
@@ -141,6 +162,8 @@ pub trait Converter<N: Marker, M: Marker> {
 /// by attaching witness data from an iterator.
 ///
 /// Does not do any type-checking and may attach an invalid witness to a combinator.
+///
+/// If it encounters a disconnect node, it simply returns an error.
 // FIXME we should do type checking, but this would require a method to check
 // type compatibility between a Value and a type::Final.
 pub struct SimpleFinalizer<W: Iterator<Item = Arc<Value>>> {
@@ -164,6 +187,15 @@ impl<W: Iterator<Item = Arc<Value>>, J: Jet> Converter<Commit<J>, Redeem<J>>
         _: &NoWitness,
     ) -> Result<Arc<Value>, Self::Error> {
         self.iter.next().ok_or(crate::Error::NoMoreWitnesses)
+    }
+
+    fn convert_disconnect(
+        &mut self,
+        _: &PostOrderIterItem<&CommitNode<J>>,
+        _: Option<&Arc<RedeemNode<J>>>,
+        _: &NoDisconnect,
+    ) -> Result<Arc<RedeemNode<J>>, Self::Error> {
+        Err(crate::Error::IncompleteFinalization)
     }
 
     fn convert_data(

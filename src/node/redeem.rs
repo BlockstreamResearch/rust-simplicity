@@ -20,8 +20,8 @@ use crate::types::{self, arrow::FinalArrow};
 use crate::{Amr, BitIter, BitWriter, Cmr, Error, FirstPassImr, Imr, Value};
 
 use super::{
-    Commit, CommitData, CommitNode, Construct, ConstructNode, Converter, Inner, Marker, NoWitness,
-    Node,
+    Commit, CommitData, CommitNode, Construct, ConstructNode, Converter, Inner, Marker,
+    NoDisconnect, NoWitness, Node,
 };
 
 use std::collections::HashSet;
@@ -202,14 +202,21 @@ impl<J: Jet> RedeemNode<J> {
                 Ok(NoWitness)
             }
 
+            fn convert_disconnect(
+                &mut self,
+                _: &PostOrderIterItem<&RedeemNode<J>>,
+                _: Option<&Arc<CommitNode<J>>>,
+                _: &Arc<RedeemNode<J>>,
+            ) -> Result<NoDisconnect, Self::Error> {
+                Ok(NoDisconnect)
+            }
+
             fn convert_data(
                 &mut self,
                 data: &PostOrderIterItem<&RedeemNode<J>>,
-                inner: Inner<&Arc<CommitNode<J>>, J, &Arc<CommitNode<J>>, &NoWitness>,
+                inner: Inner<&Arc<CommitNode<J>>, J, &NoDisconnect, &NoWitness>,
             ) -> Result<Arc<CommitData<J>>, Self::Error> {
-                let converted_data = inner
-                    .map(|node| node.cached_data())
-                    .map_disconnect(|node| node.cached_data());
+                let converted_data = inner.map(|node| node.cached_data());
                 Ok(Arc::new(CommitData::from_final(
                     data.node.data.arrow.shallow_clone(),
                     converted_data,
@@ -242,6 +249,19 @@ impl<J: Jet> RedeemNode<J> {
                     .read_value(&target_ty)
                     .map(Arc::new)
                     .map_err(Error::from)
+            }
+
+            fn convert_disconnect(
+                &mut self,
+                _: &PostOrderIterItem<&ConstructNode<J>>,
+                right: Option<&Arc<RedeemNode<J>>>,
+                _: &Arc<ConstructNode<J>>,
+            ) -> Result<Arc<RedeemNode<J>>, Self::Error> {
+                if let Some(child) = right {
+                    Ok(Arc::clone(child))
+                } else {
+                    Err(Error::DisconnectRedeemTime)
+                }
             }
 
             fn convert_data(

@@ -595,7 +595,7 @@ impl<N: Marker> Node<N> {
     pub fn convert<S, M, C>(&self, converter: &mut C) -> Result<Arc<Node<M>>, C::Error>
     where
         S: for<'a> SharingTracker<&'a Self> + Default,
-        M: Marker<Jet = <N as Marker>::Jet, Disconnect = Arc<Node<M>>>,
+        M: Marker<Jet = <N as Marker>::Jet>,
         C: Converter<N, M>,
     {
         let mut converted: Vec<Arc<Node<M>>> = vec![];
@@ -618,12 +618,15 @@ impl<N: Marker> Node<N> {
                 .map_witness_result(|wit| converter.convert_witness(&data, wit))?;
 
             // Then convert disconnect nodes data.
-            let witness_inner: Inner<&usize, N::Jet, M::Disconnect, M::Witness> =
-                witness_inner.map_disconnect(|_| Arc::clone(&converted[data.right_index.unwrap()]));
+            let maybe_converted = data.right_index.map(|idx| &converted[idx]);
+            let witness_inner: Inner<&usize, N::Jet, M::Disconnect, M::Witness> = witness_inner
+                .map_disconnect_result(|disc| {
+                    converter.convert_disconnect(&data, maybe_converted, disc)
+                })?;
 
             // Then put the converted nodes in place (it's easier to do this in this
             // order because of the way the reference types work out).
-            let converted_inner: Inner<Arc<Node<M>>, M::Jet, Arc<Node<M>>, M::Witness> =
+            let converted_inner: Inner<Arc<Node<M>>, M::Jet, M::Disconnect, M::Witness> =
                 witness_inner.map(|idx| Arc::clone(&converted[*idx]));
 
             // Next, prune case nodes into asserts, if applicable

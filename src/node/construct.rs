@@ -22,7 +22,9 @@ use std::io;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use super::{Commit, CommitData, CommitNode, Converter, Inner, Marker, NoWitness, Node};
+use super::{
+    Commit, CommitData, CommitNode, Converter, Inner, Marker, NoDisconnect, NoWitness, Node,
+};
 use super::{CoreConstructible, DisconnectConstructible, JetConstructible, WitnessConstructible};
 
 /// ID used to share [`ConstructNode`]s.
@@ -99,14 +101,22 @@ impl<J: Jet> ConstructNode<J> {
                 Ok(NoWitness)
             }
 
+            fn convert_disconnect(
+                &mut self,
+                _: &PostOrderIterItem<&ConstructNode<J>>,
+                _: Option<&Arc<CommitNode<J>>>,
+                _: &Arc<ConstructNode<J>>,
+            ) -> Result<NoDisconnect, Self::Error> {
+                // FIXME will be changed in two commits
+                Err(crate::Error::DisconnectCommitTime)
+            }
+
             fn convert_data(
                 &mut self,
                 data: &PostOrderIterItem<&ConstructNode<J>>,
-                inner: Inner<&Arc<CommitNode<J>>, J, &Arc<CommitNode<J>>, &NoWitness>,
+                inner: Inner<&Arc<CommitNode<J>>, J, &NoDisconnect, &NoWitness>,
             ) -> Result<Arc<CommitData<J>>, Self::Error> {
-                let converted_data = inner
-                    .map(|node| node.cached_data())
-                    .map_disconnect(|node| node.cached_data());
+                let converted_data = inner.map(|node| node.cached_data());
                 CommitData::new(&data.node.data.arrow, converted_data)
                     .map(Arc::new)
                     .map_err(crate::Error::from)

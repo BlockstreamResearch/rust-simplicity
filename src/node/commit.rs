@@ -19,8 +19,8 @@ use crate::{encode, types};
 use crate::{Amr, BitIter, BitWriter, Cmr, Error, FirstPassImr, Imr};
 
 use super::{
-    Construct, ConstructData, ConstructNode, Constructible, Converter, Inner, Marker, NoWitness,
-    Node, Redeem, RedeemNode,
+    Construct, ConstructData, ConstructNode, Constructible, Converter, Inner, Marker, NoDisconnect,
+    NoWitness, Node, Redeem, RedeemNode,
 };
 
 use std::io;
@@ -38,7 +38,7 @@ pub struct Commit<J> {
 impl<J: Jet> Marker for Commit<J> {
     type CachedData = Arc<CommitData<J>>;
     type Witness = NoWitness;
-    type Disconnect = Arc<CommitNode<J>>;
+    type Disconnect = NoDisconnect;
     type SharingId = Imr;
     type Jet = J;
 
@@ -73,7 +73,7 @@ impl<J: Jet> CommitData<J> {
 
     /// Helper function to compute a cached AMR
     fn incomplete_amr(
-        inner: Inner<&Arc<Self>, J, &Arc<Self>, &NoWitness>,
+        inner: Inner<&Arc<Self>, J, &NoDisconnect, &NoWitness>,
         arrow: &FinalArrow,
     ) -> Option<Amr> {
         match inner {
@@ -109,7 +109,9 @@ impl<J: Jet> CommitData<J> {
     }
 
     /// Helper function to compute a cached first-pass IMR
-    fn first_pass_imr(inner: Inner<&Arc<Self>, J, &Arc<Self>, &NoWitness>) -> Option<FirstPassImr> {
+    fn first_pass_imr(
+        inner: Inner<&Arc<Self>, J, &NoDisconnect, &NoWitness>,
+    ) -> Option<FirstPassImr> {
         match inner {
             Inner::Iden => Some(FirstPassImr::iden()),
             Inner::Unit => Some(FirstPassImr::unit()),
@@ -145,7 +147,7 @@ impl<J: Jet> CommitData<J> {
 
     pub fn new(
         arrow: &Arrow,
-        inner: Inner<&Arc<Self>, J, &Arc<Self>, &NoWitness>,
+        inner: Inner<&Arc<Self>, J, &NoDisconnect, &NoWitness>,
     ) -> Result<Self, types::Error> {
         let final_arrow = arrow.finalize()?;
         let first_pass_imr = Self::first_pass_imr(inner.clone());
@@ -161,7 +163,7 @@ impl<J: Jet> CommitData<J> {
 
     pub fn from_final(
         arrow: FinalArrow,
-        inner: Inner<&Arc<Self>, J, &Arc<Self>, &NoWitness>,
+        inner: Inner<&Arc<Self>, J, &NoDisconnect, &NoWitness>,
     ) -> Self {
         let first_pass_imr = Self::first_pass_imr(inner.clone());
         let amr = Self::incomplete_amr(inner, &arrow);
@@ -217,6 +219,15 @@ impl<J: Jet> CommitNode<J> {
                 _: &NoWitness,
             ) -> Result<NoWitness, Self::Error> {
                 Ok(NoWitness)
+            }
+
+            fn convert_disconnect(
+                &mut self,
+                _: &PostOrderIterItem<&CommitNode<J>>,
+                _: Option<&Arc<ConstructNode<J>>>,
+                _: &NoDisconnect,
+            ) -> Result<Arc<ConstructNode<J>>, Self::Error> {
+                unimplemented!("will be implemented in two commits")
             }
 
             fn convert_data(
