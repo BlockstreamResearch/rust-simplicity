@@ -24,6 +24,7 @@ use crate::node::{
     CommitNode, ConstructNode, CoreConstructible, JetConstructible, NoWitness, WitnessConstructible,
 };
 use crate::{BitIter, FailEntropy, Value};
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::{error, fmt};
 
@@ -207,6 +208,8 @@ pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
         nodes.push(new_node);
     }
 
+    // It is a sharing violation for any hidden node to be repeated. Track them in this set.
+    let mut hidden_set = HashSet::<Cmr>::new();
     // Convert the DecodeNode structure into a CommitNode structure
     let mut converted = Vec::<Converted<J>>::with_capacity(len);
     for data in (nodes.len() - 1, &nodes[..]).post_order_iter::<InternalSharing>() {
@@ -244,7 +247,12 @@ pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
             )?),
             DecodeNode::Witness => Node(ArcNode::witness(NoWitness)),
             DecodeNode::Fail(entropy) => Node(ArcNode::fail(entropy)),
-            DecodeNode::Hidden(cmr) => Hidden(cmr),
+            DecodeNode::Hidden(cmr) => {
+                if !hidden_set.insert(cmr) {
+                    return Err(Error::SharingNotMaximal);
+                }
+                Hidden(cmr)
+            }
             DecodeNode::Jet(j) => Node(ArcNode::jet(j)),
             DecodeNode::Word(ref w) => Node(ArcNode::const_word(Arc::clone(w))),
         };
