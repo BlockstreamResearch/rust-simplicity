@@ -255,7 +255,7 @@ impl<J: Jet> RedeemNode<J> {
                 &mut self,
                 _: &PostOrderIterItem<&ConstructNode<J>>,
                 right: Option<&Arc<RedeemNode<J>>>,
-                _: &Arc<ConstructNode<J>>,
+                _: &Option<Arc<ConstructNode<J>>>,
             ) -> Result<Arc<RedeemNode<J>>, Self::Error> {
                 if let Some(child) = right {
                     Ok(Arc::clone(child))

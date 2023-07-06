@@ -226,18 +226,19 @@ impl<J: Jet> CommitNode<J> {
                 _: &PostOrderIterItem<&CommitNode<J>>,
                 _: Option<&Arc<ConstructNode<J>>>,
                 _: &NoDisconnect,
-            ) -> Result<Arc<ConstructNode<J>>, Self::Error> {
-                unimplemented!("will be implemented in two commits")
+            ) -> Result<Option<Arc<ConstructNode<J>>>, Self::Error> {
+                Ok(None)
             }
 
             fn convert_data(
                 &mut self,
                 _: &PostOrderIterItem<&CommitNode<J>>,
-                inner: Inner<&Arc<ConstructNode<J>>, J, &Arc<ConstructNode<J>>, &NoWitness>,
+                inner: Inner<&Arc<ConstructNode<J>>, J, &Option<Arc<ConstructNode<J>>>, &NoWitness>,
             ) -> Result<ConstructData<J>, Self::Error> {
                 let inner = inner
                     .map(|node| node.arrow())
-                    .map_disconnect(|node| node.arrow());
+                    .map_disconnect(|maybe_node| maybe_node.as_ref().map(|node| node.arrow()));
+                let inner = inner.disconnect_as_ref(); // lol sigh rust
                 Ok(ConstructData::new(Arrow::from_inner(inner)?))
             }
         }

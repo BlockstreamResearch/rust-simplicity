@@ -233,7 +233,7 @@ pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
             }
             DecodeNode::Disconnect(i, j) => Node(ArcNode::disconnect(
                 converted[i].get()?,
-                converted[j].get()?,
+                &Some(Arc::clone(converted[j].get()?)),
             )?),
             DecodeNode::Witness => Node(ArcNode::witness(NoWitness)),
             DecodeNode::Fail(entropy) => Node(ArcNode::fail(entropy)),

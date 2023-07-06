@@ -45,7 +45,7 @@ pub struct Construct<J> {
 impl<J: Jet> Marker for Construct<J> {
     type CachedData = ConstructData<J>;
     type Witness = NoWitness;
-    type Disconnect = Arc<ConstructNode<J>>;
+    type Disconnect = Option<Arc<ConstructNode<J>>>;
     type SharingId = ConstructId;
     type Jet = J;
 
@@ -104,11 +104,14 @@ impl<J: Jet> ConstructNode<J> {
             fn convert_disconnect(
                 &mut self,
                 _: &PostOrderIterItem<&ConstructNode<J>>,
-                _: Option<&Arc<CommitNode<J>>>,
-                _: &Arc<ConstructNode<J>>,
+                maybe_converted: Option<&Arc<CommitNode<J>>>,
+                _: &Option<Arc<ConstructNode<J>>>,
             ) -> Result<NoDisconnect, Self::Error> {
-                // FIXME will be changed in two commits
-                Err(crate::Error::DisconnectCommitTime)
+                if maybe_converted.is_some() {
+                    Err(crate::Error::DisconnectCommitTime)
+                } else {
+                    Ok(NoDisconnect)
+                }
             }
 
             fn convert_data(
@@ -266,10 +269,14 @@ impl<J> CoreConstructible for ConstructData<J> {
     }
 }
 
-impl<J: Jet> DisconnectConstructible<Arc<ConstructNode<J>>> for ConstructData<J> {
-    fn disconnect(left: &Self, right: &Arc<ConstructNode<J>>) -> Result<Self, types::Error> {
+impl<J: Jet> DisconnectConstructible<Option<Arc<ConstructNode<J>>>> for ConstructData<J> {
+    fn disconnect(
+        left: &Self,
+        right: &Option<Arc<ConstructNode<J>>>,
+    ) -> Result<Self, types::Error> {
+        let right = right.as_ref();
         Ok(ConstructData {
-            arrow: Arrow::disconnect(&left.arrow, right.arrow())?,
+            arrow: Arrow::disconnect(&left.arrow, &right.map(|n| n.arrow()))?,
             phantom: PhantomData,
         })
     }
@@ -301,7 +308,7 @@ mod tests {
     #[test]
     fn occurs_check_error() {
         let iden = Arc::<ConstructNode<Core>>::iden();
-        let node = Arc::<ConstructNode<Core>>::disconnect(&iden, &iden).unwrap();
+        let node = Arc::<ConstructNode<Core>>::disconnect(&iden, &Some(Arc::clone(&iden))).unwrap();
 
         assert!(matches!(
             node.finalize_types_non_program(),
@@ -362,7 +369,7 @@ mod tests {
         let case = Arc::<ConstructNode<Core>>::case(&unit, &unit).unwrap();
 
         assert!(matches!(
-            Arc::<ConstructNode<Core>>::disconnect(&case, &unit),
+            Arc::<ConstructNode<Core>>::disconnect(&case, &Some(unit)),
             Err(types::Error::Bind { .. }),
         ));
     }

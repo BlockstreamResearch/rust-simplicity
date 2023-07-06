@@ -160,6 +160,33 @@ impl<C, J: Clone, X, W> Inner<C, J, X, W> {
         }
     }
 
+    /// Take references to only the disconnect node.
+    pub fn disconnect_as_ref(&self) -> Inner<C, J, &X, W>
+    where
+        J: Copy,
+        C: Copy,
+        W: Copy,
+    {
+        match *self {
+            Inner::Iden => Inner::Iden,
+            Inner::Unit => Inner::Unit,
+            Inner::InjL(c) => Inner::InjL(c),
+            Inner::InjR(c) => Inner::InjR(c),
+            Inner::Take(c) => Inner::Take(c),
+            Inner::Drop(c) => Inner::Drop(c),
+            Inner::Comp(cl, cr) => Inner::Comp(cl, cr),
+            Inner::Case(cl, cr) => Inner::Case(cl, cr),
+            Inner::AssertL(c, cmr) => Inner::AssertL(c, cmr),
+            Inner::AssertR(cmr, c) => Inner::AssertR(cmr, c),
+            Inner::Pair(cl, cr) => Inner::Pair(cl, cr),
+            Inner::Disconnect(cl, ref cr) => Inner::Disconnect(cl, cr),
+            Inner::Witness(w) => Inner::Witness(w),
+            Inner::Fail(entropy) => Inner::Fail(entropy),
+            Inner::Jet(j) => Inner::Jet(j),
+            Inner::Word(ref w) => Inner::Word(Arc::clone(w)),
+        }
+    }
+
     pub fn map_disconnect<Y, F: FnOnce(X) -> Y>(self, f: F) -> Inner<C, J, Y, W> {
         match self {
             Inner::Iden => Inner::Iden,
