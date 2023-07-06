@@ -38,6 +38,7 @@ pub use init::core::Core;
 pub use init::elements::Elements;
 use simplicity_sys::c_jets::frame_ffi::CFrameItem;
 
+use crate::analysis::Cost;
 use crate::decode;
 use crate::jet::type_name::TypeName;
 use crate::merkle::cmr::Cmr;
@@ -95,6 +96,9 @@ pub trait Jet:
 
     /// Obtain the FFI C pointer for the jet.
     fn c_jet_ptr(&self) -> &dyn Fn(&mut CFrameItem, CFrameItem, &Self::CJetEnvironment) -> bool;
+
+    /// Return the cost of the jet.
+    fn cost(&self) -> Cost;
 }
 
 #[cfg(test)]
