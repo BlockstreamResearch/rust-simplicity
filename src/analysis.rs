@@ -106,7 +106,7 @@ impl Cost {
             .consensus_encode(&mut sink)
             .expect("writing to sink never fails");
         let budget = witness_stack_serialized_len + 50;
-        self.to_weight() <= budget
+        self.0 <= budget * 1000
     }
 }
 
