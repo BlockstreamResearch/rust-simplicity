@@ -22,7 +22,7 @@ use crate::node::{self, Commit, CommitData, CommitNode, Converter, NoDisconnect,
 use crate::node::{Construct, ConstructData, Constructible};
 use crate::types;
 use crate::types::arrow::{Arrow, FinalArrow};
-use crate::{BitWriter, Cmr};
+use crate::{BitWriter, Cmr, Imr};
 
 use std::io;
 use std::marker::PhantomData;
@@ -68,6 +68,11 @@ impl<J: Jet> NamedCommitNode<J> {
     /// Accessor for the node's name
     pub fn name(&self) -> &Arc<str> {
         &self.cached_data().name
+    }
+
+    /// Accessor for the node's name
+    pub fn imr(&self) -> Option<Imr> {
+        self.cached_data().internal.imr()
     }
 
     /// Accessor for the node's type arrow
