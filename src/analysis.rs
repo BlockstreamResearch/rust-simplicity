@@ -72,11 +72,6 @@ impl Cost {
     /// This means that the maximum budget is an unreachable upper bound.
     pub const CONSENSUS_MAX: Self = Cost(4_000_050_000);
 
-    /// Convert the cost to weight units.
-    pub const fn to_weight(self) -> usize {
-        (self.0 + 999) / 1000
-    }
-
     /// Return the cost of a type with the given bit width.
     pub const fn of_type(bit_width: usize) -> Self {
         Cost(bit_width)
@@ -95,6 +90,11 @@ impl Cost {
         self <= &Self::CONSENSUS_MAX
     }
 
+    /// Return whether the cost is less or equal the given weight.
+    pub fn less_equal_weight(&self, weight: usize) -> bool {
+        self.0 <= weight * 1000
+    }
+
     /// Return whether the cost is within the budget of
     /// the given transaction input.
     #[cfg(feature = "elements")]
@@ -106,7 +106,7 @@ impl Cost {
             .consensus_encode(&mut sink)
             .expect("writing to sink never fails");
         let budget = witness_stack_serialized_len + 50;
-        self.0 <= budget * 1000
+        self.less_equal_weight(budget)
     }
 }
 
