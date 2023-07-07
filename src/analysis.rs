@@ -14,7 +14,10 @@
 
 use crate::jet::Jet;
 use crate::Value;
-use std::{cmp, fmt};
+use std::{cmp, fmt, io};
+
+#[cfg(feature = "elements")]
+use elements::encode::Encodable;
 
 /// CPU cost of a Simplicity expression.
 ///
@@ -96,7 +99,13 @@ impl Cost {
     /// the given transaction input.
     #[cfg(feature = "elements")]
     pub fn is_budget_valid(&self, txin: &elements::TxIn) -> bool {
-        let budget = txin.witness.script_witness.iter().map(|el| el.len()).sum();
+        let mut sink = io::sink();
+        let witness_stack_serialized_len = txin
+            .witness
+            .script_witness
+            .consensus_encode(&mut sink)
+            .expect("writing to sink never fails");
+        let budget = witness_stack_serialized_len + 50;
         self.to_weight() <= budget
     }
 }
