@@ -303,7 +303,7 @@ impl<C, J, X: Disconnectable<C>, W> Inner<C, J, X, W> {
     }
 }
 
-impl<C, J, X, W> Inner<Option<C>, J, Option<X>, W> {
+impl<C, J, X, W> Inner<Option<C>, J, X, W> {
     /// Convert an `Inner<Option<C>, J, W>` to an `Option<Inner<C, J, W>>`.
     pub fn transpose(self) -> Option<Inner<C, J, X, W>> {
         Some(match self {
@@ -318,7 +318,31 @@ impl<C, J, X, W> Inner<Option<C>, J, Option<X>, W> {
             Inner::AssertL(c, cmr) => Inner::AssertL(c?, cmr),
             Inner::AssertR(cmr, c) => Inner::AssertR(cmr, c?),
             Inner::Pair(cl, cr) => Inner::Pair(cl?, cr?),
-            Inner::Disconnect(cl, cr) => Inner::Disconnect(cl?, cr?),
+            Inner::Disconnect(cl, cr) => Inner::Disconnect(cl?, cr),
+            Inner::Witness(w) => Inner::Witness(w),
+            Inner::Fail(entropy) => Inner::Fail(entropy),
+            Inner::Jet(j) => Inner::Jet(j),
+            Inner::Word(w) => Inner::Word(w),
+        })
+    }
+}
+
+impl<C, J, X, W> Inner<C, J, Option<X>, W> {
+    /// Convert an `Inner<Option<C>, J, W>` to an `Option<Inner<C, J, W>>`.
+    pub fn transpose_disconnect(self) -> Option<Inner<C, J, X, W>> {
+        Some(match self {
+            Inner::Iden => Inner::Iden,
+            Inner::Unit => Inner::Unit,
+            Inner::InjL(c) => Inner::InjL(c),
+            Inner::InjR(c) => Inner::InjR(c),
+            Inner::Take(c) => Inner::Take(c),
+            Inner::Drop(c) => Inner::Drop(c),
+            Inner::Comp(cl, cr) => Inner::Comp(cl, cr),
+            Inner::Case(cl, cr) => Inner::Case(cl, cr),
+            Inner::AssertL(c, cmr) => Inner::AssertL(c, cmr),
+            Inner::AssertR(cmr, c) => Inner::AssertR(cmr, c),
+            Inner::Pair(cl, cr) => Inner::Pair(cl, cr),
+            Inner::Disconnect(cl, cr) => Inner::Disconnect(cl, cr?),
             Inner::Witness(w) => Inner::Witness(w),
             Inner::Fail(entropy) => Inner::Fail(entropy),
             Inner::Jet(j) => Inner::Jet(j),
@@ -351,13 +375,23 @@ impl<C, J, X, W> Inner<C, J, X, Option<W>> {
     }
 }
 
-impl<C, J: Clone, X, W: Clone> Inner<C, J, X, &W> {
+impl<C, J: Clone, X, W: Copy> Inner<C, J, X, &W> {
     /// Copies witness data.
     ///
     /// Useful in conjunction with [`Inner::as_ref`] when you don't want to
     /// take a reference to witness data.
     pub fn copy_witness(self) -> Inner<C, J, X, W> {
         self.map_witness(W::clone)
+    }
+}
+
+impl<C, J: Clone, X: Copy, W> Inner<C, J, &X, W> {
+    /// Copies disconnect data.
+    ///
+    /// Useful in conjunction with [`Inner::as_ref`] when you don't want to
+    /// take a reference to disconnect data.
+    pub fn copy_disconnect(self) -> Inner<C, J, X, W> {
+        self.map_disconnect(X::clone)
     }
 }
 
