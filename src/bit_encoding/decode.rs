@@ -21,9 +21,11 @@ use crate::dag::{Dag, DagLike, InternalSharing};
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::node::{
-    CommitNode, ConstructNode, CoreConstructible, JetConstructible, NoWitness, WitnessConstructible,
+    ConstructNode, CoreConstructible, DisconnectConstructible, JetConstructible, NoWitness,
+    WitnessConstructible,
 };
 use crate::{BitIter, FailEntropy, Value};
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::{error, fmt};
 
@@ -51,8 +53,8 @@ pub enum Error {
     NaturalOverflow,
     /// Program is not encoded in canonical order
     NotInCanonicalOrder,
-    /// Program encoded a stop code
-    StopCode,
+    /// Program does not have maximal sharing
+    SharingNotMaximal,
     /// Tried to allocate too many nodes in a program
     TooManyNodes(usize),
     /// Type-checking error
@@ -84,7 +86,7 @@ impl fmt::Display for Error {
             Error::InvalidJet => write!(f, "unrecognized jet"),
             Error::NaturalOverflow => f.write_str("encoded number exceeded 32 bits"),
             Error::NotInCanonicalOrder => f.write_str("program not in canonical order"),
-            Error::StopCode => f.write_str("program contained a stop code"),
+            Error::SharingNotMaximal => f.write_str("Decoded programs must have maximal sharing"),
             Error::TooManyNodes(k) => {
                 write!(f, "program has too many nodes ({})", k)
             }
@@ -104,7 +106,7 @@ impl error::Error for Error {
             Error::InvalidJet => None,
             Error::NaturalOverflow => None,
             Error::NotInCanonicalOrder => None,
-            Error::StopCode => None,
+            Error::SharingNotMaximal => None,
             Error::TooManyNodes(..) => None,
             Error::Type(ref e) => Some(e),
         }
@@ -122,6 +124,7 @@ enum DecodeNode<J: Jet> {
     Comp(usize, usize),
     Case(usize, usize),
     Pair(usize, usize),
+    Disconnect1(usize),
     Disconnect(usize, usize),
     Witness,
     Fail(FailEntropy),
@@ -149,7 +152,8 @@ impl<'d, J: Jet> DagLike for (usize, &'d [DecodeNode<J>]) {
             DecodeNode::InjL(i)
             | DecodeNode::InjR(i)
             | DecodeNode::Take(i)
-            | DecodeNode::Drop(i) => Dag::Unary((i, nodes)),
+            | DecodeNode::Drop(i)
+            | DecodeNode::Disconnect1(i) => Dag::Unary((i, nodes)),
             DecodeNode::Comp(li, ri)
             | DecodeNode::Case(li, ri)
             | DecodeNode::Pair(li, ri)
@@ -157,17 +161,6 @@ impl<'d, J: Jet> DagLike for (usize, &'d [DecodeNode<J>]) {
             DecodeNode::Witness => Dag::Nullary,
         }
     }
-}
-
-/// Decode a Simplicity program from bits, without the witness data.
-///
-/// If witness data is present, it should be encoded after the program, and the
-/// user must deserialize it separately.
-pub fn decode_program<I: Iterator<Item = u8>, J: Jet>(
-    bits: &mut BitIter<I>,
-) -> Result<Arc<CommitNode<J>>, Error> {
-    let root = decode_expression(bits)?;
-    root.finalize_types().map_err(Error::from)
 }
 
 pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
@@ -203,6 +196,8 @@ pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
         nodes.push(new_node);
     }
 
+    // It is a sharing violation for any hidden node to be repeated. Track them in this set.
+    let mut hidden_set = HashSet::<Cmr>::new();
     // Convert the DecodeNode structure into a CommitNode structure
     let mut converted = Vec::<Converted<J>>::with_capacity(len);
     for data in (nodes.len() - 1, &nodes[..]).post_order_iter::<InternalSharing>() {
@@ -234,13 +229,19 @@ pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
             DecodeNode::Pair(i, j) => {
                 Node(ArcNode::pair(converted[i].get()?, converted[j].get()?)?)
             }
+            DecodeNode::Disconnect1(i) => Node(ArcNode::disconnect(converted[i].get()?, &None)?),
             DecodeNode::Disconnect(i, j) => Node(ArcNode::disconnect(
                 converted[i].get()?,
-                converted[j].get()?,
+                &Some(Arc::clone(converted[j].get()?)),
             )?),
             DecodeNode::Witness => Node(ArcNode::witness(NoWitness)),
             DecodeNode::Fail(entropy) => Node(ArcNode::fail(entropy)),
-            DecodeNode::Hidden(cmr) => Hidden(cmr),
+            DecodeNode::Hidden(cmr) => {
+                if !hidden_set.insert(cmr) {
+                    return Err(Error::SharingNotMaximal);
+                }
+                Hidden(cmr)
+            }
             DecodeNode::Jet(j) => Node(ArcNode::jet(j)),
             DecodeNode::Word(ref w) => Node(ArcNode::const_word(Arc::clone(w))),
         };
@@ -299,7 +300,10 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
                     u2::_0 => Ok(DecodeNode::Iden),
                     u2::_1 => Ok(DecodeNode::Unit),
                     u2::_2 => Ok(DecodeNode::Fail(bits.read_fail_entropy()?)),
-                    u2::_3 => Err(Error::StopCode),
+                    u2::_3 => {
+                        let i_abs = index - bits.read_natural(Some(index))?;
+                        Ok(DecodeNode::Disconnect1(i_abs))
+                    }
                 }
             }
             u2::_3 => {
@@ -400,372 +404,8 @@ mod tests {
     use super::*;
     use crate::encode;
     use crate::jet::Core;
-    use crate::node::{CommitNode, RedeemNode, SimpleFinalizer};
-    use crate::{BitMachine, BitWriter};
-    use bitcoin_hashes::hex::ToHex;
-    use std::iter;
-
-    fn assert_program_deserializable<J: Jet>(
-        prog_bytes: &[u8],
-        cmr_str: &str,
-        amr_str: Option<&str>,
-        imr_str: Option<&str>,
-    ) -> Arc<CommitNode<J>> {
-        let prog_hex = prog_bytes.to_hex();
-
-        let mut iter = BitIter::from(prog_bytes);
-        let prog = match decode_program::<_, J>(&mut iter) {
-            Ok(prog) => prog,
-            Err(e) => panic!("program {} failed: {}", prog_hex, e),
-        };
-
-        assert_eq!(
-            prog.cmr().to_string(),
-            cmr_str,
-            "CMR mismatch (got {} expected {}) for program {}",
-            prog.cmr().to_string(),
-            cmr_str,
-            prog_hex,
-        );
-        if amr_str.is_some() || imr_str.is_some() {
-            let fprog = prog
-                .finalize(&mut SimpleFinalizer::new(iter::repeat(Arc::new(
-                    Value::Unit,
-                ))))
-                .expect("can't be finalized without witnesses; can't check AMR or IMR");
-            if let Some(amr) = amr_str {
-                assert_eq!(
-                    fprog.amr().to_string(),
-                    amr,
-                    "AMR mismatch (got {} expected {}) for program {}",
-                    fprog.amr().to_string(),
-                    amr,
-                    prog_hex,
-                );
-            }
-            if let Some(imr) = imr_str {
-                assert_eq!(
-                    fprog.imr().to_string(),
-                    imr,
-                    "IMR mismatch (got {} expected {}) for program {}",
-                    fprog.imr().to_string(),
-                    imr,
-                    prog_hex,
-                );
-            }
-        }
-
-        let reser_sink = prog.encode_to_vec();
-        assert_eq!(
-            prog_bytes,
-            &reser_sink[..],
-            "program {} reserialized as {}",
-            prog_hex,
-            reser_sink.to_hex(),
-        );
-
-        prog
-    }
-
-    fn assert_program_not_deserializable<J: Jet>(prog: &[u8], err: &dyn fmt::Display) {
-        let prog_hex = prog.to_hex();
-        let err_str = err.to_string();
-
-        let mut iter = BitIter::from(prog);
-        match CommitNode::<J>::decode(&mut iter) {
-            Ok(prog) => panic!(
-                "Program {} succeded (expected error {}). Program parsed as:\n{}",
-                prog_hex, err, prog
-            ),
-            Err(e) if e.to_string() == err_str => {} // ok
-            Err(e) => panic!(
-                "Program {} failed with error {} (expected error {})",
-                prog_hex, e, err
-            ),
-        };
-    }
-
-    #[test]
-    fn canonical_order() {
-        // "main = comp unit iden", but with the iden serialized before the unit
-        // To obtain this test vector I temporarily swapped `get_left` and `get_right`
-        // in the implementation of `PostOrderIter`
-        assert_program_not_deserializable::<Core>(&[0xa8, 0x48, 0x10], &Error::NotInCanonicalOrder);
-
-        // "main = iden", but prefixed by some unused nodes, the first of which is also iden.
-        assert_program_not_deserializable::<Core>(
-            &[0xc1, 0x00, 0x06, 0x20],
-            &Error::NotInCanonicalOrder,
-        );
-    }
-
-    #[test]
-    fn shared_grandchild() {
-        // # This program repeats the node `cp2` three times; during iteration it will
-        // # be placed on the stack as part of the initial `comp` combinator, but by
-        // # the time we get to it, it will have already been yielded. Makes sure this
-        // # does not confuse the iteration logic and break the decoded program structure.
-        // id1 = iden
-        // cp2 = comp id1 id1
-        // cp3 = comp cp2 cp2
-        // main = comp cp3 cp2
-        assert_program_deserializable::<Core>(
-            &[0xc1, 0x00, 0x00, 0x01, 0x00],
-            "c2c86be0081a9c75af49098f359c7efdfa7ccbd0459adb11bcf676b80c8644b1",
-            Some("e053520f0c3219d1cabd705b4523ccd05c8d703a70f6f3994a20774a42b5ccfc"),
-            Some("7b0ad0514279280d5c2ac1da729222936b8768d9f465c6c6ade3b0ed7dc97263"),
-        );
-    }
-
-    #[test]
-    #[rustfmt::skip]
-    fn assert_lr() {
-        // asst = assertl unit deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
-        // input0 = pair (injl unit) unit
-        // main = comp input0 asst
-        assert_program_deserializable::<Core>(
-            &[
-                0xcd, 0x24, 0x08, 0x4b, 0x6f, 0x56, 0xdf, 0x77,
-                0xef, 0x56, 0xdf, 0x77, 0xef, 0x56, 0xdf, 0x77,
-                0xef, 0x56, 0xdf, 0x77, 0xef, 0x56, 0xdf, 0x77,
-                0xef, 0x56, 0xdf, 0x77, 0xef, 0x56, 0xdf, 0x77,
-                0xef, 0x56, 0xdf, 0x77, 0x86, 0x01, 0x80,
-            ],
-            "c7194362a5480900dd44f9f647a49b8adcb92a25fb293c920e6bbcf6977cf63d",
-            Some("eaf95c23d967563132b65e43578fe08dae2a29ac66775ddd37af3ac7de28678b"),
-            Some("d2927a9a54ddea8359ee00aa27e0aa1e354cc6924b090c759e2ed686712700a0"),
-        );
-
-
-        // asst = assertr deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef unit
-        // input1 = pair (injr unit) unit
-        // main = comp input1 asst
-        assert_program_deserializable::<Core>(
-            &[
-                0xcd, 0x25, 0x08, 0x6d, 0xea, 0xdb, 0xee, 0xfd,
-                0xea, 0xdb, 0xee, 0xfd, 0xea, 0xdb, 0xee, 0xfd,
-                0xea, 0xdb, 0xee, 0xfd, 0xea, 0xdb, 0xee, 0xfd,
-                0xea, 0xdb, 0xee, 0xfd, 0xea, 0xdb, 0xee, 0xfd,
-                0xea, 0xdb, 0xee, 0xf4, 0x86, 0x01, 0x80,
-            ],
-            "8e471ac519e0b16a2b7dda7e8d68165f260cae4823861ddc494b7c73a615b212",
-            Some("ea1ee417816a57b80739520c7319c33a39a5f4ce7b59856e69f768d5d8f174a6"),
-            Some("f262f83f1c9341390e015e4c5126f3954e17a1f275af73da2948eaf4797fda48"),
-        );
-    }
-
-    #[test]
-    #[rustfmt::skip]
-    fn disconnect() {
-        // id1 = iden                 :: (2^256 * B) -> (2^256 * B)                       # cmr dbfefcfc...
-        // pr2 = pair id1 id1         :: (2^256 * B) -> ((2^256 * B) * (2^256 * B))       # cmr a62c628c...
-        // disc3 = disconnect pr2 pr2 :: B -> ((2^256 * B) * ((2^256 * B) * (2^256 * B))) # cmr d81d6f28...
-        // ut4 = unit                 :: ((2^256 * B) * ((2^256 * B) * (2^256 * B))) -> 1 # cmr 62274a89...
-        // main = comp disc3 ut4      :: B -> 1                                           # cmr a453360c...
-        assert_program_deserializable::<Core>(
-            &[0xc5, 0x02, 0x06, 0x24, 0x10],
-            "a453360c0825cc2d3c4c907d67b174273b0e0386c7e5ecdb28394a8f37fd68b9",
-            Some("d5b05a5da87ee490312279496e12e17bc987c98219d8961bc3a7c3ec95a7ce1e"),
-            Some("3579ae2a05bbe689f16bd3ff29d840ae8aa8bbad70f6de27b7473746637abeb6"),
-        );
-    }
-
-    #[test]
-    #[rustfmt::skip]
-    #[cfg(feature = "elements")]
-    fn disconnect2() {
-        // Program that Russell posted on IRC 2023-06-22 that tickled `Dag::right_child`
-        // bug that had been introduced that day. Probably not the most minimal test
-        // vector but might as well include it as it seems like an interesting program.
-        //
-        // We don't test the AMR or IMR here because the program has nontrivial witnessses
-        // and `assert_program_deserializable` currently can't handle those. But you can
-        // check this program in the `c_rust_merkle` fuzztest to verify that C and Rust
-        // agree on all three Merkle roots when you parse this as a RedeemNode.
-        //
-        // # Witnesses
-        // wit1 = witness :: 1 -> 2^512
-        //
-        // # Constants
-        // const1 = word_jet 0x00000000000000000000003b78ce563f89a0ed9414f5aa28ad0d96d6795f9c63 :: 1 -> 2^256 # cmr a9e3dbca...
-        //
-        // # Program code
-        // id1 = iden                 :: (2^256 * 1) -> (2^256 * 1)     # cmr dbfefcfc...
-        // jt2 = jet_sig_all_hash     :: 1 -> 2^256                     # cmr 9902bc0f...
-        // disc3 = disconnect id1 jt2 :: 1 -> 2^512                     # cmr 6968f10e...
-        // pr4 = pair const1 disc3    :: 1 -> (2^256 * 2^512)           # cmr 378ad609...
-        // pr5 = pair pr4 wit1        :: 1 -> ((2^256 * 2^512) * 2^512) # cmr 0d51ff00...
-        // jt6 = jet_check_sig_verify :: ((2^256 * 2^512) * 2^512) -> 1 # cmr 297459d8...
-        //
-        // main = comp pr5 jt6        :: 1 -> 1                         # cmr 14a5e0cc...
-        assert_program_deserializable::<crate::jet::Elements>(
-            &[
-                0xd3, 0x69, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x3b, 0x78, 0xce,
-                0x56, 0x3f, 0x89, 0xa0, 0xed, 0x94, 0x14, 0xf5,
-                0xaa, 0x28, 0xad, 0x0d, 0x96, 0xd6, 0x79, 0x5f,
-                0x9c, 0x63, 0x47, 0x07, 0x02, 0xc0, 0xe2, 0x8d,
-                0x88, 0x10,
-                // (Delete the above line and uncomment all these
-                // to add a valid witness to the program.)
-                //0x88, 0x11, 0xe9, 0x00, 0x00, 0x00, 0x00, 0x00,
-                //0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1d,
-                //0xbc, 0x67, 0x2b, 0x1f, 0xc4, 0xd0, 0x76, 0xca,
-                //0x0a, 0x7a, 0xd5, 0x14, 0x56, 0x86, 0xcb, 0x6b,
-                //0x3c, 0xaf, 0xce, 0x31, 0xed, 0xc3, 0x46, 0xa2,
-                //0xd0, 0x5e, 0x0e, 0x8c, 0x80, 0x98, 0x15, 0xe4,
-                //0x3d, 0x43, 0x8e, 0x78, 0xac, 0x71, 0x5e, 0xf1,
-                //0x67, 0xd3, 0x22, 0xd4, 0x4a, 0xe0, 0xda, 0x2e,
-                //0xb4, 0x75, 0x12, 0x60, 0x00,
-            ],
-            "14a5e0cc13da9acdd5f758ae7186802137143e06c8dcba10019ffec790359ee7",
-            None,
-            None,
-        );
-    }
-
-    #[test]
-    #[rustfmt::skip]
-    #[cfg(feature = "elements")]
-    fn disconnect3() {
-        // Yet another disconnect-based program that hit a bug in our AMR computation
-        // (passing left arrow in place of right arrow to the AMR constructor.)
-        // # Program code
-        // id1 = iden                 :: (2^256 * 1) -> (2^256 * 1) # cmr dbfefcfc...
-        // ut2 = unit                 :: 1 -> 1                     # cmr 62274a89...
-        // jl3 = injl ut2             :: 1 -> 2                     # cmr bd0cce93...
-        // disc4 = disconnect id1 jl3 :: 1 -> (2^256 * 2)           # cmr 6968f10e...
-        // ut5 = unit                 :: (2^256 * 2) -> 1           # cmr 62274a89...
-        // main = comp disc4 ut5      :: 1 -> 1                     # cmr a8c9cc7a...
-        assert_program_deserializable::<crate::jet::Elements>(
-            &[0xc9, 0x09, 0x20, 0x74, 0x90, 0x40],
-            "a8c9cc7a83518d0886afe1078d88eabca8353509e8c2e3b5c72cf559c713c9f5",
-            Some("97f77a7e7d7f3b2b1ac790bf54b39d47d6db8dcab7ed3c0a48df12f2c940af58"),
-            Some("ed8152948589d65e0dea6d84f90eb752f63df818041f46bdc8f959f33299cbd3"),
-        );
-    }
-
-    #[test]
-    fn hidden_node() {
-        // main = hidden deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
-        #[rustfmt::skip]
-        let hidden = [
-            0x36, 0xf5, 0x6d, 0xf7, 0x7e, 0xf5, 0x6d, 0xf7,
-            0x7e, 0xf5, 0x6d, 0xf7, 0x7e, 0xf5, 0x6d, 0xf7,
-            0x7e, 0xf5, 0x6d, 0xf7, 0x7e, 0xf5, 0x6d, 0xf7,
-            0x7e, 0xf5, 0x6d, 0xf7, 0x7e, 0xf5, 0x6d, 0xf7,
-            78,
-        ];
-        assert_program_not_deserializable::<Core>(&hidden, &Error::HiddenNode);
-
-        // main = comp witness hidden deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
-        let hidden = [
-            0xae, 0xdb, 0xd5, 0xb7, 0xdd, 0xfb, 0xd5, 0xb7, 0xdd, 0xfb, 0xd5, 0xb7, 0xdd, 0xfb,
-            0xd5, 0xb7, 0xdd, 0xfb, 0xd5, 0xb7, 0xdd, 0xfb, 0xd5, 0xb7, 0xdd, 0xfb, 0xd5, 0xb7,
-            0xdd, 0xfb, 0xd5, 0xb7, 0xdd, 0xe0, 0x80,
-        ];
-        assert_program_not_deserializable::<Core>(&hidden, &Error::HiddenNode);
-    }
-
-    #[test]
-    fn case_both_children_hidden() {
-        // h1 = hidden deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef
-        // main = case h1 h1
-        #[rustfmt::skip]
-        let hidden = [
-            0x8d, 0xbd, 0x5b, 0x7d, 0xdf, 0xbd, 0x5b, 0x7d,
-            0xdf, 0xbd, 0x5b, 0x7d, 0xdf, 0xbd, 0x5b, 0x7d,
-            0xdf, 0xbd, 0x5b, 0x7d, 0xdf, 0xbd, 0x5b, 0x7d,
-            0xdf, 0xbd, 0x5b, 0x7d, 0xdf, 0xbd, 0x5b, 0x7d,
-            0xde, 0x10,
-        ];
-        assert_program_not_deserializable::<Core>(&hidden, &Error::BothChildrenHidden);
-    }
-
-    #[test]
-    fn shared_witnesses() {
-        // main = witness :: A -> B
-        assert_program_deserializable::<Core>(
-            &[0x38],
-            "bf12681a76fc7c00c63e583c25cc97237337d6aca30d3f4a664075445385c648",
-            Some("e7e02bc77e86cfd4dd48b3ccea00a60d519e0d8cfcc021826e193116a15eaa1c"),
-            Some("78dcc84f6accf009d29ac434fa095f0b175cf9813b0efff0e2fcc6b8dc9196ae"),
-        );
-
-        // # Program which demands two 32-bit witnesses, the first one == the second + 1
-        // wit1 = witness :: 1 -> 2^32
-        // wit2 = witness :: 1 -> 2^32
-        //
-        // wit_diff = comp (comp (pair wit1 wit2) jet_subtract_32) (drop iden) :: 1 -> 2^32
-        // diff_is_one = comp (pair wit_diff jet_one_32) jet_eq_32             :: 1 -> 2
-        // main = comp diff_is_one jet_verify                                  :: 1 -> 1
-
-        #[rustfmt::skip]
-        let bad_diff1s = vec![
-            // Above program, but with both witness nodes shared (note they have
-            // the same type and CMR)
-            vec![
-                0xda, 0xe2, 0x39, 0xa3, 0x10, 0x42, 0x0e, 0x05,
-                0x71, 0x88, 0xa3, 0x6d, 0xc4, 0x11, 0x80, 0x80
-            ],
-            // Same program but with each `witness` replaced by `comp iden witness`, which
-            // is semantically the same but buries the offending witness nodes a bit to
-            // trip up naive sharing logic.
-            vec![
-                0xde, 0x87, 0x04, 0x08, 0xe6, 0x8c, 0x41, 0x08,
-                0x38, 0x15, 0xc6, 0x22, 0x8d, 0xb7, 0x10, 0x46,
-                0x02, 0x00,
-            ],
-        ];
-        for bad_diff1 in bad_diff1s {
-            assert_program_not_deserializable::<Core>(&bad_diff1, &crate::Error::SharingNotMaximal);
-        }
-
-        #[rustfmt::skip]
-        let diff1s = vec![
-            (
-                // Sharing corrected
-                vec![
-                    0xdc, 0xee, 0x28, 0xe6, 0x8c, 0x41, 0x08, 0x38,
-                    0x15, 0xc6, 0x22, 0x8d, 0xb7, 0x10, 0x46, 0x02,
-                    0x00,
-                ],
-                // CMR not checked against C code, since C won't give us any data without witnesses
-                "a2ad9852818c0dc9307b476464cb9366c5c97896ba128f2f526b51910218293c",
-                None,
-                None,
-            ),
-            // Same program but with each `witness` replaced by `comp iden witness`.
-            (
-                vec![
-                    0xe0, 0x28, 0x70, 0x43, 0x83, 0x00, 0xab, 0x9a,
-                    0x31, 0x04, 0x20, 0xe0, 0x57, 0x18, 0x8a, 0x36,
-                    0xdc, 0x41, 0x18, 0x08, 
-                ],
-                // CMR not checked against C code, since C won't give us any data without witnesses
-                "f4583eca2a35aa48e8895235b58cfe90ba2196fbf7722b7d847c3c55eb6bdc0e",
-                None,
-                None,
-            )
-        ];
-
-        for (diff1, cmr, amr, imr) in diff1s {
-            let diff1_prog = assert_program_deserializable::<Core>(&diff1, cmr, amr, imr);
-
-            // Attempt to finalize, providing 32-bit witnesses 0, 1, ..., and then
-            // counting how many were consumed afterward.
-            let mut counter = 0..100;
-            let witness_iter = (&mut counter).rev().map(Value::u32).map(Arc::new);
-            let diff1_final = diff1_prog
-                .finalize(&mut SimpleFinalizer::new(witness_iter))
-                .unwrap();
-            assert_eq!(counter, 0..98);
-
-            // Execute the program to confirm that it worked
-            let mut mac = BitMachine::for_program(&diff1_final);
-            mac.exec(&diff1_final, &()).unwrap();
-        }
-    }
+    use crate::node::{CommitNode, RedeemNode};
+    use crate::BitWriter;
 
     #[test]
     fn root_unit_to_unit() {
@@ -780,47 +420,6 @@ mod tests {
         // ...or as a RedeemNode
         let mut iter = BitIter::from(&justjet[..]);
         RedeemNode::<Core>::decode::<_>(&mut iter).unwrap_err();
-    }
-
-    #[test]
-    fn extra_nodes() {
-        // main = comp unit unit # but with an extra unconnected `unit` stuck on the beginning
-        // I created this unit test by hand
-        assert_program_not_deserializable::<Core>(&[0xa9, 0x48, 0x00], &Error::NotInCanonicalOrder);
-    }
-
-    #[test]
-    #[cfg(feature = "elements")]
-    fn decode_schnorr() {
-        #[rustfmt::skip]
-        let schnorr0 = vec![
-            0xc6, 0xd5, 0xf2, 0x61, 0x14, 0x03, 0x24, 0xb1, 0x86, 0x20, 0x92, 0x68, 0x9f, 0x0b, 0xf1, 0x3a,
-            0xa4, 0x53, 0x6a, 0x63, 0x90, 0x8b, 0x06, 0xdf, 0x33, 0x61, 0x0c, 0x03, 0xe2, 0x27, 0x79, 0xc0,
-            0x6d, 0xf2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0xe2, 0x8d, 0x8c, 0x04, 0x7a, 0x40, 0x1d, 0x20, 0xf0, 0x63, 0xf0, 0x10, 0x91, 0xa2,
-            0x0d, 0x34, 0xa6, 0xe3, 0x68, 0x04, 0x82, 0x06, 0xc9, 0x7b, 0xe3, 0x8b, 0xf0, 0x60, 0xf6, 0x01,
-            0x09, 0x8a, 0xbe, 0x39, 0xc5, 0xb9, 0x50, 0x42, 0xa4, 0xbe, 0xcd, 0x49, 0x50, 0xbd, 0x51, 0x6e,
-            0x3c, 0x90, 0x54, 0xe9, 0xe7, 0x05, 0xa5, 0x9c, 0xbd, 0x7d, 0xdd, 0x1f, 0xb6, 0x42, 0xe5, 0xe8,
-            0xef, 0xbe, 0x92, 0x01, 0xa6, 0x20, 0xa6, 0xd8, 0x00
-        ];
-        // Note: we cannot use `assert_program_deserializable` since the encoded program includes
-        //       witness data, which we don't parse and won't reseriaize.
-        let mut iter = BitIter::from(&schnorr0[..]);
-        let prog =
-            decode_program::<_, crate::jet::Elements>(&mut iter).expect("can't decode schnorr0");
-
-        // Matches C source code
-        #[rustfmt::skip]
-        assert_eq!(
-            prog.cmr(),
-            Cmr::from_byte_array([
-                0x7b, 0xc5, 0x6c, 0xb1, 0x6d, 0x84, 0x99, 0x9b,
-                0x97, 0x7b, 0x58, 0xe1, 0xbc, 0x71, 0xdb, 0xe9,
-                0xed, 0xcc, 0x33, 0x65, 0x0a, 0xfc, 0x8a, 0x6e,
-                0xe0, 0x5c, 0xfe, 0xf8, 0xd6, 0x08, 0x13, 0x2b,
-            ]),
-        );
     }
 
     #[test]

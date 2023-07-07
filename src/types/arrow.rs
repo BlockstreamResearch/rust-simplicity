@@ -26,7 +26,10 @@
 use std::fmt;
 use std::sync::Arc;
 
-use crate::node::{CoreConstructible, JetConstructible, WitnessConstructible};
+use crate::node::{
+    CoreConstructible, DisconnectConstructible, JetConstructible, NoDisconnect,
+    WitnessConstructible,
+};
 use crate::types::{Bound, Error, Final, Type};
 use crate::{jet::Jet, Value};
 
@@ -335,16 +338,39 @@ impl CoreConstructible for Arrow {
         Self::for_pair(left, right)
     }
 
-    fn disconnect(left: &Self, right: &Self) -> Result<Self, Error> {
-        Self::for_disconnect(left, right)
-    }
-
     fn fail(_: crate::FailEntropy) -> Self {
         Self::for_fail()
     }
 
     fn const_word(word: Arc<Value>) -> Self {
         Self::for_const_word(&word)
+    }
+}
+
+impl DisconnectConstructible<Arrow> for Arrow {
+    fn disconnect(left: &Self, right: &Self) -> Result<Self, Error> {
+        Self::for_disconnect(left, right)
+    }
+}
+
+impl DisconnectConstructible<NoDisconnect> for Arrow {
+    fn disconnect(left: &Self, _: &NoDisconnect) -> Result<Self, Error> {
+        Self::for_disconnect(
+            left,
+            &Arrow {
+                source: Type::free("disc_src".into()),
+                target: Type::free("disc_tgt".into()),
+            },
+        )
+    }
+}
+
+impl DisconnectConstructible<Option<&Arrow>> for Arrow {
+    fn disconnect(left: &Self, right: &Option<&Self>) -> Result<Self, Error> {
+        match *right {
+            Some(right) => Self::disconnect(left, right),
+            None => Self::disconnect(left, &NoDisconnect),
+        }
     }
 }
 

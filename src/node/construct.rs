@@ -22,8 +22,10 @@ use std::io;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use super::{Commit, CommitData, CommitNode, Converter, Inner, Marker, NoWitness, Node};
-use super::{CoreConstructible, JetConstructible, WitnessConstructible};
+use super::{
+    Commit, CommitData, CommitNode, Converter, Inner, Marker, NoDisconnect, NoWitness, Node,
+};
+use super::{CoreConstructible, DisconnectConstructible, JetConstructible, WitnessConstructible};
 
 /// ID used to share [`ConstructNode`]s.
 ///
@@ -43,6 +45,7 @@ pub struct Construct<J> {
 impl<J: Jet> Marker for Construct<J> {
     type CachedData = ConstructData<J>;
     type Witness = NoWitness;
+    type Disconnect = Option<Arc<ConstructNode<J>>>;
     type SharingId = ConstructId;
     type Jet = J;
 
@@ -67,7 +70,7 @@ impl<J: Jet> ConstructNode<J> {
             .unify(&unit_ty, "setting root source to unit")?;
         self.arrow()
             .target
-            .unify(&unit_ty, "setting root source to unit")?;
+            .unify(&unit_ty, "setting root target to unit")?;
         Ok(())
     }
 
@@ -77,7 +80,7 @@ impl<J: Jet> ConstructNode<J> {
     /// certainly what you want, since the resulting `CommitNode` cannot be further
     /// composed, and needs to be 1->1 to go on-chain. But if you don't, call
     /// [`Self::finalize_types_without_fixing`] instead.
-    pub fn finalize_types(&self) -> Result<Arc<CommitNode<J>>, types::Error> {
+    pub fn finalize_types(&self) -> Result<Arc<CommitNode<J>>, crate::Error> {
         self.set_arrow_to_program()?;
         self.finalize_types_non_program()
     }
@@ -85,11 +88,11 @@ impl<J: Jet> ConstructNode<J> {
     /// Convert a [`ConstructNode`] to a [`CommitNode`] by finalizing all of the types.
     ///
     /// Does *not* sets the source and target type of this node to unit.
-    pub fn finalize_types_non_program(&self) -> Result<Arc<CommitNode<J>>, types::Error> {
+    pub fn finalize_types_non_program(&self) -> Result<Arc<CommitNode<J>>, crate::Error> {
         struct FinalizeTypes<J: Jet>(PhantomData<J>);
 
         impl<J: Jet> Converter<Construct<J>, Commit<J>> for FinalizeTypes<J> {
-            type Error = types::Error;
+            type Error = crate::Error;
             fn convert_witness(
                 &mut self,
                 _: &PostOrderIterItem<&ConstructNode<J>>,
@@ -98,13 +101,28 @@ impl<J: Jet> ConstructNode<J> {
                 Ok(NoWitness)
             }
 
+            fn convert_disconnect(
+                &mut self,
+                _: &PostOrderIterItem<&ConstructNode<J>>,
+                maybe_converted: Option<&Arc<CommitNode<J>>>,
+                _: &Option<Arc<ConstructNode<J>>>,
+            ) -> Result<NoDisconnect, Self::Error> {
+                if maybe_converted.is_some() {
+                    Err(crate::Error::DisconnectCommitTime)
+                } else {
+                    Ok(NoDisconnect)
+                }
+            }
+
             fn convert_data(
                 &mut self,
                 data: &PostOrderIterItem<&ConstructNode<J>>,
-                inner: Inner<&Arc<CommitNode<J>>, J, &NoWitness>,
+                inner: Inner<&Arc<CommitNode<J>>, J, &NoDisconnect, &NoWitness>,
             ) -> Result<Arc<CommitData<J>>, Self::Error> {
                 let converted_data = inner.map(|node| node.cached_data());
-                CommitData::new(&data.node.data.arrow, converted_data).map(Arc::new)
+                CommitData::new(&data.node.data.arrow, converted_data)
+                    .map(Arc::new)
+                    .map_err(crate::Error::from)
             }
         }
 
@@ -236,13 +254,6 @@ impl<J> CoreConstructible for ConstructData<J> {
         })
     }
 
-    fn disconnect(left: &Self, right: &Self) -> Result<Self, types::Error> {
-        Ok(ConstructData {
-            arrow: Arrow::disconnect(&left.arrow, &right.arrow)?,
-            phantom: PhantomData,
-        })
-    }
-
     fn fail(entropy: FailEntropy) -> Self {
         ConstructData {
             arrow: Arrow::fail(entropy),
@@ -255,6 +266,19 @@ impl<J> CoreConstructible for ConstructData<J> {
             arrow: Arrow::const_word(word),
             phantom: PhantomData,
         }
+    }
+}
+
+impl<J: Jet> DisconnectConstructible<Option<Arc<ConstructNode<J>>>> for ConstructData<J> {
+    fn disconnect(
+        left: &Self,
+        right: &Option<Arc<ConstructNode<J>>>,
+    ) -> Result<Self, types::Error> {
+        let right = right.as_ref();
+        Ok(ConstructData {
+            arrow: Arrow::disconnect(&left.arrow, &right.map(|n| n.arrow()))?,
+            phantom: PhantomData,
+        })
     }
 }
 
@@ -284,12 +308,12 @@ mod tests {
     #[test]
     fn occurs_check_error() {
         let iden = Arc::<ConstructNode<Core>>::iden();
-        let node = Arc::<ConstructNode<Core>>::disconnect(&iden, &iden).unwrap();
+        let node = Arc::<ConstructNode<Core>>::disconnect(&iden, &Some(Arc::clone(&iden))).unwrap();
 
-        if let Err(types::Error::OccursCheck { .. }) = node.finalize_types_non_program() {
-        } else {
-            panic!("Expected occurs check error")
-        }
+        assert!(matches!(
+            node.finalize_types_non_program(),
+            Err(crate::Error::Type(types::Error::OccursCheck)),
+        ));
     }
 
     #[test]
@@ -306,10 +330,10 @@ mod tests {
         let comp1 = Arc::<ConstructNode<Core>>::comp(&case2, &case2).unwrap();
         let comp2 = Arc::<ConstructNode<Core>>::comp(&comp1, &case1).unwrap();
 
-        if let Err(types::Error::OccursCheck { .. }) = comp2.finalize_types_non_program() {
-        } else {
-            panic!("Expected occurs check error")
-        }
+        assert!(matches!(
+            comp2.finalize_types_non_program(),
+            Err(crate::Error::Type(types::Error::OccursCheck)),
+        ));
     }
 
     #[test]
@@ -333,10 +357,10 @@ mod tests {
         let comp7 = Arc::<ConstructNode<Core>>::comp(&case3, &case3).unwrap();
         let comp8 = Arc::<ConstructNode<Core>>::comp(&comp7, &comp7).unwrap();
 
-        if let Err(types::Error::OccursCheck { .. }) = comp8.finalize_types_non_program() {
-        } else {
-            panic!("Expected occurs check error")
-        }
+        assert!(matches!(
+            comp8.finalize_types_non_program(),
+            Err(crate::Error::Type(types::Error::OccursCheck)),
+        ));
     }
 
     #[test]
@@ -344,11 +368,10 @@ mod tests {
         let unit = Arc::<ConstructNode<Core>>::unit();
         let case = Arc::<ConstructNode<Core>>::case(&unit, &unit).unwrap();
 
-        if let Err(types::Error::Bind { .. }) = Arc::<ConstructNode<Core>>::disconnect(&case, &unit)
-        {
-        } else {
-            panic!("Expected type check error")
-        }
+        assert!(matches!(
+            Arc::<ConstructNode<Core>>::disconnect(&case, &Some(unit)),
+            Err(types::Error::Bind { .. }),
+        ));
     }
 
     #[test]

@@ -18,7 +18,7 @@ use std::collections::{hash_map::Entry, HashMap};
 use std::fmt;
 use std::sync::Arc;
 
-use crate::node::{self, Node};
+use crate::node::{self, Disconnectable, Node};
 
 /// Abstract node of a directed acyclic graph.
 ///
@@ -33,6 +33,17 @@ pub enum Dag<T> {
     Unary(T),
     /// Combinator with two children
     Binary(T, T),
+}
+
+impl<T> Dag<T> {
+    /// Given a DAG of one type, convert it to a DAG of another type.
+    pub fn map<U, F: FnMut(T) -> U>(self, mut f: F) -> Dag<U> {
+        match self {
+            Dag::Nullary => Dag::Nullary,
+            Dag::Unary(t) => Dag::Unary(f(t)),
+            Dag::Binary(tl, tr) => Dag::Binary(f(tl), f(tr)),
+        }
+    }
 }
 
 /// How much sharing/expansion to do when running an iterator over a DAG
@@ -389,8 +400,8 @@ impl<'a, N: node::Marker> DagLike for &'a Node<N> {
             | node::Inner::AssertR(_, ref sub) => Dag::Unary(sub),
             node::Inner::Comp(ref left, ref right)
             | node::Inner::Case(ref left, ref right)
-            | node::Inner::Pair(ref left, ref right)
-            | node::Inner::Disconnect(ref left, ref right) => Dag::Binary(left, right),
+            | node::Inner::Pair(ref left, ref right) => Dag::Binary(left, right),
+            node::Inner::Disconnect(ref left, ref right) => right.disconnect_dag_ref(left),
             node::Inner::Witness(..) => Dag::Nullary,
         }
     }
@@ -419,8 +430,8 @@ impl<N: node::Marker> DagLike for Arc<Node<N>> {
             | node::Inner::AssertR(_, ref sub) => Dag::Unary(Arc::clone(sub)),
             node::Inner::Comp(ref left, ref right)
             | node::Inner::Case(ref left, ref right)
-            | node::Inner::Pair(ref left, ref right)
-            | node::Inner::Disconnect(ref left, ref right) => Dag::Binary(Arc::clone(left), Arc::clone(right)),
+            | node::Inner::Pair(ref left, ref right) => Dag::Binary(Arc::clone(left), Arc::clone(right)),
+            node::Inner::Disconnect(ref left, ref right) => right.clone().disconnect_dag_arc(Arc::clone(left)),
             node::Inner::Witness(..) => Dag::Nullary,
         }
     }

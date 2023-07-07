@@ -21,15 +21,30 @@
 
 use crate::dag::{Dag, DagLike, PostOrderIterItem, SharingTracker};
 use crate::jet::Jet;
-use crate::node;
+use crate::node::{self, Disconnectable};
 use crate::{BitWriter, Cmr, Value};
+
 use std::collections::{hash_map::Entry, HashMap};
+use std::sync::Arc;
 use std::{hash, io, mem};
 
 #[derive(Copy, Clone)]
 enum EncodeNode<'n, N: node::Marker> {
     Node(&'n node::Node<N>),
     Hidden(Cmr),
+}
+
+impl<'n, N: node::Marker> Disconnectable<EncodeNode<'n, N>> for EncodeNode<'n, N> {
+    fn disconnect_dag_arc(self, other: Arc<EncodeNode<'n, N>>) -> Dag<Arc<EncodeNode<'n, N>>> {
+        Dag::Binary(other, Arc::new(self))
+    }
+
+    fn disconnect_dag_ref<'s>(
+        &'s self,
+        other: &'s EncodeNode<'n, N>,
+    ) -> Dag<&'s EncodeNode<'n, N>> {
+        Dag::Binary(other, self)
+    }
 }
 
 impl<'n, N: node::Marker> DagLike for EncodeNode<'n, N> {
@@ -55,9 +70,11 @@ impl<'n, N: node::Marker> DagLike for EncodeNode<'n, N> {
             | node::Inner::Drop(sub) => Dag::Unary(EncodeNode::Node(sub)),
             node::Inner::Comp(left, right)
             | node::Inner::Case(left, right)
-            | node::Inner::Pair(left, right)
-            | node::Inner::Disconnect(left, right) => {
+            | node::Inner::Pair(left, right) => {
                 Dag::Binary(EncodeNode::Node(left), EncodeNode::Node(right))
+            }
+            node::Inner::Disconnect(left, right) => {
+                right.disconnect_dag_ref(left).map(EncodeNode::Node)
             }
             node::Inner::AssertL(left, rcmr) => {
                 Dag::Binary(EncodeNode::Node(left), EncodeNode::Hidden(*rcmr))
@@ -222,6 +239,9 @@ fn encode_node<W: io::Write, N: node::Marker>(
                 }
                 node::Inner::Drop(_) => {
                     w.write_bits_be(0b00111, 5)?;
+                }
+                node::Inner::Disconnect(_, _) => {
+                    w.write_bits_be(0b01011, 5)?;
                 }
                 _ => unreachable!(),
             };

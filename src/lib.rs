@@ -73,6 +73,10 @@ use std::fmt;
 pub enum Error {
     /// Decoder error
     Decode(crate::decode::Error),
+    /// A disconnect node was populated at commitment time
+    DisconnectCommitTime,
+    /// A disconnect node was *not* populated at redeem time
+    DisconnectRedeemTime,
     /// Type-checking error
     Type(crate::types::Error),
     /// Witness iterator ended early
@@ -88,14 +92,18 @@ pub enum Error {
     /// Policy error
     #[cfg(feature = "elements")]
     Policy(policy::Error),
-    /// Program does not have maximal sharing
-    SharingNotMaximal,
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Error::Decode(ref e) => fmt::Display::fmt(e, f),
+            Error::DisconnectCommitTime => {
+                f.write_str("disconnect node had two children (commit time); must have one")
+            }
+            Error::DisconnectRedeemTime => {
+                f.write_str("disconnect node had one child (redeem time); must have two")
+            }
             Error::Type(ref e) => fmt::Display::fmt(e, f),
             Error::IncompleteFinalization => f.write_str("unable to satisfy program"),
             Error::InconsistentWitnessLength => {
@@ -106,7 +114,6 @@ impl fmt::Display for Error {
             Error::MiniscriptError(ref e) => fmt::Display::fmt(e, f),
             #[cfg(feature = "elements")]
             Error::Policy(ref e) => fmt::Display::fmt(e, f),
-            Error::SharingNotMaximal => f.write_str("Decoded programs must have maximal sharing"),
         }
     }
 }
@@ -115,12 +122,13 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match *self {
             Error::Decode(ref e) => Some(e),
+            Error::DisconnectCommitTime => None,
+            Error::DisconnectRedeemTime => None,
             Error::Type(ref e) => Some(e),
             Error::NoMoreWitnesses => None,
             Error::IncompleteFinalization => None,
             Error::InconsistentWitnessLength => None,
             Error::InvalidJetName(..) => None,
-            Error::SharingNotMaximal => None,
             Error::MiniscriptError(ref e) => Some(e),
             #[cfg(feature = "elements")]
             Error::Policy(ref e) => Some(e),

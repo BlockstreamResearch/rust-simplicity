@@ -85,6 +85,7 @@ use std::{fmt, hash};
 mod commit;
 mod construct;
 mod convert;
+mod disconnect;
 mod inner;
 mod redeem;
 mod witness;
@@ -92,6 +93,7 @@ mod witness;
 pub use commit::{Commit, CommitData, CommitNode};
 pub use construct::{Construct, ConstructData, ConstructNode};
 pub use convert::{Converter, Hide, SimpleFinalizer};
+pub use disconnect::{Disconnectable, NoDisconnect};
 pub use inner::Inner;
 pub use redeem::{Redeem, RedeemData, RedeemNode};
 pub use witness::{Witness, WitnessData, WitnessNode};
@@ -108,6 +110,9 @@ pub trait Marker:
     /// Type of witness data attached to DAGs of this node type. Typically either [`Value`]
     /// or [`NoWitness`].
     type Witness: Clone;
+
+    /// Type of disconnect data attached to DAGs of this node type.
+    type Disconnect: Disconnectable<Node<Self>> + Clone;
 
     /// A type which uniquely identifies a node, for purposes of sharing
     /// during iteration over the DAG.
@@ -128,10 +133,14 @@ pub trait Marker:
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct NoWitness;
 
-pub trait Constructible<W, J>:
-    JetConstructible<J> + WitnessConstructible<W> + CoreConstructible + Sized
+pub trait Constructible<J, X, W>:
+    JetConstructible<J>
+    + DisconnectConstructible<X>
+    + WitnessConstructible<W>
+    + CoreConstructible
+    + Sized
 {
-    fn from_inner(inner: Inner<&Self, J, W>) -> Result<Self, types::Error> {
+    fn from_inner(inner: Inner<&Self, J, &X, W>) -> Result<Self, types::Error> {
         match inner {
             Inner::Iden => Ok(Self::iden()),
             Inner::Unit => Ok(Self::unit()),
@@ -153,8 +162,12 @@ pub trait Constructible<W, J>:
     }
 }
 
-impl<W, J, T> Constructible<W, J> for T where
-    T: JetConstructible<J> + WitnessConstructible<W> + CoreConstructible + Sized
+impl<J, X, W, T> Constructible<J, X, W> for T where
+    T: DisconnectConstructible<X>
+        + JetConstructible<J>
+        + WitnessConstructible<W>
+        + CoreConstructible
+        + Sized
 {
 }
 
@@ -170,7 +183,6 @@ pub trait CoreConstructible: Sized {
     fn assertl(left: &Self, right: Cmr) -> Result<Self, types::Error>;
     fn assertr(left: Cmr, right: &Self) -> Result<Self, types::Error>;
     fn pair(left: &Self, right: &Self) -> Result<Self, types::Error>;
-    fn disconnect(left: &Self, right: &Self) -> Result<Self, types::Error>;
     fn fail(entropy: FailEntropy) -> Self;
     fn const_word(word: Arc<Value>) -> Self;
 
@@ -293,6 +305,10 @@ pub trait CoreConstructible: Sized {
     }
 }
 
+pub trait DisconnectConstructible<X>: Sized {
+    fn disconnect(left: &Self, right: &X) -> Result<Self, types::Error>;
+}
+
 pub trait JetConstructible<J>: Sized {
     fn jet(jet: J) -> Self;
 }
@@ -314,9 +330,8 @@ pub trait WitnessConstructible<W>: Sized {
 /// CMR and cached data. Users who create custom nodes should define a custom type
 /// for [`Marker::CachedData`] and think carefully about whether and how to
 /// implement the [`std::hash::Hash`] or equality traits.
-#[derive(Debug)]
 pub struct Node<N: Marker> {
-    inner: Inner<Arc<Node<N>>, N::Jet, N::Witness>,
+    inner: Inner<Arc<Node<N>>, N::Jet, N::Disconnect, N::Witness>,
     cmr: Cmr,
     data: N::CachedData,
 }
@@ -338,6 +353,15 @@ where
     fn hash<H: hash::Hasher>(&self, h: &mut H) {
         self.cmr.hash(h);
         self.data.hash(h);
+    }
+}
+
+impl<N: Marker> fmt::Debug for Node<N>
+where
+    for<'a> &'a Node<N>: DagLike,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
     }
 }
 
@@ -447,14 +471,6 @@ where
         }))
     }
 
-    fn disconnect(left: &Self, right: &Self) -> Result<Self, types::Error> {
-        Ok(Arc::new(Node {
-            cmr: Cmr::disconnect(left.cmr()),
-            data: N::CachedData::disconnect(&left.data, &right.data)?,
-            inner: Inner::Disconnect(Arc::clone(left), Arc::clone(right)),
-        }))
-    }
-
     fn fail(entropy: FailEntropy) -> Self {
         Arc::new(Node {
             cmr: Cmr::fail(entropy),
@@ -469,6 +485,20 @@ where
             data: N::CachedData::const_word(Arc::clone(&value)),
             inner: Inner::Word(value),
         })
+    }
+}
+
+impl<N> DisconnectConstructible<N::Disconnect> for Arc<Node<N>>
+where
+    N: Marker,
+    N::CachedData: DisconnectConstructible<N::Disconnect>,
+{
+    fn disconnect(left: &Self, right: &N::Disconnect) -> Result<Self, types::Error> {
+        Ok(Arc::new(Node {
+            cmr: Cmr::disconnect(left.cmr()),
+            data: N::CachedData::disconnect(&left.data, right)?,
+            inner: Inner::Disconnect(Arc::clone(left), right.clone()),
+        }))
     }
 }
 
@@ -502,7 +532,7 @@ where
 
 impl<N: Marker> Node<N> {
     /// Accessor for the node's "inner value", i.e. its combinator
-    pub fn inner(&self) -> &Inner<Arc<Node<N>>, N::Jet, N::Witness> {
+    pub fn inner(&self) -> &Inner<Arc<Node<N>>, N::Jet, N::Disconnect, N::Witness> {
         &self.inner
     }
 
@@ -529,7 +559,10 @@ impl<N: Marker> Node<N> {
     ///
     /// If available, [`Constructible'] and its dependent traits will be easier to
     /// use.
-    pub fn from_parts(inner: Inner<Arc<Self>, N::Jet, N::Witness>, data: N::CachedData) -> Self {
+    pub fn from_parts(
+        inner: Inner<Arc<Self>, N::Jet, N::Disconnect, N::Witness>,
+        data: N::CachedData,
+    ) -> Self {
         let cmr = match inner {
             Inner::Unit => Cmr::unit(),
             Inner::Iden => Cmr::iden(),
@@ -573,20 +606,27 @@ impl<N: Marker> Node<N> {
             // Construct an Inner<usize> where pointers are replaced by indices.
             // Note that `map_left_right`'s internal logic will ensure that these
             // `unwrap`s are only called when they will succeed.
-            let indexed_inner: Inner<usize, N::Jet, &N::Witness> = data
+            let indexed_inner: Inner<usize, N::Jet, &N::Disconnect, &N::Witness> = data
                 .node
                 .inner
                 .as_ref()
                 .map_left_right(|_| data.left_index.unwrap(), |_| data.right_index.unwrap());
 
             // Then, convert witness data, if this is a witness node.
-            let witness_inner: Inner<&usize, M::Jet, M::Witness> = indexed_inner
+            let witness_inner: Inner<&usize, M::Jet, &&N::Disconnect, M::Witness> = indexed_inner
                 .as_ref()
                 .map_witness_result(|wit| converter.convert_witness(&data, wit))?;
 
+            // Then convert disconnect nodes data.
+            let maybe_converted = data.right_index.map(|idx| &converted[idx]);
+            let witness_inner: Inner<&usize, N::Jet, M::Disconnect, M::Witness> = witness_inner
+                .map_disconnect_result(|disc| {
+                    converter.convert_disconnect(&data, maybe_converted, disc)
+                })?;
+
             // Then put the converted nodes in place (it's easier to do this in this
             // order because of the way the reference types work out).
-            let converted_inner: Inner<Arc<Node<M>>, M::Jet, M::Witness> =
+            let converted_inner: Inner<Arc<Node<M>>, M::Jet, M::Disconnect, M::Witness> =
                 witness_inner.map(|idx| Arc::clone(&converted[*idx]));
 
             // Next, prune case nodes into asserts, if applicable

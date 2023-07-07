@@ -12,7 +12,7 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use super::FailEntropy;
+use super::{Disconnectable, FailEntropy};
 use crate::dag::Dag;
 use crate::{Cmr, Value};
 
@@ -24,7 +24,7 @@ use std::sync::Arc;
 /// This structure is used to indicate the type of a node and provide
 /// pointers or references to its children, if any.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub enum Inner<C, J, W> {
+pub enum Inner<C, J, X, W> {
     /// Identity
     Iden,
     /// Unit constant
@@ -48,7 +48,7 @@ pub enum Inner<C, J, W> {
     /// Pair of a left and right child
     Pair(C, C),
     /// Disconnect of a left and right child
-    Disconnect(C, C),
+    Disconnect(C, X),
     /// Witness data (missing during commitment, inserted during redemption)
     Witness(W),
     /// Universal fail
@@ -59,9 +59,9 @@ pub enum Inner<C, J, W> {
     Word(Arc<Value>),
 }
 
-impl<C, J: Clone, W> Inner<C, J, W> {
+impl<C, J: Clone, X, W> Inner<C, J, X, W> {
     /// Convert a node's combinator data to a different type.
-    pub fn map<D, F: FnMut(C) -> D>(self, mut f: F) -> Inner<D, J, W> {
+    pub fn map<D, F: FnMut(C) -> D>(self, mut f: F) -> Inner<D, J, X, W> {
         match self {
             Inner::Iden => Inner::Iden,
             Inner::Unit => Inner::Unit,
@@ -74,7 +74,7 @@ impl<C, J: Clone, W> Inner<C, J, W> {
             Inner::AssertL(c, cmr) => Inner::AssertL(f(c), cmr),
             Inner::AssertR(cmr, c) => Inner::AssertR(cmr, f(c)),
             Inner::Pair(cl, cr) => Inner::Pair(f(cl), f(cr)),
-            Inner::Disconnect(cl, cr) => Inner::Disconnect(f(cl), f(cr)),
+            Inner::Disconnect(cl, cr) => Inner::Disconnect(f(cl), cr),
             Inner::Witness(w) => Inner::Witness(w),
             Inner::Fail(entropy) => Inner::Fail(entropy),
             Inner::Jet(j) => Inner::Jet(j),
@@ -86,7 +86,7 @@ impl<C, J: Clone, W> Inner<C, J, W> {
     pub fn map_result<D, E, F: FnMut(C) -> Result<D, E>>(
         self,
         mut f: F,
-    ) -> Result<Inner<D, J, W>, E> {
+    ) -> Result<Inner<D, J, X, W>, E> {
         Ok(match self {
             Inner::Iden => Inner::Iden,
             Inner::Unit => Inner::Unit,
@@ -99,7 +99,7 @@ impl<C, J: Clone, W> Inner<C, J, W> {
             Inner::AssertL(c, cmr) => Inner::AssertL(f(c)?, cmr),
             Inner::AssertR(cmr, c) => Inner::AssertR(cmr, f(c)?),
             Inner::Pair(cl, cr) => Inner::Pair(f(cl)?, f(cr)?),
-            Inner::Disconnect(cl, cr) => Inner::Disconnect(f(cl)?, f(cr)?),
+            Inner::Disconnect(cl, cr) => Inner::Disconnect(f(cl)?, cr),
             Inner::Witness(w) => Inner::Witness(w),
             Inner::Fail(entropy) => Inner::Fail(entropy),
             Inner::Jet(j) => Inner::Jet(j),
@@ -113,7 +113,7 @@ impl<C, J: Clone, W> Inner<C, J, W> {
     /// Importantly, the child of an `AssertR` node is considered the left
     /// child, because as a DAG node, this is the sole (left) child, even
     /// though as a combinator, it is a right child.
-    pub fn map_left_right<D, FL, FR>(self, fl: FL, fr: FR) -> Inner<D, J, W>
+    pub fn map_left_right<D, FL, FR>(self, fl: FL, fr: FR) -> Inner<D, J, X, W>
     where
         FL: FnOnce(C) -> D,
         FR: FnOnce(C) -> D,
@@ -130,7 +130,7 @@ impl<C, J: Clone, W> Inner<C, J, W> {
             Inner::AssertL(c, cmr) => Inner::AssertL(fl(c), cmr),
             Inner::AssertR(cmr, c) => Inner::AssertR(cmr, fl(c)),
             Inner::Pair(cl, cr) => Inner::Pair(fl(cl), fr(cr)),
-            Inner::Disconnect(cl, cr) => Inner::Disconnect(fl(cl), fr(cr)),
+            Inner::Disconnect(cl, cr) => Inner::Disconnect(fl(cl), cr),
             Inner::Witness(w) => Inner::Witness(w),
             Inner::Fail(entropy) => Inner::Fail(entropy),
             Inner::Jet(j) => Inner::Jet(j),
@@ -139,7 +139,7 @@ impl<C, J: Clone, W> Inner<C, J, W> {
     }
 
     /// Take references to all contained data.
-    pub fn as_ref(&self) -> Inner<&C, J, &W> {
+    pub fn as_ref(&self) -> Inner<&C, J, &X, &W> {
         match self {
             Inner::Iden => Inner::Iden,
             Inner::Unit => Inner::Unit,
@@ -160,8 +160,81 @@ impl<C, J: Clone, W> Inner<C, J, W> {
         }
     }
 
+    /// Take references to only the disconnect node.
+    pub fn disconnect_as_ref(&self) -> Inner<C, J, &X, W>
+    where
+        J: Copy,
+        C: Copy,
+        W: Copy,
+    {
+        match *self {
+            Inner::Iden => Inner::Iden,
+            Inner::Unit => Inner::Unit,
+            Inner::InjL(c) => Inner::InjL(c),
+            Inner::InjR(c) => Inner::InjR(c),
+            Inner::Take(c) => Inner::Take(c),
+            Inner::Drop(c) => Inner::Drop(c),
+            Inner::Comp(cl, cr) => Inner::Comp(cl, cr),
+            Inner::Case(cl, cr) => Inner::Case(cl, cr),
+            Inner::AssertL(c, cmr) => Inner::AssertL(c, cmr),
+            Inner::AssertR(cmr, c) => Inner::AssertR(cmr, c),
+            Inner::Pair(cl, cr) => Inner::Pair(cl, cr),
+            Inner::Disconnect(cl, ref cr) => Inner::Disconnect(cl, cr),
+            Inner::Witness(w) => Inner::Witness(w),
+            Inner::Fail(entropy) => Inner::Fail(entropy),
+            Inner::Jet(j) => Inner::Jet(j),
+            Inner::Word(ref w) => Inner::Word(Arc::clone(w)),
+        }
+    }
+
+    pub fn map_disconnect<Y, F: FnOnce(X) -> Y>(self, f: F) -> Inner<C, J, Y, W> {
+        match self {
+            Inner::Iden => Inner::Iden,
+            Inner::Unit => Inner::Unit,
+            Inner::InjL(c) => Inner::InjL(c),
+            Inner::InjR(c) => Inner::InjR(c),
+            Inner::Take(c) => Inner::Take(c),
+            Inner::Drop(c) => Inner::Drop(c),
+            Inner::Comp(cl, cr) => Inner::Comp(cl, cr),
+            Inner::Case(cl, cr) => Inner::Case(cl, cr),
+            Inner::AssertL(c, cmr) => Inner::AssertL(c, cmr),
+            Inner::AssertR(cmr, c) => Inner::AssertR(cmr, c),
+            Inner::Pair(cl, cr) => Inner::Pair(cl, cr),
+            Inner::Disconnect(cl, cr) => Inner::Disconnect(cl, f(cr)),
+            Inner::Witness(w) => Inner::Witness(w),
+            Inner::Fail(entropy) => Inner::Fail(entropy),
+            Inner::Jet(j) => Inner::Jet(j),
+            Inner::Word(w) => Inner::Word(w),
+        }
+    }
+
     /// Convert a node's witness data to a different type.
-    pub fn map_witness<V, F: FnOnce(W) -> V>(self, f: F) -> Inner<C, J, V> {
+    pub fn map_disconnect_result<Y, E, F: FnOnce(X) -> Result<Y, E>>(
+        self,
+        f: F,
+    ) -> Result<Inner<C, J, Y, W>, E> {
+        Ok(match self {
+            Inner::Iden => Inner::Iden,
+            Inner::Unit => Inner::Unit,
+            Inner::InjL(c) => Inner::InjL(c),
+            Inner::InjR(c) => Inner::InjR(c),
+            Inner::Take(c) => Inner::Take(c),
+            Inner::Drop(c) => Inner::Drop(c),
+            Inner::Comp(cl, cr) => Inner::Comp(cl, cr),
+            Inner::Case(cl, cr) => Inner::Case(cl, cr),
+            Inner::AssertL(c, cmr) => Inner::AssertL(c, cmr),
+            Inner::AssertR(cmr, c) => Inner::AssertR(cmr, c),
+            Inner::Pair(cl, cr) => Inner::Pair(cl, cr),
+            Inner::Disconnect(cl, cr) => Inner::Disconnect(cl, f(cr)?),
+            Inner::Witness(w) => Inner::Witness(w),
+            Inner::Fail(entropy) => Inner::Fail(entropy),
+            Inner::Jet(j) => Inner::Jet(j),
+            Inner::Word(w) => Inner::Word(w),
+        })
+    }
+
+    /// Convert a node's witness data to a different type.
+    pub fn map_witness<V, F: FnOnce(W) -> V>(self, f: F) -> Inner<C, J, X, V> {
         match self {
             Inner::Iden => Inner::Iden,
             Inner::Unit => Inner::Unit,
@@ -186,7 +259,7 @@ impl<C, J: Clone, W> Inner<C, J, W> {
     pub fn map_witness_result<V, E, F: FnOnce(W) -> Result<V, E>>(
         self,
         f: F,
-    ) -> Result<Inner<C, J, V>, E> {
+    ) -> Result<Inner<C, J, X, V>, E> {
         Ok(match self {
             Inner::Iden => Inner::Iden,
             Inner::Unit => Inner::Unit,
@@ -206,9 +279,11 @@ impl<C, J: Clone, W> Inner<C, J, W> {
             Inner::Word(w) => Inner::Word(w),
         })
     }
+}
 
+impl<C, J, X: Disconnectable<C>, W> Inner<C, J, X, W> {
     /// Collapse the node information to a `Dag`
-    pub fn into_dag(self) -> Dag<C> {
+    pub fn as_dag(&self) -> Dag<&C> {
         match self {
             Inner::Iden
             | Inner::Unit
@@ -222,17 +297,15 @@ impl<C, J: Clone, W> Inner<C, J, W> {
             | Inner::Drop(c)
             | Inner::AssertL(c, _)
             | Inner::AssertR(_, c) => Dag::Unary(c),
-            Inner::Comp(cl, cr)
-            | Inner::Case(cl, cr)
-            | Inner::Pair(cl, cr)
-            | Inner::Disconnect(cl, cr) => Dag::Binary(cl, cr),
+            Inner::Comp(cl, cr) | Inner::Case(cl, cr) | Inner::Pair(cl, cr) => Dag::Binary(cl, cr),
+            Inner::Disconnect(cl, cr) => cr.disconnect_dag_ref(cl),
         }
     }
 }
 
-impl<C, J, W> Inner<Option<C>, J, W> {
+impl<C, J, X, W> Inner<Option<C>, J, Option<X>, W> {
     /// Convert an `Inner<Option<C>, J, W>` to an `Option<Inner<C, J, W>>`.
-    pub fn transpose(self) -> Option<Inner<C, J, W>> {
+    pub fn transpose(self) -> Option<Inner<C, J, X, W>> {
         Some(match self {
             Inner::Iden => Inner::Iden,
             Inner::Unit => Inner::Unit,
@@ -254,9 +327,9 @@ impl<C, J, W> Inner<Option<C>, J, W> {
     }
 }
 
-impl<C, J, W> Inner<C, J, Option<W>> {
+impl<C, J, X, W> Inner<C, J, X, Option<W>> {
     /// Convert an `Inner<C, J, Option<W>>` to an `Option<Inner<C, J, W>>`.
-    pub fn transpose_witness(self) -> Option<Inner<C, J, W>> {
+    pub fn transpose_witness(self) -> Option<Inner<C, J, X, W>> {
         Some(match self {
             Inner::Iden => Inner::Iden,
             Inner::Unit => Inner::Unit,
@@ -278,17 +351,17 @@ impl<C, J, W> Inner<C, J, Option<W>> {
     }
 }
 
-impl<C, J: Clone, W: Clone> Inner<C, J, &W> {
+impl<C, J: Clone, X, W: Clone> Inner<C, J, X, &W> {
     /// Copies witness data.
     ///
     /// Useful in conjunction with [`Inner::as_ref`] when you don't want to
     /// take a reference to witness data.
-    pub fn copy_witness(self) -> Inner<C, J, W> {
+    pub fn copy_witness(self) -> Inner<C, J, X, W> {
         self.map_witness(W::clone)
     }
 }
 
-impl<C, J: fmt::Display, W> fmt::Display for Inner<C, J, W> {
+impl<C, J: fmt::Display, X, W> fmt::Display for Inner<C, J, X, W> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Inner::Iden => f.write_str("iden"),
