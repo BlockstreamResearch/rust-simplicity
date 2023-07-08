@@ -20,6 +20,7 @@
 //! in a human-readable format.
 //!
 
+mod error;
 mod named_node;
 mod serialize;
 
@@ -31,6 +32,7 @@ use std::collections::HashMap;
 use std::str;
 use std::sync::Arc;
 
+pub use self::error::{Error, ErrorSet};
 pub use self::named_node::NamedCommitNode;
 
 /// Line/column pair
