@@ -147,11 +147,11 @@ impl<J: Jet> RedeemData<J> {
                 FirstPassImr::fail(entropy),
                 NodeBounds::fail(),
             ),
-            Inner::Jet(jet) => (Amr::jet(jet), FirstPassImr::jet(jet), NodeBounds::jet()),
+            Inner::Jet(jet) => (Amr::jet(jet), FirstPassImr::jet(jet), NodeBounds::jet(jet)),
             Inner::Word(ref val) => (
                 Amr::const_word(val),
                 FirstPassImr::const_word(val),
-                NodeBounds::const_word(),
+                NodeBounds::const_word(val),
             ),
         };
 
