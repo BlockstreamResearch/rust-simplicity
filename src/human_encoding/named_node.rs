@@ -16,7 +16,7 @@
 
 use crate::dag::{InternalSharing, MaxSharing, PostOrderIterItem};
 use crate::encode;
-use crate::human_encoding::Position;
+use crate::human_encoding::{ErrorSet, Position};
 use crate::jet::Jet;
 use crate::node::{self, Commit, CommitData, CommitNode, Converter, NoDisconnect, NoWitness, Node};
 use crate::node::{Construct, ConstructData, Constructible};
@@ -166,27 +166,28 @@ impl<J: Jet> NamedConstructNode<J> {
     }
 
     /// Finalizes the types of the underlying [`ConstructNode`].
-    pub fn finalize_types_main(&self) -> Result<Arc<NamedCommitNode<J>>, types::Error> {
+    pub fn finalize_types_main(&self) -> Result<Arc<NamedCommitNode<J>>, ErrorSet> {
         self.finalize_types_inner(true)
     }
 
     /// Finalizes the types of the underlying [`ConstructNode`], without setting
     /// the root node's arrow to 1->1.
-    pub fn finalize_types_non_main(&self) -> Result<Arc<NamedCommitNode<J>>, types::Error> {
+    pub fn finalize_types_non_main(&self) -> Result<Arc<NamedCommitNode<J>>, ErrorSet> {
         self.finalize_types_inner(false)
     }
 
     pub fn finalize_types_inner(
         &self,
         for_main: bool,
-    ) -> Result<Arc<NamedCommitNode<J>>, types::Error> {
+    ) -> Result<Arc<NamedCommitNode<J>>, ErrorSet> {
         struct FinalizeTypes<J: Jet> {
             for_main: bool,
+            errors: ErrorSet,
             phantom: PhantomData<J>,
         }
 
         impl<J: Jet> Converter<Named<Construct<J>>, Named<Commit<J>>> for FinalizeTypes<J> {
-            type Error = types::Error;
+            type Error = ErrorSet;
             fn convert_witness(
                 &mut self,
                 _: &PostOrderIterItem<&NamedConstructNode<J>>,
@@ -216,14 +217,24 @@ impl<J: Jet> NamedConstructNode<J> {
                     // before finalizing the type.
                     let arrow = data.node.arrow();
                     for ty in data.node.cached_data().user_source_types.as_ref() {
-                        arrow.source.unify(ty, "binding source type annotation")?;
+                        if let Err(e) = arrow.source.unify(ty, "binding source type annotation") {
+                            self.errors.add(data.node.position(), e);
+                        }
                     }
                     for ty in data.node.cached_data().user_target_types.as_ref() {
-                        arrow.target.unify(ty, "binding target type annotation")?;
+                        if let Err(e) = arrow.target.unify(ty, "binding target type annotation") {
+                            self.errors.add(data.node.position(), e);
+                        }
                     }
                 }
 
-                let commit_data = Arc::new(CommitData::new(data.node.arrow(), converted_data)?);
+                let commit_data = match CommitData::new(data.node.arrow(), converted_data) {
+                    Ok(commit_data) => Arc::new(commit_data),
+                    Err(e) => {
+                        self.errors.add(data.node.position(), e);
+                        return Err(self.errors.clone());
+                    }
+                };
 
                 if self.for_main {
                     // For `main`, only apply type ascriptions *after* inference has completely
@@ -232,13 +243,17 @@ impl<J: Jet> NamedConstructNode<J> {
                         types::Bound::Complete(Arc::clone(&commit_data.arrow().source));
                     let source_ty = types::Type::from(source_bound);
                     for ty in data.node.cached_data().user_source_types.as_ref() {
-                        source_ty.unify(ty, "binding source type annotation")?;
+                        if let Err(e) = source_ty.unify(ty, "binding source type annotation") {
+                            self.errors.add(data.node.position(), e);
+                        }
                     }
                     let target_bound =
                         types::Bound::Complete(Arc::clone(&commit_data.arrow().target));
                     let target_ty = types::Type::from(target_bound);
                     for ty in data.node.cached_data().user_target_types.as_ref() {
-                        target_ty.unify(ty, "binding target type annotation")?;
+                        if let Err(e) = target_ty.unify(ty, "binding target type annotation") {
+                            self.errors.add(data.node.position(), e);
+                        }
                     }
                 }
 
@@ -249,24 +264,36 @@ impl<J: Jet> NamedConstructNode<J> {
             }
         }
 
+        let mut finalizer = FinalizeTypes {
+            for_main,
+            errors: ErrorSet::default(),
+            phantom: PhantomData,
+        };
+
         if for_main {
             let unit_ty = types::Type::unit();
             if self.cached_data().user_source_types.is_empty() {
-                self.arrow()
+                if let Err(e) = self
+                    .arrow()
                     .source
-                    .unify(&unit_ty, "setting root source to unit")?;
+                    .unify(&unit_ty, "setting root source to unit")
+                {
+                    finalizer.errors.add(self.position(), e);
+                }
             }
             if self.cached_data().user_target_types.is_empty() {
-                self.arrow()
+                if let Err(e) = self
+                    .arrow()
                     .target
-                    .unify(&unit_ty, "setting root source to unit")?;
+                    .unify(&unit_ty, "setting root source to unit")
+                {
+                    finalizer.errors.add(self.position(), e);
+                }
             }
         }
 
-        self.convert::<InternalSharing, _, _>(&mut FinalizeTypes {
-            for_main,
-            phantom: PhantomData,
-        })
+        let root = self.convert::<InternalSharing, _, _>(&mut finalizer)?;
+        finalizer.errors.into_result(root)
     }
 }
 
