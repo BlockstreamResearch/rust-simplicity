@@ -1,5 +1,5 @@
 use crate::policy::satisfy::PolicySatisfier;
-use crate::{Cmr, Error, Policy};
+use crate::{miniscript, Error, Policy};
 use bitcoin_hashes::Hash;
 use elements::schnorr::{TapTweak, XOnlyPublicKey};
 use elements::secp256k1_zkp;
@@ -10,6 +10,7 @@ use elements::taproot::{
 use elements_miniscript::{MiniscriptKey, ToPublicKey};
 use std::fmt;
 use std::str::FromStr;
+use std::sync::{Arc, Mutex};
 
 pub trait UnspendableKey: MiniscriptKey {
     fn unspendable() -> Self;
@@ -49,43 +50,54 @@ pub fn leaf_version() -> LeafVersion {
 ///
 /// The internal key can be a normal public key (p2pk), a MuSig aggregate public key (multisig)
 /// or an unspendable public key in case this feature is undesirable.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug)]
 pub struct Descriptor<Pk: MiniscriptKey> {
     internal_key: Pk,
-    spend_info: TaprootSpendInfo,
     policy: Policy<Pk>,
-    cmr: Cmr,
+    spend_info: Mutex<Option<Arc<TaprootSpendInfo>>>,
 }
 
-impl<Pk: ToPublicKey> Descriptor<Pk> {
+impl<Pk: MiniscriptKey> Clone for Descriptor<Pk> {
+    fn clone(&self) -> Self {
+        Self {
+            internal_key: self.internal_key.clone(),
+            policy: self.policy.clone(),
+            // New mutex so clones don't block each other
+            // Cloning the contained spending info is cheap
+            spend_info: Mutex::new(
+                self.spend_info
+                    .lock()
+                    .expect("Lock poisoned")
+                    .as_ref()
+                    .map(Arc::clone),
+            ),
+        }
+    }
+}
+
+impl<Pk: MiniscriptKey> PartialEq for Descriptor<Pk> {
+    fn eq(&self, other: &Self) -> bool {
+        self.internal_key == other.internal_key && self.policy == other.policy
+    }
+}
+
+impl<Pk: MiniscriptKey> Eq for Descriptor<Pk> {}
+
+impl<Pk: MiniscriptKey> Descriptor<Pk> {
     /// Create a new descriptor from the given internal key and
     /// policy which will become a single tap leaf
-    pub fn new(internal_key: Pk, policy: Policy<Pk>) -> Result<Self, Error> {
-        let commit = policy.serialize_no_witness();
-        let cmr = commit.cmr();
-        let script = elements::Script::from(Vec::from(cmr.as_ref()));
-        let version = leaf_version();
-
-        let builder = TaprootBuilder::new()
-            .add_leaf_with_ver(0, script, version)
-            .expect("constant leaf");
-        let secp = secp256k1_zkp::Secp256k1::verification_only();
-        let spend_info = builder
-            .finalize(&secp, internal_key.to_x_only_pubkey())
-            .expect("constant tree");
-
-        Ok(Self {
+    pub fn new(internal_key: Pk, policy: Policy<Pk>) -> Self {
+        Self {
             internal_key,
-            spend_info,
             policy,
-            cmr,
-        })
+            spend_info: Mutex::new(None),
+        }
     }
 
     /// Create a new descriptor from the given policy which will become a single tap leaf
     ///
     /// The internal key is set to a constant that is provably not spendable
-    pub fn single_leaf(policy: Policy<Pk>) -> Result<Self, Error>
+    pub fn single_leaf(policy: Policy<Pk>) -> Self
     where
         Pk: UnspendableKey,
     {
@@ -97,10 +109,32 @@ impl<Pk: ToPublicKey> Descriptor<Pk> {
     pub fn internal_key(&self) -> &Pk {
         &self.internal_key
     }
+}
 
+impl<Pk: ToPublicKey> Descriptor<Pk> {
     /// Return the spend data
-    pub fn spend_info(&self) -> &TaprootSpendInfo {
-        &self.spend_info
+    pub fn spend_info(&self) -> Arc<TaprootSpendInfo> {
+        // Return the spending info if it is already cached
+        // Panic if lock is poisoned (another thread with the lock panicked)
+        let read_lock = self.spend_info.lock().expect("Lock poisoned");
+        if let Some(ref spend_info) = *read_lock {
+            return Arc::clone(spend_info);
+        }
+        drop(read_lock);
+
+        let (script, version) = self.leaf();
+        let builder = TaprootBuilder::new()
+            .add_leaf_with_ver(0, script, version)
+            .expect("constant leaf");
+        let secp = secp256k1_zkp::Secp256k1::verification_only();
+        let data = builder
+            .finalize(&secp, self.internal_key.to_x_only_pubkey())
+            .expect("constant tree");
+
+        // Cache spending info
+        let spend_info = Arc::new(data);
+        *self.spend_info.lock().expect("Lock poisoned") = Some(Arc::clone(&spend_info));
+        spend_info
     }
 
     /// Return the script pubkey
@@ -119,15 +153,12 @@ impl<Pk: ToPublicKey> Descriptor<Pk> {
         elements::Address::p2tr_tweaked(output_key, None, params)
     }
 
-    /// Return the CMR of the program inside the single tap leaf
-    pub fn cmr(&self) -> Cmr {
-        self.cmr
-    }
-
     /// Return the single tap leaf
     pub fn leaf(&self) -> (elements::Script, LeafVersion) {
-        let script = elements::Script::from(Vec::from(self.cmr.as_ref()));
+        let commit = self.policy.serialize_no_witness();
+        let script = elements::Script::from(commit.cmr().as_ref().to_vec());
         let version = leaf_version();
+
         (script, version)
     }
 
@@ -192,10 +223,10 @@ where
     <Pk as FromStr>::Err: ToString,
     <Pk::Sha256 as FromStr>::Err: ToString,
 {
-    type Err = Error;
+    type Err = miniscript::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let policy = Policy::from_str(s)?;
-        Self::single_leaf(policy)
+        Ok(Self::single_leaf(policy))
     }
 }
