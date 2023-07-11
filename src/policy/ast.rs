@@ -25,7 +25,7 @@ use std::sync::Arc;
 use std::{fmt, iter, mem};
 
 use crate::jet::Elements;
-use crate::miniscript::{MiniscriptKey, ToPublicKey, Translator};
+use crate::miniscript::{ForEachKey, MiniscriptKey, ToPublicKey, Translator};
 use crate::node::{ConstructNode, NoWitness};
 use crate::FailEntropy;
 
@@ -214,6 +214,35 @@ impl<Pk: MiniscriptKey> Policy<Pk> {
             }
             _ => {}
         }
+    }
+}
+
+impl<Pk: MiniscriptKey> ForEachKey<Pk> for Policy<Pk> {
+    fn for_each_key<'a, F: FnMut(&'a Pk) -> bool>(&'a self, mut pred: F) -> bool
+    where
+        Pk: 'a,
+    {
+        let mut stack = vec![self];
+
+        while let Some(top) = stack.pop() {
+            match top {
+                Policy::Key(key) => {
+                    if !pred(key) {
+                        return false;
+                    }
+                }
+                Policy::And { left, right } | Policy::Or { left, right } => {
+                    stack.push(right);
+                    stack.push(left);
+                }
+                Policy::Threshold(_, sub_policies) => {
+                    stack.extend(sub_policies.iter());
+                }
+                _ => {}
+            }
+        }
+
+        true
     }
 }
 

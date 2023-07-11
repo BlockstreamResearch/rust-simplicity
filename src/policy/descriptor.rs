@@ -9,8 +9,8 @@ use elements::taproot::{
 };
 use miniscript::descriptor::ConversionError;
 use miniscript::{
-    translate_hash_clone, DefiniteDescriptorKey, DescriptorPublicKey, MiniscriptKey, ToPublicKey,
-    Translator,
+    translate_hash_clone, DefiniteDescriptorKey, DescriptorPublicKey, ForEachKey, MiniscriptKey,
+    ToPublicKey, Translator,
 };
 use std::fmt;
 use std::str::FromStr;
@@ -233,7 +233,21 @@ impl<Pk: ToPublicKey> Descriptor<Pk> {
     }
 }
 
+impl<Pk: MiniscriptKey> ForEachKey<Pk> for Descriptor<Pk> {
+    fn for_each_key<'a, F: FnMut(&'a Pk) -> bool>(&'a self, mut pred: F) -> bool
+    where
+        Pk: 'a,
+    {
+        pred(&self.internal_key) && self.policy.for_each_key(pred)
+    }
+}
+
 impl Descriptor<DescriptorPublicKey> {
+    /// Whether or not the descriptor has any wildcards i.e. `/*`.
+    pub fn has_wildcard(&self) -> bool {
+        self.for_any_key(|key| key.has_wildcard())
+    }
+
     /// Replaces all wildcards (i.e. `/*`) in the descriptor with a particular derivation index,
     /// turning it into a *definite* descriptor.
     ///
