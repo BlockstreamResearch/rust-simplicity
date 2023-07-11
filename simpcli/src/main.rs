@@ -24,13 +24,17 @@ use std::str::FromStr;
 // FIXME this should probably be configurable.
 type DefaultJet = simplicity::jet::Elements;
 
-fn usage(process_name: &str) -> Result<(), String> {
+fn usage(process_name: &str) {
     eprintln!("Usage:");
     eprintln!("  {} disassemble <base64>", process_name);
     eprintln!();
     eprintln!("For commands which take an optional expression, the default value is \"main\".");
     eprintln!();
     eprintln!("Run `{} help` to display this message.", process_name);
+}
+
+fn invalid_usage(process_name: &str) -> Result<(), String> {
+    usage(process_name);
     Err("invalid usage".into())
 }
 
@@ -74,14 +78,20 @@ fn main() -> Result<(), String> {
             Err(e) => {
                 eprintln!("Error: {}.", e);
                 eprintln!();
-                return usage(&process_name);
+                return invalid_usage(&process_name);
             }
         },
-        None => return usage(&process_name),
+        None => return invalid_usage(&process_name),
     };
+
+    if let Command::Help = command {
+        usage(&process_name);
+        return Ok(());
+    }
+
     let first_arg = match args.next() {
         Some(s) => s,
-        None => return usage(&process_name),
+        None => return invalid_usage(&process_name),
     };
     let _expression = if command.takes_optional_exprname() {
         args.next().unwrap_or("main".to_owned())
@@ -89,7 +99,7 @@ fn main() -> Result<(), String> {
         String::new()
     };
     if args.next().is_some() {
-        usage(&process_name)?;
+        invalid_usage(&process_name)?;
     }
 
     // Execute command
@@ -103,9 +113,7 @@ fn main() -> Result<(), String> {
             let prog = Forest::<DefaultJet>::from_program(commit);
             println!("{}", prog.string_serialize());
         }
-        Command::Help => {
-            let _ = usage(&process_name);
-        }
+        Command::Help => unreachable!(),
     }
 
     Ok(())
