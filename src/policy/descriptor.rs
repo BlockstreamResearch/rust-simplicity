@@ -7,7 +7,7 @@ use elements::taproot::{
     ControlBlock, LeafVersion, TapBranchHash, TapLeafHash, TaprootBuilder, TaprootMerkleBranch,
     TaprootSpendInfo,
 };
-use elements_miniscript::{MiniscriptKey, ToPublicKey};
+use miniscript::{DescriptorPublicKey, MiniscriptKey, ToPublicKey};
 use std::fmt;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
@@ -19,6 +19,15 @@ pub trait UnspendableKey: MiniscriptKey {
 impl UnspendableKey for XOnlyPublicKey {
     fn unspendable() -> Self {
         XOnlyPublicKey::from_slice(&UNSPENDABLE_PUBLIC_KEY).expect("unspendable pubkey is valid")
+    }
+}
+
+impl UnspendableKey for DescriptorPublicKey {
+    fn unspendable() -> Self {
+        Self::Single(miniscript::descriptor::SinglePub {
+            origin: None,
+            key: miniscript::descriptor::SinglePubKey::XOnly(XOnlyPublicKey::unspendable()),
+        })
     }
 }
 
