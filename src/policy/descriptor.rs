@@ -7,7 +7,11 @@ use elements::taproot::{
     ControlBlock, LeafVersion, TapBranchHash, TapLeafHash, TaprootBuilder, TaprootMerkleBranch,
     TaprootSpendInfo,
 };
-use miniscript::{DescriptorPublicKey, MiniscriptKey, ToPublicKey};
+use miniscript::descriptor::ConversionError;
+use miniscript::{
+    translate_hash_clone, DefiniteDescriptorKey, DescriptorPublicKey, MiniscriptKey, ToPublicKey,
+    Translator,
+};
 use std::fmt;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
@@ -118,6 +122,16 @@ impl<Pk: MiniscriptKey> Descriptor<Pk> {
     pub fn internal_key(&self) -> &Pk {
         &self.internal_key
     }
+
+    fn translate_pk<T, Q, E>(&self, translator: &mut T) -> Result<Descriptor<Q>, E>
+    where
+        T: Translator<Pk, Q, E>,
+        Q: MiniscriptKey,
+    {
+        let internal_key = translator.pk(self.internal_key())?;
+        let policy = self.policy.translate(translator)?;
+        Ok(Descriptor::new(internal_key, policy))
+    }
 }
 
 impl<Pk: ToPublicKey> Descriptor<Pk> {
@@ -219,6 +233,33 @@ impl<Pk: ToPublicKey> Descriptor<Pk> {
     }
 }
 
+impl Descriptor<DescriptorPublicKey> {
+    /// Replaces all wildcards (i.e. `/*`) in the descriptor with a particular derivation index,
+    /// turning it into a *definite* descriptor.
+    ///
+    /// # Errors
+    /// - If index ≥ 2^31
+    pub fn at_derivation_index(
+        &self,
+        index: u32,
+    ) -> Result<Descriptor<DefiniteDescriptorKey>, ConversionError> {
+        struct Derivator(u32);
+
+        impl Translator<DescriptorPublicKey, DefiniteDescriptorKey, ConversionError> for Derivator {
+            fn pk(
+                &mut self,
+                pk: &DescriptorPublicKey,
+            ) -> Result<DefiniteDescriptorKey, ConversionError> {
+                pk.clone().at_derivation_index(self.0)
+            }
+
+            translate_hash_clone!(DescriptorPublicKey, DescriptorPublicKey, ConversionError);
+        }
+
+        self.translate_pk(&mut Derivator(index))
+    }
+}
+
 impl<Pk: MiniscriptKey> fmt::Display for Descriptor<Pk> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.policy, f)
@@ -237,5 +278,36 @@ where
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let policy = Policy::from_str(s)?;
         Ok(Self::single_leaf(policy))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn derived_descriptor() {
+        let key = "[78412e3a/44'/0'/0']xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL/1/*";
+        let parent_key = DescriptorPublicKey::from_str(key).expect("constant key");
+        let policy = Policy::Key(parent_key.clone());
+        // Use the same xpub for internal key and for policy
+        // Unrealistic, but sufficient for testing
+        let parent_descriptor = Descriptor::new(parent_key.clone(), policy);
+
+        for index in 0..10 {
+            let child_descriptor = parent_descriptor
+                .at_derivation_index(index)
+                .expect("derive descriptor");
+            let child_key = parent_key
+                .clone()
+                .at_derivation_index(index)
+                .expect("derive key");
+
+            assert_eq!(child_key, child_descriptor.internal_key);
+
+            if let Policy::Key(key) = child_descriptor.policy {
+                assert_eq!(child_key, key);
+            }
+        }
     }
 }
