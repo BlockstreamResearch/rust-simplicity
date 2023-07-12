@@ -3,8 +3,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::miniscript::Error as msError;
-use crate::miniscript::ToPublicKey;
-use crate::miniscript::{expression, Miniscript, ScriptContext, Terminal};
+use crate::miniscript::{expression, Miniscript, MiniscriptKey, ScriptContext, Terminal};
 use crate::{miniscript, policy};
 
 use crate::policy::Policy;
@@ -14,7 +13,7 @@ serde_string_impl_pk!(Policy, "a Simplicity policy");
 
 impl<Pk> FromStr for Policy<Pk>
 where
-    Pk: ToPublicKey + FromStr,
+    Pk: MiniscriptKey + FromStr,
     Pk::Sha256: FromStr,
     <Pk as FromStr>::Err: ToString,
     <Pk::Sha256 as FromStr>::Err: ToString,
@@ -35,7 +34,7 @@ where
 
 impl<Pk> expression::FromTree for Policy<Pk>
 where
-    Pk: ToPublicKey + FromStr,
+    Pk: MiniscriptKey + FromStr,
     Pk::Sha256: FromStr,
     <Pk as FromStr>::Err: ToString,
     <Pk::Sha256 as FromStr>::Err: ToString,
@@ -100,7 +99,7 @@ where
     }
 }
 
-impl<'a, Pk: ToPublicKey, Ctx: ScriptContext> TryFrom<&'a Miniscript<Pk, Ctx>> for Policy<Pk> {
+impl<'a, Pk: MiniscriptKey, Ctx: ScriptContext> TryFrom<&'a Miniscript<Pk, Ctx>> for Policy<Pk> {
     type Error = Error;
 
     fn try_from(top: &Miniscript<Pk, Ctx>) -> Result<Self, Self::Error> {
@@ -179,6 +178,7 @@ impl<'a, Pk: ToPublicKey, Ctx: ScriptContext> TryFrom<&'a Miniscript<Pk, Ctx>> f
 mod tests {
     use super::*;
     use crate::miniscript::bitcoin::XOnlyPublicKey;
+    use crate::miniscript::DescriptorPublicKey;
 
     #[test]
     fn parse_bad_thresh() {
@@ -215,5 +215,19 @@ mod tests {
             Policy::<XOnlyPublicKey>::from_str("thresh(3,TRIVIAL,TRIVIAL)"),
             Err(msError::Unexpected("3".to_string())),
         );
+    }
+
+    #[test]
+    fn decode_xpub() {
+        let s = "[78412e3a/44'/0'/0']xpub6ERApfZwUNrhLCkDtcHTcxd75RbzS1ed54G1LkBUHQVHQKqhMkhgbmJbZRkrgZw4koxb5JaHWkY4ALHY2grBGRjaDMzQLcgJvLJuZZvRcEL/1/*";
+        let decoded_key = DescriptorPublicKey::from_str(s).expect("constant key");
+        let s = format!("pk({})", s);
+        let decoded_policy = Policy::<DescriptorPublicKey>::from_str(&s).expect("decode policy");
+
+        if let Policy::Key(key) = decoded_policy {
+            assert_eq!(decoded_key, key);
+        } else {
+            panic!("Decoded policy should be public key")
+        }
     }
 }

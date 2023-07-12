@@ -282,7 +282,7 @@ impl<Pk: MiniscriptKey> fmt::Display for Descriptor<Pk> {
 
 impl<Pk> FromStr for Descriptor<Pk>
 where
-    Pk: UnspendableKey + ToPublicKey + FromStr,
+    Pk: UnspendableKey + MiniscriptKey + FromStr,
     Pk::Sha256: FromStr,
     <Pk as FromStr>::Err: ToString,
     <Pk::Sha256 as FromStr>::Err: ToString,
