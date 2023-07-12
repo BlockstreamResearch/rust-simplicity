@@ -114,6 +114,20 @@ impl fmt::Display for Final {
                 (CompleteBound::Unit, _) => {
                     f.write_str("1")?;
                 }
+                // special-case 1 + A as A?
+                (CompleteBound::Sum(ref left, _), 0)
+                    if matches!(left.bound, CompleteBound::Unit) =>
+                {
+                    skipping = Some(Tmr::unit());
+                }
+                (CompleteBound::Sum(ref left, _), 1)
+                    if matches!(left.bound, CompleteBound::Unit) => {}
+                (CompleteBound::Sum(ref left, _), 2)
+                    if matches!(left.bound, CompleteBound::Unit) =>
+                {
+                    f.write_str("?")?;
+                }
+                // other sums and products
                 (CompleteBound::Sum(..), 0) | (CompleteBound::Product(..), 0) => {
                     if data.index > 0 {
                         f.write_str("(")?;
@@ -224,5 +238,11 @@ mod tests {
 
         let prod = Final::product(Final::two_two_n(5), Final::two_two_n(10));
         assert_eq!(prod.to_string(), "2^32 × 2^1024");
+
+        let ty1 = Final::two_two_n(0);
+        assert_eq!(ty1.to_string(), "2");
+
+        let ty1 = Final::sum(Arc::new(Final::unit()), Final::two_two_n(2));
+        assert_eq!(ty1.to_string(), "2^4?");
     }
 }
