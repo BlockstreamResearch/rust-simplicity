@@ -160,9 +160,9 @@ impl<Pk: ToPublicKey> Policy<Pk> {
 
     pub fn satisfy<S: Satisfier<Pk>>(
         &self,
-        satisfier: &S,
+        satisfier: S,
     ) -> Result<Arc<RedeemNode<Elements>>, Error> {
-        let witnode = self.satisfy_internal(satisfier)?;
+        let witnode = self.satisfy_internal(&satisfier)?;
         if witnode.must_prune() {
             Err(Error::IncompleteFinalization)
         } else {

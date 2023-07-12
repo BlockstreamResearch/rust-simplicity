@@ -1,4 +1,3 @@
-use crate::policy::satisfy::PolicySatisfier;
 use crate::{miniscript, Error, Policy};
 use bitcoin_hashes::Hash;
 use elements::schnorr::{TapTweak, XOnlyPublicKey};
@@ -11,7 +10,7 @@ use miniscript::descriptor::ConversionError;
 use miniscript::Error as MSError;
 use miniscript::{
     translate_hash_clone, DefiniteDescriptorKey, DescriptorPublicKey, ForEachKey, MiniscriptKey,
-    ToPublicKey, Translator,
+    Satisfier, ToPublicKey, Translator,
 };
 use std::fmt;
 use std::str::FromStr;
@@ -189,9 +188,9 @@ impl<Pk: ToPublicKey> Descriptor<Pk> {
     /// Return a satisfying non-malleable witness and script sig with minimum weight
     /// to spend an output controlled by the given descriptor if it is possible to satisfy
     /// given the `satisfier`
-    pub fn get_satisfaction(
+    pub fn get_satisfaction<S: Satisfier<Pk>>(
         &self,
-        satisfier: &PolicySatisfier<Pk>,
+        satisfier: S,
     ) -> Result<(Vec<Vec<u8>>, elements::Script), Error> {
         let program = self.policy.satisfy(satisfier)?;
 
