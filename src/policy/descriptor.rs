@@ -1,11 +1,11 @@
 use crate::{miniscript, Error, Policy};
 use bitcoin_hashes::{hash160, ripemd160, sha256, Hash};
 use elements::schnorr::{TapTweak, XOnlyPublicKey};
-use elements::secp256k1_zkp;
 use elements::taproot::{
     ControlBlock, LeafVersion, TapBranchHash, TapLeafHash, TaprootBuilder, TaprootMerkleBranch,
     TaprootSpendInfo,
 };
+use elements::{bitcoin, secp256k1_zkp};
 use miniscript::descriptor::{ConversionError, DescriptorSecretKey, KeyMap};
 use miniscript::Error as MSError;
 use miniscript::{
@@ -392,6 +392,39 @@ impl Descriptor<DescriptorPublicKey> {
             .expect("Translation to string cannot fail");
 
         descriptor.to_string()
+    }
+}
+
+impl Descriptor<DefiniteDescriptorKey> {
+    /// Convert all the public keys in the descriptor to [`bitcoin::PublicKey`] by deriving them or
+    /// otherwise converting them. All [`secp256k1_zkp::XOnlyPublicKey`]s are converted to by adding a
+    /// default(0x02) y-coordinate.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if hardened derivation is attempted.
+    pub fn derived_descriptor<C: secp256k1_zkp::Verification>(
+        &self,
+        secp: &secp256k1_zkp::Secp256k1<C>,
+    ) -> Result<Descriptor<bitcoin::PublicKey>, ConversionError> {
+        struct Derivator<'a, C: secp256k1_zkp::Verification>(&'a secp256k1_zkp::Secp256k1<C>);
+
+        impl<'a, C: secp256k1_zkp::Verification>
+            Translator<DefiniteDescriptorKey, bitcoin::PublicKey, ConversionError>
+            for Derivator<'a, C>
+        {
+            fn pk(
+                &mut self,
+                pk: &DefiniteDescriptorKey,
+            ) -> Result<bitcoin::PublicKey, ConversionError> {
+                pk.derive_public_key(self.0)
+            }
+
+            translate_hash_clone!(DefiniteDescriptorKey, bitcoin::PublicKey, ConversionError);
+        }
+
+        let derived = self.translate_pk(&mut Derivator(secp))?;
+        Ok(derived)
     }
 }
 
