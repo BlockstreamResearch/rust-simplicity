@@ -1,17 +1,18 @@
 use crate::{miniscript, Error, Policy};
-use bitcoin_hashes::Hash;
+use bitcoin_hashes::{hash160, ripemd160, sha256, Hash};
 use elements::schnorr::{TapTweak, XOnlyPublicKey};
 use elements::secp256k1_zkp;
 use elements::taproot::{
     ControlBlock, LeafVersion, TapBranchHash, TapLeafHash, TaprootBuilder, TaprootMerkleBranch,
     TaprootSpendInfo,
 };
-use miniscript::descriptor::ConversionError;
+use miniscript::descriptor::{ConversionError, DescriptorSecretKey, KeyMap};
 use miniscript::Error as MSError;
 use miniscript::{
-    translate_hash_clone, DefiniteDescriptorKey, DescriptorPublicKey, ForEachKey, MiniscriptKey,
-    Satisfier, ToPublicKey, Translator,
+    hash256, translate_hash_clone, DefiniteDescriptorKey, DescriptorPublicKey, ForEachKey,
+    MiniscriptKey, Satisfier, ToPublicKey, Translator,
 };
+use std::collections::HashMap;
 use std::fmt;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
@@ -271,6 +272,126 @@ impl Descriptor<DescriptorPublicKey> {
         }
 
         self.translate_pk(&mut Derivator(index))
+    }
+
+    /// Parse a descriptor that may contain secret keys
+    ///
+    /// Internally turns every secret key found into the corresponding public key and then returns a
+    /// a descriptor that only contains public keys and a map to lookup the secret key given a public key.
+    pub fn parse_descriptor<C: secp256k1_zkp::Signing>(
+        secp: &secp256k1_zkp::Secp256k1<C>,
+        s: &str,
+    ) -> Result<(Descriptor<DescriptorPublicKey>, KeyMap), MSError> {
+        fn parse_key<C: secp256k1_zkp::Signing>(
+            s: &str,
+            key_map: &mut KeyMap,
+            secp: &secp256k1_zkp::Secp256k1<C>,
+        ) -> Result<DescriptorPublicKey, MSError> {
+            let (public_key, secret_key) = match DescriptorSecretKey::from_str(s) {
+                Ok(sk) => (
+                    sk.to_public(secp)
+                        .map_err(|e| MSError::Unexpected(e.to_string()))?,
+                    Some(sk),
+                ),
+                Err(_) => (
+                    DescriptorPublicKey::from_str(s)
+                        .map_err(|e| MSError::Unexpected(e.to_string()))?,
+                    None,
+                ),
+            };
+
+            if let Some(secret_key) = secret_key {
+                key_map.insert(public_key.clone(), secret_key);
+            }
+
+            Ok(public_key)
+        }
+
+        let mut keymap_pk = KeyMapWrapper(HashMap::new(), secp);
+
+        struct KeyMapWrapper<'a, C: secp256k1_zkp::Signing>(
+            KeyMap,
+            &'a secp256k1_zkp::Secp256k1<C>,
+        );
+
+        impl<'a, C: secp256k1_zkp::Signing> Translator<String, DescriptorPublicKey, MSError>
+            for KeyMapWrapper<'a, C>
+        {
+            fn pk(&mut self, pk: &String) -> Result<DescriptorPublicKey, MSError> {
+                parse_key(pk, &mut self.0, self.1)
+            }
+
+            fn sha256(&mut self, sha256: &String) -> Result<sha256::Hash, MSError> {
+                let hash = sha256::Hash::from_str(sha256)
+                    .map_err(|e| MSError::Unexpected(e.to_string()))?;
+                Ok(hash)
+            }
+
+            fn hash256(&mut self, hash256: &String) -> Result<hash256::Hash, MSError> {
+                let hash = hash256::Hash::from_str(hash256)
+                    .map_err(|e| MSError::Unexpected(e.to_string()))?;
+                Ok(hash)
+            }
+
+            fn ripemd160(&mut self, ripemd160: &String) -> Result<ripemd160::Hash, MSError> {
+                let hash = ripemd160::Hash::from_str(ripemd160)
+                    .map_err(|e| MSError::Unexpected(e.to_string()))?;
+                Ok(hash)
+            }
+
+            fn hash160(&mut self, hash160: &String) -> Result<hash160::Hash, MSError> {
+                let hash = hash160::Hash::from_str(hash160)
+                    .map_err(|e| MSError::Unexpected(e.to_string()))?;
+                Ok(hash)
+            }
+        }
+
+        let descriptor = Descriptor::<String>::from_str(s)?;
+        let descriptor = descriptor
+            .translate_pk(&mut keymap_pk)
+            .map_err(|e| MSError::Unexpected(e.to_string()))?;
+
+        Ok((descriptor, keymap_pk.0))
+    }
+
+    /// Serialize a descriptor to string with its secret keys
+    pub fn to_string_with_secret(&self, key_map: &KeyMap) -> String {
+        struct KeyMapLookUp<'a>(&'a KeyMap);
+
+        impl<'a> Translator<DescriptorPublicKey, String, ()> for KeyMapLookUp<'a> {
+            fn pk(&mut self, pk: &DescriptorPublicKey) -> Result<String, ()> {
+                key_to_string(pk, self.0)
+            }
+
+            fn sha256(&mut self, sha256: &sha256::Hash) -> Result<String, ()> {
+                Ok(sha256.to_string())
+            }
+
+            fn hash256(&mut self, hash256: &hash256::Hash) -> Result<String, ()> {
+                Ok(hash256.to_string())
+            }
+
+            fn ripemd160(&mut self, ripemd160: &ripemd160::Hash) -> Result<String, ()> {
+                Ok(ripemd160.to_string())
+            }
+
+            fn hash160(&mut self, hash160: &hash160::Hash) -> Result<String, ()> {
+                Ok(hash160.to_string())
+            }
+        }
+
+        fn key_to_string(pk: &DescriptorPublicKey, key_map: &KeyMap) -> Result<String, ()> {
+            Ok(match key_map.get(pk) {
+                Some(secret) => secret.to_string(),
+                None => pk.to_string(),
+            })
+        }
+
+        let descriptor = self
+            .translate_pk(&mut KeyMapLookUp(key_map))
+            .expect("Translation to string cannot fail");
+
+        descriptor.to_string()
     }
 }
 
