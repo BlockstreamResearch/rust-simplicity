@@ -175,11 +175,13 @@ impl<J: Jet> Forest<J> {
                 let arrow_str = format!(": {} -> {}", arrow.source, arrow.target).replace('×', "*"); // for human-readable encoding stick with ASCII
 
                 // All witnesses have the same CMR so don't bother printing it
-                let cmr_str = if let node::Inner::Witness(..) = node.inner() {
+                let cmr_str = /*if let node::Inner::Witness(..) = node.inner() {
                     String::new()
-                } else {
-                    format!("-- cmr {:.8}...", node.cmr())
-                };
+                } else { */
+                    format!("-- cmr {}...", node.cmr())
+                    + &format!("  -- imr {}...", node.imr().as_ref().map(ToString::to_string).unwrap_or("???".to_string()))
+//                };
+;
 
                 let print = Print {
                     expr_str,
