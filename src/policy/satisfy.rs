@@ -1,44 +1,16 @@
+use crate::analysis::Cost;
 use crate::jet::Elements;
 use crate::node::{RedeemNode, WitnessNode};
-use crate::{Error, Policy, Value};
+use crate::{miniscript, Error, Policy, Value};
 
 use bitcoin_hashes::Hash;
 use elements::locktime::Height;
 use elements::taproot::TapLeafHash;
 use elements::{LockTime, Sequence};
-use elements_miniscript::{MiniscriptKey, Preimage32, Satisfier, ToPublicKey};
+use miniscript::{Satisfier, ToPublicKey};
 
-use crate::analysis::Cost;
-use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::sync::Arc;
-
-pub struct PolicySatisfier<'a, Pk: MiniscriptKey> {
-    pub preimages: HashMap<Pk::Sha256, Preimage32>,
-    pub signatures: HashMap<Pk, elements::SchnorrSig>,
-    pub tx: &'a elements::Transaction,
-    pub index: usize,
-}
-
-impl<'a, Pk: ToPublicKey> Satisfier<Pk> for PolicySatisfier<'a, Pk> {
-    fn lookup_tap_leaf_script_sig(&self, pk: &Pk, _: &TapLeafHash) -> Option<elements::SchnorrSig> {
-        self.signatures.get(pk).copied()
-    }
-
-    fn lookup_sha256(&self, hash: &Pk::Sha256) -> Option<Preimage32> {
-        self.preimages.get(hash).copied()
-    }
-
-    fn check_older(&self, sequence: Sequence) -> bool {
-        let self_sequence = self.tx.input[self.index].sequence;
-        <Sequence as Satisfier<Pk>>::check_older(&self_sequence, sequence)
-    }
-
-    fn check_after(&self, locktime: LockTime) -> bool {
-        let self_locktime = LockTime::from(self.tx.lock_time);
-        <LockTime as Satisfier<Pk>>::check_after(&self_locktime, locktime)
-    }
-}
 
 impl<Pk: ToPublicKey> Policy<Pk> {
     pub fn satisfy_internal<S: Satisfier<Pk>>(
@@ -178,18 +150,41 @@ mod tests {
     use crate::jet::elements::ElementsEnv;
     use crate::node::SimpleFinalizer;
     use crate::{BitMachine, FailEntropy};
-    use bitcoin_hashes::{sha256, Hash};
-    use elements::{bitcoin, secp256k1_zkp, PackedLockTime, SchnorrSigHashType};
+    use bitcoin_hashes::sha256;
+    use elements::{bitcoin, secp256k1_zkp, PackedLockTime, SchnorrSig, SchnorrSigHashType};
+    use miniscript::{MiniscriptKey, Preimage32};
+    use std::collections::HashMap;
     use std::sync::Arc;
 
-    fn get_satisfier(env: &ElementsEnv) -> PolicySatisfier<bitcoin::XOnlyPublicKey> {
+    struct HashSatisfier<Pk: MiniscriptKey>(HashMap<Pk::Sha256, Preimage32>);
+
+    impl<Pk: ToPublicKey> Satisfier<Pk> for HashSatisfier<Pk> {
+        fn lookup_sha256(&self, image: &Pk::Sha256) -> Option<Preimage32> {
+            self.0.get(image).copied()
+        }
+    }
+
+    fn get_hash_satisfier() -> HashSatisfier<bitcoin::XOnlyPublicKey> {
         let mut preimages = HashMap::new();
-        let mut signatures = HashMap::new();
 
         for i in 0..3 {
             let preimage = [i; 32];
             preimages.insert(sha256::Hash::hash(&preimage), preimage);
         }
+
+        HashSatisfier(preimages)
+    }
+
+    struct SigSatisfier<Pk: MiniscriptKey>(HashMap<Pk, SchnorrSig>);
+
+    impl<Pk: ToPublicKey> Satisfier<Pk> for SigSatisfier<Pk> {
+        fn lookup_tap_leaf_script_sig(&self, key: &Pk, _: &TapLeafHash) -> Option<SchnorrSig> {
+            self.0.get(key).copied()
+        }
+    }
+
+    fn get_sig_satisfier(env: &ElementsEnv) -> SigSatisfier<bitcoin::XOnlyPublicKey> {
+        let mut signatures = HashMap::new();
 
         let secp = secp256k1_zkp::Secp256k1::new();
         let mut rng = secp256k1_zkp::rand::rngs::ThreadRng::default();
@@ -208,12 +203,7 @@ mod tests {
             signatures.insert(xonly, sig);
         }
 
-        PolicySatisfier {
-            preimages,
-            signatures,
-            tx: env.tx(),
-            index: 0,
-        }
+        SigSatisfier(signatures)
     }
 
     fn execute_successful(program: Arc<RedeemNode<Elements>>, env: &ElementsEnv) {
@@ -231,7 +221,7 @@ mod tests {
     #[test]
     fn satisfy_unsatisfiable() {
         let env = ElementsEnv::dummy();
-        let satisfier = get_satisfier(&env);
+        let satisfier = get_sig_satisfier(&env);
         let policy = Policy::Unsatisfiable(FailEntropy::ZERO);
 
         assert!(policy.satisfy(&satisfier).is_err());
@@ -250,7 +240,7 @@ mod tests {
     #[test]
     fn satisfy_trivial() {
         let env = ElementsEnv::dummy();
-        let satisfier = get_satisfier(&env);
+        let satisfier = get_sig_satisfier(&env);
         let policy = Policy::Trivial;
 
         let program = policy.satisfy(&satisfier).expect("satisfiable");
@@ -263,9 +253,8 @@ mod tests {
     #[test]
     fn satisfy_pk() {
         let env = ElementsEnv::dummy();
-        let satisfier = get_satisfier(&env);
-        let mut it = satisfier.signatures.keys();
-        let xonly = it.next().unwrap();
+        let satisfier = get_sig_satisfier(&env);
+        let xonly = satisfier.0.keys().next().expect("satisfier has keys");
         let policy = Policy::Key(*xonly);
 
         let program = policy.satisfy(&satisfier).expect("satisfiable");
@@ -285,9 +274,8 @@ mod tests {
     #[test]
     fn satisfy_sha256() {
         let env = ElementsEnv::dummy();
-        let satisfier = get_satisfier(&env);
-        let mut it = satisfier.preimages.keys();
-        let image = *it.next().unwrap();
+        let satisfier = get_hash_satisfier();
+        let image = *satisfier.0.keys().next().expect("satisfier has image");
         let policy = Policy::Sha256(image);
 
         let program = policy.satisfy(&satisfier).expect("satisfiable");
@@ -296,7 +284,7 @@ mod tests {
 
         let witness_bytes = witness[0].try_to_bytes().expect("to bytes");
         let witness_preimage = Preimage32::try_from(witness_bytes.as_slice()).expect("to array");
-        let preimage = *satisfier.preimages.get(&image).unwrap();
+        let preimage = *satisfier.0.get(&image).unwrap();
         assert_eq!(preimage, witness_preimage);
 
         execute_successful(program, &env);
@@ -304,55 +292,54 @@ mod tests {
 
     #[test]
     fn satisfy_after() {
-        let env = ElementsEnv::dummy_with(PackedLockTime(42), Sequence::ZERO);
-        let satisfier = get_satisfier(&env);
+        let locktime = 42;
+        let env = ElementsEnv::dummy_with(PackedLockTime(locktime), Sequence::ZERO);
+        let satisfier = LockTime::Blocks(Height::from_consensus(locktime).expect("valid height"));
 
-        let policy0 = Policy::After(41);
+        let policy0: Policy<bitcoin::XOnlyPublicKey> = Policy::After(41);
         let program = policy0.satisfy(&satisfier).expect("satisfiable");
         let witness = to_witness(&program);
         assert!(witness.is_empty());
         execute_successful(program, &env);
 
-        let policy1 = Policy::After(42);
+        let policy1: Policy<bitcoin::XOnlyPublicKey> = Policy::After(42);
         let program = policy1.satisfy(&satisfier).expect("satisfiable");
         let witness = to_witness(&program);
         assert!(witness.is_empty());
         execute_successful(program, &env);
 
-        let policy2 = Policy::After(43);
+        let policy2: Policy<bitcoin::XOnlyPublicKey> = Policy::After(43);
         assert!(policy2.satisfy(&satisfier).is_err(), "unsatisfiable");
     }
 
     #[test]
     fn satisfy_older() {
-        let env = ElementsEnv::dummy_with(PackedLockTime::ZERO, Sequence::from_consensus(42));
-        let satisfier = get_satisfier(&env);
+        let sequence = Sequence::from_consensus(42);
+        let env = ElementsEnv::dummy_with(PackedLockTime::ZERO, sequence);
+        let satisfier = sequence;
 
-        let policy0 = Policy::Older(41);
+        let policy0: Policy<bitcoin::XOnlyPublicKey> = Policy::Older(41);
         let program = policy0.satisfy(&satisfier).expect("satisfiable");
         let witness = to_witness(&program);
         assert!(witness.is_empty());
         execute_successful(program, &env);
 
-        let policy1 = Policy::Older(42);
+        let policy1: Policy<bitcoin::XOnlyPublicKey> = Policy::Older(42);
         let program = policy1.satisfy(&satisfier).expect("satisfiable");
         let witness = to_witness(&program);
         assert!(witness.is_empty());
         execute_successful(program, &env);
 
-        let policy2 = Policy::Older(43);
+        let policy2: Policy<bitcoin::XOnlyPublicKey> = Policy::Older(43);
         assert!(policy2.satisfy(&satisfier).is_err(), "unsatisfiable");
     }
 
     #[test]
     fn satisfy_and() {
         let env = ElementsEnv::dummy();
-        let satisfier = get_satisfier(&env);
-        let images: Vec<_> = satisfier.preimages.keys().copied().collect();
-        let preimages: Vec<_> = images
-            .iter()
-            .map(|x| satisfier.preimages.get(x).unwrap())
-            .collect();
+        let satisfier = get_hash_satisfier();
+        let images: Vec<_> = satisfier.0.keys().copied().collect();
+        let preimages: Vec<_> = images.iter().map(|x| satisfier.0.get(x).unwrap()).collect();
 
         // Policy 0
 
@@ -393,12 +380,9 @@ mod tests {
     #[test]
     fn satisfy_or() {
         let env = ElementsEnv::dummy();
-        let satisfier = get_satisfier(&env);
-        let images: Vec<_> = satisfier.preimages.keys().copied().collect();
-        let preimages: Vec<_> = images
-            .iter()
-            .map(|x| satisfier.preimages.get(x).unwrap())
-            .collect();
+        let satisfier = get_hash_satisfier();
+        let images: Vec<_> = satisfier.0.keys().copied().collect();
+        let preimages: Vec<_> = images.iter().map(|x| satisfier.0.get(x).unwrap()).collect();
 
         let assert_branch = |policy: &Policy<bitcoin::XOnlyPublicKey>, bit: bool| {
             let program = policy.satisfy(&satisfier).expect("satisfiable");
@@ -450,12 +434,9 @@ mod tests {
     #[test]
     fn satisfy_thresh() {
         let env = ElementsEnv::dummy();
-        let satisfier = get_satisfier(&env);
-        let images: Vec<_> = satisfier.preimages.keys().copied().collect();
-        let preimages: Vec<_> = images
-            .iter()
-            .map(|x| satisfier.preimages.get(x).unwrap())
-            .collect();
+        let satisfier = get_hash_satisfier();
+        let images: Vec<_> = satisfier.0.keys().copied().collect();
+        let preimages: Vec<_> = images.iter().map(|x| satisfier.0.get(x).unwrap()).collect();
 
         let assert_branches = |policy: &Policy<bitcoin::XOnlyPublicKey>, bits: &[bool]| {
             let program = policy.satisfy(&satisfier).expect("satisfiable");
@@ -477,6 +458,8 @@ mod tests {
                     witidx += 1;
                 }
             }
+
+            execute_successful(program, &env);
         };
 
         let image_from_bit = |bit: bool, j: u8| {
