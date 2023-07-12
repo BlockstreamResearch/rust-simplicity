@@ -8,6 +8,7 @@ use elements::taproot::{
     TaprootSpendInfo,
 };
 use miniscript::descriptor::ConversionError;
+use miniscript::Error as MSError;
 use miniscript::{
     translate_hash_clone, DefiniteDescriptorKey, DescriptorPublicKey, ForEachKey, MiniscriptKey,
     ToPublicKey, Translator,
@@ -276,28 +277,49 @@ impl Descriptor<DescriptorPublicKey> {
 
 impl<Pk: MiniscriptKey> fmt::Display for Descriptor<Pk> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.policy, f)
+        write!(f, "sim({},{})", self.internal_key, self.policy)
     }
 }
 
 impl<Pk> FromStr for Descriptor<Pk>
 where
-    Pk: UnspendableKey + MiniscriptKey + FromStr,
+    Pk: MiniscriptKey + FromStr,
     Pk::Sha256: FromStr,
     <Pk as FromStr>::Err: ToString,
     <Pk::Sha256 as FromStr>::Err: ToString,
 {
-    type Err = miniscript::Error;
+    type Err = MSError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let policy = Policy::from_str(s)?;
-        Ok(Self::single_leaf(policy))
+        let (internal_key, policy) = s
+            .strip_prefix("sim(")
+            .and_then(|s| s.strip_suffix(')'))
+            .and_then(|s| {
+                let mut split = s.splitn(2, ',');
+                let x = split.next()?;
+                let y = split.next()?;
+                Some((x, y))
+            })
+            .ok_or(MSError::BadDescriptor("bad taproot descriptor".to_string()))?;
+        let internal_key = <Pk as FromStr>::from_str(internal_key)
+            .map_err(|e| MSError::BadDescriptor(e.to_string()))?;
+        let policy = Policy::from_str(policy)?;
+
+        Ok(Self::new(internal_key, policy))
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn from_string_to_string() {
+        let original = "sim(d6889cb081036e0faefa3a35157ad71086b123b2b144b649798b494c300a961d,pk(e0dfe2300b0dd746a3f8674dfd4525623639042569d829c7f0eed9602d263e6f))";
+        let descriptor = Descriptor::<XOnlyPublicKey>::from_str(original).expect("from_str");
+        let display = descriptor.to_string();
+        assert_eq!(original, display);
+    }
 
     #[test]
     fn derived_descriptor() {
