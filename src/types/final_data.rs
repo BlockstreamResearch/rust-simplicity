@@ -115,10 +115,14 @@ impl fmt::Display for Final {
                     f.write_str("1")?;
                 }
                 (CompleteBound::Sum(..), 0) | (CompleteBound::Product(..), 0) => {
-                    f.write_str("(")?;
+                    if data.index > 0 {
+                        f.write_str("(")?;
+                    }
                 }
                 (CompleteBound::Sum(..), 2) | (CompleteBound::Product(..), 2) => {
-                    f.write_str(")")?;
+                    if data.index > 0 {
+                        f.write_str(")")?;
+                    }
                 }
                 (CompleteBound::Sum(..), _) => f.write_str(" + ")?,
                 (CompleteBound::Product(..), _) => f.write_str(" × ")?,
@@ -216,9 +220,9 @@ mod tests {
         assert_eq!(ty1.to_string(), "2^1024");
 
         let sum = Final::sum(Final::two_two_n(5), Final::two_two_n(10));
-        assert_eq!(sum.to_string(), "(2^32 + 2^1024)");
+        assert_eq!(sum.to_string(), "2^32 + 2^1024");
 
         let prod = Final::product(Final::two_two_n(5), Final::two_two_n(10));
-        assert_eq!(prod.to_string(), "(2^32 × 2^1024)");
+        assert_eq!(prod.to_string(), "2^32 × 2^1024");
     }
 }
