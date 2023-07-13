@@ -75,9 +75,45 @@ impl<J: Jet> NamedCommitNode<J> {
         self.cached_data().internal.arrow()
     }
 
+    /// Forget the names, yielding an ordinary [`CommitNode`].
+    pub fn to_commit_node(&self) -> Arc<CommitNode<J>> {
+        struct Forgetter<J>(PhantomData<J>);
+
+        impl<J: Jet> Converter<Named<Commit<J>>, Commit<J>> for Forgetter<J> {
+            type Error = ();
+            fn convert_witness(
+                &mut self,
+                _: &PostOrderIterItem<&NamedCommitNode<J>>,
+                _: &NoWitness,
+            ) -> Result<NoWitness, Self::Error> {
+                Ok(NoWitness)
+            }
+
+            fn convert_disconnect(
+                &mut self,
+                _: &PostOrderIterItem<&NamedCommitNode<J>>,
+                _: Option<&Arc<CommitNode<J>>>,
+                _: &NoDisconnect,
+            ) -> Result<NoDisconnect, Self::Error> {
+                Ok(NoDisconnect)
+            }
+
+            fn convert_data(
+                &mut self,
+                data: &PostOrderIterItem<&NamedCommitNode<J>>,
+                _: node::Inner<&Arc<CommitNode<J>>, J, &NoDisconnect, &NoWitness>,
+            ) -> Result<Arc<CommitData<J>>, Self::Error> {
+                Ok(Arc::clone(&data.node.cached_data().internal))
+            }
+        }
+
+        self.convert::<InternalSharing, _, _>(&mut Forgetter(PhantomData))
+            .unwrap()
+    }
+
     /// Encode a Simplicity expression to bits without any witness data
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
-        let program_bits = encode::encode_program(self, w)?;
+        let program_bits = encode::encode_program(self.to_commit_node().as_ref(), w)?;
         w.flush_all()?;
         Ok(program_bits)
     }
