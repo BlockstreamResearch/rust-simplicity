@@ -366,7 +366,7 @@ mod tests {
             prog.cmr().to_string(),
             cmr_str,
             "CMR mismatch (got {} expected {}) for program {}",
-            prog.cmr().to_string(),
+            prog.cmr(),
             cmr_str,
             prog_hex,
         );
@@ -375,7 +375,7 @@ mod tests {
             prog.amr().to_string(),
             amr_str,
             "AMR mismatch (got {} expected {}) for program {}",
-            prog.amr().to_string(),
+            prog.amr(),
             amr_str,
             prog_hex,
         );
@@ -383,7 +383,7 @@ mod tests {
             prog.imr().to_string(),
             imr_str,
             "IMR mismatch (got {} expected {}) for program {}",
-            prog.imr().to_string(),
+            prog.imr(),
             imr_str,
             prog_hex,
         );
@@ -426,7 +426,7 @@ mod tests {
         //
         // wits_are_equal = comp (pair wit1 wit2) jet_eq_32 :: 1 -> 2
         // main = comp wits_are_equal jet_verify            :: 1 -> 1
-        let eqwits = vec![0xcd, 0xdc, 0x51, 0xb6, 0xe2, 0x08, 0xc0, 0x40];
+        let eqwits = [0xcd, 0xdc, 0x51, 0xb6, 0xe2, 0x08, 0xc0, 0x40];
         let mut iter = BitIter::from(&eqwits[..]);
         let eqwits_prog = CommitNode::<Core>::decode(&mut iter).unwrap();
 
@@ -474,7 +474,7 @@ mod tests {
     #[test]
     fn witness_consumed() {
         // "main = unit", but with a witness attached. Found by fuzzer.
-        let badwit = vec![0x27, 0x00];
+        let badwit = [0x27, 0x00];
         let mut iter = BitIter::from(&badwit[..]);
         if let Err(Error::InconsistentWitnessLength) =
             RedeemNode::<crate::jet::Core>::decode(&mut iter)

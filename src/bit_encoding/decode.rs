@@ -410,7 +410,7 @@ mod tests {
     #[test]
     fn root_unit_to_unit() {
         // main = jet_eq_32 :: 2^64 -> 2 # 7387d279
-        let justjet = vec![0x6d, 0xb8, 0x80];
+        let justjet = [0x6d, 0xb8, 0x80];
         // Should be able to decode this as an expression...
         let mut iter = BitIter::from(&justjet[..]);
         decode_expression::<_, Core>(&mut iter).unwrap();
