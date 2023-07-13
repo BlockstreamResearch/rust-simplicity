@@ -128,7 +128,7 @@ impl fmt::Display for Error {
             } => {
                 write!(
                     f,
-                    "failed to apply bound {} to existing bound {}: {}",
+                    "failed to apply bound `{}` to existing bound `{}`: {}",
                     new_bound, existing_bound, hint,
                 )
             }
@@ -139,7 +139,7 @@ impl fmt::Display for Error {
             } => {
                 write!(
                     f,
-                    "attempted to unify unequal types {} and {}: {}",
+                    "attempted to unify unequal types `{}` and `{}`: {}",
                     type1, type2, hint,
                 )
             }

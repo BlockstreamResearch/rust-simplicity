@@ -567,7 +567,7 @@ impl<N: Marker> Node<N> {
             Inner::Unit => Cmr::unit(),
             Inner::Iden => Cmr::iden(),
             Inner::InjL(ref c) => Cmr::injl(c.cmr()),
-            Inner::InjR(ref c) => Cmr::injl(c.cmr()),
+            Inner::InjR(ref c) => Cmr::injr(c.cmr()),
             Inner::Take(ref c) => Cmr::take(c.cmr()),
             Inner::Drop(ref c) => Cmr::drop(c.cmr()),
             Inner::Comp(ref cl, ref cr) => Cmr::comp(cl.cmr(), cr.cmr()),

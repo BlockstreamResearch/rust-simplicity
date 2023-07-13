@@ -37,6 +37,7 @@ mod analysis;
 mod bit_encoding;
 pub mod bit_machine;
 pub mod dag;
+pub mod human_encoding;
 pub mod jet;
 mod merkle;
 pub mod node;
