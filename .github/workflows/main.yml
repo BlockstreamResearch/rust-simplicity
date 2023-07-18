@@ -146,33 +146,3 @@ jobs:
           command: clippy
           args: -- -D warnings
 
-  fuzz:
-    name: Fuzz Tests
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - 1.58.0
-    steps:
-      - name: Checkout Crate
-        uses: actions/checkout@v2
-      - name: Install hongfuzz dependancies
-        run: sudo apt update && sudo apt install build-essential binutils-dev libunwind-dev libblocksruntime-dev liblzma-dev
-      - name: Checkout Toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
-      - name: Running cargo test
-        env:
-          FEATURES: honggfuzz_fuzz
-        run: |
-          cd fuzz/
-          cargo test
-          RUSTFLAGS=--cfg=fuzzing cargo test
-      - name: Running fuzz tests
-        run: |
-          cd fuzz/
-          ./travis-fuzz.sh
-

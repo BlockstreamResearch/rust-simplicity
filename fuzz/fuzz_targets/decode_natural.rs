@@ -21,7 +21,6 @@ fn do_test(data: &[u8]) {
     let mut iter = BitIter::new(data.iter().cloned());
 
     if let Ok(natural) = iter.read_natural(None) {
-        // println!("{:?}", natural);
         let bit_len = iter.n_total_read();
 
         let mut sink = Vec::<u8>::new();
@@ -71,7 +70,7 @@ mod tests {
     #[test]
     fn duplicate_crash() {
         let mut a = Vec::new();
-        extend_vec_from_hex("00", &mut a);
+        extend_vec_from_hex("00000", &mut a);
         super::do_test(&a);
     }
 }

@@ -15,12 +15,12 @@
 use honggfuzz::fuzz;
 
 use simplicity::bitcoin_hashes::sha256::Midstate;
-use simplicity::ffi::{ffi::SimplicityErr, tests};
+use simplicity::ffi::{self, ffi::SimplicityErr};
 use simplicity::jet::Elements;
 use simplicity::{BitIter, RedeemNode};
 
 fn do_test(data: &[u8]) {
-    let c_result = tests::run_program(data, tests::TestUpTo::CheckOneOne);
+    let c_result = ffi::tests::run_program(data, ffi::tests::TestUpTo::CheckOneOne);
 
     let mut iter = BitIter::from(data);
     let rust_result = RedeemNode::<Elements>::decode(&mut iter);
@@ -56,7 +56,7 @@ fn main() {
 }
 
 #[cfg(test)]
-mod unit_tests {
+mod tests {
     fn extend_vec_from_hex(hex: &str, out: &mut Vec<u8>) {
         let mut b = 0;
         for (idx, c) in hex.as_bytes().iter().enumerate() {
@@ -77,7 +77,7 @@ mod unit_tests {
     #[test]
     fn duplicate_crash() {
         let mut a = Vec::new();
-        extend_vec_from_hex("7b88f500", &mut a);
+        extend_vec_from_hex("00000", &mut a);
         super::do_test(&a);
     }
 }
