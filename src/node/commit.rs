@@ -314,7 +314,7 @@ mod tests {
             prog.cmr().to_string(),
             cmr_str,
             "CMR mismatch (got {} expected {}) for program {}",
-            prog.cmr().to_string(),
+            prog.cmr(),
             cmr_str,
             prog_hex,
         );

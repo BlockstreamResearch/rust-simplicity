@@ -14,7 +14,10 @@
 
 use crate::jet::Jet;
 use crate::Value;
-use std::{cmp, fmt, io};
+use std::{cmp, fmt};
+
+#[cfg(feature = "elements")]
+use std::io;
 
 #[cfg(feature = "elements")]
 use elements::encode::Encodable;

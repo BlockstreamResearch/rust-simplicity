@@ -52,8 +52,8 @@ and EXPRESSION is
 * `unit`, `iden`, or `witness`;
 * `injl`, `injr`, `take`, or `drop` followed by another EXPRESSION;
 * `case`, `comp`, or `pair` followed by two EXPRESSIONs;
-* `assertl` followed by an EXPRESSION, a literal `#`, and another EXPRESSION;
-* `assertr` followed by a literal `#` and two EXPRESSIONs;
+* `assertl` followed by an EXPRESSION and a CMR (defined below);
+* `assertr` followed by CMR and an EXPRESSION;
 * a jet, which begins with `jet_` and must belong to the list of jets (FIXME define this list);
 * `const` followed by a VALUE (defined below);
 * `fail` followed by an ENTROPY (defined below); or
@@ -62,6 +62,14 @@ and EXPRESSION is
 Note that while we allow parenthesis to help group parts of expressions for human
 understanding, they are never needed for disambiguation and are essentially
 ignored by the parser.
+
+A CMR is
+
+* `#{` followed by an expression followed by `}`; or
+* `#` followed by 64 hex bytes.
+
+The first case indicates that an expression should be replaced by its commitment
+Merkle root; the second case just directly encodes the Merkle root.
 
 A HOLE is the literal `?` followed by a NAME. It indicates an expression that has
 yet to be defined. Holes have a different namespace than other names.
@@ -151,7 +159,7 @@ Expressions may be
 * one of the core combinators `unit`, `iden`, `comp`, `injl`, `injr`, `case`, `take`, `drop`, `pair`, followed by subexpression(s) as needed;
 * the `disconnect` combinator followed by an expression and a hole;
 * the `witness` combinator which currently allows no subexpressions;
-* the assertions, `assertl` or `assertr`, which take two subexpressions, one of which will be hidden in the decoded program. The hidden subexpression should be prefixed by `#` which indicates to the parser to take the CMR of that expression, not the expression itself.
+* the assertions, `assertl` or `assertr`, which take a subexpressions and a CMR. The CMR is encoded as a full expression prefixed by `#{` and suffixed by `}`; but in the bit-encoding the expression does not appear, only its CMR;
 * `fail` followed by a 128-to-512-bit entropy value, which should occur only in the pruned branch of an assertion, though this is not enforced;
 * `const` followed by a value, which is a "constant-word jet" and is equivalent to constructing the given value by a tree of `pair`s whose leaves are `injl unit` (0) or `injr unit` (1);
 

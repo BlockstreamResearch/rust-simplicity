@@ -528,7 +528,7 @@ mod tests {
             prog.cmr().to_string(),
             cmr_str,
             "CMR mismatch (got {} expected {}) for program {}",
-            prog.cmr().to_string(),
+            prog.cmr(),
             cmr_str,
             prog_hex,
         );
@@ -536,7 +536,7 @@ mod tests {
             prog.imr().to_string(),
             imr_str,
             "IMR mismatch (got {} expected {}) for program {}",
-            prog.imr().to_string(),
+            prog.imr(),
             imr_str,
             prog_hex,
         );
@@ -544,7 +544,7 @@ mod tests {
             prog.amr().to_string(),
             amr_str,
             "AMR mismatch (got {} expected {}) for program {}",
-            prog.amr().to_string(),
+            prog.amr(),
             amr_str,
             prog_hex,
         );

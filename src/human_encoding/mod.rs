@@ -20,6 +20,7 @@
 //! in a human-readable format.
 //!
 
+mod error;
 mod named_node;
 mod serialize;
 
@@ -31,7 +32,19 @@ use std::collections::HashMap;
 use std::str;
 use std::sync::Arc;
 
+pub use self::error::{Error, ErrorSet};
 pub use self::named_node::NamedCommitNode;
+
+/// Line/column pair
+///
+/// There is a similar type provided by the `santiago` library but it does not implement
+/// `Copy`, among many other traits, which makes it unergonomic to use. Santiago positions
+/// can be converted using `.into()`.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
+pub struct Position {
+    line: usize,
+    column: usize,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Forest<J: Jet> {
@@ -80,6 +93,7 @@ impl<J: Jet> Forest<J> {
                 let node = data.node;
                 let name = node.name();
                 let mut expr_str = match node.inner() {
+                    node::Inner::AssertR(cmr, _) => format!("{} := assertr #{}", name, cmr),
                     node::Inner::Fail(entropy) => format!("{} := fail {}", name, entropy),
                     node::Inner::Jet(ref j) => format!("{} := jet_{}", name, j),
                     node::Inner::Word(ref v) => {
@@ -94,6 +108,9 @@ impl<J: Jet> Forest<J> {
                 if let Some(child) = node.right_child() {
                     expr_str.push(' ');
                     expr_str.push_str(child.name());
+                } else if let node::Inner::AssertL(_, cmr) = node.inner() {
+                    expr_str.push_str(" #");
+                    expr_str.push_str(&cmr.to_string());
                 }
 
                 let arrow = node.arrow();

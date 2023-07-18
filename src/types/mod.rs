@@ -332,8 +332,16 @@ impl fmt::Display for Bound {
             match (&*data.node, data.n_children_yielded) {
                 (Bound::Free(ref s), _) => f.write_str(s)?,
                 (Bound::Complete(ref comp), _) => fmt::Display::fmt(comp, f)?,
-                (Bound::Sum(..), 0) | (Bound::Product(..), 0) => f.write_str("(")?,
-                (Bound::Sum(..), 2) | (Bound::Product(..), 2) => f.write_str(")")?,
+                (Bound::Sum(..), 0) | (Bound::Product(..), 0) => {
+                    if data.index > 0 {
+                        f.write_str("(")?
+                    }
+                }
+                (Bound::Sum(..), 2) | (Bound::Product(..), 2) => {
+                    if data.index > 0 {
+                        f.write_str(")")?
+                    }
+                }
                 (Bound::Sum(..), _) => f.write_str(" + ")?,
                 (Bound::Product(..), _) => f.write_str(" × ")?,
             }
