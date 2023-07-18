@@ -342,7 +342,7 @@ impl<J: Jet> RedeemNode<J> {
 mod tests {
     use super::*;
 
-    use bitcoin_hashes::hex::ToHex;
+    use crate::hex::ToHex;
     use std::fmt;
 
     use crate::jet::Core;

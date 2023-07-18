@@ -153,7 +153,7 @@ impl<Pk: ToPublicKey> Descriptor<Pk> {
         // Single leaf: leaf hash = merkle root
         let (script, leaf_version) = self.leaf();
         let leaf_hash = TapLeafHash::from_script(&script, leaf_version);
-        let merkle_root = TapBranchHash::from_inner(leaf_hash.into_inner());
+        let merkle_root = TapBranchHash::from_byte_array(leaf_hash.to_byte_array());
         // Single leaf: empty merkle inclusion proof
         let merkle_branch = TaprootMerkleBranch::from_inner(Vec::new()).expect("constant branch");
 

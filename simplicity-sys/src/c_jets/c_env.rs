@@ -198,7 +198,7 @@ extern "C" {
 impl CElementsTxEnv {
     pub fn sighash_all(&self) -> sha256::Hash {
         let midstate: sha256::Midstate = self.sighash_all.into();
-        sha256::Hash::from_inner(midstate.into_inner())
+        sha256::Hash::from_byte_array(midstate.to_byte_array())
     }
 }
 

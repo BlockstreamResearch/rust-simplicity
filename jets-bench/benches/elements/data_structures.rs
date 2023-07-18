@@ -301,7 +301,7 @@ impl BenchSample for elements::OutPoint {
         rng.fill_bytes(&mut txid);
         let vout = rng.next_u32();
         elements::OutPoint {
-            txid: Txid::from_inner(txid),
+            txid: Txid::from_byte_array(txid),
             vout,
         }
     }

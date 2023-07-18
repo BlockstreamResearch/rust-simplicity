@@ -131,11 +131,11 @@ impl ElementsEnv {
 impl ElementsEnv {
     /// Return a dummy Elements environment
     pub fn dummy() -> Self {
-        Self::dummy_with(elements::PackedLockTime::ZERO, elements::Sequence::MAX)
+        Self::dummy_with(elements::LockTime::ZERO, elements::Sequence::MAX)
     }
 
     /// Return a dummy Elements environment with given locktime
-    pub fn dummy_with(lock_time: elements::PackedLockTime, sequence: elements::Sequence) -> Self {
+    pub fn dummy_with(lock_time: elements::LockTime, sequence: elements::Sequence) -> Self {
         use bitcoin_hashes::Hash;
         use elements::AssetIssuance;
 

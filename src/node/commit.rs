@@ -290,7 +290,7 @@ impl<J: Jet> CommitNode<J> {
 mod tests {
     use super::*;
 
-    use bitcoin_hashes::hex::ToHex;
+    use crate::hex::ToHex;
     use std::fmt;
 
     use crate::decode::Error;

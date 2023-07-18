@@ -23,7 +23,7 @@ pub mod imr;
 pub mod tmr;
 
 use crate::Value;
-use bitcoin_hashes::{hex, sha256, Hash, HashEngine};
+use bitcoin_hashes::{sha256, Hash, HashEngine};
 use std::fmt;
 
 /// 512-bit opaque blob of data used to seed `Fail` nodes
@@ -42,7 +42,7 @@ impl FailEntropy {
 
 impl fmt::Display for FailEntropy {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        hex::format_hex(&self.0, f)
+        crate::hex::format_hex(&self.0, f)
     }
 }
 
@@ -91,14 +91,14 @@ fn compact_value(value: &Value) -> [u8; 32] {
         consumed += 16;
     }
     debug_assert!(consumed == bytes.len());
-    engine.midstate().into_inner()
+    engine.midstate().to_byte_array()
 }
 
 fn bip340_iv(tag: &[u8]) -> sha256::Midstate {
     let tag_hash = sha256::Hash::hash(tag);
     let mut engine = sha256::Hash::engine();
-    engine.input(&tag_hash);
-    engine.input(&tag_hash);
+    engine.input(tag_hash.as_ref());
+    engine.input(tag_hash.as_ref());
     engine.midstate()
 }
 
@@ -117,13 +117,13 @@ macro_rules! impl_midstate_wrapper {
 
         impl std::fmt::Debug for $wrapper {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                bitcoin_hashes::hex::format_hex(&self.0.as_ref(), f)
+                $crate::hex::format_hex(&self.0.as_ref(), f)
             }
         }
 
         impl std::fmt::Display for $wrapper {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                bitcoin_hashes::hex::format_hex(&self.0.as_ref(), f)
+                $crate::hex::format_hex(&self.0.as_ref(), f)
             }
         }
 
@@ -132,7 +132,7 @@ macro_rules! impl_midstate_wrapper {
 
             fn from_str(s: &str) -> Result<Self, bitcoin_hashes::hex::Error> {
                 let x: [u8; 32] = bitcoin_hashes::hex::FromHex::from_hex(s)?;
-                Ok($wrapper(Midstate::from_inner(x)))
+                Ok($wrapper(Midstate::from_byte_array(x)))
             }
         }
 
@@ -175,12 +175,12 @@ macro_rules! impl_midstate_wrapper {
 
             /// Converts the given tagged hash into a byte array
             pub fn from_byte_array(data: [u8; 32]) -> Self {
-                $wrapper(Midstate::from_inner(data))
+                $wrapper(Midstate::from_byte_array(data))
             }
 
             /// Converts the given tagged hash into a byte array
             pub fn to_byte_array(self) -> [u8; 32] {
-                self.0.into_inner()
+                self.0.to_byte_array()
             }
         }
     };

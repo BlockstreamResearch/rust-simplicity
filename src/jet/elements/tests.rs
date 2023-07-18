@@ -9,8 +9,8 @@ use bitcoin_hashes::Hash;
 use elements::secp256k1_zkp::Tweak;
 use elements::taproot::ControlBlock;
 use elements::{
-    confidential, AssetId, AssetIssuance, BlockHash, OutPoint, PackedLockTime, Sequence,
-    Transaction, TxIn, TxInWitness, TxOut, TxOutWitness,
+    confidential, AssetId, AssetIssuance, BlockHash, OutPoint, Sequence, Transaction, TxIn,
+    TxInWitness, TxOut, TxOutWitness,
 };
 
 #[test]
@@ -30,13 +30,14 @@ fn test_ffi_env() {
         0x33, 0x2f, 0xb7, 0x1d, 0xda, 0x90, 0xff, 0x4b, 0xef, 0x53, 0x70, 0xf2, 0x52, 0x26, 0xd3,
         0xbc, 0x09, 0xfc,
     ];
-    let asset = confidential::Asset::Explicit(AssetId::from_inner(Midstate::from_inner(asset)));
+    let asset =
+        confidential::Asset::Explicit(AssetId::from_inner(Midstate::from_byte_array(asset)));
     let tx = Transaction {
         version: 2,
-        lock_time: PackedLockTime(100),
+        lock_time: elements::LockTime::from_consensus(100),
         input: vec![TxIn {
             previous_output: OutPoint {
-                txid: elements::Txid::from_inner(tx_id),
+                txid: elements::Txid::from_byte_array(tx_id),
                 vout: 0,
             },
             sequence: Sequence::ENABLE_LOCKTIME_NO_RBF,

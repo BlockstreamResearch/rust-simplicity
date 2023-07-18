@@ -14,10 +14,10 @@
 
 //! Serialization
 
-use bitcoin_hashes::hex::ToHex;
 use std::fmt;
 
 use crate::dag::{DagLike, NoSharing};
+use crate::hex::ToHex;
 use crate::Value;
 
 pub struct DisplayWord<'a>(pub &'a crate::Value);
