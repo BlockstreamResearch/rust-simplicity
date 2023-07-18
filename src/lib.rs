@@ -28,7 +28,6 @@ pub use elements;
 
 pub use bitcoin_hashes;
 pub use byteorder;
-pub use elements_miniscript as miniscript;
 
 #[macro_use]
 mod macros;
@@ -83,8 +82,6 @@ pub enum Error {
     InconsistentWitnessLength,
     /// Tried to parse a jet but the name wasn't recognized
     InvalidJetName(String),
-    /// Miniscript error
-    MiniscriptError(miniscript::Error),
 }
 
 impl fmt::Display for Error {
@@ -104,7 +101,6 @@ impl fmt::Display for Error {
             }
             Error::InvalidJetName(s) => write!(f, "unknown jet `{}`", s),
             Error::NoMoreWitnesses => f.write_str("no more witness data available"),
-            Error::MiniscriptError(ref e) => fmt::Display::fmt(e, f),
         }
     }
 }
@@ -120,7 +116,6 @@ impl std::error::Error for Error {
             Error::IncompleteFinalization => None,
             Error::InconsistentWitnessLength => None,
             Error::InvalidJetName(..) => None,
-            Error::MiniscriptError(ref e) => Some(e),
         }
     }
 }
@@ -140,11 +135,5 @@ impl From<EarlyEndOfStreamError> for Error {
 impl From<crate::types::Error> for Error {
     fn from(e: crate::types::Error) -> Error {
         Error::Type(e)
-    }
-}
-
-impl From<miniscript::Error> for Error {
-    fn from(e: miniscript::Error) -> Error {
-        Error::MiniscriptError(e)
     }
 }
