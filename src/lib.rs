@@ -41,8 +41,6 @@ pub mod human_encoding;
 pub mod jet;
 mod merkle;
 pub mod node;
-#[cfg(feature = "elements")]
-pub mod policy;
 pub mod types;
 mod value;
 
@@ -50,9 +48,6 @@ pub use bit_encoding::decode;
 pub use bit_encoding::encode;
 pub use bit_encoding::BitWriter;
 pub use bit_encoding::{BitIter, EarlyEndOfStreamError};
-
-#[cfg(feature = "elements")]
-pub use crate::policy::{Descriptor, Policy};
 
 pub use crate::bit_machine::BitMachine;
 pub use crate::encode::{encode_natural, encode_value, encode_witness};
@@ -90,9 +85,6 @@ pub enum Error {
     InvalidJetName(String),
     /// Miniscript error
     MiniscriptError(miniscript::Error),
-    /// Policy error
-    #[cfg(feature = "elements")]
-    Policy(policy::Error),
 }
 
 impl fmt::Display for Error {
@@ -113,8 +105,6 @@ impl fmt::Display for Error {
             Error::InvalidJetName(s) => write!(f, "unknown jet `{}`", s),
             Error::NoMoreWitnesses => f.write_str("no more witness data available"),
             Error::MiniscriptError(ref e) => fmt::Display::fmt(e, f),
-            #[cfg(feature = "elements")]
-            Error::Policy(ref e) => fmt::Display::fmt(e, f),
         }
     }
 }
@@ -131,8 +121,6 @@ impl std::error::Error for Error {
             Error::InconsistentWitnessLength => None,
             Error::InvalidJetName(..) => None,
             Error::MiniscriptError(ref e) => Some(e),
-            #[cfg(feature = "elements")]
-            Error::Policy(ref e) => Some(e),
         }
     }
 }
@@ -158,12 +146,5 @@ impl From<crate::types::Error> for Error {
 impl From<miniscript::Error> for Error {
     fn from(e: miniscript::Error) -> Error {
         Error::MiniscriptError(e)
-    }
-}
-
-#[cfg(feature = "elements")]
-impl From<policy::Error> for Error {
-    fn from(e: policy::Error) -> Error {
-        Error::Policy(e)
     }
 }
