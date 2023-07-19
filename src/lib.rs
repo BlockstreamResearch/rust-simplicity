@@ -26,6 +26,8 @@ pub use bitcoin;
 #[cfg(feature = "elements")]
 pub use elements;
 
+/// Re-export of hex crate
+pub extern crate hex;
 pub use bitcoin_hashes;
 pub use byteorder;
 pub use elements_miniscript as miniscript;
@@ -37,8 +39,6 @@ mod analysis;
 mod bit_encoding;
 pub mod bit_machine;
 pub mod dag;
-#[allow(dead_code)]
-mod hex;
 pub mod human_encoding;
 pub mod jet;
 mod merkle;

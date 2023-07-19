@@ -42,7 +42,7 @@ impl FailEntropy {
 
 impl fmt::Display for FailEntropy {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        crate::hex::format_hex(&self.0, f)
+        fmt::Display::fmt(&hex::DisplayHex::as_hex(&self.0), f)
     }
 }
 
@@ -117,13 +117,13 @@ macro_rules! impl_midstate_wrapper {
 
         impl std::fmt::Debug for $wrapper {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                $crate::hex::format_hex(&self.0.as_ref(), f)
+                std::fmt::Display::fmt(&hex::DisplayHex::as_hex(self.as_ref()), f)
             }
         }
 
         impl std::fmt::Display for $wrapper {
             fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                $crate::hex::format_hex(&self.0.as_ref(), f)
+                std::fmt::Debug::fmt(self, f)
             }
         }
 

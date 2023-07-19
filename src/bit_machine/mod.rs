@@ -501,11 +501,11 @@ mod tests {
     use super::*;
 
     #[cfg(feature = "elements")]
-    use crate::hex::ToHex;
-    #[cfg(feature = "elements")]
     use crate::jet::{elements::ElementsEnv, Elements};
     #[cfg(feature = "elements")]
     use crate::{node::RedeemNode, BitIter};
+    #[cfg(feature = "elements")]
+    use hex::DisplayHex;
 
     #[cfg(feature = "elements")]
     fn run_program_elements(
@@ -514,7 +514,7 @@ mod tests {
         amr_str: &str,
         imr_str: &str,
     ) -> Result<Value, ExecutionError> {
-        let prog_hex = prog_bytes.to_hex();
+        let prog_hex = prog_bytes.as_hex();
 
         let mut iter = BitIter::from(prog_bytes);
         let prog = match RedeemNode::<Elements>::decode(&mut iter) {
