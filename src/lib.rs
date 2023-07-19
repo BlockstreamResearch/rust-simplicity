@@ -26,10 +26,12 @@ pub use bitcoin;
 #[cfg(feature = "elements")]
 pub use elements;
 
+/// Re-export of byteorder crate
+pub extern crate byteorder;
+/// Re-export of hashes crate
+pub extern crate hashes;
 /// Re-export of hex crate
 pub extern crate hex;
-pub use bitcoin_hashes;
-pub use byteorder;
 pub use elements_miniscript as miniscript;
 
 #[macro_use]

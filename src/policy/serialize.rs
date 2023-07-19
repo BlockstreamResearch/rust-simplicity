@@ -249,10 +249,10 @@ mod tests {
     use crate::node::{ConstructNode, SimpleFinalizer};
     use crate::policy::Policy;
     use crate::{BitMachine, FailEntropy, Value};
-    use bitcoin_hashes::{sha256, Hash};
     use elements::bitcoin::key::XOnlyPublicKey;
     use elements::locktime::Height;
     use elements::secp256k1_zkp;
+    use hashes::{sha256, Hash};
     use std::sync::Arc;
 
     fn compile(policy: Policy<XOnlyPublicKey>) -> (Arc<ConstructNode<Elements>>, ElementsEnv) {

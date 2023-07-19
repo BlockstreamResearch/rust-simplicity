@@ -16,7 +16,7 @@ use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
 use crate::types::arrow::FinalArrow;
 use crate::{Cmr, Tmr, Value};
-use bitcoin_hashes::sha256::Midstate;
+use hashes::sha256::Midstate;
 
 use super::{bip340_iv, compact_value, FailEntropy};
 
@@ -112,7 +112,7 @@ impl FirstPassImr {
 
     /// Produce a CMR for a witness combinator
     pub fn witness(ty: &FinalArrow, value: &Value) -> Self {
-        use bitcoin_hashes::{sha256, HashEngine};
+        use hashes::{sha256, HashEngine};
 
         // 1 Bit-wise hash of `value`
         let value_hash = compact_value(value);

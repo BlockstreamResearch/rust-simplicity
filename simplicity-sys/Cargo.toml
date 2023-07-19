@@ -10,7 +10,7 @@ cc = "1.0"
 
 [dependencies]
 libc = "0.2"
-bitcoin_hashes = "0.12"
+hashes = { package = "bitcoin_hashes", version = "0.12" }
 
 [features]
 test-utils = []

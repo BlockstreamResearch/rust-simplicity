@@ -23,7 +23,7 @@ pub mod imr;
 pub mod tmr;
 
 use crate::Value;
-use bitcoin_hashes::{sha256, Hash, HashEngine};
+use hashes::{sha256, Hash, HashEngine};
 use std::fmt;
 
 /// 512-bit opaque blob of data used to seed `Fail` nodes
@@ -57,7 +57,7 @@ impl AsRef<[u8]> for FailEntropy {
 fn compact_value(value: &Value) -> [u8; 32] {
     let (mut bytes, bit_length) = value.to_bytes_len();
 
-    // TODO: Automate hashing once `bitcoin_hashes` supports bit-wise hashing
+    // TODO: Automate hashing once `hashes` supports bit-wise hashing
     // 1.1 Append single '1' bit
     if bit_length % 8 == 0 {
         bytes.push(0x80);
@@ -128,10 +128,10 @@ macro_rules! impl_midstate_wrapper {
         }
 
         impl std::str::FromStr for $wrapper {
-            type Err = bitcoin_hashes::hex::Error;
+            type Err = hashes::hex::Error;
 
-            fn from_str(s: &str) -> Result<Self, bitcoin_hashes::hex::Error> {
-                let x: [u8; 32] = bitcoin_hashes::hex::FromHex::from_hex(s)?;
+            fn from_str(s: &str) -> Result<Self, hashes::hex::Error> {
+                let x: [u8; 32] = hashes::hex::FromHex::from_hex(s)?;
                 Ok($wrapper(Midstate::from_byte_array(x)))
             }
         }
@@ -143,7 +143,7 @@ macro_rules! impl_midstate_wrapper {
             /// `left` and `right` hash are combined to create a 512-bit block,
             /// and the compression function is run once
             pub fn update(self, left: Self, right: Self) -> Self {
-                use $crate::bitcoin_hashes::{sha256, HashEngine};
+                use $crate::hashes::{sha256, HashEngine};
 
                 let mut engine = sha256::HashEngine::from_midstate(self.0, 0);
                 engine.input(left.as_ref());
@@ -157,7 +157,7 @@ macro_rules! impl_midstate_wrapper {
             /// 256 bits of zeroes and `right` hash are combined to create a 512-bit block,
             /// and the compression function is run once
             pub fn update_1(self, right: Self) -> Self {
-                use $crate::bitcoin_hashes::{sha256, HashEngine};
+                use $crate::hashes::{sha256, HashEngine};
 
                 let mut engine = sha256::HashEngine::from_midstate(self.0, 0);
                 engine.input(&[0; 32]);
@@ -166,7 +166,7 @@ macro_rules! impl_midstate_wrapper {
             }
 
             pub fn update_fail_entropy(self, entropy: $crate::FailEntropy) -> Self {
-                use $crate::bitcoin_hashes::{sha256, HashEngine};
+                use $crate::hashes::{sha256, HashEngine};
 
                 let mut engine = sha256::HashEngine::from_midstate(self.0, 0);
                 engine.input(entropy.as_ref());

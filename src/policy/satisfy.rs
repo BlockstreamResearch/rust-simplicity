@@ -2,10 +2,10 @@ use crate::jet::Elements;
 use crate::node::{RedeemNode, WitnessNode};
 use crate::{Error, Policy, Value};
 
-use bitcoin_hashes::Hash;
 use elements::locktime::Height;
 use elements::taproot::TapLeafHash;
 use elements_miniscript::{MiniscriptKey, Preimage32, Satisfier, ToPublicKey};
+use hashes::Hash;
 
 use crate::analysis::Cost;
 use std::collections::HashMap;
@@ -176,9 +176,9 @@ mod tests {
     use crate::jet::elements::ElementsEnv;
     use crate::node::SimpleFinalizer;
     use crate::{BitMachine, FailEntropy};
-    use bitcoin_hashes::{sha256, Hash};
     use elements::bitcoin::key::{KeyPair, XOnlyPublicKey};
     use elements::{secp256k1_zkp, LockTime, SchnorrSigHashType};
+    use hashes::{sha256, Hash};
     use std::sync::Arc;
 
     fn get_satisfier(env: &ElementsEnv) -> PolicySatisfier<XOnlyPublicKey> {

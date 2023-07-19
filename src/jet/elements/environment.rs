@@ -136,8 +136,8 @@ impl ElementsEnv {
 
     /// Return a dummy Elements environment with given locktime
     pub fn dummy_with(lock_time: elements::LockTime, sequence: elements::Sequence) -> Self {
-        use bitcoin_hashes::Hash;
         use elements::AssetIssuance;
+        use hashes::Hash;
 
         let ctrl_blk: [u8; 33] = [
             0xc0, 0xeb, 0x04, 0xb6, 0x8e, 0x9a, 0x26, 0xd1, 0x16, 0x04, 0x6c, 0x76, 0xe8, 0xff,

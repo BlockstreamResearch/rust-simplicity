@@ -1,6 +1,5 @@
 use crate::policy::satisfy::PolicySatisfier;
 use crate::{Cmr, Error, Policy};
-use bitcoin_hashes::Hash;
 use elements::schnorr::{TapTweak, XOnlyPublicKey};
 use elements::secp256k1_zkp;
 use elements::taproot::{
@@ -8,6 +7,7 @@ use elements::taproot::{
     TaprootSpendInfo,
 };
 use elements_miniscript::{MiniscriptKey, ToPublicKey};
+use hashes::Hash;
 use std::fmt;
 use std::str::FromStr;
 

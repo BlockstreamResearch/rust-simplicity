@@ -17,7 +17,7 @@ use crate::jet::Jet;
 use crate::merkle::compact_value;
 use crate::types::arrow::FinalArrow;
 use crate::{Cmr, Tmr, Value};
-use bitcoin_hashes::sha256::Midstate;
+use hashes::sha256::Midstate;
 
 use super::FailEntropy;
 
