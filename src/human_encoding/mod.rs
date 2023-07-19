@@ -85,6 +85,11 @@ impl<J: Jet> Forest<J> {
         Forest { roots }
     }
 
+    /// Accessor for the map of roots of this forest
+    pub fn roots(&self) -> &HashMap<Arc<str>, Arc<NamedCommitNode<J>>> {
+        &self.roots
+    }
+
     /// Serialize the program in human-readable form
     pub fn string_serialize(&self) -> String {
         struct Print {
