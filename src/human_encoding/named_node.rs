@@ -210,7 +210,11 @@ impl<J: Jet> NamedConstructNode<J> {
                 data: &PostOrderIterItem<&NamedConstructNode<J>>,
                 inner: node::Inner<&Arc<NamedCommitNode<J>>, J, &NoDisconnect, &NoWitness>,
             ) -> Result<NamedCommitData<J>, Self::Error> {
-                let converted_data = inner.map(|node| &node.cached_data().internal);
+                let converted_data = inner
+                    .as_ref()
+                    .map(|node| &node.cached_data().internal)
+                    .map_disconnect(|disc| *disc)
+                    .copy_witness();
 
                 if !self.for_main {
                     // For non-`main` fragments, treat the ascriptions as normative, and apply them
@@ -313,6 +317,16 @@ impl Namer {
             wit_idx: 0,
             other_idx: 0,
             root_cmr: Some(root_cmr),
+        }
+    }
+
+    /// Costruct a new `Namer`.
+    pub fn new() -> Self {
+        Namer {
+            const_idx: 0,
+            wit_idx: 0,
+            other_idx: 0,
+            root_cmr: None,
         }
     }
 

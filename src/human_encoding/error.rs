@@ -12,6 +12,7 @@
 
 //! Parsing Errors
 
+use santiago::lexer::Lexeme;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 use std::{error, fmt, iter};
@@ -26,6 +27,22 @@ pub struct ErrorSet {
     context: Option<Arc<str>>,
     line_map: Arc<Mutex<Vec<usize>>>,
     errors: BTreeMap<Option<Position>, Vec<Error>>,
+}
+
+impl<T> From<santiago::parser::ParseError<T>> for ErrorSet {
+    fn from(e: santiago::parser::ParseError<T>) -> Self {
+        let lex = e.at.map(|rc| (*rc).clone());
+        match lex.as_ref().map(|lex| &lex.position).map(Position::from) {
+            Some(pos) => ErrorSet::single(pos, Error::ParseFailed(lex)),
+            None => ErrorSet::single_no_position(Error::ParseFailed(lex)),
+        }
+    }
+}
+
+impl From<santiago::lexer::LexerError> for ErrorSet {
+    fn from(e: santiago::lexer::LexerError) -> Self {
+        ErrorSet::single(e.position, Error::LexFailed(e.message))
+    }
 }
 
 impl ErrorSet {
@@ -145,7 +162,21 @@ impl ErrorSet {
 impl error::Error for ErrorSet {
     fn cause(&self) -> Option<&(dyn error::Error + 'static)> {
         match self.first_error()?.1 {
+            Error::Bad2ExpNumber(..) => None,
+            Error::BadWordLength { .. } => None,
+            Error::EntropyInsufficient { .. } => None,
+            Error::EntropyTooMuch { .. } => None,
+            Error::NameIllegal(_) => None,
+            Error::NameIncomplete(_) => None,
+            Error::NameMissing(_) => None,
+            Error::NameRepeated(_) => None,
+            Error::NoMain => None,
+            Error::ParseFailed(_) => None,
+            Error::LexFailed(_) => None,
+            Error::NumberOutOfRange(_) => None,
             Error::TypeCheck(ref e) => Some(e),
+            Error::Undefined(_) => None,
+            Error::UnknownJet(_) => None,
         }
     }
 }
@@ -198,8 +229,37 @@ impl fmt::Display for ErrorSet {
 /// many as possible at once.
 #[derive(Clone, Debug)]
 pub enum Error {
+    /// A number of the form 2^y was used as a type but y was not an allowed value
+    Bad2ExpNumber(u32),
+    /// A constant word had a length which was not an allowable power of 2
+    BadWordLength { bit_length: usize },
+    /// A "fail" node was provided with less than 128 bits of entropy
+    EntropyInsufficient { bit_length: usize },
+    /// A "fail" node was provided with more than 512 bits of entropy
+    EntropyTooMuch { bit_length: usize },
+    /// An expression name was not allowed to be used as a name.
+    NameIllegal(Arc<str>),
+    /// An expression was given a type, but no actual expression was provided.
+    NameIncomplete(Arc<str>),
+    /// An expression was referenced but did not refer to anything.
+    NameMissing(Arc<str>),
+    /// An expression name was used for multiple expressions.
+    NameRepeated(Arc<str>),
+    /// Program did not have a `main` expression
+    NoMain,
+    /// Parsing failed (the parser provides us some extra information, but beyond
+    /// the line and column, it does not seem very useful to a user, so we drop it).
+    ParseFailed(Option<Lexeme>),
+    /// Lexing failed; here santiago provides us an error message which is useful
+    LexFailed(String),
+    /// A number was parsed in some context but was out of range.
+    NumberOutOfRange(String),
     /// Simplicity type-checking error
     TypeCheck(types::Error),
+    /// Expression referred to an undefined symbol
+    Undefined(String),
+    /// A given jet is not a known jet
+    UnknownJet(String),
 }
 
 impl From<types::Error> for Error {
@@ -211,7 +271,40 @@ impl From<types::Error> for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
+            Error::BadWordLength { bit_length } => {
+                write!(f, "word length {} is not a valid power of 2", bit_length)
+            }
+            Error::Bad2ExpNumber(exp) => {
+                write!(f, "types may be 2^n for n a power of 2, but not 2^{}", exp)
+            }
+            Error::EntropyInsufficient { bit_length } => write!(
+                f,
+                "fail node has insufficient entropy ({} bits, need 128)",
+                bit_length
+            ),
+            Error::EntropyTooMuch { bit_length } => write!(
+                f,
+                "fail node has too much entropy ({} bits, max 512)",
+                bit_length
+            ),
+            Error::NameIllegal(ref s) => {
+                write!(f, "name `{}` is not allowed in this context", s)
+            }
+            Error::NameIncomplete(ref s) => write!(f, "name `{}` has no expression", s),
+            Error::NameMissing(ref s) => {
+                write!(f, "name `{}` is referred to but does not exist", s)
+            }
+            Error::NameRepeated(ref s) => write!(f, "name `{}` occured mulitple times", s),
+            Error::NoMain => f.write_str("program does not define `main`"),
+            Error::NumberOutOfRange(ref n) => {
+                write!(f, "number {} was out of allowable range", n)
+            }
+            Error::ParseFailed(None) => f.write_str("could not parse"),
+            Error::ParseFailed(Some(ref lex)) => write!(f, "could not parse `{}`", lex.raw),
+            Error::LexFailed(ref msg) => write!(f, "could not parse: {}", msg),
             Error::TypeCheck(ref e) => fmt::Display::fmt(e, f),
+            Error::Undefined(ref s) => write!(f, "reference to undefined symbol `{}`", s),
+            Error::UnknownJet(ref s) => write!(f, "unknown jet `{}`", s),
         }
     }
 }
