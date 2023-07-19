@@ -5,7 +5,6 @@ use crate::{Error, Policy, Value};
 use bitcoin_hashes::Hash;
 use elements::locktime::Height;
 use elements::taproot::TapLeafHash;
-use elements::{LockTime, Sequence};
 use elements_miniscript::{MiniscriptKey, Preimage32, Satisfier, ToPublicKey};
 
 use crate::analysis::Cost;
@@ -29,14 +28,13 @@ impl<'a, Pk: ToPublicKey> Satisfier<Pk> for PolicySatisfier<'a, Pk> {
         self.preimages.get(hash).copied()
     }
 
-    fn check_older(&self, sequence: Sequence) -> bool {
+    fn check_older(&self, sequence: elements::Sequence) -> bool {
         let self_sequence = self.tx.input[self.index].sequence;
-        <Sequence as Satisfier<Pk>>::check_older(&self_sequence, sequence)
+        <elements::Sequence as Satisfier<Pk>>::check_older(&self_sequence, sequence)
     }
 
-    fn check_after(&self, locktime: LockTime) -> bool {
-        let self_locktime = LockTime::from(self.tx.lock_time);
-        <LockTime as Satisfier<Pk>>::check_after(&self_locktime, locktime)
+    fn check_after(&self, locktime: elements::LockTime) -> bool {
+        <elements::LockTime as Satisfier<Pk>>::check_after(&self.tx.lock_time, locktime)
     }
 }
 
@@ -57,7 +55,7 @@ impl<Pk: ToPublicKey> Policy<Pk> {
             Policy::After(n) => {
                 let node = super::serialize::after(n);
                 let height = Height::from_consensus(n).expect("timelock is valid");
-                if satisfier.check_after(LockTime::Blocks(height)) {
+                if satisfier.check_after(elements::LockTime::Blocks(height)) {
                     node
                 } else {
                     node.pruned()
@@ -65,7 +63,7 @@ impl<Pk: ToPublicKey> Policy<Pk> {
             }
             Policy::Older(n) => {
                 let node = super::serialize::older(n);
-                if satisfier.check_older(Sequence((n).into())) {
+                if satisfier.check_older(elements::Sequence((n).into())) {
                     node
                 } else {
                     node.pruned()
@@ -179,10 +177,11 @@ mod tests {
     use crate::node::SimpleFinalizer;
     use crate::{BitMachine, FailEntropy};
     use bitcoin_hashes::{sha256, Hash};
-    use elements::{bitcoin, secp256k1_zkp, PackedLockTime, SchnorrSigHashType};
+    use elements::bitcoin::key::{KeyPair, XOnlyPublicKey};
+    use elements::{secp256k1_zkp, LockTime, SchnorrSigHashType};
     use std::sync::Arc;
 
-    fn get_satisfier(env: &ElementsEnv) -> PolicySatisfier<bitcoin::XOnlyPublicKey> {
+    fn get_satisfier(env: &ElementsEnv) -> PolicySatisfier<XOnlyPublicKey> {
         let mut preimages = HashMap::new();
         let mut signatures = HashMap::new();
 
@@ -195,11 +194,11 @@ mod tests {
         let mut rng = secp256k1_zkp::rand::rngs::ThreadRng::default();
 
         for _ in 0..3 {
-            let keypair = bitcoin::KeyPair::new(&secp, &mut rng);
+            let keypair = KeyPair::new(&secp, &mut rng);
             let xonly = keypair.x_only_public_key().0;
 
             let sighash = env.c_tx_env().sighash_all();
-            let msg = secp256k1_zkp::Message::from_slice(&sighash).expect("constant sighash");
+            let msg = secp256k1_zkp::Message::from(sighash);
             let sig = elements::SchnorrSig {
                 sig: keypair.sign_schnorr(msg),
                 hash_ty: SchnorrSigHashType::All,
@@ -304,7 +303,8 @@ mod tests {
 
     #[test]
     fn satisfy_after() {
-        let env = ElementsEnv::dummy_with(PackedLockTime(42), Sequence::ZERO);
+        let height = Height::from_consensus(42).unwrap();
+        let env = ElementsEnv::dummy_with(LockTime::Blocks(height), elements::Sequence::ZERO);
         let satisfier = get_satisfier(&env);
 
         let policy0 = Policy::After(41);
@@ -325,7 +325,7 @@ mod tests {
 
     #[test]
     fn satisfy_older() {
-        let env = ElementsEnv::dummy_with(PackedLockTime::ZERO, Sequence::from_consensus(42));
+        let env = ElementsEnv::dummy_with(LockTime::ZERO, elements::Sequence::from_consensus(42));
         let satisfier = get_satisfier(&env);
 
         let policy0 = Policy::Older(41);
@@ -376,7 +376,7 @@ mod tests {
         // Policy 1
 
         let policy1 = Policy::And {
-            left: Arc::new(Policy::Sha256(sha256::Hash::from_inner([0; 32]))),
+            left: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([0; 32]))),
             right: Arc::new(Policy::Sha256(images[1])),
         };
         assert!(policy1.satisfy(&satisfier).is_err());
@@ -385,7 +385,7 @@ mod tests {
 
         let policy2 = Policy::And {
             left: Arc::new(Policy::Sha256(images[0])),
-            right: Arc::new(Policy::Sha256(sha256::Hash::from_inner([0; 32]))),
+            right: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([0; 32]))),
         };
         assert!(policy2.satisfy(&satisfier).is_err());
     }
@@ -400,7 +400,7 @@ mod tests {
             .map(|x| satisfier.preimages.get(x).unwrap())
             .collect();
 
-        let assert_branch = |policy: &Policy<bitcoin::XOnlyPublicKey>, bit: bool| {
+        let assert_branch = |policy: &Policy<XOnlyPublicKey>, bit: bool| {
             let program = policy.satisfy(&satisfier).expect("satisfiable");
             let witness = to_witness(&program);
             assert_eq!(2, witness.len());
@@ -426,14 +426,14 @@ mod tests {
 
         let policy1 = Policy::Or {
             left: Arc::new(Policy::Sha256(images[0])),
-            right: Arc::new(Policy::Sha256(sha256::Hash::from_inner([1; 32]))),
+            right: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([1; 32]))),
         };
         assert_branch(&policy1, false);
 
         // Policy 2
 
         let policy2 = Policy::Or {
-            left: Arc::new(Policy::Sha256(sha256::Hash::from_inner([0; 32]))),
+            left: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([0; 32]))),
             right: Arc::new(Policy::Sha256(images[1])),
         };
         assert_branch(&policy2, true);
@@ -441,8 +441,8 @@ mod tests {
         // Policy 3
 
         let policy3 = Policy::Or {
-            left: Arc::new(Policy::Sha256(sha256::Hash::from_inner([0; 32]))),
-            right: Arc::new(Policy::Sha256(sha256::Hash::from_inner([1; 32]))),
+            left: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([0; 32]))),
+            right: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([1; 32]))),
         };
         assert!(policy3.satisfy(&satisfier).is_err());
     }
@@ -457,7 +457,7 @@ mod tests {
             .map(|x| satisfier.preimages.get(x).unwrap())
             .collect();
 
-        let assert_branches = |policy: &Policy<bitcoin::XOnlyPublicKey>, bits: &[bool]| {
+        let assert_branches = |policy: &Policy<XOnlyPublicKey>, bits: &[bool]| {
             let program = policy.satisfy(&satisfier).expect("satisfiable");
             let witness = to_witness(&program);
             assert_eq!(
@@ -483,7 +483,7 @@ mod tests {
             if bit {
                 images[j as usize]
             } else {
-                sha256::Hash::from_inner([j; 32])
+                sha256::Hash::from_byte_array([j; 32])
             }
         };
 

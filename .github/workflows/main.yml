@@ -98,6 +98,10 @@ jobs:
               cargo update -p serde_json --precise 1.0.99
               # 1.0.157 uses syn 2.0
               cargo update -p serde --precise 1.0.156
+              # 1.0.31 uses proc-macro 1.0.66
+              cargo update -p quote --precise 1.0.30
+              # 1.0.66 uses edition 2021
+              cargo update -p proc-macro2 --precise 1.0.65
           fi
           for f in $FEATURES; do echo "Features: $f" && cargo test --no-default-features --features="$f"; done
           echo "No default features" && cargo test --no-default-features

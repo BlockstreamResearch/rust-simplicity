@@ -111,7 +111,7 @@ impl<'a, Pk: ToPublicKey, Ctx: ScriptContext> TryFrom<&'a Miniscript<Pk, Ctx>> f
             Terminal::PkH(_) | Terminal::RawPkH(_) => {
                 Err(Error::Policy(policy::Error::PublicKeyHash))
             }
-            Terminal::After(n) => Ok(Policy::After(n.0)),
+            Terminal::After(n) => Ok(Policy::After(n.to_consensus_u32())),
             Terminal::Older(n) => {
                 if !n.is_height_locked() {
                     return Err(Error::Policy(policy::Error::InvalidSequence));
@@ -178,7 +178,7 @@ impl<'a, Pk: ToPublicKey, Ctx: ScriptContext> TryFrom<&'a Miniscript<Pk, Ctx>> f
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::miniscript::bitcoin::XOnlyPublicKey;
+    use crate::miniscript::bitcoin::key::XOnlyPublicKey;
 
     #[test]
     fn parse_bad_thresh() {

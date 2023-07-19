@@ -37,6 +37,8 @@ mod analysis;
 mod bit_encoding;
 pub mod bit_machine;
 pub mod dag;
+#[allow(dead_code)]
+mod hex;
 pub mod human_encoding;
 pub mod jet;
 mod merkle;

@@ -501,7 +501,7 @@ mod tests {
     use super::*;
 
     #[cfg(feature = "elements")]
-    use crate::bitcoin_hashes::hex::ToHex;
+    use crate::hex::ToHex;
     #[cfg(feature = "elements")]
     use crate::jet::{elements::ElementsEnv, Elements};
     #[cfg(feature = "elements")]

@@ -250,12 +250,12 @@ mod tests {
     use crate::policy::Policy;
     use crate::{BitMachine, FailEntropy, Value};
     use bitcoin_hashes::{sha256, Hash};
-    use elements::{bitcoin, secp256k1_zkp};
+    use elements::bitcoin::key::XOnlyPublicKey;
+    use elements::locktime::Height;
+    use elements::secp256k1_zkp;
     use std::sync::Arc;
 
-    fn compile(
-        policy: Policy<bitcoin::XOnlyPublicKey>,
-    ) -> (Arc<ConstructNode<Elements>>, ElementsEnv) {
+    fn compile(policy: Policy<XOnlyPublicKey>) -> (Arc<ConstructNode<Elements>>, ElementsEnv) {
         let commit = policy.serialize_no_witness();
         let env = ElementsEnv::dummy();
 
@@ -314,32 +314,34 @@ mod tests {
 
     #[test]
     fn execute_after() {
-        let env = ElementsEnv::dummy_with(elements::PackedLockTime(42), elements::Sequence::ZERO);
+        let height = Height::from_consensus(42).unwrap();
+        let env =
+            ElementsEnv::dummy_with(elements::LockTime::Blocks(height), elements::Sequence::ZERO);
 
-        let commit = Policy::<bitcoin::XOnlyPublicKey>::After(41).serialize_no_witness();
+        let commit = Policy::<XOnlyPublicKey>::After(41).serialize_no_witness();
         assert!(execute_successful(&commit, vec![], &env));
 
-        let commit = Policy::<bitcoin::XOnlyPublicKey>::After(42).serialize_no_witness();
+        let commit = Policy::<XOnlyPublicKey>::After(42).serialize_no_witness();
         assert!(execute_successful(&commit, vec![], &env));
 
-        let commit = Policy::<bitcoin::XOnlyPublicKey>::After(43).serialize_no_witness();
+        let commit = Policy::<XOnlyPublicKey>::After(43).serialize_no_witness();
         assert!(!execute_successful(&commit, vec![], &env));
     }
 
     #[test]
     fn execute_older() {
         let env = ElementsEnv::dummy_with(
-            elements::PackedLockTime::ZERO,
+            elements::LockTime::ZERO,
             elements::Sequence::from_consensus(42),
         );
 
-        let commit = Policy::<bitcoin::XOnlyPublicKey>::Older(41).serialize_no_witness();
+        let commit = Policy::<XOnlyPublicKey>::Older(41).serialize_no_witness();
         assert!(execute_successful(&commit, vec![], &env));
 
-        let commit = Policy::<bitcoin::XOnlyPublicKey>::Older(42).serialize_no_witness();
+        let commit = Policy::<XOnlyPublicKey>::Older(42).serialize_no_witness();
         assert!(execute_successful(&commit, vec![], &env));
 
-        let commit = Policy::<bitcoin::XOnlyPublicKey>::Older(43).serialize_no_witness();
+        let commit = Policy::<XOnlyPublicKey>::Older(43).serialize_no_witness();
         assert!(!execute_successful(&commit, vec![], &env));
     }
 

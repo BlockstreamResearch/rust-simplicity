@@ -83,7 +83,7 @@ impl ElementsBenchEnvType {
             // is hashed
             let mut annex = rand::random::<[u8; 32]>();
             // same annex prefix in bitcoin and elements
-            annex[0] = bitcoin::util::taproot::TAPROOT_ANNEX_PREFIX;
+            annex[0] = bitcoin::taproot::TAPROOT_ANNEX_PREFIX;
             let annex = elements::sighash::Annex::new(&annex).unwrap();
             env_sampler.env_with_annex(Some(annex.as_bytes().to_vec()))
         } else {
@@ -236,8 +236,8 @@ fn bench(c: &mut Criterion) {
 
     fn bip_0340() -> Value {
         let secp_ctx = bitcoin::secp256k1::Secp256k1::new();
-        let keypair = bitcoin::secp256k1::KeyPair::new(&secp_ctx, &mut thread_rng());
-        let xpk = bitcoin::XOnlyPublicKey::from_keypair(&keypair);
+        let keypair = bitcoin::key::KeyPair::new(&secp_ctx, &mut thread_rng());
+        let xpk = bitcoin::key::XOnlyPublicKey::from_keypair(&keypair);
 
         let msg = bitcoin::secp256k1::Message::from_slice(&rand::random::<[u8; 32]>()).unwrap();
         let sig = secp_ctx.sign_schnorr(&msg, &keypair);
@@ -250,7 +250,7 @@ fn bench(c: &mut Criterion) {
 
     fn tagged_hash(tag: &[u8], msg_block: [u8; 64]) -> sha256::Hash {
         let tag_hash = sha256::Hash::hash(tag);
-        let block = [tag_hash.into_inner(), tag_hash.into_inner()].concat();
+        let block = [tag_hash.to_byte_array(), tag_hash.to_byte_array()].concat();
         let mut engine = sha256::Hash::engine();
         engine.input(&block);
         engine.input(&msg_block);
@@ -260,12 +260,12 @@ fn bench(c: &mut Criterion) {
 
     fn check_sig_verify() -> Value {
         let secp_ctx = bitcoin::secp256k1::Secp256k1::signing_only();
-        let keypair = bitcoin::secp256k1::KeyPair::new(&secp_ctx, &mut thread_rng());
-        let xpk = bitcoin::XOnlyPublicKey::from_keypair(&keypair);
+        let keypair = bitcoin::key::KeyPair::new(&secp_ctx, &mut thread_rng());
+        let xpk = bitcoin::key::XOnlyPublicKey::from_keypair(&keypair);
 
         let msg = [0xab; 64];
         let hashed_msg = tagged_hash(b"Simplicity-Draft\x1fSignature", msg);
-        let hashed_msg = bitcoin::secp256k1::Message::from_slice(&hashed_msg).unwrap();
+        let hashed_msg = bitcoin::secp256k1::Message::from(hashed_msg);
         let sig = secp_ctx.sign_schnorr(&hashed_msg, &keypair);
         let xpk_value = Value::u256_from_slice(&xpk.0.serialize());
         let sig_value = Value::u512_from_slice(sig.as_ref());

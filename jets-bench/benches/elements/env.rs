@@ -1,7 +1,8 @@
 use bitcoin::hashes as bitcoin_hashes;
 use bitcoin_hashes::Hash;
+use elements::locktime::LockTime;
 use elements::taproot::ControlBlock;
-use elements::{BlockHash, PackedLockTime, Transaction};
+use elements::{BlockHash, Transaction};
 use simplicity::jet::elements::{ElementsEnv, ElementsUtxo};
 use simplicity::Cmr;
 use simplicity::{bitcoin, elements};
@@ -69,7 +70,7 @@ impl EnvSampling {
         }
         let tx = Transaction {
             version: u32::default(),
-            lock_time: PackedLockTime::ZERO,
+            lock_time: LockTime::ZERO,
             input: tx_ins,
             output: tx_outs,
         };
@@ -101,7 +102,7 @@ fn env_with_spent_utxos(
 fn null_env() -> ElementsEnv {
     let tx = Transaction {
         version: u32::default(),
-        lock_time: PackedLockTime::ZERO,
+        lock_time: LockTime::ZERO,
         input: Vec::default(),
         output: Vec::default(),
     };
@@ -109,8 +110,8 @@ fn null_env() -> ElementsEnv {
 }
 
 pub(super) mod txout_utils {
-    use bitcoin::XOnlyPublicKey;
-    use bitcoin_hashes::hex::FromHex;
+    use bitcoin::key::XOnlyPublicKey;
+    use elements::hex::FromHex;
     use elements::{confidential, encode::deserialize, schnorr::TapTweak, AssetId, Transaction};
     use simplicity::{bitcoin, elements};
 
@@ -143,10 +144,10 @@ pub(super) mod txout_utils {
     }
 }
 pub(super) mod txin_utils {
-    use bitcoin_hashes::{hex::FromHex, Hash};
+    use bitcoin_hashes::Hash;
     use elements::{
-        confidential, encode::deserialize, AssetIssuance, OutPoint, Script, Sequence, TxInWitness,
-        Txid,
+        confidential, encode::deserialize, hex::FromHex, AssetIssuance, OutPoint, Script, Sequence,
+        TxInWitness, Txid,
     };
     use simplicity::{elements, jet::elements::ElementsUtxo};
 
@@ -162,7 +163,7 @@ pub(super) mod txin_utils {
         let tx_bytes = rand::random::<[u8; 32]>();
         let vout = rand::random::<u16>() as u32;
         let txin = elements::TxIn {
-            previous_output: OutPoint::new(Txid::from_inner(tx_bytes), vout),
+            previous_output: OutPoint::new(Txid::from_byte_array(tx_bytes), vout),
             is_pegin: false,
             script_sig: Script::new(),
             sequence: Sequence::MAX,
@@ -179,7 +180,7 @@ pub(super) mod txin_utils {
         let tx_bytes = rand::random::<[u8; 32]>();
         let vout = rand::random::<u16>() as u32;
         let txin = elements::TxIn {
-            previous_output: OutPoint::new(Txid::from_inner(tx_bytes), vout),
+            previous_output: OutPoint::new(Txid::from_byte_array(tx_bytes), vout),
             is_pegin: false,
             script_sig: Script::new(),
             sequence: Sequence::MAX,
