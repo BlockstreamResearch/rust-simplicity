@@ -20,19 +20,22 @@
 )]
 
 #[cfg(feature = "serde")]
-pub use actual_serde as serde;
+pub extern crate actual_serde as serde;
 #[cfg(feature = "bitcoin")]
-pub use bitcoin;
+pub extern crate bitcoin;
 #[cfg(feature = "elements")]
-pub use elements;
+pub extern crate elements;
 
 /// Re-export of byteorder crate
 pub extern crate byteorder;
+/// Re-export of elements_miniscript crate
+pub extern crate elements_miniscript;
 /// Re-export of hashes crate
 pub extern crate hashes;
 /// Re-export of hex crate
 pub extern crate hex;
-pub use elements_miniscript as miniscript;
+
+use elements_miniscript as miniscript;
 
 #[macro_use]
 mod macros;
