@@ -24,8 +24,8 @@ honggfuzz = { version = "0.5.55", default-features = false }
 simplicity = { path = ".." }
 
 [patch.crates-io.bitcoin_hashes]
-git = "https://github.com/apoelstra/bitcoin_hashes"
-branch = "2023-04--fuzzcfg"
+git = "https://github.com/apoelstra/rust-bitcoin"
+tag = "2023-07--0.30.1-with-fuzzcfg"
 EOF
 
 for targetFile in $(listTargetFiles); do
