@@ -26,12 +26,10 @@
 //!
 
 mod ast;
-pub mod descriptor;
 mod embed;
 mod error;
 pub mod satisfy;
 mod serialize;
 
 pub use ast::Policy;
-pub use descriptor::Descriptor;
 pub use error::Error;
