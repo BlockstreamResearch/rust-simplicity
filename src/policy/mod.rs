@@ -26,10 +26,12 @@
 //!
 
 mod ast;
-mod embed;
+//mod embed;
 mod error;
-pub mod satisfy;
+//pub mod satisfy;
+mod key;
 mod serialize;
 
 pub use ast::Policy;
 pub use error::Error;
+pub use key::{SimplicityKey, ToXOnlyPubkey, Translator};

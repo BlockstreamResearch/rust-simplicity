@@ -28,6 +28,6 @@ path = "fuzz_targets/decode_natural.rs"
 name = "decode_program"
 path = "fuzz_targets/decode_program.rs"
 
-[[bin]]
-name = "parse_compile"
-path = "fuzz_targets/parse_compile.rs"
+#[[bin]]
+#name = "parse_compile"
+#path = "fuzz_targets/parse_compile.rs"

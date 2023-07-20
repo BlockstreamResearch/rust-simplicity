@@ -59,7 +59,7 @@ pub use bit_encoding::BitWriter;
 pub use bit_encoding::{BitIter, EarlyEndOfStreamError};
 
 #[cfg(feature = "elements")]
-pub use crate::policy::Policy;
+pub use crate::policy::{Policy, SimplicityKey, ToXOnlyPubkey, Translator};
 
 pub use crate::bit_machine::BitMachine;
 pub use crate::encode::{encode_natural, encode_value, encode_witness};

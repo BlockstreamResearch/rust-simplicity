@@ -15,9 +15,9 @@
 //! Serialization of Policy as Simplicity
 
 use crate::jet::Elements;
-use crate::miniscript::ToPublicKey;
 use crate::node::{self, Node};
 use crate::node::{CoreConstructible, JetConstructible, WitnessConstructible};
+use crate::ToXOnlyPubkey;
 use crate::{FailEntropy, Value};
 
 use std::convert::TryFrom;
@@ -43,7 +43,7 @@ where
 
 pub fn key<N, Pk>(key: &Pk, witness: N::Witness) -> ArcNode<N>
 where
-    Pk: ToPublicKey,
+    Pk: ToXOnlyPubkey,
     N: node::Marker,
     ArcNode<N>: CoreConstructible + JetConstructible<Elements> + WitnessConstructible<N::Witness>,
 {
@@ -107,7 +107,7 @@ where
 
 pub fn sha256<N, Pk>(hash: &Pk::Sha256, witness: N::Witness) -> ArcNode<N>
 where
-    Pk: ToPublicKey,
+    Pk: ToXOnlyPubkey,
     N: node::Marker,
     ArcNode<N>: CoreConstructible + JetConstructible<Elements> + WitnessConstructible<N::Witness>,
 {
