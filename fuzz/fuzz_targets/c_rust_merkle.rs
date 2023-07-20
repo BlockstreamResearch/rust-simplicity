@@ -14,7 +14,7 @@
 
 use honggfuzz::fuzz;
 
-use simplicity::bitcoin_hashes::sha256::Midstate;
+use simplicity::hashes::sha256::Midstate;
 use simplicity::ffi::{self, ffi::SimplicityErr};
 use simplicity::jet::Elements;
 use simplicity::{BitIter, RedeemNode};

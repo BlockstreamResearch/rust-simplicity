@@ -430,7 +430,7 @@ pub mod eval {
 }
 
 pub mod sha256 {
-    use bitcoin_hashes::sha256::Midstate;
+    use hashes::sha256::Midstate;
     use libc::size_t;
 
     /// The 256-bit array of a SHA-256 hash or midstate.

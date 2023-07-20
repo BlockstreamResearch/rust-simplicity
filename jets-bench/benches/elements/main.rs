@@ -7,13 +7,13 @@ use crate::data_structures::{
 };
 use crate::input::InputSampling;
 use crate::params::JetParams;
-use bitcoin_hashes::{sha256, Hash, HashEngine};
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use data_structures::{SimplicityCtx8, SimplicityEncode};
 use elements::confidential;
 use env::EnvSampling;
 use rand::rngs::ThreadRng;
 use rand::{thread_rng, RngCore};
+use simplicity::hashes::{sha256, Hash, HashEngine};
 use simplicity::jet::elements::ElementsEnv;
 use simplicity::jet::{Elements, Jet};
 use simplicity::types;

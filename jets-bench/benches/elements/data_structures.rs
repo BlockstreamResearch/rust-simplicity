@@ -2,14 +2,15 @@
 //!
 //!
 use bitcoin::secp256k1;
-pub use bitcoin_hashes::sha256;
-use bitcoin_hashes::{hex::FromHex, Hash};
 use elements::Txid;
 use rand::{thread_rng, RngCore};
-use simplicity::{bitcoin, elements, types::Type, BitIter, Error, Value};
+pub use simplicity::hashes::sha256;
+use simplicity::{
+    bitcoin, elements, hashes::Hash, hex::FromHex, types::Type, BitIter, Error, Value,
+};
 
 /// Engine to compute SHA256 hash function.
-/// We can't use bitcoin_hashes::sha256::HashEngine because it does not accept
+/// We can't use hashes::sha256::HashEngine because it does not accept
 /// bit level inputs. It also does not allow creation instances with arbitrary
 /// length.
 #[derive(Clone)]

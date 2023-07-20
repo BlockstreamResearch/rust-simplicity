@@ -15,7 +15,7 @@
 use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
 use crate::{FailEntropy, Tmr, Value};
-use bitcoin_hashes::sha256::Midstate;
+use hashes::sha256::Midstate;
 
 use super::bip340_iv;
 

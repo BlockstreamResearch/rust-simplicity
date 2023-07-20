@@ -20,15 +20,22 @@
 )]
 
 #[cfg(feature = "serde")]
-pub use actual_serde as serde;
+pub extern crate actual_serde as serde;
 #[cfg(feature = "bitcoin")]
-pub use bitcoin;
+pub extern crate bitcoin;
 #[cfg(feature = "elements")]
-pub use elements;
+pub extern crate elements;
 
-pub use bitcoin_hashes;
-pub use byteorder;
-pub use elements_miniscript as miniscript;
+/// Re-export of byteorder crate
+pub extern crate byteorder;
+/// Re-export of elements_miniscript crate
+pub extern crate elements_miniscript;
+/// Re-export of hashes crate
+pub extern crate hashes;
+/// Re-export of hex crate
+pub extern crate hex;
+
+use elements_miniscript as miniscript;
 
 #[macro_use]
 mod macros;
@@ -37,8 +44,6 @@ mod analysis;
 mod bit_encoding;
 pub mod bit_machine;
 pub mod dag;
-#[allow(dead_code)]
-mod hex;
 pub mod human_encoding;
 pub mod jet;
 mod merkle;

@@ -342,7 +342,7 @@ impl<J: Jet> RedeemNode<J> {
 mod tests {
     use super::*;
 
-    use crate::hex::ToHex;
+    use hex::DisplayHex;
     use std::fmt;
 
     use crate::jet::Core;
@@ -354,7 +354,7 @@ mod tests {
         amr_str: &str,
         imr_str: &str,
     ) -> Arc<RedeemNode<J>> {
-        let prog_hex = prog_bytes.to_hex();
+        let prog_hex = prog_bytes.as_hex();
 
         let mut iter = BitIter::from(prog_bytes);
         let prog = match RedeemNode::<J>::decode(&mut iter) {
@@ -394,14 +394,14 @@ mod tests {
             &reser_sink[..],
             "program {} reserialized as {}",
             prog_hex,
-            reser_sink.to_hex(),
+            reser_sink.as_hex(),
         );
 
         prog
     }
 
     fn assert_program_not_deserializable<J: Jet>(prog: &[u8], err: &dyn fmt::Display) {
-        let prog_hex = prog.to_hex();
+        let prog_hex = prog.as_hex();
         let err_str = err.to_string();
 
         let mut iter = BitIter::from(prog);

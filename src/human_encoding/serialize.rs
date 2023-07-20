@@ -14,10 +14,10 @@
 
 //! Serialization
 
+use hex::DisplayHex;
 use std::fmt;
 
 use crate::dag::{DagLike, NoSharing};
-use crate::hex::ToHex;
 use crate::Value;
 
 pub struct DisplayWord<'a>(pub &'a crate::Value);
@@ -28,8 +28,7 @@ impl<'a> fmt::Display for DisplayWord<'a> {
         // the value; but for words, the structure is always fixed by the
         // length, so it is fine to just serialize the bits.
         if let Ok(hex) = self.0.try_to_bytes() {
-            f.write_str("0x")?;
-            f.write_str(&hex.to_hex())?;
+            write!(f, "0x{}", hex.as_hex())?;
         } else {
             f.write_str("0b")?;
             for comb in self.0.pre_order_iter::<NoSharing>() {

@@ -1,7 +1,7 @@
 use std::os::raw::{c_uchar, c_uint};
 
 use crate::ffi::sha256::CSha256Midstate;
-use bitcoin_hashes::{sha256, Hash};
+use hashes::{sha256, Hash};
 use libc::size_t;
 
 /// Documentation of CRawInputData/CRawOutputData/CRawTapData/CRaw
