@@ -23,7 +23,7 @@ use crate::dag::Dag;
 
 use std::sync::Arc;
 
-/// Null data type used as dummy for [`Marker::Disconnect`]
+/// Null data type used as dummy for [`super::Marker::Disconnect`]
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct NoDisconnect;
 

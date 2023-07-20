@@ -31,7 +31,7 @@ pub struct CRawBuffer {
     pub len: u32,
 }
 
-/// Similar to [`CRawOutputData`], for inputs.
+/// Similar to [`RawOutputData`], for inputs.
 #[derive(Debug)]
 pub struct RawInputData {
     pub annex: Option<Vec<c_uchar>>,
@@ -45,7 +45,7 @@ pub struct RawInputData {
     pub value: Vec<c_uchar>,
 }
 
-/// Similar to [`CRawOutputData`], but for transaction
+/// Similar to [`RawOutputData`], but for transaction
 #[derive(Debug)]
 pub struct RawTransactionData {
     pub inputs: Vec<RawInputData>,

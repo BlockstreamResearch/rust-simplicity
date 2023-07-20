@@ -383,7 +383,7 @@ pub mod eval {
     pub const CHECK_ALL: c_uchar = 0xFF;
 
     extern "C" {
-        /// Run the Bit Machine on the well-typed Simplicity expression 'dag[len]'.
+        /// Run the Bit Machine on the well-typed Simplicity expression `dag[len]`.
         pub fn evalTCOExpression(
             anti_dos_checks: c_uchar,
             output: *mut UWORD,
@@ -398,7 +398,7 @@ pub mod eval {
         ) -> SimplicityErr;
     }
 
-    /// Run the Bit Machine on the well-typed Simplicity program 'dag[len]'.
+    /// Run the Bit Machine on the well-typed Simplicity program `dag[len]`.
     ///
     /// Defined insine in eval.h; since it is a 1-liner we just copy it into Rust.
     ///
