@@ -1,44 +1,81 @@
+use crate::analysis::Cost;
 use crate::jet::Elements;
 use crate::node::{RedeemNode, WitnessNode};
+use crate::policy::ToXOnlyPubkey;
 use crate::{Error, Policy, Value};
+use elements::bitcoin;
 
 use elements::locktime::Height;
 use elements::taproot::TapLeafHash;
-use elements_miniscript::{MiniscriptKey, Preimage32, Satisfier, ToPublicKey};
 use hashes::Hash;
 
-use crate::analysis::Cost;
-use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::sync::Arc;
 
-pub struct PolicySatisfier<'a, Pk: MiniscriptKey> {
-    pub preimages: HashMap<Pk::Sha256, Preimage32>,
-    pub signatures: HashMap<Pk, elements::SchnorrSig>,
-    pub tx: &'a elements::Transaction,
-    pub index: usize,
+/// Type alias for 32-byte preimage.
+pub type Preimage32 = [u8; 32];
+
+/// Lookup table for signatures, hash preimages, etc.
+///
+/// Every method has a default implementation that simply returns `None`
+/// on every query. Users are expected to override the methods that they
+/// have data for.
+pub trait Satisfier<Pk: ToXOnlyPubkey> {
+    /// Given a public key, look up a Schnorr signature with that key.
+    fn lookup_tap_leaf_script_sig(&self, _: &Pk, _: &TapLeafHash) -> Option<elements::SchnorrSig> {
+        None
+    }
+
+    /// Given a SHA256 hash, look up its preimage.
+    fn lookup_sha256(&self, _: &Pk::Sha256) -> Option<Preimage32> {
+        None
+    }
+
+    /// Assert that a relative locktime is satisfied.
+    fn check_older(&self, _: elements::Sequence) -> bool {
+        false
+    }
+
+    /// Assert that an absolute locktime is satisfied.
+    fn check_after(&self, _: elements::LockTime) -> bool {
+        false
+    }
 }
 
-impl<'a, Pk: ToPublicKey> Satisfier<Pk> for PolicySatisfier<'a, Pk> {
-    fn lookup_tap_leaf_script_sig(&self, pk: &Pk, _: &TapLeafHash) -> Option<elements::SchnorrSig> {
-        self.signatures.get(pk).copied()
-    }
+impl<Pk: ToXOnlyPubkey> Satisfier<Pk> for elements::Sequence {
+    fn check_older(&self, n: elements::Sequence) -> bool {
+        use elements::bitcoin::locktime::relative::LockTime::*;
 
-    fn lookup_sha256(&self, hash: &Pk::Sha256) -> Option<Preimage32> {
-        self.preimages.get(hash).copied()
-    }
+        let this = match bitcoin::Sequence(self.0).to_relative_lock_time() {
+            Some(x) => x,
+            None => return false,
+        };
+        let n = match bitcoin::Sequence(n.0).to_relative_lock_time() {
+            Some(x) => x,
+            None => return false,
+        };
 
-    fn check_older(&self, sequence: elements::Sequence) -> bool {
-        let self_sequence = self.tx.input[self.index].sequence;
-        <elements::Sequence as Satisfier<Pk>>::check_older(&self_sequence, sequence)
-    }
-
-    fn check_after(&self, locktime: elements::LockTime) -> bool {
-        <elements::LockTime as Satisfier<Pk>>::check_after(&self.tx.lock_time, locktime)
+        match (n, this) {
+            (Blocks(n), Blocks(lock_time)) => n <= lock_time,
+            (Time(n), Time(lock_time)) => n <= lock_time,
+            _ => false, // Not the same units
+        }
     }
 }
 
-impl<Pk: ToPublicKey> Policy<Pk> {
+impl<Pk: ToXOnlyPubkey> Satisfier<Pk> for elements::LockTime {
+    fn check_after(&self, n: elements::LockTime) -> bool {
+        use elements::LockTime::*;
+
+        match (n, *self) {
+            (Blocks(n), Blocks(lock_time)) => n <= lock_time,
+            (Seconds(n), Seconds(lock_time)) => n <= lock_time,
+            _ => false, // Not the same units.
+        }
+    }
+}
+
+impl<Pk: ToXOnlyPubkey> Policy<Pk> {
     pub fn satisfy_internal<S: Satisfier<Pk>>(
         &self,
         satisfier: &S,
@@ -175,15 +212,45 @@ mod tests {
     use crate::dag::{DagLike, NoSharing};
     use crate::jet::elements::ElementsEnv;
     use crate::node::SimpleFinalizer;
-    use crate::{BitMachine, FailEntropy};
+    use crate::{BitMachine, FailEntropy, SimplicityKey};
     use elements::bitcoin::key::{KeyPair, XOnlyPublicKey};
-    use elements::{secp256k1_zkp, LockTime, SchnorrSigHashType};
+    use elements::secp256k1_zkp;
     use hashes::{sha256, Hash};
+    use std::collections::HashMap;
     use std::sync::Arc;
+
+    pub struct PolicySatisfier<'a, Pk: SimplicityKey> {
+        pub preimages: HashMap<Pk::Sha256, Preimage32>,
+        pub signatures: HashMap<Pk, elements::SchnorrSig>,
+        pub tx: &'a elements::Transaction,
+        pub index: usize,
+    }
+
+    impl<'a, Pk: ToXOnlyPubkey> Satisfier<Pk> for PolicySatisfier<'a, Pk> {
+        fn lookup_tap_leaf_script_sig(
+            &self,
+            pk: &Pk,
+            _: &TapLeafHash,
+        ) -> Option<elements::SchnorrSig> {
+            self.signatures.get(pk).copied()
+        }
+
+        fn lookup_sha256(&self, hash: &Pk::Sha256) -> Option<Preimage32> {
+            self.preimages.get(hash).copied()
+        }
+
+        fn check_older(&self, sequence: elements::Sequence) -> bool {
+            let self_sequence = self.tx.input[self.index].sequence;
+            <elements::Sequence as Satisfier<Pk>>::check_older(&self_sequence, sequence)
+        }
+
+        fn check_after(&self, locktime: elements::LockTime) -> bool {
+            <elements::LockTime as Satisfier<Pk>>::check_after(&self.tx.lock_time, locktime)
+        }
+    }
 
     fn get_satisfier(env: &ElementsEnv) -> PolicySatisfier<XOnlyPublicKey> {
         let mut preimages = HashMap::new();
-        let mut signatures = HashMap::new();
 
         for i in 0..3 {
             let preimage = [i; 32];
@@ -192,6 +259,7 @@ mod tests {
 
         let secp = secp256k1_zkp::Secp256k1::new();
         let mut rng = secp256k1_zkp::rand::rngs::ThreadRng::default();
+        let mut signatures = HashMap::new();
 
         for _ in 0..3 {
             let keypair = KeyPair::new(&secp, &mut rng);
@@ -201,7 +269,7 @@ mod tests {
             let msg = secp256k1_zkp::Message::from(sighash);
             let sig = elements::SchnorrSig {
                 sig: keypair.sign_schnorr(msg),
-                hash_ty: SchnorrSigHashType::All,
+                hash_ty: elements::SchnorrSigHashType::All,
             };
 
             signatures.insert(xonly, sig);
@@ -211,7 +279,7 @@ mod tests {
             preimages,
             signatures,
             tx: env.tx(),
-            index: 0,
+            index: env.ix() as usize,
         }
     }
 
@@ -304,7 +372,8 @@ mod tests {
     #[test]
     fn satisfy_after() {
         let height = Height::from_consensus(42).unwrap();
-        let env = ElementsEnv::dummy_with(LockTime::Blocks(height), elements::Sequence::ZERO);
+        let env =
+            ElementsEnv::dummy_with(elements::LockTime::Blocks(height), elements::Sequence::ZERO);
         let satisfier = get_satisfier(&env);
 
         let policy0 = Policy::After(41);
@@ -325,7 +394,10 @@ mod tests {
 
     #[test]
     fn satisfy_older() {
-        let env = ElementsEnv::dummy_with(LockTime::ZERO, elements::Sequence::from_consensus(42));
+        let env = ElementsEnv::dummy_with(
+            elements::LockTime::ZERO,
+            elements::Sequence::from_consensus(42),
+        );
         let satisfier = get_satisfier(&env);
 
         let policy0 = Policy::Older(41);
@@ -477,6 +549,8 @@ mod tests {
                     witidx += 1;
                 }
             }
+
+            execute_successful(program, &env);
         };
 
         let image_from_bit = |bit: bool, j: u8| {

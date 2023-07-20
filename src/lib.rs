@@ -28,14 +28,10 @@ pub extern crate elements;
 
 /// Re-export of byteorder crate
 pub extern crate byteorder;
-/// Re-export of elements_miniscript crate
-pub extern crate elements_miniscript;
 /// Re-export of hashes crate
 pub extern crate hashes;
 /// Re-export of hex crate
 pub extern crate hex;
-
-use elements_miniscript as miniscript;
 
 #[macro_use]
 mod macros;
@@ -59,7 +55,7 @@ pub use bit_encoding::BitWriter;
 pub use bit_encoding::{BitIter, EarlyEndOfStreamError};
 
 #[cfg(feature = "elements")]
-pub use crate::policy::{Descriptor, Policy};
+pub use crate::policy::{Policy, SimplicityKey, ToXOnlyPubkey, Translator};
 
 pub use crate::bit_machine::BitMachine;
 pub use crate::encode::{encode_natural, encode_value, encode_witness};
@@ -95,8 +91,6 @@ pub enum Error {
     InconsistentWitnessLength,
     /// Tried to parse a jet but the name wasn't recognized
     InvalidJetName(String),
-    /// Miniscript error
-    MiniscriptError(miniscript::Error),
     /// Policy error
     #[cfg(feature = "elements")]
     Policy(policy::Error),
@@ -119,7 +113,6 @@ impl fmt::Display for Error {
             }
             Error::InvalidJetName(s) => write!(f, "unknown jet `{}`", s),
             Error::NoMoreWitnesses => f.write_str("no more witness data available"),
-            Error::MiniscriptError(ref e) => fmt::Display::fmt(e, f),
             #[cfg(feature = "elements")]
             Error::Policy(ref e) => fmt::Display::fmt(e, f),
         }
@@ -137,7 +130,6 @@ impl std::error::Error for Error {
             Error::IncompleteFinalization => None,
             Error::InconsistentWitnessLength => None,
             Error::InvalidJetName(..) => None,
-            Error::MiniscriptError(ref e) => Some(e),
             #[cfg(feature = "elements")]
             Error::Policy(ref e) => Some(e),
         }
@@ -159,12 +151,6 @@ impl From<EarlyEndOfStreamError> for Error {
 impl From<crate::types::Error> for Error {
     fn from(e: crate::types::Error) -> Error {
         Error::Type(e)
-    }
-}
-
-impl From<miniscript::Error> for Error {
-    fn from(e: miniscript::Error) -> Error {
-        Error::MiniscriptError(e)
     }
 }
 

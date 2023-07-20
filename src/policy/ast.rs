@@ -25,9 +25,9 @@ use std::sync::Arc;
 use std::{fmt, iter, mem};
 
 use crate::jet::Elements;
-use crate::miniscript::{MiniscriptKey, ToPublicKey, Translator};
 use crate::node::{ConstructNode, NoWitness};
 use crate::FailEntropy;
+use crate::{SimplicityKey, ToXOnlyPubkey, Translator};
 
 use super::serialize;
 
@@ -38,7 +38,7 @@ use super::serialize;
 ///
 /// Furthermore, the policy can be normalized and is amenable to semantic analysis.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Policy<Pk: MiniscriptKey> {
+pub enum Policy<Pk: SimplicityKey> {
     /// Unsatisfiable
     Unsatisfiable(FailEntropy),
     /// Trivially satisfiable
@@ -65,11 +65,11 @@ pub enum Policy<Pk: MiniscriptKey> {
     Threshold(usize, Vec<Policy<Pk>>),
 }
 
-impl<Pk: MiniscriptKey> Policy<Pk> {
+impl<Pk: SimplicityKey> Policy<Pk> {
     /// Serializes the policy as a Simplicity fragment, with all witness nodes unpopulated.
     pub fn serialize_no_witness(&self) -> Arc<ConstructNode<Elements>>
     where
-        Pk: ToPublicKey,
+        Pk: ToXOnlyPubkey,
     {
         match *self {
             Policy::Unsatisfiable(entropy) => serialize::unsatisfiable(entropy),
@@ -112,7 +112,7 @@ impl<Pk: MiniscriptKey> Policy<Pk> {
     pub fn translate<T, Q, E>(&self, translator: &mut T) -> Result<Policy<Q>, E>
     where
         T: Translator<Pk, Q, E>,
-        Q: MiniscriptKey,
+        Q: SimplicityKey,
     {
         match *self {
             Policy::Unsatisfiable(entropy) => Ok(Policy::Unsatisfiable(entropy)),
@@ -217,7 +217,7 @@ impl<Pk: MiniscriptKey> Policy<Pk> {
     }
 }
 
-impl<Pk: MiniscriptKey> fmt::Debug for Policy<Pk> {
+impl<Pk: SimplicityKey> fmt::Debug for Policy<Pk> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Policy::Unsatisfiable(..) => f.write_str("UNSATISFIABLE"),
@@ -239,7 +239,7 @@ impl<Pk: MiniscriptKey> fmt::Debug for Policy<Pk> {
     }
 }
 
-impl<Pk: MiniscriptKey> fmt::Display for Policy<Pk> {
+impl<Pk: SimplicityKey> fmt::Display for Policy<Pk> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(self, f)
     }
