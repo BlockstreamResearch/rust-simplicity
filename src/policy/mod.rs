@@ -26,7 +26,6 @@
 //!
 
 mod ast;
-//mod embed;
 mod error;
 //pub mod satisfy;
 mod key;
