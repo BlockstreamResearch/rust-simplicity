@@ -549,6 +549,8 @@ mod tests {
                     witidx += 1;
                 }
             }
+
+            execute_successful(program, &env);
         };
 
         let image_from_bit = |bit: bool, j: u8| {
