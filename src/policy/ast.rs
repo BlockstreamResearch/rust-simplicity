@@ -37,7 +37,7 @@ use super::serialize;
 /// given a witness.
 ///
 /// Furthermore, the policy can be normalized and is amenable to semantic analysis.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Policy<Pk: SimplicityKey> {
     /// Unsatisfiable
     Unsatisfiable(FailEntropy),
