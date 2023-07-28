@@ -3,7 +3,7 @@
 //!
 //! We rely on criterion directory structure in 0.4.0
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, str::FromStr};
 
 use serde::Deserialize;
 
@@ -57,7 +57,7 @@ fn main() -> Result<(), String> {
         .to_path_buf();
     // Obtain the path to the criterion directory
     let criterion_dir = simplicity_root
-        .join("jets_bench")
+        .join("jets-bench")
         .join("target")
         .join("criterion")
         .join("data")
@@ -114,6 +114,12 @@ fn main() -> Result<(), String> {
             );
         }
     }
+
+    // Haskell requires debug formatted strings.
+    let bench_results: BTreeMap<_, _> = bench_results.into_iter().map(|(k, v)| {
+        let debug_str = simplicity::jet::Elements::from_str(&k).unwrap();
+        (format!("{:?}", debug_str), v)
+    }).collect();
 
     // Create a file output json file with jet_bench_timestamp.json
     let timestamp = chrono::Utc::now().format("%Y-%m-%d_%H-%M-%S");

@@ -26,7 +26,7 @@ mod env;
 mod input;
 mod params;
 
-const NUM_RANDOM_SAMPLES: usize = 50;
+const NUM_RANDOM_SAMPLES: usize = 100;
 
 /// Number of inputs and outputs in the tx
 /// RATIONALE: One input to spend a asset, one input to pay fees, one input
@@ -98,6 +98,74 @@ fn jet_arrow(jet: Elements) -> (Arc<types::Final>, Arc<types::Final>) {
     (src_ty, tgt_ty)
 }
 
+// Separate out heavy jets to run them more times in our benchmark.
+fn is_heavy_jet(jet: Elements) -> bool {
+    // Hashes
+    match jet {
+        Elements::Sha256Iv |
+        Elements::Sha256Block |
+        Elements::Sha256Ctx8Init |
+        Elements::Sha256Ctx8Add1 |
+        Elements::Sha256Ctx8Add2 |
+        Elements::Sha256Ctx8Add4 |
+        Elements::Sha256Ctx8Add8 |
+        Elements::Sha256Ctx8Add16 |
+        Elements::Sha256Ctx8Add32 |
+        Elements::Sha256Ctx8Add64 |
+        Elements::Sha256Ctx8Add128 |
+        Elements::Sha256Ctx8Add256 |
+        Elements::Sha256Ctx8Add512 |
+        Elements::Sha256Ctx8AddBuffer511 |
+        Elements::Sha256Ctx8Finalize |
+        // Jets for secp FE
+        Elements::FeNormalize |
+        Elements::FeNegate |
+        Elements::FeAdd |
+        Elements::FeSquare |
+        Elements::FeMultiply |
+        Elements::FeMultiplyBeta |
+        Elements::FeInvert |
+        Elements::FeSquareRoot |
+        Elements::FeIsZero |
+        Elements::FeIsOdd |
+        // Jets for secp scalars
+        Elements::ScalarNormalize |
+        Elements::ScalarNegate |
+        Elements::ScalarAdd |
+        Elements::ScalarSquare |
+        Elements::ScalarMultiply |
+        Elements::ScalarMultiplyLambda |
+        Elements::ScalarInvert |
+        Elements::ScalarIsZero |
+        // Jets for secp gej points
+        Elements::GejInfinity |
+        Elements::GejRescale |
+        Elements::GejNormalize |
+        Elements::GejNegate |
+        Elements::GeNegate |
+        Elements::GejDouble |
+        Elements::GejAdd |
+        Elements::GejGeAddEx |
+        Elements::GejGeAdd |
+        Elements::GejIsInfinity |
+        Elements::GejXEquiv |
+        Elements::GejYIsOdd |
+        Elements::GejIsOnCurve |
+        // Other jets
+        Elements::GeIsOnCurve |
+        Elements::Scale |
+        Elements::Generate |
+        Elements::LinearCombination1 |
+        Elements::LinearVerify1 |
+        Elements::Decompress |
+        Elements::PointVerify1 |
+        // Signature jets
+        Elements::CheckSigVerify |
+        Elements::Bip0340Verify  => true,
+        _ => false,
+    }
+}
+
 #[rustfmt::skip]
 fn bench(c: &mut Criterion) {
     // Sanity Check: This should never really fail, but still good to do
@@ -106,11 +174,6 @@ fn bench(c: &mut Criterion) {
     }
 
     let mut rng = ThreadRng::default();
-
-    fn eq_32() -> Value {
-        let v  = rand::random::<u32>();
-        Value::prod(Value::u32(v), Value::u32(v))
-    }
 
     fn eq_256() -> Value {
         let v  = rand::random::<[u8; 32]>();
@@ -521,7 +584,9 @@ fn bench(c: &mut Criterion) {
 
         let mut group = c.benchmark_group(&jet.to_string());
         let env = EnvSampling::Null.env();
-
+        if is_heavy_jet(jet) {
+            group.measurement_time(std::time::Duration::from_secs(5));
+        };
         for i in 0..NUM_RANDOM_SAMPLES {
             let params = JetParams::with_rand_aligns(sample.clone());
             // Assumption: `buffer.write` is non-negligible
@@ -803,5 +868,17 @@ fn bench(c: &mut Criterion) {
     }
 }
 
-criterion_group!(benches, bench);
+criterion_group!{
+    name = benches;
+    config = Criterion::default()
+        // For simpler benchmarks, we don't need to run for long
+        // We care most about secp jets
+        .measurement_time(std::time::Duration::from_millis(50))
+        .warm_up_time(std::time::Duration::from_millis(50))
+        // .sample_size(100)
+        // .nresamples(10_000)
+        .plotting_backend(criterion::PlottingBackend::None)
+        .without_plots();
+    targets = bench,
+}
 criterion_main!(benches);
