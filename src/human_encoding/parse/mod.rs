@@ -525,6 +525,44 @@ pub fn parse<J: Jet + 'static>(
         }
     }
 
+    // From each root, count the number of ways that each witness node can be reached
+    for root in roots.values() {
+        let mut counts: Vec<HashMap<Arc<str>, usize>> = vec![];
+        for data in root.as_ref().post_order_iter::<InternalSharing>() {
+            let mut new_counts = HashMap::new();
+
+            if let Some(idx) = data.left_index {
+                for (name, count) in &counts[idx] {
+                    *new_counts.entry(Arc::clone(name)).or_insert(0) += count;
+                }
+            }
+            if let Some(idx) = data.right_index {
+                for (name, count) in &counts[idx] {
+                    *new_counts.entry(Arc::clone(name)).or_insert(0) += count;
+                }
+            }
+
+            if matches!(
+                data.node.inner(),
+                node::Inner::Disconnect(_, _) | node::Inner::Witness(_)
+            ) {
+                *new_counts.entry(Arc::clone(data.node.name())).or_insert(0) += 1;
+            }
+
+            counts.push(new_counts);
+        }
+
+        let accumulated = counts.last().unwrap();
+        for (name, count) in accumulated {
+            if *count > 1 {
+                errors.add_no_position(Error::WitnessDisconnectRepeated {
+                    name: Arc::clone(name),
+                    count: *count,
+                });
+            }
+        }
+    }
+
     if errors.is_empty() {
         Ok(roots)
     } else {

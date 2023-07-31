@@ -87,6 +87,11 @@ impl ErrorSet {
             .push(err.into());
     }
 
+    /// Adds an error to the error set.
+    pub fn add_no_position<E: Into<Error>>(&mut self, err: E) {
+        self.errors.entry(None).or_insert(vec![]).push(err.into());
+    }
+
     /// Merges another set of errors into the current set.
     ///
     /// # Panics
@@ -177,6 +182,7 @@ impl error::Error for ErrorSet {
             Error::TypeCheck(ref e) => Some(e),
             Error::Undefined(_) => None,
             Error::UnknownJet(_) => None,
+            Error::WitnessDisconnectRepeated { .. } => None,
         }
     }
 }
@@ -260,6 +266,8 @@ pub enum Error {
     Undefined(String),
     /// A given jet is not a known jet
     UnknownJet(String),
+    /// A witness or disconnect node was accessible from multiple paths.
+    WitnessDisconnectRepeated { name: Arc<str>, count: usize },
 }
 
 impl From<types::Error> for Error {
@@ -305,6 +313,11 @@ impl fmt::Display for Error {
             Error::TypeCheck(ref e) => fmt::Display::fmt(e, f),
             Error::Undefined(ref s) => write!(f, "reference to undefined symbol `{}`", s),
             Error::UnknownJet(ref s) => write!(f, "unknown jet `{}`", s),
+            Error::WitnessDisconnectRepeated { ref name, count } => write!(
+                f,
+                "witness/disconnect node {} was accessible by {} distinct paths from the same root",
+                name, count,
+            ),
         }
     }
 }
