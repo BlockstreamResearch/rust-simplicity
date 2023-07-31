@@ -19,6 +19,7 @@ jobs:
 c_rust_merkle,
 decode_natural,
 decode_program,
+human_encoding,
         ]
     steps:
       - name: Install test dependencies
