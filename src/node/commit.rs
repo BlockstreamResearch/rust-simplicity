@@ -294,15 +294,41 @@ mod tests {
     use std::fmt;
 
     use crate::decode::Error;
+    use crate::human_encoding::Forest;
     use crate::jet::Core;
     use crate::node::SimpleFinalizer;
     use crate::{BitMachine, Value};
 
     fn assert_program_deserializable<J: Jet>(
+        prog_str: &str,
         prog_bytes: &[u8],
         cmr_str: &str,
     ) -> Arc<CommitNode<J>> {
+        let forest = match Forest::<J>::parse(prog_str) {
+            Ok(forest) => forest,
+            Err(e) => panic!("Failed to parse program `{}`: {}", prog_str, e),
+        };
+        assert_eq!(
+            forest.roots().len(),
+            1,
+            "program `{}` has multiple roots",
+            prog_str
+        );
+        let main = match forest.roots().get("main") {
+            Some(root) => root,
+            None => panic!("Program `{}` has no main", prog_str),
+        };
+
         let prog_hex = prog_bytes.as_hex();
+        let main_bytes = main.encode_to_vec();
+        assert_eq!(
+            prog_bytes,
+            main_bytes,
+            "Program string `{}` encoded to {} (expected {})",
+            prog_str,
+            main_bytes.as_hex(),
+            prog_hex,
+        );
 
         let mut iter = BitIter::from(prog_bytes);
         let prog = match CommitNode::<J>::decode(&mut iter) {
@@ -422,19 +448,11 @@ mod tests {
 
     #[test]
     fn shared_witnesses() {
-        // main = witness :: A -> B
         assert_program_deserializable::<Core>(
+            "main := witness",
             &[0x38],
             "bf12681a76fc7c00c63e583c25cc97237337d6aca30d3f4a664075445385c648",
         );
-
-        // # Program which demands two 32-bit witnesses, the first one == the second + 1
-        // wit1 = witness :: 1 -> 2^32
-        // wit2 = witness :: 1 -> 2^32
-        //
-        // wit_diff = comp (comp (pair wit1 wit2) jet_subtract_32) (drop iden) :: 1 -> 2^32
-        // diff_is_one = comp (pair wit_diff jet_one_32) jet_eq_32             :: 1 -> 2
-        // main = comp diff_is_one jet_verify                                  :: 1 -> 1
 
         #[rustfmt::skip]
         let bad_diff1s = vec![
@@ -461,6 +479,15 @@ mod tests {
         let diff1s = vec![
             (
                 // Sharing corrected
+                "
+                    -- Program which demands two 32-bit witnesses, the first one == the second + 1
+                    wit1 := witness : 1 -> 2^32
+                    wit2 := witness : 1 -> 2^32
+
+                    wit_diff := comp (comp (pair wit1 wit2) jet_subtract_32) (drop iden) : 1 -> 2^32
+                    diff_is_one := comp (pair wit_diff jet_one_32) jet_eq_32             : 1 -> 2
+                    main := comp diff_is_one jet_verify                                  : 1 -> 1
+                ",
                 vec![
                     0xdc, 0xee, 0x28, 0xe6, 0x8c, 0x41, 0x08, 0x38,
                     0x15, 0xc6, 0x22, 0x8d, 0xb7, 0x10, 0x46, 0x02,
@@ -471,6 +498,17 @@ mod tests {
             ),
             // Same program but with each `witness` replaced by `comp iden witness`.
             (
+                "
+                    -- Program which demands two 32-bit witnesses, the first one == the second + 1
+                    wit1 := witness : 1 -> 2^32
+                    wit2 := witness : 1 -> 2^32
+                    compwit1 := comp iden wit1
+                    compwit2 := comp iden wit2
+
+                    wit_diff := comp (comp (pair compwit1 compwit2) jet_subtract_32) (drop iden)
+                    diff_is_one := comp (pair wit_diff jet_one_32) jet_eq_32             : 1 -> 2
+                    main := comp diff_is_one jet_verify                                  : 1 -> 1
+                ",
                 vec![
                     0xe0, 0x28, 0x70, 0x43, 0x83, 0x00, 0xab, 0x9a,
                     0x31, 0x04, 0x20, 0xe0, 0x57, 0x18, 0x8a, 0x36,
@@ -481,9 +519,10 @@ mod tests {
             )
         ];
 
-        for (diff1, cmr) in diff1s {
-            let diff1_prog =
-                crate::node::commit::tests::assert_program_deserializable::<Core>(&diff1, cmr);
+        for (prog_str, diff1, cmr) in diff1s {
+            let diff1_prog = crate::node::commit::tests::assert_program_deserializable::<Core>(
+                prog_str, &diff1, cmr,
+            );
 
             // Attempt to finalize, providing 32-bit witnesses 0, 1, ..., and then
             // counting how many were consumed afterward.

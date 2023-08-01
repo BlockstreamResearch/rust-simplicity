@@ -13,4 +13,3 @@ simplicity = { version = "0.1", path = "..", features = [ "serde", "elements" ] 
 [[bin]]
 name = "simpcli"
 path = "src/main.rs"
-

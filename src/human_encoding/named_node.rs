@@ -75,9 +75,45 @@ impl<J: Jet> NamedCommitNode<J> {
         self.cached_data().internal.arrow()
     }
 
+    /// Forget the names, yielding an ordinary [`CommitNode`].
+    pub fn to_commit_node(&self) -> Arc<CommitNode<J>> {
+        struct Forgetter<J>(PhantomData<J>);
+
+        impl<J: Jet> Converter<Named<Commit<J>>, Commit<J>> for Forgetter<J> {
+            type Error = ();
+            fn convert_witness(
+                &mut self,
+                _: &PostOrderIterItem<&NamedCommitNode<J>>,
+                _: &NoWitness,
+            ) -> Result<NoWitness, Self::Error> {
+                Ok(NoWitness)
+            }
+
+            fn convert_disconnect(
+                &mut self,
+                _: &PostOrderIterItem<&NamedCommitNode<J>>,
+                _: Option<&Arc<CommitNode<J>>>,
+                _: &NoDisconnect,
+            ) -> Result<NoDisconnect, Self::Error> {
+                Ok(NoDisconnect)
+            }
+
+            fn convert_data(
+                &mut self,
+                data: &PostOrderIterItem<&NamedCommitNode<J>>,
+                _: node::Inner<&Arc<CommitNode<J>>, J, &NoDisconnect, &NoWitness>,
+            ) -> Result<Arc<CommitData<J>>, Self::Error> {
+                Ok(Arc::clone(&data.node.cached_data().internal))
+            }
+        }
+
+        self.convert::<InternalSharing, _, _>(&mut Forgetter(PhantomData))
+            .unwrap()
+    }
+
     /// Encode a Simplicity expression to bits without any witness data
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
-        let program_bits = encode::encode_program(self, w)?;
+        let program_bits = encode::encode_program(self.to_commit_node().as_ref(), w)?;
         w.flush_all()?;
         Ok(program_bits)
     }
@@ -150,6 +186,18 @@ impl<J: Jet> NamedConstructNode<J> {
         Ok(Node::from_parts(inner, named_data))
     }
 
+    /// Creates a copy of a node with a different name.
+    pub fn renamed(&self, new_name: Arc<str>) -> Self {
+        let data = NamedConstructData {
+            internal: self.cached_data().internal.clone(),
+            user_source_types: Arc::clone(&self.cached_data().user_source_types),
+            user_target_types: Arc::clone(&self.cached_data().user_target_types),
+            name: new_name,
+            position: self.position(),
+        };
+        Self::from_parts(self.inner().clone(), data)
+    }
+
     /// Accessor for the node's name
     pub fn name(&self) -> &Arc<str> {
         &self.cached_data().name
@@ -210,7 +258,11 @@ impl<J: Jet> NamedConstructNode<J> {
                 data: &PostOrderIterItem<&NamedConstructNode<J>>,
                 inner: node::Inner<&Arc<NamedCommitNode<J>>, J, &NoDisconnect, &NoWitness>,
             ) -> Result<NamedCommitData<J>, Self::Error> {
-                let converted_data = inner.map(|node| &node.cached_data().internal);
+                let converted_data = inner
+                    .as_ref()
+                    .map(|node| &node.cached_data().internal)
+                    .map_disconnect(|disc| *disc)
+                    .copy_witness();
 
                 if !self.for_main {
                     // For non-`main` fragments, treat the ascriptions as normative, and apply them
@@ -313,6 +365,16 @@ impl Namer {
             wit_idx: 0,
             other_idx: 0,
             root_cmr: Some(root_cmr),
+        }
+    }
+
+    /// Costruct a new `Namer`.
+    pub fn new() -> Self {
+        Namer {
+            const_idx: 0,
+            wit_idx: 0,
+            other_idx: 0,
+            root_cmr: None,
         }
     }
 

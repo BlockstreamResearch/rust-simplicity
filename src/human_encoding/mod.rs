@@ -22,6 +22,7 @@
 
 mod error;
 mod named_node;
+mod parse;
 mod serialize;
 
 use crate::dag::{DagLike, MaxSharing};
@@ -34,6 +35,7 @@ use std::sync::Arc;
 
 pub use self::error::{Error, ErrorSet};
 pub use self::named_node::NamedCommitNode;
+pub use self::parse::parse;
 
 /// Line/column pair
 ///
@@ -46,18 +48,46 @@ pub struct Position {
     column: usize,
 }
 
+impl<'a> From<&'a santiago::lexer::Position> for Position {
+    fn from(position: &'a santiago::lexer::Position) -> Position {
+        Position {
+            line: position.line,
+            column: position.column,
+        }
+    }
+}
+
+impl From<santiago::lexer::Position> for Position {
+    fn from(position: santiago::lexer::Position) -> Position {
+        Position {
+            line: position.line,
+            column: position.column,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Forest<J: Jet> {
     roots: HashMap<Arc<str>, Arc<NamedCommitNode<J>>>,
 }
 
 impl<J: Jet> Forest<J> {
+    /// Parses a forest from a string
+    pub fn parse(s: &str) -> Result<Self, ErrorSet> {
+        parse::parse(s).map(|roots| Forest { roots })
+    }
+
     /// Parses a program from a bytestring
     pub fn from_program(root: Arc<CommitNode<J>>) -> Self {
         let root = NamedCommitNode::from_node(&root);
         let mut roots = HashMap::new();
         roots.insert("main".into(), root);
         Forest { roots }
+    }
+
+    /// Accessor for the map of roots of this forest
+    pub fn roots(&self) -> &HashMap<Arc<str>, Arc<NamedCommitNode<J>>> {
+        &self.roots
     }
 
     /// Serialize the program in human-readable form

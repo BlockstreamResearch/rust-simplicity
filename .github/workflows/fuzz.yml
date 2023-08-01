@@ -34,7 +34,7 @@ decode_program,
           key: cache-${{ matrix.target }}-${{ hashFiles('**/Cargo.toml','**/Cargo.lock') }}
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: 1.58
+          toolchain: 1.64
           override: true
           profile: minimal
       - name: fuzz

@@ -16,9 +16,10 @@ use simplicity::human_encoding::Forest;
 use simplicity::node::CommitNode;
 use simplicity::{self, BitIter};
 
+use base64::display::Base64Display;
 use base64::engine::general_purpose::STANDARD;
-use std::env;
 use std::str::FromStr;
+use std::{env, fs};
 
 /// What set of jets to use in the program.
 // FIXME this should probably be configurable.
@@ -26,6 +27,7 @@ type DefaultJet = simplicity::jet::Elements;
 
 fn usage(process_name: &str) {
     eprintln!("Usage:");
+    eprintln!("  {} assemble <filename>", process_name);
     eprintln!("  {} disassemble <base64>", process_name);
     eprintln!();
     eprintln!("For commands which take an optional expression, the default value is \"main\".");
@@ -39,6 +41,7 @@ fn invalid_usage(process_name: &str) -> Result<(), String> {
 }
 
 enum Command {
+    Assemble,
     Disassemble,
     Help,
 }
@@ -47,6 +50,7 @@ impl FromStr for Command {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, String> {
         match s {
+            "assemble" => Ok(Command::Assemble),
             "disassemble" => Ok(Command::Disassemble),
             "help" => Ok(Command::Help),
             x => Err(format!("unknown command {}", x)),
@@ -57,8 +61,23 @@ impl FromStr for Command {
 impl Command {
     fn takes_optional_exprname(&self) -> bool {
         match *self {
+            Command::Assemble => false,
             Command::Disassemble => false,
             Command::Help => false,
+        }
+    }
+}
+
+fn parse_file(name: &str) -> Result<Forest<DefaultJet>, String> {
+    let s = fs::read_to_string(name).map_err(|e| format!("failed to read file {}: {}", name, e))?;
+    match Forest::parse(&s) {
+        Ok(prog) => Ok(prog),
+        Err(mut errs) => {
+            errs.add_context(std::sync::Arc::from(s));
+            eprintln!("Errors:");
+            eprintln!("{}", errs);
+            eprintln!();
+            Err(format!("failed to parse file {}", name))
         }
     }
 }
@@ -104,6 +123,27 @@ fn main() -> Result<(), String> {
 
     // Execute command
     match command {
+        Command::Assemble => {
+            let prog = parse_file(&first_arg)?;
+
+            let roots = prog.roots();
+            let mut error = false;
+            for name in roots.keys() {
+                if name.as_ref() != "main" {
+                    eprintln!("Expression `{}` not rooted at `main`.", name);
+                    error = true;
+                }
+            }
+
+            if let Some(prog) = roots.get("main") {
+                if !error {
+                    let encoded = prog.encode_to_vec();
+                    println!("{}", Base64Display::new(&encoded, &STANDARD));
+                }
+            } else {
+                eprintln!("Expression `main` not found.");
+            }
+        }
         Command::Disassemble => {
             let v = base64::Engine::decode(&STANDARD, first_arg.as_bytes())
                 .map_err(|e| format!("failed to parse base64: {}", e))?;
