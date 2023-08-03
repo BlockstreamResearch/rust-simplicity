@@ -71,6 +71,12 @@ pub use crate::value::Value;
 pub use simplicity_sys as ffi;
 use std::fmt;
 
+/// Return the version of Simplicity leaves inside a tap tree.
+#[cfg(feature = "elements")]
+pub fn leaf_version() -> elements::taproot::LeafVersion {
+    elements::taproot::LeafVersion::from_u8(0xbe).expect("constant leaf version")
+}
+
 /// Error type for simplicity
 #[non_exhaustive]
 #[derive(Debug)]
