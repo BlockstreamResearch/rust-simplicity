@@ -178,7 +178,7 @@ extern "C" {
     pub fn c_set_rawTapEnv(
         result: *mut CRawTapEnv,
         controlBlock: *const c_uchar,
-        branchLen: c_uchar,
+        pathLen: c_uchar,
         scriptCMR: *const c_uchar,
     );
     pub fn c_set_txEnv(

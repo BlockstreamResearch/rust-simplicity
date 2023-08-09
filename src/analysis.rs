@@ -53,7 +53,7 @@ impl Cost {
     /// Overhead constant.
     ///
     /// Every combinator that is executed has this overhead added to its cost.
-    const OVERHEAD: Self = Cost(10);
+    const OVERHEAD: Self = Cost(100);
 
     /// Cost of combinators that are never executed.
     ///
@@ -297,3 +297,14 @@ impl NodeBounds {
 
 /// Number of frames required for the input and output of a Simplicity expression
 pub(crate) const IO_EXTRA_FRAMES: usize = 2;
+
+#[cfg(test)]
+mod tests {
+    use simplicity_sys::ffi::bounded::cost_overhead;
+
+    #[test]
+    fn test_overhead() {
+        // Check that C overhead is same OVERHEAD
+        assert_eq!(super::Cost::OVERHEAD.0, cost_overhead());
+    }
+}

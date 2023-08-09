@@ -1095,20 +1095,20 @@ pub fn tap_env_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv)
     unsafe { elements_ffi::tap_env_hash(dst, src, env) }
 }
 
-pub fn tapbranch(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
-    unsafe { elements_ffi::tapbranch(dst, src, env) }
-}
-
-pub fn tapbranch_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
-    unsafe { elements_ffi::tapbranch_hash(dst, src, env) }
-}
-
 pub fn tapleaf_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
     unsafe { elements_ffi::tapleaf_hash(dst, src, env) }
 }
 
 pub fn tapleaf_version(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
     unsafe { elements_ffi::tapleaf_version(dst, src, env) }
+}
+
+pub fn tappath(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+    unsafe { elements_ffi::tappath(dst, src, env) }
+}
+
+pub fn tappath_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+    unsafe { elements_ffi::tappath_hash(dst, src, env) }
 }
 
 pub fn tx_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {

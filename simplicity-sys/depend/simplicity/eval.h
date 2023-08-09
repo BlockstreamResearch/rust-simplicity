@@ -12,16 +12,38 @@ typedef unsigned char flags_type;
 #define CHECK_CASE 0x60
 #define CHECK_ALL ((flags_type)(-1))
 
-/* Run the Bit Machine on the well-typed Simplicity expression 'dag[len]'.
- * If 'NULL != input', initialize the active read frame's data with 'input[ROUND_UWORD(inputSize)]'.
+/* Given a well-typed dag representing a Simplicity expression, compute the memory and CPU requirements for evaluation.
+ *
+ * If 'malloc' fails, then returns SIMPLICITY_ERR_MALLOC.
+ * When maxCells < UBOUNDED_MAX, if the bounds on the number of cells needed for evaluation of 'dag' on an idealized Bit Machine exceeds maxCells,
+ * then return SIMPLICITY_ERR_EXEC_MEMORY.
+ * When maxCost < UBOUNDED_MAX, if the bounds on the dag's CPU cost exceeds 'maxCost', then return SIMPLICITY_ERR_EXEC_BUDGET.
+ * Otherwise returns SIMPLICITY_NO_ERR.
+ *
+ * Precondition: NULL != cellsBound
+ *               NULL != UWORDBound
+ *               NULL != frameBound
+ *               NULL != costBound
+ *               dag_node dag[len] and 'dag' is well-typed with 'type_dag'.
+ * Postcondition: if the result is 'SIMPLICITY_NO_ERR'
+ *                then if maxCost < UBOUNDED_MAX then '*costBound' bounds the dag's CPU cost measured in milli weight units
+ *                 and if maxCells < UBOUNDED_MAX then '*cellsBound' bounds the number of cells needed for evaluation of 'dag' on an idealized Bit Machine
+ *                 and if maxCells < UBOUNDED_MAX then '*UWORDBound' bounds the number of UWORDs needed for the frames during evaluation of 'dag'
+ *                 and if maxCells < UBOUNDED_MAX then '*frameBound' bounds the number of stack frames needed during execution of 'dag'.
+ */
+simplicity_err analyseBounds( ubounded *cellsBound, ubounded *UWORDBound, ubounded *frameBound, ubounded *costBound
+                            , ubounded maxCells, ubounded maxCost, const dag_node* dag, const type* type_dag, const size_t len);
+
+/* Run the Bit Machine on the well-typed Simplicity expression 'dag[len]' of type A |- B.
+ * If bitSize(A) > 0, initialize the active read frame's data with 'input[ROUND_UWORD(bitSize(A))]'.
  *
  * If malloc fails, returns 'SIMPLICITY_ERR_MALLOC'.
- * If static analysis results determines the bound on cpu requirements exceed the allowed budget, returns 'SIMPLICITY_ERR_EXEC_BUDGET'
+ * When a budget is given, if static analysis results determines the bound on cpu requirements exceed the allowed budget, returns 'SIMPLICITY_ERR_EXEC_BUDGET'
  * If static analysis results determines the bound on memory allocation requirements exceed the allowed limits, returns 'SIMPLICITY_ERR_EXEC_MEMORY'
  * If during execution some jet execution fails, returns 'SIMPLICITY_ERR_EXEC_JET'.
  * If during execution some 'assertr' or 'assertl' combinator fails, returns 'SIMPLICITY_ERR_EXEC_ASESRT'.
  *
- * If none of the above conditions fail and 'NULL != output', then a copy the final active write frame's data is written to 'output[roundWord(outputSize)]'.
+ * If none of the above conditions fail and bitSize(B) > 0, then a copy the final active write frame's data is written to 'output[roundWord(bitSize(B))]'.
  *
  * If 'anti_dos_checks' includes the 'CHECK_EXEC' flag, and not every non-HIDDEN dag node is executed, returns 'SIMPLICITY_ERR_ANTIDOS'
  * If 'anti_dos_checks' includes the 'CHECK_CASE' flag, and not every case node has both branches executed, returns 'SIMPLICITY_ERR_ANTIDOS'
@@ -29,21 +51,19 @@ typedef unsigned char flags_type;
  * Otherwise 'SIMPLICITY_NO_ERROR' is returned.
  *
  * Precondition: dag_node dag[len] and 'dag' is well-typed with 'type_dag' for an expression of type A |- B;
- *               inputSize == bitSize(A);
- *               outputSize == bitSize(B);
- *               output == NULL or UWORD output[ROUND_UWORD(outputSize)];
- *               input == NULL or UWORD input[ROUND_UWORD(inputSize)];
- *               budget <= BUDGET_MAX
+ *               bitSize(A) == 0 or UWORD input[ROUND_UWORD(bitSize(A))];
+ *               bitSize(B) == 0 or UWORD output[ROUND_UWORD(bitSize(B))];
+ *               if NULL != budget then *budget <= BUDGET_MAX
  *               if 'dag[len]' represents a Simplicity expression with primitives then 'NULL != env';
  */
-simplicity_err evalTCOExpression( flags_type anti_dos_checks, UWORD* output, ubounded outputSize, const UWORD* input, ubounded inputSize
-                                , const dag_node* dag, type* type_dag, size_t len, ubounded budget, const txEnv* env
+simplicity_err evalTCOExpression( flags_type anti_dos_checks, UWORD* output, const UWORD* input
+                                , const dag_node* dag, type* type_dag, size_t len, const ubounded* budget, const txEnv* env
                                 );
 
 /* Run the Bit Machine on the well-typed Simplicity program 'dag[len]'.
  *
  * If malloc fails, returns 'SIMPLICITY_ERR_MALLOC'.
- * If static analysis results determines the bound on cpu requirements exceed the allowed budget, returns 'SIMPLICITY_ERR_EXEC_BUDGET'
+ * When a budget is given, if static analysis results determines the bound on cpu requirements exceed the allowed budget, returns 'SIMPLICITY_ERR_EXEC_BUDGET'
  * If static analysis results determines the bound on memory allocation requirements exceed the allowed limits, returns 'SIMPLICITY_ERR_EXEC_MEMORY'
  * If during execution some jet execution fails, returns 'SIMPLICITY_ERR_EXEC_JET'.
  * If during execution some 'assertr' or 'assertl' combinator fails, returns 'SIMPLICITY_ERR_EXEC_ASESRT'.
@@ -53,10 +73,10 @@ simplicity_err evalTCOExpression( flags_type anti_dos_checks, UWORD* output, ubo
  * Otherwise 'SIMPLICITY_NO_ERROR' is returned.
  *
  * Precondition: dag_node dag[len] and 'dag' is well-typed with 'type_dag' for an expression of type ONE |- ONE;
- *               budget <= BUDGET_MAX
+ *               if NULL != budget then *budget <= BUDGET_MAX
  *               if 'dag[len]' represents a Simplicity expression with primitives then 'NULL != env';
  */
-static inline simplicity_err evalTCOProgram(const dag_node* dag, type* type_dag, size_t len, ubounded budget, const txEnv* env) {
-  return evalTCOExpression(CHECK_ALL, NULL, 0, NULL, 0, dag, type_dag, len, budget, env);
+static inline simplicity_err evalTCOProgram(const dag_node* dag, type* type_dag, size_t len, const ubounded* budget, const txEnv* env) {
+  return evalTCOExpression(CHECK_ALL, NULL, NULL, dag, type_dag, len, budget, env);
 }
 #endif

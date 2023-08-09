@@ -637,48 +637,58 @@ static simplicity_err antiDos(flags_type checks, const call* stack, const dag_no
   return SIMPLICITY_NO_ERROR;
 }
 
-/* This structure is used by the static analysis that computes  bounds on the working memory that suffices for
- * the Simplicity interpreter.
+/* This structure is used by the static analysis that computes bounds on the working memory that suffices for
+ * the Simplicity interpreter, and the CPU cost bounds in milliWU
  */
-typedef struct memBound {
+typedef struct boundsAnalysis {
   ubounded extraCellsBound[2];
   ubounded extraUWORDBound[2];
-  ubounded extraFrameBound[2]; /* extraStackBound[0] is for TCO off and extraStackBound[1] is for TCO on */
-  ubounded cost;
-} memBound;
+  ubounded extraFrameBound[2]; /* extraFrameBound[0] is for TCO off and extraFrameBound[1] is for TCO on */
+  ubounded cost; /* milliWU */
+} boundsAnalysis;
 
 /* :TODO: Document extraFrameBound in the Tech Report (and implement it in Haskell) */
-/* Given a well-typed dag representing a Simplicity expression, set '*dag_bound' to the memory and CPU requirements for evaluation.
- * For all 'i', 0 <= 'i' < 'len', compute 'bound[i]' fields for the subexpression denoted by the slice
+/* Given a well-typed dag representing a Simplicity expression, compute the memory and CPU requirements for evaluation.
  *
- *     (dag_nodes[i + 1])dag.
+ * If 'malloc' fails, then returns SIMPLICITY_ERR_MALLOC.
+ * When maxCells < UBOUNDED_MAX, if the bounds on the number of cells needed for evaluation of 'dag' on an idealized Bit Machine exceeds maxCells,
+ * then return SIMPLICITY_ERR_EXEC_MEMORY.
+ * When maxCost < UBOUNDED_MAX, if the bounds on the dag's CPU cost exceeds 'maxCost', then return SIMPLICITY_ERR_EXEC_BUDGET.
+ * Otherwise returns SIMPLICITY_NO_ERR.
  *
- * Then '*dag_bound' is set to 'bound[len-1]'.
- *
- * If 'malloc' fails, then return false.
- *
- * Precondition: NULL != dag_bound
+ * Precondition: NULL != cellsBound
+ *               NULL != UWORDBound
+ *               NULL != frameBound
+ *               NULL != costBound
  *               dag_node dag[len] and 'dag' is well-typed with 'type_dag'.
- * Postcondition: if the result is 'true'
- *                then 'dag_bound->cost == BOUNDED_MAX' or 'dag_bound->const' bounds the dags CPU cost measured in milli weight units
- *                 and 'max(dag_bound->extraCellsBound[0], dag_bound->extraCellsBound[1]) == BOUNDED_MAX'
- *                     or 'dag_bound->extraCellsBound' characterizes the number of cells needed during evaluation of 'dag'
- *                        and 'dag_bound->extraUWORDBound' characterizes the number of UWORDs needed
- *                              for the frames allocated during evaluation of 'dag'
- *                        and 'dag_bound->extraFrameBound[0]' bounds the the number of stack frames needed during execution of 'dag'.
+ * Postcondition: if the result is 'SIMPLICITY_NO_ERR'
+ *                then if maxCost < UBOUNDED_MAX then '*costBound' bounds the dag's CPU cost measured in milli weight units
+ *                 and if maxCells < UBOUNDED_MAX then '*cellsBound' bounds the number of cells needed for evaluation of 'dag' on an idealized Bit Machine
+ *                 and if maxCells < UBOUNDED_MAX then '*UWORDBound' bounds the number of UWORDs needed for the frames during evaluation of 'dag'
+ *                 and if maxCells < UBOUNDED_MAX then '*frameBound' bounds the number of stack frames needed during execution of 'dag'.
  *
  * :TODO: The cost calculations below are estimated and need to be replaced by experimental data.
  */
-static bool computeEvalTCOBound(memBound *dag_bound, const dag_node* dag, const type* type_dag, const size_t len) {
-  const ubounded overhead = 10 /* milli weight units */;
-  static_assert(DAG_LEN_MAX <= SIZE_MAX / sizeof(memBound), "bound array too large.");
+simplicity_err analyseBounds( ubounded *cellsBound, ubounded *UWORDBound, ubounded *frameBound, ubounded *costBound
+                            , ubounded maxCells, ubounded maxCost, const dag_node* dag, const type* type_dag, const size_t len) {
+  static_assert(DAG_LEN_MAX <= SIZE_MAX / sizeof(boundsAnalysis), "bound array too large.");
   static_assert(1 <= DAG_LEN_MAX, "DAG_LEN_MAX is zero.");
   static_assert(DAG_LEN_MAX - 1 <= UINT32_MAX, "bound array index does not fit in uint32_t.");
   simplicity_assert(1 <= len);
   simplicity_assert(len <= DAG_LEN_MAX);
-  memBound* bound = malloc(len * sizeof(memBound));
-  if (!bound) return false;
+  boundsAnalysis* bound = malloc(len * sizeof(boundsAnalysis));
+  if (!bound) return SIMPLICITY_ERR_MALLOC;
 
+  /* Sum up the total costs.
+   * The computations for extraCells and cost are clipped at UBOUNDED_MAX,
+   * so a result of UBOUNDED_MAX means "UBOUNDED_MAX or larger".
+   *
+   * The extraUWORD computation may produce unsigned overflow.
+   * However the extraUWORD true value is less than the true value of extraCells.
+   * As long as extraCells is strictly less than UBOUNDED_MAX, extraUWORD will be too.
+   *
+   * The extraFrame computation is bounded by DAG_LEN, and cannot overflow.
+   */
   for (size_t i = 0; i < len; ++i) {
     switch (dag[i].tag) {
      case ASSERTL:
@@ -702,11 +712,11 @@ static bool computeEvalTCOBound(memBound *dag_bound, const dag_node* dag, const 
                                                , bound[dag[i].child[1]].cost ));
       break;
      case DISCONNECT:
-      if (BOUNDED_MAX <= type_dag[DISCONNECT_W256A(dag, type_dag, i)].bitSize ||
-          BOUNDED_MAX <= type_dag[DISCONNECT_BC(dag, type_dag, i)].bitSize) {
+      if (UBOUNDED_MAX <= type_dag[DISCONNECT_W256A(dag, type_dag, i)].bitSize ||
+          UBOUNDED_MAX <= type_dag[DISCONNECT_BC(dag, type_dag, i)].bitSize) {
         /* 'BITSIZE(WORD256 * A)' or 'BITSIZE(B * C)' has exceeded our limits. */
-        bound[i].extraCellsBound[0] = BOUNDED_MAX;
-        bound[i].extraCellsBound[1] = BOUNDED_MAX;
+        bound[i].extraCellsBound[0] = UBOUNDED_MAX;
+        bound[i].extraCellsBound[1] = UBOUNDED_MAX;
       } else {
         bound[i].extraCellsBound[1] = type_dag[DISCONNECT_W256A(dag, type_dag, i)].bitSize;
         bound[i].extraCellsBound[0] = max(
@@ -729,13 +739,14 @@ static bool computeEvalTCOBound(memBound *dag_bound, const dag_node* dag, const 
                     , bounded_add(type_dag[DISCONNECT_W256A(dag, type_dag, i)].bitSize
                     , bounded_add(type_dag[DISCONNECT_W256A(dag, type_dag, i)].bitSize /* counted twice because the frame is both filled in and moved. */
                     , bounded_add(type_dag[DISCONNECT_BC(dag, type_dag, i)].bitSize
-                    , bounded_add(bound[dag[i].child[0]].cost, bound[dag[i].child[1]].cost)))));
+                    , bounded_add(type_dag[DISCONNECT_B(dag, type_dag, i)].bitSize
+                    , bounded_add(bound[dag[i].child[0]].cost, bound[dag[i].child[1]].cost))))));
       break;
      case COMP:
-      if (BOUNDED_MAX <= type_dag[COMP_B(dag, type_dag, i)].bitSize) {
+      if (UBOUNDED_MAX <= type_dag[COMP_B(dag, type_dag, i)].bitSize) {
         /* 'BITSIZE(B)' has exceeded our limits. */
-        bound[i].extraCellsBound[0] = BOUNDED_MAX;
-        bound[i].extraCellsBound[1] = BOUNDED_MAX;
+        bound[i].extraCellsBound[0] = UBOUNDED_MAX;
+        bound[i].extraCellsBound[1] = UBOUNDED_MAX;
       } else {
         bound[i].extraCellsBound[0] = max( bounded_add( type_dag[COMP_B(dag, type_dag, i)].bitSize
                                                       , max( bound[dag[i].child[0]].extraCellsBound[0]
@@ -809,21 +820,36 @@ static bool computeEvalTCOBound(memBound *dag_bound, const dag_node* dag, const 
     }
   }
 
-  *dag_bound = bound[len-1];
+  {
+    const ubounded inputSize = type_dag[dag[len-1].sourceType].bitSize;
+    const ubounded outputSize = type_dag[dag[len-1].targetType].bitSize;
+    *cellsBound = bounded_add( bounded_add(inputSize, outputSize)
+                             , max(bound[len-1].extraCellsBound[0], bound[len-1].extraCellsBound[1])
+                             );
+    *UWORDBound = (ubounded)ROUND_UWORD(inputSize) + (ubounded)ROUND_UWORD(outputSize)
+                + max(bound[len-1].extraUWORDBound[0], bound[len-1].extraUWORDBound[1]);
+    *frameBound = bound[len-1].extraFrameBound[0] + 2; /* add the initial input and output frames to the count. */
+    *costBound = bound[len-1].cost;
+  }
   free(bound);
-  return true;
+  /* Note that the cellsBound and costBound computations have been clipped at UBOUNDED_MAX.
+   * Therefore setting maxCells or maxCost to UBOUNDED_MAX will disable the corresponding error check.
+   */
+  return (maxCells < *cellsBound) ? SIMPLICITY_ERR_EXEC_MEMORY
+       : (maxCost < *costBound) ? SIMPLICITY_ERR_EXEC_BUDGET
+       : SIMPLICITY_NO_ERROR;
 }
 
-/* Run the Bit Machine on the well-typed Simplicity expression 'dag[len]'.
- * If 'NULL != input', initialize the active read frame's data with 'input[ROUND_UWORD(inputSize)]'.
+/* Run the Bit Machine on the well-typed Simplicity expression 'dag[len]' of type A |- B.
+ * If bitSize(A) > 0, initialize the active read frame's data with 'input[ROUND_UWORD(bitSize(A))]'.
  *
  * If malloc fails, returns 'SIMPLICITY_ERR_MALLOC'.
- * If static analysis results determines the bound on cpu requirements exceed the allowed budget, returns 'SIMPLICITY_ERR_EXEC_BUDGET'
+ * When a budget is given, if static analysis results determines the bound on cpu requirements exceed the allowed budget, returns 'SIMPLICITY_ERR_EXEC_BUDGET'
  * If static analysis results determines the bound on memory allocation requirements exceed the allowed limits, returns 'SIMPLICITY_ERR_EXEC_MEMORY'
  * If during execution some jet execution fails, returns 'SIMPLICITY_ERR_EXEC_JET'.
  * If during execution some 'assertr' or 'assertl' combinator fails, returns 'SIMPLICITY_ERR_EXEC_ASESRT'.
  *
- * If none of the above conditions fail and 'NULL != output', then a copy the final active write frame's data is written to 'output[roundWord(outputSize)]'.
+ * If none of the above conditions fail and bitSize(B) > 0, then a copy the final active write frame's data is written to 'output[roundWord(bitSize(B))]'.
  *
  * If 'anti_dos_checks' includes the 'CHECK_EXEC' flag, and not every non-HIDDEN dag node is executed, returns 'SIMPLICITY_ERR_ANTIDOS'
  * If 'anti_dos_checks' includes the 'CHECK_CASE' flag, and not every case node has both branches executed, returns 'SIMPLICITY_ERR_ANTIDOS'
@@ -831,37 +857,26 @@ static bool computeEvalTCOBound(memBound *dag_bound, const dag_node* dag, const 
  * Otherwise 'SIMPLICITY_NO_ERROR' is returned.
  *
  * Precondition: dag_node dag[len] and 'dag' is well-typed with 'type_dag' for an expression of type A |- B;
- *               inputSize == bitSize(A);
- *               outputSize == bitSize(B);
- *               output == NULL or UWORD output[ROUND_UWORD(outputSize)];
- *               input == NULL or UWORD input[ROUND_UWORD(inputSize)];
- *               budget <= BUDGET_MAX
+ *               bitSize(A) == 0 or UWORD input[ROUND_UWORD(bitSize(A))];
+ *               bitSize(B) == 0 or UWORD output[ROUND_UWORD(bitSize(B))];
+ *               if NULL != budget then *budget <= BUDGET_MAX
  *               if 'dag[len]' represents a Simplicity expression with primitives then 'NULL != env';
  */
-simplicity_err evalTCOExpression( flags_type anti_dos_checks, UWORD* output, ubounded outputSize, const UWORD* input, ubounded inputSize
-                                , const dag_node* dag, type* type_dag, size_t len, ubounded budget, const txEnv* env
+simplicity_err evalTCOExpression( flags_type anti_dos_checks, UWORD* output, const UWORD* input
+                                , const dag_node* dag, type* type_dag, size_t len, const ubounded* budget, const txEnv* env
                                 ) {
   simplicity_assert(1 <= len);
   simplicity_assert(len <= DAG_LEN_MAX);
-  simplicity_assert(budget <= BUDGET_MAX);
-  memBound bound;
-  if (!computeEvalTCOBound(&bound, dag, type_dag, len)) return SIMPLICITY_ERR_MALLOC;
-
-  const ubounded cellsBound = bounded_add( bounded_add(inputSize, outputSize)
-                                         , max(bound.extraCellsBound[0], bound.extraCellsBound[1])
-                                         );
-  const ubounded UWORDBound = (ubounded)ROUND_UWORD(inputSize) + (ubounded)ROUND_UWORD(outputSize)
-                          + max(bound.extraUWORDBound[0], bound.extraUWORDBound[1]);
-  const ubounded frameBound = bound.extraFrameBound[0] + 2; /* add the initial input and output frames to the count. */
-
-  static_assert(1 <= BOUNDED_MAX, "BOUNDED_MAX is zero.");
-  static_assert(BUDGET_MAX <= (BOUNDED_MAX - 1) / 1000, "BUDGET_MAX is too large.");
-  static_assert(CELLS_MAX < BOUNDED_MAX, "CELLS_MAX is too large.");
-  if (budget * 1000 < bound.cost) return SIMPLICITY_ERR_EXEC_BUDGET;
-  if (CELLS_MAX < cellsBound) return SIMPLICITY_ERR_EXEC_MEMORY;
+  if (budget) { simplicity_assert(*budget <= BUDGET_MAX); }
+  static_assert(1 <= UBOUNDED_MAX, "UBOUNDED_MAX is zero.");
+  static_assert(BUDGET_MAX <= (UBOUNDED_MAX - 1) / 1000, "BUDGET_MAX is too large.");
+  static_assert(CELLS_MAX < UBOUNDED_MAX, "CELLS_MAX is too large.");
+  ubounded cellsBound, UWORDBound, frameBound, costBound;
+  simplicity_err result = analyseBounds(&cellsBound, &UWORDBound, &frameBound, &costBound, CELLS_MAX, budget ? *budget*1000 : UBOUNDED_MAX, dag, type_dag, len);
+  if (!IS_OK(result)) return result;
 
   /* frameBound is at most 2*len. */
-  static_assert(DAG_LEN_MAX <= SIZE_MAX / 2, "2*DAG_LEN_MAX does not fit in size_t.");
+  static_assert(DAG_LEN_MAX <= UBOUNDED_MAX / 2, "2*DAG_LEN_MAX does not fit in size_t.");
   simplicity_assert(frameBound <= 2*len);
 
   /* UWORDBound * UWORD_BIT, the number of bits actually allocacted, is at most the cellBound count plus (worse case) padding bits in each frame. */
@@ -881,9 +896,12 @@ simplicity_err evalTCOExpression( flags_type anti_dos_checks, UWORD* output, ubo
   frameItem* frames = malloc(frameBound * sizeof(frameItem));
   call* stack = calloc(len, sizeof(call));
 
-  simplicity_err result = cells && frames && stack ? SIMPLICITY_NO_ERROR : SIMPLICITY_ERR_MALLOC;
+  result = cells && frames && stack ? SIMPLICITY_NO_ERROR : SIMPLICITY_ERR_MALLOC;
   if (IS_OK(result)) {
-    if (input) memcpy(cells, input, ROUND_UWORD(inputSize) * sizeof(UWORD));
+    const ubounded inputSize = type_dag[dag[len-1].sourceType].bitSize;
+    const ubounded outputSize = type_dag[dag[len-1].targetType].bitSize;
+    simplicity_assert(NULL != input || 0 == inputSize);
+    if (inputSize) memcpy(cells, input, ROUND_UWORD(inputSize) * sizeof(UWORD));
 
     evalState state =
       { .activeReadFrame = frames
@@ -895,7 +913,8 @@ simplicity_err evalTCOExpression( flags_type anti_dos_checks, UWORD* output, ubo
     result = runTCO(state, stack, dag, type_dag, len, env);
 
     if (IS_OK(result)) {
-      if (output) memcpy(output, state.activeWriteFrame->edge, ROUND_UWORD(outputSize) * sizeof(UWORD));
+      simplicity_assert(NULL != output || 0 == outputSize);
+      if (outputSize) memcpy(output, state.activeWriteFrame->edge, ROUND_UWORD(outputSize) * sizeof(UWORD));
 
       result = antiDos(anti_dos_checks, stack, dag, len);
     }

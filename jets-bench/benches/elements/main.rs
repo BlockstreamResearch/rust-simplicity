@@ -406,7 +406,7 @@ fn bench(c: &mut Criterion) {
         (Elements::InputAmountsHash, ElementsBenchEnvType::Random),
         (Elements::InputScriptsHash, ElementsBenchEnvType::Random),
         (Elements::TapleafHash, ElementsBenchEnvType::Random),
-        (Elements::TapbranchHash, ElementsBenchEnvType::Random),
+        (Elements::TappathHash, ElementsBenchEnvType::Random),
         //
         // ------------------------------------
         // Jets with no environment required. But no custom sampling
@@ -606,7 +606,7 @@ fn bench(c: &mut Criterion) {
         (Elements::IssuanceTokenAmount, Index::InputIdx0, ElementsBenchEnvType::Issuance),
         (Elements::IssuanceAssetProof, Index::InputIdx0, ElementsBenchEnvType::Issuance),
         (Elements::IssuanceTokenProof, Index::InputIdx0, ElementsBenchEnvType::Issuance),
-        (Elements::Tapbranch, Index::MarkleBranchIndex, ElementsBenchEnvType::Random),
+        (Elements::Tappath, Index::MarkleBranchIndex, ElementsBenchEnvType::Random),
     ];
 
     for (jet, index, env_type) in arr {

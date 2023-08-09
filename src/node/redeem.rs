@@ -457,9 +457,9 @@ mod tests {
             &[
                 0xc9, 0xc4, 0x6d, 0xb8, 0x82, 0x30, 0x11, 0xe2, 0x0d, 0xea, 0xdb, 0xee, 0xf0,
             ],
-            "e552742731de7f5c3c83cd54176c0ca6acf6dbd3c37bef7da132eb06f3856d06",
-            "6522c14daf762467232b55c37df25c17f80d7c12000ce8a5dcbbd67b879d192f",
-            "bbb31a66836ab67de2ef0efa1ce82078b36c9dbcf6af77822b87f7743dc88a8f",
+            "280f5b85deb2782fd86053d4e8dc64afd16b72c74d9c6077d8b30b22ece9709c",
+            "ccb8c714e39d20bf317fa93c56dc9cc272dd79748503bd064a6994811abab59e",
+            "29c57e564632cbb15c11f6f14abd15f7388d79872d1e8c3f3795b98e507eb2d5",
         );
     }
 
@@ -601,9 +601,9 @@ mod tests {
                 0x67, 0xd3, 0x22, 0xd4, 0x4a, 0xe0, 0xda, 0x2e,
                 0xb4, 0x75, 0x12, 0x60, 0x00,
             ],
-            "14a5e0cc13da9acdd5f758ae7186802137143e06c8dcba10019ffec790359ee7",
-            "1a2a1cb30027f64bd9a639bf385834f415cac889ea654b0e04e81b210d3502d4",
-            "6de2a91db704fa287d8724da2e43a087bbd91334b0fb7160b231129356dc03b8",
+            "b45cdc1ea0f0038c6dba8e80d346662719d4ff326e49a29956b6e6ec95d9a4fa",
+            "54e4031d6a5a5b4ca5c2811688c566972820932a76227f9fb63dc32c9f43905b",
+            "be9fe04f88d1907106b404a50214bdc87c8c5b023aa13d292cc93cdf488a814a",
         );
     }
 
@@ -645,9 +645,9 @@ mod tests {
         ];
         assert_program_deserializable::<crate::jet::Elements>(
             &schnorr0,
-            "7bc56cb16d84999b977b58e1bc71dbe9edcc33650afc8a6ee05cfef8d608132b",
-            "02796d1d7d906a15d0a1ebed9d702e334b21e9cc52a578c24fca0fb7be82fac0",
-            "00ee3d3e7b7a65fcd77b6309c4d8464f176f13c92d8d69238eb0158f70c8a4df",
+            "a0dbc0e723af7352a04a88772a5954b49b761c7b0a08c20c6fd5b0ab8f226490",
+            "a15f612ff1f2c8a6ee509c83bc0a5221b181ab71b0d53c1d7253737bbe9245c0",
+            "026d3c4e00aa63f4a6a3429d0cf5391c7926c39f11d53fd6647af667eabcc945",
         );
     }
 }

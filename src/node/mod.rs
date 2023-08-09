@@ -652,3 +652,39 @@ impl<N: Marker> Node<N> {
         Ok(converted.pop().unwrap())
     }
 }
+
+#[cfg(test)]
+#[cfg(all(feature = "test-utils", feature = "elements"))]
+mod tests {
+
+    use ffi::tests::TestData;
+
+    use crate::analysis::Cost;
+    use crate::ffi;
+    use crate::jet::Elements;
+    use crate::BitIter;
+    use crate::RedeemNode;
+
+    fn check_merkle_roots(test: &TestData) {
+        let mut bits = BitIter::from(test.prog.as_slice());
+        ffi::tests::run_program(&test.prog, ffi::tests::TestUpTo::CheckOneOne).unwrap();
+        let prog = RedeemNode::<Elements>::decode(&mut bits).unwrap();
+        assert_eq!(prog.cmr().to_byte_array(), test.cmr);
+        assert_eq!(prog.amr().to_byte_array(), test.amr);
+        assert_eq!(prog.imr().to_byte_array(), test.imr);
+        assert_eq!(prog.bounds().cost, Cost::from_milliweight(test.cost))
+    }
+
+    #[test]
+    fn progs_cmr() {
+        let schnorr0 = ffi::tests::schnorr0_test_data();
+        let schnorr6 = ffi::tests::schnorr6_test_data();
+        let ctx8_unpruned = ffi::tests::ctx8_unpruned_test_data();
+        let ctx8_pruned = ffi::tests::ctx8_pruned_test_data();
+        // check_merkle_roots(&hash_block); Need 1 -> 1 for now.
+        check_merkle_roots(&schnorr0);
+        check_merkle_roots(&schnorr6);
+        check_merkle_roots(&ctx8_unpruned);
+        check_merkle_roots(&ctx8_pruned);
+    }
+}

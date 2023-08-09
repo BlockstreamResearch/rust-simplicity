@@ -573,9 +573,9 @@ mod tests {
 
         let res = run_program_elements(
             &[0xcf, 0xe1, 0x8f, 0xb4, 0x40, 0x28, 0x87, 0x04, 0x00],
-            "7050c4a60140e0ded5d6205d8471b645580f883918f508a9ee3cff590c633286",
-            "50fecf371c06d1aeaf599d267cb305d81d00e7412ffb9172d4098394b3a20533",
-            "2539210870790f5a74f636a5582c03be95428dfe96619b69d103804b089ceef8",
+            "8ae77db19b0c78831c374cde040e2331e3eaef000ab0ffca3a238679448c2e4f",
+            "7d38d21f798c48af14d16884856d45a2b4b25a3c6e633b013bb7d39b00dfaed8",
+            "8b095f1591f88f508a2021cd1ae25608c631a3fe4c51cd7b755d3653a0ba0a5f",
         );
         assert_eq!(res.unwrap(), Value::Unit);
     }

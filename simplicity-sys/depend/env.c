@@ -53,9 +53,9 @@ void c_set_rawTransaction(rawTransaction *result, unsigned int version,
     };
 }
 
-void c_set_rawTapEnv(rawTapEnv *result, const unsigned char *controlBlock, unsigned char branchLen, const unsigned char *scriptCMR)
+void c_set_rawTapEnv(rawTapEnv *result, const unsigned char *controlBlock, unsigned char pathLen, const unsigned char *scriptCMR)
 {
-    *result = (rawTapEnv){.controlBlock = controlBlock, .branchLen = branchLen, .scriptCMR = scriptCMR};
+    *result = (rawTapEnv){.controlBlock = controlBlock, .pathLen = pathLen, .scriptCMR = scriptCMR};
 }
 
 void c_set_txEnv(txEnv *result, const transaction *tx, const tapEnv *taproot, const unsigned char *genesisHash, unsigned int ix)

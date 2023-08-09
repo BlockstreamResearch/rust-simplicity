@@ -1,6 +1,7 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <simplicity/elements/exec.h>
 #include "ctx8Pruned.h"
 #include "ctx8Unpruned.h"
@@ -106,10 +107,12 @@ static void test_hashBlock(void) {
         }
       }
 
-      _Static_assert(UWORD_BIT - 1 <= SIZE_MAX - (256+512), "UWORD_BIT is far too large.");
-      UWORD output[ROUND_UWORD(256)];
-      UWORD input[ROUND_UWORD(256+512)];
-      { frameItem frame = initWriteFrame(256+512, &input[ROUND_UWORD(256+512)]);
+      ubounded inputBitSize = type_dag[dag[len-1].sourceType].bitSize;
+      ubounded outputBitSize = type_dag[dag[len-1].targetType].bitSize;
+      UWORD input[ROUND_UWORD(inputBitSize)];
+      UWORD output[ROUND_UWORD(outputBitSize)];
+      { frameItem frame = initWriteFrame(inputBitSize, &input[ROUND_UWORD(inputBitSize)]);
+        simplicity_assert(256+512 == inputBitSize);
         /* Set SHA-256's initial value. */
         write32s(&frame, (uint32_t[8])
             { 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19 }
@@ -117,12 +120,24 @@ static void test_hashBlock(void) {
         /* Set the block to be compressed to "abc" with padding. */
         write32s(&frame, (uint32_t[16]){ [0] = 0x61626380, [15] = 0x18 }, 16);
       }
-      if (IS_OK(evalTCOExpression(CHECK_NONE, output, 256, input, 256+512, dag, type_dag, (size_t)len, 29100, NULL))) {
+      {
+        ubounded cellsBound, UWORDBound, frameBound, costBound;
+        if (IS_OK(analyseBounds(&cellsBound, &UWORDBound, &frameBound, &costBound, UBOUNDED_MAX, UBOUNDED_MAX, dag, type_dag, (size_t)len))
+            && hashBlock_cost == costBound) {
+          successes++;
+        } else {
+          failures++;
+          printf("Expected %d for cost, but got %d instead.\n", hashBlock_cost, costBound);
+        }
+      }
+      simplicity_err err = evalTCOExpression(CHECK_NONE, output, input, dag, type_dag, (size_t)len, NULL, NULL);
+      if (IS_OK(err)) {
         /* The expected result is the value 'SHA256("abc")'. */
         const uint32_t expectedHash[8] = { 0xba7816bful, 0x8f01cfeaul, 0x414140deul, 0x5dae2223ul
                                          , 0xb00361a3ul, 0x96177a9cul, 0xb410ff61ul, 0xf20015adul };
-        frameItem frame = initReadFrame(256, &output[0]);
+        frameItem frame = initReadFrame(outputBitSize, &output[0]);
         uint32_t result[8];
+        simplicity_assert(256 == outputBitSize);
         read32s(result, 8, &frame);
         if (0 == memcmp(expectedHash, result, sizeof(uint32_t[8]))) {
           successes++;
@@ -132,7 +147,7 @@ static void test_hashBlock(void) {
         }
       } else {
         failures++;
-        printf("Unexpected failure of hashblock evaluation\n");
+        printf("Unexpected failure of hashblock evaluation: %d\n", err);
       }
     }
     free(type_dag);
@@ -141,7 +156,7 @@ static void test_hashBlock(void) {
 }
 
 static void test_program(char* name, const unsigned char* program, size_t program_len, simplicity_err expectedResult, const uint32_t* expectedCMR,
-                         const uint32_t* expectedIMR, const uint32_t* expectedAMR) {
+                         const uint32_t* expectedIMR, const uint32_t* expectedAMR, const ubounded *expectedCost) {
   printf("Test %s\n", name);
   dag_node* dag;
   combinator_counters census;
@@ -209,8 +224,42 @@ static void test_program(char* name, const unsigned char* program, size_t progra
           printf("Unexpected IMR.\n");
         }
       }
-
-      simplicity_err actualResult = evalTCOProgram(dag, type_dag, (size_t)len, BUDGET_MAX, NULL);
+      if (expectedCost) {
+        ubounded cellsBound, UWORDBound, frameBound, costBound;
+        if (IS_OK(analyseBounds(&cellsBound, &UWORDBound, &frameBound, &costBound, UBOUNDED_MAX, UBOUNDED_MAX, dag, type_dag, (size_t)len))
+           && *expectedCost == costBound) {
+          successes++;
+        } else {
+          failures++;
+          printf("Expected %u for cost, but got %u instead.\n", *expectedCost, costBound);
+        }
+        /* Analysis should pass when computed bounds are used. */
+        if (IS_OK(analyseBounds(&cellsBound, &UWORDBound, &frameBound, &costBound, cellsBound, costBound, dag, type_dag, (size_t)len))) {
+          successes++;
+        } else {
+          failures++;
+          printf("Analysis with computed bounds failed.\n");
+        }
+        /* if cellsBound is non-zero, analysis should fail when smaller cellsBound is used. */
+        if (0 < cellsBound) {
+          if (SIMPLICITY_ERR_EXEC_MEMORY == analyseBounds(&cellsBound, &UWORDBound, &frameBound, &costBound, cellsBound-1, UBOUNDED_MAX, dag, type_dag, (size_t)len)) {
+            successes++;
+          } else {
+            failures++;
+            printf("Analysis with too small cells bounds failed. \n");
+          }
+        }
+        /* Analysis should fail when smaller costBound is used. */
+        if (0 < *expectedCost &&
+            SIMPLICITY_ERR_EXEC_BUDGET == analyseBounds(&cellsBound, &UWORDBound, &frameBound, &costBound, UBOUNDED_MAX, *expectedCost-1, dag, type_dag, (size_t)len)
+           ) {
+          successes++;
+        } else {
+          failures++;
+          printf("Analysis with too small cost bounds failed.\n");
+        }
+      }
+      simplicity_err actualResult = evalTCOProgram(dag, type_dag, (size_t)len, NULL, NULL);
       if (expectedResult == actualResult) {
         successes++;
       } else {
@@ -258,7 +307,7 @@ static void test_elements(void) {
   unsigned char genesisHash[32] = "\x0f\x91\x88\xf1\x3c\xb7\xb2\xc7\x1f\x2a\x33\x5e\x3a\x4f\xc3\x28\xbf\x5b\xeb\x43\x60\x12\xaf\xca\x59\x0b\x1a\x11\x46\x6e\x22\x06";
   rawTapEnv rawTaproot = (rawTapEnv)
     { .controlBlock = (unsigned char [33]){"\xbe\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x3b\x78\xce\x56\x3f\x89\xa0\xed\x94\x14\xf5\xaa\x28\xad\x0d\x96\xd6\x79\x5f\x9c\x63"}
-    , .branchLen = 0
+    , .pathLen = 0
     , .scriptCMR = cmr
     };
   tapEnv* taproot = elements_simplicity_mallocTapEnv(&rawTaproot);
@@ -301,7 +350,7 @@ static void test_elements(void) {
       simplicity_err execResult;
       {
         unsigned char imrResult[32];
-        if (elements_simplicity_execSimplicity(&execResult, imrResult, tx1, 0, taproot, genesisHash, BUDGET_MAX, amr, elementsCheckSigHashAllTx1, sizeof_elementsCheckSigHashAllTx1) && IS_OK(execResult)) {
+        if (elements_simplicity_execSimplicity(&execResult, imrResult, tx1, 0, taproot, genesisHash, (elementsCheckSigHashAllTx1_cost + 999)/1000, amr, elementsCheckSigHashAllTx1, sizeof_elementsCheckSigHashAllTx1) && IS_OK(execResult)) {
           sha256_midstate imr;
           sha256_toMidstate(imr.s, imrResult);
           if (0 == memcmp(imr.s, elementsCheckSigHashAllTx1_imr, sizeof(uint32_t[8]))) {
@@ -313,6 +362,16 @@ static void test_elements(void) {
         } else {
           failures++;
           printf("execSimplicity of elementsCheckSigHashAllTx1 on tx1 unexpectedly produced %d.\n", execResult);
+        }
+        if (elementsCheckSigHashAllTx1_cost){
+          /* test the same transaction without adequate budget. */
+          simplicity_assert(elementsCheckSigHashAllTx1_cost);
+          if (elements_simplicity_execSimplicity(&execResult, imrResult, tx1, 0, taproot, genesisHash, (elementsCheckSigHashAllTx1_cost - 1)/1000, amr, elementsCheckSigHashAllTx1, sizeof_elementsCheckSigHashAllTx1) && SIMPLICITY_ERR_EXEC_BUDGET == execResult) {
+            successes++;
+          } else {
+            failures++;
+            printf("execSimplicity of elementsCheckSigHashAllTx1 on tx1 unexpectedly produced %d.\n", execResult);
+          }
         }
       }
       {
@@ -433,12 +492,12 @@ static void regression_tests(void) {
   {
     /* Unit program with incomplete witness of size 2^31. */
     const unsigned char regression1[] = {0x27, 0xe1, 0xe0, 0x00, 0x00, 0x00, 0x00};
-    test_program("regression1", regression1, sizeof(regression1), SIMPLICITY_ERR_DATA_OUT_OF_RANGE, NULL, NULL, NULL);
+    test_program("regression1", regression1, sizeof(regression1), SIMPLICITY_ERR_DATA_OUT_OF_RANGE, NULL, NULL, NULL, NULL);
   }
   {
     /* Unit program with incomplete witness of size 2^31-1. */
     const unsigned char regression2[] = {0x27, 0xe1, 0xdf, 0xff, 0xff,  0xff, 0xff};
-    test_program("regression2", regression2, sizeof(regression2), SIMPLICITY_ERR_BITSTREAM_EOF, NULL, NULL, NULL);
+    test_program("regression2", regression2, sizeof(regression2), SIMPLICITY_ERR_BITSTREAM_EOF, NULL, NULL, NULL, NULL);
   }
   {
     /* word("2^23 zero bits") ; unit */
@@ -447,7 +506,29 @@ static void regression_tests(void) {
     assert(regression3);
     regression3[0] = 0xb7; regression3[1] = 0x08;
     regression3[sizeof_regression3 - 2] = 0x48; regression3[sizeof_regression3 - 1] = 0x20;
-    test_program("regression3", regression3, sizeof_regression3, SIMPLICITY_ERR_EXEC_MEMORY, NULL, NULL, NULL);
+    test_program("regression3", regression3, sizeof_regression3, SIMPLICITY_ERR_EXEC_MEMORY, NULL, NULL, NULL, NULL);
+  }
+}
+
+static void iden8mebi_test(void) {
+  /* iden composed with itself 2^23 times. */
+  const unsigned char iden8mebi[35] = {0xe1, 0x08, [33]=0x40};
+  const ubounded expectedCost = 1677721500; /* in milliWU */
+  const double secondsPerWU = 0.5 / 1000. / 1000.;
+  clock_t start, end;
+  double diff, bound;
+  start = clock();
+  test_program("iden8mebi", iden8mebi, sizeof(iden8mebi), SIMPLICITY_NO_ERROR, NULL, NULL, NULL, &expectedCost);
+  end = clock();
+  diff = (double)(end - start) / CLOCKS_PER_SEC;
+  bound = (double)expectedCost / 1000. * secondsPerWU;
+
+  printf("cpu_time_used by iden8mebi: %f s.  (Should be less than %f s.)\n", diff, bound);
+  if (diff <= bound) {
+    successes++;
+  } else {
+    failures++;
+    printf("iden8mebi took too long.\n");
   }
 }
 
@@ -460,18 +541,19 @@ int main(void) {
   test_hasDuplicates("hasDuplicates all duplicates testcase", 1, rsort_all_duplicates, 10000);
   test_hasDuplicates("hasDuplicates one duplicate testcase", 1, rsort_one_duplicate, 10000);
 
-  test_program("ctx8Pruned", ctx8Pruned, sizeof_ctx8Pruned, SIMPLICITY_NO_ERROR, ctx8Pruned_cmr, ctx8Pruned_imr, ctx8Pruned_amr);
-  test_program("ctx8Unpruned", ctx8Unpruned, sizeof_ctx8Unpruned, SIMPLICITY_ERR_ANTIDOS, ctx8Unpruned_cmr, ctx8Unpruned_imr, ctx8Unpruned_amr);
+  test_program("ctx8Pruned", ctx8Pruned, sizeof_ctx8Pruned, SIMPLICITY_NO_ERROR, ctx8Pruned_cmr, ctx8Pruned_imr, ctx8Pruned_amr, &ctx8Pruned_cost);
+  test_program("ctx8Unpruned", ctx8Unpruned, sizeof_ctx8Unpruned, SIMPLICITY_ERR_ANTIDOS, ctx8Unpruned_cmr, ctx8Unpruned_imr, ctx8Unpruned_amr, &ctx8Unpruned_cost);
   if (0 == memcmp(ctx8Pruned_cmr, ctx8Unpruned_cmr, sizeof(uint32_t[8]))) {
     successes++;
   } else {
     failures++;
     printf("Pruned and Unpruned CMRs are not the same.\n");
   }
-  test_program("schnorr0", schnorr0, sizeof_schnorr0, SIMPLICITY_NO_ERROR, schnorr0_cmr, schnorr0_imr, schnorr0_amr);
-  test_program("schnorr6", schnorr6, sizeof_schnorr6, SIMPLICITY_ERR_EXEC_JET, schnorr6_cmr, schnorr6_imr, schnorr6_amr);
+  test_program("schnorr0", schnorr0, sizeof_schnorr0, SIMPLICITY_NO_ERROR, schnorr0_cmr, schnorr0_imr, schnorr0_amr, &schnorr0_cost);
+  test_program("schnorr6", schnorr6, sizeof_schnorr6, SIMPLICITY_ERR_EXEC_JET, schnorr6_cmr, schnorr6_imr, schnorr6_amr, &schnorr0_cost);
   test_elements();
   regression_tests();
+  iden8mebi_test();
 
   printf("Successes: %d\n", successes);
   printf("Failures: %d\n", failures);
