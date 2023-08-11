@@ -30,6 +30,7 @@ mod error;
 mod key;
 mod satisfy;
 mod serialize;
+pub mod sighash;
 
 pub use ast::Policy;
 pub use error::Error;
