@@ -163,8 +163,12 @@ impl NodeBounds {
     }
 
     /// Node bounds for an `iden` node
-    pub const fn iden() -> NodeBounds {
-        NodeBounds::NOP
+    pub fn iden(target_type: usize) -> NodeBounds {
+        NodeBounds {
+            extra_cells: 0,
+            extra_frames: 0,
+            cost: Cost::OVERHEAD + Cost::of_type(target_type),
+        }
     }
 
     /// Node bounds for a `unit` node
@@ -234,6 +238,7 @@ impl NodeBounds {
     pub fn disconnect(
         left: Self,
         right: Self,
+        left_target_b_bit_width: usize, // bit width of B in (b x C) target type
         left_source_bit_width: usize,
         left_target_bit_width: usize,
     ) -> NodeBounds {
@@ -246,6 +251,7 @@ impl NodeBounds {
                 + Cost::of_type(left_source_bit_width)
                 + Cost::of_type(left_source_bit_width)
                 + Cost::of_type(left_target_bit_width)
+                + Cost::of_type(left_target_b_bit_width)
                 + left.cost
                 + right.cost,
         }

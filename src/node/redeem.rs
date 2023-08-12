@@ -80,7 +80,11 @@ impl<J> std::hash::Hash for RedeemData<J> {
 impl<J: Jet> RedeemData<J> {
     pub fn new(arrow: FinalArrow, inner: Inner<&Arc<Self>, J, &Arc<Self>, Arc<Value>>) -> Self {
         let (amr, first_pass_imr, bounds) = match inner {
-            Inner::Iden => (Amr::iden(&arrow), FirstPassImr::iden(), NodeBounds::iden()),
+            Inner::Iden => (
+                Amr::iden(&arrow),
+                FirstPassImr::iden(),
+                NodeBounds::iden(arrow.source.bit_width()),
+            ),
             Inner::Unit => (Amr::unit(&arrow), FirstPassImr::unit(), NodeBounds::unit()),
             Inner::InjL(child) => (
                 Amr::injl(&arrow, child.amr),
@@ -133,6 +137,7 @@ impl<J: Jet> RedeemData<J> {
                 NodeBounds::disconnect(
                     left.bounds,
                     right.bounds,
+                    left.arrow.target.bit_width() - right.arrow.source.bit_width(),
                     left.arrow.source.bit_width(),
                     left.arrow.target.bit_width(),
                 ),
