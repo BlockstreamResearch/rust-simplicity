@@ -106,6 +106,9 @@ jobs:
               cargo update -p regex --precise 1.7.0
           fi
           for f in $FEATURES; do echo "Features: $f" && cargo test --no-default-features --features="$f"; done
+          cd simplicity-sys
+          cargo test --no-default-features
+          cargo test --features="test-utils"
           echo "No default features" && cargo test --no-default-features
           echo "All features" && cargo test --all-features
 
