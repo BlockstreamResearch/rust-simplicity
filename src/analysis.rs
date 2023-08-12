@@ -47,7 +47,7 @@ use elements::encode::Encodable;
 /// Programs that are CPU-heavy need to be padded
 /// so that the witness stack provides a large-enough budget.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct Cost(usize);
+pub struct Cost(u32);
 
 impl Cost {
     /// Overhead constant.
@@ -77,11 +77,12 @@ impl Cost {
 
     /// Return the cost of a type with the given bit width.
     pub const fn of_type(bit_width: usize) -> Self {
-        Cost(bit_width)
+        // Cast safety: bit width cannot be more than 2^32 - 1
+        Cost(bit_width as u32)
     }
 
     /// Convert the given milli weight units into cost.
-    pub const fn from_milliweight(milliweight: usize) -> Self {
+    pub const fn from_milliweight(milliweight: u32) -> Self {
         Cost(milliweight)
     }
 
@@ -94,8 +95,8 @@ impl Cost {
     }
 
     /// Return whether the cost is less or equal the given weight.
-    pub fn less_equal_weight(&self, weight: usize) -> bool {
-        self.0 <= weight * 1000
+    pub fn less_equal_weight(&self, weight: u32) -> bool {
+        self.0 <= weight.saturating_mul(1000)
     }
 
     /// Return whether the cost is within the budget of
@@ -109,7 +110,8 @@ impl Cost {
             .consensus_encode(&mut sink)
             .expect("writing to sink never fails");
         let budget = witness_stack_serialized_len + 50;
-        self.less_equal_weight(budget)
+        // Cast safety: witness stack serialized length cannot be more than 2^32 - 51
+        self.less_equal_weight(budget as u32)
     }
 }
 
