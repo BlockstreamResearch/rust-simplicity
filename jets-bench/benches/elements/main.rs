@@ -26,7 +26,7 @@ mod env;
 mod input;
 mod params;
 
-const NUM_RANDOM_SAMPLES: usize = 50;
+const NUM_RANDOM_SAMPLES: usize = 100;
 
 /// Number of inputs and outputs in the tx
 /// RATIONALE: One input to spend a asset, one input to pay fees, one input
@@ -98,6 +98,74 @@ fn jet_arrow(jet: Elements) -> (Arc<types::Final>, Arc<types::Final>) {
     (src_ty, tgt_ty)
 }
 
+// Separate out heavy jets to run them more times in our benchmark.
+fn is_heavy_jet(jet: Elements) -> bool {
+    // Hashes
+    match jet {
+        Elements::Sha256Iv |
+        Elements::Sha256Block |
+        Elements::Sha256Ctx8Init |
+        Elements::Sha256Ctx8Add1 |
+        Elements::Sha256Ctx8Add2 |
+        Elements::Sha256Ctx8Add4 |
+        Elements::Sha256Ctx8Add8 |
+        Elements::Sha256Ctx8Add16 |
+        Elements::Sha256Ctx8Add32 |
+        Elements::Sha256Ctx8Add64 |
+        Elements::Sha256Ctx8Add128 |
+        Elements::Sha256Ctx8Add256 |
+        Elements::Sha256Ctx8Add512 |
+        Elements::Sha256Ctx8AddBuffer511 |
+        Elements::Sha256Ctx8Finalize |
+        // Jets for secp FE
+        Elements::FeNormalize |
+        Elements::FeNegate |
+        Elements::FeAdd |
+        Elements::FeSquare |
+        Elements::FeMultiply |
+        Elements::FeMultiplyBeta |
+        Elements::FeInvert |
+        Elements::FeSquareRoot |
+        Elements::FeIsZero |
+        Elements::FeIsOdd |
+        // Jets for secp scalars
+        Elements::ScalarNormalize |
+        Elements::ScalarNegate |
+        Elements::ScalarAdd |
+        Elements::ScalarSquare |
+        Elements::ScalarMultiply |
+        Elements::ScalarMultiplyLambda |
+        Elements::ScalarInvert |
+        Elements::ScalarIsZero |
+        // Jets for secp gej points
+        Elements::GejInfinity |
+        Elements::GejRescale |
+        Elements::GejNormalize |
+        Elements::GejNegate |
+        Elements::GeNegate |
+        Elements::GejDouble |
+        Elements::GejAdd |
+        Elements::GejGeAddEx |
+        Elements::GejGeAdd |
+        Elements::GejIsInfinity |
+        Elements::GejXEquiv |
+        Elements::GejYIsOdd |
+        Elements::GejIsOnCurve |
+        // Other jets
+        Elements::GeIsOnCurve |
+        Elements::Scale |
+        Elements::Generate |
+        Elements::LinearCombination1 |
+        Elements::LinearVerify1 |
+        Elements::Decompress |
+        Elements::PointVerify1 |
+        // Signature jets
+        Elements::CheckSigVerify |
+        Elements::Bip0340Verify  => true,
+        _ => false,
+    }
+}
+
 #[rustfmt::skip]
 fn bench(c: &mut Criterion) {
     // Sanity Check: This should never really fail, but still good to do
@@ -106,11 +174,6 @@ fn bench(c: &mut Criterion) {
     }
 
     let mut rng = ThreadRng::default();
-
-    fn eq_32() -> Value {
-        let v  = rand::random::<u32>();
-        Value::prod(Value::u32(v), Value::u32(v))
-    }
 
     fn eq_256() -> Value {
         let v  = rand::random::<[u8; 32]>();
@@ -277,21 +340,179 @@ fn bench(c: &mut Criterion) {
     let arr = [
         // Bit logics
         (Elements::Verify, InputSampling::Random),
+        // low
+        (Elements::Low8, InputSampling::Random),
+        (Elements::Low16, InputSampling::Random),
         (Elements::Low32, InputSampling::Random),
-        (Elements::Eq32, InputSampling::Custom(Arc::new(eq_32))),
-        (Elements::Eq256, InputSampling::Custom(Arc::new(eq_256))),
-        (Elements::Le32, InputSampling::Random),
-        // Arithmetic
+        (Elements::Low64, InputSampling::Random),
+        // high
+        (Elements::High8, InputSampling::Random),
+        (Elements::High16, InputSampling::Random),
+        (Elements::High32, InputSampling::Random),
+        (Elements::High64, InputSampling::Random),
+        // complement
+        (Elements::Complement8, InputSampling::Random),
+        (Elements::Complement16, InputSampling::Random),
+        (Elements::Complement32, InputSampling::Random),
+        (Elements::Complement64, InputSampling::Random),
+        // and
+        (Elements::And8, InputSampling::Random),
+        (Elements::And16, InputSampling::Random),
+        (Elements::And32, InputSampling::Random),
+        (Elements::And64, InputSampling::Random),
+        // or
+        (Elements::Or8, InputSampling::Random),
+        (Elements::Or16, InputSampling::Random),
+        (Elements::Or32, InputSampling::Random),
+        (Elements::Or64, InputSampling::Random),
+        // xor
+        (Elements::Xor8, InputSampling::Random),
+        (Elements::Xor16, InputSampling::Random),
+        (Elements::Xor32, InputSampling::Random),
+        (Elements::Xor64, InputSampling::Random),
+        // maj
+        (Elements::Maj8, InputSampling::Random),
+        (Elements::Maj16, InputSampling::Random),
+        (Elements::Maj32, InputSampling::Random),
+        (Elements::Maj64, InputSampling::Random),
+        // xor xor
+        (Elements::XorXor8, InputSampling::Random),
+        (Elements::XorXor16, InputSampling::Random),
+        (Elements::XorXor32, InputSampling::Random),
+        (Elements::XorXor64, InputSampling::Random),
+        // ch
+        (Elements::Ch8, InputSampling::Random),
+        (Elements::Ch16, InputSampling::Random),
+        (Elements::Ch32, InputSampling::Random),
+        (Elements::Ch64, InputSampling::Random),
+        // some
+        (Elements::Some8, InputSampling::Random),
+        (Elements::Some16, InputSampling::Random),
+        (Elements::Some32, InputSampling::Random),
+        (Elements::Some64, InputSampling::Random),
+        // all
+        (Elements::All8, InputSampling::Random),
+        (Elements::All16, InputSampling::Random),
+        (Elements::All32, InputSampling::Random),
+        (Elements::All64, InputSampling::Random),
+        // one
+        (Elements::One8, InputSampling::Random),
+        (Elements::One16, InputSampling::Random),
         (Elements::One32, InputSampling::Random),
+        (Elements::One64, InputSampling::Random),
+        // eq, just sample random values. It is possible
+        // that worst case is possible when both
+        // numbers are same. This is small cost jet
+        // and we don't care as much here. Also, likely for
+        // x86_64, upto eq64 it would be one instruction.
+        // we do test eq_256 separately.
+        (Elements::Eq8, InputSampling::Random),
+        (Elements::Eq16, InputSampling::Random),
+        (Elements::Eq32, InputSampling::Random),
+        (Elements::Eq64, InputSampling::Random),
+        (Elements::Eq256, InputSampling::Custom(Arc::new(eq_256))),
+        // Arithmetic
+        // add
+        (Elements::Add8, InputSampling::Random),
+        (Elements::Add16, InputSampling::Random),
         (Elements::Add32, InputSampling::Random),
-        (Elements::Subtract32, InputSampling::Random),
-        (Elements::Multiply32, InputSampling::Random),
+        (Elements::Add64, InputSampling::Random),
+        // full add
+        (Elements::FullAdd8, InputSampling::Random),
+        (Elements::FullAdd16, InputSampling::Random),
         (Elements::FullAdd32, InputSampling::Random),
+        (Elements::FullAdd64, InputSampling::Random),
+        // full increment
+        (Elements::FullIncrement8, InputSampling::Random),
+        (Elements::FullIncrement16, InputSampling::Random),
+        (Elements::FullIncrement32, InputSampling::Random),
+        (Elements::FullIncrement64, InputSampling::Random),
+        // increment
+        (Elements::Increment8, InputSampling::Random),
+        (Elements::Increment16, InputSampling::Random),
+        (Elements::Increment32, InputSampling::Random),
+        (Elements::Increment64, InputSampling::Random),
+        // subtract
+        (Elements::Subtract8, InputSampling::Random),
+        (Elements::Subtract16, InputSampling::Random),
+        (Elements::Subtract32, InputSampling::Random),
+        (Elements::Subtract64, InputSampling::Random),
+        // negate
+        (Elements::Negate8, InputSampling::Random),
+        (Elements::Negate16, InputSampling::Random),
+        (Elements::Negate32, InputSampling::Random),
+        (Elements::Negate64, InputSampling::Random),
+        // full decrement
+        (Elements::FullDecrement8, InputSampling::Random),
+        (Elements::FullDecrement16, InputSampling::Random),
+        (Elements::FullDecrement32, InputSampling::Random),
+        (Elements::FullDecrement64, InputSampling::Random),
+        // multiply
+        (Elements::Multiply8, InputSampling::Random),
+        (Elements::Multiply16, InputSampling::Random),
+        (Elements::Multiply32, InputSampling::Random),
+        (Elements::Multiply64, InputSampling::Random),
+        // full multiply
+        (Elements::FullMultiply8, InputSampling::Random),
+        (Elements::FullMultiply16, InputSampling::Random),
         (Elements::FullMultiply32, InputSampling::Random),
-        (Elements::FullSubtract32, InputSampling::Random),
-        // locks
-        (Elements::ParseLock, InputSampling::Random), // all values take same time
-        (Elements::ParseSequence, InputSampling::Custom(Arc::new(sequence))),
+        (Elements::FullMultiply64, InputSampling::Random),
+        // is zero
+        (Elements::IsZero8, InputSampling::Random),
+        (Elements::IsZero16, InputSampling::Random),
+        (Elements::IsZero32, InputSampling::Random),
+        (Elements::IsZero64, InputSampling::Random),
+        // is one
+        (Elements::IsOne8, InputSampling::Random),
+        (Elements::IsOne16, InputSampling::Random),
+        (Elements::IsOne32, InputSampling::Random),
+        (Elements::IsOne64, InputSampling::Random),
+        // le
+        (Elements::Le8, InputSampling::Random),
+        (Elements::Le16, InputSampling::Random),
+        (Elements::Le32, InputSampling::Random),
+        (Elements::Le64, InputSampling::Random),
+        // lt
+        (Elements::Lt8, InputSampling::Random),
+        (Elements::Lt16, InputSampling::Random),
+        (Elements::Lt32, InputSampling::Random),
+        (Elements::Lt64, InputSampling::Random),
+        // min
+        (Elements::Min8, InputSampling::Random),
+        (Elements::Min16, InputSampling::Random),
+        (Elements::Min32, InputSampling::Random),
+        (Elements::Min64, InputSampling::Random),
+        // max
+        (Elements::Max8, InputSampling::Random),
+        (Elements::Max16, InputSampling::Random),
+        (Elements::Max32, InputSampling::Random),
+        (Elements::Max64, InputSampling::Random),
+        // median
+        (Elements::Median8, InputSampling::Random),
+        (Elements::Median16, InputSampling::Random),
+        (Elements::Median32, InputSampling::Random),
+        (Elements::Median64, InputSampling::Random),
+        // div mod
+        (Elements::DivMod8, InputSampling::Random),
+        (Elements::DivMod16, InputSampling::Random),
+        (Elements::DivMod32, InputSampling::Random),
+        (Elements::DivMod64, InputSampling::Random),
+        // divide
+        (Elements::Divide8, InputSampling::Random),
+        (Elements::Divide16, InputSampling::Random),
+        (Elements::Divide32, InputSampling::Random),
+        (Elements::Divide64, InputSampling::Random),
+        // modulo
+        (Elements::Modulo8, InputSampling::Random),
+        (Elements::Modulo16, InputSampling::Random),
+        (Elements::Modulo32, InputSampling::Random),
+        (Elements::Modulo64, InputSampling::Random),
+        // divides
+        (Elements::Divides8, InputSampling::Random),
+        (Elements::Divides16, InputSampling::Random),
+        (Elements::Divides32, InputSampling::Random),
+        (Elements::Divides64, InputSampling::Random),
+
         // Hashes
         (Elements::Sha256Iv, InputSampling::Random),
         (Elements::Sha256Block, InputSampling::Random),
@@ -333,6 +554,7 @@ fn bench(c: &mut Criterion) {
         (Elements::GejRescale, InputSampling::Custom(Arc::new(gej_fe_pair))),
         (Elements::GejNormalize, InputSampling::Custom(Arc::new(|| SimplicityGej::sample().value()))),
         (Elements::GejNegate, InputSampling::Custom(Arc::new(|| SimplicityGej::sample().value()))),
+        (Elements::GeNegate, InputSampling::Custom(Arc::new(|| SimplicityGe::sample().value()))),
         (Elements::GejDouble, InputSampling::Custom(Arc::new(|| SimplicityGej::sample().value()))),
         (Elements::GejAdd, InputSampling::Custom(Arc::new(gej_pair))),
         (Elements::GejGeAddEx, InputSampling::Custom(Arc::new(gej_ge_pair))),
@@ -350,15 +572,21 @@ fn bench(c: &mut Criterion) {
         (Elements::Decompress, InputSampling::Custom(Arc::new(|| SimplicityPoint::sample().value()))),
         (Elements::PointVerify1, InputSampling::Custom(Arc::new(point_verify))),
         // Signature jets
-        (Elements::Bip0340Verify, InputSampling::Custom(Arc::new(bip_0340))),
         (Elements::CheckSigVerify, InputSampling::Custom(Arc::new(check_sig_verify))),
+        (Elements::Bip0340Verify, InputSampling::Custom(Arc::new(bip_0340))),
+
+        // Timelock parsing jets
+        (Elements::ParseLock, InputSampling::Random), // all values take same time
+        (Elements::ParseSequence, InputSampling::Custom(Arc::new(sequence))),
     ];
     for (jet, sample) in arr {
         let (src_ty, tgt_ty) = jet_arrow(jet);
 
         let mut group = c.benchmark_group(&jet.to_string());
         let env = EnvSampling::Null.env();
-
+        if is_heavy_jet(jet) {
+            group.measurement_time(std::time::Duration::from_secs(5));
+        };
         for i in 0..NUM_RANDOM_SAMPLES {
             let params = JetParams::with_rand_aligns(sample.clone());
             // Assumption: `buffer.write` is non-negligible
@@ -406,7 +634,7 @@ fn bench(c: &mut Criterion) {
         (Elements::InputAmountsHash, ElementsBenchEnvType::Random),
         (Elements::InputScriptsHash, ElementsBenchEnvType::Random),
         (Elements::TapleafHash, ElementsBenchEnvType::Random),
-        (Elements::TapbranchHash, ElementsBenchEnvType::Random),
+        (Elements::TappathHash, ElementsBenchEnvType::Random),
         //
         // ------------------------------------
         // Jets with no environment required. But no custom sampling
@@ -606,7 +834,7 @@ fn bench(c: &mut Criterion) {
         (Elements::IssuanceTokenAmount, Index::InputIdx0, ElementsBenchEnvType::Issuance),
         (Elements::IssuanceAssetProof, Index::InputIdx0, ElementsBenchEnvType::Issuance),
         (Elements::IssuanceTokenProof, Index::InputIdx0, ElementsBenchEnvType::Issuance),
-        (Elements::Tapbranch, Index::MarkleBranchIndex, ElementsBenchEnvType::Random),
+        (Elements::Tappath, Index::MarkleBranchIndex, ElementsBenchEnvType::Random),
     ];
 
     for (jet, index, env_type) in arr {
@@ -640,5 +868,17 @@ fn bench(c: &mut Criterion) {
     }
 }
 
-criterion_group!(benches, bench);
+criterion_group!{
+    name = benches;
+    config = Criterion::default()
+        // For simpler benchmarks, we don't need to run for long
+        // We care most about secp jets
+        .measurement_time(std::time::Duration::from_millis(50))
+        .warm_up_time(std::time::Duration::from_millis(50))
+        // .sample_size(100)
+        // .nresamples(10_000)
+        .plotting_backend(criterion::PlottingBackend::None)
+        .without_plots();
+    targets = bench,
+}
 criterion_main!(benches);

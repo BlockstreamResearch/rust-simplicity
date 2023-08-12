@@ -10,6 +10,8 @@
 
 #include <stdalign.h>
 
+const uint64_t c_overhead = overhead;
+
 const size_t c_sizeof_ubounded = sizeof(ubounded);
 const size_t c_sizeof_UWORD = sizeof(UWORD);
 const size_t c_sizeof_simplicity_err = sizeof(simplicity_err);

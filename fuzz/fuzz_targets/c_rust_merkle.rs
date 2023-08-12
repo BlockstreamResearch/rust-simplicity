@@ -14,8 +14,8 @@
 
 use honggfuzz::fuzz;
 
-use simplicity::hashes::sha256::Midstate;
 use simplicity::ffi::{self, ffi::SimplicityErr};
+use simplicity::hashes::sha256::Midstate;
 use simplicity::jet::Elements;
 use simplicity::{BitIter, RedeemNode};
 
@@ -77,7 +77,7 @@ mod tests {
     #[test]
     fn duplicate_crash() {
         let mut a = Vec::new();
-        extend_vec_from_hex("00000", &mut a);
+        extend_vec_from_hex("d73804000000000000000000000002040404040000000000000040000001ff0000000800380000000000000002040404040000000000000040000001ff0000000800380000000000000000000000000000385cf8ffffff10cdf7bb2cd063000000000000042d343507fffffffffff800404220fffffff800000040420f0000", &mut a);
         super::do_test(&a);
     }
 }

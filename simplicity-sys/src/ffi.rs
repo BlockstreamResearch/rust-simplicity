@@ -26,6 +26,8 @@ use std::fmt;
 
 /// Used with `evalTCOProgram` to enforce consensus limits.
 pub const BUDGET_MAX: ubounded = 4000050;
+/// The max value of UBOUNDED_MAX
+pub const UBOUNDED_MAX: ubounded = u32::MAX;
 
 /// Used in the C code for various purposes; actually defined as `uint_least32_t`
 /// which seems not to have an equivalent in Rust libc.
@@ -36,6 +38,18 @@ pub type ubounded = u32;
 extern "C" {
     pub static c_sizeof_ubounded: size_t;
     pub static c_alignof_ubounded: size_t;
+}
+
+pub mod bounded {
+    use super::ubounded;
+    extern "C" {
+        pub static c_overhead: ubounded;
+    }
+
+    /// constant Overhead of each jet
+    pub fn cost_overhead() -> ubounded {
+        unsafe { c_overhead }
+    }
 }
 
 /// Used in C code to give the project a Win32 vibe; actually defined as
@@ -308,7 +322,7 @@ pub mod dag {
 
         /// Given the IMR of a jet specification, return the CMR of a jet that implements
         /// that specification
-        pub fn mkJetCMR(imr: *const u32) -> CSha256Midstate;
+        pub fn mkJetCMR(imr: *const u32, weight: u64) -> CSha256Midstate;
 
         /// Compute the CMR of a jet of scribe(v) : ONE |- TWO^(2^n) that outputs a given
         /// bitstring
@@ -345,6 +359,16 @@ pub mod dag {
             type_dag: *const CType,
             len: size_t,
         ) -> SimplicityErr;
+    }
+
+    /// Convenience wrapper around mkJetCMR that operates on u8 bytes instead of u32
+    #[allow(non_snake_case)]
+    pub fn c_mkJetCMR(midstate: hashes::sha256::Midstate, weight: u64) -> hashes::sha256::Midstate {
+        let mut imr = [0; 32];
+        for (idx, chunk) in midstate.0.chunks(4).enumerate() {
+            imr[idx] = u32::from_be_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+        }
+        unsafe { mkJetCMR(imr.as_ptr(), weight) }.into()
     }
 }
 
@@ -387,14 +411,28 @@ pub mod eval {
         pub fn evalTCOExpression(
             anti_dos_checks: c_uchar,
             output: *mut UWORD,
-            outputSize: ubounded,
             input: *const UWORD,
-            inputSize: ubounded,
             dag: *const CDagNode,
             type_dag: *mut CType,
             len: size_t,
-            budget: ubounded,
+            budget: *const ubounded,
             env: *const CElementsTxEnv,
+        ) -> SimplicityErr;
+
+        /// Given a well-typed dag representing a Simplicity expression,
+        /// compute the memory and CPU requirements for evaluation.
+        ///
+        /// Refer to C documentation for preconditions.
+        pub fn analyseBounds(
+            cell_bound: *mut ubounded,
+            UWORD_bound: *mut ubounded,
+            frame_bound: *mut ubounded,
+            cost_bound: *mut ubounded,
+            max_cells: ubounded,
+            max_cost: ubounded,
+            dag: *const CDagNode,
+            type_dag: *const CType,
+            len: size_t,
         ) -> SimplicityErr;
     }
 
@@ -411,15 +449,13 @@ pub mod eval {
         dag: *const CDagNode,
         type_dag: *mut CType,
         len: size_t,
-        budget: ubounded,
+        budget: *const ubounded,
         env: *const CElementsTxEnv,
     ) -> SimplicityErr {
         evalTCOExpression(
             CHECK_ALL,
             ptr::null_mut(),
-            0,
             ptr::null(),
-            0,
             dag,
             type_dag,
             len,
@@ -447,6 +483,16 @@ pub mod sha256 {
                 inner[idx * 4..(idx + 1) * 4].copy_from_slice(&chunk.to_be_bytes());
             }
             Midstate(inner)
+        }
+    }
+
+    impl From<Midstate> for CSha256Midstate {
+        fn from(midstate: Midstate) -> CSha256Midstate {
+            let mut s = [0; 8];
+            for (idx, chunk) in midstate.0.chunks(4).enumerate() {
+                s[idx] = u32::from_be_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+            }
+            CSha256Midstate { s }
         }
     }
 

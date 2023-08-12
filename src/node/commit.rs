@@ -494,7 +494,7 @@ mod tests {
                     0x00,
                 ],
                 // CMR not checked against C code, since C won't give us any data without witnesses
-                "a2ad9852818c0dc9307b476464cb9366c5c97896ba128f2f526b51910218293c",
+                "15debef4151e0bb15e3b75b1fc5958727eb8d71fa95f386c2dcd95ca0576f112",
             ),
             // Same program but with each `witness` replaced by `comp iden witness`.
             (
@@ -512,10 +512,10 @@ mod tests {
                 vec![
                     0xe0, 0x28, 0x70, 0x43, 0x83, 0x00, 0xab, 0x9a,
                     0x31, 0x04, 0x20, 0xe0, 0x57, 0x18, 0x8a, 0x36,
-                    0xdc, 0x41, 0x18, 0x08, 
+                    0xdc, 0x41, 0x18, 0x08,
                 ],
                 // CMR not checked against C code, since C won't give us any data without witnesses
-                "f4583eca2a35aa48e8895235b58cfe90ba2196fbf7722b7d847c3c55eb6bdc0e",
+                "79b5d4e5f2c88ad37d11d1e35dc89924219d57b3e314fcebd271a7c4122f3601",
             )
         ];
 

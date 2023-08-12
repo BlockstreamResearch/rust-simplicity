@@ -278,10 +278,10 @@ extern "C" {
     pub fn subtract_64(dst: *mut CFrameItem, src: CFrameItem, env: *const c_void) -> bool;
     pub fn subtract_8(dst: *mut CFrameItem, src: CFrameItem, env: *const c_void) -> bool;
     pub fn tap_env_hash(dst: *mut CFrameItem, src: CFrameItem, env: *const CElementsTxEnv) -> bool;
-    pub fn tapbranch(dst: *mut CFrameItem, src: CFrameItem, env: *const CElementsTxEnv) -> bool;
-    pub fn tapbranch_hash(dst: *mut CFrameItem, src: CFrameItem, env: *const CElementsTxEnv) -> bool;
     pub fn tapleaf_hash(dst: *mut CFrameItem, src: CFrameItem, env: *const CElementsTxEnv) -> bool;
     pub fn tapleaf_version(dst: *mut CFrameItem, src: CFrameItem, env: *const CElementsTxEnv) -> bool;
+    pub fn tappath(dst: *mut CFrameItem, src: CFrameItem, env: *const CElementsTxEnv) -> bool;
+    pub fn tappath_hash(dst: *mut CFrameItem, src: CFrameItem, env: *const CElementsTxEnv) -> bool;
     pub fn tx_hash(dst: *mut CFrameItem, src: CFrameItem, env: *const CElementsTxEnv) -> bool;
     pub fn tx_is_final(dst: *mut CFrameItem, src: CFrameItem, env: *const CElementsTxEnv) -> bool;
     pub fn tx_lock_distance(dst: *mut CFrameItem, src: CFrameItem, env: *const CElementsTxEnv) -> bool;

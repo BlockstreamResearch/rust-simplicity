@@ -47,13 +47,13 @@ use elements::encode::Encodable;
 /// Programs that are CPU-heavy need to be padded
 /// so that the witness stack provides a large-enough budget.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct Cost(usize);
+pub struct Cost(u32);
 
 impl Cost {
     /// Overhead constant.
     ///
     /// Every combinator that is executed has this overhead added to its cost.
-    const OVERHEAD: Self = Cost(10);
+    const OVERHEAD: Self = Cost(100);
 
     /// Cost of combinators that are never executed.
     ///
@@ -77,11 +77,12 @@ impl Cost {
 
     /// Return the cost of a type with the given bit width.
     pub const fn of_type(bit_width: usize) -> Self {
-        Cost(bit_width)
+        // Cast safety: bit width cannot be more than 2^32 - 1
+        Cost(bit_width as u32)
     }
 
     /// Convert the given milli weight units into cost.
-    pub const fn from_milliweight(milliweight: usize) -> Self {
+    pub const fn from_milliweight(milliweight: u32) -> Self {
         Cost(milliweight)
     }
 
@@ -94,8 +95,8 @@ impl Cost {
     }
 
     /// Return whether the cost is less or equal the given weight.
-    pub fn less_equal_weight(&self, weight: usize) -> bool {
-        self.0 <= weight * 1000
+    pub fn less_equal_weight(&self, weight: u32) -> bool {
+        self.0 <= weight.saturating_mul(1000)
     }
 
     /// Return whether the cost is within the budget of
@@ -109,7 +110,8 @@ impl Cost {
             .consensus_encode(&mut sink)
             .expect("writing to sink never fails");
         let budget = witness_stack_serialized_len + 50;
-        self.less_equal_weight(budget)
+        // Cast safety: witness stack serialized length cannot be more than 2^32 - 51
+        self.less_equal_weight(budget as u32)
     }
 }
 
@@ -161,8 +163,12 @@ impl NodeBounds {
     }
 
     /// Node bounds for an `iden` node
-    pub const fn iden() -> NodeBounds {
-        NodeBounds::NOP
+    pub fn iden(target_type: usize) -> NodeBounds {
+        NodeBounds {
+            extra_cells: 0,
+            extra_frames: 0,
+            cost: Cost::OVERHEAD + Cost::of_type(target_type),
+        }
     }
 
     /// Node bounds for a `unit` node
@@ -232,6 +238,7 @@ impl NodeBounds {
     pub fn disconnect(
         left: Self,
         right: Self,
+        left_target_b_bit_width: usize, // bit width of B in (b x C) target type
         left_source_bit_width: usize,
         left_target_bit_width: usize,
     ) -> NodeBounds {
@@ -244,6 +251,7 @@ impl NodeBounds {
                 + Cost::of_type(left_source_bit_width)
                 + Cost::of_type(left_source_bit_width)
                 + Cost::of_type(left_target_bit_width)
+                + Cost::of_type(left_target_b_bit_width)
                 + left.cost
                 + right.cost,
         }
@@ -289,3 +297,14 @@ impl NodeBounds {
 
 /// Number of frames required for the input and output of a Simplicity expression
 pub(crate) const IO_EXTRA_FRAMES: usize = 2;
+
+#[cfg(test)]
+mod tests {
+    use simplicity_sys::ffi::bounded::cost_overhead;
+
+    #[test]
+    fn test_overhead() {
+        // Check that C overhead is same OVERHEAD
+        assert_eq!(super::Cost::OVERHEAD.0, cost_overhead());
+    }
+}

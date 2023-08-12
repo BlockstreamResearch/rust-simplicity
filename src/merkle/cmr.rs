@@ -16,6 +16,7 @@ use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
 use crate::{FailEntropy, Tmr, Value};
 use hashes::sha256::Midstate;
+use simplicity_sys::ffi::bounded::cost_overhead;
 
 use super::bip340_iv;
 
@@ -134,7 +135,8 @@ impl Cmr {
         // 2. Add TMRs to get the pass-two IMR
         let imr_pass2 = imr_pass1.update(Tmr::unit().into(), Tmr::POWERS_OF_TWO[w - 1].into());
         // 3. Convert to a jet CMR
-        Cmr(bip340_iv(b"Simplicity-Draft\x1fJet")).update_1(imr_pass2)
+        Cmr(bip340_iv(b"Simplicity-Draft\x1fJet"))
+            .update_with_weight(v.len() as u64 + cost_overhead() as u64, imr_pass2)
     }
 
     #[rustfmt::skip]
@@ -292,12 +294,7 @@ mod tests {
         #[rustfmt::skip]
         assert_eq!(
             Cmr::const_word(&bit0),
-            Cmr::from_byte_array([
-                0xb1, 0xaa, 0x07, 0xfb, 0x32, 0xc5, 0xa4, 0xe5,
-                0xf5, 0xf9, 0x11, 0x7b, 0x45, 0xbf, 0xf8, 0xb3,
-                0x51, 0xdc, 0x1d, 0x59, 0x80, 0x47, 0xeb, 0x64,
-                0x70, 0x3e, 0x36, 0xa6, 0x97, 0x19, 0x24, 0x17,
-            ]),
+            Cmr::from_str("10d9566fdb193e04078476955defa127e186224decc1162dabcb035c87a45378").unwrap(),
         );
     }
 

@@ -165,6 +165,20 @@ macro_rules! impl_midstate_wrapper {
                 $wrapper(engine.midstate())
             }
 
+            /// Updates the given tagged hash with given `left` cost and `right` hash.
+            ///
+            /// The cost is serialized as the last 64 bits in the left block
+            pub fn update_with_weight(self, left_weight: u64, right: Self) -> Self {
+                use $crate::hashes::{sha256, HashEngine};
+
+                let mut engine = sha256::HashEngine::from_midstate(self.0, 0);
+                let mut left_blk = [0; 32];
+                left_blk[24..].copy_from_slice(&left_weight.to_be_bytes());
+                engine.input(&left_blk);
+                engine.input(right.as_ref());
+                $wrapper(engine.midstate())
+            }
+
             pub fn update_fail_entropy(self, entropy: $crate::FailEntropy) -> Self {
                 use $crate::hashes::{sha256, HashEngine};
 
