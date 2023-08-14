@@ -66,7 +66,7 @@ pub enum ExprInner<J> {
     /// A right assertion (referring to the CMR of an expression on the left)
     AssertR(AstCmr<J>, Arc<Expression<J>>),
     /// An inline expression
-    Inline(node::Inner<Arc<Expression<J>>, J, node::NoDisconnect, WitnessOrHole>),
+    Inline(node::Inner<Arc<Expression<J>>, J, Arc<Expression<J>>, WitnessOrHole>),
 }
 
 /// A CMR, as represented in the AST
@@ -152,7 +152,7 @@ fn propagate_errors<J: Jet>(ast: &[Ast<J>]) -> Option<Ast<J>> {
 #[derive(Debug, Clone)]
 enum Ast<J: Jet> {
     Combinator {
-        comb: node::Inner<(), J, node::NoDisconnect, WitnessOrHole>,
+        comb: node::Inner<(), J, (), WitnessOrHole>,
         position: Position,
     },
     /// A type->type arrow
@@ -262,7 +262,9 @@ impl<J: Jet> Ast<J> {
             .map(Ast::expect_expression)
             .map(Arc::new)
             .collect();
-        let inner = comb.map_left_right(|_| Arc::clone(&arcs[0]), |_| Arc::clone(&arcs[1]));
+        let inner = comb
+            .map_left_right(|_| Arc::clone(&arcs[0]), |_| Arc::clone(&arcs[1]))
+            .map_disconnect(|_| Arc::clone(&arcs[1]));
         Ast::Expression(Expression {
             inner: ExprInner::Inline(inner),
             position,
@@ -324,7 +326,7 @@ impl<J: Jet> Ast<J> {
             "assertl" => node::Inner::AssertL((), Cmr::unit()),
             "assertr" => node::Inner::AssertR(Cmr::unit(), ()),
             "pair" => node::Inner::Pair((), ()),
-            "disconnect" => node::Inner::Disconnect((), node::NoDisconnect),
+            "disconnect" => node::Inner::Disconnect((), ()),
             "witness" => node::Inner::Witness(WitnessOrHole::Witness),
             "fail" => node::Inner::Fail(FailEntropy::ZERO),
             other => {
@@ -508,8 +510,8 @@ fn lexer_rules() -> LexerRules {
         // Base combinators and jets
         "DEFAULT" | "CONST"  = string "const";
         "DEFAULT" | "NULLARY" = pattern "unit|iden|witness|jet_[a-z0-9_]*";
-        "DEFAULT" | "UNARY"   = pattern "injl|injr|take|drop|disconnect";
-        "DEFAULT" | "BINARY"  = pattern "case|comp|pair";
+        "DEFAULT" | "UNARY"   = pattern "injl|injr|take|drop";
+        "DEFAULT" | "BINARY"  = pattern "case|comp|pair|disconnect";
         // Assertions
         "DEFAULT" | "ASSERTL" = string "assertl";
         "DEFAULT" | "ASSERTR" = string "assertr";

@@ -281,7 +281,7 @@ impl<C, J: Clone, X, W> Inner<C, J, X, W> {
     }
 }
 
-impl<C, J, X: Disconnectable<C>, W> Inner<C, J, X, W> {
+impl<C, J, X: Disconnectable<C>, W> Inner<Arc<C>, J, X, W> {
     /// Collapse the node information to a `Dag`
     pub fn as_dag(&self) -> Dag<&C> {
         match self {

@@ -135,7 +135,7 @@ pub type NamedConstructNode<J> = Node<Named<Construct<J>>>;
 impl<J: Jet> node::Marker for Named<Construct<J>> {
     type CachedData = NamedConstructData<J>;
     type Witness = WitnessOrHole;
-    type Disconnect = NoDisconnect;
+    type Disconnect = Arc<NamedConstructNode<J>>;
     type SharingId = Arc<str>;
     type Jet = J;
 
@@ -167,7 +167,7 @@ impl<J: Jet> NamedConstructNode<J> {
         position: Position,
         user_source_types: Arc<[types::Type]>,
         user_target_types: Arc<[types::Type]>,
-        inner: node::Inner<Arc<Self>, J, NoDisconnect, WitnessOrHole>,
+        inner: node::Inner<Arc<Self>, J, Arc<Self>, WitnessOrHole>,
     ) -> Result<Self, types::Error> {
         let construct_data = ConstructData::from_inner(
             inner
@@ -231,34 +231,63 @@ impl<J: Jet> NamedConstructNode<J> {
         struct FinalizeTypes<J: Jet> {
             for_main: bool,
             errors: ErrorSet,
+            pending_hole_error: Option<(Position, Error)>,
             phantom: PhantomData<J>,
         }
 
         impl<J: Jet> Converter<Named<Construct<J>>, Named<Commit<J>>> for FinalizeTypes<J> {
             type Error = ErrorSet;
+
+            fn visit_node(&mut self, data: &PostOrderIterItem<&NamedConstructNode<J>>) {
+                // If we encounter a typed hole, this is an error *except* when the typed
+                // hole is the right child of a disconnect combinator. Conveniently, this
+                // case is very easy to detect: it will always appear as a hole immediately
+                // followed by a disconnect.
+                //
+                // Less conveniently, detecting this from within a post-order-iterator
+                // requires a small state machine here: when we encounter a hole, we create
+                // an error and put it in `self.pending_hole_error`. If we then encounter a
+                // disconnect, we drop the error. Otherwise we move it to `self.errors`.
+                let inner = data.node.inner();
+                if let node::Inner::Disconnect(..) = inner {
+                    self.pending_hole_error = None;
+                } else {
+                    if let Some((position, error)) = self.pending_hole_error.take() {
+                        self.errors.add(position, error);
+                    }
+                    if let node::Inner::Witness(WitnessOrHole::TypedHole(name)) = inner {
+                        self.pending_hole_error = Some((
+                            data.node.position(),
+                            Error::HoleAtCommitTime {
+                                name: Arc::clone(name),
+                                arrow: data.node.arrow().shallow_clone(),
+                            },
+                        ));
+                    }
+                }
+            }
+
             fn convert_witness(
                 &mut self,
-                data: &PostOrderIterItem<&NamedConstructNode<J>>,
-                withole: &WitnessOrHole,
+                _: &PostOrderIterItem<&NamedConstructNode<J>>,
+                _: &WitnessOrHole,
             ) -> Result<NoWitness, Self::Error> {
-                if let WitnessOrHole::TypedHole(name) = withole {
-                    self.errors.add(
-                        data.node.position(),
-                        Error::HoleAtCommitTime {
-                            name: Arc::clone(name),
-                            arrow: data.node.arrow().shallow_clone(),
-                        },
-                    );
-                }
                 Ok(NoWitness)
             }
 
             fn convert_disconnect(
                 &mut self,
-                _: &PostOrderIterItem<&NamedConstructNode<J>>,
+                data: &PostOrderIterItem<&NamedConstructNode<J>>,
                 _: Option<&Arc<NamedCommitNode<J>>>,
-                _: &NoDisconnect,
+                disc: &Arc<NamedConstructNode<J>>,
             ) -> Result<NoDisconnect, Self::Error> {
+                if !matches!(
+                    disc.inner(),
+                    node::Inner::Witness(WitnessOrHole::TypedHole(..))
+                ) {
+                    self.errors
+                        .add(data.node.position(), Error::HoleFilledAtCommitTime);
+                }
                 Ok(NoDisconnect)
             }
 
@@ -328,6 +357,7 @@ impl<J: Jet> NamedConstructNode<J> {
         let mut finalizer = FinalizeTypes {
             for_main,
             errors: ErrorSet::default(),
+            pending_hole_error: None,
             phantom: PhantomData,
         };
 

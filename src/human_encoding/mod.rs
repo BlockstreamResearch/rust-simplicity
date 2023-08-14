@@ -141,6 +141,7 @@ impl<J: Jet> Forest<J> {
         let mut witness_lines = vec![];
         let mut const_lines = vec![];
         let mut program_lines = vec![];
+        let mut disc_idx = 0;
         // Pass 1: compute string data for every node
         for root in self.roots.values() {
             for data in root.as_ref().post_order_iter::<MaxSharing<_>>() {
@@ -165,6 +166,9 @@ impl<J: Jet> Forest<J> {
                 } else if let node::Inner::AssertL(_, cmr) = node.inner() {
                     expr_str.push_str(" #");
                     expr_str.push_str(&cmr.to_string());
+                } else if let node::Inner::Disconnect(_, node::NoDisconnect) = node.inner() {
+                    expr_str.push_str(&format!(" ?disc_expr_{}", disc_idx));
+                    disc_idx += 1;
                 }
 
                 let arrow = node.arrow();

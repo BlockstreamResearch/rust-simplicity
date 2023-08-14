@@ -172,6 +172,7 @@ impl error::Error for ErrorSet {
             Error::EntropyInsufficient { .. } => None,
             Error::EntropyTooMuch { .. } => None,
             Error::HoleAtCommitTime { .. } => None,
+            Error::HoleFilledAtCommitTime => None,
             Error::NameIllegal(_) => None,
             Error::NameIncomplete(_) => None,
             Error::NameMissing(_) => None,
@@ -250,6 +251,9 @@ pub enum Error {
         name: Arc<str>,
         arrow: types::arrow::Arrow,
     },
+    /// When converting to a `CommitNode`, a disconnect node had an actual node rather
+    /// than a hole.
+    HoleFilledAtCommitTime,
     /// An expression name was not allowed to be used as a name.
     NameIllegal(Arc<str>),
     /// An expression was given a type, but no actual expression was provided.
@@ -310,6 +314,9 @@ impl fmt::Display for Error {
                 "unfilled hole ?{} at commitment time; type arrow {}",
                 name, arrow
             ),
+            Error::HoleFilledAtCommitTime => {
+                f.write_str("disconnect node has a non-hole child at commit time")
+            }
             Error::NameIllegal(ref s) => {
                 write!(f, "name `{}` is not allowed in this context", s)
             }
