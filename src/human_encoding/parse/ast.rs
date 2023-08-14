@@ -18,7 +18,7 @@ use std::mem;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use crate::human_encoding::{Error, ErrorSet, Position};
+use crate::human_encoding::{Error, ErrorSet, Position, WitnessOrHole};
 use crate::jet::Jet;
 use crate::{node, types};
 use crate::{BitIter, Cmr, FailEntropy};
@@ -66,7 +66,7 @@ pub enum ExprInner<J> {
     /// A right assertion (referring to the CMR of an expression on the left)
     AssertR(AstCmr<J>, Arc<Expression<J>>),
     /// An inline expression
-    Inline(node::Inner<Arc<Expression<J>>, J, node::NoDisconnect, node::NoWitness>),
+    Inline(node::Inner<Arc<Expression<J>>, J, node::NoDisconnect, WitnessOrHole>),
 }
 
 /// A CMR, as represented in the AST
@@ -152,7 +152,7 @@ fn propagate_errors<J: Jet>(ast: &[Ast<J>]) -> Option<Ast<J>> {
 #[derive(Debug, Clone)]
 enum Ast<J: Jet> {
     Combinator {
-        comb: node::Inner<(), J, node::NoDisconnect, node::NoWitness>,
+        comb: node::Inner<(), J, node::NoDisconnect, WitnessOrHole>,
         position: Position,
     },
     /// A type->type arrow
@@ -325,7 +325,7 @@ impl<J: Jet> Ast<J> {
             "assertr" => node::Inner::AssertR(Cmr::unit(), ()),
             "pair" => node::Inner::Pair((), ()),
             "disconnect" => node::Inner::Disconnect((), node::NoDisconnect),
-            "witness" => node::Inner::Witness(node::NoWitness),
+            "witness" => node::Inner::Witness(WitnessOrHole::Witness),
             "fail" => node::Inner::Fail(FailEntropy::ZERO),
             other => {
                 assert_eq!(&other[..4], "jet_");
@@ -537,10 +537,11 @@ fn lexer_rules() -> LexerRules {
         // Assignment
         "DEFAULT" | ":=" = string ":=";
 
-        // CMR
+        // CMR and holes
         "DEFAULT" | "CMRLIT" = pattern "#[a-fA-F0-9]{64}";
         "DEFAULT" | "#{" = string "#{";
         "DEFAULT" | "}" = string "}";
+        "DEFAULT" | "?" = string "?";
 
         // Comments (single-line comments only).
         "DEFAULT" | "LINE_COMMENT" = pattern r"--.*\n" => |lexer| lexer.skip();
@@ -611,6 +612,18 @@ fn grammar<J: Jet + 'static>() -> Grammar<Ast<J>> {
             assert_eq!(toks.len(), 1);
             if let Ast::Symbol { value, position } = mem::replace(&mut toks[0], Ast::Replaced) {
                 Ast::Expression(Expression::reference(value, position))
+            } else {
+                unreachable!("expected string, got something else")
+            }
+        };
+        "expr" => rules "?" "symbol" => |mut toks| {
+            if let Some(e) = propagate_errors(&toks) { return e; }
+            assert_eq!(toks.len(), 2);
+            if let Ast::Symbol { value, position } = mem::replace(&mut toks[1], Ast::Replaced) {
+                Ast::Expression(Expression {
+                    inner: ExprInner::Inline(node::Inner::Witness(WitnessOrHole::TypedHole(value))),
+                    position,
+                })
             } else {
                 unreachable!("expected string, got something else")
             }
@@ -779,6 +792,7 @@ fn grammar<J: Jet + 'static>() -> Grammar<Ast<J>> {
         ":=" => lexemes ":=" => Ast::from_dummy_lexeme;
 
         "#" => lexemes "#" => Ast::from_dummy_lexeme;
+        "?" => lexemes "?" => Ast::from_dummy_lexeme;
 
         // Define associativity rules for type constructors
         Associativity::Left => rules "+";

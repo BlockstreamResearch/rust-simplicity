@@ -66,6 +66,30 @@ impl From<santiago::lexer::Position> for Position {
     }
 }
 
+/// For named construct nodes, we abuse the `witness` combinator to support typed holes.
+///
+/// We do this because `witness` nodes have free source and target arrows, and
+/// allow us to store arbitrary data in them using the generic witness type of
+/// the node. Holes are characterized entirely by their source and target type,
+/// just like witnesses, and are labelled by their name.
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum WitnessOrHole {
+    /// This witness is an actual witness combinator (with no witness data attached,
+    /// that comes later)
+    Witness,
+    /// This is a typed hole, with the given name.
+    TypedHole(Arc<str>),
+}
+
+impl WitnessOrHole {
+    pub fn shallow_clone(&self) -> Self {
+        match self {
+            WitnessOrHole::Witness => WitnessOrHole::Witness,
+            WitnessOrHole::TypedHole(name) => WitnessOrHole::TypedHole(Arc::clone(name)),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Forest<J: Jet> {
     roots: HashMap<Arc<str>, Arc<NamedCommitNode<J>>>,

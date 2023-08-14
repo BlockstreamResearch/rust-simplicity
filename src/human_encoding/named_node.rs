@@ -16,7 +16,7 @@
 
 use crate::dag::{InternalSharing, MaxSharing, PostOrderIterItem};
 use crate::encode;
-use crate::human_encoding::{ErrorSet, Position};
+use crate::human_encoding::{Error, ErrorSet, Position, WitnessOrHole};
 use crate::jet::Jet;
 use crate::node::{self, Commit, CommitData, CommitNode, Converter, NoDisconnect, NoWitness, Node};
 use crate::node::{Construct, ConstructData, Constructible};
@@ -134,7 +134,7 @@ pub type NamedConstructNode<J> = Node<Named<Construct<J>>>;
 
 impl<J: Jet> node::Marker for Named<Construct<J>> {
     type CachedData = NamedConstructData<J>;
-    type Witness = <Construct<J> as node::Marker>::Witness;
+    type Witness = WitnessOrHole;
     type Disconnect = NoDisconnect;
     type SharingId = Arc<str>;
     type Jet = J;
@@ -167,14 +167,14 @@ impl<J: Jet> NamedConstructNode<J> {
         position: Position,
         user_source_types: Arc<[types::Type]>,
         user_target_types: Arc<[types::Type]>,
-        inner: node::Inner<Arc<Self>, J, NoDisconnect, NoWitness>,
+        inner: node::Inner<Arc<Self>, J, NoDisconnect, WitnessOrHole>,
     ) -> Result<Self, types::Error> {
         let construct_data = ConstructData::from_inner(
             inner
                 .as_ref()
                 .map(|data| &data.cached_data().internal)
                 .map_disconnect(|_| &None)
-                .copy_witness(),
+                .map_witness(|_| NoWitness),
         )?;
         let named_data = NamedConstructData {
             internal: construct_data,
@@ -238,9 +238,18 @@ impl<J: Jet> NamedConstructNode<J> {
             type Error = ErrorSet;
             fn convert_witness(
                 &mut self,
-                _: &PostOrderIterItem<&NamedConstructNode<J>>,
-                _: &NoWitness,
+                data: &PostOrderIterItem<&NamedConstructNode<J>>,
+                withole: &WitnessOrHole,
             ) -> Result<NoWitness, Self::Error> {
+                if let WitnessOrHole::TypedHole(name) = withole {
+                    self.errors.add(
+                        data.node.position(),
+                        Error::HoleAtCommitTime {
+                            name: Arc::clone(name),
+                            arrow: data.node.arrow().shallow_clone(),
+                        },
+                    );
+                }
                 Ok(NoWitness)
             }
 

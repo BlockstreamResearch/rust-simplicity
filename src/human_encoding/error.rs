@@ -171,6 +171,7 @@ impl error::Error for ErrorSet {
             Error::BadWordLength { .. } => None,
             Error::EntropyInsufficient { .. } => None,
             Error::EntropyTooMuch { .. } => None,
+            Error::HoleAtCommitTime { .. } => None,
             Error::NameIllegal(_) => None,
             Error::NameIncomplete(_) => None,
             Error::NameMissing(_) => None,
@@ -243,6 +244,12 @@ pub enum Error {
     EntropyInsufficient { bit_length: usize },
     /// A "fail" node was provided with more than 512 bits of entropy
     EntropyTooMuch { bit_length: usize },
+    /// When converting to a `CommitNode`, there were unfilled holes which prevent
+    /// us from knowing the whole program.
+    HoleAtCommitTime {
+        name: Arc<str>,
+        arrow: types::arrow::Arrow,
+    },
     /// An expression name was not allowed to be used as a name.
     NameIllegal(Arc<str>),
     /// An expression was given a type, but no actual expression was provided.
@@ -294,6 +301,14 @@ impl fmt::Display for Error {
                 f,
                 "fail node has too much entropy ({} bits, max 512)",
                 bit_length
+            ),
+            Error::HoleAtCommitTime {
+                ref name,
+                ref arrow,
+            } => write!(
+                f,
+                "unfilled hole ?{} at commitment time; type arrow {}",
+                name, arrow
             ),
             Error::NameIllegal(ref s) => {
                 write!(f, "name `{}` is not allowed in this context", s)
