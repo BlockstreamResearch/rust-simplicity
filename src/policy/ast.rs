@@ -215,6 +215,19 @@ impl<Pk: SimplicityKey> Policy<Pk> {
             _ => {}
         }
     }
+
+    /// Return an iterator over the fragments of the policy.
+    pub fn iter(&self) -> PolicyIter<'_, Pk> {
+        PolicyIter::new(self)
+    }
+
+    /// Return an iterator over the public keys of the policy.
+    pub fn iter_pk(&self) -> impl Iterator<Item = Pk> + '_ {
+        self.iter().filter_map(|fragment| match fragment {
+            Policy::Key(key) => Some(key.clone()),
+            _ => None,
+        })
+    }
 }
 
 impl<Pk: SimplicityKey> fmt::Debug for Policy<Pk> {
@@ -242,5 +255,41 @@ impl<Pk: SimplicityKey> fmt::Debug for Policy<Pk> {
 impl<Pk: SimplicityKey> fmt::Display for Policy<Pk> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(self, f)
+    }
+}
+
+/// Iterator over the fragments of a Simplicity policy.
+///
+/// The fragments are visited in preorder:
+/// We first visit the parent, then the left subtree, then the right subtree.
+pub struct PolicyIter<'a, Pk: SimplicityKey> {
+    stack: Vec<&'a Policy<Pk>>,
+}
+
+impl<'a, Pk: SimplicityKey> PolicyIter<'a, Pk> {
+    /// Create an iterator for the given policy.
+    pub fn new(policy: &'a Policy<Pk>) -> Self {
+        Self {
+            stack: vec![policy],
+        }
+    }
+}
+
+impl<'a, Pk: SimplicityKey> Iterator for PolicyIter<'a, Pk> {
+    type Item = &'a Policy<Pk>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let top = self.stack.pop()?;
+        match top {
+            Policy::And { left, right } | Policy::Or { left, right } => {
+                self.stack.push(right);
+                self.stack.push(left);
+            }
+            Policy::Threshold(_, children) => {
+                self.stack.extend(children.iter().rev());
+            }
+            _ => {}
+        }
+        Some(top)
     }
 }
