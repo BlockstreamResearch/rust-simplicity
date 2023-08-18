@@ -59,7 +59,7 @@ enum ElementsBenchEnvType {
 }
 
 impl ElementsBenchEnvType {
-    fn env(&self) -> ElementsEnv {
+    fn env(&self) -> ElementsEnv<Arc<elements::Transaction>> {
         let n_in = NUM_TX_INPUTS;
         let n_out = NUM_TX_OUTPUTS;
         let env_sampler = match self {

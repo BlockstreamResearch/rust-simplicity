@@ -28,12 +28,12 @@ pub enum EnvSampling {
 
 impl EnvSampling {
     /// Obtain a random environment without any annex
-    pub fn env(&self) -> ElementsEnv {
+    pub fn env(&self) -> ElementsEnv<Arc<Transaction>> {
         self.env_with_annex(None)
     }
 
     /// Obtains a env with annex
-    pub fn env_with_annex(&self, annex: Option<Vec<u8>>) -> ElementsEnv {
+    pub fn env_with_annex(&self, annex: Option<Vec<u8>>) -> ElementsEnv<Arc<Transaction>> {
         let ((txin, spent_utxo), n_in, n_out) = match self {
             EnvSampling::Null => return null_env(),
             EnvSampling::Issuance(n_in, n_out) => (txin_utils::issuance(), n_in, n_out),
@@ -81,7 +81,7 @@ fn env_with_spent_utxos(
     tx: Transaction,
     utxos: Vec<ElementsUtxo>,
     annex: Option<Vec<u8>>,
-) -> ElementsEnv {
+) -> ElementsEnv<Arc<Transaction>> {
     let ctrl_blk: [u8; 33] = [
         0xc0, 0xeb, 0x04, 0xb6, 0x8e, 0x9a, 0x26, 0xd1, 0x16, 0x04, 0x6c, 0x76, 0xe8, 0xff, 0x47,
         0x33, 0x2f, 0xb7, 0x1d, 0xda, 0x90, 0xff, 0x4b, 0xef, 0x53, 0x70, 0xf2, 0x52, 0x26, 0xd3,
@@ -98,7 +98,7 @@ fn env_with_spent_utxos(
     )
 }
 
-fn null_env() -> ElementsEnv {
+fn null_env() -> ElementsEnv<Arc<Transaction>> {
     let tx = Transaction {
         version: u32::default(),
         lock_time: LockTime::ZERO,

@@ -255,7 +255,12 @@ mod tests {
     use hashes::{sha256, Hash};
     use std::sync::Arc;
 
-    fn compile(policy: Policy<XOnlyPublicKey>) -> (Arc<ConstructNode<Elements>>, ElementsEnv) {
+    fn compile(
+        policy: Policy<XOnlyPublicKey>,
+    ) -> (
+        Arc<ConstructNode<Elements>>,
+        ElementsEnv<Arc<elements::Transaction>>,
+    ) {
         let commit = policy.serialize_no_witness();
         let env = ElementsEnv::dummy();
 
@@ -265,7 +270,7 @@ mod tests {
     fn execute_successful(
         commit: &ConstructNode<Elements>,
         witness: Vec<Value>,
-        env: &ElementsEnv,
+        env: &ElementsEnv<Arc<elements::Transaction>>,
     ) -> bool {
         let finalized = commit
             .finalize_types()
