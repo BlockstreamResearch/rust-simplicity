@@ -16,7 +16,7 @@ use crate::merkle::cmr::Cmr;
 use elements::confidential;
 use elements::taproot::ControlBlock;
 use simplicity_sys::c_jets::c_env::CElementsTxEnv;
-use std::sync::Arc;
+use std::ops::Deref;
 
 use super::c_env;
 
@@ -58,11 +58,11 @@ impl From<elements::TxOut> for ElementsUtxo {
 // Similar story if we tried to use a &'a elements::Transaction rather than
 // an Arc: we'd have a lifetime parameter <'a> that would cause us trouble.
 #[allow(dead_code)]
-pub struct ElementsEnv {
+pub struct ElementsEnv<T: Deref<Target = elements::Transaction>> {
     /// The CTxEnv struct
     c_tx_env: CElementsTxEnv,
     /// The elements transaction
-    tx: Arc<elements::Transaction>,
+    tx: T,
     /// the current index of the input
     ix: u32,
     /// Control block used to spend this leaf script
@@ -73,9 +73,12 @@ pub struct ElementsEnv {
     genesis_hash: elements::BlockHash,
 }
 
-impl ElementsEnv {
+impl<T> ElementsEnv<T>
+where
+    T: Deref<Target = elements::Transaction>,
+{
     pub fn new(
-        tx: Arc<elements::Transaction>,
+        tx: T,
         utxos: Vec<ElementsUtxo>,
         ix: u32,
         script_cmr: Cmr,
@@ -128,7 +131,7 @@ impl ElementsEnv {
 }
 
 #[cfg(test)]
-impl ElementsEnv {
+impl ElementsEnv<std::sync::Arc<elements::Transaction>> {
     /// Return a dummy Elements environment
     pub fn dummy() -> Self {
         Self::dummy_with(elements::LockTime::ZERO, elements::Sequence::MAX)
@@ -146,7 +149,7 @@ impl ElementsEnv {
         ];
 
         ElementsEnv::new(
-            Arc::new(elements::Transaction {
+            std::sync::Arc::new(elements::Transaction {
                 version: 2,
                 lock_time,
                 // Enable locktime in dummy txin

@@ -249,7 +249,9 @@ mod tests {
         }
     }
 
-    fn get_satisfier(env: &ElementsEnv) -> PolicySatisfier<XOnlyPublicKey> {
+    fn get_satisfier(
+        env: &ElementsEnv<Arc<elements::Transaction>>,
+    ) -> PolicySatisfier<XOnlyPublicKey> {
         let mut preimages = HashMap::new();
 
         for i in 0..3 {
@@ -283,7 +285,10 @@ mod tests {
         }
     }
 
-    fn execute_successful(program: Arc<RedeemNode<Elements>>, env: &ElementsEnv) {
+    fn execute_successful(
+        program: Arc<RedeemNode<Elements>>,
+        env: &ElementsEnv<Arc<elements::Transaction>>,
+    ) {
         let mut mac = BitMachine::for_program(&program);
         assert!(mac.exec(&program, env).is_ok());
     }

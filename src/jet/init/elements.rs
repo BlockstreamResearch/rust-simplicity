@@ -12,6 +12,7 @@ use std::io::Write;
 use std::{fmt, str};
 use crate::jet::elements::ElementsEnv;
 use simplicity_sys::CElementsTxEnv;
+use std::sync::Arc;
 
 /// Elements jet family
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
@@ -313,7 +314,7 @@ pub enum Elements {
 
 impl Jet for Elements {
 
-    type Environment = ElementsEnv;
+    type Environment = ElementsEnv<Arc<elements::Transaction>>;
     type CJetEnvironment = CElementsTxEnv;
 
     fn c_jet_env<'env>(&self, env: &'env Self::Environment) -> &'env Self::CJetEnvironment {

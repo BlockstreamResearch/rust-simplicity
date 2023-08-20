@@ -1,3 +1,4 @@
+use bitcoin_miniscript::{MiniscriptKey, ToPublicKey};
 use elements::bitcoin::key::XOnlyPublicKey;
 use hashes::sha256;
 use std::fmt::{Debug, Display};
@@ -8,8 +9,8 @@ pub trait SimplicityKey: Clone + Eq + Ord + Debug + Display + std::hash::Hash {
     type Sha256: Clone + Eq + Ord + Display + Debug + std::hash::Hash;
 }
 
-impl SimplicityKey for XOnlyPublicKey {
-    type Sha256 = sha256::Hash;
+impl<Pk: MiniscriptKey> SimplicityKey for Pk {
+    type Sha256 = <Pk as MiniscriptKey>::Sha256;
 }
 
 /// Public key which can be converted to a (x-only) public key which can be used in Simplicity.
@@ -21,13 +22,13 @@ pub trait ToXOnlyPubkey: SimplicityKey {
     fn to_sha256(hash: &Self::Sha256) -> sha256::Hash;
 }
 
-impl ToXOnlyPubkey for XOnlyPublicKey {
+impl<Pk: ToPublicKey> ToXOnlyPubkey for Pk {
     fn to_x_only_pubkey(&self) -> XOnlyPublicKey {
-        *self
+        <Pk as ToPublicKey>::to_x_only_pubkey(self)
     }
 
     fn to_sha256(hash: &Self::Sha256) -> sha256::Hash {
-        *hash
+        <Pk as ToPublicKey>::to_sha256(hash)
     }
 }
 

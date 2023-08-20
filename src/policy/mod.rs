@@ -28,9 +28,11 @@
 mod ast;
 mod error;
 mod key;
-pub mod satisfy;
+mod satisfy;
 mod serialize;
+pub mod sighash;
 
 pub use ast::Policy;
 pub use error::Error;
 pub use key::{SimplicityKey, ToXOnlyPubkey, Translator};
+pub use satisfy::{Preimage32, Satisfier};

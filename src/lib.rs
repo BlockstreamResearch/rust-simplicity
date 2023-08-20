@@ -55,7 +55,9 @@ pub use bit_encoding::BitWriter;
 pub use bit_encoding::{BitIter, EarlyEndOfStreamError};
 
 #[cfg(feature = "elements")]
-pub use crate::policy::{Policy, SimplicityKey, ToXOnlyPubkey, Translator};
+pub use crate::policy::{
+    sighash, Policy, Preimage32, Satisfier, SimplicityKey, ToXOnlyPubkey, Translator,
+};
 
 pub use crate::bit_machine::BitMachine;
 pub use crate::encode::{encode_natural, encode_value, encode_witness};
@@ -70,6 +72,12 @@ pub use crate::node::{CommitNode, ConstructNode, RedeemNode, WitnessNode};
 pub use crate::value::Value;
 pub use simplicity_sys as ffi;
 use std::fmt;
+
+/// Return the version of Simplicity leaves inside a tap tree.
+#[cfg(feature = "elements")]
+pub fn leaf_version() -> elements::taproot::LeafVersion {
+    elements::taproot::LeafVersion::from_u8(0xbe).expect("constant leaf version")
+}
 
 /// Error type for simplicity
 #[non_exhaustive]
