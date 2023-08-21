@@ -25,11 +25,12 @@ use std::sync::Arc;
 use std::{fmt, iter, mem};
 
 use crate::jet::Elements;
-use crate::node::{ConstructNode, NoWitness};
-use crate::FailEntropy;
+use crate::node::{
+    ConstructNode, CoreConstructible, JetConstructible, NoWitness, WitnessConstructible,
+};
+use crate::policy::serialize;
+use crate::{Cmr, CommitNode, FailEntropy};
 use crate::{SimplicityKey, ToXOnlyPubkey, Translator};
-
-use super::serialize;
 
 /// Policy that expresses spending conditions for Simplicity.
 ///
@@ -65,48 +66,64 @@ pub enum Policy<Pk: SimplicityKey> {
     Threshold(usize, Vec<Policy<Pk>>),
 }
 
-impl<Pk: SimplicityKey> Policy<Pk> {
+impl<Pk: ToXOnlyPubkey> Policy<Pk> {
     /// Serializes the policy as a Simplicity fragment, with all witness nodes unpopulated.
-    pub fn serialize_no_witness(&self) -> Arc<ConstructNode<Elements>>
+    fn serialize_no_witness<N>(&self) -> Option<N>
     where
-        Pk: ToXOnlyPubkey,
+        N: CoreConstructible + JetConstructible<Elements> + WitnessConstructible<NoWitness>,
     {
         match *self {
-            Policy::Unsatisfiable(entropy) => serialize::unsatisfiable(entropy),
-            Policy::Trivial => serialize::trivial(),
-            Policy::After(n) => serialize::after(n),
-            Policy::Older(n) => serialize::older(n),
-            Policy::Key(ref key) => serialize::key(key, NoWitness),
-            Policy::Sha256(ref hash) => serialize::sha256::<Pk, _, _>(hash, NoWitness),
+            Policy::Unsatisfiable(entropy) => Some(serialize::unsatisfiable(entropy)),
+            Policy::Trivial => Some(serialize::trivial()),
+            Policy::After(n) => Some(serialize::after(n)),
+            Policy::Older(n) => Some(serialize::older(n)),
+            Policy::Key(ref key) => Some(serialize::key(key, NoWitness)),
+            Policy::Sha256(ref hash) => Some(serialize::sha256::<Pk, _, _>(hash, NoWitness)),
             Policy::And {
                 ref left,
                 ref right,
             } => {
-                let left = left.serialize_no_witness();
-                let right = right.serialize_no_witness();
-                serialize::and(&left, &right)
+                let left = left.serialize_no_witness()?;
+                let right = right.serialize_no_witness()?;
+                Some(serialize::and(&left, &right))
             }
             Policy::Or {
                 ref left,
                 ref right,
             } => {
-                let left = left.serialize_no_witness();
-                let right = right.serialize_no_witness();
-                serialize::or(&left, &right, NoWitness)
+                let left = left.serialize_no_witness()?;
+                let right = right.serialize_no_witness()?;
+                Some(serialize::or(&left, &right, NoWitness))
             }
             Policy::Threshold(k, ref subs) => {
                 let k = u32::try_from(k).expect("can have k at most 2^32 in a threshold");
                 let subs = subs
                     .iter()
                     .map(Self::serialize_no_witness)
-                    .collect::<Vec<Arc<ConstructNode<Elements>>>>();
+                    .collect::<Option<Vec<N>>>()?;
                 let wits = iter::repeat(NoWitness)
                     .take(subs.len())
                     .collect::<Vec<NoWitness>>();
-                serialize::threshold(k, &subs, &wits)
+                Some(serialize::threshold(k, &subs, &wits))
             }
         }
     }
+
+    /// Return the program commitment of the policy.
+    pub fn commit(&self) -> Option<Arc<CommitNode<Elements>>> {
+        let construct: Arc<ConstructNode<Elements>> = self.serialize_no_witness()?;
+        let commit = construct.finalize_types().expect("policy has sound types");
+        Some(commit)
+    }
+
+    /// Return the CMR of the policy.
+    pub fn cmr(&self) -> Cmr {
+        self.serialize_no_witness()
+            .expect("CMR is defined for asm fragment")
+    }
+}
+
+impl<Pk: SimplicityKey> Policy<Pk> {
     /// Convert a policy using one kind of public key to another
     /// type of public key
     pub fn translate<T, Q, E>(&self, translator: &mut T) -> Result<Policy<Q>, E>

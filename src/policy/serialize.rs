@@ -228,9 +228,9 @@ where
 mod tests {
     use super::*;
     use crate::jet::elements::ElementsEnv;
-    use crate::node::{ConstructNode, SimpleFinalizer};
+    use crate::node::SimpleFinalizer;
     use crate::policy::Policy;
-    use crate::{BitMachine, FailEntropy, Value};
+    use crate::{BitMachine, CommitNode, FailEntropy, Value};
     use elements::bitcoin::key::XOnlyPublicKey;
     use elements::locktime::Height;
     use elements::secp256k1_zkp;
@@ -240,23 +240,21 @@ mod tests {
     fn compile(
         policy: Policy<XOnlyPublicKey>,
     ) -> (
-        Arc<ConstructNode<Elements>>,
+        Arc<CommitNode<Elements>>,
         ElementsEnv<Arc<elements::Transaction>>,
     ) {
-        let commit = policy.serialize_no_witness();
+        let commit = policy.commit().expect("no asm");
         let env = ElementsEnv::dummy();
 
         (commit, env)
     }
 
     fn execute_successful(
-        commit: &ConstructNode<Elements>,
+        commit: &CommitNode<Elements>,
         witness: Vec<Value>,
         env: &ElementsEnv<Arc<elements::Transaction>>,
     ) -> bool {
         let finalized = commit
-            .finalize_types()
-            .expect("finalize types")
             .finalize(&mut SimpleFinalizer::new(witness.into_iter().map(Arc::new)))
             .expect("finalize");
         let mut mac = BitMachine::for_program(&finalized);
@@ -290,7 +288,7 @@ mod tests {
         let signature = keypair.sign_schnorr(message);
 
         let (xonly, _) = keypair.x_only_public_key();
-        let commit = Policy::Key(xonly).serialize_no_witness();
+        let commit = Policy::Key(xonly).commit().expect("no asm");
 
         assert!(execute_successful(
             &commit,
@@ -305,13 +303,19 @@ mod tests {
         let env =
             ElementsEnv::dummy_with(elements::LockTime::Blocks(height), elements::Sequence::ZERO);
 
-        let commit = Policy::<XOnlyPublicKey>::After(41).serialize_no_witness();
+        let commit = Policy::<XOnlyPublicKey>::After(41)
+            .commit()
+            .expect("no asm");
         assert!(execute_successful(&commit, vec![], &env));
 
-        let commit = Policy::<XOnlyPublicKey>::After(42).serialize_no_witness();
+        let commit = Policy::<XOnlyPublicKey>::After(42)
+            .commit()
+            .expect("no asm");
         assert!(execute_successful(&commit, vec![], &env));
 
-        let commit = Policy::<XOnlyPublicKey>::After(43).serialize_no_witness();
+        let commit = Policy::<XOnlyPublicKey>::After(43)
+            .commit()
+            .expect("no asm");
         assert!(!execute_successful(&commit, vec![], &env));
     }
 
@@ -322,13 +326,19 @@ mod tests {
             elements::Sequence::from_consensus(42),
         );
 
-        let commit = Policy::<XOnlyPublicKey>::Older(41).serialize_no_witness();
+        let commit = Policy::<XOnlyPublicKey>::Older(41)
+            .commit()
+            .expect("no asm");
         assert!(execute_successful(&commit, vec![], &env));
 
-        let commit = Policy::<XOnlyPublicKey>::Older(42).serialize_no_witness();
+        let commit = Policy::<XOnlyPublicKey>::Older(42)
+            .commit()
+            .expect("no asm");
         assert!(execute_successful(&commit, vec![], &env));
 
-        let commit = Policy::<XOnlyPublicKey>::Older(43).serialize_no_witness();
+        let commit = Policy::<XOnlyPublicKey>::Older(43)
+            .commit()
+            .expect("no asm");
         assert!(!execute_successful(&commit, vec![], &env));
     }
 

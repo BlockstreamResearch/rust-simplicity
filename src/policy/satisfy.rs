@@ -308,10 +308,8 @@ mod tests {
 
         assert!(policy.satisfy(&satisfier).is_err());
 
-        let commit = policy.serialize_no_witness();
+        let commit = policy.commit().expect("no asm");
         let program = commit
-            .finalize_types()
-            .expect("finalize types")
             .finalize(&mut SimpleFinalizer::new(std::iter::empty()))
             .expect("finalize");
         let mut mac = BitMachine::for_program(&program);
