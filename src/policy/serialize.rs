@@ -74,7 +74,7 @@ where
     N::comp(&const_n, &check_lock_distance).expect("consistent types")
 }
 
-fn compute_sha256<N>(witness256: &N) -> N
+pub fn compute_sha256<N>(witness256: &N) -> N
 where
     N: CoreConstructible + JetConstructible<Elements>,
 {
@@ -86,7 +86,7 @@ where
     N::comp(&digest_ctx, &finalize).expect("consistent types")
 }
 
-fn verify_bexp<N>(input: &N, bexp: &N) -> N
+pub fn verify_bexp<N>(input: &N, bexp: &N) -> N
 where
     N: CoreConstructible + JetConstructible<Elements>,
 {
@@ -117,7 +117,7 @@ where
     N::comp(left, right).expect("consistent types")
 }
 
-fn selector<N, W>(witness_bit: W) -> N
+pub fn selector<N, W>(witness_bit: W) -> N
 where
     N: CoreConstructible + WitnessConstructible<W>,
 {
@@ -141,7 +141,7 @@ where
 /// child: 1 → 1
 ///
 /// summand(child): 1 → 2^32
-fn thresh_summand<N, W>(child: &N, witness_bit: W) -> N
+pub fn thresh_summand<N, W>(child: &N, witness_bit: W) -> N
 where
     N: CoreConstructible + WitnessConstructible<W>,
 {
@@ -169,7 +169,7 @@ where
 /// acc: 1 → 2^32, summand: 1 → 2^32
 ///
 /// add(sum, summand): 1 → 2^32
-fn thresh_add<N>(sum: &N, summand: &N) -> N
+pub fn thresh_add<N>(sum: &N, summand: &N) -> N
 where
     N: CoreConstructible + JetConstructible<Elements>,
 {
@@ -191,7 +191,7 @@ where
 }
 
 /// verify(sum): 1 → 1
-fn thresh_verify<N>(sum: &N, k: u32) -> N
+pub fn thresh_verify<N>(sum: &N, k: u32) -> N
 where
     N: CoreConstructible + JetConstructible<Elements>,
 {
