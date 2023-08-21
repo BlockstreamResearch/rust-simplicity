@@ -14,13 +14,33 @@
 
 //! Serialization of Policy as Simplicity
 
-use crate::jet::Elements;
+use crate::jet::{Elements, Jet};
 use crate::node::{CoreConstructible, JetConstructible, WitnessConstructible};
-use crate::ToXOnlyPubkey;
+use crate::{Cmr, ConstructNode, ToXOnlyPubkey};
 use crate::{FailEntropy, Value};
 
 use std::convert::TryFrom;
 use std::sync::Arc;
+
+/// Constructors for the assembly fragment.
+pub trait AssemblyConstructible: Sized {
+    /// Construct the assembly fragment with the given CMR.
+    ///
+    /// The construction fails if the CMR alone is not enough information to construct the type.
+    fn assembly(cmr: Cmr) -> Option<Self>;
+}
+
+impl AssemblyConstructible for Cmr {
+    fn assembly(cmr: Cmr) -> Option<Self> {
+        Some(cmr)
+    }
+}
+
+impl<J: Jet> AssemblyConstructible for Arc<ConstructNode<J>> {
+    fn assembly(_cmr: Cmr) -> Option<Self> {
+        None
+    }
+}
 
 pub fn unsatisfiable<N>(entropy: FailEntropy) -> N
 where

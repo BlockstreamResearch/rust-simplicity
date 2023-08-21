@@ -28,7 +28,7 @@ use crate::jet::Elements;
 use crate::node::{
     ConstructNode, CoreConstructible, JetConstructible, NoWitness, WitnessConstructible,
 };
-use crate::policy::serialize;
+use crate::policy::serialize::{self, AssemblyConstructible};
 use crate::{Cmr, CommitNode, FailEntropy};
 use crate::{SimplicityKey, ToXOnlyPubkey, Translator};
 
@@ -64,13 +64,18 @@ pub enum Policy<Pk: SimplicityKey> {
     },
     /// Satisfy exactly `k` of the given sub-policies
     Threshold(usize, Vec<Policy<Pk>>),
+    /// Satisfy the program with the given CMR
+    Assembly(Cmr),
 }
 
 impl<Pk: ToXOnlyPubkey> Policy<Pk> {
     /// Serializes the policy as a Simplicity fragment, with all witness nodes unpopulated.
     fn serialize_no_witness<N>(&self) -> Option<N>
     where
-        N: CoreConstructible + JetConstructible<Elements> + WitnessConstructible<NoWitness>,
+        N: CoreConstructible
+            + JetConstructible<Elements>
+            + WitnessConstructible<NoWitness>
+            + AssemblyConstructible,
     {
         match *self {
             Policy::Unsatisfiable(entropy) => Some(serialize::unsatisfiable(entropy)),
@@ -106,6 +111,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                     .collect::<Vec<NoWitness>>();
                 Some(serialize::threshold(k, &subs, &wits))
             }
+            Policy::Assembly(cmr) => N::assembly(cmr),
         }
     }
 
@@ -157,6 +163,7 @@ impl<Pk: SimplicityKey> Policy<Pk> {
                 left: Arc::new(left.translate(translator)?),
                 right: Arc::new(right.translate(translator)?),
             }),
+            Policy::Assembly(cmr) => Ok(Policy::Assembly(cmr)),
         }
     }
 
@@ -265,6 +272,7 @@ impl<Pk: SimplicityKey> fmt::Debug for Policy<Pk> {
                 }
                 f.write_str(")")
             }
+            Policy::Assembly(cmr) => write!(f, "asm({})", cmr),
         }
     }
 }
