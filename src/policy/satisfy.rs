@@ -89,7 +89,7 @@ impl<Pk: ToXOnlyPubkey> Satisfier<Pk> for elements::LockTime {
 }
 
 impl<Pk: ToXOnlyPubkey> Policy<Pk> {
-    pub fn satisfy_internal<S: Satisfier<Pk>>(
+    fn satisfy_internal<S: Satisfier<Pk>>(
         &self,
         satisfier: &S,
     ) -> Result<Arc<WitnessNode<Elements>>, Error> {
