@@ -368,7 +368,7 @@ mod tests {
     #[test]
     fn fixed_const_word_cmr() {
         // Checked against C implementation
-        let bit0 = Value::SumL(Box::new(Value::Unit));
+        let bit0 = Value::sum_l(Value::unit());
         #[rustfmt::skip]
         assert_eq!(
             Cmr::const_word(&bit0),

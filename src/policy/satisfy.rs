@@ -99,7 +99,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
             Policy::Key(ref key) => {
                 let sig_wit = satisfier
                     .lookup_tap_leaf_script_sig(key, &TapLeafHash::all_zeros())
-                    .map(|sig| Arc::new(Value::u512_from_slice(sig.sig.as_ref())));
+                    .map(|sig| Value::u512_from_slice(sig.sig.as_ref()));
                 super::serialize::key(key, sig_wit)
             }
             Policy::After(n) => {
@@ -122,7 +122,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
             Policy::Sha256(ref hash) => {
                 let preimage_wit = satisfier
                     .lookup_sha256(hash)
-                    .map(|preimage| Arc::new(Value::u256_from_slice(preimage.as_ref())));
+                    .map(|preimage| Value::u256_from_slice(preimage.as_ref()));
                 super::serialize::sha256::<Pk, _, _>(hash, preimage_wit)
             }
             Policy::And {
@@ -154,9 +154,9 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                 };
 
                 if take_right {
-                    super::serialize::or(&left.pruned(), &right, Some(Arc::new(Value::u1(1))))
+                    super::serialize::or(&left.pruned(), &right, Some(Value::u1(1)))
                 } else {
-                    super::serialize::or(&left, &right.pruned(), Some(Arc::new(Value::u1(0))))
+                    super::serialize::or(&left, &right.pruned(), Some(Value::u1(0)))
                 }
                 .prune_and_retype()
             }
@@ -168,7 +168,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                 let mut nodes = nodes?;
                 let mut costs = vec![Cost::CONSENSUS_MAX; subs.len()];
                 // 0 means skip, 1 means don't skip
-                let mut witness_bits = vec![Some(Arc::new(Value::u1(0))); subs.len()];
+                let mut witness_bits = vec![Some(Value::u1(0)); subs.len()];
 
                 for (cost, node) in costs.iter_mut().zip(nodes.iter()) {
                     if !node.must_prune() {
@@ -179,7 +179,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                 // Sort by witness cost and mark everything except the cheapest k as to-prune
                 let mut sorted_costs: Vec<_> = costs.iter().copied().enumerate().collect();
                 sorted_costs.sort_by_key(|pair| pair.1);
-                let b1 = Arc::new(Value::u1(1));
+                let b1 = Value::u1(1);
                 let mut threshold_failed = false;
                 for &(idx, _) in &sorted_costs[..k] {
                     if nodes[idx].must_prune() {
@@ -510,7 +510,7 @@ mod tests {
             let witness = to_witness(&program);
             assert_eq!(2, witness.len());
 
-            assert_eq!(Value::u1(bit as u8), **witness[0]);
+            assert_eq!(Value::u1(bit as u8), *witness[0]);
             let preimage_bytes = witness[1].try_to_bytes().expect("to bytes");
             let witness_preimage =
                 Preimage32::try_from(preimage_bytes.as_slice()).expect("to array");
@@ -572,7 +572,7 @@ mod tests {
 
             let mut witidx = 0;
             for (bit_n, bit) in bits.iter().copied().enumerate() {
-                assert_eq!(**witness[witidx], Value::u1(bit.into()));
+                assert_eq!(*witness[witidx], Value::u1(bit.into()));
                 witidx += 1;
                 if bit {
                     let preimage_bytes = witness[witidx].try_to_bytes().expect("to bytes");
@@ -656,7 +656,7 @@ mod tests {
 
         for a in 0..2 {
             for b in 0..2 {
-                assert_branch(Arc::new(Value::u8(a)), Arc::new(Value::u8(b)))
+                assert_branch(Value::u8(a), Value::u8(b))
             }
         }
     }

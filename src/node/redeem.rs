@@ -250,10 +250,7 @@ impl<J: Jet> RedeemNode<J> {
                 _: &NoWitness,
             ) -> Result<Arc<Value>, Self::Error> {
                 let target_ty = data.node.data.arrow().target.finalize()?;
-                self.bits
-                    .read_value(&target_ty)
-                    .map(Arc::new)
-                    .map_err(Error::from)
+                self.bits.read_value(&target_ty).map_err(Error::from)
             }
 
             fn convert_disconnect(
@@ -436,8 +433,8 @@ mod tests {
         let eqwits_prog = CommitNode::<Core>::decode(&mut iter).unwrap();
 
         let eqwits_final = eqwits_prog
-            .finalize(&mut SimpleFinalizer::new(std::iter::repeat(Arc::new(
-                Value::u32(0xDEADBEEF),
+            .finalize(&mut SimpleFinalizer::new(std::iter::repeat(Value::u32(
+                0xDEADBEEF,
             ))))
             .unwrap();
         let output = eqwits_final.encode_to_vec();

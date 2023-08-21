@@ -265,7 +265,7 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
         } else {
             let depth = bits.read_natural(Some(32))?;
             let word = decode_power_of_2(bits, 1 << (depth - 1))?;
-            Ok(DecodeNode::Word(Arc::new(word)))
+            Ok(DecodeNode::Word(word))
         }
     } else {
         // Bits 2 and 3: code
@@ -326,9 +326,9 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
 pub fn decode_power_of_2<I: Iterator<Item = bool>>(
     iter: &mut I,
     exp: usize,
-) -> Result<Value, Error> {
+) -> Result<Arc<Value>, Error> {
     struct StackElem {
-        value: Value,
+        value: Arc<Value>,
         width: usize,
     }
 
@@ -347,7 +347,7 @@ pub fn decode_power_of_2<I: Iterator<Item = bool>>(
             let right = stack.pop().unwrap();
             let left = stack.pop().unwrap();
             stack.push(StackElem {
-                value: Value::Prod(Box::new(left.value), Box::new(right.value)),
+                value: Value::prod(left.value, right.value),
                 width: left.width * 2,
             });
         }

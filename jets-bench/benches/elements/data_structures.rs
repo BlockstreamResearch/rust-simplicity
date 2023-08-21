@@ -8,6 +8,7 @@ pub use simplicity::hashes::sha256;
 use simplicity::{
     bitcoin, elements, hashes::Hash, hex::FromHex, types::Type, BitIter, Error, Value,
 };
+use std::sync::Arc;
 
 /// Engine to compute SHA256 hash function.
 /// We can't use hashes::sha256::HashEngine because it does not accept
@@ -51,7 +52,7 @@ impl SimplicityCtx8 {
 /// # Panics:
 ///
 /// Panics if the length of the slice is >= 2^(n + 1) bytes
-pub fn var_len_buf_from_slice(v: &[u8], mut n: usize) -> Result<Value, Error> {
+pub fn var_len_buf_from_slice(v: &[u8], mut n: usize) -> Result<Arc<Value>, Error> {
     // Simplicity consensus rule for n < 16 while reading buffers.
     assert!(n < 16);
     assert!(v.len() < (1 << (n + 1)));
@@ -62,17 +63,17 @@ pub fn var_len_buf_from_slice(v: &[u8], mut n: usize) -> Result<Value, Error> {
         let v = if v.len() >= (1 << (n + 1)) {
             let ty = &types[n];
             let val = iter.read_value(&ty.final_data().unwrap())?;
-            Value::SumR(Box::new(val))
+            Value::sum_r(val)
         } else {
-            Value::SumL(Box::new(Value::Unit))
+            Value::sum_l(Value::unit())
         };
         res = match res {
-            Some(prod) => Some(Value::Prod(Box::new(prod), Box::new(v))),
+            Some(prod) => Some(Value::prod(prod, v)),
             None => Some(v),
         };
         n -= 1;
     }
-    Ok(res.unwrap_or(Value::Unit))
+    Ok(res.unwrap_or(Value::unit()))
 }
 
 // Field order: 2^256 - 2^32 - 2^9 - 2^8 - 2^7 - 2^6 - 2^4 - 1
@@ -150,11 +151,11 @@ pub struct SimplicityPoint(pub bitcoin::secp256k1::PublicKey);
 /// Trait defining how to encode a data structure into a Simplicity value
 /// This is then used to write these vales into the bit machine.
 pub(crate) trait SimplicityEncode {
-    fn value(&self) -> Value;
+    fn value(&self) -> Arc<Value>;
 }
 
 impl SimplicityEncode for SimplicityCtx8 {
-    fn value(&self) -> Value {
+    fn value(&self) -> Arc<Value> {
         let buf_len = self.length % 512;
         let buf = var_len_buf_from_slice(&self.buffer[..buf_len], 8).unwrap();
         let len = Value::u64(self.length as u64);
@@ -165,23 +166,20 @@ impl SimplicityEncode for SimplicityCtx8 {
             .flat_map(|x| x.to_be_bytes())
             .collect::<Vec<u8>>();
         let mid_state = Value::u256_from_slice(&arr);
-        Value::Prod(
-            Box::new(buf),
-            Box::new(Value::Prod(Box::new(len), Box::new(mid_state))),
-        )
+        Value::prod(buf, Value::prod(len, mid_state))
     }
 }
 
 impl SimplicityEncode for elements::OutPoint {
-    fn value(&self) -> Value {
+    fn value(&self) -> Arc<Value> {
         let txid = Value::u256_from_slice(&self.txid[..]);
         let vout = Value::u32(self.vout);
-        Value::Prod(Box::new(txid), Box::new(vout))
+        Value::prod(txid, vout)
     }
 }
 
 impl SimplicityEncode for elements::confidential::Asset {
-    fn value(&self) -> Value {
+    fn value(&self) -> Arc<Value> {
         match self {
             elements::confidential::Asset::Explicit(a) => {
                 Value::sum_r(Value::u256_from_slice(&a.into_inner()[..]))
@@ -198,7 +196,7 @@ impl SimplicityEncode for elements::confidential::Asset {
 }
 
 impl SimplicityEncode for elements::confidential::Value {
-    fn value(&self) -> Value {
+    fn value(&self) -> Arc<Value> {
         match self {
             elements::confidential::Value::Explicit(v) => Value::sum_r(Value::u64(*v)),
             elements::confidential::Value::Confidential(v) => {
@@ -213,7 +211,7 @@ impl SimplicityEncode for elements::confidential::Value {
 }
 
 impl SimplicityEncode for elements::confidential::Nonce {
-    fn value(&self) -> Value {
+    fn value(&self) -> Arc<Value> {
         match self {
             elements::confidential::Nonce::Explicit(n) => {
                 Value::sum_r(Value::sum_r(Value::u256_from_slice(&n[..])))
@@ -224,19 +222,19 @@ impl SimplicityEncode for elements::confidential::Nonce {
                 let y_pt = Value::u1((ser[0] & 1 == 1) as u8);
                 Value::sum_r(Value::sum_l(Value::prod(y_pt, x_pt)))
             }
-            elements::confidential::Nonce::Null => Value::sum_l(Value::Unit),
+            elements::confidential::Nonce::Null => Value::sum_l(Value::unit()),
         }
     }
 }
 
 impl SimplicityEncode for SimplicityFe {
-    fn value(&self) -> Value {
+    fn value(&self) -> Arc<Value> {
         Value::u256_from_slice(self.as_inner())
     }
 }
 
 impl SimplicityEncode for SimplicityGe {
-    fn value(&self) -> Value {
+    fn value(&self) -> Arc<Value> {
         let ser = match &self {
             SimplicityGe::ValidPoint(p) => p.serialize_uncompressed(),
             SimplicityGe::InvalidPoint(x, y) => {
@@ -254,7 +252,7 @@ impl SimplicityEncode for SimplicityGe {
 }
 
 impl SimplicityEncode for SimplicityGej {
-    fn value(&self) -> Value {
+    fn value(&self) -> Arc<Value> {
         let ge = self.ge.value();
         let z = self.z.value();
         Value::prod(ge, z)
@@ -262,13 +260,13 @@ impl SimplicityEncode for SimplicityGej {
 }
 
 impl SimplicityEncode for SimplicityScalar {
-    fn value(&self) -> Value {
+    fn value(&self) -> Arc<Value> {
         Value::u256_from_slice(&self.0[..])
     }
 }
 
 impl SimplicityEncode for SimplicityPoint {
-    fn value(&self) -> Value {
+    fn value(&self) -> Arc<Value> {
         let ser = self.0.serialize(); // compressed
         let y_pt = Value::u1((ser[0] & 1 == 1) as u8);
         let x_pt = Value::u256_from_slice(&ser[1..]);
@@ -399,9 +397,9 @@ impl BenchSample for SimplicityPoint {
 }
 
 // Sample genesis pegin with 50% probability
-pub fn genesis_pegin() -> Value {
+pub fn genesis_pegin() -> Arc<Value> {
     if rand::random() {
-        Value::sum_l(Value::Unit)
+        Value::sum_l(Value::unit())
     } else {
         let genesis_hash = rand::random::<[u8; 32]>();
         Value::sum_r(Value::u256_from_slice(&genesis_hash[..]))

@@ -27,6 +27,7 @@ use crate::{analysis, types};
 use crate::{Cmr, FailEntropy, Value};
 use frame::Frame;
 use std::fmt;
+use std::sync::Arc;
 use std::{cmp, error};
 
 /// An execution context for a Simplicity program
@@ -57,9 +58,9 @@ impl BitMachine {
 
     #[cfg(test)]
     pub fn test_exec<J: Jet>(
-        program: std::sync::Arc<crate::node::ConstructNode<J>>,
+        program: Arc<crate::node::ConstructNode<J>>,
         env: &J::Environment,
-    ) -> Result<Value, ExecutionError> {
+    ) -> Result<Arc<Value>, ExecutionError> {
         use crate::node::SimpleFinalizer;
 
         let prog = program
@@ -204,7 +205,7 @@ impl BitMachine {
         &mut self,
         program: &RedeemNode<J>,
         env: &J::Environment,
-    ) -> Result<Value, ExecutionError> {
+    ) -> Result<Arc<Value>, ExecutionError> {
         enum CallStack<'a, J: Jet> {
             Goto(&'a RedeemNode<J>),
             MoveFrame,
@@ -395,7 +396,7 @@ impl BitMachine {
 
             Ok(value)
         } else {
-            Ok(Value::Unit)
+            Ok(Value::unit())
         }
     }
 
@@ -513,7 +514,7 @@ mod tests {
         cmr_str: &str,
         amr_str: &str,
         imr_str: &str,
-    ) -> Result<Value, ExecutionError> {
+    ) -> Result<Arc<Value>, ExecutionError> {
         let prog_hex = prog_bytes.as_hex();
 
         let mut iter = BitIter::from(prog_bytes);
@@ -577,6 +578,6 @@ mod tests {
             "7d38d21f798c48af14d16884856d45a2b4b25a3c6e633b013bb7d39b00dfaed8",
             "8b095f1591f88f508a2021cd1ae25608c631a3fe4c51cd7b755d3653a0ba0a5f",
         );
-        assert_eq!(res.unwrap(), Value::Unit);
+        assert_eq!(res.unwrap(), Value::unit());
     }
 }

@@ -175,29 +175,29 @@ fn bench(c: &mut Criterion) {
 
     let mut rng = ThreadRng::default();
 
-    fn eq_256() -> Value {
+    fn eq_256() -> Arc<Value> {
         let v  = rand::random::<[u8; 32]>();
         Value::prod(Value::u256_from_slice(&v), Value::u256_from_slice(&v))
     }
 
-    fn value_64_bytes() -> Value {
+    fn value_64_bytes() -> Arc<Value> {
         let (a, b) = (rand::random::<[u8; 32]>(), rand::random::<[u8; 32]>());
         Value::prod(Value::u256_from_slice(&a), Value::u256_from_slice(&b))
     }
 
-    fn value_128_bytes() -> Value {
+    fn value_128_bytes() -> Arc<Value> {
         Value::prod(value_64_bytes(), value_64_bytes())
     }
 
-    fn value_256_bytes() -> Value {
+    fn value_256_bytes() -> Arc<Value> {
         Value::prod(value_128_bytes(), value_128_bytes())
     }
 
-    fn value_512_bytes() -> Value {
+    fn value_512_bytes() -> Arc<Value> {
         Value::prod(value_256_bytes(), value_256_bytes())
     }
 
-    fn ctx8_add_n(n: usize) -> Value {
+    fn ctx8_add_n(n: usize) -> Arc<Value> {
         let v = match n {
             1 => Value::u8(rand::random::<u8>()),
             2 => Value::u16(rand::random::<u16>()),
@@ -227,48 +227,48 @@ fn bench(c: &mut Criterion) {
         Value::prod(ctx8, v)
     }
 
-    fn sequence() -> Value {
+    fn sequence() -> Arc<Value> {
         let v = rand::random::<u32>();
         // set the first bit to zero
         Value::u32(v & !(1 << 31))
     }
 
-    fn fe_pair() -> Value {
+    fn fe_pair() -> Arc<Value> {
         let (a, b) = (SimplicityFe::sample().value(), SimplicityFe::sample().value());
         Value::prod(a, b)
     }
 
-    fn scalar_pair() -> Value {
+    fn scalar_pair() -> Arc<Value> {
         let (a, b) = (SimplicityScalar::sample().value(), SimplicityScalar::sample().value());
         Value::prod(a, b)
     }
 
-    fn gej_fe_pair() -> Value {
+    fn gej_fe_pair() -> Arc<Value> {
         let (a, b) = (SimplicityGej::sample().value(), SimplicityFe::sample().value());
         Value::prod(a, b)
     }
 
-    fn fe_gej_pair() -> Value {
+    fn fe_gej_pair() -> Arc<Value> {
         let (a, b) = (SimplicityFe::sample().value(), SimplicityGej::sample().value());
         Value::prod(a, b)
     }
 
-    fn gej_pair() -> Value {
+    fn gej_pair() -> Arc<Value> {
         let (a, b) = (SimplicityGej::sample().value(), SimplicityGej::sample().value());
         Value::prod(a, b)
     }
 
-    fn gej_ge_pair() -> Value {
+    fn gej_ge_pair() -> Arc<Value> {
         let (a, b) = (SimplicityGej::sample().value(), SimplicityGe::sample().value());
         Value::prod(a, b)
     }
 
-    fn scalar_gej_pair() -> Value {
+    fn scalar_gej_pair() -> Arc<Value> {
         let (a, b) = (SimplicityScalar::sample().value(), SimplicityGej::sample().value());
         Value::prod(a, b)
     }
 
-    fn scalar_gej_scalar_pair() -> Value {
+    fn scalar_gej_scalar_pair() -> Arc<Value> {
         let (a, b, c) = (
             SimplicityScalar::sample().value(),
             SimplicityGej::sample().value(),
@@ -277,7 +277,7 @@ fn bench(c: &mut Criterion) {
         Value::prod(Value::prod(a, b), c)
     }
 
-    fn linear_verify() -> Value {
+    fn linear_verify() -> Arc<Value> {
         let (a, b, c, d) = (
             SimplicityScalar::sample().value(),
             SimplicityGe::sample().value(),
@@ -287,7 +287,7 @@ fn bench(c: &mut Criterion) {
         Value::prod(Value::prod(Value::prod(a, b), c), d)
     }
 
-    fn point_verify() -> Value {
+    fn point_verify() -> Arc<Value> {
         let (a, b, c, d) = (
             SimplicityScalar::sample().value(),
             SimplicityPoint::sample().value(),
@@ -297,7 +297,7 @@ fn bench(c: &mut Criterion) {
         Value::prod(Value::prod(Value::prod(a, b), c), d)
     }
 
-    fn bip_0340() -> Value {
+    fn bip_0340() -> Arc<Value> {
         let secp_ctx = bitcoin::secp256k1::Secp256k1::new();
         let keypair = bitcoin::key::KeyPair::new(&secp_ctx, &mut thread_rng());
         let xpk = bitcoin::key::XOnlyPublicKey::from_keypair(&keypair);
@@ -321,7 +321,7 @@ fn bench(c: &mut Criterion) {
         sha256::Hash::from_engine(engine)
     }
 
-    fn check_sig_verify() -> Value {
+    fn check_sig_verify() -> Arc<Value> {
         let secp_ctx = bitcoin::secp256k1::Secp256k1::signing_only();
         let keypair = bitcoin::key::KeyPair::new(&secp_ctx, &mut thread_rng());
         let xpk = bitcoin::key::XOnlyPublicKey::from_keypair(&keypair);
@@ -719,36 +719,36 @@ fn bench(c: &mut Criterion) {
     }
 
     // Input to outpoint hash jet
-    fn outpoint_hash() -> Value {
+    fn outpoint_hash() -> Arc<Value> {
         let ctx8 = SimplicityCtx8::with_len(511).value();
         let genesis_pegin = genesis_pegin();
         let outpoint = elements::OutPoint::sample().value();
         Value::prod(ctx8, Value::prod(genesis_pegin, outpoint))
     }
 
-    fn asset_amount_hash() -> Value {
+    fn asset_amount_hash() -> Arc<Value> {
         let ctx8 = SimplicityCtx8::with_len(511).value();
         let asset = confidential::Asset::sample().value();
         let amount = confidential::Value::sample().value();
         Value::prod(ctx8, Value::prod(asset, amount))
     }
 
-    fn nonce_hash() -> Value {
+    fn nonce_hash() -> Arc<Value> {
         let ctx8 = SimplicityCtx8::with_len(511).value();
         let nonce = confidential::Nonce::sample().value();
         Value::prod(ctx8, nonce)
     }
 
-    fn annex_hash() -> Value {
+    fn annex_hash() -> Arc<Value> {
         let ctx8 = SimplicityCtx8::with_len(511).value();
         let annex = if rand::random() {
             Value::sum_r(Value::u256_from_slice(&rand::random::<[u8; 32]>()))
         } else {
-            Value::sum_l(Value::Unit)
+            Value::sum_l(Value::unit())
         };
         Value::prod(ctx8, annex)
     }
-    let arr: [(Elements, Arc<dyn Fn() -> Value>); 4] = [
+    let arr: [(Elements, Arc<dyn Fn() -> Arc<Value>>); 4] = [
         (Elements::OutpointHash, Arc::new(&outpoint_hash)),
         (Elements::AssetAmountHash, Arc::new(&asset_amount_hash)),
         (Elements::NonceHash, Arc::new(nonce_hash)),
@@ -780,7 +780,7 @@ fn bench(c: &mut Criterion) {
     }
 
     // Operations that use tx input or output index.
-    fn index_value(bound: u32) -> Value {
+    fn index_value(bound: u32) -> Arc<Value> {
         let v = rand::random::<u32>() % bound;
         Value::u32(v)
     }
