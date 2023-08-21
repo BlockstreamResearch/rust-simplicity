@@ -77,7 +77,7 @@ impl<Pk: SimplicityKey> Policy<Pk> {
             Policy::After(n) => serialize::after(n),
             Policy::Older(n) => serialize::older(n),
             Policy::Key(ref key) => serialize::key(key, NoWitness),
-            Policy::Sha256(ref hash) => serialize::sha256::<_, Pk>(hash, NoWitness),
+            Policy::Sha256(ref hash) => serialize::sha256::<Pk, _, _>(hash, NoWitness),
             Policy::And {
                 ref left,
                 ref right,

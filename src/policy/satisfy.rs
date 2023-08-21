@@ -90,7 +90,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                 super::serialize::key(key, sig_wit)
             }
             Policy::After(n) => {
-                let node = super::serialize::after(n);
+                let node = super::serialize::after::<Arc<_>>(n);
                 let height = Height::from_consensus(n).expect("timelock is valid");
                 if satisfier.check_after(elements::LockTime::Blocks(height)) {
                     node
@@ -99,7 +99,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                 }
             }
             Policy::Older(n) => {
-                let node = super::serialize::older(n);
+                let node = super::serialize::older::<Arc<_>>(n);
                 if satisfier.check_older(elements::Sequence((n).into())) {
                     node
                 } else {
@@ -110,7 +110,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                 let preimage_wit = satisfier
                     .lookup_sha256(hash)
                     .map(|preimage| Arc::new(Value::u256_from_slice(preimage.as_ref())));
-                super::serialize::sha256::<_, Pk>(hash, preimage_wit)
+                super::serialize::sha256::<Pk, _, _>(hash, preimage_wit)
             }
             Policy::And {
                 ref left,
