@@ -7,7 +7,7 @@ use simplicity::ffi::CFrameItem;
 use simplicity::types::{self, CompleteBound};
 use simplicity::Value;
 
-pub fn random_value(ty: &types::Final, rng: &mut ThreadRng) -> Value {
+pub fn random_value(ty: &types::Final, rng: &mut ThreadRng) -> Arc<Value> {
     enum StackItem<'a> {
         Type(&'a types::Final),
         LeftSum,
@@ -21,7 +21,7 @@ pub fn random_value(ty: &types::Final, rng: &mut ThreadRng) -> Value {
     while let Some(top) = call_stack.pop() {
         match top {
             StackItem::Type(ty) => match &ty.bound() {
-                CompleteBound::Unit => value_stack.push(Value::Unit),
+                CompleteBound::Unit => value_stack.push(Value::unit()),
                 CompleteBound::Sum(left, right) => {
                     if rng.gen() {
                         call_stack.push(StackItem::LeftSum);
@@ -63,10 +63,10 @@ pub enum InputSampling {
     Random,
     /// A given, fixed bit string (whose length is multiple of 8)
     /// Worst-case inputs
-    Fixed(Value),
+    Fixed(Arc<Value>),
     /// Custom sampling method, read first src type bits from input
     /// Useful for cases where we want to sample inputs according to some distributions
-    Custom(Arc<dyn Fn() -> Value>),
+    Custom(Arc<dyn Fn() -> Arc<Value>>),
 }
 
 impl InputSampling {

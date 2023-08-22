@@ -112,8 +112,8 @@ mod tests {
     fn test_ffi_jet() {
         let two_words = Arc::<ConstructNode<_>>::comp(
             &Arc::<ConstructNode<_>>::pair(
-                &Arc::<ConstructNode<_>>::const_word(Arc::new(Value::u32(2))),
-                &Arc::<ConstructNode<_>>::const_word(Arc::new(Value::u32(16))),
+                &Arc::<ConstructNode<_>>::const_word(Value::u32(2)),
+                &Arc::<ConstructNode<_>>::const_word(Value::u32(16)),
             )
             .unwrap(),
             &Arc::<ConstructNode<_>>::jet(Core::Add32),
@@ -121,9 +121,9 @@ mod tests {
         .unwrap();
         assert_eq!(
             BitMachine::test_exec(two_words, &()).expect("executing"),
-            Value::Prod(
-                Box::new(Value::u1(0)),       // carry bit
-                Box::new(Value::u32(2 + 16)), // result
+            Value::prod(
+                Value::u1(0),       // carry bit
+                Value::u32(2 + 16), // result
             ),
         );
     }
@@ -131,13 +131,13 @@ mod tests {
     #[test]
     fn test_simple() {
         let two_words = Arc::<ConstructNode<Core>>::pair(
-            &Arc::<ConstructNode<_>>::const_word(Arc::new(Value::u32(2))),
-            &Arc::<ConstructNode<_>>::const_word(Arc::new(Value::u16(16))),
+            &Arc::<ConstructNode<_>>::const_word(Value::u32(2)),
+            &Arc::<ConstructNode<_>>::const_word(Value::u16(16)),
         )
         .unwrap();
         assert_eq!(
             BitMachine::test_exec(two_words, &()).expect("executing"),
-            Value::Prod(Box::new(Value::u32(2)), Box::new(Value::u16(16))),
+            Value::prod(Value::u32(2), Value::u16(16)),
         );
     }
 }

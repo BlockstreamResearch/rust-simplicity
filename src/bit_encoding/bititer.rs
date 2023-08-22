@@ -23,6 +23,7 @@
 
 use crate::{decode, types};
 use crate::{Cmr, FailEntropy, Value};
+use std::sync::Arc;
 
 /// Attempted to read from a bit iterator, but there was no more data
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -192,7 +193,7 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
     }
 
     /// Decode a value from bits, based on the given type.
-    pub fn read_value(&mut self, ty: &types::Final) -> Result<Value, EarlyEndOfStreamError> {
+    pub fn read_value(&mut self, ty: &types::Final) -> Result<Arc<Value>, EarlyEndOfStreamError> {
         enum State<'a> {
             ProcessType(&'a types::Final),
             DoSumL,
@@ -205,7 +206,7 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
         while let Some(state) = stack.pop() {
             match state {
                 State::ProcessType(ty) => match ty.bound() {
-                    types::CompleteBound::Unit => result_stack.push(Value::Unit),
+                    types::CompleteBound::Unit => result_stack.push(Value::unit()),
                     types::CompleteBound::Sum(ref l, ref r) => {
                         if self.read_bit()? {
                             stack.push(State::DoSumR);
@@ -223,16 +224,16 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
                 },
                 State::DoSumL => {
                     let val = result_stack.pop().unwrap();
-                    result_stack.push(Value::SumL(Box::new(val)));
+                    result_stack.push(Value::sum_l(val));
                 }
                 State::DoSumR => {
                     let val = result_stack.pop().unwrap();
-                    result_stack.push(Value::SumR(Box::new(val)));
+                    result_stack.push(Value::sum_r(val));
                 }
                 State::DoProduct => {
                     let val_r = result_stack.pop().unwrap();
                     let val_l = result_stack.pop().unwrap();
-                    result_stack.push(Value::Prod(Box::new(val_l), Box::new(val_r)));
+                    result_stack.push(Value::prod(val_l, val_r));
                 }
             }
         }

@@ -23,26 +23,39 @@ use crate::dag::{Dag, DagLike, NoSharing};
 use std::convert::TryInto;
 use std::fmt;
 use std::hash::Hash;
+use std::sync::Arc;
 
-/// Simplicity value.
+/// Value of some type.
 ///
-/// _Unit_ is the base value and contains no information.
+/// The _unit value_ is the only value of the _unit type_.
+/// This is the basis for everything we are doing.
+/// Because there is only a single unit value, there is no information contained in it.
+/// Instead, we wrap unit values in sum and product values to encode information.
 ///
-/// The zero bit is represented as the _left sum_ of unit,
-/// and the one bit is represented as the _right sum_ of unit.
+/// A _sum value_ wraps another value.
+/// The _left sum value_ `L(a)` wraps a value `a` from the _left type_ `A`.
+/// The _right sum value_ `R(b)` wraps a value `b` from the _right type_ `B`.
+/// The type of the sum value is the _sum type_ `A + B` of the left type and the right type.
 ///
-/// Bitstrings are represented as a tree of _products_ (a.k.a. a tuple)
-/// with sums of unit as its leaves (a.k.a. bits).
+/// We represent the false bit as a left value that wraps a unit value.
+/// The true bit is represented as a right value that wraps a unit value.
+///
+/// A _product value_ `(a, b)` wraps two values:
+/// a value `a` from the _left type_ `A` and a value `b` from the _right type_ `B`.
+/// The type of the product value is the _product type_ `A × B` of the left type and the right type.
+///
+/// We represent bit strings (tuples of bits) as trees of nested product values
+/// that have bit values (sum values wrapping the unit value) at their leaves.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Value {
     /// Unit value
     Unit,
-    /// Left sum of some value
-    SumL(Box<Value>),
-    /// Right sum of some value
-    SumR(Box<Value>),
-    /// Product of two values
-    Prod(Box<Value>, Box<Value>),
+    /// Sum value that wraps a left value
+    SumL(Arc<Value>),
+    /// Sum value that wraps a right value
+    SumR(Arc<Value>),
+    /// Product value that wraps a left and a right value
+    Prod(Arc<Value>, Arc<Value>),
 }
 
 impl<'a> DagLike for &'a Value {
@@ -62,7 +75,27 @@ impl<'a> DagLike for &'a Value {
 }
 
 impl Value {
-    #![allow(clippy::len_without_is_empty)]
+    /// Create the unit value.
+    pub fn unit() -> Arc<Self> {
+        Arc::new(Self::Unit)
+    }
+
+    /// Create a sum value that wraps a left value.
+    pub fn sum_l(left: Arc<Self>) -> Arc<Self> {
+        Arc::new(Value::SumL(left))
+    }
+
+    /// Create a sum value that wraps a right value.
+    pub fn sum_r(right: Arc<Self>) -> Arc<Self> {
+        Arc::new(Value::SumR(right))
+    }
+
+    /// Create a product value that wraps a left and a right value.
+    pub fn prod(left: Arc<Self>, right: Arc<Self>) -> Arc<Self> {
+        Arc::new(Value::Prod(left, right))
+    }
+
+    #[allow(clippy::len_without_is_empty)]
     /// The length, in bits, of the value when encoded in the Bit Machine
     pub fn len(&self) -> usize {
         self.pre_order_iter::<NoSharing>()
@@ -71,90 +104,92 @@ impl Value {
     }
 
     /// Encode a single bit as a value. Will panic if the input is out of range
-    pub fn u1(n: u8) -> Value {
+    pub fn u1(n: u8) -> Arc<Self> {
         match n {
-            0 => Value::SumL(Box::new(Value::Unit)),
-            1 => Value::SumR(Box::new(Value::Unit)),
+            0 => Value::sum_l(Value::unit()),
+            1 => Value::sum_r(Value::unit()),
             x => panic!("{} out of range for Value::u1", x),
         }
     }
 
     /// Encode a two-bit number as a value. Will panic if the input is out of range
-    pub fn u2(n: u8) -> Value {
+    pub fn u2(n: u8) -> Arc<Self> {
         let b0 = (n & 2) / 2;
         let b1 = n & 1;
         assert!(n <= 3, "{} out of range for Value::u2", n);
-        Value::Prod(Box::new(Value::u1(b0)), Box::new(Value::u1(b1)))
+        Value::prod(Value::u1(b0), Value::u1(b1))
     }
 
     /// Encode a four-bit number as a value. Will panic if the input is out of range
-    pub fn u4(n: u8) -> Value {
+    pub fn u4(n: u8) -> Arc<Self> {
         let w0 = (n & 12) / 4;
         let w1 = n & 3;
         assert!(n <= 15, "{} out of range for Value::u2", n);
-        Value::Prod(Box::new(Value::u2(w0)), Box::new(Value::u2(w1)))
+        Value::prod(Value::u2(w0), Value::u2(w1))
     }
 
     /// Encode an eight-bit number as a value
-    pub fn u8(n: u8) -> Value {
+    pub fn u8(n: u8) -> Arc<Self> {
         let w0 = n >> 4;
         let w1 = n & 0xf;
-        Value::Prod(Box::new(Value::u4(w0)), Box::new(Value::u4(w1)))
+        Value::prod(Value::u4(w0), Value::u4(w1))
     }
 
     /// Encode a 16-bit number as a value
-    pub fn u16(n: u16) -> Value {
+    pub fn u16(n: u16) -> Arc<Self> {
         let w0 = (n >> 8) as u8;
         let w1 = (n & 0xff) as u8;
-        Value::Prod(Box::new(Value::u8(w0)), Box::new(Value::u8(w1)))
+        Value::prod(Value::u8(w0), Value::u8(w1))
     }
 
     /// Encode a 32-bit number as a value
-    pub fn u32(n: u32) -> Value {
+    pub fn u32(n: u32) -> Arc<Self> {
         let w0 = (n >> 16) as u16;
         let w1 = (n & 0xffff) as u16;
-        Value::Prod(Box::new(Value::u16(w0)), Box::new(Value::u16(w1)))
+        Value::prod(Value::u16(w0), Value::u16(w1))
     }
 
-    /// Encode a 32-bit number as a value
-    pub fn u64(n: u64) -> Value {
+    /// Encode a 64-bit number as a value
+    pub fn u64(n: u64) -> Arc<Self> {
         let w0 = (n >> 32) as u32;
         let w1 = (n & 0xffff_ffff) as u32;
-        Value::Prod(Box::new(Value::u32(w0)), Box::new(Value::u32(w1)))
+        Value::prod(Value::u32(w0), Value::u32(w1))
     }
 
-    pub fn u128(n: u128) -> Value {
+    /// Encode a 128-bit number as a value
+    pub fn u128(n: u128) -> Arc<Self> {
         let w0 = (n >> 64) as u64;
         let w1 = n as u64; // Cast safety: picking last 64 bits
-        Value::Prod(Box::new(Value::u64(w0)), Box::new(Value::u64(w1)))
+        Value::prod(Value::u64(w0), Value::u64(w1))
     }
 
-    /// Encode a 32 byte number into value. Useful for encoding 32 pubkeys/hashes
-    pub fn u256_from_slice(v: &[u8]) -> Value {
-        assert!(v.len() == 32);
-        Value::Prod(
-            Box::new(Value::Prod(
-                Box::new(Value::u64(u64::from_be_bytes(v[0..8].try_into().unwrap()))),
-                Box::new(Value::u64(u64::from_be_bytes(v[8..16].try_into().unwrap()))),
-            )),
-            Box::new(Value::Prod(
-                Box::new(Value::u64(u64::from_be_bytes(
-                    v[16..24].try_into().unwrap(),
-                ))),
-                Box::new(Value::u64(u64::from_be_bytes(
-                    v[24..32].try_into().unwrap(),
-                ))),
-            )),
+    /// Encode a 32-byte number as a value
+    ///
+    /// Useful for encoding public keys and hashes
+    pub fn u256_from_slice(v: &[u8]) -> Arc<Self> {
+        assert_eq!(32, v.len(), "Expect 32-byte slice");
+
+        Value::prod(
+            Value::prod(
+                Value::u64(u64::from_be_bytes(v[0..8].try_into().unwrap())),
+                Value::u64(u64::from_be_bytes(v[8..16].try_into().unwrap())),
+            ),
+            Value::prod(
+                Value::u64(u64::from_be_bytes(v[16..24].try_into().unwrap())),
+                Value::u64(u64::from_be_bytes(v[24..32].try_into().unwrap())),
+            ),
         )
     }
 
-    /// Encode a 64(pair(32, 32)) byte number into value.
-    /// Useful for encoding 64 byte signatures
-    pub fn u512_from_slice(v: &[u8]) -> Value {
-        assert!(v.len() == 64);
-        Value::Prod(
-            Box::new(Value::u256_from_slice(&v[0..32])),
-            Box::new(Value::u256_from_slice(&v[32..64])),
+    /// Encode a 64-byte number as a value
+    ///
+    /// Useful for encoding signatures
+    pub fn u512_from_slice(v: &[u8]) -> Arc<Self> {
+        assert_eq!(64, v.len(), "Expect 64-byte slice");
+
+        Value::prod(
+            Value::u256_from_slice(&v[0..32]),
+            Value::u256_from_slice(&v[32..64]),
         )
     }
 
@@ -217,21 +252,6 @@ impl Value {
         }
 
         (bytes, bit_length)
-    }
-
-    /// Convenience constructor for a left sum of a value
-    pub fn sum_l(a: Value) -> Value {
-        Value::SumL(Box::new(a))
-    }
-
-    /// Convenience constructor for a right sum of a value
-    pub fn sum_r(a: Value) -> Value {
-        Value::SumR(Box::new(a))
-    }
-
-    /// Convenience constructor for product of two values
-    pub fn prod(a: Value, b: Value) -> Value {
-        Value::Prod(Box::new(a), Box::new(b))
     }
 }
 

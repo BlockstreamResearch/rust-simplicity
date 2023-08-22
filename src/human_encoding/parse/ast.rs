@@ -640,7 +640,7 @@ fn grammar<J: Jet + 'static>() -> Grammar<Ast<J>> {
             // value for the given type
             let value = iter.read_value(&ty).unwrap();
             Ast::Expression(Expression {
-                inner: ExprInner::Inline(node::Inner::Word(Arc::new(value))),
+                inner: ExprInner::Inline(node::Inner::Word(value)),
                 position,
             })
         };
