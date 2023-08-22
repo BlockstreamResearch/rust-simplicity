@@ -12,8 +12,14 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
+use std::sync::Arc;
+
 use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
+use crate::node::{
+    CoreConstructible, DisconnectConstructible, JetConstructible, WitnessConstructible,
+};
+use crate::types::Error;
 use crate::{FailEntropy, Tmr, Value};
 use hashes::sha256::Midstate;
 use simplicity_sys::ffi::bounded::cost_overhead;
@@ -259,6 +265,78 @@ impl Cmr {
             0x10, 0x43, 0x24, 0xee, 0x39, 0x1b, 0xff, 0x9d,
         ])),
     ];
+}
+
+impl CoreConstructible for Cmr {
+    fn iden() -> Self {
+        Cmr::iden()
+    }
+
+    fn unit() -> Self {
+        Cmr::unit()
+    }
+
+    fn injl(child: &Self) -> Self {
+        Cmr::injl(*child)
+    }
+
+    fn injr(child: &Self) -> Self {
+        Cmr::injl(*child)
+    }
+
+    fn take(child: &Self) -> Self {
+        Cmr::take(*child)
+    }
+
+    fn drop_(child: &Self) -> Self {
+        Cmr::drop(*child)
+    }
+
+    fn comp(left: &Self, right: &Self) -> Result<Self, Error> {
+        Ok(Cmr::comp(*left, *right))
+    }
+
+    fn case(left: &Self, right: &Self) -> Result<Self, Error> {
+        Ok(Cmr::case(*left, *right))
+    }
+
+    fn assertl(left: &Self, right: Cmr) -> Result<Self, Error> {
+        Ok(Cmr::case(*left, right))
+    }
+
+    fn assertr(left: Cmr, right: &Self) -> Result<Self, Error> {
+        Ok(Cmr::case(left, *right))
+    }
+
+    fn pair(left: &Self, right: &Self) -> Result<Self, Error> {
+        Ok(Cmr::pair(*left, *right))
+    }
+
+    fn fail(entropy: FailEntropy) -> Self {
+        Cmr::fail(entropy)
+    }
+
+    fn const_word(word: Arc<Value>) -> Self {
+        Cmr::const_word(&word)
+    }
+}
+
+impl<X> DisconnectConstructible<X> for Cmr {
+    fn disconnect(left: &Self, _right: &X) -> Result<Self, Error> {
+        Ok(Cmr::disconnect(*left))
+    }
+}
+
+impl<W> WitnessConstructible<W> for Cmr {
+    fn witness(_witness: W) -> Self {
+        Cmr::witness()
+    }
+}
+
+impl<J: Jet> JetConstructible<J> for Cmr {
+    fn jet(jet: J) -> Self {
+        jet.cmr()
+    }
 }
 
 #[cfg(test)]

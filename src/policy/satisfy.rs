@@ -2,7 +2,7 @@ use crate::analysis::Cost;
 use crate::jet::Elements;
 use crate::node::{RedeemNode, WitnessNode};
 use crate::policy::ToXOnlyPubkey;
-use crate::{Error, Policy, Value};
+use crate::{Cmr, Error, Policy, Value};
 use elements::bitcoin;
 
 use elements::locktime::Height;
@@ -40,6 +40,19 @@ pub trait Satisfier<Pk: ToXOnlyPubkey> {
     fn check_after(&self, _: elements::LockTime) -> bool {
         false
     }
+
+    /// Given a CMR, look up a matching satisfied Simplicity program.
+    ///
+    /// It is the **responsibility of the satisfier** to make sure that given **program is satisfied**.
+    /// That is, each witness note is populated with a value of the correct type
+    /// and the program successfully runs on the Bit Machine.
+    ///
+    /// If the satisfier provides an unsatisfied program,
+    /// then this may **corrupt** the computation of an **overall satisfaction**.
+    /// That is, the resulting "satisfaction" fails to satisfy the program.
+    fn lookup_asm_program(&self, _: Cmr) -> Option<Arc<WitnessNode<Elements>>> {
+        None
+    }
 }
 
 impl<Pk: ToXOnlyPubkey> Satisfier<Pk> for elements::Sequence {
@@ -76,7 +89,7 @@ impl<Pk: ToXOnlyPubkey> Satisfier<Pk> for elements::LockTime {
 }
 
 impl<Pk: ToXOnlyPubkey> Policy<Pk> {
-    pub fn satisfy_internal<S: Satisfier<Pk>>(
+    fn satisfy_internal<S: Satisfier<Pk>>(
         &self,
         satisfier: &S,
     ) -> Result<Arc<WitnessNode<Elements>>, Error> {
@@ -90,7 +103,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                 super::serialize::key(key, sig_wit)
             }
             Policy::After(n) => {
-                let node = super::serialize::after(n);
+                let node = super::serialize::after::<Arc<_>>(n);
                 let height = Height::from_consensus(n).expect("timelock is valid");
                 if satisfier.check_after(elements::LockTime::Blocks(height)) {
                     node
@@ -99,7 +112,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                 }
             }
             Policy::Older(n) => {
-                let node = super::serialize::older(n);
+                let node = super::serialize::older::<Arc<_>>(n);
                 if satisfier.check_older(elements::Sequence((n).into())) {
                     node
                 } else {
@@ -110,7 +123,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                 let preimage_wit = satisfier
                     .lookup_sha256(hash)
                     .map(|preimage| Arc::new(Value::u256_from_slice(preimage.as_ref())));
-                super::serialize::sha256::<_, Pk>(hash, preimage_wit)
+                super::serialize::sha256::<Pk, _, _>(hash, preimage_wit)
             }
             Policy::And {
                 ref left,
@@ -189,6 +202,9 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                 }
                 .prune_and_retype()
             }
+            Policy::Assembly(cmr) => satisfier
+                .lookup_asm_program(cmr)
+                .ok_or(Error::IncompleteFinalization)?,
         };
         Ok(node)
     }
@@ -211,7 +227,8 @@ mod tests {
     use super::*;
     use crate::dag::{DagLike, NoSharing};
     use crate::jet::elements::ElementsEnv;
-    use crate::node::SimpleFinalizer;
+    use crate::node::{CoreConstructible, JetConstructible, SimpleFinalizer, WitnessConstructible};
+    use crate::policy::serialize;
     use crate::{BitMachine, FailEntropy, SimplicityKey};
     use elements::bitcoin::key::{KeyPair, XOnlyPublicKey};
     use elements::secp256k1_zkp;
@@ -222,6 +239,7 @@ mod tests {
     pub struct PolicySatisfier<'a, Pk: SimplicityKey> {
         pub preimages: HashMap<Pk::Sha256, Preimage32>,
         pub signatures: HashMap<Pk, elements::SchnorrSig>,
+        pub assembly: HashMap<Cmr, Arc<WitnessNode<Elements>>>,
         pub tx: &'a elements::Transaction,
         pub index: usize,
     }
@@ -246,6 +264,10 @@ mod tests {
 
         fn check_after(&self, locktime: elements::LockTime) -> bool {
             <elements::LockTime as Satisfier<Pk>>::check_after(&self.tx.lock_time, locktime)
+        }
+
+        fn lookup_asm_program(&self, cmr: Cmr) -> Option<Arc<WitnessNode<Elements>>> {
+            self.assembly.get(&cmr).cloned()
         }
     }
 
@@ -280,6 +302,7 @@ mod tests {
         PolicySatisfier {
             preimages,
             signatures,
+            assembly: HashMap::new(),
             tx: env.tx(),
             index: env.ix() as usize,
         }
@@ -291,6 +314,14 @@ mod tests {
     ) {
         let mut mac = BitMachine::for_program(&program);
         assert!(mac.exec(&program, env).is_ok());
+    }
+
+    fn execute_unsuccessful(
+        program: Arc<RedeemNode<Elements>>,
+        env: &ElementsEnv<Arc<elements::Transaction>>,
+    ) {
+        let mut mac = BitMachine::for_program(&program);
+        assert!(mac.exec(&program, env).is_err());
     }
 
     fn to_witness(program: &RedeemNode<Elements>) -> Vec<&Arc<Value>> {
@@ -308,15 +339,12 @@ mod tests {
 
         assert!(policy.satisfy(&satisfier).is_err());
 
-        let commit = policy.serialize_no_witness();
+        let commit = policy.commit().expect("no asm");
         let program = commit
-            .finalize_types()
-            .expect("finalize types")
             .finalize(&mut SimpleFinalizer::new(std::iter::empty()))
             .expect("finalize");
-        let mut mac = BitMachine::for_program(&program);
 
-        assert!(mac.exec(&program, &env).is_err());
+        execute_unsuccessful(program, &env);
     }
 
     #[test]
@@ -590,6 +618,45 @@ mod tests {
                         _ => assert!(policy.satisfy(&satisfier).is_err()),
                     }
                 }
+            }
+        }
+    }
+
+    #[test]
+    fn satisfy_asm() {
+        let env = ElementsEnv::dummy();
+        let mut satisfier = get_satisfier(&env);
+
+        let mut assert_branch = |witness0: Arc<Value>, witness1: Arc<Value>| {
+            let asm_program = serialize::verify_bexp(
+                &Arc::<WitnessNode<Elements>>::pair(
+                    &Arc::<WitnessNode<Elements>>::witness(Some(witness0.clone())),
+                    &Arc::<WitnessNode<Elements>>::witness(Some(witness1.clone())),
+                )
+                .expect("sound types"),
+                &Arc::<WitnessNode<Elements>>::jet(Elements::Eq8),
+            );
+            let cmr = asm_program.cmr();
+            satisfier.assembly.insert(cmr, asm_program);
+
+            let policy = Policy::Assembly(cmr);
+            let program = policy.satisfy(&satisfier).expect("satisfiable");
+            let witness = to_witness(&program);
+
+            assert_eq!(2, witness.len());
+            assert_eq!(&witness0, witness[0]);
+            assert_eq!(&witness1, witness[1]);
+
+            if witness0 == witness1 {
+                execute_successful(program, &env);
+            } else {
+                execute_unsuccessful(program, &env);
+            }
+        };
+
+        for a in 0..2 {
+            for b in 0..2 {
+                assert_branch(Arc::new(Value::u8(a)), Arc::new(Value::u8(b)))
             }
         }
     }
