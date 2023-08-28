@@ -1,0 +1,32 @@
+
+-- Witnesses
+-- IMR: [none]
+wit_input := witness
+
+-- All jets have source type 1; but to use the `pair` combinator we want one
+-- with source type 2^256. To get this, we compose it with unit.
+sha256_init : 2^256 -> _
+sha256_init := comp unit jet_sha_256_ctx_8_init
+
+-- Using this, we can write a self-contained "take 32 bytes and compute their
+-- sha2 hash" function.
+-- IMR: 8e341445...
+sha256 : 2^256 -> 2^256
+sha256 := comp
+    comp
+        pair sha256_init iden
+        jet_sha_256_ctx_8_add_32
+    jet_sha_256_ctx_8_finalize
+
+-- Check eq
+assert_fixpoint : 2^256 -> 1
+assert_fixpoint := comp
+    comp
+        pair (comp iden sha256) iden
+        jet_eq_256
+    jet_verify
+
+-- IMR: [none]
+main := comp wit_input assert_fixpoint
+
+

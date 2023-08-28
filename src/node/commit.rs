@@ -71,6 +71,11 @@ impl<J: Jet> CommitData<J> {
         &self.arrow
     }
 
+    /// Accessor for the node's IMR, if known
+    pub fn imr(&self) -> Option<Imr> {
+        self.imr
+    }
+
     /// Helper function to compute a cached AMR
     fn incomplete_amr(
         inner: Inner<&Arc<Self>, J, &NoDisconnect, &NoWitness>,

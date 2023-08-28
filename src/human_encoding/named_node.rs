@@ -16,13 +16,13 @@
 
 use crate::dag::{InternalSharing, MaxSharing, PostOrderIterItem};
 use crate::encode;
-use crate::human_encoding::{ErrorSet, Position};
+use crate::human_encoding::{Error, ErrorSet, Position, WitnessOrHole};
 use crate::jet::Jet;
 use crate::node::{self, Commit, CommitData, CommitNode, Converter, NoDisconnect, NoWitness, Node};
 use crate::node::{Construct, ConstructData, Constructible};
 use crate::types;
 use crate::types::arrow::{Arrow, FinalArrow};
-use crate::{BitWriter, Cmr};
+use crate::{BitWriter, Cmr, Imr};
 
 use std::io;
 use std::marker::PhantomData;
@@ -68,6 +68,11 @@ impl<J: Jet> NamedCommitNode<J> {
     /// Accessor for the node's name
     pub fn name(&self) -> &Arc<str> {
         &self.cached_data().name
+    }
+
+    /// Accessor for the node's name
+    pub fn imr(&self) -> Option<Imr> {
+        self.cached_data().internal.imr()
     }
 
     /// Accessor for the node's type arrow
@@ -134,8 +139,8 @@ pub type NamedConstructNode<J> = Node<Named<Construct<J>>>;
 
 impl<J: Jet> node::Marker for Named<Construct<J>> {
     type CachedData = NamedConstructData<J>;
-    type Witness = <Construct<J> as node::Marker>::Witness;
-    type Disconnect = NoDisconnect;
+    type Witness = WitnessOrHole;
+    type Disconnect = Arc<NamedConstructNode<J>>;
     type SharingId = Arc<str>;
     type Jet = J;
 
@@ -167,14 +172,14 @@ impl<J: Jet> NamedConstructNode<J> {
         position: Position,
         user_source_types: Arc<[types::Type]>,
         user_target_types: Arc<[types::Type]>,
-        inner: node::Inner<Arc<Self>, J, NoDisconnect, NoWitness>,
+        inner: node::Inner<Arc<Self>, J, Arc<Self>, WitnessOrHole>,
     ) -> Result<Self, types::Error> {
         let construct_data = ConstructData::from_inner(
             inner
                 .as_ref()
                 .map(|data| &data.cached_data().internal)
                 .map_disconnect(|_| &None)
-                .copy_witness(),
+                .map_witness(|_| NoWitness),
         )?;
         let named_data = NamedConstructData {
             internal: construct_data,
@@ -231,25 +236,63 @@ impl<J: Jet> NamedConstructNode<J> {
         struct FinalizeTypes<J: Jet> {
             for_main: bool,
             errors: ErrorSet,
+            pending_hole_error: Option<(Position, Error)>,
             phantom: PhantomData<J>,
         }
 
         impl<J: Jet> Converter<Named<Construct<J>>, Named<Commit<J>>> for FinalizeTypes<J> {
             type Error = ErrorSet;
+
+            fn visit_node(&mut self, data: &PostOrderIterItem<&NamedConstructNode<J>>) {
+                // If we encounter a typed hole, this is an error *except* when the typed
+                // hole is the right child of a disconnect combinator. Conveniently, this
+                // case is very easy to detect: it will always appear as a hole immediately
+                // followed by a disconnect.
+                //
+                // Less conveniently, detecting this from within a post-order-iterator
+                // requires a small state machine here: when we encounter a hole, we create
+                // an error and put it in `self.pending_hole_error`. If we then encounter a
+                // disconnect, we drop the error. Otherwise we move it to `self.errors`.
+                let inner = data.node.inner();
+                if let node::Inner::Disconnect(..) = inner {
+                    self.pending_hole_error = None;
+                } else {
+                    if let Some((position, error)) = self.pending_hole_error.take() {
+                        self.errors.add(position, error);
+                    }
+                    if let node::Inner::Witness(WitnessOrHole::TypedHole(name)) = inner {
+                        self.pending_hole_error = Some((
+                            data.node.position(),
+                            Error::HoleAtCommitTime {
+                                name: Arc::clone(name),
+                                arrow: data.node.arrow().shallow_clone(),
+                            },
+                        ));
+                    }
+                }
+            }
+
             fn convert_witness(
                 &mut self,
                 _: &PostOrderIterItem<&NamedConstructNode<J>>,
-                _: &NoWitness,
+                _: &WitnessOrHole,
             ) -> Result<NoWitness, Self::Error> {
                 Ok(NoWitness)
             }
 
             fn convert_disconnect(
                 &mut self,
-                _: &PostOrderIterItem<&NamedConstructNode<J>>,
+                data: &PostOrderIterItem<&NamedConstructNode<J>>,
                 _: Option<&Arc<NamedCommitNode<J>>>,
-                _: &NoDisconnect,
+                disc: &Arc<NamedConstructNode<J>>,
             ) -> Result<NoDisconnect, Self::Error> {
+                if !matches!(
+                    disc.inner(),
+                    node::Inner::Witness(WitnessOrHole::TypedHole(..))
+                ) {
+                    self.errors
+                        .add(data.node.position(), Error::HoleFilledAtCommitTime);
+                }
                 Ok(NoDisconnect)
             }
 
@@ -319,6 +362,7 @@ impl<J: Jet> NamedConstructNode<J> {
         let mut finalizer = FinalizeTypes {
             for_main,
             errors: ErrorSet::default(),
+            pending_hole_error: None,
             phantom: PhantomData,
         };
 

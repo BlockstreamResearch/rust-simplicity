@@ -18,7 +18,7 @@ mod ast;
 
 use crate::dag::{Dag, DagLike, InternalSharing};
 use crate::jet::Jet;
-use crate::node::{self, NoDisconnect, NoWitness};
+use crate::node;
 use crate::types::Type;
 use crate::Cmr;
 use std::collections::HashMap;
@@ -27,7 +27,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use super::named_node::{NamedCommitNode, NamedConstructNode, Namer};
-use super::Position;
+use super::{Position, WitnessOrHole};
 
 use super::{Error, ErrorSet};
 
@@ -166,14 +166,13 @@ enum ResolvedInner<J: Jet> {
     /// A right assertion (referring to the CMR of an expression on the left)
     AssertR(ResolvedCmr<J>, Arc<ResolvedExpression<J>>),
     /// An inline expression
-    Inline(node::Inner<Arc<ResolvedExpression<J>>, J, NoDisconnect, NoWitness>),
+    Inline(node::Inner<Arc<ResolvedExpression<J>>, J, Arc<ResolvedExpression<J>>, WitnessOrHole>),
 }
 
 pub fn parse<J: Jet + 'static>(
     program: &str,
 ) -> Result<HashMap<Arc<str>, Arc<NamedCommitNode<J>>>, ErrorSet> {
     let mut errors = ErrorSet::new();
-
     // **
     // Step 1: Read expressions into HashMap, checking for dupes and illegal names.
     // **
@@ -351,8 +350,12 @@ pub fn parse<J: Jet + 'static>(
                             child.in_degree.fetch_add(1, Ordering::SeqCst);
                             child
                         })
-                        .copy_disconnect()
-                        .copy_witness(),
+                        .map_disconnect(|_| {
+                            let child = inline_stack.pop().unwrap();
+                            child.in_degree.fetch_add(1, Ordering::SeqCst);
+                            child
+                        })
+                        .map_witness(WitnessOrHole::shallow_clone),
                 ),
             };
 
@@ -424,7 +427,7 @@ pub fn parse<J: Jet + 'static>(
                 }
                 ResolvedInner::AssertL(ref child, ResolvedCmr::Literal(..))
                 | ResolvedInner::AssertR(ResolvedCmr::Literal(..), ref child) => Dag::Unary(child),
-                ResolvedInner::Inline(ref inner) => inner.as_dag().map(|node| &**node),
+                ResolvedInner::Inline(ref inner) => inner.as_dag().map(|node| node),
             }
         }
     }
@@ -476,10 +479,11 @@ pub fn parse<J: Jet + 'static>(
                 }),
                 ResolvedInner::Inline(ref inner) => inner
                     .as_ref()
-                    .map_left_right(|_| left, |_| right)
-                    .copy_disconnect()
-                    .copy_witness()
-                    .transpose(),
+                    .map_left_right(|_| left, |_| right.clone())
+                    .map_disconnect(|_| right)
+                    .map_witness(WitnessOrHole::shallow_clone)
+                    .transpose_disconnect()
+                    .and_then(node::Inner::transpose),
             };
 
             let inner = match maybe_inner {

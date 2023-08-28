@@ -28,6 +28,7 @@ mod serialize;
 use crate::dag::{DagLike, MaxSharing};
 use crate::jet::Jet;
 use crate::node::{self, CommitNode};
+use crate::{Cmr, Imr};
 
 use std::collections::HashMap;
 use std::str;
@@ -66,6 +67,30 @@ impl From<santiago::lexer::Position> for Position {
     }
 }
 
+/// For named construct nodes, we abuse the `witness` combinator to support typed holes.
+///
+/// We do this because `witness` nodes have free source and target arrows, and
+/// allow us to store arbitrary data in them using the generic witness type of
+/// the node. Holes are characterized entirely by their source and target type,
+/// just like witnesses, and are labelled by their name.
+#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+pub enum WitnessOrHole {
+    /// This witness is an actual witness combinator (with no witness data attached,
+    /// that comes later)
+    Witness,
+    /// This is a typed hole, with the given name.
+    TypedHole(Arc<str>),
+}
+
+impl WitnessOrHole {
+    pub fn shallow_clone(&self) -> Self {
+        match self {
+            WitnessOrHole::Witness => WitnessOrHole::Witness,
+            WitnessOrHole::TypedHole(name) => WitnessOrHole::TypedHole(Arc::clone(name)),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Forest<J: Jet> {
     roots: HashMap<Arc<str>, Arc<NamedCommitNode<J>>>,
@@ -93,9 +118,10 @@ impl<J: Jet> Forest<J> {
     /// Serialize the program in human-readable form
     pub fn string_serialize(&self) -> String {
         struct Print {
+            cmr: Cmr,
+            imr: Option<Imr>,
             expr_str: String,  // The X = Y part
             arrow_str: String, // The :: A -> B part
-            cmr_str: String,   // The -- <cmr> part
         }
         fn print_lines(lines: &[Print], skip_before_end: bool) -> String {
             let mut ret = String::new();
@@ -103,12 +129,19 @@ impl<J: Jet> Forest<J> {
             let arrow_width = lines.iter().map(|line| line.arrow_str.len()).max().unwrap();
             let last_line = lines.len();
             for (n, line) in lines.iter().enumerate() {
+                ret += "\n";
                 if skip_before_end && n == last_line - 1 {
                     ret += "\n";
                 }
+                ret += &format!("-- CMR: {}\n", line.cmr);
+                if let Some(imr) = line.imr {
+                    ret += &format!("-- IMR: {}\n", imr);
+                } else {
+                    ret += "-- IMR: [undetermined]\n";
+                }
                 ret += &format!(
-                    "{0:1$} {2:3$} {4}\n",
-                    line.expr_str, expr_width, line.arrow_str, arrow_width, line.cmr_str
+                    "{0:1$} {2:3$}\n",
+                    line.expr_str, expr_width, line.arrow_str, arrow_width,
                 );
             }
             ret
@@ -117,6 +150,7 @@ impl<J: Jet> Forest<J> {
         let mut witness_lines = vec![];
         let mut const_lines = vec![];
         let mut program_lines = vec![];
+        let mut disc_idx = 0;
         // Pass 1: compute string data for every node
         for root in self.roots.values() {
             for data in root.as_ref().post_order_iter::<MaxSharing<_>>() {
@@ -141,22 +175,19 @@ impl<J: Jet> Forest<J> {
                 } else if let node::Inner::AssertL(_, cmr) = node.inner() {
                     expr_str.push_str(" #");
                     expr_str.push_str(&cmr.to_string());
+                } else if let node::Inner::Disconnect(_, node::NoDisconnect) = node.inner() {
+                    expr_str.push_str(&format!(" ?disc_expr_{}", disc_idx));
+                    disc_idx += 1;
                 }
 
                 let arrow = node.arrow();
                 let arrow_str = format!(": {} -> {}", arrow.source, arrow.target).replace('×', "*"); // for human-readable encoding stick with ASCII
 
-                // All witnesses have the same CMR so don't bother printing it
-                let cmr_str = if let node::Inner::Witness(..) = node.inner() {
-                    String::new()
-                } else {
-                    format!("-- cmr {:.8}...", node.cmr())
-                };
-
                 let print = Print {
+                    cmr: node.cmr(),
+                    imr: node.imr(),
                     expr_str,
                     arrow_str,
-                    cmr_str,
                 };
                 if let node::Inner::Witness(..) = node.inner() {
                     witness_lines.push(print);
@@ -171,18 +202,18 @@ impl<J: Jet> Forest<J> {
         // Pass 2: actually print everything
         let mut ret = String::new();
         if !witness_lines.is_empty() {
-            ret += "-- Witnesses\n";
+            ret += "--------------\n-- Witnesses\n--------------\n";
             ret += &print_lines(&witness_lines, false);
             ret += "\n";
         }
         if !const_lines.is_empty() {
             // FIXME detect scribes
-            ret += "-- Constants\n";
+            ret += "--------------\n-- Constants\n--------------\n";
             ret += &print_lines(&const_lines, false);
             ret += "\n";
         }
         if !program_lines.is_empty() {
-            ret += "-- Program code\n";
+            ret += "--------------\n-- Program code\n--------------\n";
             ret += &print_lines(&program_lines, true /* add a blank line before main */);
         }
         ret

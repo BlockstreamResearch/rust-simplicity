@@ -1,0 +1,14 @@
+--
+-- Attempts to reuse a witness name.
+--
+-- By uncommenting wit2 and replacing one of the wit1 references with wit2,
+-- it'll work...but is it what you intended?
+--
+
+wit1 := witness : 1 -> 2^32
+--wit2 := witness : 1 -> 2^32
+wit_tuple := pair wit1 wit1 : 1 -> 2^64
+
+check_eq := comp wit_tuple jet_eq_32
+main := comp check_eq jet_verify
+

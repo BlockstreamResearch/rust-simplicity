@@ -29,6 +29,7 @@ fn usage(process_name: &str) {
     eprintln!("Usage:");
     eprintln!("  {} assemble <filename>", process_name);
     eprintln!("  {} disassemble <base64>", process_name);
+    eprintln!("  {} relabel <base64>", process_name);
     eprintln!();
     eprintln!("For commands which take an optional expression, the default value is \"main\".");
     eprintln!();
@@ -43,6 +44,7 @@ fn invalid_usage(process_name: &str) -> Result<(), String> {
 enum Command {
     Assemble,
     Disassemble,
+    Relabel,
     Help,
 }
 
@@ -52,6 +54,7 @@ impl FromStr for Command {
         match s {
             "assemble" => Ok(Command::Assemble),
             "disassemble" => Ok(Command::Disassemble),
+            "relabel" => Ok(Command::Relabel),
             "help" => Ok(Command::Help),
             x => Err(format!("unknown command {}", x)),
         }
@@ -63,6 +66,7 @@ impl Command {
         match *self {
             Command::Assemble => false,
             Command::Disassemble => false,
+            Command::Relabel => false,
             Command::Help => false,
         }
     }
@@ -151,6 +155,10 @@ fn main() -> Result<(), String> {
             let commit = CommitNode::decode(&mut iter)
                 .map_err(|e| format!("failed to decode program: {}", e))?;
             let prog = Forest::<DefaultJet>::from_program(commit);
+            println!("{}", prog.string_serialize());
+        }
+        Command::Relabel => {
+            let prog = parse_file(&first_arg)?;
             println!("{}", prog.string_serialize());
         }
         Command::Help => unreachable!(),
