@@ -649,7 +649,7 @@ mod tests {
                 wits_are_equal := comp (pair wit1 wit2) jet_eq_32 : 1 -> 2
                 main := comp wits_are_equal jet_verify            : 1 -> 1
             ",
-            "280f5b85deb2782fd86053d4e8dc64afd16b72c74d9c6077d8b30b22ece9709c",
+            "2d170e731b6d6856e69f3c6ee04b368302f7f71b2270a26276d98ea494bbebd7",
         );
     }
 
@@ -687,7 +687,7 @@ mod tests {
 
                 main := comp pr1 jt2       : 1 -> 1               -- 3f6422da
             ",
-            "e8b495998d682372353f7e5567600bcf83ce4b40e6ad78c7120f8636c6960002",
+            "32d98c39b2913f789f044255a1a26d3ac818fb3df1e286cb6eaea503e5042f87",
         );
     }
 }

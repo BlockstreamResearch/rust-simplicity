@@ -25,7 +25,6 @@ use crate::ffi::{
     type_inference::mallocTypeInference,
     ubounded, SimplicityErr, UBOUNDED_MAX,
 };
-use core::slice;
 use libc::{c_void, size_t};
 use std::ptr;
 
@@ -352,6 +351,7 @@ pub struct TestData {
 #[cfg(feature = "test-utils")]
 mod test_data {
     use super::*;
+    use std::slice;
     pub fn schnorr0_test_data() -> TestData {
         unsafe {
             TestData {

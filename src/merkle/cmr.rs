@@ -22,7 +22,6 @@ use crate::node::{
 use crate::types::Error;
 use crate::{FailEntropy, Tmr, Value};
 use hashes::sha256::Midstate;
-use simplicity_sys::ffi::bounded::cost_overhead;
 
 use super::bip340_iv;
 
@@ -141,8 +140,7 @@ impl Cmr {
         // 2. Add TMRs to get the pass-two IMR
         let imr_pass2 = imr_pass1.update(Tmr::unit().into(), Tmr::POWERS_OF_TWO[w - 1].into());
         // 3. Convert to a jet CMR
-        Cmr(bip340_iv(b"Simplicity-Draft\x1fJet"))
-            .update_with_weight(v.len() as u64 + cost_overhead() as u64, imr_pass2)
+        Cmr(bip340_iv(b"Simplicity-Draft\x1fJet")).update_with_weight(v.len() as u64, imr_pass2)
     }
 
     #[rustfmt::skip]
@@ -372,7 +370,7 @@ mod tests {
         #[rustfmt::skip]
         assert_eq!(
             Cmr::const_word(&bit0),
-            Cmr::from_str("10d9566fdb193e04078476955defa127e186224decc1162dabcb035c87a45378").unwrap(),
+            Cmr::from_str("d96f51cb162ddd0e317d711aec53a8bdd15ff71367518ea21787ca978559021b").unwrap(),
         );
     }
 
