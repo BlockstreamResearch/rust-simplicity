@@ -228,6 +228,7 @@ extern "C" {
     pub fn output_amount(dst: *mut CFrameItem, src: CFrameItem, env: *const CElementsTxEnv) -> bool;
     pub fn output_amounts_hash(dst: *mut CFrameItem, src: CFrameItem, env: *const CElementsTxEnv) -> bool;
     pub fn output_asset(dst: *mut CFrameItem, src: CFrameItem, env: *const CElementsTxEnv) -> bool;
+    pub fn output_is_fee(dst: *mut CFrameItem, src: CFrameItem, env: *const CElementsTxEnv) -> bool;
     pub fn output_nonce(dst: *mut CFrameItem, src: CFrameItem, env: *const CElementsTxEnv) -> bool;
     pub fn output_nonces_hash(dst: *mut CFrameItem, src: CFrameItem, env: *const CElementsTxEnv) -> bool;
     pub fn output_null_datum(dst: *mut CFrameItem, src: CFrameItem, env: *const CElementsTxEnv) -> bool;

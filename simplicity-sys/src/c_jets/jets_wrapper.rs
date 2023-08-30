@@ -895,6 +895,10 @@ pub fn output_asset(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv)
     unsafe { elements_ffi::output_asset(dst, src, env) }
 }
 
+pub fn output_is_fee(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+    unsafe { elements_ffi::output_is_fee(dst, src, env) }
+}
+
 pub fn output_nonce(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
     unsafe { elements_ffi::output_nonce(dst, src, env) }
 }
