@@ -271,7 +271,7 @@ impl NodeBounds {
         NodeBounds {
             extra_cells: 0,
             extra_frames: 0,
-            cost: jet.cost(),
+            cost: Cost::OVERHEAD + jet.cost(),
         }
     }
 
