@@ -370,7 +370,7 @@ mod tests {
         #[rustfmt::skip]
         assert_eq!(
             Cmr::const_word(&bit0),
-            Cmr::from_str("10d9566fdb193e04078476955defa127e186224decc1162dabcb035c87a45378").unwrap(),
+            Cmr::from_str("d96f51cb162ddd0e317d711aec53a8bdd15ff71367518ea21787ca978559021b").unwrap(),
         );
     }
 
