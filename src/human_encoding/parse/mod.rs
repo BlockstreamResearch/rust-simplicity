@@ -590,14 +590,31 @@ mod tests {
     use crate::human_encoding::Forest;
     use crate::jet::{Core, Jet};
     use crate::node::Inner;
-    use crate::Value;
+    use crate::{BitMachine, Value};
 
-    fn assert_single_cmr<J: Jet>(s: &str, cmr: &str) {
+    fn assert_cmr_witness<J: Jet>(
+        s: &str,
+        cmr: &str,
+        witness: &[(&str, &[u8])],
+        env: &J::Environment,
+    ) {
         match parse::<J>(s) {
             Ok(forest) => {
                 assert_eq!(forest.len(), 1);
                 let main = &forest["main"];
                 assert_eq!(main.cmr().to_string(), cmr);
+
+                let witness: HashMap<_, _> = witness
+                    .into_iter()
+                    .map(|(name, value)| (Arc::from(*name), Value::power_of_two(*value)))
+                    .collect();
+                let program = main
+                    .to_witness_node(&witness, &forest)
+                    .finalize()
+                    .expect("finalize");
+
+                let mut mac = BitMachine::for_program(&program);
+                mac.exec(&program, env).expect("execute");
             }
             Err(errs) => {
                 println!("\nErrors:\n{}", errs);
@@ -658,12 +675,14 @@ mod tests {
 
     #[test]
     fn simple_program() {
-        assert_single_cmr::<Core>(
+        assert_cmr_witness::<Core>(
             "main := unit",
             "62274a89833ece8ba5ff57b28118c0063d3d4a85dd25aae06f87617604402715",
+            &[],
+            &(),
         );
 
-        assert_single_cmr::<Core>(
+        assert_cmr_witness::<Core>(
             "
                 wit1 := witness : 1 -> 2^32
                 wit2 := witness : 1 -> 2^32
@@ -672,6 +691,8 @@ mod tests {
                 main := comp wits_are_equal jet_verify            : 1 -> 1
             ",
             "2d170e731b6d6856e69f3c6ee04b368302f7f71b2270a26276d98ea494bbebd7",
+            &[("wit1", &[0, 1, 2, 3]), ("wit2", &[0, 1, 2, 3])],
+            &(),
         );
     }
 
@@ -692,11 +713,22 @@ mod tests {
     #[test]
     #[cfg(feature = "elements")]
     fn bip340_program() {
+        use crate::jet::elements::ElementsEnv;
         use crate::jet::Elements;
 
         parse::<Elements>("main := unit").unwrap();
 
-        assert_single_cmr::<Elements>("
+        // See https://github.com/bitcoin/bips/blob/master/bip-0340/test-vectors.csv
+        let env = ElementsEnv::dummy();
+        let sig = [
+            0xe9, 0x07, 0x83, 0x1f, 0x80, 0x84, 0x8d, 0x10, 0x69, 0xa5, 0x37, 0x1b, 0x40, 0x24,
+            0x10, 0x36, 0x4b, 0xdf, 0x1c, 0x5f, 0x83, 0x07, 0xb0, 0x08, 0x4c, 0x55, 0xf1, 0xce,
+            0x2d, 0xca, 0x82, 0x15, 0x25, 0xf6, 0x6a, 0x4a, 0x85, 0xea, 0x8b, 0x71, 0xe4, 0x82,
+            0xa7, 0x4f, 0x38, 0x2d, 0x2c, 0xe5, 0xeb, 0xee, 0xe8, 0xfd, 0xb2, 0x17, 0x2f, 0x47,
+            0x7d, 0xf4, 0x90, 0x0d, 0x31, 0x05, 0x36, 0xc0,
+        ];
+
+        assert_cmr_witness::<Elements>("
                 -- Witnesses
                 wit1 := witness : 1 -> 2^512
 
@@ -709,7 +741,9 @@ mod tests {
 
                 main := comp pr1 jt2       : 1 -> 1               -- 3f6422da
             ",
-            "dacbdfcf64122edf8efda2b34fe353cac4424dd455a9204fc92af258b465bbc4",
+           "dacbdfcf64122edf8efda2b34fe353cac4424dd455a9204fc92af258b465bbc4",
+           &[("wit1", &sig)],
+           &env
         );
     }
 
