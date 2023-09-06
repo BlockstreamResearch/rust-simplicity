@@ -687,7 +687,7 @@ mod tests {
 
                 main := comp pr1 jt2       : 1 -> 1               -- 3f6422da
             ",
-            "32d98c39b2913f789f044255a1a26d3ac818fb3df1e286cb6eaea503e5042f87",
+            "dacbdfcf64122edf8efda2b34fe353cac4424dd455a9204fc92af258b465bbc4",
         );
     }
 }
