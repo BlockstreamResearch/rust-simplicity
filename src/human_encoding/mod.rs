@@ -28,7 +28,7 @@ mod serialize;
 use crate::dag::{DagLike, MaxSharing};
 use crate::jet::Jet;
 use crate::node::{self, CommitNode};
-use crate::{Cmr, Imr};
+use crate::{Cmr, Imr, Value, WitnessNode};
 
 use std::collections::HashMap;
 use std::str;
@@ -217,5 +217,10 @@ impl<J: Jet> Forest<J> {
             ret += &print_lines(&program_lines, true /* add a blank line before main */);
         }
         ret
+    }
+
+    pub fn to_witness_node(&self, witness: &HashMap<Arc<str>, Arc<Value>>) -> Arc<WitnessNode<J>> {
+        let main = self.roots.get("main").expect("main always exists");
+        main.to_witness_node(witness, self.roots())
     }
 }
