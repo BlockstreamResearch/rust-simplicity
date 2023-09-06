@@ -586,8 +586,11 @@ pub fn parse<J: Jet + 'static>(
 mod tests {
     use super::*;
 
+    use crate::dag::MaxSharing;
     use crate::human_encoding::Forest;
     use crate::jet::{Core, Jet};
+    use crate::node::Inner;
+    use crate::Value;
 
     fn assert_single_cmr<J: Jet>(s: &str, cmr: &str) {
         match parse::<J>(s) {
@@ -614,6 +617,25 @@ mod tests {
                     s,
                     e_msg,
                 );
+            }
+        }
+    }
+
+    fn assert_const<J: Jet>(s: &str, value: Arc<Value>) {
+        match parse::<J>(s) {
+            Ok(forest) => {
+                assert_eq!(forest.len(), 1);
+                let main = &forest["main"];
+
+                for data in main.clone().post_order_iter::<MaxSharing<_>>() {
+                    if let Inner::Word(parsed_value) = data.node.inner() {
+                        assert_eq!(&value, parsed_value);
+                    }
+                }
+            }
+            Err(errs) => {
+                println!("\nErrors:\n{}", errs);
+                panic!("Failed to parse program:\n{}", s);
             }
         }
     }
@@ -688,6 +710,18 @@ mod tests {
                 main := comp pr1 jt2       : 1 -> 1               -- 3f6422da
             ",
             "dacbdfcf64122edf8efda2b34fe353cac4424dd455a9204fc92af258b465bbc4",
+        );
+    }
+
+    #[test]
+    fn const_word() {
+        assert_const::<Core>(
+            "main := comp const 0xdeadbeef unit",
+            Value::power_of_two(&[0xde, 0xad, 0xbe, 0xef]),
+        );
+        assert_const::<Core>(
+            "main := comp const 0b00000001001000110100010101100111 unit",
+            Value::power_of_two(&[0b00000001, 0b00100011, 0b01000101, 0b01100111]),
         );
     }
 }
