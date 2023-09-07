@@ -197,5 +197,7 @@ macro_rules! impl_midstate_wrapper {
                 self.0.to_byte_array()
             }
         }
+
+        impl_serde_string!($wrapper);
     };
 }
