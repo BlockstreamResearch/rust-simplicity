@@ -8,14 +8,14 @@ use crate::Cmr;
 
 pub struct SighashCache<T: Deref<Target = elements::Transaction>> {
     tx: T,
-    fallback: elements::sighash::SigHashCache<T>,
+    fallback: elements::sighash::SighashCache<T>,
 }
 
 impl<T: Deref<Target = elements::Transaction> + Clone> SighashCache<T> {
     pub fn new(tx: T) -> Self {
         Self {
             tx: tx.clone(),
-            fallback: elements::sighash::SigHashCache::new(tx),
+            fallback: elements::sighash::SighashCache::new(tx),
         }
     }
 
@@ -23,7 +23,7 @@ impl<T: Deref<Target = elements::Transaction> + Clone> SighashCache<T> {
         &mut self,
         input_index: usize,
         prevouts: &elements::sighash::Prevouts<O>,
-        sighash_type: elements::sighash::SchnorrSigHashType,
+        sighash_type: elements::sighash::SchnorrSighashType,
         genesis_hash: elements::BlockHash,
     ) -> Result<elements::taproot::TapSighashHash, elements::sighash::Error>
     where
@@ -42,7 +42,7 @@ impl<T: Deref<Target = elements::Transaction> + Clone> SighashCache<T> {
         input_index: usize,
         prevouts: &elements::sighash::Prevouts<O>,
         leaf_hash: S,
-        sighash_type: elements::sighash::SchnorrSigHashType,
+        sighash_type: elements::sighash::SchnorrSighashType,
         genesis_hash: elements::BlockHash,
     ) -> Result<elements::taproot::TapSighashHash, elements::sighash::Error>
     where
