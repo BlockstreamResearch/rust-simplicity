@@ -293,7 +293,7 @@ mod tests {
             let msg = secp256k1_zkp::Message::from(sighash);
             let sig = elements::SchnorrSig {
                 sig: keypair.sign_schnorr(msg),
-                hash_ty: elements::SchnorrSigHashType::All,
+                hash_ty: elements::SchnorrSighashType::All,
             };
 
             signatures.insert(xonly, sig);
