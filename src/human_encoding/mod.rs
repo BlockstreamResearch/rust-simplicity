@@ -224,3 +224,32 @@ impl<J: Jet> Forest<J> {
         main.to_witness_node(witness, self.roots())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::human_encoding::Forest;
+    use crate::jet::Core;
+    use crate::{Error, Value};
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    #[test]
+    fn to_witness_node_missing_witness() {
+        let s = "
+            wit1 := witness : 1 -> 2^32
+            wit2 := witness : 1 -> 2^32
+
+            wits_are_equal := comp (pair wit1 wit2) jet_eq_32 : 1 -> 2
+            main := comp wits_are_equal jet_verify            : 1 -> 1
+        ";
+        let forest = Forest::<Core>::parse(s).unwrap();
+        let mut witness = HashMap::new();
+        witness.insert(Arc::from("wit1"), Value::u32(1337));
+
+        match forest.to_witness_node(&witness).finalize() {
+            Ok(_) => panic!("Insufficient witness map should fail"),
+            Err(Error::IncompleteFinalization) => {}
+            Err(error) => panic!("Unexpected error {}", error),
+        }
+    }
+}
