@@ -275,4 +275,20 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn to_witness_node_unfilled_hole() {
+        let s = "
+            wit1 := witness
+            main := comp wit1 comp disconnect iden ?dis2 unit
+        ";
+        let forest = Forest::<Core>::parse(s).unwrap();
+        let witness = HashMap::new();
+
+        match forest.to_witness_node(&witness).finalize() {
+            Ok(_) => panic!("Duplicate witness names should fail"),
+            Err(Error::IncompleteFinalization) => {}
+            Err(error) => panic!("Unexpected error {}", error),
+        }
+    }
 }
