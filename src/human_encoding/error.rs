@@ -57,6 +57,11 @@ impl ErrorSet {
         self.errors.iter().next().map(|(a, b)| (*a, &b[0]))
     }
 
+    /// Return an iterator over the errors in the error set.
+    pub fn iter(&self) -> impl Iterator<Item = &Error> {
+        self.errors.values().flatten()
+    }
+
     /// Constructs a new error set with a single error in it.
     pub fn single<P: Into<Position>, E: Into<Error>>(position: P, err: E) -> Self {
         let mut errors = BTreeMap::default();
