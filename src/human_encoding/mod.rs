@@ -291,4 +291,36 @@ mod tests {
             Err(error) => panic!("Unexpected error {}", error),
         }
     }
+
+    #[test]
+    fn to_witness_node_pruned_witness() {
+        let s = "
+            wit1 := witness
+            wit2 := witness
+            main := comp (pair wit1 unit) case unit wit2
+        ";
+        let forest = Forest::<Core>::parse(s).unwrap();
+        let mut witness = HashMap::new();
+        witness.insert(Arc::from("wit1"), Value::u1(0));
+
+        match forest.to_witness_node(&witness).finalize() {
+            Ok(_) => {}
+            Err(e) => panic!("Unexpected error {}", e),
+        }
+
+        witness.insert(Arc::from("wit1"), Value::u1(1));
+
+        match forest.to_witness_node(&witness).finalize() {
+            Ok(_) => {}
+            Err(Error::IncompleteFinalization) => {}
+            Err(e) => panic!("Unexpected error {}", e),
+        }
+
+        witness.insert(Arc::from("wit2"), Value::unit());
+
+        match forest.to_witness_node(&witness).finalize() {
+            Ok(_) => {}
+            Err(e) => panic!("Unexpected error {}", e),
+        }
+    }
 }
