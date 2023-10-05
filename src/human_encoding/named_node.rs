@@ -15,15 +15,19 @@
 //! Human-readable Nodes
 
 use crate::dag::{InternalSharing, MaxSharing, PostOrderIterItem};
-use crate::encode;
 use crate::human_encoding::{Error, ErrorSet, Position, WitnessOrHole};
 use crate::jet::Jet;
-use crate::node::{self, Commit, CommitData, CommitNode, Converter, NoDisconnect, NoWitness, Node};
+use crate::node::{
+    self, Commit, CommitData, CommitNode, Converter, Inner, NoDisconnect, NoWitness, Node, Witness,
+    WitnessData,
+};
 use crate::node::{Construct, ConstructData, Constructible};
 use crate::types;
 use crate::types::arrow::{Arrow, FinalArrow};
+use crate::{encode, Value, WitnessNode};
 use crate::{BitWriter, Cmr, Imr};
 
+use std::collections::HashMap;
 use std::io;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -113,6 +117,82 @@ impl<J: Jet> NamedCommitNode<J> {
         }
 
         self.convert::<InternalSharing, _, _>(&mut Forgetter(PhantomData))
+            .unwrap()
+    }
+
+    pub fn to_witness_node(
+        &self,
+        witness: &HashMap<Arc<str>, Arc<Value>>,
+        disconnect: &HashMap<Arc<str>, Arc<NamedCommitNode<J>>>,
+    ) -> Arc<WitnessNode<J>> {
+        struct Populator<'a, J: Jet>(
+            &'a HashMap<Arc<str>, Arc<Value>>,
+            &'a HashMap<Arc<str>, Arc<NamedCommitNode<J>>>,
+            PhantomData<J>,
+        );
+
+        impl<'a, J: Jet> Converter<Named<Commit<J>>, Witness<J>> for Populator<'a, J> {
+            type Error = ();
+
+            fn convert_witness(
+                &mut self,
+                data: &PostOrderIterItem<&Node<Named<Commit<J>>>>,
+                _: &NoWitness,
+            ) -> Result<Option<Arc<Value>>, Self::Error> {
+                let name = &data.node.cached_data().name;
+                // We keep the witness nodes without data unpopulated.
+                // Some nodes are pruned later so they don't need to be populated.
+                // Which nodes are pruned is not known when this code is executed.
+                // If an unpruned node is unpopulated, then there will be an error
+                // during the finalization.
+                Ok(self.0.get(name).cloned())
+            }
+
+            fn convert_disconnect(
+                &mut self,
+                data: &PostOrderIterItem<&Node<Named<Commit<J>>>>,
+                maybe_converted: Option<&Arc<Node<Witness<J>>>>,
+                _: &NoDisconnect,
+            ) -> Result<Option<Arc<Node<Witness<J>>>>, Self::Error> {
+                if let Some(converted) = maybe_converted {
+                    Ok(Some(converted.clone()))
+                } else {
+                    let name = &data.node.cached_data().name;
+                    // We keep the missing disconnected branches empty.
+                    // Like witness nodes (see above), disconnect nodes may be pruned later.
+                    // The finalization will detect missing branches and throw an error.
+                    let maybe_commit = self.1.get(name);
+                    // FIXME: Recursive call of to_witness_node
+                    // We cannot introduce a stack
+                    // because we are implementing methods of the trait Converter
+                    // which are used Marker::convert().
+                    //
+                    // OTOH, if a user writes a program with so many disconnected expressions
+                    // that there is a stack overflow, it's his own fault :)
+                    // This would fail in a fuzz test.
+                    let witness = maybe_commit.map(|commit| commit.to_witness_node(self.0, self.1));
+                    Ok(witness)
+                }
+            }
+
+            fn convert_data(
+                &mut self,
+                _: &PostOrderIterItem<&Node<Named<Commit<J>>>>,
+                inner: Inner<
+                    &Arc<Node<Witness<J>>>,
+                    J,
+                    &Option<Arc<WitnessNode<J>>>,
+                    &Option<Arc<Value>>,
+                >,
+            ) -> Result<WitnessData<J>, Self::Error> {
+                let inner = inner
+                    .map(|node| node.cached_data())
+                    .map_witness(|maybe_value| maybe_value.clone());
+                Ok(WitnessData::from_inner(inner).expect("types are already finalized"))
+            }
+        }
+
+        self.convert::<InternalSharing, _, _>(&mut Populator(witness, disconnect, PhantomData))
             .unwrap()
     }
 

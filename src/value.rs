@@ -20,6 +20,7 @@
 
 use crate::dag::{Dag, DagLike, NoSharing};
 
+use std::collections::VecDeque;
 use std::convert::TryInto;
 use std::fmt;
 use std::hash::Hash;
@@ -191,6 +192,29 @@ impl Value {
             Value::u256_from_slice(&v[0..32]),
             Value::u256_from_slice(&v[32..64]),
         )
+    }
+
+    /// Encode a byte slice as a value.
+    ///
+    /// The length of the slice must be a power of two.
+    pub fn power_of_two(v: &[u8]) -> Arc<Self> {
+        assert!(
+            v.len().is_power_of_two(),
+            "Slice length must be a power of two"
+        );
+        let mut values: VecDeque<_> = v.iter().map(|b| Value::u8(*b)).collect();
+
+        while values.len() > 1 {
+            let mut alt_values = VecDeque::with_capacity(values.len() / 2);
+
+            while let (Some(left), Some(right)) = (values.pop_front(), values.pop_front()) {
+                alt_values.push_back(Value::prod(left, right));
+            }
+
+            values = alt_values;
+        }
+
+        values.into_iter().next().unwrap()
     }
 
     /// Execute function `f` on each bit of the encoding of the value.

@@ -28,7 +28,7 @@ mod serialize;
 use crate::dag::{DagLike, MaxSharing};
 use crate::jet::Jet;
 use crate::node::{self, CommitNode};
-use crate::{Cmr, Imr};
+use crate::{Cmr, Imr, Value, WitnessNode};
 
 use std::collections::HashMap;
 use std::str;
@@ -217,5 +217,110 @@ impl<J: Jet> Forest<J> {
             ret += &print_lines(&program_lines, true /* add a blank line before main */);
         }
         ret
+    }
+
+    pub fn to_witness_node(&self, witness: &HashMap<Arc<str>, Arc<Value>>) -> Arc<WitnessNode<J>> {
+        let main = self.roots.get("main").expect("main always exists");
+        main.to_witness_node(witness, self.roots())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::human_encoding::Forest;
+    use crate::jet::Core;
+    use crate::{Error, Value};
+    use std::collections::HashMap;
+    use std::sync::Arc;
+
+    #[test]
+    fn to_witness_node_missing_witness() {
+        let s = "
+            wit1 := witness : 1 -> 2^32
+            wit2 := witness : 1 -> 2^32
+
+            wits_are_equal := comp (pair wit1 wit2) jet_eq_32 : 1 -> 2
+            main := comp wits_are_equal jet_verify            : 1 -> 1
+        ";
+        let forest = Forest::<Core>::parse(s).unwrap();
+        let mut witness = HashMap::new();
+        witness.insert(Arc::from("wit1"), Value::u32(1337));
+
+        match forest.to_witness_node(&witness).finalize() {
+            Ok(_) => panic!("Insufficient witness map should fail"),
+            Err(Error::IncompleteFinalization) => {}
+            Err(error) => panic!("Unexpected error {}", error),
+        }
+    }
+
+    #[test]
+    fn parse_duplicate_witness_in_disconnected_branch() {
+        let s = "
+            wit1 := witness
+            main := comp wit1 comp disconnect iden ?dis2 unit
+
+            wit1 := witness
+            dis2 := wit1
+        ";
+
+        match Forest::<Core>::parse(s) {
+            Ok(_) => panic!("Duplicate witness names should fail"),
+            Err(set) => {
+                let errors: Vec<_> = set.iter().collect();
+                assert_eq!(1, errors.len());
+                match errors[0] {
+                    super::error::Error::NameRepeated { .. } => {}
+                    error => panic!("Unexpected error {}", error),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn to_witness_node_unfilled_hole() {
+        let s = "
+            wit1 := witness
+            main := comp wit1 comp disconnect iden ?dis2 unit
+        ";
+        let forest = Forest::<Core>::parse(s).unwrap();
+        let witness = HashMap::new();
+
+        match forest.to_witness_node(&witness).finalize() {
+            Ok(_) => panic!("Duplicate witness names should fail"),
+            Err(Error::IncompleteFinalization) => {}
+            Err(error) => panic!("Unexpected error {}", error),
+        }
+    }
+
+    #[test]
+    fn to_witness_node_pruned_witness() {
+        let s = "
+            wit1 := witness
+            wit2 := witness
+            main := comp (pair wit1 unit) case unit wit2
+        ";
+        let forest = Forest::<Core>::parse(s).unwrap();
+        let mut witness = HashMap::new();
+        witness.insert(Arc::from("wit1"), Value::u1(0));
+
+        match forest.to_witness_node(&witness).finalize() {
+            Ok(_) => {}
+            Err(e) => panic!("Unexpected error {}", e),
+        }
+
+        witness.insert(Arc::from("wit1"), Value::u1(1));
+
+        match forest.to_witness_node(&witness).finalize() {
+            Ok(_) => {}
+            Err(Error::IncompleteFinalization) => {}
+            Err(e) => panic!("Unexpected error {}", e),
+        }
+
+        witness.insert(Arc::from("wit2"), Value::unit());
+
+        match forest.to_witness_node(&witness).finalize() {
+            Ok(_) => {}
+            Err(e) => panic!("Unexpected error {}", e),
+        }
     }
 }

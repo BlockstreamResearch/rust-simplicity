@@ -14,14 +14,14 @@
 
 use crate::analysis::NodeBounds;
 use crate::dag::{DagLike, InternalSharing, MaxSharing, PostOrderIterItem};
-use crate::encode;
 use crate::jet::Jet;
 use crate::types::{self, arrow::FinalArrow};
+use crate::{encode, WitnessNode};
 use crate::{Amr, BitIter, BitWriter, Cmr, Error, FirstPassImr, Imr, Value};
 
 use super::{
-    Commit, CommitData, CommitNode, Construct, ConstructNode, Converter, Inner, Marker,
-    NoDisconnect, NoWitness, Node,
+    Commit, CommitData, CommitNode, Construct, ConstructNode, Constructible, Converter, Inner,
+    Marker, NoDisconnect, NoWitness, Node, Witness, WitnessData,
 };
 
 use std::collections::HashSet;
@@ -230,6 +230,52 @@ impl<J: Jet> RedeemNode<J> {
         }
 
         self.convert::<MaxSharing<Redeem<J>>, _, _>(&mut Unfinalizer(PhantomData))
+    }
+
+    /// Convert a [`RedeemNode`] back into a [`WitnessNode`]
+    /// by loosening the finalized types, witness data and disconnected branches.
+    pub fn to_witness_node(&self) -> Arc<WitnessNode<J>> {
+        struct ToWitness<J>(PhantomData<J>);
+
+        impl<J: Jet> Converter<Redeem<J>, Witness<J>> for ToWitness<J> {
+            type Error = ();
+
+            fn convert_witness(
+                &mut self,
+                _: &PostOrderIterItem<&Node<Redeem<J>>>,
+                witness: &Arc<Value>,
+            ) -> Result<Option<Arc<Value>>, Self::Error> {
+                Ok(Some(witness.clone()))
+            }
+
+            fn convert_disconnect(
+                &mut self,
+                _: &PostOrderIterItem<&Node<Redeem<J>>>,
+                right: Option<&Arc<Node<Witness<J>>>>,
+                _: &Arc<RedeemNode<J>>,
+            ) -> Result<Option<Arc<Node<Witness<J>>>>, Self::Error> {
+                Ok(right.cloned())
+            }
+
+            fn convert_data(
+                &mut self,
+                _: &PostOrderIterItem<&Node<Redeem<J>>>,
+                inner: Inner<
+                    &Arc<Node<Witness<J>>>,
+                    J,
+                    &Option<Arc<WitnessNode<J>>>,
+                    &Option<Arc<Value>>,
+                >,
+            ) -> Result<WitnessData<J>, Self::Error> {
+                let inner = inner
+                    .map(|node| node.cached_data())
+                    .map_witness(|maybe_value| maybe_value.clone());
+                Ok(WitnessData::from_inner(inner).expect("types are already finalized"))
+            }
+        }
+
+        self.convert::<InternalSharing, _, _>(&mut ToWitness(PhantomData))
+            .unwrap()
     }
 
     /// Decode a Simplicity program from bits, including the witness data.
