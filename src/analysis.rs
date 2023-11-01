@@ -100,13 +100,14 @@ impl Cost {
     }
 
     /// Return whether the cost is within the budget of
-    /// the given transaction input.
+    /// the given script witness of a transaction input.
+    ///
+    /// The script witness is passed as `&Vec<Vec<u8>>` in order to use
+    /// the consensus encoding implemented for this type.
     #[cfg(feature = "elements")]
-    pub fn is_budget_valid(&self, txin: &elements::TxIn) -> bool {
+    pub fn is_budget_valid(&self, script_witness: &Vec<Vec<u8>>) -> bool {
         let mut sink = io::sink();
-        let witness_stack_serialized_len = txin
-            .witness
-            .script_witness
+        let witness_stack_serialized_len = script_witness
             .consensus_encode(&mut sink)
             .expect("writing to sink never fails");
         let budget = witness_stack_serialized_len + 50;
