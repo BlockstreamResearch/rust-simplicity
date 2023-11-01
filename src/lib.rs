@@ -59,6 +59,7 @@ pub use crate::policy::{
     sighash, Policy, Preimage32, Satisfier, SimplicityKey, ToXOnlyPubkey, Translator,
 };
 
+pub use crate::analysis::{Cost, NodeBounds};
 pub use crate::bit_machine::BitMachine;
 pub use crate::encode::{encode_natural, encode_value, encode_witness};
 pub use crate::merkle::{
