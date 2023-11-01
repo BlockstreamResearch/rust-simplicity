@@ -376,4 +376,48 @@ mod tests {
             assert_eq!(budget, expected_budget);
         }
     }
+
+    #[test]
+    #[cfg(feature = "elements")]
+    fn test_get_padding() {
+        // The budget of the empty witness stack is 51 WU:
+        //
+        // 1. 50 WU of free signature operations
+        // 2. 1 WU for the length byte of the witness stack
+        let empty = 51_000;
+
+        // The encoded annex starts with a length byte, so remove one padding byte from the annex
+        let test_vectors = vec![
+            (Cost::from_milliweight(0), vec![], None),
+            (Cost::from_milliweight(empty), vec![], None),
+            (Cost::from_milliweight(empty + 1), vec![], Some(1)),
+            (Cost::from_milliweight(empty + 2_000), vec![], Some(1)),
+            (Cost::from_milliweight(empty + 2_001), vec![], Some(2)),
+            (Cost::from_milliweight(empty + 3_000), vec![], Some(2)),
+            (Cost::from_milliweight(empty + 3_001), vec![], Some(3)),
+            (Cost::from_milliweight(empty + 4_000), vec![], Some(3)),
+            (Cost::from_milliweight(empty + 4_001), vec![], Some(4)),
+            (Cost::from_milliweight(empty + 50_000), vec![], Some(49)),
+        ];
+
+        for (cost, mut witness, maybe_padding) in test_vectors {
+            match maybe_padding {
+                None => {
+                    assert!(cost.is_budget_valid(&witness));
+                    assert!(cost.get_padding(&witness).is_none());
+                }
+                Some(expected_annex_len) => {
+                    assert!(!cost.is_budget_valid(&witness));
+
+                    let annex_bytes = cost.get_padding(&witness).expect("not enough budget");
+                    assert_eq!(expected_annex_len, annex_bytes.len());
+                    witness.extend(std::iter::once(annex_bytes));
+                    assert!(cost.is_budget_valid(&witness));
+
+                    witness.pop();
+                    assert!(!cost.is_budget_valid(&witness), "Padding must be minimal");
+                }
+            }
+        }
+    }
 }
