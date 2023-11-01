@@ -99,6 +99,14 @@ impl Cost {
         self.0 <= weight.saturating_mul(1000)
     }
 
+    /// Return the minimum budget required to cover the cost.
+    fn required_budget(&self) -> u32 {
+        // Saturating addition to avoid panic at numeric bounds
+        // This results in a slightly different rounding for cost values close to u32::MAX.
+        // These values are strictly larger than CONSENSUS_MAX and are of no significance.
+        self.0.saturating_add(999) / 1000
+    }
+
     /// Return the budget of the given script witness of a transaction output.
     ///
     /// The script witness is passed as `&Vec<Vec<u8>>` in order to use
@@ -311,11 +319,31 @@ pub(crate) const IO_EXTRA_FRAMES: usize = 2;
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use simplicity_sys::ffi::bounded::cost_overhead;
 
     #[test]
     fn test_overhead() {
         // Check that C overhead is same OVERHEAD
-        assert_eq!(super::Cost::OVERHEAD.0, cost_overhead());
+        assert_eq!(Cost::OVERHEAD.0, cost_overhead());
+    }
+
+    #[test]
+    fn test_required_budget() {
+        let test_vectors = vec![
+            (Cost::NEVER_EXECUTED, 0),
+            (Cost::from_milliweight(0_001), 1),
+            (Cost::from_milliweight(0_999), 1),
+            (Cost::from_milliweight(1_000), 1),
+            (Cost::from_milliweight(1_001), 2),
+            (Cost::from_milliweight(1_999), 2),
+            (Cost::from_milliweight(2_000), 2),
+            (Cost::CONSENSUS_MAX, 4_000_050),
+        ];
+
+        for (cost, expected_budget) in test_vectors {
+            let budget = cost.required_budget();
+            assert_eq!(budget, expected_budget);
+        }
     }
 }
