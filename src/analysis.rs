@@ -17,7 +17,7 @@ use crate::Value;
 use std::{cmp, fmt};
 
 #[cfg(feature = "elements")]
-use std::io;
+use std::{convert::TryFrom, io};
 
 #[cfg(feature = "elements")]
 use elements::encode::Encodable;
@@ -99,6 +99,21 @@ impl Cost {
         self.0 <= weight.saturating_mul(1000)
     }
 
+    /// Return the budget of the given script witness of a transaction output.
+    ///
+    /// The script witness is passed as `&Vec<Vec<u8>>` in order to use
+    /// the consensus encoding implemented for this type.
+    #[cfg(feature = "elements")]
+    fn get_budget(script_witness: &Vec<Vec<u8>>) -> u32 {
+        let mut sink = io::sink();
+        let witness_stack_serialized_len = script_witness
+            .consensus_encode(&mut sink)
+            .expect("writing to sink never fails");
+        let budget = u32::try_from(witness_stack_serialized_len)
+            .expect("Serialized witness stack must be shorter than 2^32 elements");
+        budget.saturating_add(50)
+    }
+
     /// Return whether the cost is within the budget of
     /// the given script witness of a transaction input.
     ///
@@ -106,13 +121,8 @@ impl Cost {
     /// the consensus encoding implemented for this type.
     #[cfg(feature = "elements")]
     pub fn is_budget_valid(&self, script_witness: &Vec<Vec<u8>>) -> bool {
-        let mut sink = io::sink();
-        let witness_stack_serialized_len = script_witness
-            .consensus_encode(&mut sink)
-            .expect("writing to sink never fails");
-        let budget = witness_stack_serialized_len + 50;
-        // Cast safety: witness stack serialized length cannot be more than 2^32 - 51
-        self.less_equal_weight(budget as u32)
+        let budget = Self::get_budget(script_witness);
+        self.less_equal_weight(budget)
     }
 }
 
