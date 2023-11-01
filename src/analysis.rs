@@ -132,6 +132,36 @@ impl Cost {
         let budget = Self::get_budget(script_witness);
         self.less_equal_weight(budget)
     }
+
+    /// Return the annex bytes that are required as padding
+    /// so the transaction input has enough budget to cover the cost.
+    ///
+    /// The first annex byte is 0x50, as defined in BIP 341.
+    /// The following padding bytes are 0x00.
+    #[cfg(feature = "elements")]
+    pub fn get_padding(&self, script_witness: &Vec<Vec<u8>>) -> Option<Vec<u8>> {
+        let required_budget = self.required_budget();
+        let current_budget = Self::get_budget(script_witness);
+        if required_budget <= current_budget {
+            return None;
+        }
+
+        let required_budget = required_budget - current_budget;
+        // Two bytes are automatically added to the encoded witness stack by adding the annex:
+        //
+        // 1. The encoded annex starts with the annex byte length
+        // 2. The first annex byte is always 0x50
+        //
+        // The remaining padding is done by adding (zero) bytes to the annex.
+        //
+        // Cast safety: assuming 32-bit machine or higher
+        let remaining_padding_len = required_budget.saturating_sub(2) as usize;
+        let annex_bytes: Vec<u8> = std::iter::once(0x50)
+            .chain(std::iter::repeat(0x00).take(remaining_padding_len))
+            .collect();
+
+        Some(annex_bytes)
+    }
 }
 
 impl fmt::Display for Cost {
