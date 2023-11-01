@@ -61,7 +61,7 @@ impl Eq for Final {}
 
 impl PartialOrd for Final {
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
-        self.tmr.partial_cmp(&other.tmr)
+        Some(self.cmp(other))
     }
 }
 impl Ord for Final {

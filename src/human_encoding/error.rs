@@ -88,13 +88,13 @@ impl ErrorSet {
     pub fn add<P: Into<Position>, E: Into<Error>>(&mut self, position: P, err: E) {
         self.errors
             .entry(Some(position.into()))
-            .or_insert(vec![])
+            .or_default()
             .push(err.into());
     }
 
     /// Adds an error to the error set.
     pub fn add_no_position<E: Into<Error>>(&mut self, err: E) {
-        self.errors.entry(None).or_insert(vec![]).push(err.into());
+        self.errors.entry(None).or_default().push(err.into());
     }
 
     /// Merges another set of errors into the current set.
@@ -115,7 +115,7 @@ impl ErrorSet {
         for (pos, errs) in &other.errors {
             self.errors
                 .entry(*pos)
-                .or_insert(vec![])
+                .or_default()
                 .extend(errs.iter().cloned());
         }
     }
