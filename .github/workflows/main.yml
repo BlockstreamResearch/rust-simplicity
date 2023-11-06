@@ -104,6 +104,8 @@ jobs:
               cargo update -p proc-macro2 --precise 1.0.65
               # 1.8.0 requires cargo 1.60+
               cargo update -p regex --precise 1.7.0
+              # 1.5.0 uses edition 2021
+              cargo update -p byteorder --precise 1.4.3
           fi
           for f in $FEATURES; do echo "Features: $f" && cargo test --no-default-features --features="$f"; done
           cd simplicity-sys
