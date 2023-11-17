@@ -343,18 +343,34 @@ pub fn encode_hash<W: io::Write>(h: &[u8], w: &mut BitWriter<W>) -> io::Result<u
     Ok(h.len() * 8)
 }
 
-/// Encode a natural number to bits.
-pub fn encode_natural<W: io::Write>(n: usize, w: &mut BitWriter<W>) -> io::Result<usize> {
-    assert_ne!(n, 0); // Cannot encode zero
+/// Encode a positive integer to bits.
+pub fn encode_natural<W: io::Write>(mut n: usize, w: &mut BitWriter<W>) -> io::Result<usize> {
+    assert!(n > 0, "Zero cannot be encoded");
     let n_start = w.n_total_written();
-    let len = 8 * mem::size_of::<usize>() - n.leading_zeros() as usize - 1;
 
-    if len == 0 {
-        w.write_bit(false)?;
-    } else {
-        w.write_bit(true)?;
-        encode_natural(len, w)?;
-        w.write_bits_be(n as u64, len)?;
+    /// Minimum number of bits to represent `n` minus the most-significant bit
+    fn truncated_bit_len(n: usize) -> usize {
+        8 * mem::size_of::<usize>() - n.leading_zeros() as usize - 1
+    }
+
+    let mut suffix = Vec::new();
+
+    loop {
+        debug_assert!(n > 0);
+        let len = truncated_bit_len(n);
+        if len == 0 {
+            w.write_bit(false)?;
+            break;
+        } else {
+            w.write_bit(true)?;
+            suffix.push((n, len));
+            n = len;
+        }
+    }
+
+    while let Some((bits, len)) = suffix.pop() {
+        let bits = bits as u64; // Case safety: assuming 64-bit machine or lower
+        w.write_bits_be(bits, len)?;
     }
 
     Ok(w.n_total_written() - n_start)
