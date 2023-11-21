@@ -51,7 +51,7 @@ mod value;
 
 pub use bit_encoding::decode;
 pub use bit_encoding::encode;
-pub use bit_encoding::BitWriter;
+pub use bit_encoding::{write_to_vec, BitWriter};
 pub use bit_encoding::{BitIter, EarlyEndOfStreamError};
 
 #[cfg(feature = "elements")]
