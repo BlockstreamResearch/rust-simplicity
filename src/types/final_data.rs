@@ -222,6 +222,22 @@ impl Final {
             }
         }
     }
+
+    /// Return both children, if the type is a sum type
+    pub fn split_sum(&self) -> Option<(Arc<Self>, Arc<Self>)> {
+        match &self.bound {
+            CompleteBound::Sum(left, right) => Some((left.clone(), right.clone())),
+            _ => None,
+        }
+    }
+
+    /// Return both children, if the type is a product type
+    pub fn split_product(&self) -> Option<(Arc<Self>, Arc<Self>)> {
+        match &self.bound {
+            CompleteBound::Product(left, right) => Some((left.clone(), right.clone())),
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]
