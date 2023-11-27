@@ -61,7 +61,7 @@ impl Eq for Final {}
 
 impl PartialOrd for Final {
     fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
-        self.tmr.partial_cmp(&other.tmr)
+        Some(self.cmp(other))
     }
 }
 impl Ord for Final {
@@ -213,13 +213,19 @@ impl Final {
         self.bound == CompleteBound::Unit
     }
 
-    /// Accessor for both children of the type, if they exist.
-    pub fn split(&self) -> Option<(Arc<Self>, Arc<Self>)> {
+    /// Return both children, if the type is a sum type
+    pub fn split_sum(&self) -> Option<(Arc<Self>, Arc<Self>)> {
         match &self.bound {
-            CompleteBound::Unit => None,
-            CompleteBound::Sum(left, right) | CompleteBound::Product(left, right) => {
-                Some((Arc::clone(left), Arc::clone(right)))
-            }
+            CompleteBound::Sum(left, right) => Some((left.clone(), right.clone())),
+            _ => None,
+        }
+    }
+
+    /// Return both children, if the type is a product type
+    pub fn split_product(&self) -> Option<(Arc<Self>, Arc<Self>)> {
+        match &self.bound {
+            CompleteBound::Product(left, right) => Some((left.clone(), right.clone())),
+            _ => None,
         }
     }
 }

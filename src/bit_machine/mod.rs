@@ -20,10 +20,10 @@
 
 mod frame;
 
+use crate::analysis;
 use crate::dag::{DagLike, NoSharing};
 use crate::jet::{Jet, JetFailed};
 use crate::node::{self, RedeemNode};
-use crate::{analysis, types};
 use crate::{Cmr, FailEntropy, Value};
 use frame::Frame;
 use std::fmt;
@@ -255,25 +255,15 @@ impl BitMachine {
                     self.copy(size_a);
                 }
                 node::Inner::InjL(left) => {
-                    let padl_b_c =
-                        if let types::CompleteBound::Sum(b, _) = &ip.arrow().target.bound() {
-                            ip.arrow().target.bit_width() - b.bit_width() - 1
-                        } else {
-                            unreachable!()
-                        };
-
+                    let (b, _c) = ip.arrow().target.split_sum().unwrap();
+                    let padl_b_c = ip.arrow().target.bit_width() - b.bit_width() - 1;
                     self.write_bit(false);
                     self.skip(padl_b_c);
                     call_stack.push(CallStack::Goto(left));
                 }
                 node::Inner::InjR(left) => {
-                    let padr_b_c =
-                        if let types::CompleteBound::Sum(_, c) = &ip.arrow().target.bound() {
-                            ip.arrow().target.bit_width() - c.bit_width() - 1
-                        } else {
-                            unreachable!()
-                        };
-
+                    let (_b, c) = ip.arrow().target.split_sum().unwrap();
+                    let padr_b_c = ip.arrow().target.bit_width() - c.bit_width() - 1;
                     self.write_bit(true);
                     self.skip(padr_b_c);
                     call_stack.push(CallStack::Goto(left));
@@ -313,13 +303,7 @@ impl BitMachine {
                 }
                 node::Inner::Take(left) => call_stack.push(CallStack::Goto(left)),
                 node::Inner::Drop(left) => {
-                    let size_a =
-                        if let types::CompleteBound::Product(a, _) = &ip.arrow().source.bound() {
-                            a.bit_width()
-                        } else {
-                            unreachable!()
-                        };
-
+                    let size_a = ip.arrow().source.split_product().unwrap().0.bit_width();
                     self.fwd(size_a);
                     call_stack.push(CallStack::Back(size_a));
                     call_stack.push(CallStack::Goto(left));
@@ -327,17 +311,10 @@ impl BitMachine {
                 node::Inner::Case(..) | node::Inner::AssertL(..) | node::Inner::AssertR(..) => {
                     let choice_bit = self.read[self.read.len() - 1].peek_bit(&self.data);
 
-                    let (size_a, size_b) = if let types::CompleteBound::Product(sum_a_b, _c) =
-                        &ip.arrow().source.bound()
-                    {
-                        if let types::CompleteBound::Sum(a, b) = &sum_a_b.bound() {
-                            (a.bit_width(), b.bit_width())
-                        } else {
-                            unreachable!()
-                        }
-                    } else {
-                        unreachable!()
-                    };
+                    let (sum_a_b, _c) = ip.arrow().source.split_product().unwrap();
+                    let (a, b) = sum_a_b.split_sum().unwrap();
+                    let size_a = a.bit_width();
+                    let size_b = b.bit_width();
 
                     match (ip.inner(), choice_bit) {
                         (node::Inner::Case(_, right), true)
