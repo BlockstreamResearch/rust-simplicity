@@ -642,7 +642,7 @@ fn grammar<J: Jet + 'static>() -> Grammar<Ast<J>> {
             let (data, bit_length, position) = toks[1].expect_literal();
             let mut iter = BitIter::from(data);
 
-            if bit_length.count_ones() != 1 || bit_length > 1 << 32 {
+            if bit_length.count_ones() != 1 || bit_length > 1 << 31 {
                 return Ast::Error(ErrorSet::single(
                     position,
                     Error::BadWordLength { bit_length },
