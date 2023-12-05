@@ -16,7 +16,7 @@ use crate::analysis::NodeBounds;
 use crate::dag::{DagLike, InternalSharing, MaxSharing, PostOrderIterItem};
 use crate::jet::Jet;
 use crate::types::{self, arrow::FinalArrow};
-use crate::{encode, WitnessNode};
+use crate::{encode, write_to_vec, WitnessNode};
 use crate::{Amr, BitIter, BitWriter, Cmr, Error, FirstPassImr, Imr, Value};
 
 use super::{
@@ -364,7 +364,9 @@ impl<J: Jet> RedeemNode<J> {
         Ok(program)
     }
 
-    /// Encode a Simplicity program to bits, including the witness data.
+    /// Encode the program to bits.
+    ///
+    /// Includes witness data. Returns the number of written bits.
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
         let sharing_iter = self.post_order_iter::<MaxSharing<Redeem<J>>>();
         let program_bits = encode::encode_program(self, w)?;
@@ -374,15 +376,11 @@ impl<J: Jet> RedeemNode<J> {
         Ok(program_bits + witness_bits)
     }
 
-    /// Encode a Simplicity program to a vector of bytes, including the witness data.
+    /// Encode the program to a byte vector.
+    ///
+    /// Includes witness data.
     pub fn encode_to_vec(&self) -> Vec<u8> {
-        let mut program_and_witness_bytes = Vec::<u8>::new();
-        let mut writer = BitWriter::new(&mut program_and_witness_bytes);
-        self.encode(&mut writer)
-            .expect("write to vector never fails");
-        debug_assert!(!program_and_witness_bytes.is_empty());
-
-        program_and_witness_bytes
+        write_to_vec(|w| self.encode(w))
     }
 }
 
