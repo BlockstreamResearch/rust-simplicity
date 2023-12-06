@@ -28,4 +28,4 @@ pub mod decode;
 pub mod encode;
 
 pub use bititer::{BitIter, EarlyEndOfStreamError};
-pub use bitwriter::BitWriter;
+pub use bitwriter::{write_to_vec, BitWriter};

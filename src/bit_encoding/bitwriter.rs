@@ -109,3 +109,38 @@ impl<W: io::Write> BitWriter<W> {
         Ok(len)
     }
 }
+
+/// Write the result of a bit operation into a byte vector and return the vector.
+///
+/// I/O to a vector never fails.
+pub fn write_to_vec<F>(f: F) -> Vec<u8>
+where
+    F: FnOnce(&mut BitWriter<&mut Vec<u8>>) -> io::Result<usize>,
+{
+    let mut bytes = Vec::new();
+    let mut bits = BitWriter::new(&mut bytes);
+    f(&mut bits).expect("I/O to vector never fails");
+    bits.flush_all().expect("I/O to vector never fails");
+    bytes
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::jet::Core;
+    use crate::node::CoreConstructible;
+    use crate::ConstructNode;
+    use std::sync::Arc;
+
+    #[test]
+    fn vec() {
+        let program = Arc::<ConstructNode<Core>>::unit();
+        let _ = write_to_vec(|w| program.encode(w));
+    }
+
+    #[test]
+    fn empty_vec() {
+        let vec = write_to_vec(|_| Ok(0));
+        assert!(vec.is_empty());
+    }
+}

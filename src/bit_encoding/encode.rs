@@ -173,14 +173,14 @@ pub fn encode_program<W: io::Write, N: node::Marker>(
     let iter = EncodeNode::Node(program).post_order_iter::<EncodeSharing<N>>();
 
     let len = iter.clone().count();
-    let start_n = w.n_total_written();
+    let n_start = w.n_total_written();
     encode_natural(len, w)?;
 
     for node in iter {
         encode_node(node, w)?;
     }
 
-    Ok(w.n_total_written() - start_n)
+    Ok(w.n_total_written() - n_start)
 }
 
 /// Encode a node to bits.
@@ -291,7 +291,7 @@ where
     I: Iterator<Item = &'a Value> + Clone,
 {
     let mut bit_len = 0;
-    let start_n = w.n_total_written();
+    let n_start = w.n_total_written();
 
     for value in witness.clone() {
         bit_len += value.len();
@@ -308,11 +308,13 @@ where
         }
     }
 
-    Ok(w.n_total_written() - start_n)
+    Ok(w.n_total_written() - n_start)
 }
 
 /// Encode a value to bits.
-pub fn encode_value<W: io::Write>(value: &Value, w: &mut BitWriter<W>) -> io::Result<()> {
+pub fn encode_value<W: io::Write>(value: &Value, w: &mut BitWriter<W>) -> io::Result<usize> {
+    let n_start = w.n_total_written();
+
     match value {
         Value::Unit => {}
         Value::SumL(left) => {
@@ -329,32 +331,49 @@ pub fn encode_value<W: io::Write>(value: &Value, w: &mut BitWriter<W>) -> io::Re
         }
     }
 
-    Ok(())
+    Ok(w.n_total_written() - n_start)
 }
 
 /// Encode a hash to bits.
-pub fn encode_hash<W: io::Write>(h: &[u8], w: &mut BitWriter<W>) -> io::Result<()> {
+pub fn encode_hash<W: io::Write>(h: &[u8], w: &mut BitWriter<W>) -> io::Result<usize> {
     for byte in h {
         w.write_bits_be(u64::from(*byte), 8)?;
     }
 
-    Ok(())
+    Ok(h.len() * 8)
 }
 
-/// Encode a natural number to bits.
-pub fn encode_natural<W: io::Write>(n: usize, w: &mut BitWriter<W>) -> io::Result<()> {
-    assert_ne!(n, 0); // Cannot encode zero
-    let len = 8 * mem::size_of::<usize>() - n.leading_zeros() as usize - 1;
+/// Encode a positive integer to bits.
+pub fn encode_natural<W: io::Write>(mut n: usize, w: &mut BitWriter<W>) -> io::Result<usize> {
+    assert!(n > 0, "Zero cannot be encoded");
+    let n_start = w.n_total_written();
 
-    if len == 0 {
-        w.write_bit(false)?;
-    } else {
-        w.write_bit(true)?;
-        encode_natural(len, w)?;
-        w.write_bits_be(n as u64, len)?;
+    /// Minimum number of bits to represent `n` minus the most-significant bit
+    fn truncated_bit_len(n: usize) -> usize {
+        8 * mem::size_of::<usize>() - n.leading_zeros() as usize - 1
     }
 
-    Ok(())
+    let mut suffix = Vec::new();
+
+    loop {
+        debug_assert!(n > 0);
+        let len = truncated_bit_len(n);
+        if len == 0 {
+            w.write_bit(false)?;
+            break;
+        } else {
+            w.write_bit(true)?;
+            suffix.push((n, len));
+            n = len;
+        }
+    }
+
+    while let Some((bits, len)) = suffix.pop() {
+        let bits = bits as u64; // Case safety: assuming 64-bit machine or lower
+        w.write_bits_be(bits, len)?;
+    }
+
+    Ok(w.n_total_written() - n_start)
 }
 
 #[cfg(test)]
