@@ -17,7 +17,7 @@ use crate::Value;
 use std::{cmp, fmt};
 
 #[cfg(feature = "elements")]
-use std::io;
+use std::{convert::TryFrom, io};
 
 #[cfg(feature = "elements")]
 use elements::encode::Encodable;
@@ -99,19 +99,68 @@ impl Cost {
         self.0 <= weight.saturating_mul(1000)
     }
 
-    /// Return whether the cost is within the budget of
-    /// the given transaction input.
+    /// Return the minimum budget required to cover the cost.
+    fn required_budget(&self) -> u32 {
+        // Saturating addition to avoid panic at numeric bounds
+        // This results in a slightly different rounding for cost values close to u32::MAX.
+        // These values are strictly larger than CONSENSUS_MAX and are of no significance.
+        self.0.saturating_add(999) / 1000
+    }
+
+    /// Return the budget of the given script witness of a transaction output.
+    ///
+    /// The script witness is passed as `&Vec<Vec<u8>>` in order to use
+    /// the consensus encoding implemented for this type.
     #[cfg(feature = "elements")]
-    pub fn is_budget_valid(&self, txin: &elements::TxIn) -> bool {
+    fn get_budget(script_witness: &Vec<Vec<u8>>) -> u32 {
         let mut sink = io::sink();
-        let witness_stack_serialized_len = txin
-            .witness
-            .script_witness
+        let witness_stack_serialized_len = script_witness
             .consensus_encode(&mut sink)
             .expect("writing to sink never fails");
-        let budget = witness_stack_serialized_len + 50;
-        // Cast safety: witness stack serialized length cannot be more than 2^32 - 51
-        self.less_equal_weight(budget as u32)
+        let budget = u32::try_from(witness_stack_serialized_len)
+            .expect("Serialized witness stack must be shorter than 2^32 elements");
+        budget.saturating_add(50)
+    }
+
+    /// Return whether the cost is within the budget of
+    /// the given script witness of a transaction input.
+    ///
+    /// The script witness is passed as `&Vec<Vec<u8>>` in order to use
+    /// the consensus encoding implemented for this type.
+    #[cfg(feature = "elements")]
+    pub fn is_budget_valid(&self, script_witness: &Vec<Vec<u8>>) -> bool {
+        let budget = Self::get_budget(script_witness);
+        self.less_equal_weight(budget)
+    }
+
+    /// Return the annex bytes that are required as padding
+    /// so the transaction input has enough budget to cover the cost.
+    ///
+    /// The first annex byte is 0x50, as defined in BIP 341.
+    /// The following padding bytes are 0x00.
+    #[cfg(feature = "elements")]
+    pub fn get_padding(&self, script_witness: &Vec<Vec<u8>>) -> Option<Vec<u8>> {
+        let required_budget = self.required_budget();
+        let current_budget = Self::get_budget(script_witness);
+        if required_budget <= current_budget {
+            return None;
+        }
+
+        let required_budget = required_budget - current_budget;
+        // Two bytes are automatically added to the encoded witness stack by adding the annex:
+        //
+        // 1. The encoded annex starts with the annex byte length
+        // 2. The first annex byte is always 0x50
+        //
+        // The remaining padding is done by adding (zero) bytes to the annex.
+        //
+        // Cast safety: assuming 32-bit machine or higher
+        let remaining_padding_len = required_budget.saturating_sub(2) as usize;
+        let annex_bytes: Vec<u8> = std::iter::once(0x50)
+            .chain(std::iter::repeat(0x00).take(remaining_padding_len))
+            .collect();
+
+        Some(annex_bytes)
     }
 }
 
@@ -300,11 +349,75 @@ pub(crate) const IO_EXTRA_FRAMES: usize = 2;
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use simplicity_sys::ffi::bounded::cost_overhead;
 
     #[test]
     fn test_overhead() {
         // Check that C overhead is same OVERHEAD
-        assert_eq!(super::Cost::OVERHEAD.0, cost_overhead());
+        assert_eq!(Cost::OVERHEAD.0, cost_overhead());
+    }
+
+    #[test]
+    fn test_required_budget() {
+        let test_vectors = vec![
+            (Cost::NEVER_EXECUTED, 0),
+            (Cost::from_milliweight(0_001), 1),
+            (Cost::from_milliweight(0_999), 1),
+            (Cost::from_milliweight(1_000), 1),
+            (Cost::from_milliweight(1_001), 2),
+            (Cost::from_milliweight(1_999), 2),
+            (Cost::from_milliweight(2_000), 2),
+            (Cost::CONSENSUS_MAX, 4_000_050),
+        ];
+
+        for (cost, expected_budget) in test_vectors {
+            let budget = cost.required_budget();
+            assert_eq!(budget, expected_budget);
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "elements")]
+    fn test_get_padding() {
+        // The budget of the empty witness stack is 51 WU:
+        //
+        // 1. 50 WU of free signature operations
+        // 2. 1 WU for the length byte of the witness stack
+        let empty = 51_000;
+
+        // The encoded annex starts with a length byte, so remove one padding byte from the annex
+        let test_vectors = vec![
+            (Cost::from_milliweight(0), vec![], None),
+            (Cost::from_milliweight(empty), vec![], None),
+            (Cost::from_milliweight(empty + 1), vec![], Some(1)),
+            (Cost::from_milliweight(empty + 2_000), vec![], Some(1)),
+            (Cost::from_milliweight(empty + 2_001), vec![], Some(2)),
+            (Cost::from_milliweight(empty + 3_000), vec![], Some(2)),
+            (Cost::from_milliweight(empty + 3_001), vec![], Some(3)),
+            (Cost::from_milliweight(empty + 4_000), vec![], Some(3)),
+            (Cost::from_milliweight(empty + 4_001), vec![], Some(4)),
+            (Cost::from_milliweight(empty + 50_000), vec![], Some(49)),
+        ];
+
+        for (cost, mut witness, maybe_padding) in test_vectors {
+            match maybe_padding {
+                None => {
+                    assert!(cost.is_budget_valid(&witness));
+                    assert!(cost.get_padding(&witness).is_none());
+                }
+                Some(expected_annex_len) => {
+                    assert!(!cost.is_budget_valid(&witness));
+
+                    let annex_bytes = cost.get_padding(&witness).expect("not enough budget");
+                    assert_eq!(expected_annex_len, annex_bytes.len());
+                    witness.extend(std::iter::once(annex_bytes));
+                    assert!(cost.is_budget_valid(&witness));
+
+                    witness.pop();
+                    assert!(!cost.is_budget_valid(&witness), "Padding must be minimal");
+                }
+            }
+        }
     }
 }
