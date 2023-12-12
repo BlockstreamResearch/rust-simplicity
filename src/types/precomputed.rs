@@ -29,31 +29,31 @@ use crate::Tmr;
 use super::Type;
 
 use std::cell::RefCell;
-use std::thread_local;
+use std::convert::TryInto;
 
 // Directly use the size of the precomputed TMR table to make sure they're in sync.
 const N_POWERS: usize = Tmr::POWERS_OF_TWO.len();
 
 thread_local! {
-    static POWERS_OF_TWO: RefCell<[Option<Type>; N_POWERS]> = RefCell::new([
-        None, None, None, None, None, None, None, None,
-        None, None, None, None, None, None, None, None,
-        None, None, None, None, None, None, None, None,
-        None, None, None, None, None, None, None, None,
-    ]);
+    static POWERS_OF_TWO: RefCell<Option<[Type; N_POWERS]>> = RefCell::new(None);
 }
 
-fn initialize() {
+fn initialize(write: &mut Option<[Type; N_POWERS]>) {
     let one = Type::unit();
-    POWERS_OF_TWO.with(|arr| {
-        let mut arr = arr.borrow_mut();
+    let mut powers = Vec::with_capacity(N_POWERS);
 
-        let mut two_n = Type::sum(one.shallow_clone(), one);
-        for i in 0..N_POWERS {
-            arr[i] = Some(two_n.shallow_clone());
-            two_n = Type::product(two_n.shallow_clone(), two_n);
-        }
-    });
+    // Two^(2^0) = Two = (One + One)
+    let mut power = Type::sum(one.shallow_clone(), one);
+    powers.push(power.shallow_clone());
+
+    // Two^(2^(i + 1)) = (Two^(2^i) * Two^(2^i))
+    for _ in 1..N_POWERS {
+        power = Type::product(power.shallow_clone(), power);
+        powers.push(power.shallow_clone());
+    }
+
+    let powers: [Type; N_POWERS] = powers.try_into().unwrap();
+    *write = Some(powers);
 }
 
 /// Obtain a precomputed copy of the nth power of two
@@ -62,12 +62,11 @@ fn initialize() {
 ///
 /// Panics if you request a number `n` greater than or equal to [`Tmr::POWERS_OF_TWO`].
 pub fn nth_power_of_2(n: usize) -> Type {
-    let mut ret = None;
     POWERS_OF_TWO.with(|arr| {
-        if arr.borrow()[0].is_none() {
-            initialize();
+        if arr.borrow().is_none() {
+            initialize(&mut arr.borrow_mut());
         }
-        ret = arr.borrow()[n].as_ref().map(Type::shallow_clone);
-    });
-    ret.unwrap()
+        debug_assert!(arr.borrow().is_some());
+        arr.borrow().as_ref().unwrap()[n].shallow_clone()
+    })
 }
