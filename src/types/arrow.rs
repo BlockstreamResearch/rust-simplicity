@@ -135,7 +135,8 @@ impl Arrow {
     /// Create a unification arrow for a fresh const-word combinator
     pub fn for_const_word(word: &Value) -> Self {
         let len = word.len();
-        assert_eq!(len.count_ones(), 1);
+        assert!(len > 0, "Words must not be the empty bitstring");
+        assert!(len.is_power_of_two());
         let depth = word.len().trailing_zeros();
         Arrow {
             source: Type::unit(),
