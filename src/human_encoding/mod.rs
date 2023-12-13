@@ -219,9 +219,12 @@ impl<J: Jet> Forest<J> {
         ret
     }
 
-    pub fn to_witness_node(&self, witness: &HashMap<Arc<str>, Arc<Value>>) -> Arc<WitnessNode<J>> {
-        let main = self.roots.get("main").expect("main always exists");
-        main.to_witness_node(witness, self.roots())
+    pub fn to_witness_node(
+        &self,
+        witness: &HashMap<Arc<str>, Arc<Value>>,
+    ) -> Option<Arc<WitnessNode<J>>> {
+        let main = self.roots.get("main")?;
+        Some(main.to_witness_node(witness, self.roots()))
     }
 }
 
@@ -246,7 +249,7 @@ mod tests {
         let mut witness = HashMap::new();
         witness.insert(Arc::from("wit1"), Value::u32(1337));
 
-        match forest.to_witness_node(&witness).finalize() {
+        match forest.to_witness_node(&witness).unwrap().finalize() {
             Ok(_) => panic!("Insufficient witness map should fail"),
             Err(Error::IncompleteFinalization) => {}
             Err(error) => panic!("Unexpected error {}", error),
@@ -285,7 +288,7 @@ mod tests {
         let forest = Forest::<Core>::parse(s).unwrap();
         let witness = HashMap::new();
 
-        match forest.to_witness_node(&witness).finalize() {
+        match forest.to_witness_node(&witness).unwrap().finalize() {
             Ok(_) => panic!("Duplicate witness names should fail"),
             Err(Error::IncompleteFinalization) => {}
             Err(error) => panic!("Unexpected error {}", error),
@@ -303,14 +306,14 @@ mod tests {
         let mut witness = HashMap::new();
         witness.insert(Arc::from("wit1"), Value::u1(0));
 
-        match forest.to_witness_node(&witness).finalize() {
+        match forest.to_witness_node(&witness).unwrap().finalize() {
             Ok(_) => {}
             Err(e) => panic!("Unexpected error {}", e),
         }
 
         witness.insert(Arc::from("wit1"), Value::u1(1));
 
-        match forest.to_witness_node(&witness).finalize() {
+        match forest.to_witness_node(&witness).unwrap().finalize() {
             Ok(_) => {}
             Err(Error::IncompleteFinalization) => {}
             Err(e) => panic!("Unexpected error {}", e),
@@ -318,7 +321,7 @@ mod tests {
 
         witness.insert(Arc::from("wit2"), Value::unit());
 
-        match forest.to_witness_node(&witness).finalize() {
+        match forest.to_witness_node(&witness).unwrap().finalize() {
             Ok(_) => {}
             Err(e) => panic!("Unexpected error {}", e),
         }
