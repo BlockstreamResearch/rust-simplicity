@@ -221,7 +221,7 @@ impl Value {
 
     /// Encode value as big-endian byte string.
     /// Fails if underlying bit string has length not divisible by 8
-    pub fn try_to_bytes(&self) -> Result<Vec<u8>, &str> {
+    pub fn try_to_bytes(&self) -> Result<Vec<u8>, &'static str> {
         let (bytes, bit_length) = self.to_bytes_len();
 
         if bit_length % 8 == 0 {
