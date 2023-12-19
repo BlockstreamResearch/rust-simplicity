@@ -361,8 +361,8 @@ impl<J: Jet> Ast<J> {
         if &lexemes[0].raw[..2] == "0x" {
             let bit_length = s.len() * 4;
             let mut data = Vec::with_capacity((s.len() + 1) / 2);
-            for idx in (0..s.len()).step_by(2) {
-                data.push(u8::from_str_radix(&s[idx..idx + 2], 16).unwrap());
+            for idx in 0..s.len() / 2 {
+                data.push(u8::from_str_radix(&s[2 * idx..2 * idx + 2], 16).unwrap());
             }
             if s.len() % 2 == 1 {
                 data.push(u8::from_str_radix(&s[s.len() - 1..], 16).unwrap() << 4);

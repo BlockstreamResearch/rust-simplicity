@@ -749,13 +749,29 @@ mod tests {
 
     #[test]
     fn const_word() {
-        assert_const::<Core>(
-            "main := comp const 0xdeadbeef unit",
-            Value::power_of_two(&[0xde, 0xad, 0xbe, 0xef]),
-        );
-        assert_const::<Core>(
-            "main := comp const 0b00000001001000110100010101100111 unit",
-            Value::power_of_two(&[0b00000001, 0b00100011, 0b01000101, 0b01100111]),
-        );
+        let human_values = [
+            ("0b0", Value::u1(0b0)),
+            ("0b1", Value::u1(0b1)),
+            ("0b00", Value::u2(0b00)),
+            ("0b11", Value::u2(0b11)),
+            ("0b0000", Value::u4(0b0000)),
+            ("0b1111", Value::u4(0b1111)),
+            ("0b00000000", Value::u8(0b00000000)),
+            ("0b11111111", Value::u8(0b11111111)),
+            (
+                "0b00000001001000110100010101100111",
+                Value::power_of_two(&[0b00000001, 0b00100011, 0b01000101, 0b01100111]),
+            ),
+            ("0x0", Value::u4(0x0)),
+            ("0xf", Value::u4(0xf)),
+            ("0x00", Value::u8(0x00)),
+            ("0xff", Value::u8(0xff)),
+            ("0xdeadbeef", Value::power_of_two(&[0xde, 0xad, 0xbe, 0xef])),
+        ];
+
+        for (human, value) in human_values {
+            let s = format!("main := comp const {human} unit");
+            assert_const::<Core>(s.as_str(), value);
+        }
     }
 }
