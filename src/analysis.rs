@@ -362,8 +362,8 @@ mod tests {
     fn test_required_budget() {
         let test_vectors = vec![
             (Cost::NEVER_EXECUTED, 0),
-            (Cost::from_milliweight(0_001), 1),
-            (Cost::from_milliweight(0_999), 1),
+            (Cost::from_milliweight(1), 1),
+            (Cost::from_milliweight(999), 1),
             (Cost::from_milliweight(1_000), 1),
             (Cost::from_milliweight(1_001), 2),
             (Cost::from_milliweight(1_999), 2),

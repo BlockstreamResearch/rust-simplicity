@@ -605,8 +605,8 @@ mod tests {
                 assert_eq!(main.cmr().to_string(), cmr);
 
                 let witness: HashMap<_, _> = witness
-                    .into_iter()
-                    .map(|(name, value)| (Arc::from(*name), Value::power_of_two(*value)))
+                    .iter()
+                    .map(|(name, value)| (Arc::from(*name), Value::power_of_two(value)))
                     .collect();
                 let program = main
                     .to_witness_node(&witness, &forest)
