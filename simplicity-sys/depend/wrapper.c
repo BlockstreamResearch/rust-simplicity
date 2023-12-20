@@ -12,6 +12,12 @@
 
 const uint64_t c_overhead = overhead;
 
+const size_t c_sizeof_uchar = sizeof(unsigned char);
+const size_t c_sizeof_int = sizeof(int);
+const size_t c_sizeof_uint = sizeof(unsigned int);
+const size_t c_sizeof_size_t = sizeof(size_t);
+const size_t c_sizeof_uint_fast16_t = sizeof(uint_fast16_t);
+const size_t c_sizeof_uint_least32_t = sizeof(uint_least32_t);
 const size_t c_sizeof_ubounded = sizeof(ubounded);
 const size_t c_sizeof_UWORD = sizeof(UWORD);
 const size_t c_sizeof_simplicity_err = sizeof(simplicity_err);
@@ -26,6 +32,12 @@ const size_t c_sizeof_sha256_midstate = sizeof(sha256_midstate);
 const size_t c_sizeof_typename = sizeof(typeName);
 const size_t c_sizeof_type = sizeof(type);
 
+const size_t c_alignof_uchar = alignof(unsigned char);
+const size_t c_alignof_int = alignof(int);
+const size_t c_alignof_uint = alignof(unsigned int);
+const size_t c_alignof_size_t = alignof(size_t);
+const size_t c_alignof_uint_fast16_t = alignof(uint_fast16_t);
+const size_t c_alignof_uint_least32_t = alignof(uint_least32_t);
 const size_t c_alignof_ubounded = alignof(ubounded);
 const size_t c_alignof_UWORD = alignof(UWORD);
 const size_t c_alignof_simplicity_err = alignof(simplicity_err);
