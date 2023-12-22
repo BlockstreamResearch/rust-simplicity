@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: CC0-1.0
 
-use std::os::raw::{c_uchar, c_uint};
+use hashes::{sha256, Hash};
 
 use crate::ffi::sha256::CSha256Midstate;
-use hashes::{sha256, Hash};
-use libc::size_t;
+use crate::ffi::{c_size_t, c_uchar, c_uint};
 
 /// Documentation of CRawInputData/CRawOutputData/CRawTapData/CRaw
 /// Data structure for holding data that CTransaction points to.
@@ -125,19 +124,19 @@ pub enum CTapEnv {}
 
 extern "C" {
 
-    pub static c_sizeof_rawBuffer: size_t;
-    pub static c_sizeof_rawOutput: size_t;
-    pub static c_sizeof_rawInput: size_t;
-    pub static c_sizeof_rawTransaction: size_t;
-    pub static c_sizeof_rawTapEnv: size_t;
-    pub static c_sizeof_txEnv: size_t;
+    pub static c_sizeof_rawBuffer: c_size_t;
+    pub static c_sizeof_rawOutput: c_size_t;
+    pub static c_sizeof_rawInput: c_size_t;
+    pub static c_sizeof_rawTransaction: c_size_t;
+    pub static c_sizeof_rawTapEnv: c_size_t;
+    pub static c_sizeof_txEnv: c_size_t;
 
-    pub static c_alignof_rawBuffer: size_t;
-    pub static c_alignof_rawOutput: size_t;
-    pub static c_alignof_rawInput: size_t;
-    pub static c_alignof_rawTransaction: size_t;
-    pub static c_alignof_rawTapEnv: size_t;
-    pub static c_alignof_txEnv: size_t;
+    pub static c_alignof_rawBuffer: c_size_t;
+    pub static c_alignof_rawOutput: c_size_t;
+    pub static c_alignof_rawInput: c_size_t;
+    pub static c_alignof_rawTransaction: c_size_t;
+    pub static c_alignof_rawTapEnv: c_size_t;
+    pub static c_alignof_txEnv: c_size_t;
 
     pub fn c_set_rawBuffer(res: *mut CRawBuffer, buf: *const c_uchar, len: c_uint);
     pub fn c_set_rawOutput(
