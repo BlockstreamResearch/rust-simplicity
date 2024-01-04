@@ -299,7 +299,7 @@ fn bench(c: &mut Criterion) {
 
     fn bip_0340() -> Arc<Value> {
         let secp_ctx = bitcoin::secp256k1::Secp256k1::new();
-        let keypair = bitcoin::key::KeyPair::new(&secp_ctx, &mut thread_rng());
+        let keypair = bitcoin::key::Keypair::new(&secp_ctx, &mut thread_rng());
         let xpk = bitcoin::key::XOnlyPublicKey::from_keypair(&keypair);
 
         let msg = bitcoin::secp256k1::Message::from_slice(&rand::random::<[u8; 32]>()).unwrap();
@@ -323,7 +323,7 @@ fn bench(c: &mut Criterion) {
 
     fn check_sig_verify() -> Arc<Value> {
         let secp_ctx = bitcoin::secp256k1::Secp256k1::signing_only();
-        let keypair = bitcoin::key::KeyPair::new(&secp_ctx, &mut thread_rng());
+        let keypair = bitcoin::key::Keypair::new(&secp_ctx, &mut thread_rng());
         let xpk = bitcoin::key::XOnlyPublicKey::from_keypair(&keypair);
 
         let msg = [0xab; 64];

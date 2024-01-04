@@ -230,7 +230,7 @@ mod tests {
     use crate::node::{CoreConstructible, JetConstructible, SimpleFinalizer, WitnessConstructible};
     use crate::policy::serialize;
     use crate::{BitMachine, FailEntropy, SimplicityKey};
-    use elements::bitcoin::key::{KeyPair, XOnlyPublicKey};
+    use elements::bitcoin::key::{Keypair, XOnlyPublicKey};
     use elements::secp256k1_zkp;
     use hashes::{sha256, Hash};
     use std::collections::HashMap;
@@ -286,7 +286,7 @@ mod tests {
         let mut signatures = HashMap::new();
 
         for _ in 0..3 {
-            let keypair = KeyPair::new(&secp, &mut rng);
+            let keypair = Keypair::new(&secp, &mut rng);
             let xonly = keypair.x_only_public_key().0;
 
             let sighash = env.c_tx_env().sighash_all();

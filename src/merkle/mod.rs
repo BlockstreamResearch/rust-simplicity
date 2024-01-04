@@ -128,9 +128,9 @@ macro_rules! impl_midstate_wrapper {
         }
 
         impl std::str::FromStr for $wrapper {
-            type Err = hashes::hex::Error;
+            type Err = hashes::hex::HexToArrayError;
 
-            fn from_str(s: &str) -> Result<Self, hashes::hex::Error> {
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
                 let x: [u8; 32] = hashes::hex::FromHex::from_hex(s)?;
                 Ok($wrapper(Midstate::from_byte_array(x)))
             }

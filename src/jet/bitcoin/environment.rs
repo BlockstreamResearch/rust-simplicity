@@ -29,7 +29,7 @@ impl Default for BitcoinEnv {
     fn default() -> Self {
         // FIXME: Review and check if the defaults make sense
         BitcoinEnv::new(bitcoin::Transaction {
-            version: 2,
+            version: bitcoin::transaction::Version::TWO,
             lock_time: absolute::LockTime::ZERO,
             input: vec![],
             output: vec![],
