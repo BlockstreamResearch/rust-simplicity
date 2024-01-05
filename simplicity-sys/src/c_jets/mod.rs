@@ -21,8 +21,6 @@ use crate::c_jets::c_env::{CRawBuffer, CRawInput, CRawOutput, CRawTapEnv, CRawTr
 
 #[cfg(feature = "test-utils")]
 pub mod exec_ffi;
-#[cfg(feature = "test-utils")]
-pub use exec_ffi::*;
 
 /// sanity checks for using the types.
 /// We are not using the internal representation of the types at all, but
