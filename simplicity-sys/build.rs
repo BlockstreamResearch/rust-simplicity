@@ -42,6 +42,7 @@ fn main() {
     let include = simplicity_path.join("include");
 
     cc::Build::new()
+        .std("c11")
         .flag_if_supported("-fno-inline-functions")
         .files(files)
         .files(test_files)
