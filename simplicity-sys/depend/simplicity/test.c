@@ -18,8 +18,15 @@
 
 _Static_assert(CHAR_BIT == 8, "Buffers passed to fmemopen presume 8 bit chars");
 
+static const double secondsPerWU = 0.5 / 1000. / 1000.;
 static int successes = 0;
 static int failures = 0;
+
+static void fprint_cmr(FILE* stream, const uint32_t* cmr) {
+  fprintf(stream, "0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x",
+          cmr[0], cmr[1], cmr[2], cmr[3], cmr[4], cmr[5], cmr[6], cmr[7]
+         );
+}
 
 static void test_decodeUptoMaxInt(void) {
   printf("Test decodeUptoMaxInt\n");
@@ -172,6 +179,9 @@ static void test_program(char* name, const unsigned char* program, size_t progra
       printf("Error parsing dag: %d\n", error);
     } else {
       error = decodeWitnessData(&witness, &stream);
+      if (IS_OK(error)) {
+        error = closeBitstream(&stream);
+      }
       if (!IS_OK(error)) {
         if (expectedResult == error) {
           successes++;
@@ -190,7 +200,11 @@ static void test_program(char* name, const unsigned char* program, size_t progra
         successes++;
       } else {
         failures++;
-        printf("Unexpected CMR.\n");
+        printf("Unexpected CMR. Expected\n{");
+        fprint_cmr(stdout, expectedCMR);
+        printf("}, but received\n{");
+        fprint_cmr(stdout, dag[len-1].cmr.s);
+        printf("}\n");
       }
     }
     type* type_dag;
@@ -202,16 +216,14 @@ static void test_program(char* name, const unsigned char* program, size_t progra
       failures++;
       printf("Unexpected failure of fillWitnessData.\n");
     } else {
-      {
+      if (expectedAMR) {
         analyses analysis[len];
         computeAnnotatedMerkleRoot(analysis, dag, type_dag, (size_t)len);
-        if (expectedAMR) {
-          if (0 == memcmp(expectedAMR, analysis[len-1].annotatedMerkleRoot.s, sizeof(uint32_t[8]))) {
-            successes++;
-          } else {
-            failures++;
-            printf("Unexpected AMR.\n");
-          }
+        if (0 == memcmp(expectedAMR, analysis[len-1].annotatedMerkleRoot.s, sizeof(uint32_t[8]))) {
+          successes++;
+        } else {
+          failures++;
+          printf("Unexpected AMR.\n");
         }
       }
       {
@@ -503,19 +515,34 @@ static void regression_tests(void) {
     /* word("2^23 zero bits") ; unit */
     size_t sizeof_regression3 = ((size_t)1 << 20) + 4;
     unsigned char *regression3 = calloc(sizeof_regression3, 1);
-    assert(regression3);
+    clock_t start, end;
+    double diff, bound;
+    const uint32_t cmr[] = {
+      0x7f81c076u, 0xf0df9505u, 0xbfce61f0u, 0x41197bd9u, 0x2aaaa4f1u, 0x7015d1ecu, 0xb248ddffu, 0xe9d9da07u
+    };
+    simplicity_assert(regression3);
     regression3[0] = 0xb7; regression3[1] = 0x08;
     regression3[sizeof_regression3 - 2] = 0x48; regression3[sizeof_regression3 - 1] = 0x20;
-    test_program("regression3", regression3, sizeof_regression3, SIMPLICITY_ERR_EXEC_MEMORY, NULL, NULL, NULL, NULL);
+    start = clock();
+    test_program("regression3", regression3, sizeof_regression3, SIMPLICITY_ERR_EXEC_MEMORY, cmr, NULL, NULL, NULL);
+    end = clock();
+    diff = (double)(end - start) / CLOCKS_PER_SEC;
+    bound = (double)(sizeof_regression3) * secondsPerWU;
+    printf("cpu_time_used by regression3: %f s.  (Should be less than %f s.)\n", diff, bound);
+    if (diff <= bound) {
+      successes++;
+    } else {
+      failures++;
+      printf("regression3 took too long.\n");
+    }
     free(regression3);
   }
 }
 
 static void iden8mebi_test(void) {
   /* iden composed with itself 2^23 times. */
-  const unsigned char iden8mebi[35] = {0xe1, 0x08, [33]=0x40};
+  const unsigned char iden8mebi[23] = {0xe1, 0x08};
   const ubounded expectedCost = 1677721500; /* in milliWU */
-  const double secondsPerWU = 0.5 / 1000. / 1000.;
   clock_t start, end;
   double diff, bound;
   start = clock();

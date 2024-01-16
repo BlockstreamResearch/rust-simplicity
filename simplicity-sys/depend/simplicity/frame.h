@@ -112,6 +112,7 @@ static inline void skipBits(frameItem* frame, size_t n) {
  *
  * Precondition: '*frame' is a valid read frame for 'N' more cells.
  */
+uint_fast8_t read4(frameItem* frame);
 uint_fast8_t read8(frameItem* frame);
 uint_fast16_t read16(frameItem* frame);
 uint_fast32_t read32(frameItem* frame);
@@ -197,4 +198,12 @@ bool read_sha256_context(sha256_context* ctx, frameItem* src);
  */
 bool write_sha256_context(frameItem* dst, const sha256_context* ctx);
 
+/* Given a write frame and a read frame, copy 'n' cells from after the read frame's cursor to after the write frame's cursor,
+ * and then advance the write frame's cursor by 'n'.
+ * Cells in front of the '*dst's cursor's final position may be overwritten.
+ *
+ * Precondition: '*dst' is a valid write frame for 'n' more cells;
+ *               '*src' is a valid read frame for 'n' more cells;
+ */
+void copyBits(frameItem* dst, const frameItem* src, size_t n);
 #endif

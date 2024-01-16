@@ -97,31 +97,39 @@ static sha256_midstate mkJetCMR(uint32_t *imr, uint_fast64_t weight) {
  * Precondition: 2^n == value->len
  */
 sha256_midstate computeWordCMR(const bitstring* value, size_t n) {
-  /* 'stack' is an array of 33 hashes consisting of 8 'uint32_t's each. */
-  uint32_t stack[8*33] = {0};
+  /* 'stack' is an array of 30 hashes consisting of 8 'uint32_t's each. */
+  uint32_t stack[8*30] = {0};
   uint32_t *stack_ptr = stack;
   sha256_midstate imr = identityIV;
   simplicity_assert(n < 32);
   simplicity_assert((size_t)1 << n == value->len);
   /* Pass 1: Compute the CMR for the expression that writes 'value'.
    * This expression consists of deeply nested PAIRs of expressions that write one bit each.
-   *
-   * :TODO: This can be optimized by a constant factor by precomputing a table of CMRs of expressions
-   * that, for example, write out every possible byte sequence.
    */
   /* stack[0..7] (8 bytes) is kept as all zeros for later.
    * We start the stack_ptr at the second item.
    */
-  for(size_t i = 0; i < value->len; ++i) {
-    /* stack_ptr == stack + 8*<count of the number of set bits in the value i> */
+  if (n < 3) {
     stack_ptr += 8;
-    memcpy(stack_ptr, &bit_cmr[getBit(value, i)], sizeof(uint32_t[8]));
-    /* This inner for loop runs in ammortized constant time. */
-    for (size_t j = i; j & 1; j = j >> 1) {
-      sha256_midstate pair = cmrIV(PAIR);
-      stack_ptr -= 8;
-      sha256_compression(pair.s, stack_ptr);
-      memcpy(stack_ptr, pair.s, sizeof(uint32_t[8]));
+    size_t i;
+    switch(n) {
+     case 0: i = getBit(value, 0); break;
+     case 1: i = 2 + ((1U * getBit(value, 0) << 1) | getBit(value, 1)); break;
+     case 2: i = 6 + ((1U * getBit(value, 0) << 3) | (1U * getBit(value, 1) << 2) | (1U * getBit(value, 2) << 1) | getBit(value, 3)); break;
+    }
+    memcpy(stack_ptr, &word_cmr[i], sizeof(uint32_t[8]));
+  } else {
+    for (size_t i = 0; i < value->len >> 3; ++i) {
+      /* stack_ptr == stack + 8*<count of the number of set bits in the value i> */
+      stack_ptr += 8;
+      memcpy(stack_ptr, &word_cmr[22 + getByte(value, 8*i)], sizeof(uint32_t[8]));
+      /* This inner for loop runs in amortized constant time. */
+      for (size_t j = i; j & 1; j = j >> 1) {
+        sha256_midstate pair = cmrIV(PAIR);
+        stack_ptr -= 8;
+        sha256_compression(pair.s, stack_ptr);
+        memcpy(stack_ptr, pair.s, sizeof(uint32_t[8]));
+      }
     }
   }
   /* value->len is a power of 2.*/
@@ -464,7 +472,7 @@ simplicity_err verifyCanonicalOrder(dag_node* dag, const size_t len) {
  * For each 'WITNESS' : A |- B expression in 'dag', the bits from the 'witness' bitstring are decoded in turn
  * to construct a compact representation of a witness value of type B.
  * This function only returns 'SIMPLICITY_NO_ERROR' when exactly 'witness.len' bits are consumed by all the 'dag's witness values.
- * If extra bits remain, then 'SIMPLICITY_ERR_WITNESS_UNUSED_BITS' is returned.
+ * If extra bits remain, then 'SIMPLICITY_ERR_WITNESS_TRAILING_BITS' is returned.
  * If there are not enough bits, then 'SIMPLICITY_ERR_WITNESS_EOF' is returned.
  *
  * Note: the 'witness' value is passed by copy because the implementation manipulates a local copy of the structure.
@@ -549,7 +557,7 @@ simplicity_err fillWitnessData(dag_node* dag, type* type_dag, const size_t len, 
       }
     }
   }
-  return 0 == witness.len ? SIMPLICITY_NO_ERROR : SIMPLICITY_ERR_WITNESS_UNUSED_BITS;
+  return 0 == witness.len ? SIMPLICITY_NO_ERROR : SIMPLICITY_ERR_WITNESS_TRAILING_BITS;
 }
 
 /* Verifies that identity Merkle roots of every subexpression in a well-typed 'dag' with witnesses are all unique,

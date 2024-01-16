@@ -2,7 +2,7 @@
 #ifndef SIMPLICITY_BITSTREAM_H
 #define SIMPLICITY_BITSTREAM_H
 
-#include <stdio.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <simplicity/errorCodes.h>
@@ -30,8 +30,8 @@ static inline bitstream initializeBitstream(const unsigned char* arr, size_t len
 }
 
 /* Closes a bitstream by consuming all remaining bits.
- * Returns 'SIMPLICITY_ERR_BITSTREAM_UNUSED_BYTES' if CHAR_BIT or more bits remain in the stream.
- * Otherwise, returns 'SIMPLICITY_ERR_BITSTREAM_UNUSED_BITS' if any remaining bits are non-zero.
+ * Returns 'SIMPLICITY_ERR_BITSTREAM_TRAILING_BYTES' if CHAR_BIT or more bits remain in the stream.
+ * Otherwise, returns 'SIMPLICITY_ERR_BITSTREAM_ILLEGAL_PADDING' if any remaining bits are non-zero.
  * Otherwise returns 'SIMPLICITY_NO_ERROR'.
  *
  * Precondition: NULL != stream

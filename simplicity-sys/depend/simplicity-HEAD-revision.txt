@@ -1,2 +1,2 @@
-# This file was automatically created by vendor-simplicity.sh
-9c38bc04f5b6fbb62380bc4141ca0c980b4ee417
+# This file was automatically created by ./vendor-simplicity.sh
+b547f5041f061136d30d2291630b4b671a85ced5

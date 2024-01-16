@@ -21,6 +21,14 @@ bool verify(frameItem* dst, frameItem src, const txEnv* env) {
   return readBit(&src);
 }
 
+/* low_1 : ONE |- TWO */
+bool low_1(frameItem* dst, frameItem src, const txEnv* env) {
+  (void) env; /* env is unused. */
+  (void) src; /* src is unused. */
+  writeBit(dst, 0);
+  return true;
+}
+
 #define LOW_(bits)                                                 \
 /* low_n : ONE |- TWO^n */                                         \
 bool low_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
@@ -33,6 +41,14 @@ LOW_(8)
 LOW_(16)
 LOW_(32)
 LOW_(64)
+
+/* high_1 : ONE |- TWO */
+bool high_1(frameItem* dst, frameItem src, const txEnv* env) {
+  (void) env; /* env is unused. */
+  (void) src; /* src is unused. */
+  writeBit(dst, 1);
+  return true;
+}
 
 #define HIGH_(bits)                                                 \
 /* high_n : ONE |- TWO^n */                                         \
@@ -47,6 +63,14 @@ HIGH_(16)
 HIGH_(32)
 HIGH_(64)
 
+/* complement_1 : TWO |- TWO */
+bool complement_1(frameItem* dst, frameItem src, const txEnv* env) {
+  (void) env; /* env is unused. */
+  bool x = readBit(&src);
+  writeBit(dst, !x);
+  return true;
+}
+
 #define COMPLEMENT_(bits)                                                 \
 /* complement_n : TWO^n |- TWO^n */                                       \
 bool complement_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
@@ -59,6 +83,15 @@ COMPLEMENT_(8)
 COMPLEMENT_(16)
 COMPLEMENT_(32)
 COMPLEMENT_(64)
+
+/* and_1 : TWO * TWO |- TWO */
+bool and_1(frameItem* dst, frameItem src, const txEnv* env) {
+  (void) env; /* env is unused. */
+  bool x = readBit(&src);
+  bool y = readBit(&src);
+  writeBit(dst, x && y);
+  return true;
+}
 
 #define AND_(bits)                                                 \
 /* and_n : TWO^n * TWO^n |- TWO^n */                               \
@@ -74,6 +107,15 @@ AND_(16)
 AND_(32)
 AND_(64)
 
+/* or_1 : TWO * TWO |- TWO */
+bool or_1(frameItem* dst, frameItem src, const txEnv* env) {
+  (void) env; /* env is unused. */
+  bool x = readBit(&src);
+  bool y = readBit(&src);
+  writeBit(dst, x || y);
+  return true;
+}
+
 #define OR_(bits)                                                 \
 /* or_n : TWO^n * TWO^n |- TWO^n */                               \
 bool or_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
@@ -88,6 +130,15 @@ OR_(16)
 OR_(32)
 OR_(64)
 
+/* xor_1 : TWO * TWO |- TWO */
+bool xor_1(frameItem* dst, frameItem src, const txEnv* env) {
+  (void) env; /* env is unused. */
+  bool x = readBit(&src);
+  bool y = readBit(&src);
+  writeBit(dst, x ^ y);
+  return true;
+}
+
 #define XOR_(bits)                                                 \
 /* xor_n : TWO^n * TWO^n |- TWO^n */                               \
 bool xor_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
@@ -101,6 +152,16 @@ XOR_(8)
 XOR_(16)
 XOR_(32)
 XOR_(64)
+
+/* maj_1 : TWO * TWO * TWO |- TWO */
+bool maj_1(frameItem* dst, frameItem src, const txEnv* env) {
+  (void) env; /* env is unused. */
+  bool x = readBit(&src);
+  bool y = readBit(&src);
+  bool z = readBit(&src);
+  writeBit(dst, (x && y) || (y && z) || (z && x));
+  return true;
+}
 
 #define MAJ_(bits)                                                 \
 /* maj_n : TWO^n * TWO^n * TWO^n |- TWO^n */                       \
@@ -117,6 +178,16 @@ MAJ_(16)
 MAJ_(32)
 MAJ_(64)
 
+/* xor_xor_1 : TWO * TWO * TWO |- TWO */
+bool xor_xor_1(frameItem* dst, frameItem src, const txEnv* env) {
+  (void) env; /* env is unused. */
+  bool x = readBit(&src);
+  bool y = readBit(&src);
+  bool z = readBit(&src);
+  writeBit(dst, x ^ y ^ z);
+  return true;
+}
+
 #define XOR_XOR_(bits)                                                 \
 /* xor_xor_n : TWO^n * TWO^n * TWO^n |- TWO^n */                       \
 bool xor_xor_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
@@ -132,6 +203,16 @@ XOR_XOR_(16)
 XOR_XOR_(32)
 XOR_XOR_(64)
 
+/* ch_1 : TWO * TWO * TWO |- TWO */
+bool ch_1(frameItem* dst, frameItem src, const txEnv* env) {
+  (void) env; /* env is unused. */
+  bool x = readBit(&src);
+  bool y = readBit(&src);
+  bool z = readBit(&src);
+  writeBit(dst, x ? y : z);
+  return true;
+}
+
 #define CH_(bits)                                                 \
 /* ch_n : TWO^n * TWO^n * TWO^n |- TWO^n */                       \
 bool ch_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
@@ -146,6 +227,14 @@ CH_(8)
 CH_(16)
 CH_(32)
 CH_(64)
+
+/* some_1 : TWO |- TWO */
+bool some_1(frameItem* dst, frameItem src, const txEnv* env) {
+  (void) env; /* env is unused. */
+  bool x = readBit(&src);
+  writeBit(dst, x);
+  return true;
+}
 
 #define SOME_(bits)                                                 \
 /* some_n : TWO^n |- TWO */                                         \
@@ -173,18 +262,14 @@ ALL_(16)
 ALL_(32)
 ALL_(64)
 
-#define ONE_(bits)                                                 \
-/* one_n : ONE |- TWO^n */                                         \
-bool one_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
-  (void) env; /* env is unused. */                                 \
-  (void) src; /* src is unused. */                                 \
-  write##bits(dst, 1);                                             \
-  return true;                                                     \
+/* eq_1 : TWO * TWO |- TWO */
+bool eq_1(frameItem* dst, frameItem src, const txEnv* env) {
+  (void) env; /* env is unused. */
+  bool x = readBit(&src);
+  bool y = readBit(&src);
+  writeBit(dst, x == y);
+  return true;
 }
-ONE_(8)
-ONE_(16)
-ONE_(32)
-ONE_(64)
 
 #define EQ_(bits)                                                 \
 /* eq_n : TWO^n * TWO^n |- TWO */                                 \
@@ -214,6 +299,409 @@ bool eq_256(frameItem* dst, frameItem src, const txEnv* env) {
   writeBit(dst, true);
   return true;
 }
+
+#define FULL_LEFT_SHIFT_(bitsN, bitsM)                                                                    \
+/* full_left_shift_n_m : TWO^n * TWO^m |- TWO^m * TWO^n */                                                \
+bool full_left_shift_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {                 \
+  (void) env; /* env is unused. */                                                                        \
+  static_assert(0 <= (bitsM) && (bitsM) <= (bitsN) && (bitsN) <= 64, "Bad arguments for bitsN or bitsM"); \
+  copyBits(dst, &src, (bitsN) + (bitsM));                                                                 \
+  return true;                                                                                            \
+}
+FULL_LEFT_SHIFT_(8,1)
+FULL_LEFT_SHIFT_(8,2)
+FULL_LEFT_SHIFT_(8,4)
+FULL_LEFT_SHIFT_(16,1)
+FULL_LEFT_SHIFT_(16,2)
+FULL_LEFT_SHIFT_(16,4)
+FULL_LEFT_SHIFT_(16,8)
+FULL_LEFT_SHIFT_(32,1)
+FULL_LEFT_SHIFT_(32,2)
+FULL_LEFT_SHIFT_(32,4)
+FULL_LEFT_SHIFT_(32,8)
+FULL_LEFT_SHIFT_(32,16)
+FULL_LEFT_SHIFT_(64,1)
+FULL_LEFT_SHIFT_(64,2)
+FULL_LEFT_SHIFT_(64,4)
+FULL_LEFT_SHIFT_(64,8)
+FULL_LEFT_SHIFT_(64,16)
+FULL_LEFT_SHIFT_(64,32)
+
+#define FULL_RIGHT_SHIFT_(bitsN, bitsM)                                                                   \
+/* full_right_shift_n_m : TWO^m * TWO^n |- TWO^n * TWO^m */                                               \
+bool full_right_shift_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {                \
+  (void) env; /* env is unused. */                                                                        \
+  static_assert(0 <= (bitsM) && (bitsM) <= (bitsN) && (bitsN) <= 64, "Bad arguments for bitsN or bitsM"); \
+  copyBits(dst, &src, (bitsN) + (bitsM));                                                                 \
+  return true;                                                                                            \
+}
+FULL_RIGHT_SHIFT_(8,1)
+FULL_RIGHT_SHIFT_(8,2)
+FULL_RIGHT_SHIFT_(8,4)
+FULL_RIGHT_SHIFT_(16,1)
+FULL_RIGHT_SHIFT_(16,2)
+FULL_RIGHT_SHIFT_(16,4)
+FULL_RIGHT_SHIFT_(16,8)
+FULL_RIGHT_SHIFT_(32,1)
+FULL_RIGHT_SHIFT_(32,2)
+FULL_RIGHT_SHIFT_(32,4)
+FULL_RIGHT_SHIFT_(32,8)
+FULL_RIGHT_SHIFT_(32,16)
+FULL_RIGHT_SHIFT_(64,1)
+FULL_RIGHT_SHIFT_(64,2)
+FULL_RIGHT_SHIFT_(64,4)
+FULL_RIGHT_SHIFT_(64,8)
+FULL_RIGHT_SHIFT_(64,16)
+FULL_RIGHT_SHIFT_(64,32)
+
+#define LEFTMOST_(bitsN, bitsM)                                                                           \
+/* leftmost_n_m : TWO^n |- TWO^m */                                                                       \
+bool leftmost_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {                        \
+  (void) env; /* env is unused. */                                                                        \
+  static_assert(0 <= (bitsM) && (bitsM) <= (bitsN) && (bitsN) <= 64, "Bad arguments for bitsN or bitsM"); \
+  copyBits(dst, &src, (bitsM));                                                                           \
+  return true;                                                                                            \
+}
+LEFTMOST_(8,1)
+LEFTMOST_(8,2)
+LEFTMOST_(8,4)
+LEFTMOST_(16,1)
+LEFTMOST_(16,2)
+LEFTMOST_(16,4)
+LEFTMOST_(16,8)
+LEFTMOST_(32,1)
+LEFTMOST_(32,2)
+LEFTMOST_(32,4)
+LEFTMOST_(32,8)
+LEFTMOST_(32,16)
+LEFTMOST_(64,1)
+LEFTMOST_(64,2)
+LEFTMOST_(64,4)
+LEFTMOST_(64,8)
+LEFTMOST_(64,16)
+LEFTMOST_(64,32)
+
+#define RIGHTMOST_(bitsN, bitsM)                                                                          \
+/* rightmost_n_m : TWO^n |- TWO^m */                                                                      \
+bool rightmost_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {                       \
+  (void) env; /* env is unused. */                                                                        \
+  static_assert(0 <= (bitsM) && (bitsM) <= (bitsN) && (bitsN) <= 64, "Bad arguments for bitsN or bitsM"); \
+  forwardBits(&src, (bitsN) - (bitsM));                                                                   \
+  copyBits(dst, &src, (bitsM));                                                                           \
+  return true;                                                                                            \
+}
+RIGHTMOST_(8,1)
+RIGHTMOST_(8,2)
+RIGHTMOST_(8,4)
+RIGHTMOST_(16,1)
+RIGHTMOST_(16,2)
+RIGHTMOST_(16,4)
+RIGHTMOST_(16,8)
+RIGHTMOST_(32,1)
+RIGHTMOST_(32,2)
+RIGHTMOST_(32,4)
+RIGHTMOST_(32,8)
+RIGHTMOST_(32,16)
+RIGHTMOST_(64,1)
+RIGHTMOST_(64,2)
+RIGHTMOST_(64,4)
+RIGHTMOST_(64,8)
+RIGHTMOST_(64,16)
+RIGHTMOST_(64,32)
+
+#define LEFT_PAD_LOW_1_(bitsM)                                                 \
+/* left_pad_low_1_m : TWO |- TWO^m */                                          \
+bool left_pad_low_1_##bitsM(frameItem* dst, frameItem src, const txEnv* env) { \
+  (void) env; /* env is unused. */                                             \
+  bool bit = readBit(&src);                                                    \
+  write##bitsM(dst, bit);                                                      \
+  return true;                                                                 \
+}
+LEFT_PAD_LOW_1_(8)
+LEFT_PAD_LOW_1_(16)
+LEFT_PAD_LOW_1_(32)
+LEFT_PAD_LOW_1_(64)
+
+#define LEFT_PAD_LOW_(bitsN, bitsM)                                                    \
+/* left_pad_low_n_m : TWO^n |- TWO^m */                                                \
+bool left_pad_low_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) { \
+  (void) env; /* env is unused. */                                                     \
+  static_assert(0 < (bitsN) && (bitsN) <= 64, "bitsN is out of range");                \
+  static_assert(0 < (bitsM) && (bitsM) <= 64, "bitsM is out of range");                \
+  static_assert(0 == (bitsM) % (bitsN), "bitsM is not a multiple of bitsN");           \
+  for(int i = 0; i < (bitsM)/(bitsN) - 1; ++i) { write##bitsN(dst, 0); }               \
+  copyBits(dst, &src, (bitsN));                                                        \
+  return true;                                                                         \
+}
+LEFT_PAD_LOW_(8,16)
+LEFT_PAD_LOW_(8,32)
+LEFT_PAD_LOW_(8,64)
+LEFT_PAD_LOW_(16,32)
+LEFT_PAD_LOW_(16,64)
+LEFT_PAD_LOW_(32,64)
+
+#define LEFT_PAD_HIGH_1_(bitsM)                                                 \
+/* left_pad_high_1_m : TWO |- TWO^m */                                          \
+bool left_pad_high_1_##bitsM(frameItem* dst, frameItem src, const txEnv* env) { \
+  (void) env; /* env is unused. */                                              \
+  static_assert(0 < (bitsM) && (bitsM) <= 64, "bitsM is out of range");         \
+  for(int i = 0; i < (bitsM) - 1; ++i) { writeBit(dst, true); }                 \
+  copyBits(dst, &src, 1);                                                       \
+  return true;                                                                  \
+}
+LEFT_PAD_HIGH_1_(8)
+LEFT_PAD_HIGH_1_(16)
+LEFT_PAD_HIGH_1_(32)
+LEFT_PAD_HIGH_1_(64)
+
+#define LEFT_PAD_HIGH_(bitsN, bitsM)                                                     \
+/* left_pad_high_n_m : TWO^n |- TWO^m */                                                 \
+bool left_pad_high_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {  \
+  (void) env; /* env is unused. */                                                       \
+  static_assert(0 < (bitsN) && (bitsN) <= 64, "bitsN is out of range");                  \
+  static_assert(0 < (bitsM) && (bitsM) <= 64, "bitsM is out of range");                  \
+  static_assert(0 == (bitsM) % (bitsN), "bitsM is not a multiple of bitsN");             \
+  for(int i = 0; i < (bitsM)/(bitsN) - 1; ++i) { write##bitsN(dst, UINT##bitsN##_MAX); } \
+  copyBits(dst, &src, (bitsN));                                                          \
+  return true;                                                                           \
+}
+LEFT_PAD_HIGH_(8,16)
+LEFT_PAD_HIGH_(8,32)
+LEFT_PAD_HIGH_(8,64)
+LEFT_PAD_HIGH_(16,32)
+LEFT_PAD_HIGH_(16,64)
+LEFT_PAD_HIGH_(32,64)
+
+#define LEFT_EXTEND_1_(bitsM)                                                 \
+/* left_extend_1_m : TWO |- TWO^m */                                          \
+bool left_extend_1_##bitsM(frameItem* dst, frameItem src, const txEnv* env) { \
+  (void) env; /* env is unused. */                                            \
+  bool bit = readBit(&src);                                                   \
+  write##bitsM(dst, bit ? UINT##bitsM##_MAX : 0);                             \
+  return true;                                                                \
+}
+LEFT_EXTEND_1_(8)
+LEFT_EXTEND_1_(16)
+LEFT_EXTEND_1_(32)
+LEFT_EXTEND_1_(64)
+
+#define LEFT_EXTEND_(bitsN, bitsM)                                                                 \
+/* left_extend_n_m : TWO^n |- TWO^m */                                                             \
+bool left_extend_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {              \
+  (void) env; /* env is unused. */                                                                 \
+  static_assert(0 < (bitsN) && (bitsN) <= 64, "bitsN is out of range");                            \
+  static_assert(0 < (bitsM) && (bitsM) <= 64, "bitsM is out of range");                            \
+  static_assert(0 == (bitsM) % (bitsN), "bitsM is not a multiple of bitsN");                       \
+  uint_fast##bitsN##_t input = read##bitsN(&src);                                                  \
+  bool msb = input >> ((bitsN) - 1);                                                               \
+  for(int i = 0; i < (bitsM)/(bitsN) - 1; ++i) { write##bitsN(dst, msb ? UINT##bitsN##_MAX : 0); } \
+  write##bitsN(dst, input);                                                                        \
+  return true;                                                                                     \
+}
+LEFT_EXTEND_(8,16)
+LEFT_EXTEND_(8,32)
+LEFT_EXTEND_(8,64)
+LEFT_EXTEND_(16,32)
+LEFT_EXTEND_(16,64)
+LEFT_EXTEND_(32,64)
+
+#define RIGHT_PAD_LOW_1_(bitsM)                                                          \
+/* right_pad_low_1_m : TWO |- TWO^m */                                                   \
+bool right_pad_low_1_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {          \
+  (void) env; /* env is unused. */                                                       \
+  static_assert(0 < (bitsM) && (bitsM) <= 64, "bitsM is out of range");                  \
+  bool bit = readBit(&src);                                                              \
+  write##bitsM(dst, (uint_fast##bitsM##_t)((uint_fast##bitsM##_t)bit << ((bitsM) - 1))); \
+  return true;                                                                           \
+}
+RIGHT_PAD_LOW_1_(8)
+RIGHT_PAD_LOW_1_(16)
+RIGHT_PAD_LOW_1_(32)
+RIGHT_PAD_LOW_1_(64)
+
+#define RIGHT_PAD_LOW_(bitsN, bitsM)                                                    \
+/* right_pad_low_n_m : TWO^n |- TWO^m */                                                \
+bool right_pad_low_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) { \
+  (void) env; /* env is unused. */                                                      \
+  static_assert(0 < (bitsN) && (bitsN) <= 64, "bitsN is out of range");                 \
+  static_assert(0 < (bitsM) && (bitsM) <= 64, "bitsM is out of range");                 \
+  static_assert(0 == (bitsM) % (bitsN), "bitsM is not a multiple of bitsN");            \
+  copyBits(dst, &src, (bitsN));                                                         \
+  for(int i = 0; i < (bitsM)/(bitsN) - 1; ++i) { write##bitsN(dst, 0); }                \
+  return true;                                                                          \
+}
+RIGHT_PAD_LOW_(8,16)
+RIGHT_PAD_LOW_(8,32)
+RIGHT_PAD_LOW_(8,64)
+RIGHT_PAD_LOW_(16,32)
+RIGHT_PAD_LOW_(16,64)
+RIGHT_PAD_LOW_(32,64)
+
+#define RIGHT_PAD_HIGH_1_(bitsM)                                                 \
+/* right_pad_high_1_m : TWO |- TWO^m */                                          \
+bool right_pad_high_1_##bitsM(frameItem* dst, frameItem src, const txEnv* env) { \
+  (void) env; /* env is unused. */                                               \
+  static_assert(0 < (bitsM) && (bitsM) <= 64, "bitsM is out of range");          \
+  copyBits(dst, &src, 1);                                                        \
+  for(int i = 0; i < (bitsM) - 1; ++i) { writeBit(dst, true); }                  \
+  return true;                                                                   \
+}
+RIGHT_PAD_HIGH_1_(8)
+RIGHT_PAD_HIGH_1_(16)
+RIGHT_PAD_HIGH_1_(32)
+RIGHT_PAD_HIGH_1_(64)
+
+#define RIGHT_PAD_HIGH_(bitsN, bitsM)                                                    \
+/* right_pad_high_n_m : TWO^n |- TWO^m */                                                \
+bool right_pad_high_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) { \
+  (void) env; /* env is unused. */                                                       \
+  static_assert(0 < (bitsN) && (bitsN) <= 64, "bitsN is out of range");                  \
+  static_assert(0 < (bitsM) && (bitsM) <= 64, "bitsM is out of range");                  \
+  static_assert(0 == (bitsM) % (bitsN), "bitsM is not a multiple of bitsN");             \
+  copyBits(dst, &src, (bitsN));                                                          \
+  for(int i = 0; i < (bitsM)/(bitsN) - 1; ++i) { write##bitsN(dst, UINT##bitsN##_MAX); } \
+  return true;                                                                           \
+}
+RIGHT_PAD_HIGH_(8,16)
+RIGHT_PAD_HIGH_(8,32)
+RIGHT_PAD_HIGH_(8,64)
+RIGHT_PAD_HIGH_(16,32)
+RIGHT_PAD_HIGH_(16,64)
+RIGHT_PAD_HIGH_(32,64)
+
+#define RIGHT_EXTEND_(bitsN, bitsM)                                                                \
+/* right_extend_n_m : TWO^n |- TWO^m */                                                            \
+bool right_extend_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {             \
+  (void) env; /* env is unused. */                                                                 \
+  static_assert(0 < (bitsN) && (bitsN) <= 64, "bitsN is out of range");                            \
+  static_assert(0 < (bitsM) && (bitsM) <= 64, "bitsM is out of range");                            \
+  static_assert(0 == (bitsM) % (bitsN), "bitsM is not a multiple of bitsN");                       \
+  uint_fast##bitsN##_t input = read##bitsN(&src);                                                  \
+  bool lsb = input & 1;                                                                            \
+  write##bitsN(dst, input);                                                                        \
+  for(int i = 0; i < (bitsM)/(bitsN) - 1; ++i) { write##bitsN(dst, lsb ? UINT##bitsN##_MAX : 0); } \
+  return true;                                                                                     \
+}
+RIGHT_EXTEND_(8,16)
+RIGHT_EXTEND_(8,32)
+RIGHT_EXTEND_(8,64)
+RIGHT_EXTEND_(16,32)
+RIGHT_EXTEND_(16,64)
+RIGHT_EXTEND_(32,64)
+
+#define LEFT_SHIFT_(log, bits)                                                           \
+static inline void left_shift_helper_##bits(bool with, frameItem* dst, frameItem *src) { \
+  static_assert(log <= 8, "Only log parameter upto 8 is supported.");                    \
+  uint_fast8_t amt = read##log(src);                                                     \
+  uint_fast##bits##_t output = read##bits(src);                                          \
+  if (with) output = UINT##bits##_MAX ^ output;                                          \
+  if (amt < bits) {                                                                      \
+    output = (uint_fast##bits##_t)((1U * output) << amt);                                \
+  } else {                                                                               \
+    output = 0;                                                                          \
+  }                                                                                      \
+  if (with) output = UINT##bits##_MAX ^ output;                                          \
+  write##bits(dst, output);                                                              \
+}                                                                                        \
+                                                                                         \
+/* left_shift_with_n : TWO * TWO^l * TWO^n |- TWO^n */                                   \
+bool left_shift_with_##bits(frameItem* dst, frameItem src, const txEnv* env) {           \
+  (void) env; /* env is unused. */                                                       \
+  bool with = readBit(&src);                                                             \
+  left_shift_helper_##bits(with, dst, &src);                                             \
+  return true;                                                                           \
+}                                                                                        \
+                                                                                         \
+/* left_shift_n : TWO^l * TWO^n |- TWO^n */                                              \
+bool left_shift_##bits(frameItem* dst, frameItem src, const txEnv* env) {                \
+  (void) env; /* env is unused. */                                                       \
+  left_shift_helper_##bits(0, dst, &src);                                                \
+  return true;                                                                           \
+}
+LEFT_SHIFT_(4,8)
+LEFT_SHIFT_(4,16)
+LEFT_SHIFT_(8,32)
+LEFT_SHIFT_(8,64)
+
+#define RIGHT_SHIFT_(log, bits)                                                           \
+static inline void right_shift_helper_##bits(bool with, frameItem* dst, frameItem *src) { \
+  static_assert(log <= 8, "Only log parameter upto 8 is supported.");                     \
+  uint_fast8_t amt = read##log(src);                                                      \
+  uint_fast##bits##_t output = read##bits(src);                                           \
+  if (with) output = UINT##bits##_MAX ^ output;                                           \
+  if (amt < bits) {                                                                       \
+    output = (uint_fast##bits##_t)(output >> amt);                                        \
+  } else {                                                                                \
+    output = 0;                                                                           \
+  }                                                                                       \
+  if (with) output = UINT##bits##_MAX ^ output;                                           \
+  write##bits(dst, output);                                                               \
+}                                                                                         \
+                                                                                          \
+/* right_shift_with_n : TWO * TWO^l * TWO^n |- TWO^n */                                   \
+bool right_shift_with_##bits(frameItem* dst, frameItem src, const txEnv* env) {           \
+  (void) env; /* env is unused. */                                                        \
+  bool with = readBit(&src);                                                              \
+  right_shift_helper_##bits(with, dst, &src);                                             \
+  return true;                                                                            \
+}                                                                                         \
+                                                                                          \
+/* right_shift_n : TWO^l * TWO^n |- TWO^n */                                              \
+bool right_shift_##bits(frameItem* dst, frameItem src, const txEnv* env) {                \
+  (void) env; /* env is unused. */                                                        \
+  right_shift_helper_##bits(0, dst, &src);                                                \
+  return true;                                                                            \
+}
+RIGHT_SHIFT_(4,8)
+RIGHT_SHIFT_(4,16)
+RIGHT_SHIFT_(8,32)
+RIGHT_SHIFT_(8,64)
+
+#define ROTATE_(log, bits)                                                                     \
+/* Precondition: 0 <= amt < bits */                                                            \
+static inline uint_fast##bits##_t rotate_##bits(uint_fast##bits##_t value, uint_fast8_t amt) { \
+  if (amt) {                                                                                   \
+    return (uint_fast##bits##_t)((1U * value << amt) | value >> (bits - amt));                 \
+  } else {                                                                                     \
+    return value;                                                                              \
+  }                                                                                            \
+}                                                                                              \
+                                                                                               \
+/* left_rotate_n : TWO^l * TWO^n |- TWO^n */                                                   \
+bool left_rotate_##bits(frameItem* dst, frameItem src, const txEnv* env) {                     \
+  (void) env; /* env is unused. */                                                             \
+  uint_fast8_t amt = read##log(&src) % bits;                                                   \
+  uint_fast##bits##_t input = read##bits(&src);                                                \
+  write##bits(dst, rotate_##bits(input, amt));                                                 \
+  return true;                                                                                 \
+}                                                                                              \
+                                                                                               \
+/* right_rotate_n : TWO^l * TWO^n |- TWO^n */                                                  \
+bool right_rotate_##bits(frameItem* dst, frameItem src, const txEnv* env) {                    \
+  static_assert(bits <= UINT8_MAX, "'bits' is too large.");                                    \
+  (void) env; /* env is unused. */                                                             \
+  uint_fast8_t amt = read##log(&src) % bits;                                                   \
+  uint_fast##bits##_t input = read##bits(&src);                                                \
+  write##bits(dst, rotate_##bits(input, (uint_fast8_t)((bits - amt) % bits)));                 \
+  return true;                                                                                 \
+}
+ROTATE_(4,8)
+ROTATE_(4,16)
+ROTATE_(8,32)
+ROTATE_(8,64)
+
+#define ONE_(bits)                                                 \
+/* one_n : ONE |- TWO^n */                                         \
+bool one_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+  (void) env; /* env is unused. */                                 \
+  (void) src; /* src is unused. */                                 \
+  write##bits(dst, 1);                                             \
+  return true;                                                     \
+}
+ONE_(8)
+ONE_(16)
+ONE_(32)
+ONE_(64)
 
 #define ADD_(bits)                                                 \
 /* add_n : TWO^n * TWO^n |- TWO * TWO^n */                         \
@@ -498,58 +986,58 @@ MEDIAN_(16)
 MEDIAN_(32)
 MEDIAN_(64)
 
-#define DIV_MOD_(bits)                                                  \
-  /* div_mod_n : TWO^n * TWO^n |- TWO^n * TWO^n */                      \
-  bool div_mod_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
-    (void) env; /* env is unused. */                                    \
-    uint_fast##bits##_t x = read##bits(&src);                           \
-    uint_fast##bits##_t y = read##bits(&src);                           \
-    write##bits(dst, 0 == y ? 0 : x / y);                               \
-    write##bits(dst, 0 == y ? x : x % y);                               \
-    return true;                                                        \
-  }
+#define DIV_MOD_(bits)                                                 \
+/* div_mod_n : TWO^n * TWO^n |- TWO^n * TWO^n */                       \
+bool div_mod_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+  (void) env; /* env is unused. */                                     \
+  uint_fast##bits##_t x = read##bits(&src);                            \
+  uint_fast##bits##_t y = read##bits(&src);                            \
+  write##bits(dst, 0 == y ? 0 : x / y);                                \
+  write##bits(dst, 0 == y ? x : x % y);                                \
+  return true;                                                         \
+}
 DIV_MOD_(8)
 DIV_MOD_(16)
 DIV_MOD_(32)
 DIV_MOD_(64)
 
-#define DIVIDE_(bits)                                                  \
-  /* divide_n : TWO^n * TWO^n |- TWO^n */                      \
-  bool divide_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
-    (void) env; /* env is unused. */                                    \
-    uint_fast##bits##_t x = read##bits(&src);                           \
-    uint_fast##bits##_t y = read##bits(&src);                           \
-    write##bits(dst, 0 == y ? 0 : x / y);                               \
-    return true;                                                        \
-  }
+#define DIVIDE_(bits)                                                 \
+/* divide_n : TWO^n * TWO^n |- TWO^n */                               \
+bool divide_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+  (void) env; /* env is unused. */                                    \
+  uint_fast##bits##_t x = read##bits(&src);                           \
+  uint_fast##bits##_t y = read##bits(&src);                           \
+  write##bits(dst, 0 == y ? 0 : x / y);                               \
+  return true;                                                        \
+}
 DIVIDE_(8)
 DIVIDE_(16)
 DIVIDE_(32)
 DIVIDE_(64)
 
-#define MODULO_(bits)                                                   \
-  /* modulo_n : TWO^n * TWO^n |- TWO^n */                               \
-  bool modulo_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
-    (void) env; /* env is unused. */                                    \
-    uint_fast##bits##_t x = read##bits(&src);                           \
-    uint_fast##bits##_t y = read##bits(&src);                           \
-    write##bits(dst, 0 == y ? x : x % y);                               \
-    return true;                                                        \
-  }
+#define MODULO_(bits)                                                 \
+/* modulo_n : TWO^n * TWO^n |- TWO^n */                               \
+bool modulo_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+  (void) env; /* env is unused. */                                    \
+  uint_fast##bits##_t x = read##bits(&src);                           \
+  uint_fast##bits##_t y = read##bits(&src);                           \
+  write##bits(dst, 0 == y ? x : x % y);                               \
+  return true;                                                        \
+}
 MODULO_(8)
 MODULO_(16)
 MODULO_(32)
 MODULO_(64)
 
-#define DIVIDES_(bits)                                                   \
-  /* divides_n : TWO^n * TWO^n |- TWO */                                 \
-  bool divides_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
-    (void) env; /* env is unused. */                                     \
-    uint_fast##bits##_t x = read##bits(&src);                            \
-    uint_fast##bits##_t y = read##bits(&src);                            \
-    writeBit(dst, 0 == (0 == x ? y : y % x));                            \
-    return true;                                                         \
-  }
+#define DIVIDES_(bits)                                                 \
+/* divides_n : TWO^n * TWO^n |- TWO */                                 \
+bool divides_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+  (void) env; /* env is unused. */                                     \
+  uint_fast##bits##_t x = read##bits(&src);                            \
+  uint_fast##bits##_t y = read##bits(&src);                            \
+  writeBit(dst, 0 == (0 == x ? y : y % x));                            \
+  return true;                                                         \
+}
 DIVIDES_(8)
 DIVIDES_(16)
 DIVIDES_(32)
