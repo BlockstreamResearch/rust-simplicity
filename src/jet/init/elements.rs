@@ -24,6 +24,7 @@ pub enum Elements {
     All32,
     All64,
     All8,
+    And1,
     And16,
     And32,
     And64,
@@ -37,6 +38,7 @@ pub enum Elements {
     CalculateConfidentialToken,
     CalculateExplicitToken,
     CalculateIssuanceEntropy,
+    Ch1,
     Ch16,
     Ch32,
     Ch64,
@@ -46,6 +48,7 @@ pub enum Elements {
     CheckLockHeight,
     CheckLockTime,
     CheckSigVerify,
+    Complement1,
     Complement16,
     Complement32,
     Complement64,
@@ -83,6 +86,7 @@ pub enum Elements {
     Divides32,
     Divides64,
     Divides8,
+    Eq1,
     Eq16,
     Eq256,
     Eq32,
@@ -110,10 +114,46 @@ pub enum Elements {
     FullIncrement32,
     FullIncrement64,
     FullIncrement8,
+    FullLeftShift16_1,
+    FullLeftShift16_2,
+    FullLeftShift16_4,
+    FullLeftShift16_8,
+    FullLeftShift32_1,
+    FullLeftShift32_16,
+    FullLeftShift32_2,
+    FullLeftShift32_4,
+    FullLeftShift32_8,
+    FullLeftShift64_1,
+    FullLeftShift64_16,
+    FullLeftShift64_2,
+    FullLeftShift64_32,
+    FullLeftShift64_4,
+    FullLeftShift64_8,
+    FullLeftShift8_1,
+    FullLeftShift8_2,
+    FullLeftShift8_4,
     FullMultiply16,
     FullMultiply32,
     FullMultiply64,
     FullMultiply8,
+    FullRightShift16_1,
+    FullRightShift16_2,
+    FullRightShift16_4,
+    FullRightShift16_8,
+    FullRightShift32_1,
+    FullRightShift32_16,
+    FullRightShift32_2,
+    FullRightShift32_4,
+    FullRightShift32_8,
+    FullRightShift64_1,
+    FullRightShift64_16,
+    FullRightShift64_2,
+    FullRightShift64_32,
+    FullRightShift64_4,
+    FullRightShift64_8,
+    FullRightShift8_1,
+    FullRightShift8_2,
+    FullRightShift8_4,
     FullSubtract16,
     FullSubtract32,
     FullSubtract64,
@@ -134,6 +174,7 @@ pub enum Elements {
     GejYIsOdd,
     Generate,
     GenesisBlockHash,
+    High1,
     High16,
     High32,
     High64,
@@ -184,9 +225,70 @@ pub enum Elements {
     Le32,
     Le64,
     Le8,
+    LeftExtend16_32,
+    LeftExtend16_64,
+    LeftExtend1_16,
+    LeftExtend1_32,
+    LeftExtend1_64,
+    LeftExtend1_8,
+    LeftExtend32_64,
+    LeftExtend8_16,
+    LeftExtend8_32,
+    LeftExtend8_64,
+    LeftPadHigh16_32,
+    LeftPadHigh16_64,
+    LeftPadHigh1_16,
+    LeftPadHigh1_32,
+    LeftPadHigh1_64,
+    LeftPadHigh1_8,
+    LeftPadHigh32_64,
+    LeftPadHigh8_16,
+    LeftPadHigh8_32,
+    LeftPadHigh8_64,
+    LeftPadLow16_32,
+    LeftPadLow16_64,
+    LeftPadLow1_16,
+    LeftPadLow1_32,
+    LeftPadLow1_64,
+    LeftPadLow1_8,
+    LeftPadLow32_64,
+    LeftPadLow8_16,
+    LeftPadLow8_32,
+    LeftPadLow8_64,
+    LeftRotate16,
+    LeftRotate32,
+    LeftRotate64,
+    LeftRotate8,
+    LeftShift16,
+    LeftShift32,
+    LeftShift64,
+    LeftShift8,
+    LeftShiftWith16,
+    LeftShiftWith32,
+    LeftShiftWith64,
+    LeftShiftWith8,
+    Leftmost16_1,
+    Leftmost16_2,
+    Leftmost16_4,
+    Leftmost16_8,
+    Leftmost32_1,
+    Leftmost32_16,
+    Leftmost32_2,
+    Leftmost32_4,
+    Leftmost32_8,
+    Leftmost64_1,
+    Leftmost64_16,
+    Leftmost64_2,
+    Leftmost64_32,
+    Leftmost64_4,
+    Leftmost64_8,
+    Leftmost8_1,
+    Leftmost8_2,
+    Leftmost8_4,
     LinearCombination1,
     LinearVerify1,
     LockTime,
+    Low1,
     Low16,
     Low32,
     Low64,
@@ -195,6 +297,7 @@ pub enum Elements {
     Lt32,
     Lt64,
     Lt8,
+    Maj1,
     Maj16,
     Maj32,
     Maj64,
@@ -231,6 +334,7 @@ pub enum Elements {
     One32,
     One64,
     One8,
+    Or1,
     Or16,
     Or32,
     Or64,
@@ -255,6 +359,62 @@ pub enum Elements {
     PointVerify1,
     ReissuanceBlinding,
     ReissuanceEntropy,
+    RightExtend16_32,
+    RightExtend16_64,
+    RightExtend32_64,
+    RightExtend8_16,
+    RightExtend8_32,
+    RightExtend8_64,
+    RightPadHigh16_32,
+    RightPadHigh16_64,
+    RightPadHigh1_16,
+    RightPadHigh1_32,
+    RightPadHigh1_64,
+    RightPadHigh1_8,
+    RightPadHigh32_64,
+    RightPadHigh8_16,
+    RightPadHigh8_32,
+    RightPadHigh8_64,
+    RightPadLow16_32,
+    RightPadLow16_64,
+    RightPadLow1_16,
+    RightPadLow1_32,
+    RightPadLow1_64,
+    RightPadLow1_8,
+    RightPadLow32_64,
+    RightPadLow8_16,
+    RightPadLow8_32,
+    RightPadLow8_64,
+    RightRotate16,
+    RightRotate32,
+    RightRotate64,
+    RightRotate8,
+    RightShift16,
+    RightShift32,
+    RightShift64,
+    RightShift8,
+    RightShiftWith16,
+    RightShiftWith32,
+    RightShiftWith64,
+    RightShiftWith8,
+    Rightmost16_1,
+    Rightmost16_2,
+    Rightmost16_4,
+    Rightmost16_8,
+    Rightmost32_1,
+    Rightmost32_16,
+    Rightmost32_2,
+    Rightmost32_4,
+    Rightmost32_8,
+    Rightmost64_1,
+    Rightmost64_16,
+    Rightmost64_2,
+    Rightmost64_32,
+    Rightmost64_4,
+    Rightmost64_8,
+    Rightmost8_1,
+    Rightmost8_2,
+    Rightmost8_4,
     ScalarAdd,
     ScalarInvert,
     ScalarIsZero,
@@ -281,6 +441,7 @@ pub enum Elements {
     Sha256Ctx8Init,
     Sha256Iv,
     SigAllHash,
+    Some1,
     Some16,
     Some32,
     Some64,
@@ -302,10 +463,12 @@ pub enum Elements {
     TxLockTime,
     Verify,
     Version,
+    Xor1,
     Xor16,
     Xor32,
     Xor64,
     Xor8,
+    XorXor1,
     XorXor16,
     XorXor32,
     XorXor64,
@@ -362,6 +525,11 @@ impl Jet for Elements {
                 0xdc, 0x09, 0x88, 0x54, 0xdd, 0x06, 0xae, 0x1e, 0x6e, 0x3e, 0x73, 0xa4, 0xae, 0x94,
                 0xd0, 0xb2, 0xac, 0xce, 0x5c, 0xb3, 0xec, 0xc1, 0x2e, 0x8c, 0xb8, 0x16, 0x7f, 0x7b,
                 0x6e, 0xaa, 0x40, 0x69,
+            ],
+            Elements::And1 => [
+                0x2d, 0xc2, 0xdb, 0xcc, 0x69, 0xc1, 0x2c, 0x78, 0x30, 0xdf, 0x11, 0x70, 0xd9, 0xe9,
+                0x3a, 0x35, 0xd8, 0x28, 0x4c, 0xc8, 0x15, 0x91, 0x6a, 0xeb, 0x3b, 0x1b, 0x95, 0xef,
+                0xda, 0xa9, 0x2c, 0x26,
             ],
             Elements::And16 => [
                 0x4f, 0x42, 0xc6, 0x88, 0xcc, 0x3c, 0xeb, 0x76, 0x1f, 0x66, 0x2a, 0x0b, 0x8e, 0x77,
@@ -428,6 +596,11 @@ impl Jet for Elements {
                 0xb4, 0xcc, 0x91, 0x7e, 0xf2, 0xd8, 0x1b, 0x8d, 0xf7, 0x5f, 0xb2, 0x3a, 0x91, 0x6e,
                 0xb3, 0xbe, 0x19, 0x7e,
             ],
+            Elements::Ch1 => [
+                0xc2, 0x32, 0x36, 0x12, 0x4d, 0xa0, 0x1f, 0x3d, 0x8e, 0xb7, 0x42, 0xc2, 0xed, 0x47,
+                0x95, 0x3f, 0x66, 0xc8, 0xb0, 0x84, 0xd9, 0x5a, 0x10, 0xc6, 0x0c, 0xae, 0x69, 0xba,
+                0x98, 0x42, 0xae, 0x96,
+            ],
             Elements::Ch16 => [
                 0xdc, 0xcd, 0xe6, 0xa9, 0x54, 0x58, 0x75, 0xc5, 0xcb, 0x46, 0xe7, 0x2c, 0x7b, 0x04,
                 0xce, 0xeb, 0x92, 0x0c, 0x20, 0x3d, 0x1c, 0x04, 0x2a, 0xec, 0x91, 0x24, 0x1d, 0xbe,
@@ -472,6 +645,11 @@ impl Jet for Elements {
                 0xe8, 0xfe, 0xb5, 0x34, 0x34, 0xe2, 0xbd, 0xb5, 0xcf, 0xe6, 0xa9, 0x1f, 0xa8, 0xf9,
                 0xe1, 0x77, 0xf9, 0x41, 0xa6, 0x7c, 0xc6, 0xce, 0xd8, 0x69, 0x74, 0x6f, 0x1a, 0x8e,
                 0xb6, 0x50, 0x6f, 0x76,
+            ],
+            Elements::Complement1 => [
+                0x7e, 0x71, 0x48, 0x13, 0x2e, 0x28, 0x92, 0x82, 0x3f, 0xcf, 0x2a, 0x26, 0xc6, 0x22,
+                0x0b, 0xee, 0x03, 0x9f, 0xf6, 0xc5, 0xd7, 0xc1, 0xb4, 0xe4, 0xca, 0x21, 0x3a, 0xd8,
+                0x37, 0xab, 0x47, 0x74,
             ],
             Elements::Complement16 => [
                 0x7f, 0x16, 0xd1, 0x24, 0x15, 0x99, 0x87, 0x68, 0x34, 0x7f, 0x43, 0xa9, 0xb9, 0x1c,
@@ -658,6 +836,11 @@ impl Jet for Elements {
                 0x8a, 0x66, 0x29, 0xa3, 0x7b, 0x4b, 0xef, 0xdc, 0xd7, 0xcc, 0x55, 0x88, 0x60, 0x80,
                 0xae, 0xf6, 0x8a, 0xf8,
             ],
+            Elements::Eq1 => [
+                0x42, 0x49, 0xc5, 0xbd, 0xec, 0x54, 0x0a, 0x06, 0x95, 0x7d, 0xcd, 0xab, 0x04, 0x5a,
+                0x44, 0x5e, 0xb9, 0x18, 0x91, 0xc0, 0x6c, 0x3f, 0x8f, 0x96, 0xc8, 0x88, 0xe9, 0xdd,
+                0xd2, 0xfb, 0xaa, 0x28,
+            ],
             Elements::Eq16 => [
                 0xab, 0x31, 0xa7, 0x97, 0x4a, 0xcb, 0xf7, 0x2a, 0xb2, 0xf2, 0x1b, 0xf5, 0x3f, 0xec,
                 0x34, 0x6a, 0x28, 0xe6, 0xe6, 0x5e, 0x4c, 0x05, 0xe3, 0xe7, 0x84, 0x3e, 0x14, 0x73,
@@ -793,6 +976,96 @@ impl Jet for Elements {
                 0xf4, 0x47, 0x8e, 0xc6, 0x32, 0x06, 0xc9, 0x8f, 0xb5, 0xcc, 0xcf, 0x77, 0xc2, 0x09,
                 0xbe, 0xbd, 0x29, 0xef,
             ],
+            Elements::FullLeftShift16_1 => [
+                0x74, 0x0e, 0x23, 0x81, 0x1b, 0x3e, 0x62, 0xd4, 0x91, 0x51, 0x0f, 0xc9, 0xed, 0xc4,
+                0xcb, 0x0a, 0x0e, 0xec, 0xfa, 0xdf, 0xd2, 0x1b, 0xb2, 0x7f, 0x33, 0xe2, 0x20, 0xb1,
+                0xd8, 0x7d, 0x14, 0xd7,
+            ],
+            Elements::FullLeftShift16_2 => [
+                0xc2, 0x6e, 0x8a, 0xc3, 0xff, 0x9c, 0xc5, 0x18, 0x71, 0x9d, 0x4d, 0x7f, 0xd1, 0x49,
+                0xd8, 0x02, 0xf2, 0x3f, 0x0b, 0x02, 0x49, 0x99, 0xed, 0x5d, 0xaf, 0x36, 0x92, 0x10,
+                0xac, 0xbe, 0x33, 0x45,
+            ],
+            Elements::FullLeftShift16_4 => [
+                0x5e, 0x57, 0x0c, 0xbe, 0x4c, 0x7c, 0xa9, 0x4b, 0xe0, 0xfc, 0x7b, 0x3e, 0xe5, 0x79,
+                0xbd, 0xd7, 0x84, 0x26, 0xf0, 0xb7, 0x67, 0xf4, 0x85, 0x17, 0x17, 0xbb, 0xfe, 0xae,
+                0xde, 0x91, 0xfe, 0x30,
+            ],
+            Elements::FullLeftShift16_8 => [
+                0x65, 0xad, 0xc5, 0x53, 0x48, 0x38, 0x3b, 0x28, 0xe8, 0x79, 0x7f, 0x81, 0xa9, 0x28,
+                0x2d, 0x91, 0x1b, 0x3f, 0x8f, 0xa6, 0x13, 0x92, 0x72, 0x51, 0xd8, 0x8e, 0x0c, 0x38,
+                0xb0, 0x29, 0xb7, 0x05,
+            ],
+            Elements::FullLeftShift32_1 => [
+                0x72, 0xe0, 0x10, 0x4e, 0xfa, 0xf1, 0xde, 0xe4, 0x11, 0x98, 0xec, 0x3b, 0x79, 0x03,
+                0x73, 0xf6, 0x48, 0xf1, 0x3f, 0x5e, 0xe0, 0x65, 0x52, 0xfb, 0x02, 0x0b, 0xaf, 0xb5,
+                0x84, 0x97, 0xc2, 0x5c,
+            ],
+            Elements::FullLeftShift32_16 => [
+                0xb9, 0xfb, 0x21, 0x69, 0x90, 0x8d, 0x91, 0x44, 0xcc, 0x73, 0xe6, 0x8f, 0x75, 0x35,
+                0x36, 0xf4, 0x3c, 0xb2, 0xb7, 0x4c, 0xb6, 0x2c, 0x64, 0x08, 0x81, 0x06, 0x70, 0xde,
+                0x84, 0xab, 0x09, 0xbd,
+            ],
+            Elements::FullLeftShift32_2 => [
+                0x11, 0xef, 0xdb, 0x81, 0xb0, 0xc4, 0xde, 0xda, 0x4d, 0x4f, 0x98, 0x47, 0x5d, 0x78,
+                0x78, 0xef, 0xa3, 0x38, 0x69, 0x4f, 0xa0, 0xfd, 0x61, 0x3e, 0x12, 0x93, 0x22, 0x5a,
+                0x4f, 0x46, 0x2f, 0x7c,
+            ],
+            Elements::FullLeftShift32_4 => [
+                0x77, 0xe3, 0x99, 0xd7, 0xd8, 0x3f, 0x7d, 0x11, 0x44, 0x99, 0x1d, 0xaf, 0xa3, 0xcc,
+                0x98, 0x11, 0xc1, 0x63, 0x2c, 0x29, 0xe4, 0x93, 0xa8, 0xaf, 0x98, 0xe9, 0x8f, 0xbc,
+                0x1d, 0x63, 0x5f, 0xb4,
+            ],
+            Elements::FullLeftShift32_8 => [
+                0xba, 0x66, 0x4c, 0xb1, 0xc4, 0x2e, 0xda, 0x17, 0x91, 0x91, 0xeb, 0xc2, 0xa1, 0x10,
+                0x39, 0x6d, 0xae, 0x58, 0xf9, 0x06, 0xa6, 0x41, 0x06, 0xb3, 0x06, 0x67, 0x79, 0x0a,
+                0xc2, 0xf2, 0x38, 0x2d,
+            ],
+            Elements::FullLeftShift64_1 => [
+                0x79, 0xd3, 0x8f, 0xe0, 0x75, 0x83, 0x9b, 0x22, 0x7c, 0xff, 0xd9, 0x2a, 0x8c, 0xdb,
+                0x5c, 0x8c, 0x35, 0x22, 0xbc, 0xb4, 0xd1, 0xe0, 0x3b, 0xee, 0xb6, 0xdb, 0x6a, 0xb6,
+                0x4e, 0xd4, 0x72, 0x1f,
+            ],
+            Elements::FullLeftShift64_16 => [
+                0x21, 0x43, 0x56, 0x62, 0x45, 0xf5, 0xa1, 0xb9, 0xdf, 0xeb, 0x0c, 0x75, 0x87, 0x8e,
+                0x21, 0xdb, 0xe1, 0x38, 0x04, 0xc2, 0x69, 0x35, 0xee, 0x47, 0xca, 0xc9, 0xad, 0x82,
+                0x2d, 0x6d, 0xed, 0xb2,
+            ],
+            Elements::FullLeftShift64_2 => [
+                0x9c, 0x92, 0x16, 0x49, 0x15, 0xaf, 0x0b, 0x15, 0x4e, 0x1d, 0xf5, 0x64, 0xd4, 0xdc,
+                0x9b, 0xe9, 0x80, 0xb3, 0x98, 0x83, 0x5c, 0x99, 0x88, 0xbb, 0xb1, 0x08, 0xd0, 0xcd,
+                0x81, 0x45, 0xb3, 0x30,
+            ],
+            Elements::FullLeftShift64_32 => [
+                0xd0, 0xd0, 0x16, 0xe9, 0xc7, 0x8c, 0xd1, 0x12, 0xb4, 0xdd, 0x91, 0xa8, 0x35, 0x9f,
+                0x80, 0x5c, 0x68, 0x41, 0x5b, 0x85, 0x7a, 0x79, 0x9b, 0x00, 0x39, 0x49, 0x54, 0xdc,
+                0xd2, 0x90, 0xac, 0xbc,
+            ],
+            Elements::FullLeftShift64_4 => [
+                0x0f, 0x1f, 0x7d, 0x37, 0x4e, 0x82, 0x86, 0x8d, 0x71, 0xe7, 0xe7, 0xc0, 0x32, 0x21,
+                0xb1, 0x50, 0x59, 0x4b, 0x63, 0x04, 0x45, 0xb1, 0xb1, 0x63, 0x56, 0xcf, 0x35, 0x45,
+                0xbd, 0x93, 0x92, 0x63,
+            ],
+            Elements::FullLeftShift64_8 => [
+                0xad, 0x7b, 0x44, 0x38, 0xb7, 0x3f, 0x6f, 0x9e, 0x42, 0xf6, 0x4c, 0x70, 0x53, 0x04,
+                0x75, 0xee, 0x08, 0x93, 0x6e, 0x47, 0x63, 0xe5, 0xb7, 0x3e, 0xa4, 0xbc, 0x83, 0x83,
+                0xa2, 0xb9, 0x63, 0xd5,
+            ],
+            Elements::FullLeftShift8_1 => [
+                0x21, 0x13, 0x68, 0x1a, 0x11, 0x62, 0x4e, 0x60, 0x60, 0x30, 0xc4, 0x70, 0xd6, 0x8f,
+                0x60, 0x61, 0x23, 0x2f, 0x71, 0xcf, 0xab, 0xc5, 0x05, 0x71, 0x92, 0xc6, 0xc8, 0xbd,
+                0x1d, 0x73, 0xb7, 0xe1,
+            ],
+            Elements::FullLeftShift8_2 => [
+                0x36, 0x83, 0x68, 0xc9, 0x4b, 0x04, 0x0e, 0x81, 0xb9, 0x48, 0xd7, 0x37, 0xc1, 0x93,
+                0xc0, 0x42, 0x83, 0xec, 0x80, 0xa2, 0x8f, 0xd3, 0xa0, 0x21, 0xb0, 0xb8, 0xc1, 0xab,
+                0xcf, 0x5e, 0xdc, 0xd3,
+            ],
+            Elements::FullLeftShift8_4 => [
+                0x8f, 0x85, 0x4d, 0x58, 0xf9, 0x68, 0xb4, 0xbe, 0x3b, 0x20, 0x21, 0xfb, 0x22, 0x14,
+                0x2d, 0xd3, 0xe6, 0x8a, 0xa8, 0x19, 0x7b, 0x54, 0x75, 0xb7, 0x05, 0x0b, 0x02, 0xe1,
+                0xe5, 0xca, 0xee, 0x47,
+            ],
             Elements::FullMultiply16 => [
                 0x32, 0xcf, 0x7f, 0x50, 0x89, 0x4e, 0xa2, 0xc4, 0x61, 0xa0, 0x54, 0x66, 0xbb, 0xfa,
                 0x1e, 0x4e, 0x1b, 0x04, 0x99, 0x57, 0x52, 0x3f, 0x64, 0x93, 0x7a, 0x8b, 0x54, 0x27,
@@ -812,6 +1085,96 @@ impl Jet for Elements {
                 0xf7, 0xf3, 0x9d, 0x95, 0xda, 0xb5, 0x73, 0x08, 0x52, 0xe9, 0xcc, 0x7e, 0x74, 0xc0,
                 0x74, 0x3b, 0x8f, 0xb3, 0xf7, 0x54, 0x87, 0x12, 0x0b, 0xa3, 0x26, 0xff, 0x60, 0x0a,
                 0xd8, 0xb1, 0xf3, 0xe6,
+            ],
+            Elements::FullRightShift16_1 => [
+                0xb8, 0x07, 0x44, 0x23, 0xe6, 0x74, 0x8a, 0x6a, 0xa5, 0x4e, 0xc5, 0x74, 0x1f, 0xee,
+                0xf2, 0x5a, 0x26, 0x2f, 0xde, 0xcb, 0xfc, 0xe3, 0x91, 0x24, 0xe6, 0x10, 0x23, 0x8a,
+                0x3b, 0x0a, 0x23, 0xfc,
+            ],
+            Elements::FullRightShift16_2 => [
+                0x3f, 0xcf, 0x98, 0x5e, 0xe0, 0xc7, 0x2c, 0xa4, 0x1d, 0xdf, 0x6c, 0x89, 0xd0, 0xf0,
+                0xf6, 0x9d, 0x50, 0x65, 0x87, 0x6e, 0x3b, 0x60, 0x20, 0xec, 0xc9, 0xbf, 0x05, 0x9e,
+                0x8f, 0x97, 0x19, 0xc6,
+            ],
+            Elements::FullRightShift16_4 => [
+                0xa3, 0x0c, 0x7c, 0x29, 0xd0, 0xee, 0xac, 0x29, 0x52, 0x58, 0xb2, 0xb6, 0x1d, 0x0b,
+                0x54, 0x13, 0x46, 0xf4, 0x07, 0xc0, 0x84, 0x8d, 0x44, 0x8e, 0x13, 0xe9, 0x77, 0x4c,
+                0x1c, 0x96, 0x96, 0x79,
+            ],
+            Elements::FullRightShift16_8 => [
+                0x5b, 0x88, 0x08, 0xca, 0xda, 0x55, 0x87, 0xb3, 0x6d, 0x1a, 0x6f, 0xad, 0x66, 0xae,
+                0x4d, 0xa0, 0x8d, 0x41, 0x23, 0x64, 0x4c, 0x0b, 0xdd, 0x59, 0x77, 0x2a, 0x70, 0xaa,
+                0x74, 0x32, 0xe7, 0x15,
+            ],
+            Elements::FullRightShift32_1 => [
+                0x32, 0xaf, 0xd0, 0xef, 0x94, 0xdf, 0x51, 0xb7, 0xd3, 0x5c, 0x00, 0xe5, 0x61, 0xa8,
+                0x39, 0x0c, 0x5c, 0xf5, 0x0f, 0x93, 0x0b, 0x30, 0xd7, 0x86, 0x88, 0x04, 0xb5, 0x80,
+                0x49, 0x37, 0x58, 0x40,
+            ],
+            Elements::FullRightShift32_16 => [
+                0x44, 0xd1, 0x79, 0xa8, 0x90, 0xf7, 0x81, 0x2f, 0x15, 0x13, 0x31, 0xb5, 0x5f, 0xc0,
+                0x7e, 0xb4, 0xe4, 0xd7, 0x81, 0x4e, 0xb6, 0x83, 0xda, 0x28, 0x8f, 0x8f, 0xe7, 0xcd,
+                0x55, 0xb4, 0x39, 0x06,
+            ],
+            Elements::FullRightShift32_2 => [
+                0x33, 0xc6, 0x61, 0xdf, 0x3a, 0x32, 0xca, 0xe5, 0x5b, 0x52, 0xa5, 0xf2, 0x63, 0x21,
+                0x54, 0xcc, 0x85, 0xb6, 0x59, 0x13, 0x87, 0xbc, 0x2b, 0x34, 0x83, 0x30, 0xc8, 0x70,
+                0xa6, 0xf6, 0x70, 0x6f,
+            ],
+            Elements::FullRightShift32_4 => [
+                0xe4, 0xbe, 0xbf, 0x16, 0x93, 0x5f, 0x67, 0xbe, 0x7d, 0x8c, 0x86, 0xbc, 0x58, 0x8a,
+                0xdb, 0xcf, 0x8e, 0x59, 0x75, 0x39, 0x25, 0x7f, 0xdd, 0xab, 0x9f, 0xb0, 0x43, 0x72,
+                0xc7, 0x70, 0x12, 0xd3,
+            ],
+            Elements::FullRightShift32_8 => [
+                0xab, 0xcf, 0xfb, 0x08, 0x4a, 0x23, 0x96, 0x42, 0x16, 0xd5, 0x62, 0x73, 0x30, 0x5c,
+                0x0c, 0x8b, 0x03, 0xbd, 0xab, 0xda, 0xd6, 0x9f, 0xf7, 0xe9, 0x42, 0xf0, 0xd2, 0xcf,
+                0x08, 0x0f, 0xeb, 0xcc,
+            ],
+            Elements::FullRightShift64_1 => [
+                0x37, 0x68, 0x82, 0x60, 0xc5, 0x3a, 0xf0, 0x6b, 0x85, 0x6d, 0x90, 0x22, 0xca, 0x5d,
+                0x87, 0xf8, 0xa6, 0x87, 0xee, 0x53, 0xfa, 0xca, 0x18, 0x66, 0xec, 0x84, 0x2a, 0x7c,
+                0x89, 0x0a, 0x4b, 0x70,
+            ],
+            Elements::FullRightShift64_16 => [
+                0x41, 0x7b, 0xfb, 0x71, 0x5a, 0x20, 0xb1, 0x0d, 0x48, 0x81, 0xf5, 0xc3, 0x49, 0x6c,
+                0x63, 0xef, 0xee, 0x4a, 0xb5, 0x00, 0x3d, 0xfd, 0x0a, 0x16, 0xb8, 0x5f, 0x94, 0xf8,
+                0xe5, 0xb0, 0x66, 0x7c,
+            ],
+            Elements::FullRightShift64_2 => [
+                0xce, 0xca, 0x25, 0x67, 0xb9, 0x1a, 0x63, 0xe9, 0xca, 0x44, 0x03, 0x5e, 0xb5, 0x9e,
+                0x2f, 0x22, 0xd8, 0x1e, 0x37, 0xe1, 0x96, 0x59, 0x5a, 0x74, 0x8c, 0xea, 0x4a, 0x46,
+                0x84, 0xa2, 0x15, 0xb0,
+            ],
+            Elements::FullRightShift64_32 => [
+                0x03, 0x96, 0x99, 0x37, 0x84, 0x02, 0x3d, 0x47, 0xe8, 0x51, 0x4b, 0x45, 0x92, 0x98,
+                0x19, 0x8d, 0x33, 0xbd, 0x71, 0xe6, 0xf7, 0x56, 0xd0, 0x8e, 0xdf, 0x46, 0x2a, 0x8f,
+                0x62, 0xa2, 0x1b, 0x80,
+            ],
+            Elements::FullRightShift64_4 => [
+                0xde, 0xe4, 0xda, 0xd6, 0x7a, 0x5d, 0xdc, 0xc3, 0x5d, 0xa1, 0xa7, 0x90, 0x63, 0xca,
+                0x97, 0x5f, 0x81, 0x34, 0xc8, 0xea, 0xc5, 0x6a, 0x9f, 0x55, 0x5d, 0x2b, 0x0e, 0x13,
+                0xda, 0x10, 0x99, 0x4d,
+            ],
+            Elements::FullRightShift64_8 => [
+                0x9c, 0xd7, 0x78, 0x03, 0xfc, 0x38, 0x9c, 0x94, 0xff, 0xf2, 0x86, 0xda, 0x0b, 0x37,
+                0x4b, 0x89, 0xfe, 0xeb, 0x3d, 0xaa, 0x38, 0xce, 0x67, 0xca, 0xb0, 0x22, 0x0d, 0xab,
+                0xee, 0xfe, 0x23, 0xa2,
+            ],
+            Elements::FullRightShift8_1 => [
+                0xee, 0x23, 0xff, 0xf0, 0x7d, 0xe5, 0x3c, 0xc3, 0x71, 0x09, 0xa4, 0x7f, 0x9f, 0xde,
+                0x3c, 0x74, 0x44, 0x7a, 0xe8, 0x31, 0xce, 0xe9, 0xac, 0x4d, 0xb7, 0x90, 0xcd, 0xe8,
+                0xb1, 0x53, 0x23, 0xb2,
+            ],
+            Elements::FullRightShift8_2 => [
+                0x25, 0xe1, 0xde, 0xa1, 0x08, 0xc5, 0xf8, 0x9c, 0xce, 0x5b, 0x3d, 0x5b, 0x0e, 0x07,
+                0x92, 0xbe, 0x37, 0x90, 0x1a, 0x5a, 0x65, 0xde, 0xf9, 0x04, 0xdd, 0x51, 0x71, 0x0a,
+                0x35, 0x5a, 0xb5, 0x5f,
+            ],
+            Elements::FullRightShift8_4 => [
+                0xd7, 0xf0, 0xa8, 0x3c, 0x41, 0x04, 0x54, 0x3e, 0xc7, 0x5b, 0x5e, 0xe7, 0x5b, 0xf5,
+                0xf7, 0x91, 0x5d, 0x65, 0xfa, 0x50, 0xc2, 0x09, 0x5d, 0xe2, 0xa3, 0x56, 0x70, 0xa5,
+                0x05, 0xbe, 0x12, 0x9a,
             ],
             Elements::FullSubtract16 => [
                 0x95, 0xea, 0x5e, 0x54, 0xc5, 0x60, 0x3f, 0x2f, 0x78, 0xac, 0xf6, 0xb8, 0xa8, 0x7a,
@@ -912,6 +1275,11 @@ impl Jet for Elements {
                 0x33, 0x6f, 0xf7, 0x3d, 0x00, 0x2f, 0x37, 0x54, 0x9c, 0x48, 0x1f, 0xd4, 0xaa, 0xf1,
                 0x5a, 0x58, 0x60, 0x77, 0x9d, 0xf2, 0x83, 0x34, 0x48, 0x71, 0x41, 0xf4, 0x09, 0xb4,
                 0xb2, 0x9e, 0xfb, 0x65,
+            ],
+            Elements::High1 => [
+                0x97, 0xa1, 0x43, 0xf0, 0x4c, 0xb6, 0x03, 0xf6, 0x5f, 0x84, 0xa8, 0x0d, 0x31, 0xc3,
+                0x36, 0x4f, 0x8f, 0xda, 0x22, 0x97, 0x3a, 0x9a, 0xe6, 0x95, 0xa5, 0x81, 0x89, 0xc3,
+                0x14, 0x63, 0xa8, 0xbf,
             ],
             Elements::High16 => [
                 0x62, 0x10, 0xac, 0x71, 0x36, 0x58, 0x6c, 0x73, 0xa0, 0x9c, 0x94, 0x21, 0xa4, 0x0e,
@@ -1163,6 +1531,306 @@ impl Jet for Elements {
                 0xe0, 0x11, 0x18, 0xfb, 0x8c, 0x1a, 0xdc, 0xdc, 0x11, 0x21, 0x97, 0x93, 0xcb, 0x2a,
                 0xfc, 0x4a, 0x7e, 0x8c,
             ],
+            Elements::LeftExtend16_32 => [
+                0x8c, 0x99, 0x04, 0x35, 0xb1, 0x35, 0xde, 0x74, 0x57, 0xc2, 0x69, 0x0d, 0x2d, 0xc8,
+                0x74, 0x4a, 0x50, 0x66, 0x41, 0xb8, 0x81, 0xf4, 0x1e, 0x5c, 0x17, 0x02, 0x77, 0x65,
+                0xc3, 0x52, 0xdd, 0xcb,
+            ],
+            Elements::LeftExtend16_64 => [
+                0x9b, 0x9f, 0xf9, 0xcc, 0x27, 0x13, 0x93, 0x19, 0xb2, 0x24, 0xb7, 0xb2, 0xb8, 0x16,
+                0xc9, 0x13, 0xa5, 0x68, 0xbf, 0xd0, 0x0b, 0xe1, 0xf3, 0x83, 0xc0, 0x26, 0xbc, 0xff,
+                0xe9, 0xbf, 0xe7, 0x12,
+            ],
+            Elements::LeftExtend1_16 => [
+                0xb8, 0xff, 0x8d, 0xc1, 0xa0, 0x4c, 0xa7, 0x16, 0x49, 0x17, 0xf4, 0xc4, 0x50, 0x68,
+                0x8c, 0x83, 0xdd, 0x41, 0x6c, 0xef, 0x7b, 0x0f, 0xab, 0xdd, 0x16, 0x92, 0xfa, 0xe6,
+                0xbf, 0xf7, 0xb4, 0xa6,
+            ],
+            Elements::LeftExtend1_32 => [
+                0x22, 0x53, 0xa4, 0x52, 0xb9, 0x99, 0x02, 0xab, 0xcf, 0x15, 0x49, 0x6d, 0xf1, 0x9d,
+                0x31, 0x12, 0xa1, 0xce, 0xf5, 0x9b, 0x9a, 0xdc, 0xee, 0x20, 0x6c, 0x0d, 0x8d, 0xce,
+                0xa6, 0x28, 0xd0, 0x73,
+            ],
+            Elements::LeftExtend1_64 => [
+                0xc8, 0x59, 0x9c, 0x85, 0x75, 0xed, 0xb7, 0xc2, 0x60, 0x40, 0x2e, 0xf2, 0xf2, 0x6d,
+                0xd4, 0x91, 0xcb, 0x5e, 0x4d, 0x38, 0x18, 0xff, 0x2e, 0x95, 0x85, 0xc8, 0xd3, 0xe7,
+                0x81, 0x2d, 0xb5, 0xaa,
+            ],
+            Elements::LeftExtend1_8 => [
+                0xcf, 0xe0, 0x22, 0x00, 0x5f, 0x6b, 0xad, 0x4b, 0x25, 0xb5, 0x1e, 0x9e, 0xbe, 0x92,
+                0x94, 0x24, 0x37, 0x3f, 0xf1, 0x97, 0xce, 0xca, 0x62, 0xb9, 0xe0, 0x69, 0xab, 0x08,
+                0xda, 0x9f, 0x38, 0xf2,
+            ],
+            Elements::LeftExtend32_64 => [
+                0x3f, 0x66, 0x84, 0x04, 0x7e, 0xda, 0xfb, 0x76, 0xf1, 0x1f, 0xbf, 0x59, 0x54, 0x99,
+                0xc5, 0xab, 0xa9, 0xc4, 0xba, 0x55, 0xca, 0xb5, 0x87, 0xcd, 0xfe, 0xba, 0xd4, 0x57,
+                0xb5, 0x5b, 0xf5, 0xbb,
+            ],
+            Elements::LeftExtend8_16 => [
+                0xdb, 0xd5, 0x5f, 0x41, 0x70, 0x15, 0x38, 0x53, 0xba, 0xd0, 0xe0, 0x84, 0xf9, 0xe1,
+                0xa7, 0xe7, 0x5a, 0x7a, 0x0d, 0xc9, 0xd8, 0x92, 0x07, 0x75, 0x57, 0x5b, 0x0d, 0x48,
+                0xe5, 0x07, 0xaf, 0x2f,
+            ],
+            Elements::LeftExtend8_32 => [
+                0x5b, 0x5b, 0x45, 0x67, 0x6a, 0x75, 0x03, 0xee, 0xd0, 0x85, 0x57, 0x38, 0x69, 0xdb,
+                0xc5, 0x80, 0x0b, 0x35, 0x02, 0x9d, 0x14, 0x02, 0x90, 0xac, 0x20, 0x89, 0x14, 0x89,
+                0xbd, 0x2a, 0xa7, 0xd5,
+            ],
+            Elements::LeftExtend8_64 => [
+                0x7b, 0x9e, 0xa1, 0x48, 0xa3, 0x0f, 0x2a, 0xf4, 0xd4, 0x00, 0x1d, 0x4f, 0x25, 0xb0,
+                0xbf, 0x4f, 0xdd, 0x67, 0xc7, 0xd0, 0xf1, 0x34, 0xd7, 0xef, 0x3f, 0x67, 0x8f, 0x72,
+                0x19, 0x00, 0x2b, 0xcf,
+            ],
+            Elements::LeftPadHigh16_32 => [
+                0xe8, 0xc2, 0xd8, 0x5a, 0x7b, 0x7b, 0x2a, 0x8e, 0xbb, 0x5b, 0x0f, 0x21, 0x2f, 0xc8,
+                0x45, 0x0d, 0xc1, 0xd3, 0xa4, 0x68, 0x22, 0xfb, 0x21, 0xe8, 0x6e, 0x3f, 0xee, 0x02,
+                0x0a, 0xf9, 0x73, 0x8f,
+            ],
+            Elements::LeftPadHigh16_64 => [
+                0x61, 0x3b, 0x85, 0xd2, 0xa7, 0x51, 0xb3, 0xe5, 0x1f, 0xbc, 0x59, 0xa1, 0xde, 0xdd,
+                0x1f, 0xc7, 0x93, 0x36, 0x5e, 0x40, 0x71, 0xdc, 0x1e, 0x01, 0x41, 0x08, 0xd8, 0x92,
+                0x0d, 0x41, 0xd4, 0x70,
+            ],
+            Elements::LeftPadHigh1_16 => [
+                0xe8, 0x2b, 0x00, 0xef, 0xd7, 0xdc, 0xc3, 0x4e, 0x96, 0xe8, 0xf3, 0xe5, 0x1e, 0xad,
+                0x12, 0xd3, 0x84, 0x5f, 0x6c, 0x77, 0x85, 0xe4, 0x43, 0x8b, 0x05, 0x45, 0x7d, 0x95,
+                0x32, 0x6e, 0x59, 0xe3,
+            ],
+            Elements::LeftPadHigh1_32 => [
+                0x88, 0x58, 0x5b, 0x8c, 0x45, 0x92, 0xd5, 0xd0, 0x83, 0xdf, 0xf6, 0x8e, 0xb5, 0xc2,
+                0x30, 0xd0, 0x6c, 0x37, 0x99, 0x5a, 0x6f, 0xed, 0xe2, 0x2c, 0x26, 0xe6, 0x61, 0xa7,
+                0x51, 0x6e, 0x5b, 0xf4,
+            ],
+            Elements::LeftPadHigh1_64 => [
+                0xc2, 0x7e, 0x3d, 0x02, 0x94, 0x92, 0x20, 0x58, 0x89, 0x0d, 0x5c, 0x8b, 0x67, 0x6c,
+                0x1d, 0xae, 0xfd, 0xde, 0x65, 0x31, 0xe8, 0xae, 0x6d, 0x79, 0x37, 0x53, 0x92, 0x72,
+                0x3e, 0xad, 0x9c, 0x03,
+            ],
+            Elements::LeftPadHigh1_8 => [
+                0x14, 0x3e, 0x12, 0x39, 0x2b, 0x8f, 0x2e, 0x73, 0x53, 0x71, 0xfe, 0xd0, 0xb4, 0xb6,
+                0xd6, 0x23, 0xff, 0xa4, 0xf6, 0x60, 0xe5, 0x39, 0x0c, 0x00, 0xe5, 0x67, 0xcf, 0x21,
+                0xa1, 0xc9, 0x20, 0x78,
+            ],
+            Elements::LeftPadHigh32_64 => [
+                0xf4, 0x84, 0x7c, 0x67, 0x56, 0x67, 0xb3, 0xc6, 0xa8, 0x90, 0xfd, 0x5a, 0x6a, 0xdb,
+                0x09, 0x27, 0x55, 0x7e, 0xe8, 0x0c, 0xd6, 0xe6, 0x5a, 0xf9, 0xb1, 0xb4, 0x72, 0x95,
+                0x72, 0xcd, 0x86, 0x61,
+            ],
+            Elements::LeftPadHigh8_16 => [
+                0x76, 0x18, 0x05, 0x8a, 0x4e, 0x08, 0xeb, 0x52, 0x43, 0xda, 0xd2, 0x05, 0xcc, 0x7e,
+                0x8d, 0x25, 0x47, 0x38, 0x0d, 0xa0, 0x5e, 0xc5, 0x41, 0x1e, 0xfc, 0x37, 0x2b, 0xaa,
+                0x2b, 0xb1, 0x2d, 0xa6,
+            ],
+            Elements::LeftPadHigh8_32 => [
+                0x3d, 0xfe, 0xd5, 0xc0, 0xa9, 0xb2, 0x6b, 0x8f, 0x4a, 0x8e, 0xab, 0xd6, 0xfb, 0xed,
+                0x87, 0xbe, 0x45, 0x0d, 0xe7, 0x95, 0xf5, 0x41, 0x95, 0x3e, 0xec, 0x16, 0xa6, 0xd5,
+                0xaa, 0x82, 0x5a, 0x56,
+            ],
+            Elements::LeftPadHigh8_64 => [
+                0xce, 0x7c, 0x40, 0x7e, 0x4b, 0x56, 0x17, 0x21, 0xd6, 0x6c, 0x1b, 0xb0, 0xd1, 0x7e,
+                0xe8, 0x41, 0xb4, 0xd5, 0x04, 0xb4, 0xc4, 0xc0, 0x72, 0x00, 0x22, 0x37, 0x14, 0x0b,
+                0x89, 0x09, 0x76, 0x9f,
+            ],
+            Elements::LeftPadLow16_32 => [
+                0xa2, 0x8c, 0x79, 0x24, 0xa4, 0x7b, 0x46, 0xec, 0x73, 0xbc, 0xff, 0x6e, 0x13, 0x28,
+                0xd4, 0x39, 0xaa, 0x90, 0x3a, 0xcf, 0x10, 0x3e, 0x9a, 0xa8, 0x0b, 0x65, 0xba, 0x76,
+                0xd2, 0xa0, 0x8e, 0x75,
+            ],
+            Elements::LeftPadLow16_64 => [
+                0xb6, 0x25, 0x8a, 0xcd, 0xa2, 0x11, 0x0e, 0xd9, 0x8c, 0x17, 0xbc, 0xa8, 0x27, 0x12,
+                0xe3, 0xea, 0x60, 0x86, 0x6f, 0x7d, 0x40, 0x04, 0xc8, 0x3e, 0x8a, 0xe5, 0x24, 0xb7,
+                0xba, 0x44, 0x00, 0x8b,
+            ],
+            Elements::LeftPadLow1_16 => [
+                0x1e, 0x1f, 0x6c, 0xc4, 0x24, 0x64, 0x83, 0x75, 0x49, 0xb9, 0x7d, 0x30, 0x7e, 0x28,
+                0xa9, 0xc2, 0x36, 0x80, 0x91, 0x4c, 0xd8, 0x6d, 0x65, 0xc3, 0x04, 0x67, 0x93, 0x12,
+                0x7b, 0x54, 0xfe, 0x82,
+            ],
+            Elements::LeftPadLow1_32 => [
+                0xc3, 0x38, 0xa1, 0x95, 0x5e, 0x99, 0x82, 0x0d, 0x0e, 0xd3, 0x1a, 0x5a, 0xfe, 0xdd,
+                0x13, 0x58, 0xc1, 0x74, 0x44, 0x02, 0x3e, 0x3f, 0x2b, 0x47, 0x33, 0xd9, 0xf6, 0x8c,
+                0xb7, 0xb4, 0x0c, 0xd9,
+            ],
+            Elements::LeftPadLow1_64 => [
+                0x68, 0x9e, 0xd5, 0x69, 0xc2, 0x01, 0x52, 0x1e, 0xc1, 0x95, 0x4f, 0x0d, 0xc7, 0xd2,
+                0x12, 0x8e, 0x46, 0x5a, 0x52, 0x04, 0x99, 0x19, 0x05, 0x49, 0x85, 0x8d, 0xe9, 0xed,
+                0x23, 0x1a, 0x5d, 0x69,
+            ],
+            Elements::LeftPadLow1_8 => [
+                0x5b, 0x51, 0x90, 0x53, 0xfd, 0x2b, 0xb7, 0x58, 0x47, 0x3a, 0xf8, 0xe3, 0x91, 0x0b,
+                0xae, 0xf3, 0x3c, 0xc8, 0x01, 0xc0, 0xb1, 0x42, 0x0a, 0xaf, 0x81, 0x4a, 0x7e, 0x72,
+                0x54, 0xea, 0x78, 0xf0,
+            ],
+            Elements::LeftPadLow32_64 => [
+                0xac, 0x00, 0xa3, 0x4f, 0xb6, 0xa5, 0x8e, 0x57, 0xad, 0x22, 0x39, 0x50, 0x0e, 0x65,
+                0x71, 0x37, 0x5d, 0xfd, 0xa0, 0xce, 0xa1, 0x17, 0x5f, 0xe9, 0x9d, 0x87, 0x5c, 0xd8,
+                0x71, 0x81, 0x05, 0xe9,
+            ],
+            Elements::LeftPadLow8_16 => [
+                0xb6, 0xf6, 0x33, 0x4c, 0xc6, 0x60, 0xe3, 0x06, 0x9f, 0x7e, 0x14, 0x37, 0xa1, 0x94,
+                0x3f, 0x61, 0x0f, 0xc5, 0xa5, 0xab, 0x8a, 0xa5, 0x10, 0x5b, 0xfc, 0xec, 0xd3, 0xda,
+                0x0c, 0x59, 0x63, 0x3c,
+            ],
+            Elements::LeftPadLow8_32 => [
+                0x8a, 0xee, 0x9f, 0x42, 0xda, 0x9b, 0x84, 0x2e, 0x41, 0x18, 0x95, 0x96, 0x59, 0x47,
+                0x56, 0xba, 0xd9, 0xba, 0xb2, 0x95, 0x3d, 0xea, 0xe6, 0x68, 0x56, 0xb9, 0xcb, 0x60,
+                0x1d, 0x7a, 0xc5, 0x48,
+            ],
+            Elements::LeftPadLow8_64 => [
+                0x61, 0x1d, 0x64, 0xce, 0x94, 0xf8, 0x82, 0xfd, 0xa2, 0x4c, 0x97, 0xad, 0xd1, 0x90,
+                0x54, 0x21, 0x2f, 0x46, 0xb3, 0xb9, 0x8e, 0xf2, 0xae, 0x22, 0x79, 0x36, 0x45, 0x39,
+                0xb9, 0x3e, 0x2b, 0x8b,
+            ],
+            Elements::LeftRotate16 => [
+                0x25, 0xe2, 0xd4, 0xec, 0xc0, 0x3f, 0x87, 0x65, 0x5e, 0x96, 0x5b, 0x35, 0x7d, 0x6f,
+                0xd0, 0xc2, 0xea, 0x36, 0xd1, 0x12, 0x06, 0x8c, 0x96, 0x33, 0x39, 0xde, 0x46, 0x7e,
+                0x5c, 0x8e, 0x7d, 0x8e,
+            ],
+            Elements::LeftRotate32 => [
+                0x2d, 0x41, 0x89, 0xb3, 0x12, 0xe8, 0xce, 0xda, 0xaa, 0x38, 0x53, 0xa4, 0x5a, 0x12,
+                0x98, 0x6e, 0xe2, 0x62, 0xfb, 0x60, 0x5f, 0x0d, 0x59, 0x2d, 0xcb, 0xb9, 0x61, 0x8f,
+                0xe6, 0x7a, 0x25, 0x0b,
+            ],
+            Elements::LeftRotate64 => [
+                0xb8, 0xe6, 0x8e, 0x0a, 0xd6, 0x82, 0xb9, 0x67, 0xf2, 0x4c, 0x09, 0x84, 0xf7, 0xd5,
+                0xf8, 0x09, 0xa2, 0x85, 0x97, 0xa0, 0x43, 0x46, 0x18, 0xc8, 0x94, 0x9f, 0xa8, 0x08,
+                0xe3, 0xbe, 0x76, 0x14,
+            ],
+            Elements::LeftRotate8 => [
+                0x95, 0x6a, 0x65, 0x3a, 0xe0, 0xb8, 0xf8, 0xc3, 0xf2, 0x9f, 0xd8, 0xf3, 0x31, 0x19,
+                0x16, 0x8f, 0xcb, 0xe6, 0x4f, 0x5d, 0x76, 0x5f, 0xa9, 0xff, 0x6b, 0x8e, 0x3b, 0x0d,
+                0x96, 0x1a, 0x16, 0x29,
+            ],
+            Elements::LeftShift16 => [
+                0x9b, 0xbc, 0xe2, 0x9e, 0x69, 0x5b, 0xe2, 0xe4, 0x83, 0x0c, 0x7a, 0x93, 0xa0, 0xd2,
+                0x15, 0x1b, 0x66, 0x4f, 0xc2, 0x72, 0x06, 0xee, 0xd7, 0xe5, 0x0f, 0xce, 0xf6, 0x02,
+                0xd3, 0x45, 0xce, 0x0d,
+            ],
+            Elements::LeftShift32 => [
+                0xf9, 0xc4, 0xbf, 0x07, 0xd3, 0xe7, 0x2e, 0x85, 0xb1, 0xd4, 0x55, 0xf7, 0x34, 0xcf,
+                0x1b, 0x11, 0xbe, 0xa5, 0x8e, 0x25, 0x3b, 0x85, 0x4a, 0x1a, 0x09, 0x7b, 0xab, 0x1e,
+                0xc2, 0xc6, 0x2e, 0x1f,
+            ],
+            Elements::LeftShift64 => [
+                0x8c, 0xfa, 0x74, 0x1a, 0xa4, 0x1d, 0x82, 0x8a, 0x41, 0x08, 0x3b, 0xb7, 0xcb, 0xdd,
+                0x1f, 0x4e, 0xda, 0x5d, 0xcc, 0xac, 0x52, 0x9b, 0x24, 0x7d, 0x18, 0x84, 0x95, 0xb4,
+                0x9b, 0xb3, 0x8c, 0x2b,
+            ],
+            Elements::LeftShift8 => [
+                0x95, 0x66, 0x3e, 0x07, 0x7c, 0xad, 0xca, 0x31, 0xb9, 0x59, 0x6b, 0x09, 0x70, 0x6c,
+                0xdb, 0x4f, 0xa7, 0x03, 0x87, 0x0f, 0x79, 0x2a, 0x46, 0x35, 0x85, 0x2b, 0x5e, 0x24,
+                0x69, 0xe6, 0xfd, 0xba,
+            ],
+            Elements::LeftShiftWith16 => [
+                0x62, 0x14, 0xc4, 0x56, 0x25, 0xd7, 0x04, 0xce, 0xc9, 0x87, 0xb7, 0x96, 0x67, 0x6f,
+                0x15, 0x66, 0x1a, 0x6b, 0xf5, 0xdc, 0x0f, 0x6a, 0x51, 0xcb, 0x86, 0x5a, 0x0e, 0x71,
+                0xd6, 0x6f, 0xbf, 0x95,
+            ],
+            Elements::LeftShiftWith32 => [
+                0x1b, 0x45, 0x2f, 0xc7, 0xab, 0x5c, 0x71, 0x47, 0x45, 0x4a, 0xf4, 0xd5, 0x59, 0x54,
+                0x81, 0xff, 0xac, 0x42, 0xde, 0xa1, 0x06, 0x03, 0x2b, 0x3b, 0x9f, 0x37, 0x5b, 0xed,
+                0xcd, 0xa6, 0xf4, 0xd6,
+            ],
+            Elements::LeftShiftWith64 => [
+                0xc3, 0x8b, 0x02, 0xab, 0xcf, 0xf5, 0x14, 0xd9, 0x61, 0x91, 0xa7, 0xfe, 0xfb, 0xa1,
+                0xac, 0x16, 0xe9, 0xc1, 0x50, 0xa1, 0x8c, 0xe1, 0xc5, 0xbc, 0xf0, 0x9d, 0x67, 0x55,
+                0xe0, 0x36, 0x99, 0x05,
+            ],
+            Elements::LeftShiftWith8 => [
+                0x21, 0x7a, 0xd6, 0xdc, 0x12, 0x92, 0xaa, 0x42, 0xdb, 0xd8, 0x4d, 0xbd, 0x97, 0x1c,
+                0x11, 0x8f, 0x02, 0xa9, 0x74, 0x0a, 0x7c, 0xb5, 0x66, 0x1e, 0x90, 0xd4, 0x2d, 0xd5,
+                0xca, 0x8c, 0xa4, 0xd9,
+            ],
+            Elements::Leftmost16_1 => [
+                0x3e, 0xa8, 0x9e, 0x43, 0x20, 0x77, 0x94, 0x0d, 0x0b, 0xbf, 0x9e, 0xd2, 0xcf, 0x16,
+                0xba, 0x63, 0x11, 0x10, 0xe7, 0xab, 0x9f, 0x19, 0xee, 0xf3, 0xea, 0x92, 0x5a, 0x69,
+                0x9f, 0x60, 0xc6, 0x0c,
+            ],
+            Elements::Leftmost16_2 => [
+                0x5c, 0xe2, 0xbd, 0x7a, 0xc3, 0x5a, 0x7c, 0x33, 0x73, 0xc3, 0xdd, 0x60, 0x7f, 0x48,
+                0xe5, 0xd4, 0xc7, 0xaa, 0xa6, 0xc6, 0x9f, 0xc4, 0x93, 0x0e, 0xca, 0x14, 0x04, 0x9f,
+                0x5d, 0x39, 0xff, 0xab,
+            ],
+            Elements::Leftmost16_4 => [
+                0x10, 0x12, 0xa1, 0x39, 0x3e, 0xd0, 0xf9, 0x1d, 0x75, 0xad, 0x59, 0x12, 0x28, 0x53,
+                0x89, 0x3a, 0x7f, 0x25, 0xcd, 0x35, 0xc8, 0x03, 0x6c, 0x7f, 0xa1, 0x95, 0x68, 0x2c,
+                0xa1, 0x45, 0x8c, 0x4a,
+            ],
+            Elements::Leftmost16_8 => [
+                0xcc, 0xd3, 0x1e, 0x9e, 0xb1, 0xa1, 0xbb, 0xde, 0x55, 0x5c, 0x0f, 0x73, 0x1a, 0xf2,
+                0xd3, 0xd4, 0xff, 0x53, 0x88, 0xfa, 0x14, 0x61, 0x82, 0x6a, 0xa9, 0xc8, 0x93, 0x42,
+                0x42, 0xac, 0x75, 0x3f,
+            ],
+            Elements::Leftmost32_1 => [
+                0xb7, 0x14, 0xad, 0x74, 0xae, 0x04, 0x5a, 0xf7, 0x56, 0x80, 0x77, 0x8a, 0x03, 0x27,
+                0x61, 0xa4, 0xc7, 0x26, 0xd7, 0xb6, 0xd9, 0x77, 0xbc, 0x93, 0xa4, 0x12, 0x56, 0x54,
+                0x3c, 0xae, 0x8d, 0x3d,
+            ],
+            Elements::Leftmost32_16 => [
+                0x1b, 0x20, 0x63, 0x4f, 0xb4, 0x3e, 0xb8, 0x3a, 0x96, 0x8c, 0x3c, 0x81, 0xc0, 0x08,
+                0x7c, 0x63, 0xd5, 0xd4, 0xf8, 0xca, 0xcd, 0xbd, 0x3e, 0x0e, 0x9f, 0x9a, 0x3d, 0x75,
+                0x91, 0xc3, 0xef, 0x62,
+            ],
+            Elements::Leftmost32_2 => [
+                0x75, 0x2d, 0xda, 0x08, 0xe4, 0x0f, 0xae, 0xa0, 0xf6, 0xc4, 0xee, 0x3d, 0x34, 0x4b,
+                0x7c, 0x4e, 0xa1, 0x1b, 0x97, 0x1d, 0xce, 0xc5, 0x55, 0x92, 0xb8, 0x22, 0xee, 0x56,
+                0x27, 0x1c, 0xa5, 0xdf,
+            ],
+            Elements::Leftmost32_4 => [
+                0x44, 0xe9, 0xf7, 0x79, 0xa0, 0x29, 0xec, 0xfc, 0x97, 0x62, 0xb8, 0xb6, 0xcb, 0xaf,
+                0x09, 0x22, 0xd9, 0x35, 0xfe, 0xa5, 0x15, 0x0a, 0x54, 0x6a, 0x5f, 0xc1, 0xfd, 0xb8,
+                0xb9, 0x53, 0x41, 0x34,
+            ],
+            Elements::Leftmost32_8 => [
+                0x54, 0x80, 0x1e, 0xb5, 0xe7, 0x78, 0xcf, 0x6c, 0xda, 0x95, 0xcc, 0xf5, 0x70, 0x28,
+                0x6d, 0x81, 0x6d, 0x3a, 0x1f, 0xf1, 0xdd, 0x39, 0xdb, 0x5a, 0xb6, 0x13, 0x6f, 0x0e,
+                0xc3, 0xb7, 0x2d, 0xc6,
+            ],
+            Elements::Leftmost64_1 => [
+                0xb3, 0x16, 0xaf, 0x24, 0xc8, 0x6b, 0x39, 0x61, 0x3d, 0x4f, 0xd1, 0xb3, 0x92, 0x6a,
+                0x84, 0x13, 0x0e, 0xb7, 0xab, 0x12, 0xfd, 0xef, 0x62, 0x33, 0x17, 0xab, 0x48, 0xf7,
+                0x7c, 0xb6, 0x21, 0x45,
+            ],
+            Elements::Leftmost64_16 => [
+                0x8c, 0xf8, 0x54, 0x81, 0xe0, 0xf0, 0x08, 0x38, 0xb5, 0x23, 0x9b, 0xbf, 0xad, 0x13,
+                0x82, 0xf0, 0x7b, 0xd0, 0x3c, 0x12, 0x1d, 0x5d, 0x8a, 0xaf, 0xa6, 0xd9, 0x83, 0x41,
+                0x6d, 0xe4, 0x5c, 0x32,
+            ],
+            Elements::Leftmost64_2 => [
+                0xda, 0x40, 0xc8, 0x9b, 0x15, 0xc9, 0xe8, 0x6b, 0x02, 0x8c, 0xe9, 0xec, 0x07, 0xb7,
+                0xf6, 0x99, 0x5a, 0x5d, 0xdd, 0xa4, 0x85, 0x0a, 0x91, 0xaf, 0x8c, 0x60, 0xe0, 0x2b,
+                0xf9, 0x91, 0xfb, 0x0c,
+            ],
+            Elements::Leftmost64_32 => [
+                0x95, 0xf4, 0x6d, 0xb9, 0xd9, 0x06, 0xf0, 0x50, 0x53, 0x45, 0x5e, 0x95, 0x34, 0xeb,
+                0x9b, 0x08, 0xb0, 0x9e, 0x38, 0xbc, 0x0f, 0xc6, 0x98, 0xa1, 0x6f, 0x4b, 0x2a, 0x62,
+                0x71, 0x07, 0x59, 0xd1,
+            ],
+            Elements::Leftmost64_4 => [
+                0xf5, 0x01, 0xf9, 0x05, 0xfb, 0x8b, 0xab, 0xa1, 0xa7, 0xe8, 0xa6, 0xbf, 0x68, 0xd3,
+                0xae, 0x6a, 0x0a, 0xdd, 0x91, 0x95, 0x1b, 0x56, 0x62, 0x9d, 0x59, 0xf4, 0x28, 0x73,
+                0x9e, 0x7e, 0x41, 0xa2,
+            ],
+            Elements::Leftmost64_8 => [
+                0xb3, 0x7f, 0x0b, 0xa2, 0xfc, 0xbd, 0x4a, 0xe3, 0x31, 0x6a, 0x4f, 0xe4, 0xf5, 0x8a,
+                0xa1, 0xa5, 0x41, 0x74, 0x0c, 0xde, 0x60, 0xed, 0x87, 0xf3, 0x38, 0x62, 0xa2, 0xff,
+                0xec, 0xad, 0x44, 0x2f,
+            ],
+            Elements::Leftmost8_1 => [
+                0x5f, 0xdc, 0xfa, 0x9b, 0x9a, 0x4b, 0x65, 0xc7, 0x20, 0x74, 0x71, 0xe5, 0x33, 0x92,
+                0x8d, 0x6a, 0x24, 0xf4, 0xb6, 0xff, 0x9b, 0x34, 0x5e, 0xf7, 0x61, 0xb1, 0x48, 0x0a,
+                0x8a, 0x05, 0xe3, 0xd7,
+            ],
+            Elements::Leftmost8_2 => [
+                0x62, 0x42, 0x21, 0xe9, 0xf8, 0xa9, 0x16, 0x91, 0x26, 0xc7, 0x33, 0x47, 0x96, 0x48,
+                0xc7, 0x3b, 0x68, 0xc6, 0xb8, 0xeb, 0xbb, 0x60, 0xc7, 0x2a, 0xf1, 0xe6, 0xfc, 0x65,
+                0xe7, 0xd3, 0x07, 0x23,
+            ],
+            Elements::Leftmost8_4 => [
+                0x1a, 0x48, 0x43, 0xc4, 0x08, 0xe1, 0xd4, 0x6c, 0x9c, 0x93, 0x89, 0x46, 0x34, 0x49,
+                0x5f, 0x8a, 0xd6, 0xa6, 0x80, 0xe3, 0x2d, 0xd6, 0xf2, 0x5b, 0xa1, 0x9d, 0xbc, 0x60,
+                0xa6, 0x0d, 0x18, 0x97,
+            ],
             Elements::LinearCombination1 => [
                 0xd8, 0x83, 0x20, 0xf4, 0x71, 0xf3, 0xbe, 0xee, 0xa1, 0x31, 0x3d, 0x55, 0x1e, 0x41,
                 0x9b, 0xe0, 0x57, 0x27, 0xae, 0x5f, 0x4d, 0xe6, 0xa2, 0xf2, 0xf2, 0x6f, 0x3c, 0xb5,
@@ -1177,6 +1845,11 @@ impl Jet for Elements {
                 0xee, 0x87, 0xa0, 0x25, 0xd7, 0x33, 0x8a, 0x3c, 0x8f, 0x25, 0x1b, 0xe4, 0x19, 0xef,
                 0xb7, 0xee, 0x71, 0x77, 0xcb, 0x73, 0x8f, 0x42, 0xe8, 0xc0, 0x03, 0xfc, 0x46, 0x58,
                 0xcc, 0x0e, 0x5b, 0x8b,
+            ],
+            Elements::Low1 => [
+                0xdb, 0x4a, 0x42, 0x4a, 0x20, 0xae, 0xef, 0xa4, 0xe7, 0x42, 0xd5, 0x1d, 0x84, 0x92,
+                0x92, 0x18, 0xcb, 0xf7, 0x34, 0x72, 0x61, 0x76, 0xdc, 0x4f, 0xf9, 0xf8, 0xbf, 0x13,
+                0xde, 0x10, 0xca, 0x2b,
             ],
             Elements::Low16 => [
                 0xa1, 0x14, 0xe9, 0x58, 0x0d, 0xe0, 0x7d, 0x8b, 0x07, 0x7e, 0xb8, 0x89, 0x98, 0x75,
@@ -1217,6 +1890,11 @@ impl Jet for Elements {
                 0x98, 0x76, 0x3f, 0x78, 0x21, 0x69, 0x09, 0x54, 0xcf, 0x50, 0x81, 0x02, 0x09, 0xdf,
                 0x6e, 0x15, 0x57, 0x03, 0x16, 0xbb, 0xa8, 0x9f, 0xfa, 0x9a, 0xe5, 0x56, 0xa9, 0x15,
                 0xf3, 0x7b, 0x64, 0x0b,
+            ],
+            Elements::Maj1 => [
+                0xae, 0x8b, 0x91, 0x2e, 0x3a, 0xd4, 0x7f, 0x68, 0x8b, 0xbb, 0x46, 0xc8, 0xcb, 0x6d,
+                0x53, 0x33, 0x69, 0xf5, 0x10, 0x9a, 0x27, 0x30, 0x47, 0x1e, 0xab, 0x6e, 0xfe, 0x98,
+                0xe9, 0xea, 0x5e, 0x78,
             ],
             Elements::Maj16 => [
                 0xf5, 0xa4, 0x1d, 0xa0, 0x37, 0x7f, 0xe6, 0x88, 0xac, 0x2f, 0xcd, 0xf3, 0x5b, 0x6b,
@@ -1398,6 +2076,11 @@ impl Jet for Elements {
                 0x74, 0x0a, 0x40, 0xfe, 0xce, 0x71, 0x91, 0x30, 0x1d, 0x00, 0xe5, 0x17, 0xd8, 0xd3,
                 0x4f, 0x46, 0xc2, 0x50,
             ],
+            Elements::Or1 => [
+                0x93, 0x52, 0x22, 0x30, 0x17, 0x00, 0x98, 0x7d, 0xe1, 0x2c, 0xb4, 0x26, 0x17, 0x21,
+                0x81, 0x53, 0xfd, 0x7c, 0xcd, 0x63, 0x17, 0x4a, 0x17, 0x49, 0xfc, 0x88, 0x0c, 0x39,
+                0xe3, 0xe7, 0x23, 0x9c,
+            ],
             Elements::Or16 => [
                 0xdf, 0xea, 0xd0, 0xba, 0x93, 0xe4, 0x91, 0x55, 0xc4, 0x0c, 0xb3, 0x72, 0xca, 0x5e,
                 0xf6, 0x17, 0x97, 0x41, 0xc6, 0x1f, 0x2b, 0x3c, 0xc2, 0x79, 0x7e, 0xf1, 0x62, 0xc8,
@@ -1517,6 +2200,286 @@ impl Jet for Elements {
                 0xce, 0x84, 0xf9, 0x83, 0xa3, 0xbd, 0x33, 0x94, 0x3d, 0x4d, 0xcb, 0x44, 0x86, 0x1c,
                 0x4a, 0x69, 0xa2, 0xa5, 0xe8, 0xa5, 0x22, 0xb5, 0xd5, 0xeb, 0xf2, 0x51, 0x5f, 0x51,
                 0x1a, 0xc6, 0xa9, 0xb2,
+            ],
+            Elements::RightExtend16_32 => [
+                0x36, 0x42, 0x3c, 0x16, 0xd4, 0x8d, 0x6c, 0x7c, 0x91, 0xed, 0x44, 0x16, 0x11, 0xbe,
+                0x30, 0x72, 0xdf, 0xa5, 0xdd, 0x38, 0xe4, 0xd2, 0x7d, 0xa8, 0xda, 0xed, 0x29, 0x78,
+                0x8f, 0xc9, 0x52, 0x08,
+            ],
+            Elements::RightExtend16_64 => [
+                0x4b, 0x8a, 0x47, 0xb9, 0x06, 0x70, 0x73, 0xa1, 0xfb, 0x68, 0x30, 0x0f, 0xac, 0xd6,
+                0xc5, 0x06, 0x98, 0x90, 0xab, 0xdb, 0x7e, 0xaa, 0xcb, 0x62, 0x2a, 0xd7, 0x30, 0x9a,
+                0x87, 0xf4, 0xd3, 0x4d,
+            ],
+            Elements::RightExtend32_64 => [
+                0xdd, 0x6a, 0xf1, 0xc8, 0x01, 0xd2, 0x6c, 0x0b, 0x2e, 0xdf, 0x83, 0xce, 0x67, 0xb1,
+                0x72, 0xdf, 0x67, 0x57, 0xd0, 0x7f, 0xb7, 0xc8, 0x54, 0x68, 0x6f, 0x42, 0xe5, 0x76,
+                0x8a, 0xdc, 0xc9, 0xe7,
+            ],
+            Elements::RightExtend8_16 => [
+                0x1d, 0xe2, 0x01, 0xa8, 0x64, 0x70, 0xa0, 0x2b, 0x2d, 0xfe, 0x48, 0xc6, 0x6a, 0xfe,
+                0x06, 0x73, 0x5b, 0x47, 0x5e, 0x88, 0xd3, 0x25, 0xcb, 0xf1, 0x60, 0x42, 0xa9, 0x10,
+                0x24, 0xd2, 0xbe, 0xd9,
+            ],
+            Elements::RightExtend8_32 => [
+                0x7e, 0x9c, 0x5c, 0xb3, 0x54, 0x19, 0xab, 0x06, 0xe1, 0x22, 0x00, 0x23, 0x10, 0x2b,
+                0xe4, 0x6a, 0xb6, 0xd9, 0x69, 0x95, 0xc4, 0x23, 0xc6, 0xb1, 0x4b, 0x9a, 0x66, 0x02,
+                0x8a, 0xec, 0x5d, 0x75,
+            ],
+            Elements::RightExtend8_64 => [
+                0x49, 0xd2, 0x46, 0xc2, 0xa6, 0x1c, 0xd3, 0x9d, 0x78, 0x20, 0xdc, 0xd7, 0x5e, 0xee,
+                0x84, 0x7b, 0xf0, 0x57, 0xc0, 0x1a, 0x63, 0xa3, 0xac, 0xbc, 0xc9, 0x46, 0x3e, 0x44,
+                0xbc, 0x1e, 0x0b, 0x6c,
+            ],
+            Elements::RightPadHigh16_32 => [
+                0xfe, 0x90, 0x1f, 0xb4, 0xf6, 0xeb, 0xdc, 0x4e, 0xa2, 0x96, 0x19, 0x98, 0x99, 0x22,
+                0xb8, 0x0f, 0xa9, 0xce, 0x24, 0x12, 0x87, 0xfa, 0x54, 0x08, 0x64, 0x36, 0x2c, 0xcc,
+                0xe9, 0xf5, 0x4b, 0x3b,
+            ],
+            Elements::RightPadHigh16_64 => [
+                0xda, 0x90, 0xad, 0xd3, 0x10, 0x67, 0xcc, 0xfd, 0xbe, 0xe4, 0xcb, 0xfb, 0x21, 0xde,
+                0x8e, 0x6a, 0xa4, 0xf9, 0x3e, 0x00, 0x22, 0x00, 0x71, 0x1f, 0x99, 0x84, 0xaf, 0x6f,
+                0xc0, 0x1e, 0x27, 0x00,
+            ],
+            Elements::RightPadHigh1_16 => [
+                0xe4, 0xcf, 0x11, 0x6c, 0x08, 0x80, 0xf7, 0x3f, 0x99, 0x52, 0xf7, 0x00, 0x81, 0x78,
+                0x84, 0x98, 0xe5, 0x08, 0x4c, 0xbb, 0x72, 0xcf, 0x84, 0x1b, 0xcd, 0x91, 0x67, 0xa6,
+                0xee, 0xa2, 0x64, 0xdc,
+            ],
+            Elements::RightPadHigh1_32 => [
+                0x12, 0x76, 0x03, 0x6b, 0xb9, 0x4c, 0xfd, 0x92, 0x0a, 0xb7, 0x31, 0x64, 0x3b, 0x76,
+                0xb1, 0x19, 0x72, 0xdd, 0x26, 0x54, 0x38, 0x53, 0x44, 0x4e, 0x18, 0xd7, 0xf6, 0x3f,
+                0xca, 0xc0, 0x91, 0xa3,
+            ],
+            Elements::RightPadHigh1_64 => [
+                0x38, 0xc9, 0x99, 0x80, 0xb1, 0xa9, 0x98, 0x10, 0x51, 0x11, 0xc5, 0x6b, 0xf8, 0x24,
+                0x65, 0x09, 0x65, 0xa5, 0x09, 0xc4, 0x7e, 0x1c, 0x76, 0xd9, 0x00, 0x75, 0x0a, 0x1f,
+                0xee, 0x45, 0xc9, 0x64,
+            ],
+            Elements::RightPadHigh1_8 => [
+                0xca, 0x72, 0xce, 0xed, 0x2d, 0x98, 0xdc, 0xcd, 0x81, 0xaa, 0x21, 0xf0, 0xba, 0x21,
+                0xd1, 0xa0, 0x87, 0xb6, 0xf2, 0x52, 0x07, 0xc2, 0x4a, 0x58, 0x0a, 0xda, 0x7e, 0x60,
+                0x5f, 0x79, 0x82, 0xdf,
+            ],
+            Elements::RightPadHigh32_64 => [
+                0x17, 0xeb, 0x59, 0x11, 0xf8, 0x54, 0x95, 0x76, 0x68, 0xee, 0xf4, 0x63, 0xb0, 0xcb,
+                0xae, 0x72, 0x08, 0x52, 0x91, 0x34, 0xef, 0x5e, 0x56, 0xcd, 0x33, 0xfb, 0xbc, 0x29,
+                0xc2, 0x8b, 0xbe, 0x92,
+            ],
+            Elements::RightPadHigh8_16 => [
+                0xd2, 0x6f, 0x0c, 0xc5, 0xb2, 0x61, 0xeb, 0x83, 0x0e, 0x02, 0xdf, 0x12, 0xcc, 0x57,
+                0x44, 0x25, 0x9b, 0x4a, 0x43, 0xd9, 0x75, 0xbd, 0x2e, 0x3d, 0x7c, 0x78, 0x28, 0x11,
+                0x76, 0x1f, 0xf1, 0xd1,
+            ],
+            Elements::RightPadHigh8_32 => [
+                0xbd, 0x2e, 0x5c, 0x92, 0x60, 0xbf, 0x6f, 0x32, 0x4d, 0x2b, 0x1f, 0x40, 0xcb, 0xb1,
+                0x22, 0x40, 0x2f, 0x30, 0xd5, 0x2f, 0x64, 0x34, 0xe3, 0x9f, 0x8a, 0x09, 0xb8, 0x39,
+                0x7b, 0xc3, 0x2e, 0x94,
+            ],
+            Elements::RightPadHigh8_64 => [
+                0x94, 0x1b, 0xf4, 0x42, 0xdb, 0xcf, 0x4f, 0x20, 0x04, 0xa4, 0xb1, 0x8b, 0xee, 0xb2,
+                0xad, 0xac, 0x9f, 0x20, 0x9f, 0xea, 0x4c, 0x4b, 0xd4, 0x8c, 0xed, 0xe8, 0xda, 0xfa,
+                0xcf, 0x88, 0x43, 0xb7,
+            ],
+            Elements::RightPadLow16_32 => [
+                0xbb, 0x38, 0x7c, 0x29, 0x2d, 0x59, 0xd7, 0x13, 0xad, 0x76, 0xf6, 0xce, 0xd5, 0xb5,
+                0x96, 0xcf, 0xd8, 0x38, 0x58, 0x92, 0x4f, 0x72, 0x5f, 0x7d, 0x11, 0x6b, 0x28, 0x07,
+                0x58, 0x21, 0x92, 0x5a,
+            ],
+            Elements::RightPadLow16_64 => [
+                0x02, 0x32, 0x32, 0x6e, 0xe1, 0xb2, 0x06, 0xad, 0x26, 0x34, 0x9b, 0x55, 0x3d, 0x7f,
+                0x24, 0x62, 0x28, 0x73, 0x20, 0xd6, 0x30, 0xe4, 0x29, 0x32, 0x07, 0x40, 0xcb, 0xd3,
+                0xeb, 0x4e, 0xf9, 0xbe,
+            ],
+            Elements::RightPadLow1_16 => [
+                0xd9, 0x13, 0xf6, 0x02, 0xb3, 0x59, 0x58, 0xd5, 0x2a, 0xbb, 0x20, 0xb0, 0x2c, 0xe6,
+                0x89, 0x61, 0x6f, 0xfa, 0x66, 0xe0, 0x2d, 0x73, 0x86, 0x7d, 0x29, 0x18, 0x1e, 0x11,
+                0x93, 0xc9, 0xd2, 0x43,
+            ],
+            Elements::RightPadLow1_32 => [
+                0x6b, 0x40, 0x33, 0xd9, 0xfc, 0x6c, 0x87, 0x6b, 0x2e, 0x75, 0xd5, 0x82, 0xbb, 0x9b,
+                0x3c, 0x04, 0xfa, 0x29, 0xdf, 0xb2, 0x2c, 0x9e, 0x1a, 0x48, 0x8e, 0x83, 0x7c, 0x2f,
+                0x39, 0xaa, 0x61, 0x60,
+            ],
+            Elements::RightPadLow1_64 => [
+                0x4e, 0x2b, 0x20, 0xdd, 0x9d, 0x91, 0x85, 0x7a, 0x49, 0xc8, 0x20, 0xd0, 0x6f, 0x43,
+                0x5d, 0xd3, 0xca, 0x79, 0x1f, 0x17, 0x7e, 0xea, 0xf3, 0x4a, 0xec, 0x36, 0xc4, 0x54,
+                0x19, 0xd1, 0x69, 0x65,
+            ],
+            Elements::RightPadLow1_8 => [
+                0x24, 0xee, 0xe4, 0x51, 0xb2, 0x6b, 0xa3, 0x9d, 0x6b, 0xcc, 0x58, 0x8b, 0x72, 0x0f,
+                0xaf, 0x22, 0x32, 0x76, 0x79, 0x12, 0xf6, 0x7d, 0xb3, 0x29, 0x06, 0x0d, 0x90, 0xb7,
+                0x14, 0x17, 0xb6, 0xc3,
+            ],
+            Elements::RightPadLow32_64 => [
+                0x52, 0xfb, 0x8b, 0xbc, 0xef, 0x90, 0x32, 0x31, 0xa5, 0xb7, 0x67, 0x91, 0xe4, 0x65,
+                0x2b, 0x38, 0xbe, 0xd8, 0x97, 0x7f, 0x5d, 0xab, 0x17, 0x95, 0x55, 0x99, 0x8d, 0xb2,
+                0x4d, 0x1d, 0x7c, 0x98,
+            ],
+            Elements::RightPadLow8_16 => [
+                0x17, 0x19, 0xb2, 0x79, 0x74, 0xe8, 0x43, 0x80, 0x50, 0x88, 0x25, 0x30, 0xa1, 0xa4,
+                0x2e, 0xd7, 0xab, 0x3c, 0xa2, 0x8d, 0x25, 0x4a, 0xdc, 0x37, 0xfe, 0x56, 0x66, 0xfd,
+                0x2f, 0x70, 0xb4, 0xe4,
+            ],
+            Elements::RightPadLow8_32 => [
+                0xee, 0x2a, 0x82, 0x30, 0xf2, 0x83, 0xdc, 0x08, 0x3b, 0x8e, 0x19, 0x44, 0x8b, 0xa3,
+                0x24, 0x97, 0xe9, 0x31, 0x8b, 0x4e, 0x9e, 0x1b, 0xd4, 0xeb, 0xe1, 0xbe, 0xc5, 0x24,
+                0x47, 0x6a, 0xb8, 0x6d,
+            ],
+            Elements::RightPadLow8_64 => [
+                0x97, 0xda, 0x90, 0xd8, 0x42, 0x8e, 0x6b, 0x94, 0xe6, 0xc1, 0x35, 0x14, 0x60, 0xdc,
+                0x01, 0x12, 0x3e, 0x47, 0x9c, 0x4a, 0xaf, 0xbb, 0xd1, 0x4c, 0x78, 0xad, 0x2f, 0xad,
+                0x0a, 0x89, 0x5e, 0xf3,
+            ],
+            Elements::RightRotate16 => [
+                0xee, 0x7d, 0x1c, 0x1f, 0x3d, 0x82, 0xda, 0x56, 0x81, 0xdd, 0x8b, 0x50, 0x69, 0xd5,
+                0x37, 0xd8, 0x9f, 0x22, 0x93, 0xaa, 0x60, 0x53, 0x32, 0xce, 0x10, 0xc1, 0xc4, 0x22,
+                0x4a, 0x53, 0xce, 0xea,
+            ],
+            Elements::RightRotate32 => [
+                0x89, 0x2a, 0x28, 0xdb, 0x32, 0x4c, 0xd9, 0x3c, 0xf7, 0xf6, 0x9c, 0x30, 0x72, 0xa7,
+                0xb2, 0x22, 0xb8, 0x8c, 0x81, 0x8e, 0xe0, 0xe5, 0xa1, 0xb8, 0x97, 0xe5, 0x0c, 0x58,
+                0x1f, 0x2a, 0x29, 0x62,
+            ],
+            Elements::RightRotate64 => [
+                0x64, 0x31, 0x4f, 0xf1, 0x90, 0x40, 0xa3, 0x76, 0xf9, 0xfc, 0xf0, 0x2e, 0x75, 0x74,
+                0x14, 0x9c, 0x12, 0x3f, 0x99, 0xc3, 0x90, 0x71, 0xcd, 0x37, 0x85, 0x1f, 0x8f, 0x8c,
+                0xdf, 0x0e, 0xed, 0x42,
+            ],
+            Elements::RightRotate8 => [
+                0x15, 0x81, 0xe0, 0xca, 0x09, 0xf1, 0x36, 0x84, 0xfe, 0x31, 0x35, 0xc1, 0xc6, 0xb6,
+                0xf9, 0xc4, 0x89, 0xd7, 0xdd, 0x1e, 0xf0, 0xa5, 0xf7, 0x70, 0x83, 0xbb, 0x0e, 0xd0,
+                0x0b, 0x4d, 0xf2, 0x8f,
+            ],
+            Elements::RightShift16 => [
+                0x5b, 0x4e, 0xc4, 0x62, 0xd4, 0xe2, 0xed, 0x89, 0xff, 0xe3, 0xfd, 0x40, 0x59, 0x32,
+                0xc7, 0x97, 0x80, 0x28, 0x61, 0x20, 0x3e, 0xcb, 0x61, 0xd5, 0xb5, 0x9a, 0x73, 0xb0,
+                0xfb, 0xfc, 0x4e, 0x84,
+            ],
+            Elements::RightShift32 => [
+                0xb2, 0x86, 0x1a, 0x48, 0xb2, 0x05, 0x41, 0x76, 0x91, 0xb6, 0x34, 0x7f, 0xe7, 0x5e,
+                0xbe, 0xa5, 0x45, 0x60, 0xcf, 0x81, 0x38, 0x14, 0xac, 0x31, 0x63, 0x91, 0x70, 0xdb,
+                0x92, 0xb9, 0x47, 0xd6,
+            ],
+            Elements::RightShift64 => [
+                0xd3, 0x39, 0x42, 0xbf, 0x18, 0x61, 0x8a, 0x10, 0x4a, 0x57, 0x07, 0x54, 0x7f, 0x78,
+                0xab, 0x72, 0x94, 0x1f, 0x4e, 0xe8, 0x13, 0x21, 0x6c, 0x0c, 0xe5, 0x20, 0xf3, 0x56,
+                0x60, 0xfd, 0xbf, 0x81,
+            ],
+            Elements::RightShift8 => [
+                0x73, 0x79, 0x12, 0xae, 0x32, 0x32, 0x50, 0xc0, 0x4e, 0x51, 0x6e, 0x39, 0x66, 0xce,
+                0x94, 0x7e, 0x65, 0x32, 0x6f, 0x47, 0x46, 0x8a, 0xc9, 0x31, 0xc1, 0x63, 0xc3, 0xb0,
+                0x2d, 0xe4, 0x12, 0x45,
+            ],
+            Elements::RightShiftWith16 => [
+                0x1e, 0x18, 0x1c, 0x33, 0x16, 0x93, 0x59, 0x4c, 0x6e, 0x0e, 0x8f, 0xde, 0xb4, 0x0a,
+                0x81, 0xa3, 0xaf, 0x8f, 0x56, 0xb7, 0xa5, 0x60, 0xde, 0x64, 0x41, 0x30, 0x3f, 0x65,
+                0xf4, 0xfc, 0x93, 0x7c,
+            ],
+            Elements::RightShiftWith32 => [
+                0x69, 0xdb, 0xe1, 0x90, 0xd7, 0x2d, 0x77, 0xd0, 0xd0, 0xdc, 0xf3, 0x25, 0xde, 0x96,
+                0x59, 0x22, 0x14, 0x58, 0x1f, 0x11, 0xe9, 0xed, 0xca, 0x93, 0xe2, 0xf9, 0x28, 0x48,
+                0x2b, 0x5e, 0x77, 0xa7,
+            ],
+            Elements::RightShiftWith64 => [
+                0x2d, 0x0a, 0xb8, 0x83, 0x04, 0x69, 0x28, 0x0e, 0x2a, 0x28, 0x99, 0x3c, 0x5a, 0x05,
+                0xf5, 0x6b, 0x91, 0xa8, 0xae, 0xb0, 0x34, 0xcc, 0xeb, 0xe0, 0x9c, 0x50, 0xf1, 0x3e,
+                0xa7, 0x8d, 0xda, 0xfc,
+            ],
+            Elements::RightShiftWith8 => [
+                0x1b, 0xdb, 0xdc, 0x8d, 0x8b, 0x74, 0x9b, 0xa3, 0xda, 0x75, 0x75, 0x58, 0x7d, 0x99,
+                0x93, 0x00, 0x72, 0x60, 0x3f, 0x27, 0x5f, 0x7b, 0xd2, 0xf3, 0x24, 0xa3, 0x49, 0x51,
+                0xd4, 0x46, 0x1b, 0x21,
+            ],
+            Elements::Rightmost16_1 => [
+                0xe1, 0x29, 0xa8, 0xae, 0x88, 0x0f, 0x51, 0xca, 0x2a, 0x94, 0xdb, 0x44, 0xed, 0xec,
+                0xa1, 0xc3, 0xa7, 0x66, 0xb7, 0x3e, 0x98, 0x97, 0x0b, 0x11, 0x98, 0xad, 0xe2, 0x16,
+                0xae, 0x69, 0xcd, 0x2d,
+            ],
+            Elements::Rightmost16_2 => [
+                0x8d, 0x0f, 0x68, 0xda, 0xdf, 0x54, 0x6c, 0x5e, 0xd3, 0x6f, 0x34, 0x70, 0x58, 0x02,
+                0xb0, 0xce, 0x83, 0x9a, 0x63, 0xe5, 0x74, 0x49, 0x77, 0x85, 0x24, 0x30, 0x08, 0xab,
+                0x42, 0x7e, 0x45, 0x6b,
+            ],
+            Elements::Rightmost16_4 => [
+                0xb0, 0xd4, 0x13, 0x95, 0x41, 0xec, 0xab, 0x2c, 0x16, 0xfc, 0x1a, 0x87, 0x98, 0x9b,
+                0xdd, 0x04, 0x53, 0x22, 0xef, 0xb1, 0xe7, 0x0b, 0xc1, 0xf7, 0xb0, 0x4d, 0x43, 0xb2,
+                0x8b, 0xb3, 0x49, 0xff,
+            ],
+            Elements::Rightmost16_8 => [
+                0x0f, 0x03, 0xfa, 0x0f, 0xa6, 0xce, 0xb5, 0x5d, 0xf9, 0x9b, 0x20, 0xd9, 0xef, 0xcf,
+                0x37, 0x10, 0xa7, 0x08, 0xa2, 0x84, 0xa9, 0x5c, 0x33, 0x4c, 0x1d, 0xa3, 0xcb, 0xfe,
+                0x02, 0xfb, 0x94, 0x67,
+            ],
+            Elements::Rightmost32_1 => [
+                0x8f, 0x5e, 0x52, 0x63, 0xbb, 0x8e, 0xf8, 0x00, 0xc9, 0x9d, 0x0c, 0x23, 0xfc, 0xba,
+                0xa3, 0x19, 0x8a, 0x6a, 0xbd, 0xf0, 0x08, 0x58, 0x1e, 0x8c, 0x89, 0x10, 0x52, 0xb4,
+                0x0c, 0xa7, 0xf7, 0xa4,
+            ],
+            Elements::Rightmost32_16 => [
+                0xb9, 0xa2, 0x3e, 0x1b, 0xf7, 0xc6, 0x81, 0x43, 0x51, 0x30, 0x74, 0xc9, 0x39, 0xbd,
+                0x73, 0xc9, 0xbf, 0x8e, 0xb5, 0xaa, 0xce, 0x84, 0x15, 0xff, 0x01, 0x02, 0x2f, 0xca,
+                0x65, 0xb3, 0xa3, 0x42,
+            ],
+            Elements::Rightmost32_2 => [
+                0xab, 0xf3, 0x23, 0x8d, 0x3c, 0xbf, 0x0b, 0xf3, 0x5a, 0x83, 0x96, 0x1f, 0xb9, 0xf9,
+                0x04, 0xb5, 0x6d, 0x3a, 0x9e, 0x0e, 0x35, 0xc8, 0x9d, 0xf8, 0x72, 0xc9, 0xc9, 0x38,
+                0xd3, 0x44, 0xa5, 0x4a,
+            ],
+            Elements::Rightmost32_4 => [
+                0xf7, 0xee, 0xd2, 0xec, 0x80, 0x59, 0x06, 0xfe, 0xb3, 0xac, 0x27, 0xf2, 0xde, 0xe5,
+                0x3b, 0x58, 0xc3, 0xb1, 0x3e, 0x40, 0xe2, 0xbc, 0x3e, 0x8b, 0x10, 0x63, 0x2e, 0xd9,
+                0xc0, 0xe7, 0xca, 0x5f,
+            ],
+            Elements::Rightmost32_8 => [
+                0xf3, 0xe4, 0x39, 0xed, 0x98, 0x83, 0xc6, 0xa6, 0xb9, 0x07, 0x20, 0x53, 0x2e, 0xb4,
+                0xe0, 0x43, 0xe8, 0x9a, 0x35, 0xf0, 0xb5, 0x29, 0x5f, 0xd5, 0x02, 0xa0, 0xb0, 0xb2,
+                0x43, 0x6b, 0xd2, 0x13,
+            ],
+            Elements::Rightmost64_1 => [
+                0xc9, 0x6b, 0xe3, 0xe3, 0x35, 0x48, 0x25, 0x8e, 0x30, 0x71, 0x7b, 0x30, 0x81, 0x7e,
+                0x44, 0x0f, 0x0a, 0xf4, 0xb1, 0x89, 0x0e, 0xdf, 0xcf, 0x7f, 0xdc, 0xb3, 0x9c, 0xb9,
+                0xef, 0xff, 0x47, 0x1d,
+            ],
+            Elements::Rightmost64_16 => [
+                0x5d, 0x55, 0x5f, 0x83, 0xe4, 0x80, 0x87, 0xdb, 0x0c, 0x41, 0x5d, 0xad, 0x17, 0xf0,
+                0x81, 0xd4, 0xf6, 0xb7, 0x60, 0xe9, 0x95, 0xf2, 0x72, 0xbb, 0xb6, 0xe4, 0xcb, 0x42,
+                0xd0, 0xf5, 0x03, 0x25,
+            ],
+            Elements::Rightmost64_2 => [
+                0xa9, 0xcb, 0x13, 0x43, 0xdb, 0xd5, 0x22, 0xb9, 0x1b, 0x64, 0x82, 0xe4, 0xba, 0xe6,
+                0x2b, 0x0e, 0x5f, 0x82, 0x98, 0x68, 0x7e, 0x64, 0x23, 0x33, 0x5c, 0x6d, 0xf5, 0x06,
+                0xdc, 0x42, 0x5b, 0x90,
+            ],
+            Elements::Rightmost64_32 => [
+                0x47, 0x33, 0xb1, 0x92, 0x59, 0x80, 0x09, 0x64, 0x99, 0xb7, 0x87, 0x7c, 0x04, 0xe0,
+                0x01, 0xba, 0xd3, 0x32, 0x5b, 0x2e, 0xca, 0xb3, 0x48, 0xe5, 0xad, 0xd7, 0x20, 0xd0,
+                0x7b, 0x1b, 0x4a, 0x3a,
+            ],
+            Elements::Rightmost64_4 => [
+                0x89, 0xda, 0xf7, 0xbe, 0x2c, 0xde, 0x58, 0xf0, 0x4e, 0x8d, 0xee, 0x58, 0xa4, 0x39,
+                0x10, 0x91, 0x2c, 0x09, 0x6e, 0x95, 0xe1, 0x46, 0xc1, 0x9b, 0x00, 0xf5, 0x4f, 0xe8,
+                0x74, 0x70, 0x07, 0x40,
+            ],
+            Elements::Rightmost64_8 => [
+                0x1d, 0xfb, 0x2b, 0xef, 0x4c, 0xae, 0x45, 0x07, 0x92, 0x27, 0x08, 0xe5, 0xa5, 0x70,
+                0x99, 0x49, 0x3f, 0xbe, 0x21, 0x15, 0x98, 0xee, 0xc0, 0xbf, 0xe0, 0xe7, 0x7b, 0x3d,
+                0x41, 0xec, 0x89, 0xab,
+            ],
+            Elements::Rightmost8_1 => [
+                0xce, 0xab, 0xd5, 0xca, 0x9f, 0xd9, 0x16, 0x2f, 0x99, 0x5e, 0x37, 0x35, 0x77, 0x04,
+                0x7a, 0xa4, 0xba, 0x71, 0xf8, 0x07, 0xc7, 0x11, 0xf6, 0x0b, 0x08, 0xeb, 0x6a, 0x1c,
+                0xfc, 0x38, 0x1c, 0x9c,
+            ],
+            Elements::Rightmost8_2 => [
+                0x39, 0xb2, 0xf0, 0x37, 0xb6, 0xa0, 0x81, 0x86, 0x11, 0x50, 0x65, 0xf3, 0x85, 0x05,
+                0x7a, 0xf3, 0xde, 0x3b, 0x9f, 0x0a, 0x9b, 0xda, 0x68, 0x33, 0x71, 0x46, 0x22, 0x59,
+                0x41, 0x30, 0x28, 0xec,
+            ],
+            Elements::Rightmost8_4 => [
+                0xa7, 0xa9, 0x49, 0x49, 0x0d, 0x1a, 0x00, 0xde, 0xfe, 0x5f, 0x61, 0x51, 0x29, 0x23,
+                0x85, 0x0f, 0x51, 0xe3, 0x47, 0xc0, 0x6a, 0x8d, 0x76, 0xa0, 0xcd, 0xab, 0x87, 0xee,
+                0xe2, 0x9a, 0x5d, 0xef,
             ],
             Elements::ScalarAdd => [
                 0x4e, 0xe9, 0xa9, 0x6c, 0xef, 0x49, 0x6c, 0xf4, 0xa8, 0xfc, 0x4e, 0x8a, 0x8b, 0xc0,
@@ -1648,6 +2611,11 @@ impl Jet for Elements {
                 0x60, 0xa5, 0x78, 0x8c, 0xfe, 0x12, 0x72, 0x86, 0x4e, 0xb7, 0xa6, 0x9d, 0xa7, 0xe9,
                 0xa9, 0xf1, 0xcd, 0xe7,
             ],
+            Elements::Some1 => [
+                0x0b, 0x9c, 0xb7, 0xb4, 0x7d, 0xeb, 0x4f, 0x9d, 0x95, 0xd5, 0xc0, 0x20, 0x00, 0x1f,
+                0xd0, 0x09, 0xa2, 0xf1, 0x0c, 0xe5, 0xd9, 0x18, 0xd8, 0x18, 0x1e, 0x25, 0x93, 0x15,
+                0xfe, 0x8e, 0xac, 0x53,
+            ],
             Elements::Some16 => [
                 0x30, 0xd8, 0x14, 0xff, 0xb4, 0x92, 0x78, 0xb4, 0x25, 0x00, 0x7b, 0x9d, 0xe2, 0x79,
                 0xf7, 0x6f, 0x4a, 0x6d, 0xa4, 0xc0, 0x34, 0x63, 0x4a, 0xbb, 0x87, 0x11, 0x0e, 0xcb,
@@ -1753,6 +2721,11 @@ impl Jet for Elements {
                 0x17, 0xd8, 0xe4, 0xff, 0x25, 0x66, 0xfa, 0x9c, 0x03, 0xe7, 0x43, 0x1a, 0x09, 0x02,
                 0xd5, 0x6a, 0x24, 0xdc,
             ],
+            Elements::Xor1 => [
+                0x77, 0xb7, 0x14, 0xe6, 0x89, 0xc9, 0xd6, 0xa4, 0x8f, 0xd1, 0xad, 0xd8, 0x65, 0x22,
+                0x82, 0x3d, 0xeb, 0xc7, 0x0d, 0xf6, 0xa7, 0xfe, 0x4b, 0xf2, 0xb8, 0x5d, 0xe5, 0x49,
+                0xe0, 0xcd, 0x0a, 0x05,
+            ],
             Elements::Xor16 => [
                 0xca, 0x36, 0x35, 0x51, 0x35, 0xa8, 0x6a, 0x11, 0x68, 0x6c, 0x01, 0xaa, 0x35, 0xf2,
                 0x5b, 0x97, 0xfa, 0xee, 0xda, 0xbf, 0xde, 0xc8, 0xdf, 0x08, 0xd2, 0xc0, 0xf6, 0x65,
@@ -1772,6 +2745,11 @@ impl Jet for Elements {
                 0xff, 0x3e, 0x52, 0x62, 0x02, 0xff, 0x89, 0xcf, 0xf7, 0xbb, 0xe7, 0x0f, 0xdb, 0xf9,
                 0xf9, 0x7d, 0x23, 0xc1, 0x2f, 0x6e, 0x2b, 0xb8, 0xbb, 0xe8, 0x30, 0x4a, 0xc7, 0x0f,
                 0x61, 0xc1, 0xcf, 0x2c,
+            ],
+            Elements::XorXor1 => [
+                0x22, 0x52, 0xa9, 0x86, 0x08, 0xd2, 0x0b, 0xd4, 0x11, 0x31, 0x7a, 0x20, 0x15, 0xc1,
+                0x56, 0x98, 0x70, 0xa6, 0x2c, 0x95, 0x3a, 0x61, 0x65, 0xfb, 0xe9, 0x77, 0xb4, 0x0d,
+                0x6c, 0xce, 0xa4, 0x95,
             ],
             Elements::XorXor16 => [
                 0xa1, 0xf2, 0xd6, 0x33, 0xbf, 0x98, 0x89, 0xa0, 0x8a, 0x42, 0x51, 0x2a, 0x78, 0x93,
@@ -1808,6 +2786,7 @@ impl Jet for Elements {
             Elements::All32 => b"i",
             Elements::All64 => b"l",
             Elements::All8 => b"***22*22**22*22",
+            Elements::And1 => b"*22",
             Elements::And16 => b"i",
             Elements::And32 => b"l",
             Elements::And64 => b"*ll",
@@ -1821,6 +2800,7 @@ impl Jet for Elements {
             Elements::CalculateConfidentialToken => b"h",
             Elements::CalculateExplicitToken => b"h",
             Elements::CalculateIssuanceEntropy => b"**hih",
+            Elements::Ch1 => b"*2*22",
             Elements::Ch16 => b"*****22*22**22*22***22*22**22*22i",
             Elements::Ch32 => b"*il",
             Elements::Ch64 => b"*l*ll",
@@ -1830,6 +2810,7 @@ impl Jet for Elements {
             Elements::CheckLockHeight => b"i",
             Elements::CheckLockTime => b"i",
             Elements::CheckSigVerify => b"**h*hh*hh",
+            Elements::Complement1 => b"2",
             Elements::Complement16 => b"****22*22**22*22***22*22**22*22",
             Elements::Complement32 => b"i",
             Elements::Complement64 => b"l",
@@ -1867,6 +2848,7 @@ impl Jet for Elements {
             Elements::Divides32 => b"l",
             Elements::Divides64 => b"*ll",
             Elements::Divides8 => b"****22*22**22*22***22*22**22*22",
+            Elements::Eq1 => b"*22",
             Elements::Eq16 => b"i",
             Elements::Eq256 => b"*hh",
             Elements::Eq32 => b"l",
@@ -1894,10 +2876,46 @@ impl Jet for Elements {
             Elements::FullIncrement32 => b"*2i",
             Elements::FullIncrement64 => b"*2l",
             Elements::FullIncrement8 => b"*2***22*22**22*22",
+            Elements::FullLeftShift16_1 => b"*****22*22**22*22***22*22**22*222",
+            Elements::FullLeftShift16_2 => b"*****22*22**22*22***22*22**22*22*22",
+            Elements::FullLeftShift16_4 => b"*****22*22**22*22***22*22**22*22**22*22",
+            Elements::FullLeftShift16_8 => b"*****22*22**22*22***22*22**22*22***22*22**22*22",
+            Elements::FullLeftShift32_1 => b"*i2",
+            Elements::FullLeftShift32_16 => b"*i****22*22**22*22***22*22**22*22",
+            Elements::FullLeftShift32_2 => b"*i*22",
+            Elements::FullLeftShift32_4 => b"*i**22*22",
+            Elements::FullLeftShift32_8 => b"*i***22*22**22*22",
+            Elements::FullLeftShift64_1 => b"*l2",
+            Elements::FullLeftShift64_16 => b"*l****22*22**22*22***22*22**22*22",
+            Elements::FullLeftShift64_2 => b"*l*22",
+            Elements::FullLeftShift64_32 => b"*li",
+            Elements::FullLeftShift64_4 => b"*l**22*22",
+            Elements::FullLeftShift64_8 => b"*l***22*22**22*22",
+            Elements::FullLeftShift8_1 => b"****22*22**22*222",
+            Elements::FullLeftShift8_2 => b"****22*22**22*22*22",
+            Elements::FullLeftShift8_4 => b"****22*22**22*22**22*22",
             Elements::FullMultiply16 => b"l",
             Elements::FullMultiply32 => b"*ll",
             Elements::FullMultiply64 => b"h",
             Elements::FullMultiply8 => b"i",
+            Elements::FullRightShift16_1 => b"*2****22*22**22*22***22*22**22*22",
+            Elements::FullRightShift16_2 => b"**22****22*22**22*22***22*22**22*22",
+            Elements::FullRightShift16_4 => b"***22*22****22*22**22*22***22*22**22*22",
+            Elements::FullRightShift16_8 => b"****22*22**22*22****22*22**22*22***22*22**22*22",
+            Elements::FullRightShift32_1 => b"*2i",
+            Elements::FullRightShift32_16 => b"*****22*22**22*22***22*22**22*22i",
+            Elements::FullRightShift32_2 => b"**22i",
+            Elements::FullRightShift32_4 => b"***22*22i",
+            Elements::FullRightShift32_8 => b"****22*22**22*22i",
+            Elements::FullRightShift64_1 => b"*2l",
+            Elements::FullRightShift64_16 => b"*****22*22**22*22***22*22**22*22l",
+            Elements::FullRightShift64_2 => b"**22l",
+            Elements::FullRightShift64_32 => b"*il",
+            Elements::FullRightShift64_4 => b"***22*22l",
+            Elements::FullRightShift64_8 => b"****22*22**22*22l",
+            Elements::FullRightShift8_1 => b"*2***22*22**22*22",
+            Elements::FullRightShift8_2 => b"**22***22*22**22*22",
+            Elements::FullRightShift8_4 => b"***22*22***22*22**22*22",
             Elements::FullSubtract16 => b"*2i",
             Elements::FullSubtract32 => b"*2l",
             Elements::FullSubtract64 => b"*2*ll",
@@ -1918,6 +2936,7 @@ impl Jet for Elements {
             Elements::GejYIsOdd => b"**hhh",
             Elements::Generate => b"h",
             Elements::GenesisBlockHash => b"1",
+            Elements::High1 => b"1",
             Elements::High16 => b"1",
             Elements::High32 => b"1",
             Elements::High64 => b"1",
@@ -1968,9 +2987,70 @@ impl Jet for Elements {
             Elements::Le32 => b"l",
             Elements::Le64 => b"*ll",
             Elements::Le8 => b"****22*22**22*22***22*22**22*22",
+            Elements::LeftExtend16_32 => b"****22*22**22*22***22*22**22*22",
+            Elements::LeftExtend16_64 => b"****22*22**22*22***22*22**22*22",
+            Elements::LeftExtend1_16 => b"2",
+            Elements::LeftExtend1_32 => b"2",
+            Elements::LeftExtend1_64 => b"2",
+            Elements::LeftExtend1_8 => b"2",
+            Elements::LeftExtend32_64 => b"i",
+            Elements::LeftExtend8_16 => b"***22*22**22*22",
+            Elements::LeftExtend8_32 => b"***22*22**22*22",
+            Elements::LeftExtend8_64 => b"***22*22**22*22",
+            Elements::LeftPadHigh16_32 => b"****22*22**22*22***22*22**22*22",
+            Elements::LeftPadHigh16_64 => b"****22*22**22*22***22*22**22*22",
+            Elements::LeftPadHigh1_16 => b"2",
+            Elements::LeftPadHigh1_32 => b"2",
+            Elements::LeftPadHigh1_64 => b"2",
+            Elements::LeftPadHigh1_8 => b"2",
+            Elements::LeftPadHigh32_64 => b"i",
+            Elements::LeftPadHigh8_16 => b"***22*22**22*22",
+            Elements::LeftPadHigh8_32 => b"***22*22**22*22",
+            Elements::LeftPadHigh8_64 => b"***22*22**22*22",
+            Elements::LeftPadLow16_32 => b"****22*22**22*22***22*22**22*22",
+            Elements::LeftPadLow16_64 => b"****22*22**22*22***22*22**22*22",
+            Elements::LeftPadLow1_16 => b"2",
+            Elements::LeftPadLow1_32 => b"2",
+            Elements::LeftPadLow1_64 => b"2",
+            Elements::LeftPadLow1_8 => b"2",
+            Elements::LeftPadLow32_64 => b"i",
+            Elements::LeftPadLow8_16 => b"***22*22**22*22",
+            Elements::LeftPadLow8_32 => b"***22*22**22*22",
+            Elements::LeftPadLow8_64 => b"***22*22**22*22",
+            Elements::LeftRotate16 => b"***22*22****22*22**22*22***22*22**22*22",
+            Elements::LeftRotate32 => b"****22*22**22*22i",
+            Elements::LeftRotate64 => b"****22*22**22*22l",
+            Elements::LeftRotate8 => b"***22*22***22*22**22*22",
+            Elements::LeftShift16 => b"***22*22****22*22**22*22***22*22**22*22",
+            Elements::LeftShift32 => b"****22*22**22*22i",
+            Elements::LeftShift64 => b"****22*22**22*22l",
+            Elements::LeftShift8 => b"***22*22***22*22**22*22",
+            Elements::LeftShiftWith16 => b"*2***22*22****22*22**22*22***22*22**22*22",
+            Elements::LeftShiftWith32 => b"*2****22*22**22*22i",
+            Elements::LeftShiftWith64 => b"*2****22*22**22*22l",
+            Elements::LeftShiftWith8 => b"*2***22*22***22*22**22*22",
+            Elements::Leftmost16_1 => b"****22*22**22*22***22*22**22*22",
+            Elements::Leftmost16_2 => b"****22*22**22*22***22*22**22*22",
+            Elements::Leftmost16_4 => b"****22*22**22*22***22*22**22*22",
+            Elements::Leftmost16_8 => b"****22*22**22*22***22*22**22*22",
+            Elements::Leftmost32_1 => b"i",
+            Elements::Leftmost32_16 => b"i",
+            Elements::Leftmost32_2 => b"i",
+            Elements::Leftmost32_4 => b"i",
+            Elements::Leftmost32_8 => b"i",
+            Elements::Leftmost64_1 => b"l",
+            Elements::Leftmost64_16 => b"l",
+            Elements::Leftmost64_2 => b"l",
+            Elements::Leftmost64_32 => b"l",
+            Elements::Leftmost64_4 => b"l",
+            Elements::Leftmost64_8 => b"l",
+            Elements::Leftmost8_1 => b"***22*22**22*22",
+            Elements::Leftmost8_2 => b"***22*22**22*22",
+            Elements::Leftmost8_4 => b"***22*22**22*22",
             Elements::LinearCombination1 => b"**h**hhhh",
             Elements::LinearVerify1 => b"***h*hhh*hh",
             Elements::LockTime => b"1",
+            Elements::Low1 => b"1",
             Elements::Low16 => b"1",
             Elements::Low32 => b"1",
             Elements::Low64 => b"1",
@@ -1979,6 +3059,7 @@ impl Jet for Elements {
             Elements::Lt32 => b"l",
             Elements::Lt64 => b"*ll",
             Elements::Lt8 => b"****22*22**22*22***22*22**22*22",
+            Elements::Maj1 => b"*2*22",
             Elements::Maj16 => b"*****22*22**22*22***22*22**22*22i",
             Elements::Maj32 => b"*il",
             Elements::Maj64 => b"*l*ll",
@@ -2015,6 +3096,7 @@ impl Jet for Elements {
             Elements::One32 => b"1",
             Elements::One64 => b"1",
             Elements::One8 => b"1",
+            Elements::Or1 => b"*22",
             Elements::Or16 => b"i",
             Elements::Or32 => b"l",
             Elements::Or64 => b"*ll",
@@ -2039,6 +3121,62 @@ impl Jet for Elements {
             Elements::PointVerify1 => b"***h*2hh*2h",
             Elements::ReissuanceBlinding => b"i",
             Elements::ReissuanceEntropy => b"i",
+            Elements::RightExtend16_32 => b"****22*22**22*22***22*22**22*22",
+            Elements::RightExtend16_64 => b"****22*22**22*22***22*22**22*22",
+            Elements::RightExtend32_64 => b"i",
+            Elements::RightExtend8_16 => b"***22*22**22*22",
+            Elements::RightExtend8_32 => b"***22*22**22*22",
+            Elements::RightExtend8_64 => b"***22*22**22*22",
+            Elements::RightPadHigh16_32 => b"****22*22**22*22***22*22**22*22",
+            Elements::RightPadHigh16_64 => b"****22*22**22*22***22*22**22*22",
+            Elements::RightPadHigh1_16 => b"2",
+            Elements::RightPadHigh1_32 => b"2",
+            Elements::RightPadHigh1_64 => b"2",
+            Elements::RightPadHigh1_8 => b"2",
+            Elements::RightPadHigh32_64 => b"i",
+            Elements::RightPadHigh8_16 => b"***22*22**22*22",
+            Elements::RightPadHigh8_32 => b"***22*22**22*22",
+            Elements::RightPadHigh8_64 => b"***22*22**22*22",
+            Elements::RightPadLow16_32 => b"****22*22**22*22***22*22**22*22",
+            Elements::RightPadLow16_64 => b"****22*22**22*22***22*22**22*22",
+            Elements::RightPadLow1_16 => b"2",
+            Elements::RightPadLow1_32 => b"2",
+            Elements::RightPadLow1_64 => b"2",
+            Elements::RightPadLow1_8 => b"2",
+            Elements::RightPadLow32_64 => b"i",
+            Elements::RightPadLow8_16 => b"***22*22**22*22",
+            Elements::RightPadLow8_32 => b"***22*22**22*22",
+            Elements::RightPadLow8_64 => b"***22*22**22*22",
+            Elements::RightRotate16 => b"***22*22****22*22**22*22***22*22**22*22",
+            Elements::RightRotate32 => b"****22*22**22*22i",
+            Elements::RightRotate64 => b"****22*22**22*22l",
+            Elements::RightRotate8 => b"***22*22***22*22**22*22",
+            Elements::RightShift16 => b"***22*22****22*22**22*22***22*22**22*22",
+            Elements::RightShift32 => b"****22*22**22*22i",
+            Elements::RightShift64 => b"****22*22**22*22l",
+            Elements::RightShift8 => b"***22*22***22*22**22*22",
+            Elements::RightShiftWith16 => b"*2***22*22****22*22**22*22***22*22**22*22",
+            Elements::RightShiftWith32 => b"*2****22*22**22*22i",
+            Elements::RightShiftWith64 => b"*2****22*22**22*22l",
+            Elements::RightShiftWith8 => b"*2***22*22***22*22**22*22",
+            Elements::Rightmost16_1 => b"****22*22**22*22***22*22**22*22",
+            Elements::Rightmost16_2 => b"****22*22**22*22***22*22**22*22",
+            Elements::Rightmost16_4 => b"****22*22**22*22***22*22**22*22",
+            Elements::Rightmost16_8 => b"****22*22**22*22***22*22**22*22",
+            Elements::Rightmost32_1 => b"i",
+            Elements::Rightmost32_16 => b"i",
+            Elements::Rightmost32_2 => b"i",
+            Elements::Rightmost32_4 => b"i",
+            Elements::Rightmost32_8 => b"i",
+            Elements::Rightmost64_1 => b"l",
+            Elements::Rightmost64_16 => b"l",
+            Elements::Rightmost64_2 => b"l",
+            Elements::Rightmost64_32 => b"l",
+            Elements::Rightmost64_4 => b"l",
+            Elements::Rightmost64_8 => b"l",
+            Elements::Rightmost8_1 => b"***22*22**22*22",
+            Elements::Rightmost8_2 => b"***22*22**22*22",
+            Elements::Rightmost8_4 => b"***22*22**22*22",
             Elements::ScalarAdd => b"*hh",
             Elements::ScalarInvert => b"h",
             Elements::ScalarIsZero => b"h",
@@ -2065,6 +3203,7 @@ impl Jet for Elements {
             Elements::Sha256Ctx8Init => b"1",
             Elements::Sha256Iv => b"1",
             Elements::SigAllHash => b"1",
+            Elements::Some1 => b"2",
             Elements::Some16 => b"****22*22**22*22***22*22**22*22",
             Elements::Some32 => b"i",
             Elements::Some64 => b"l",
@@ -2086,10 +3225,12 @@ impl Jet for Elements {
             Elements::TxLockTime => b"1",
             Elements::Verify => b"2",
             Elements::Version => b"1",
+            Elements::Xor1 => b"*22",
             Elements::Xor16 => b"i",
             Elements::Xor32 => b"l",
             Elements::Xor64 => b"*ll",
             Elements::Xor8 => b"****22*22**22*22***22*22**22*22",
+            Elements::XorXor1 => b"*2*22",
             Elements::XorXor16 => b"*****22*22**22*22***22*22**22*22i",
             Elements::XorXor32 => b"*il",
             Elements::XorXor64 => b"*l*ll",
@@ -2109,6 +3250,7 @@ impl Jet for Elements {
             Elements::All32 => b"2",
             Elements::All64 => b"2",
             Elements::All8 => b"2",
+            Elements::And1 => b"2",
             Elements::And16 => b"****22*22**22*22***22*22**22*22",
             Elements::And32 => b"i",
             Elements::And64 => b"l",
@@ -2122,6 +3264,7 @@ impl Jet for Elements {
             Elements::CalculateConfidentialToken => b"h",
             Elements::CalculateExplicitToken => b"h",
             Elements::CalculateIssuanceEntropy => b"h",
+            Elements::Ch1 => b"2",
             Elements::Ch16 => b"****22*22**22*22***22*22**22*22",
             Elements::Ch32 => b"i",
             Elements::Ch64 => b"l",
@@ -2131,6 +3274,7 @@ impl Jet for Elements {
             Elements::CheckLockHeight => b"1",
             Elements::CheckLockTime => b"1",
             Elements::CheckSigVerify => b"1",
+            Elements::Complement1 => b"2",
             Elements::Complement16 => b"****22*22**22*22***22*22**22*22",
             Elements::Complement32 => b"i",
             Elements::Complement64 => b"l",
@@ -2168,6 +3312,7 @@ impl Jet for Elements {
             Elements::Divides32 => b"2",
             Elements::Divides64 => b"2",
             Elements::Divides8 => b"2",
+            Elements::Eq1 => b"2",
             Elements::Eq16 => b"2",
             Elements::Eq256 => b"2",
             Elements::Eq32 => b"2",
@@ -2195,10 +3340,46 @@ impl Jet for Elements {
             Elements::FullIncrement32 => b"*2i",
             Elements::FullIncrement64 => b"*2l",
             Elements::FullIncrement8 => b"*2***22*22**22*22",
+            Elements::FullLeftShift16_1 => b"*2****22*22**22*22***22*22**22*22",
+            Elements::FullLeftShift16_2 => b"**22****22*22**22*22***22*22**22*22",
+            Elements::FullLeftShift16_4 => b"***22*22****22*22**22*22***22*22**22*22",
+            Elements::FullLeftShift16_8 => b"****22*22**22*22****22*22**22*22***22*22**22*22",
+            Elements::FullLeftShift32_1 => b"*2i",
+            Elements::FullLeftShift32_16 => b"*****22*22**22*22***22*22**22*22i",
+            Elements::FullLeftShift32_2 => b"**22i",
+            Elements::FullLeftShift32_4 => b"***22*22i",
+            Elements::FullLeftShift32_8 => b"****22*22**22*22i",
+            Elements::FullLeftShift64_1 => b"*2l",
+            Elements::FullLeftShift64_16 => b"*****22*22**22*22***22*22**22*22l",
+            Elements::FullLeftShift64_2 => b"**22l",
+            Elements::FullLeftShift64_32 => b"*il",
+            Elements::FullLeftShift64_4 => b"***22*22l",
+            Elements::FullLeftShift64_8 => b"****22*22**22*22l",
+            Elements::FullLeftShift8_1 => b"*2***22*22**22*22",
+            Elements::FullLeftShift8_2 => b"**22***22*22**22*22",
+            Elements::FullLeftShift8_4 => b"***22*22***22*22**22*22",
             Elements::FullMultiply16 => b"i",
             Elements::FullMultiply32 => b"l",
             Elements::FullMultiply64 => b"*ll",
             Elements::FullMultiply8 => b"****22*22**22*22***22*22**22*22",
+            Elements::FullRightShift16_1 => b"*****22*22**22*22***22*22**22*222",
+            Elements::FullRightShift16_2 => b"*****22*22**22*22***22*22**22*22*22",
+            Elements::FullRightShift16_4 => b"*****22*22**22*22***22*22**22*22**22*22",
+            Elements::FullRightShift16_8 => b"*****22*22**22*22***22*22**22*22***22*22**22*22",
+            Elements::FullRightShift32_1 => b"*i2",
+            Elements::FullRightShift32_16 => b"*i****22*22**22*22***22*22**22*22",
+            Elements::FullRightShift32_2 => b"*i*22",
+            Elements::FullRightShift32_4 => b"*i**22*22",
+            Elements::FullRightShift32_8 => b"*i***22*22**22*22",
+            Elements::FullRightShift64_1 => b"*l2",
+            Elements::FullRightShift64_16 => b"*l****22*22**22*22***22*22**22*22",
+            Elements::FullRightShift64_2 => b"*l*22",
+            Elements::FullRightShift64_32 => b"*li",
+            Elements::FullRightShift64_4 => b"*l**22*22",
+            Elements::FullRightShift64_8 => b"*l***22*22**22*22",
+            Elements::FullRightShift8_1 => b"****22*22**22*222",
+            Elements::FullRightShift8_2 => b"****22*22**22*22*22",
+            Elements::FullRightShift8_4 => b"****22*22**22*22**22*22",
             Elements::FullSubtract16 => b"*2****22*22**22*22***22*22**22*22",
             Elements::FullSubtract32 => b"*2i",
             Elements::FullSubtract64 => b"*2l",
@@ -2219,6 +3400,7 @@ impl Jet for Elements {
             Elements::GejYIsOdd => b"2",
             Elements::Generate => b"**hhh",
             Elements::GenesisBlockHash => b"h",
+            Elements::High1 => b"2",
             Elements::High16 => b"****22*22**22*22***22*22**22*22",
             Elements::High32 => b"i",
             Elements::High64 => b"l",
@@ -2269,9 +3451,70 @@ impl Jet for Elements {
             Elements::Le32 => b"2",
             Elements::Le64 => b"2",
             Elements::Le8 => b"2",
+            Elements::LeftExtend16_32 => b"i",
+            Elements::LeftExtend16_64 => b"l",
+            Elements::LeftExtend1_16 => b"****22*22**22*22***22*22**22*22",
+            Elements::LeftExtend1_32 => b"i",
+            Elements::LeftExtend1_64 => b"l",
+            Elements::LeftExtend1_8 => b"***22*22**22*22",
+            Elements::LeftExtend32_64 => b"l",
+            Elements::LeftExtend8_16 => b"****22*22**22*22***22*22**22*22",
+            Elements::LeftExtend8_32 => b"i",
+            Elements::LeftExtend8_64 => b"l",
+            Elements::LeftPadHigh16_32 => b"i",
+            Elements::LeftPadHigh16_64 => b"l",
+            Elements::LeftPadHigh1_16 => b"****22*22**22*22***22*22**22*22",
+            Elements::LeftPadHigh1_32 => b"i",
+            Elements::LeftPadHigh1_64 => b"l",
+            Elements::LeftPadHigh1_8 => b"***22*22**22*22",
+            Elements::LeftPadHigh32_64 => b"l",
+            Elements::LeftPadHigh8_16 => b"****22*22**22*22***22*22**22*22",
+            Elements::LeftPadHigh8_32 => b"i",
+            Elements::LeftPadHigh8_64 => b"l",
+            Elements::LeftPadLow16_32 => b"i",
+            Elements::LeftPadLow16_64 => b"l",
+            Elements::LeftPadLow1_16 => b"****22*22**22*22***22*22**22*22",
+            Elements::LeftPadLow1_32 => b"i",
+            Elements::LeftPadLow1_64 => b"l",
+            Elements::LeftPadLow1_8 => b"***22*22**22*22",
+            Elements::LeftPadLow32_64 => b"l",
+            Elements::LeftPadLow8_16 => b"****22*22**22*22***22*22**22*22",
+            Elements::LeftPadLow8_32 => b"i",
+            Elements::LeftPadLow8_64 => b"l",
+            Elements::LeftRotate16 => b"****22*22**22*22***22*22**22*22",
+            Elements::LeftRotate32 => b"i",
+            Elements::LeftRotate64 => b"l",
+            Elements::LeftRotate8 => b"***22*22**22*22",
+            Elements::LeftShift16 => b"****22*22**22*22***22*22**22*22",
+            Elements::LeftShift32 => b"i",
+            Elements::LeftShift64 => b"l",
+            Elements::LeftShift8 => b"***22*22**22*22",
+            Elements::LeftShiftWith16 => b"****22*22**22*22***22*22**22*22",
+            Elements::LeftShiftWith32 => b"i",
+            Elements::LeftShiftWith64 => b"l",
+            Elements::LeftShiftWith8 => b"***22*22**22*22",
+            Elements::Leftmost16_1 => b"2",
+            Elements::Leftmost16_2 => b"*22",
+            Elements::Leftmost16_4 => b"**22*22",
+            Elements::Leftmost16_8 => b"***22*22**22*22",
+            Elements::Leftmost32_1 => b"2",
+            Elements::Leftmost32_16 => b"****22*22**22*22***22*22**22*22",
+            Elements::Leftmost32_2 => b"*22",
+            Elements::Leftmost32_4 => b"**22*22",
+            Elements::Leftmost32_8 => b"***22*22**22*22",
+            Elements::Leftmost64_1 => b"2",
+            Elements::Leftmost64_16 => b"****22*22**22*22***22*22**22*22",
+            Elements::Leftmost64_2 => b"*22",
+            Elements::Leftmost64_32 => b"i",
+            Elements::Leftmost64_4 => b"**22*22",
+            Elements::Leftmost64_8 => b"***22*22**22*22",
+            Elements::Leftmost8_1 => b"2",
+            Elements::Leftmost8_2 => b"*22",
+            Elements::Leftmost8_4 => b"**22*22",
             Elements::LinearCombination1 => b"**hhh",
             Elements::LinearVerify1 => b"1",
             Elements::LockTime => b"i",
+            Elements::Low1 => b"2",
             Elements::Low16 => b"****22*22**22*22***22*22**22*22",
             Elements::Low32 => b"i",
             Elements::Low64 => b"l",
@@ -2280,6 +3523,7 @@ impl Jet for Elements {
             Elements::Lt32 => b"2",
             Elements::Lt64 => b"2",
             Elements::Lt8 => b"2",
+            Elements::Maj1 => b"2",
             Elements::Maj16 => b"****22*22**22*22***22*22**22*22",
             Elements::Maj32 => b"i",
             Elements::Maj64 => b"l",
@@ -2316,6 +3560,7 @@ impl Jet for Elements {
             Elements::One32 => b"i",
             Elements::One64 => b"l",
             Elements::One8 => b"***22*22**22*22",
+            Elements::Or1 => b"2",
             Elements::Or16 => b"****22*22**22*22***22*22**22*22",
             Elements::Or32 => b"i",
             Elements::Or64 => b"l",
@@ -2340,6 +3585,62 @@ impl Jet for Elements {
             Elements::PointVerify1 => b"1",
             Elements::ReissuanceBlinding => b"+1+1h",
             Elements::ReissuanceEntropy => b"+1+1h",
+            Elements::RightExtend16_32 => b"i",
+            Elements::RightExtend16_64 => b"l",
+            Elements::RightExtend32_64 => b"l",
+            Elements::RightExtend8_16 => b"****22*22**22*22***22*22**22*22",
+            Elements::RightExtend8_32 => b"i",
+            Elements::RightExtend8_64 => b"l",
+            Elements::RightPadHigh16_32 => b"i",
+            Elements::RightPadHigh16_64 => b"l",
+            Elements::RightPadHigh1_16 => b"****22*22**22*22***22*22**22*22",
+            Elements::RightPadHigh1_32 => b"i",
+            Elements::RightPadHigh1_64 => b"l",
+            Elements::RightPadHigh1_8 => b"***22*22**22*22",
+            Elements::RightPadHigh32_64 => b"l",
+            Elements::RightPadHigh8_16 => b"****22*22**22*22***22*22**22*22",
+            Elements::RightPadHigh8_32 => b"i",
+            Elements::RightPadHigh8_64 => b"l",
+            Elements::RightPadLow16_32 => b"i",
+            Elements::RightPadLow16_64 => b"l",
+            Elements::RightPadLow1_16 => b"****22*22**22*22***22*22**22*22",
+            Elements::RightPadLow1_32 => b"i",
+            Elements::RightPadLow1_64 => b"l",
+            Elements::RightPadLow1_8 => b"***22*22**22*22",
+            Elements::RightPadLow32_64 => b"l",
+            Elements::RightPadLow8_16 => b"****22*22**22*22***22*22**22*22",
+            Elements::RightPadLow8_32 => b"i",
+            Elements::RightPadLow8_64 => b"l",
+            Elements::RightRotate16 => b"****22*22**22*22***22*22**22*22",
+            Elements::RightRotate32 => b"i",
+            Elements::RightRotate64 => b"l",
+            Elements::RightRotate8 => b"***22*22**22*22",
+            Elements::RightShift16 => b"****22*22**22*22***22*22**22*22",
+            Elements::RightShift32 => b"i",
+            Elements::RightShift64 => b"l",
+            Elements::RightShift8 => b"***22*22**22*22",
+            Elements::RightShiftWith16 => b"****22*22**22*22***22*22**22*22",
+            Elements::RightShiftWith32 => b"i",
+            Elements::RightShiftWith64 => b"l",
+            Elements::RightShiftWith8 => b"***22*22**22*22",
+            Elements::Rightmost16_1 => b"2",
+            Elements::Rightmost16_2 => b"*22",
+            Elements::Rightmost16_4 => b"**22*22",
+            Elements::Rightmost16_8 => b"***22*22**22*22",
+            Elements::Rightmost32_1 => b"2",
+            Elements::Rightmost32_16 => b"****22*22**22*22***22*22**22*22",
+            Elements::Rightmost32_2 => b"*22",
+            Elements::Rightmost32_4 => b"**22*22",
+            Elements::Rightmost32_8 => b"***22*22**22*22",
+            Elements::Rightmost64_1 => b"2",
+            Elements::Rightmost64_16 => b"****22*22**22*22***22*22**22*22",
+            Elements::Rightmost64_2 => b"*22",
+            Elements::Rightmost64_32 => b"i",
+            Elements::Rightmost64_4 => b"**22*22",
+            Elements::Rightmost64_8 => b"***22*22**22*22",
+            Elements::Rightmost8_1 => b"2",
+            Elements::Rightmost8_2 => b"*22",
+            Elements::Rightmost8_4 => b"**22*22",
             Elements::ScalarAdd => b"h",
             Elements::ScalarInvert => b"h",
             Elements::ScalarIsZero => b"2",
@@ -2366,6 +3667,7 @@ impl Jet for Elements {
             Elements::Sha256Ctx8Init => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
             Elements::Sha256Iv => b"h",
             Elements::SigAllHash => b"h",
+            Elements::Some1 => b"2",
             Elements::Some16 => b"2",
             Elements::Some32 => b"2",
             Elements::Some64 => b"2",
@@ -2387,10 +3689,12 @@ impl Jet for Elements {
             Elements::TxLockTime => b"i",
             Elements::Verify => b"1",
             Elements::Version => b"i",
+            Elements::Xor1 => b"2",
             Elements::Xor16 => b"****22*22**22*22***22*22**22*22",
             Elements::Xor32 => b"i",
             Elements::Xor64 => b"l",
             Elements::Xor8 => b"***22*22**22*22",
+            Elements::XorXor1 => b"2",
             Elements::XorXor16 => b"****22*22**22*22***22*22**22*22",
             Elements::XorXor32 => b"i",
             Elements::XorXor64 => b"l",
@@ -2403,42 +3707,52 @@ impl Jet for Elements {
     fn encode<W: Write>(&self, w: &mut BitWriter<W>) -> std::io::Result<usize> {
         let (n, len) = match self {
             Elements::Verify => (0, 3),
+            Elements::Low1 => (8, 6),
             Elements::Low8 => (37, 8),
             Elements::Low16 => (304, 11),
             Elements::Low32 => (305, 11),
             Elements::Low64 => (306, 11),
+            Elements::High1 => (10, 6),
             Elements::High8 => (45, 8),
             Elements::High16 => (368, 11),
             Elements::High32 => (369, 11),
             Elements::High64 => (370, 11),
+            Elements::Complement1 => (96, 9),
             Elements::Complement8 => (389, 11),
             Elements::Complement16 => (3120, 14),
             Elements::Complement32 => (3121, 14),
             Elements::Complement64 => (3122, 14),
+            Elements::And1 => (98, 9),
             Elements::And8 => (397, 11),
             Elements::And16 => (3184, 14),
             Elements::And32 => (3185, 14),
             Elements::And64 => (3186, 14),
+            Elements::Or1 => (100, 9),
             Elements::Or8 => (405, 11),
             Elements::Or16 => (3248, 14),
             Elements::Or32 => (3249, 14),
             Elements::Or64 => (3250, 14),
+            Elements::Xor1 => (102, 9),
             Elements::Xor8 => (413, 11),
             Elements::Xor16 => (3312, 14),
             Elements::Xor32 => (3313, 14),
             Elements::Xor64 => (3314, 14),
+            Elements::Maj1 => (208, 10),
             Elements::Maj8 => (837, 12),
             Elements::Maj16 => (6704, 15),
             Elements::Maj32 => (6705, 15),
             Elements::Maj64 => (6706, 15),
+            Elements::XorXor1 => (210, 10),
             Elements::XorXor8 => (845, 12),
             Elements::XorXor16 => (6768, 15),
             Elements::XorXor32 => (6769, 15),
             Elements::XorXor64 => (6770, 15),
+            Elements::Ch1 => (212, 10),
             Elements::Ch8 => (853, 12),
             Elements::Ch16 => (6832, 15),
             Elements::Ch32 => (6833, 15),
             Elements::Ch64 => (6834, 15),
+            Elements::Some1 => (214, 10),
             Elements::Some8 => (861, 12),
             Elements::Some16 => (6896, 15),
             Elements::Some32 => (6897, 15),
@@ -2447,11 +3761,164 @@ impl Jet for Elements {
             Elements::All16 => (6960, 15),
             Elements::All32 => (6961, 15),
             Elements::All64 => (6962, 15),
+            Elements::Eq1 => (218, 10),
             Elements::Eq8 => (877, 12),
             Elements::Eq16 => (7024, 15),
             Elements::Eq32 => (7025, 15),
             Elements::Eq64 => (7026, 15),
             Elements::Eq256 => (14056, 16),
+            Elements::FullLeftShift8_1 => (1765, 13),
+            Elements::FullLeftShift16_1 => (14128, 16),
+            Elements::FullLeftShift32_1 => (14129, 16),
+            Elements::FullLeftShift64_1 => (14130, 16),
+            Elements::FullLeftShift8_2 => (7076, 15),
+            Elements::FullLeftShift16_2 => (7077, 15),
+            Elements::FullLeftShift32_2 => (56624, 18),
+            Elements::FullLeftShift64_2 => (56625, 18),
+            Elements::FullLeftShift8_4 => (1770, 13),
+            Elements::FullLeftShift16_4 => (7084, 15),
+            Elements::FullLeftShift32_4 => (7085, 15),
+            Elements::FullLeftShift64_4 => (56688, 18),
+            Elements::FullLeftShift16_8 => (14176, 16),
+            Elements::FullLeftShift32_8 => (56708, 18),
+            Elements::FullLeftShift64_8 => (56709, 18),
+            Elements::FullLeftShift32_16 => (14178, 16),
+            Elements::FullLeftShift64_16 => (56716, 18),
+            Elements::FullLeftShift64_32 => (14180, 16),
+            Elements::FullRightShift8_1 => (1781, 13),
+            Elements::FullRightShift16_1 => (14256, 16),
+            Elements::FullRightShift32_1 => (14257, 16),
+            Elements::FullRightShift64_1 => (14258, 16),
+            Elements::FullRightShift8_2 => (7140, 15),
+            Elements::FullRightShift16_2 => (7141, 15),
+            Elements::FullRightShift32_2 => (57136, 18),
+            Elements::FullRightShift64_2 => (57137, 18),
+            Elements::FullRightShift8_4 => (1786, 13),
+            Elements::FullRightShift16_4 => (7148, 15),
+            Elements::FullRightShift32_4 => (7149, 15),
+            Elements::FullRightShift64_4 => (57200, 18),
+            Elements::FullRightShift16_8 => (14304, 16),
+            Elements::FullRightShift32_8 => (57220, 18),
+            Elements::FullRightShift64_8 => (57221, 18),
+            Elements::FullRightShift32_16 => (14306, 16),
+            Elements::FullRightShift64_16 => (57228, 18),
+            Elements::FullRightShift64_32 => (14308, 16),
+            Elements::Leftmost8_1 => (28677, 17),
+            Elements::Leftmost16_1 => (229424, 20),
+            Elements::Leftmost32_1 => (229425, 20),
+            Elements::Leftmost64_1 => (229426, 20),
+            Elements::Leftmost8_2 => (114724, 19),
+            Elements::Leftmost16_2 => (114725, 19),
+            Elements::Leftmost32_2 => (917808, 22),
+            Elements::Leftmost64_2 => (917809, 22),
+            Elements::Leftmost8_4 => (28682, 17),
+            Elements::Leftmost16_4 => (114732, 19),
+            Elements::Leftmost32_4 => (114733, 19),
+            Elements::Leftmost64_4 => (917872, 22),
+            Elements::Leftmost16_8 => (229472, 20),
+            Elements::Leftmost32_8 => (917892, 22),
+            Elements::Leftmost64_8 => (917893, 22),
+            Elements::Leftmost32_16 => (229474, 20),
+            Elements::Leftmost64_16 => (917900, 22),
+            Elements::Leftmost64_32 => (229476, 20),
+            Elements::Rightmost8_1 => (28693, 17),
+            Elements::Rightmost16_1 => (229552, 20),
+            Elements::Rightmost32_1 => (229553, 20),
+            Elements::Rightmost64_1 => (229554, 20),
+            Elements::Rightmost8_2 => (114788, 19),
+            Elements::Rightmost16_2 => (114789, 19),
+            Elements::Rightmost32_2 => (918320, 22),
+            Elements::Rightmost64_2 => (918321, 22),
+            Elements::Rightmost8_4 => (28698, 17),
+            Elements::Rightmost16_4 => (114796, 19),
+            Elements::Rightmost32_4 => (114797, 19),
+            Elements::Rightmost64_4 => (918384, 22),
+            Elements::Rightmost16_8 => (229600, 20),
+            Elements::Rightmost32_8 => (918404, 22),
+            Elements::Rightmost64_8 => (918405, 22),
+            Elements::Rightmost32_16 => (229602, 20),
+            Elements::Rightmost64_16 => (918412, 22),
+            Elements::Rightmost64_32 => (229604, 20),
+            Elements::LeftPadLow1_8 => (28709, 17),
+            Elements::LeftPadLow1_16 => (229680, 20),
+            Elements::LeftPadLow1_32 => (229681, 20),
+            Elements::LeftPadLow1_64 => (229682, 20),
+            Elements::LeftPadLow8_16 => (229728, 20),
+            Elements::LeftPadLow8_32 => (918916, 22),
+            Elements::LeftPadLow8_64 => (918917, 22),
+            Elements::LeftPadLow16_32 => (229730, 20),
+            Elements::LeftPadLow16_64 => (918924, 22),
+            Elements::LeftPadLow32_64 => (229732, 20),
+            Elements::LeftPadHigh1_8 => (28725, 17),
+            Elements::LeftPadHigh1_16 => (229808, 20),
+            Elements::LeftPadHigh1_32 => (229809, 20),
+            Elements::LeftPadHigh1_64 => (229810, 20),
+            Elements::LeftPadHigh8_16 => (229856, 20),
+            Elements::LeftPadHigh8_32 => (919428, 22),
+            Elements::LeftPadHigh8_64 => (919429, 22),
+            Elements::LeftPadHigh16_32 => (229858, 20),
+            Elements::LeftPadHigh16_64 => (919436, 22),
+            Elements::LeftPadHigh32_64 => (229860, 20),
+            Elements::LeftExtend1_8 => (28741, 17),
+            Elements::LeftExtend1_16 => (229936, 20),
+            Elements::LeftExtend1_32 => (229937, 20),
+            Elements::LeftExtend1_64 => (229938, 20),
+            Elements::LeftExtend8_16 => (229984, 20),
+            Elements::LeftExtend8_32 => (919940, 22),
+            Elements::LeftExtend8_64 => (919941, 22),
+            Elements::LeftExtend16_32 => (229986, 20),
+            Elements::LeftExtend16_64 => (919948, 22),
+            Elements::LeftExtend32_64 => (229988, 20),
+            Elements::RightPadLow1_8 => (28757, 17),
+            Elements::RightPadLow1_16 => (230064, 20),
+            Elements::RightPadLow1_32 => (230065, 20),
+            Elements::RightPadLow1_64 => (230066, 20),
+            Elements::RightPadLow8_16 => (230112, 20),
+            Elements::RightPadLow8_32 => (920452, 22),
+            Elements::RightPadLow8_64 => (920453, 22),
+            Elements::RightPadLow16_32 => (230114, 20),
+            Elements::RightPadLow16_64 => (920460, 22),
+            Elements::RightPadLow32_64 => (230116, 20),
+            Elements::RightPadHigh1_8 => (28773, 17),
+            Elements::RightPadHigh1_16 => (230192, 20),
+            Elements::RightPadHigh1_32 => (230193, 20),
+            Elements::RightPadHigh1_64 => (230194, 20),
+            Elements::RightPadHigh8_16 => (230240, 20),
+            Elements::RightPadHigh8_32 => (920964, 22),
+            Elements::RightPadHigh8_64 => (920965, 22),
+            Elements::RightPadHigh16_32 => (230242, 20),
+            Elements::RightPadHigh16_64 => (920972, 22),
+            Elements::RightPadHigh32_64 => (230244, 20),
+            Elements::RightExtend8_16 => (230368, 20),
+            Elements::RightExtend8_32 => (921476, 22),
+            Elements::RightExtend8_64 => (921477, 22),
+            Elements::RightExtend16_32 => (230370, 20),
+            Elements::RightExtend16_64 => (921484, 22),
+            Elements::RightExtend32_64 => (230372, 20),
+            Elements::LeftShiftWith8 => (14405, 16),
+            Elements::LeftShiftWith16 => (115248, 19),
+            Elements::LeftShiftWith32 => (115249, 19),
+            Elements::LeftShiftWith64 => (115250, 19),
+            Elements::RightShiftWith8 => (14413, 16),
+            Elements::RightShiftWith16 => (115312, 19),
+            Elements::RightShiftWith32 => (115313, 19),
+            Elements::RightShiftWith64 => (115314, 19),
+            Elements::LeftShift8 => (14421, 16),
+            Elements::LeftShift16 => (115376, 19),
+            Elements::LeftShift32 => (115377, 19),
+            Elements::LeftShift64 => (115378, 19),
+            Elements::RightShift8 => (14429, 16),
+            Elements::RightShift16 => (115440, 19),
+            Elements::RightShift32 => (115441, 19),
+            Elements::RightShift64 => (115442, 19),
+            Elements::LeftRotate8 => (14437, 16),
+            Elements::LeftRotate16 => (115504, 19),
+            Elements::LeftRotate32 => (115505, 19),
+            Elements::LeftRotate64 => (115506, 19),
+            Elements::RightRotate8 => (14445, 16),
+            Elements::RightRotate16 => (115568, 19),
+            Elements::RightRotate32 => (115569, 19),
+            Elements::RightRotate64 => (115570, 19),
             Elements::One8 => (69, 8),
             Elements::One16 => (560, 11),
             Elements::One32 => (561, 11),
@@ -2709,7 +4176,7 @@ impl Jet for Elements {
                     1 => {
                         0 => {
                             0 => {
-                                0 => {},
+                                0 => {Elements::Low1},
                                 1 => {
                                     0 => {
                                         0 => {},
@@ -2734,7 +4201,7 @@ impl Jet for Elements {
                                 }
                             },
                             1 => {
-                                0 => {},
+                                0 => {Elements::High1},
                                 1 => {
                                     0 => {
                                         0 => {},
@@ -2764,7 +4231,7 @@ impl Jet for Elements {
                                 0 => {
                                     0 => {
                                         0 => {
-                                            0 => {},
+                                            0 => {Elements::Complement1},
                                             1 => {
                                                 0 => {
                                                     0 => {},
@@ -2789,7 +4256,7 @@ impl Jet for Elements {
                                             }
                                         },
                                         1 => {
-                                            0 => {},
+                                            0 => {Elements::And1},
                                             1 => {
                                                 0 => {
                                                     0 => {},
@@ -2816,7 +4283,7 @@ impl Jet for Elements {
                                     },
                                     1 => {
                                         0 => {
-                                            0 => {},
+                                            0 => {Elements::Or1},
                                             1 => {
                                                 0 => {
                                                     0 => {},
@@ -2841,7 +4308,7 @@ impl Jet for Elements {
                                             }
                                         },
                                         1 => {
-                                            0 => {},
+                                            0 => {Elements::Xor1},
                                             1 => {
                                                 0 => {
                                                     0 => {},
@@ -2871,7 +4338,7 @@ impl Jet for Elements {
                                     0 => {
                                         0 => {
                                             0 => {
-                                                0 => {},
+                                                0 => {Elements::Maj1},
                                                 1 => {
                                                     0 => {
                                                         0 => {},
@@ -2896,7 +4363,7 @@ impl Jet for Elements {
                                                 }
                                             },
                                             1 => {
-                                                0 => {},
+                                                0 => {Elements::XorXor1},
                                                 1 => {
                                                     0 => {
                                                         0 => {},
@@ -2923,7 +4390,7 @@ impl Jet for Elements {
                                         },
                                         1 => {
                                             0 => {
-                                                0 => {},
+                                                0 => {Elements::Ch1},
                                                 1 => {
                                                     0 => {
                                                         0 => {},
@@ -2948,7 +4415,7 @@ impl Jet for Elements {
                                                 }
                                             },
                                             1 => {
-                                                0 => {},
+                                                0 => {Elements::Some1},
                                                 1 => {
                                                     0 => {
                                                         0 => {},
@@ -3002,7 +4469,7 @@ impl Jet for Elements {
                                                 }
                                             },
                                             1 => {
-                                                0 => {},
+                                                0 => {Elements::Eq1},
                                                 1 => {
                                                     0 => {
                                                         0 => {},
@@ -3036,11 +4503,1028 @@ impl Jet for Elements {
                                                 }
                                             }
                                         },
-                                        1 => {}
+                                        1 => {
+                                            0 => {
+                                                0 => {
+                                                    0 => {},
+                                                    1 => {
+                                                        0 => {
+                                                            0 => {},
+                                                            1 => {Elements::FullLeftShift8_1}
+                                                        },
+                                                        1 => {
+                                                            0 => {
+                                                                0 => {
+                                                                    0 => {
+                                                                        0 => {Elements::FullLeftShift16_1},
+                                                                        1 => {Elements::FullLeftShift32_1}
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {Elements::FullLeftShift64_1},
+                                                                        1 => {}
+                                                                    }
+                                                                },
+                                                                1 => {}
+                                                            },
+                                                            1 => {}
+                                                        }
+                                                    }
+                                                },
+                                                1 => {
+                                                    0 => {
+                                                        0 => {
+                                                            0 => {},
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {Elements::FullLeftShift8_2},
+                                                                    1 => {Elements::FullLeftShift16_2}
+                                                                },
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {Elements::FullLeftShift32_2},
+                                                                                1 => {Elements::FullLeftShift64_2}
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                }
+                                                            }
+                                                        },
+                                                        1 => {
+                                                            0 => {Elements::FullLeftShift8_4},
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {Elements::FullLeftShift16_4},
+                                                                    1 => {Elements::FullLeftShift32_4}
+                                                                },
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {Elements::FullLeftShift64_4},
+                                                                                1 => {}
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    1 => {
+                                                        0 => {
+                                                            0 => {
+                                                                0 => {
+                                                                    0 => {
+                                                                        0 => {Elements::FullLeftShift16_8},
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {Elements::FullLeftShift32_8},
+                                                                                1 => {Elements::FullLeftShift64_8}
+                                                                            },
+                                                                            1 => {}
+                                                                        }
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {Elements::FullLeftShift32_16},
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {Elements::FullLeftShift64_16},
+                                                                                1 => {}
+                                                                            },
+                                                                            1 => {}
+                                                                        }
+                                                                    }
+                                                                },
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {Elements::FullLeftShift64_32},
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                }
+                                                            },
+                                                            1 => {}
+                                                        },
+                                                        1 => {}
+                                                    }
+                                                }
+                                            },
+                                            1 => {
+                                                0 => {
+                                                    0 => {},
+                                                    1 => {
+                                                        0 => {
+                                                            0 => {},
+                                                            1 => {Elements::FullRightShift8_1}
+                                                        },
+                                                        1 => {
+                                                            0 => {
+                                                                0 => {
+                                                                    0 => {
+                                                                        0 => {Elements::FullRightShift16_1},
+                                                                        1 => {Elements::FullRightShift32_1}
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {Elements::FullRightShift64_1},
+                                                                        1 => {}
+                                                                    }
+                                                                },
+                                                                1 => {}
+                                                            },
+                                                            1 => {}
+                                                        }
+                                                    }
+                                                },
+                                                1 => {
+                                                    0 => {
+                                                        0 => {
+                                                            0 => {},
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {Elements::FullRightShift8_2},
+                                                                    1 => {Elements::FullRightShift16_2}
+                                                                },
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {Elements::FullRightShift32_2},
+                                                                                1 => {Elements::FullRightShift64_2}
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                }
+                                                            }
+                                                        },
+                                                        1 => {
+                                                            0 => {Elements::FullRightShift8_4},
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {Elements::FullRightShift16_4},
+                                                                    1 => {Elements::FullRightShift32_4}
+                                                                },
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {Elements::FullRightShift64_4},
+                                                                                1 => {}
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    1 => {
+                                                        0 => {
+                                                            0 => {
+                                                                0 => {
+                                                                    0 => {
+                                                                        0 => {Elements::FullRightShift16_8},
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {Elements::FullRightShift32_8},
+                                                                                1 => {Elements::FullRightShift64_8}
+                                                                            },
+                                                                            1 => {}
+                                                                        }
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {Elements::FullRightShift32_16},
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {Elements::FullRightShift64_16},
+                                                                                1 => {}
+                                                                            },
+                                                                            1 => {}
+                                                                        }
+                                                                    }
+                                                                },
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {Elements::FullRightShift64_32},
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                }
+                                                            },
+                                                            1 => {}
+                                                        },
+                                                        1 => {}
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             },
-                            1 => {}
+                            1 => {
+                                0 => {
+                                    0 => {
+                                        0 => {
+                                            0 => {
+                                                0 => {
+                                                    0 => {
+                                                        0 => {
+                                                            0 => {
+                                                                0 => {
+                                                                    0 => {},
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {},
+                                                                            1 => {Elements::Leftmost8_1}
+                                                                        },
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::Leftmost16_1},
+                                                                                        1 => {Elements::Leftmost32_1}
+                                                                                    },
+                                                                                    1 => {
+                                                                                        0 => {Elements::Leftmost64_1},
+                                                                                        1 => {}
+                                                                                    }
+                                                                                },
+                                                                                1 => {}
+                                                                            },
+                                                                            1 => {}
+                                                                        }
+                                                                    }
+                                                                },
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {},
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {Elements::Leftmost8_2},
+                                                                                    1 => {Elements::Leftmost16_2}
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {
+                                                                                        0 => {
+                                                                                            0 => {
+                                                                                                0 => {Elements::Leftmost32_2},
+                                                                                                1 => {Elements::Leftmost64_2}
+                                                                                            },
+                                                                                            1 => {}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    },
+                                                                                    1 => {}
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        1 => {
+                                                                            0 => {Elements::Leftmost8_4},
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {Elements::Leftmost16_4},
+                                                                                    1 => {Elements::Leftmost32_4}
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {
+                                                                                        0 => {
+                                                                                            0 => {
+                                                                                                0 => {Elements::Leftmost64_4},
+                                                                                                1 => {}
+                                                                                            },
+                                                                                            1 => {}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    },
+                                                                                    1 => {}
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::Leftmost16_8},
+                                                                                        1 => {
+                                                                                            0 => {
+                                                                                                0 => {Elements::Leftmost32_8},
+                                                                                                1 => {Elements::Leftmost64_8}
+                                                                                            },
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    },
+                                                                                    1 => {
+                                                                                        0 => {Elements::Leftmost32_16},
+                                                                                        1 => {
+                                                                                            0 => {
+                                                                                                0 => {Elements::Leftmost64_16},
+                                                                                                1 => {}
+                                                                                            },
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::Leftmost64_32},
+                                                                                        1 => {}
+                                                                                    },
+                                                                                    1 => {}
+                                                                                }
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            },
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {},
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {},
+                                                                            1 => {Elements::Rightmost8_1}
+                                                                        },
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::Rightmost16_1},
+                                                                                        1 => {Elements::Rightmost32_1}
+                                                                                    },
+                                                                                    1 => {
+                                                                                        0 => {Elements::Rightmost64_1},
+                                                                                        1 => {}
+                                                                                    }
+                                                                                },
+                                                                                1 => {}
+                                                                            },
+                                                                            1 => {}
+                                                                        }
+                                                                    }
+                                                                },
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {},
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {Elements::Rightmost8_2},
+                                                                                    1 => {Elements::Rightmost16_2}
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {
+                                                                                        0 => {
+                                                                                            0 => {
+                                                                                                0 => {Elements::Rightmost32_2},
+                                                                                                1 => {Elements::Rightmost64_2}
+                                                                                            },
+                                                                                            1 => {}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    },
+                                                                                    1 => {}
+                                                                                }
+                                                                            }
+                                                                        },
+                                                                        1 => {
+                                                                            0 => {Elements::Rightmost8_4},
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {Elements::Rightmost16_4},
+                                                                                    1 => {Elements::Rightmost32_4}
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {
+                                                                                        0 => {
+                                                                                            0 => {
+                                                                                                0 => {Elements::Rightmost64_4},
+                                                                                                1 => {}
+                                                                                            },
+                                                                                            1 => {}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    },
+                                                                                    1 => {}
+                                                                                }
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::Rightmost16_8},
+                                                                                        1 => {
+                                                                                            0 => {
+                                                                                                0 => {Elements::Rightmost32_8},
+                                                                                                1 => {Elements::Rightmost64_8}
+                                                                                            },
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    },
+                                                                                    1 => {
+                                                                                        0 => {Elements::Rightmost32_16},
+                                                                                        1 => {
+                                                                                            0 => {
+                                                                                                0 => {Elements::Rightmost64_16},
+                                                                                                1 => {}
+                                                                                            },
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::Rightmost64_32},
+                                                                                        1 => {}
+                                                                                    },
+                                                                                    1 => {}
+                                                                                }
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            }
+                                                        },
+                                                        1 => {
+                                                            0 => {
+                                                                0 => {
+                                                                    0 => {},
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {},
+                                                                            1 => {Elements::LeftPadLow1_8}
+                                                                        },
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::LeftPadLow1_16},
+                                                                                        1 => {Elements::LeftPadLow1_32}
+                                                                                    },
+                                                                                    1 => {
+                                                                                        0 => {Elements::LeftPadLow1_64},
+                                                                                        1 => {}
+                                                                                    }
+                                                                                },
+                                                                                1 => {}
+                                                                            },
+                                                                            1 => {}
+                                                                        }
+                                                                    }
+                                                                },
+                                                                1 => {
+                                                                    0 => {},
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::LeftPadLow8_16},
+                                                                                        1 => {
+                                                                                            0 => {
+                                                                                                0 => {Elements::LeftPadLow8_32},
+                                                                                                1 => {Elements::LeftPadLow8_64}
+                                                                                            },
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    },
+                                                                                    1 => {
+                                                                                        0 => {Elements::LeftPadLow16_32},
+                                                                                        1 => {
+                                                                                            0 => {
+                                                                                                0 => {Elements::LeftPadLow16_64},
+                                                                                                1 => {}
+                                                                                            },
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::LeftPadLow32_64},
+                                                                                        1 => {}
+                                                                                    },
+                                                                                    1 => {}
+                                                                                }
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            },
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {},
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {},
+                                                                            1 => {Elements::LeftPadHigh1_8}
+                                                                        },
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::LeftPadHigh1_16},
+                                                                                        1 => {Elements::LeftPadHigh1_32}
+                                                                                    },
+                                                                                    1 => {
+                                                                                        0 => {Elements::LeftPadHigh1_64},
+                                                                                        1 => {}
+                                                                                    }
+                                                                                },
+                                                                                1 => {}
+                                                                            },
+                                                                            1 => {}
+                                                                        }
+                                                                    }
+                                                                },
+                                                                1 => {
+                                                                    0 => {},
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::LeftPadHigh8_16},
+                                                                                        1 => {
+                                                                                            0 => {
+                                                                                                0 => {Elements::LeftPadHigh8_32},
+                                                                                                1 => {Elements::LeftPadHigh8_64}
+                                                                                            },
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    },
+                                                                                    1 => {
+                                                                                        0 => {Elements::LeftPadHigh16_32},
+                                                                                        1 => {
+                                                                                            0 => {
+                                                                                                0 => {Elements::LeftPadHigh16_64},
+                                                                                                1 => {}
+                                                                                            },
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::LeftPadHigh32_64},
+                                                                                        1 => {}
+                                                                                    },
+                                                                                    1 => {}
+                                                                                }
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    1 => {
+                                                        0 => {
+                                                            0 => {
+                                                                0 => {
+                                                                    0 => {},
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {},
+                                                                            1 => {Elements::LeftExtend1_8}
+                                                                        },
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::LeftExtend1_16},
+                                                                                        1 => {Elements::LeftExtend1_32}
+                                                                                    },
+                                                                                    1 => {
+                                                                                        0 => {Elements::LeftExtend1_64},
+                                                                                        1 => {}
+                                                                                    }
+                                                                                },
+                                                                                1 => {}
+                                                                            },
+                                                                            1 => {}
+                                                                        }
+                                                                    }
+                                                                },
+                                                                1 => {
+                                                                    0 => {},
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::LeftExtend8_16},
+                                                                                        1 => {
+                                                                                            0 => {
+                                                                                                0 => {Elements::LeftExtend8_32},
+                                                                                                1 => {Elements::LeftExtend8_64}
+                                                                                            },
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    },
+                                                                                    1 => {
+                                                                                        0 => {Elements::LeftExtend16_32},
+                                                                                        1 => {
+                                                                                            0 => {
+                                                                                                0 => {Elements::LeftExtend16_64},
+                                                                                                1 => {}
+                                                                                            },
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::LeftExtend32_64},
+                                                                                        1 => {}
+                                                                                    },
+                                                                                    1 => {}
+                                                                                }
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            },
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {},
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {},
+                                                                            1 => {Elements::RightPadLow1_8}
+                                                                        },
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::RightPadLow1_16},
+                                                                                        1 => {Elements::RightPadLow1_32}
+                                                                                    },
+                                                                                    1 => {
+                                                                                        0 => {Elements::RightPadLow1_64},
+                                                                                        1 => {}
+                                                                                    }
+                                                                                },
+                                                                                1 => {}
+                                                                            },
+                                                                            1 => {}
+                                                                        }
+                                                                    }
+                                                                },
+                                                                1 => {
+                                                                    0 => {},
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::RightPadLow8_16},
+                                                                                        1 => {
+                                                                                            0 => {
+                                                                                                0 => {Elements::RightPadLow8_32},
+                                                                                                1 => {Elements::RightPadLow8_64}
+                                                                                            },
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    },
+                                                                                    1 => {
+                                                                                        0 => {Elements::RightPadLow16_32},
+                                                                                        1 => {
+                                                                                            0 => {
+                                                                                                0 => {Elements::RightPadLow16_64},
+                                                                                                1 => {}
+                                                                                            },
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::RightPadLow32_64},
+                                                                                        1 => {}
+                                                                                    },
+                                                                                    1 => {}
+                                                                                }
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            }
+                                                        },
+                                                        1 => {
+                                                            0 => {
+                                                                0 => {
+                                                                    0 => {},
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {},
+                                                                            1 => {Elements::RightPadHigh1_8}
+                                                                        },
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::RightPadHigh1_16},
+                                                                                        1 => {Elements::RightPadHigh1_32}
+                                                                                    },
+                                                                                    1 => {
+                                                                                        0 => {Elements::RightPadHigh1_64},
+                                                                                        1 => {}
+                                                                                    }
+                                                                                },
+                                                                                1 => {}
+                                                                            },
+                                                                            1 => {}
+                                                                        }
+                                                                    }
+                                                                },
+                                                                1 => {
+                                                                    0 => {},
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::RightPadHigh8_16},
+                                                                                        1 => {
+                                                                                            0 => {
+                                                                                                0 => {Elements::RightPadHigh8_32},
+                                                                                                1 => {Elements::RightPadHigh8_64}
+                                                                                            },
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    },
+                                                                                    1 => {
+                                                                                        0 => {Elements::RightPadHigh16_32},
+                                                                                        1 => {
+                                                                                            0 => {
+                                                                                                0 => {Elements::RightPadHigh16_64},
+                                                                                                1 => {}
+                                                                                            },
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::RightPadHigh32_64},
+                                                                                        1 => {}
+                                                                                    },
+                                                                                    1 => {}
+                                                                                }
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            },
+                                                            1 => {
+                                                                0 => {},
+                                                                1 => {
+                                                                    0 => {},
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::RightExtend8_16},
+                                                                                        1 => {
+                                                                                            0 => {
+                                                                                                0 => {Elements::RightExtend8_32},
+                                                                                                1 => {Elements::RightExtend8_64}
+                                                                                            },
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    },
+                                                                                    1 => {
+                                                                                        0 => {Elements::RightExtend16_32},
+                                                                                        1 => {
+                                                                                            0 => {
+                                                                                                0 => {Elements::RightExtend16_64},
+                                                                                                1 => {}
+                                                                                            },
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    }
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {
+                                                                                        0 => {Elements::RightExtend32_64},
+                                                                                        1 => {}
+                                                                                    },
+                                                                                    1 => {}
+                                                                                }
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                1 => {
+                                                    0 => {
+                                                        0 => {
+                                                            0 => {
+                                                                0 => {},
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {},
+                                                                        1 => {Elements::LeftShiftWith8}
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {Elements::LeftShiftWith16},
+                                                                                    1 => {Elements::LeftShiftWith32}
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {Elements::LeftShiftWith64},
+                                                                                    1 => {}
+                                                                                }
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            },
+                                                            1 => {
+                                                                0 => {},
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {},
+                                                                        1 => {Elements::RightShiftWith8}
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {Elements::RightShiftWith16},
+                                                                                    1 => {Elements::RightShiftWith32}
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {Elements::RightShiftWith64},
+                                                                                    1 => {}
+                                                                                }
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            }
+                                                        },
+                                                        1 => {
+                                                            0 => {
+                                                                0 => {},
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {},
+                                                                        1 => {Elements::LeftShift8}
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {Elements::LeftShift16},
+                                                                                    1 => {Elements::LeftShift32}
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {Elements::LeftShift64},
+                                                                                    1 => {}
+                                                                                }
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            },
+                                                            1 => {
+                                                                0 => {},
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {},
+                                                                        1 => {Elements::RightShift8}
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {Elements::RightShift16},
+                                                                                    1 => {Elements::RightShift32}
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {Elements::RightShift64},
+                                                                                    1 => {}
+                                                                                }
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    1 => {
+                                                        0 => {
+                                                            0 => {
+                                                                0 => {},
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {},
+                                                                        1 => {Elements::LeftRotate8}
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {Elements::LeftRotate16},
+                                                                                    1 => {Elements::LeftRotate32}
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {Elements::LeftRotate64},
+                                                                                    1 => {}
+                                                                                }
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            },
+                                                            1 => {
+                                                                0 => {},
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {},
+                                                                        1 => {Elements::RightRotate8}
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {Elements::RightRotate16},
+                                                                                    1 => {Elements::RightRotate32}
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {Elements::RightRotate64},
+                                                                                    1 => {}
+                                                                                }
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            }
+                                                        },
+                                                        1 => {}
+                                                    }
+                                                }
+                                            },
+                                            1 => {}
+                                        },
+                                        1 => {}
+                                    },
+                                    1 => {}
+                                },
+                                1 => {}
+                            }
                         }
                     }
                 },
@@ -4308,6 +6792,7 @@ impl Jet for Elements {
             Elements::All32 => &simplicity_sys::c_jets::jets_wrapper::all_32,
             Elements::All64 => &simplicity_sys::c_jets::jets_wrapper::all_64,
             Elements::All8 => &simplicity_sys::c_jets::jets_wrapper::all_8,
+            Elements::And1 => &simplicity_sys::c_jets::jets_wrapper::and_1,
             Elements::And16 => &simplicity_sys::c_jets::jets_wrapper::and_16,
             Elements::And32 => &simplicity_sys::c_jets::jets_wrapper::and_32,
             Elements::And64 => &simplicity_sys::c_jets::jets_wrapper::and_64,
@@ -4321,6 +6806,7 @@ impl Jet for Elements {
             Elements::CalculateConfidentialToken => &simplicity_sys::c_jets::jets_wrapper::calculate_confidential_token,
             Elements::CalculateExplicitToken => &simplicity_sys::c_jets::jets_wrapper::calculate_explicit_token,
             Elements::CalculateIssuanceEntropy => &simplicity_sys::c_jets::jets_wrapper::calculate_issuance_entropy,
+            Elements::Ch1 => &simplicity_sys::c_jets::jets_wrapper::ch_1,
             Elements::Ch16 => &simplicity_sys::c_jets::jets_wrapper::ch_16,
             Elements::Ch32 => &simplicity_sys::c_jets::jets_wrapper::ch_32,
             Elements::Ch64 => &simplicity_sys::c_jets::jets_wrapper::ch_64,
@@ -4330,6 +6816,7 @@ impl Jet for Elements {
             Elements::CheckLockHeight => &simplicity_sys::c_jets::jets_wrapper::check_lock_height,
             Elements::CheckLockTime => &simplicity_sys::c_jets::jets_wrapper::check_lock_time,
             Elements::CheckSigVerify => &simplicity_sys::c_jets::jets_wrapper::check_sig_verify,
+            Elements::Complement1 => &simplicity_sys::c_jets::jets_wrapper::complement_1,
             Elements::Complement16 => &simplicity_sys::c_jets::jets_wrapper::complement_16,
             Elements::Complement32 => &simplicity_sys::c_jets::jets_wrapper::complement_32,
             Elements::Complement64 => &simplicity_sys::c_jets::jets_wrapper::complement_64,
@@ -4367,6 +6854,7 @@ impl Jet for Elements {
             Elements::Divides32 => &simplicity_sys::c_jets::jets_wrapper::divides_32,
             Elements::Divides64 => &simplicity_sys::c_jets::jets_wrapper::divides_64,
             Elements::Divides8 => &simplicity_sys::c_jets::jets_wrapper::divides_8,
+            Elements::Eq1 => &simplicity_sys::c_jets::jets_wrapper::eq_1,
             Elements::Eq16 => &simplicity_sys::c_jets::jets_wrapper::eq_16,
             Elements::Eq256 => &simplicity_sys::c_jets::jets_wrapper::eq_256,
             Elements::Eq32 => &simplicity_sys::c_jets::jets_wrapper::eq_32,
@@ -4394,10 +6882,46 @@ impl Jet for Elements {
             Elements::FullIncrement32 => &simplicity_sys::c_jets::jets_wrapper::full_increment_32,
             Elements::FullIncrement64 => &simplicity_sys::c_jets::jets_wrapper::full_increment_64,
             Elements::FullIncrement8 => &simplicity_sys::c_jets::jets_wrapper::full_increment_8,
+            Elements::FullLeftShift16_1 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_16_1,
+            Elements::FullLeftShift16_2 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_16_2,
+            Elements::FullLeftShift16_4 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_16_4,
+            Elements::FullLeftShift16_8 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_16_8,
+            Elements::FullLeftShift32_1 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_32_1,
+            Elements::FullLeftShift32_16 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_32_16,
+            Elements::FullLeftShift32_2 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_32_2,
+            Elements::FullLeftShift32_4 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_32_4,
+            Elements::FullLeftShift32_8 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_32_8,
+            Elements::FullLeftShift64_1 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_1,
+            Elements::FullLeftShift64_16 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_16,
+            Elements::FullLeftShift64_2 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_2,
+            Elements::FullLeftShift64_32 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_32,
+            Elements::FullLeftShift64_4 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_4,
+            Elements::FullLeftShift64_8 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_8,
+            Elements::FullLeftShift8_1 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_8_1,
+            Elements::FullLeftShift8_2 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_8_2,
+            Elements::FullLeftShift8_4 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_8_4,
             Elements::FullMultiply16 => &simplicity_sys::c_jets::jets_wrapper::full_multiply_16,
             Elements::FullMultiply32 => &simplicity_sys::c_jets::jets_wrapper::full_multiply_32,
             Elements::FullMultiply64 => &simplicity_sys::c_jets::jets_wrapper::full_multiply_64,
             Elements::FullMultiply8 => &simplicity_sys::c_jets::jets_wrapper::full_multiply_8,
+            Elements::FullRightShift16_1 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_16_1,
+            Elements::FullRightShift16_2 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_16_2,
+            Elements::FullRightShift16_4 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_16_4,
+            Elements::FullRightShift16_8 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_16_8,
+            Elements::FullRightShift32_1 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_32_1,
+            Elements::FullRightShift32_16 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_32_16,
+            Elements::FullRightShift32_2 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_32_2,
+            Elements::FullRightShift32_4 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_32_4,
+            Elements::FullRightShift32_8 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_32_8,
+            Elements::FullRightShift64_1 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_1,
+            Elements::FullRightShift64_16 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_16,
+            Elements::FullRightShift64_2 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_2,
+            Elements::FullRightShift64_32 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_32,
+            Elements::FullRightShift64_4 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_4,
+            Elements::FullRightShift64_8 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_8,
+            Elements::FullRightShift8_1 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_8_1,
+            Elements::FullRightShift8_2 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_8_2,
+            Elements::FullRightShift8_4 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_8_4,
             Elements::FullSubtract16 => &simplicity_sys::c_jets::jets_wrapper::full_subtract_16,
             Elements::FullSubtract32 => &simplicity_sys::c_jets::jets_wrapper::full_subtract_32,
             Elements::FullSubtract64 => &simplicity_sys::c_jets::jets_wrapper::full_subtract_64,
@@ -4418,6 +6942,7 @@ impl Jet for Elements {
             Elements::GejYIsOdd => &simplicity_sys::c_jets::jets_wrapper::gej_y_is_odd,
             Elements::Generate => &simplicity_sys::c_jets::jets_wrapper::generate,
             Elements::GenesisBlockHash => &simplicity_sys::c_jets::jets_wrapper::genesis_block_hash,
+            Elements::High1 => &simplicity_sys::c_jets::jets_wrapper::high_1,
             Elements::High16 => &simplicity_sys::c_jets::jets_wrapper::high_16,
             Elements::High32 => &simplicity_sys::c_jets::jets_wrapper::high_32,
             Elements::High64 => &simplicity_sys::c_jets::jets_wrapper::high_64,
@@ -4468,9 +6993,70 @@ impl Jet for Elements {
             Elements::Le32 => &simplicity_sys::c_jets::jets_wrapper::le_32,
             Elements::Le64 => &simplicity_sys::c_jets::jets_wrapper::le_64,
             Elements::Le8 => &simplicity_sys::c_jets::jets_wrapper::le_8,
+            Elements::LeftExtend16_32 => &simplicity_sys::c_jets::jets_wrapper::left_extend_16_32,
+            Elements::LeftExtend16_64 => &simplicity_sys::c_jets::jets_wrapper::left_extend_16_64,
+            Elements::LeftExtend1_16 => &simplicity_sys::c_jets::jets_wrapper::left_extend_1_16,
+            Elements::LeftExtend1_32 => &simplicity_sys::c_jets::jets_wrapper::left_extend_1_32,
+            Elements::LeftExtend1_64 => &simplicity_sys::c_jets::jets_wrapper::left_extend_1_64,
+            Elements::LeftExtend1_8 => &simplicity_sys::c_jets::jets_wrapper::left_extend_1_8,
+            Elements::LeftExtend32_64 => &simplicity_sys::c_jets::jets_wrapper::left_extend_32_64,
+            Elements::LeftExtend8_16 => &simplicity_sys::c_jets::jets_wrapper::left_extend_8_16,
+            Elements::LeftExtend8_32 => &simplicity_sys::c_jets::jets_wrapper::left_extend_8_32,
+            Elements::LeftExtend8_64 => &simplicity_sys::c_jets::jets_wrapper::left_extend_8_64,
+            Elements::LeftPadHigh16_32 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_16_32,
+            Elements::LeftPadHigh16_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_16_64,
+            Elements::LeftPadHigh1_16 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_1_16,
+            Elements::LeftPadHigh1_32 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_1_32,
+            Elements::LeftPadHigh1_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_1_64,
+            Elements::LeftPadHigh1_8 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_1_8,
+            Elements::LeftPadHigh32_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_32_64,
+            Elements::LeftPadHigh8_16 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_8_16,
+            Elements::LeftPadHigh8_32 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_8_32,
+            Elements::LeftPadHigh8_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_8_64,
+            Elements::LeftPadLow16_32 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_16_32,
+            Elements::LeftPadLow16_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_16_64,
+            Elements::LeftPadLow1_16 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_1_16,
+            Elements::LeftPadLow1_32 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_1_32,
+            Elements::LeftPadLow1_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_1_64,
+            Elements::LeftPadLow1_8 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_1_8,
+            Elements::LeftPadLow32_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_32_64,
+            Elements::LeftPadLow8_16 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_8_16,
+            Elements::LeftPadLow8_32 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_8_32,
+            Elements::LeftPadLow8_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_8_64,
+            Elements::LeftRotate16 => &simplicity_sys::c_jets::jets_wrapper::left_rotate_16,
+            Elements::LeftRotate32 => &simplicity_sys::c_jets::jets_wrapper::left_rotate_32,
+            Elements::LeftRotate64 => &simplicity_sys::c_jets::jets_wrapper::left_rotate_64,
+            Elements::LeftRotate8 => &simplicity_sys::c_jets::jets_wrapper::left_rotate_8,
+            Elements::LeftShift16 => &simplicity_sys::c_jets::jets_wrapper::left_shift_16,
+            Elements::LeftShift32 => &simplicity_sys::c_jets::jets_wrapper::left_shift_32,
+            Elements::LeftShift64 => &simplicity_sys::c_jets::jets_wrapper::left_shift_64,
+            Elements::LeftShift8 => &simplicity_sys::c_jets::jets_wrapper::left_shift_8,
+            Elements::LeftShiftWith16 => &simplicity_sys::c_jets::jets_wrapper::left_shift_with_16,
+            Elements::LeftShiftWith32 => &simplicity_sys::c_jets::jets_wrapper::left_shift_with_32,
+            Elements::LeftShiftWith64 => &simplicity_sys::c_jets::jets_wrapper::left_shift_with_64,
+            Elements::LeftShiftWith8 => &simplicity_sys::c_jets::jets_wrapper::left_shift_with_8,
+            Elements::Leftmost16_1 => &simplicity_sys::c_jets::jets_wrapper::leftmost_16_1,
+            Elements::Leftmost16_2 => &simplicity_sys::c_jets::jets_wrapper::leftmost_16_2,
+            Elements::Leftmost16_4 => &simplicity_sys::c_jets::jets_wrapper::leftmost_16_4,
+            Elements::Leftmost16_8 => &simplicity_sys::c_jets::jets_wrapper::leftmost_16_8,
+            Elements::Leftmost32_1 => &simplicity_sys::c_jets::jets_wrapper::leftmost_32_1,
+            Elements::Leftmost32_16 => &simplicity_sys::c_jets::jets_wrapper::leftmost_32_16,
+            Elements::Leftmost32_2 => &simplicity_sys::c_jets::jets_wrapper::leftmost_32_2,
+            Elements::Leftmost32_4 => &simplicity_sys::c_jets::jets_wrapper::leftmost_32_4,
+            Elements::Leftmost32_8 => &simplicity_sys::c_jets::jets_wrapper::leftmost_32_8,
+            Elements::Leftmost64_1 => &simplicity_sys::c_jets::jets_wrapper::leftmost_64_1,
+            Elements::Leftmost64_16 => &simplicity_sys::c_jets::jets_wrapper::leftmost_64_16,
+            Elements::Leftmost64_2 => &simplicity_sys::c_jets::jets_wrapper::leftmost_64_2,
+            Elements::Leftmost64_32 => &simplicity_sys::c_jets::jets_wrapper::leftmost_64_32,
+            Elements::Leftmost64_4 => &simplicity_sys::c_jets::jets_wrapper::leftmost_64_4,
+            Elements::Leftmost64_8 => &simplicity_sys::c_jets::jets_wrapper::leftmost_64_8,
+            Elements::Leftmost8_1 => &simplicity_sys::c_jets::jets_wrapper::leftmost_8_1,
+            Elements::Leftmost8_2 => &simplicity_sys::c_jets::jets_wrapper::leftmost_8_2,
+            Elements::Leftmost8_4 => &simplicity_sys::c_jets::jets_wrapper::leftmost_8_4,
             Elements::LinearCombination1 => &simplicity_sys::c_jets::jets_wrapper::linear_combination_1,
             Elements::LinearVerify1 => &simplicity_sys::c_jets::jets_wrapper::linear_verify_1,
             Elements::LockTime => &simplicity_sys::c_jets::jets_wrapper::lock_time,
+            Elements::Low1 => &simplicity_sys::c_jets::jets_wrapper::low_1,
             Elements::Low16 => &simplicity_sys::c_jets::jets_wrapper::low_16,
             Elements::Low32 => &simplicity_sys::c_jets::jets_wrapper::low_32,
             Elements::Low64 => &simplicity_sys::c_jets::jets_wrapper::low_64,
@@ -4479,6 +7065,7 @@ impl Jet for Elements {
             Elements::Lt32 => &simplicity_sys::c_jets::jets_wrapper::lt_32,
             Elements::Lt64 => &simplicity_sys::c_jets::jets_wrapper::lt_64,
             Elements::Lt8 => &simplicity_sys::c_jets::jets_wrapper::lt_8,
+            Elements::Maj1 => &simplicity_sys::c_jets::jets_wrapper::maj_1,
             Elements::Maj16 => &simplicity_sys::c_jets::jets_wrapper::maj_16,
             Elements::Maj32 => &simplicity_sys::c_jets::jets_wrapper::maj_32,
             Elements::Maj64 => &simplicity_sys::c_jets::jets_wrapper::maj_64,
@@ -4515,6 +7102,7 @@ impl Jet for Elements {
             Elements::One32 => &simplicity_sys::c_jets::jets_wrapper::one_32,
             Elements::One64 => &simplicity_sys::c_jets::jets_wrapper::one_64,
             Elements::One8 => &simplicity_sys::c_jets::jets_wrapper::one_8,
+            Elements::Or1 => &simplicity_sys::c_jets::jets_wrapper::or_1,
             Elements::Or16 => &simplicity_sys::c_jets::jets_wrapper::or_16,
             Elements::Or32 => &simplicity_sys::c_jets::jets_wrapper::or_32,
             Elements::Or64 => &simplicity_sys::c_jets::jets_wrapper::or_64,
@@ -4539,6 +7127,62 @@ impl Jet for Elements {
             Elements::PointVerify1 => &simplicity_sys::c_jets::jets_wrapper::point_verify_1,
             Elements::ReissuanceBlinding => &simplicity_sys::c_jets::jets_wrapper::reissuance_blinding,
             Elements::ReissuanceEntropy => &simplicity_sys::c_jets::jets_wrapper::reissuance_entropy,
+            Elements::RightExtend16_32 => &simplicity_sys::c_jets::jets_wrapper::right_extend_16_32,
+            Elements::RightExtend16_64 => &simplicity_sys::c_jets::jets_wrapper::right_extend_16_64,
+            Elements::RightExtend32_64 => &simplicity_sys::c_jets::jets_wrapper::right_extend_32_64,
+            Elements::RightExtend8_16 => &simplicity_sys::c_jets::jets_wrapper::right_extend_8_16,
+            Elements::RightExtend8_32 => &simplicity_sys::c_jets::jets_wrapper::right_extend_8_32,
+            Elements::RightExtend8_64 => &simplicity_sys::c_jets::jets_wrapper::right_extend_8_64,
+            Elements::RightPadHigh16_32 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_16_32,
+            Elements::RightPadHigh16_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_16_64,
+            Elements::RightPadHigh1_16 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_1_16,
+            Elements::RightPadHigh1_32 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_1_32,
+            Elements::RightPadHigh1_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_1_64,
+            Elements::RightPadHigh1_8 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_1_8,
+            Elements::RightPadHigh32_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_32_64,
+            Elements::RightPadHigh8_16 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_8_16,
+            Elements::RightPadHigh8_32 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_8_32,
+            Elements::RightPadHigh8_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_8_64,
+            Elements::RightPadLow16_32 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_16_32,
+            Elements::RightPadLow16_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_16_64,
+            Elements::RightPadLow1_16 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_1_16,
+            Elements::RightPadLow1_32 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_1_32,
+            Elements::RightPadLow1_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_1_64,
+            Elements::RightPadLow1_8 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_1_8,
+            Elements::RightPadLow32_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_32_64,
+            Elements::RightPadLow8_16 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_8_16,
+            Elements::RightPadLow8_32 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_8_32,
+            Elements::RightPadLow8_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_8_64,
+            Elements::RightRotate16 => &simplicity_sys::c_jets::jets_wrapper::right_rotate_16,
+            Elements::RightRotate32 => &simplicity_sys::c_jets::jets_wrapper::right_rotate_32,
+            Elements::RightRotate64 => &simplicity_sys::c_jets::jets_wrapper::right_rotate_64,
+            Elements::RightRotate8 => &simplicity_sys::c_jets::jets_wrapper::right_rotate_8,
+            Elements::RightShift16 => &simplicity_sys::c_jets::jets_wrapper::right_shift_16,
+            Elements::RightShift32 => &simplicity_sys::c_jets::jets_wrapper::right_shift_32,
+            Elements::RightShift64 => &simplicity_sys::c_jets::jets_wrapper::right_shift_64,
+            Elements::RightShift8 => &simplicity_sys::c_jets::jets_wrapper::right_shift_8,
+            Elements::RightShiftWith16 => &simplicity_sys::c_jets::jets_wrapper::right_shift_with_16,
+            Elements::RightShiftWith32 => &simplicity_sys::c_jets::jets_wrapper::right_shift_with_32,
+            Elements::RightShiftWith64 => &simplicity_sys::c_jets::jets_wrapper::right_shift_with_64,
+            Elements::RightShiftWith8 => &simplicity_sys::c_jets::jets_wrapper::right_shift_with_8,
+            Elements::Rightmost16_1 => &simplicity_sys::c_jets::jets_wrapper::rightmost_16_1,
+            Elements::Rightmost16_2 => &simplicity_sys::c_jets::jets_wrapper::rightmost_16_2,
+            Elements::Rightmost16_4 => &simplicity_sys::c_jets::jets_wrapper::rightmost_16_4,
+            Elements::Rightmost16_8 => &simplicity_sys::c_jets::jets_wrapper::rightmost_16_8,
+            Elements::Rightmost32_1 => &simplicity_sys::c_jets::jets_wrapper::rightmost_32_1,
+            Elements::Rightmost32_16 => &simplicity_sys::c_jets::jets_wrapper::rightmost_32_16,
+            Elements::Rightmost32_2 => &simplicity_sys::c_jets::jets_wrapper::rightmost_32_2,
+            Elements::Rightmost32_4 => &simplicity_sys::c_jets::jets_wrapper::rightmost_32_4,
+            Elements::Rightmost32_8 => &simplicity_sys::c_jets::jets_wrapper::rightmost_32_8,
+            Elements::Rightmost64_1 => &simplicity_sys::c_jets::jets_wrapper::rightmost_64_1,
+            Elements::Rightmost64_16 => &simplicity_sys::c_jets::jets_wrapper::rightmost_64_16,
+            Elements::Rightmost64_2 => &simplicity_sys::c_jets::jets_wrapper::rightmost_64_2,
+            Elements::Rightmost64_32 => &simplicity_sys::c_jets::jets_wrapper::rightmost_64_32,
+            Elements::Rightmost64_4 => &simplicity_sys::c_jets::jets_wrapper::rightmost_64_4,
+            Elements::Rightmost64_8 => &simplicity_sys::c_jets::jets_wrapper::rightmost_64_8,
+            Elements::Rightmost8_1 => &simplicity_sys::c_jets::jets_wrapper::rightmost_8_1,
+            Elements::Rightmost8_2 => &simplicity_sys::c_jets::jets_wrapper::rightmost_8_2,
+            Elements::Rightmost8_4 => &simplicity_sys::c_jets::jets_wrapper::rightmost_8_4,
             Elements::ScalarAdd => &simplicity_sys::c_jets::jets_wrapper::scalar_add,
             Elements::ScalarInvert => &simplicity_sys::c_jets::jets_wrapper::scalar_invert,
             Elements::ScalarIsZero => &simplicity_sys::c_jets::jets_wrapper::scalar_is_zero,
@@ -4565,6 +7209,7 @@ impl Jet for Elements {
             Elements::Sha256Ctx8Init => &simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_init,
             Elements::Sha256Iv => &simplicity_sys::c_jets::jets_wrapper::sha_256_iv,
             Elements::SigAllHash => &simplicity_sys::c_jets::jets_wrapper::sig_all_hash,
+            Elements::Some1 => &simplicity_sys::c_jets::jets_wrapper::some_1,
             Elements::Some16 => &simplicity_sys::c_jets::jets_wrapper::some_16,
             Elements::Some32 => &simplicity_sys::c_jets::jets_wrapper::some_32,
             Elements::Some64 => &simplicity_sys::c_jets::jets_wrapper::some_64,
@@ -4586,10 +7231,12 @@ impl Jet for Elements {
             Elements::TxLockTime => &simplicity_sys::c_jets::jets_wrapper::tx_lock_time,
             Elements::Verify => &simplicity_sys::c_jets::jets_wrapper::verify,
             Elements::Version => &simplicity_sys::c_jets::jets_wrapper::version,
+            Elements::Xor1 => &simplicity_sys::c_jets::jets_wrapper::xor_1,
             Elements::Xor16 => &simplicity_sys::c_jets::jets_wrapper::xor_16,
             Elements::Xor32 => &simplicity_sys::c_jets::jets_wrapper::xor_32,
             Elements::Xor64 => &simplicity_sys::c_jets::jets_wrapper::xor_64,
             Elements::Xor8 => &simplicity_sys::c_jets::jets_wrapper::xor_8,
+            Elements::XorXor1 => &simplicity_sys::c_jets::jets_wrapper::xor_xor_1,
             Elements::XorXor16 => &simplicity_sys::c_jets::jets_wrapper::xor_xor_16,
             Elements::XorXor32 => &simplicity_sys::c_jets::jets_wrapper::xor_xor_32,
             Elements::XorXor64 => &simplicity_sys::c_jets::jets_wrapper::xor_xor_64,
@@ -4607,6 +7254,7 @@ impl Jet for Elements {
             Elements::All32 => Cost::from_milliweight(136),
             Elements::All64 => Cost::from_milliweight(165),
             Elements::All8 => Cost::from_milliweight(113),
+            Elements::And1 => Cost::from_milliweight(159),
             Elements::And16 => Cost::from_milliweight(195),
             Elements::And32 => Cost::from_milliweight(175),
             Elements::And64 => Cost::from_milliweight(221),
@@ -4620,6 +7268,7 @@ impl Jet for Elements {
             Elements::CalculateConfidentialToken => Cost::from_milliweight(1727),
             Elements::CalculateExplicitToken => Cost::from_milliweight(1610),
             Elements::CalculateIssuanceEntropy => Cost::from_milliweight(3453),
+            Elements::Ch1 => Cost::from_milliweight(240),
             Elements::Ch16 => Cost::from_milliweight(245),
             Elements::Ch32 => Cost::from_milliweight(238),
             Elements::Ch64 => Cost::from_milliweight(274),
@@ -4629,6 +7278,7 @@ impl Jet for Elements {
             Elements::CheckLockHeight => Cost::from_milliweight(239),
             Elements::CheckLockTime => Cost::from_milliweight(232),
             Elements::CheckSigVerify => Cost::from_milliweight(50000),
+            Elements::Complement1 => Cost::from_milliweight(139),
             Elements::Complement16 => Cost::from_milliweight(146),
             Elements::Complement32 => Cost::from_milliweight(161),
             Elements::Complement64 => Cost::from_milliweight(174),
@@ -4666,6 +7316,7 @@ impl Jet for Elements {
             Elements::Divides32 => Cost::from_milliweight(175),
             Elements::Divides64 => Cost::from_milliweight(246),
             Elements::Divides8 => Cost::from_milliweight(142),
+            Elements::Eq1 => Cost::from_milliweight(120),
             Elements::Eq16 => Cost::from_milliweight(174),
             Elements::Eq256 => Cost::from_milliweight(431),
             Elements::Eq32 => Cost::from_milliweight(233),
@@ -4693,10 +7344,46 @@ impl Jet for Elements {
             Elements::FullIncrement32 => Cost::from_milliweight(171),
             Elements::FullIncrement64 => Cost::from_milliweight(161),
             Elements::FullIncrement8 => Cost::from_milliweight(204),
+            Elements::FullLeftShift16_1 => Cost::from_milliweight(150),
+            Elements::FullLeftShift16_2 => Cost::from_milliweight(150),
+            Elements::FullLeftShift16_4 => Cost::from_milliweight(150),
+            Elements::FullLeftShift16_8 => Cost::from_milliweight(150),
+            Elements::FullLeftShift32_1 => Cost::from_milliweight(150),
+            Elements::FullLeftShift32_16 => Cost::from_milliweight(150),
+            Elements::FullLeftShift32_2 => Cost::from_milliweight(150),
+            Elements::FullLeftShift32_4 => Cost::from_milliweight(150),
+            Elements::FullLeftShift32_8 => Cost::from_milliweight(150),
+            Elements::FullLeftShift64_1 => Cost::from_milliweight(150),
+            Elements::FullLeftShift64_16 => Cost::from_milliweight(150),
+            Elements::FullLeftShift64_2 => Cost::from_milliweight(150),
+            Elements::FullLeftShift64_32 => Cost::from_milliweight(150),
+            Elements::FullLeftShift64_4 => Cost::from_milliweight(150),
+            Elements::FullLeftShift64_8 => Cost::from_milliweight(150),
+            Elements::FullLeftShift8_1 => Cost::from_milliweight(150),
+            Elements::FullLeftShift8_2 => Cost::from_milliweight(150),
+            Elements::FullLeftShift8_4 => Cost::from_milliweight(150),
             Elements::FullMultiply16 => Cost::from_milliweight(208),
             Elements::FullMultiply32 => Cost::from_milliweight(213),
             Elements::FullMultiply64 => Cost::from_milliweight(209),
             Elements::FullMultiply8 => Cost::from_milliweight(190),
+            Elements::FullRightShift16_1 => Cost::from_milliweight(150),
+            Elements::FullRightShift16_2 => Cost::from_milliweight(150),
+            Elements::FullRightShift16_4 => Cost::from_milliweight(150),
+            Elements::FullRightShift16_8 => Cost::from_milliweight(150),
+            Elements::FullRightShift32_1 => Cost::from_milliweight(150),
+            Elements::FullRightShift32_16 => Cost::from_milliweight(150),
+            Elements::FullRightShift32_2 => Cost::from_milliweight(150),
+            Elements::FullRightShift32_4 => Cost::from_milliweight(150),
+            Elements::FullRightShift32_8 => Cost::from_milliweight(150),
+            Elements::FullRightShift64_1 => Cost::from_milliweight(150),
+            Elements::FullRightShift64_16 => Cost::from_milliweight(150),
+            Elements::FullRightShift64_2 => Cost::from_milliweight(150),
+            Elements::FullRightShift64_32 => Cost::from_milliweight(150),
+            Elements::FullRightShift64_4 => Cost::from_milliweight(150),
+            Elements::FullRightShift64_8 => Cost::from_milliweight(150),
+            Elements::FullRightShift8_1 => Cost::from_milliweight(150),
+            Elements::FullRightShift8_2 => Cost::from_milliweight(150),
+            Elements::FullRightShift8_4 => Cost::from_milliweight(150),
             Elements::FullSubtract16 => Cost::from_milliweight(201),
             Elements::FullSubtract32 => Cost::from_milliweight(170),
             Elements::FullSubtract64 => Cost::from_milliweight(231),
@@ -4717,6 +7404,7 @@ impl Jet for Elements {
             Elements::GejYIsOdd => Cost::from_milliweight(3665),
             Elements::Generate => Cost::from_milliweight(51706),
             Elements::GenesisBlockHash => Cost::from_milliweight(395),
+            Elements::High1 => Cost::from_milliweight(169),
             Elements::High16 => Cost::from_milliweight(159),
             Elements::High32 => Cost::from_milliweight(121),
             Elements::High64 => Cost::from_milliweight(110),
@@ -4767,9 +7455,70 @@ impl Jet for Elements {
             Elements::Le32 => Cost::from_milliweight(216),
             Elements::Le64 => Cost::from_milliweight(173),
             Elements::Le8 => Cost::from_milliweight(143),
+            Elements::LeftExtend16_32 => Cost::from_milliweight(150),
+            Elements::LeftExtend16_64 => Cost::from_milliweight(150),
+            Elements::LeftExtend1_16 => Cost::from_milliweight(150),
+            Elements::LeftExtend1_32 => Cost::from_milliweight(150),
+            Elements::LeftExtend1_64 => Cost::from_milliweight(150),
+            Elements::LeftExtend1_8 => Cost::from_milliweight(150),
+            Elements::LeftExtend32_64 => Cost::from_milliweight(150),
+            Elements::LeftExtend8_16 => Cost::from_milliweight(150),
+            Elements::LeftExtend8_32 => Cost::from_milliweight(150),
+            Elements::LeftExtend8_64 => Cost::from_milliweight(150),
+            Elements::LeftPadHigh16_32 => Cost::from_milliweight(150),
+            Elements::LeftPadHigh16_64 => Cost::from_milliweight(150),
+            Elements::LeftPadHigh1_16 => Cost::from_milliweight(150),
+            Elements::LeftPadHigh1_32 => Cost::from_milliweight(150),
+            Elements::LeftPadHigh1_64 => Cost::from_milliweight(150),
+            Elements::LeftPadHigh1_8 => Cost::from_milliweight(150),
+            Elements::LeftPadHigh32_64 => Cost::from_milliweight(150),
+            Elements::LeftPadHigh8_16 => Cost::from_milliweight(150),
+            Elements::LeftPadHigh8_32 => Cost::from_milliweight(150),
+            Elements::LeftPadHigh8_64 => Cost::from_milliweight(150),
+            Elements::LeftPadLow16_32 => Cost::from_milliweight(150),
+            Elements::LeftPadLow16_64 => Cost::from_milliweight(150),
+            Elements::LeftPadLow1_16 => Cost::from_milliweight(150),
+            Elements::LeftPadLow1_32 => Cost::from_milliweight(150),
+            Elements::LeftPadLow1_64 => Cost::from_milliweight(150),
+            Elements::LeftPadLow1_8 => Cost::from_milliweight(150),
+            Elements::LeftPadLow32_64 => Cost::from_milliweight(150),
+            Elements::LeftPadLow8_16 => Cost::from_milliweight(150),
+            Elements::LeftPadLow8_32 => Cost::from_milliweight(150),
+            Elements::LeftPadLow8_64 => Cost::from_milliweight(150),
+            Elements::LeftRotate16 => Cost::from_milliweight(150),
+            Elements::LeftRotate32 => Cost::from_milliweight(150),
+            Elements::LeftRotate64 => Cost::from_milliweight(150),
+            Elements::LeftRotate8 => Cost::from_milliweight(150),
+            Elements::LeftShift16 => Cost::from_milliweight(150),
+            Elements::LeftShift32 => Cost::from_milliweight(150),
+            Elements::LeftShift64 => Cost::from_milliweight(150),
+            Elements::LeftShift8 => Cost::from_milliweight(150),
+            Elements::LeftShiftWith16 => Cost::from_milliweight(150),
+            Elements::LeftShiftWith32 => Cost::from_milliweight(150),
+            Elements::LeftShiftWith64 => Cost::from_milliweight(150),
+            Elements::LeftShiftWith8 => Cost::from_milliweight(150),
+            Elements::Leftmost16_1 => Cost::from_milliweight(150),
+            Elements::Leftmost16_2 => Cost::from_milliweight(150),
+            Elements::Leftmost16_4 => Cost::from_milliweight(150),
+            Elements::Leftmost16_8 => Cost::from_milliweight(150),
+            Elements::Leftmost32_1 => Cost::from_milliweight(150),
+            Elements::Leftmost32_16 => Cost::from_milliweight(150),
+            Elements::Leftmost32_2 => Cost::from_milliweight(150),
+            Elements::Leftmost32_4 => Cost::from_milliweight(150),
+            Elements::Leftmost32_8 => Cost::from_milliweight(150),
+            Elements::Leftmost64_1 => Cost::from_milliweight(150),
+            Elements::Leftmost64_16 => Cost::from_milliweight(150),
+            Elements::Leftmost64_2 => Cost::from_milliweight(150),
+            Elements::Leftmost64_32 => Cost::from_milliweight(150),
+            Elements::Leftmost64_4 => Cost::from_milliweight(150),
+            Elements::Leftmost64_8 => Cost::from_milliweight(150),
+            Elements::Leftmost8_1 => Cost::from_milliweight(150),
+            Elements::Leftmost8_2 => Cost::from_milliweight(150),
+            Elements::Leftmost8_4 => Cost::from_milliweight(150),
             Elements::LinearCombination1 => Cost::from_milliweight(86722),
             Elements::LinearVerify1 => Cost::from_milliweight(43063),
             Elements::LockTime => Cost::from_milliweight(132),
+            Elements::Low1 => Cost::from_milliweight(173),
             Elements::Low16 => Cost::from_milliweight(172),
             Elements::Low32 => Cost::from_milliweight(170),
             Elements::Low64 => Cost::from_milliweight(162),
@@ -4778,6 +7527,7 @@ impl Jet for Elements {
             Elements::Lt32 => Cost::from_milliweight(215),
             Elements::Lt64 => Cost::from_milliweight(195),
             Elements::Lt8 => Cost::from_milliweight(130),
+            Elements::Maj1 => Cost::from_milliweight(241),
             Elements::Maj16 => Cost::from_milliweight(273),
             Elements::Maj32 => Cost::from_milliweight(289),
             Elements::Maj64 => Cost::from_milliweight(293),
@@ -4814,6 +7564,7 @@ impl Jet for Elements {
             Elements::One32 => Cost::from_milliweight(122),
             Elements::One64 => Cost::from_milliweight(123),
             Elements::One8 => Cost::from_milliweight(127),
+            Elements::Or1 => Cost::from_milliweight(147),
             Elements::Or16 => Cost::from_milliweight(204),
             Elements::Or32 => Cost::from_milliweight(197),
             Elements::Or64 => Cost::from_milliweight(214),
@@ -4838,6 +7589,62 @@ impl Jet for Elements {
             Elements::PointVerify1 => Cost::from_milliweight(50604),
             Elements::ReissuanceBlinding => Cost::from_milliweight(153),
             Elements::ReissuanceEntropy => Cost::from_milliweight(126),
+            Elements::RightExtend16_32 => Cost::from_milliweight(150),
+            Elements::RightExtend16_64 => Cost::from_milliweight(150),
+            Elements::RightExtend32_64 => Cost::from_milliweight(150),
+            Elements::RightExtend8_16 => Cost::from_milliweight(150),
+            Elements::RightExtend8_32 => Cost::from_milliweight(150),
+            Elements::RightExtend8_64 => Cost::from_milliweight(150),
+            Elements::RightPadHigh16_32 => Cost::from_milliweight(150),
+            Elements::RightPadHigh16_64 => Cost::from_milliweight(150),
+            Elements::RightPadHigh1_16 => Cost::from_milliweight(150),
+            Elements::RightPadHigh1_32 => Cost::from_milliweight(150),
+            Elements::RightPadHigh1_64 => Cost::from_milliweight(150),
+            Elements::RightPadHigh1_8 => Cost::from_milliweight(150),
+            Elements::RightPadHigh32_64 => Cost::from_milliweight(150),
+            Elements::RightPadHigh8_16 => Cost::from_milliweight(150),
+            Elements::RightPadHigh8_32 => Cost::from_milliweight(150),
+            Elements::RightPadHigh8_64 => Cost::from_milliweight(150),
+            Elements::RightPadLow16_32 => Cost::from_milliweight(150),
+            Elements::RightPadLow16_64 => Cost::from_milliweight(150),
+            Elements::RightPadLow1_16 => Cost::from_milliweight(150),
+            Elements::RightPadLow1_32 => Cost::from_milliweight(150),
+            Elements::RightPadLow1_64 => Cost::from_milliweight(150),
+            Elements::RightPadLow1_8 => Cost::from_milliweight(150),
+            Elements::RightPadLow32_64 => Cost::from_milliweight(150),
+            Elements::RightPadLow8_16 => Cost::from_milliweight(150),
+            Elements::RightPadLow8_32 => Cost::from_milliweight(150),
+            Elements::RightPadLow8_64 => Cost::from_milliweight(150),
+            Elements::RightRotate16 => Cost::from_milliweight(150),
+            Elements::RightRotate32 => Cost::from_milliweight(150),
+            Elements::RightRotate64 => Cost::from_milliweight(150),
+            Elements::RightRotate8 => Cost::from_milliweight(150),
+            Elements::RightShift16 => Cost::from_milliweight(150),
+            Elements::RightShift32 => Cost::from_milliweight(150),
+            Elements::RightShift64 => Cost::from_milliweight(150),
+            Elements::RightShift8 => Cost::from_milliweight(150),
+            Elements::RightShiftWith16 => Cost::from_milliweight(150),
+            Elements::RightShiftWith32 => Cost::from_milliweight(150),
+            Elements::RightShiftWith64 => Cost::from_milliweight(150),
+            Elements::RightShiftWith8 => Cost::from_milliweight(150),
+            Elements::Rightmost16_1 => Cost::from_milliweight(150),
+            Elements::Rightmost16_2 => Cost::from_milliweight(150),
+            Elements::Rightmost16_4 => Cost::from_milliweight(150),
+            Elements::Rightmost16_8 => Cost::from_milliweight(150),
+            Elements::Rightmost32_1 => Cost::from_milliweight(150),
+            Elements::Rightmost32_16 => Cost::from_milliweight(150),
+            Elements::Rightmost32_2 => Cost::from_milliweight(150),
+            Elements::Rightmost32_4 => Cost::from_milliweight(150),
+            Elements::Rightmost32_8 => Cost::from_milliweight(150),
+            Elements::Rightmost64_1 => Cost::from_milliweight(150),
+            Elements::Rightmost64_16 => Cost::from_milliweight(150),
+            Elements::Rightmost64_2 => Cost::from_milliweight(150),
+            Elements::Rightmost64_32 => Cost::from_milliweight(150),
+            Elements::Rightmost64_4 => Cost::from_milliweight(150),
+            Elements::Rightmost64_8 => Cost::from_milliweight(150),
+            Elements::Rightmost8_1 => Cost::from_milliweight(150),
+            Elements::Rightmost8_2 => Cost::from_milliweight(150),
+            Elements::Rightmost8_4 => Cost::from_milliweight(150),
             Elements::ScalarAdd => Cost::from_milliweight(962),
             Elements::ScalarInvert => Cost::from_milliweight(4025),
             Elements::ScalarIsZero => Cost::from_milliweight(569),
@@ -4864,6 +7671,7 @@ impl Jet for Elements {
             Elements::Sha256Ctx8Init => Cost::from_milliweight(184),
             Elements::Sha256Iv => Cost::from_milliweight(129),
             Elements::SigAllHash => Cost::from_milliweight(265),
+            Elements::Some1 => Cost::from_milliweight(104),
             Elements::Some16 => Cost::from_milliweight(129),
             Elements::Some32 => Cost::from_milliweight(183),
             Elements::Some64 => Cost::from_milliweight(139),
@@ -4885,10 +7693,12 @@ impl Jet for Elements {
             Elements::TxLockTime => Cost::from_milliweight(136),
             Elements::Verify => Cost::from_milliweight(144),
             Elements::Version => Cost::from_milliweight(188),
+            Elements::Xor1 => Cost::from_milliweight(135),
             Elements::Xor16 => Cost::from_milliweight(188),
             Elements::Xor32 => Cost::from_milliweight(204),
             Elements::Xor64 => Cost::from_milliweight(207),
             Elements::Xor8 => Cost::from_milliweight(135),
+            Elements::XorXor1 => Cost::from_milliweight(258),
             Elements::XorXor16 => Cost::from_milliweight(235),
             Elements::XorXor32 => Cost::from_milliweight(251),
             Elements::XorXor64 => Cost::from_milliweight(285),
@@ -4908,6 +7718,7 @@ impl fmt::Display for Elements {
             Elements::All32 => f.write_str("all_32"),
             Elements::All64 => f.write_str("all_64"),
             Elements::All8 => f.write_str("all_8"),
+            Elements::And1 => f.write_str("and_1"),
             Elements::And16 => f.write_str("and_16"),
             Elements::And32 => f.write_str("and_32"),
             Elements::And64 => f.write_str("and_64"),
@@ -4921,6 +7732,7 @@ impl fmt::Display for Elements {
             Elements::CalculateConfidentialToken => f.write_str("calculate_confidential_token"),
             Elements::CalculateExplicitToken => f.write_str("calculate_explicit_token"),
             Elements::CalculateIssuanceEntropy => f.write_str("calculate_issuance_entropy"),
+            Elements::Ch1 => f.write_str("ch_1"),
             Elements::Ch16 => f.write_str("ch_16"),
             Elements::Ch32 => f.write_str("ch_32"),
             Elements::Ch64 => f.write_str("ch_64"),
@@ -4930,6 +7742,7 @@ impl fmt::Display for Elements {
             Elements::CheckLockHeight => f.write_str("check_lock_height"),
             Elements::CheckLockTime => f.write_str("check_lock_time"),
             Elements::CheckSigVerify => f.write_str("check_sig_verify"),
+            Elements::Complement1 => f.write_str("complement_1"),
             Elements::Complement16 => f.write_str("complement_16"),
             Elements::Complement32 => f.write_str("complement_32"),
             Elements::Complement64 => f.write_str("complement_64"),
@@ -4967,6 +7780,7 @@ impl fmt::Display for Elements {
             Elements::Divides32 => f.write_str("divides_32"),
             Elements::Divides64 => f.write_str("divides_64"),
             Elements::Divides8 => f.write_str("divides_8"),
+            Elements::Eq1 => f.write_str("eq_1"),
             Elements::Eq16 => f.write_str("eq_16"),
             Elements::Eq256 => f.write_str("eq_256"),
             Elements::Eq32 => f.write_str("eq_32"),
@@ -4994,10 +7808,46 @@ impl fmt::Display for Elements {
             Elements::FullIncrement32 => f.write_str("full_increment_32"),
             Elements::FullIncrement64 => f.write_str("full_increment_64"),
             Elements::FullIncrement8 => f.write_str("full_increment_8"),
+            Elements::FullLeftShift16_1 => f.write_str("full_left_shift_16_1"),
+            Elements::FullLeftShift16_2 => f.write_str("full_left_shift_16_2"),
+            Elements::FullLeftShift16_4 => f.write_str("full_left_shift_16_4"),
+            Elements::FullLeftShift16_8 => f.write_str("full_left_shift_16_8"),
+            Elements::FullLeftShift32_1 => f.write_str("full_left_shift_32_1"),
+            Elements::FullLeftShift32_16 => f.write_str("full_left_shift_32_16"),
+            Elements::FullLeftShift32_2 => f.write_str("full_left_shift_32_2"),
+            Elements::FullLeftShift32_4 => f.write_str("full_left_shift_32_4"),
+            Elements::FullLeftShift32_8 => f.write_str("full_left_shift_32_8"),
+            Elements::FullLeftShift64_1 => f.write_str("full_left_shift_64_1"),
+            Elements::FullLeftShift64_16 => f.write_str("full_left_shift_64_16"),
+            Elements::FullLeftShift64_2 => f.write_str("full_left_shift_64_2"),
+            Elements::FullLeftShift64_32 => f.write_str("full_left_shift_64_32"),
+            Elements::FullLeftShift64_4 => f.write_str("full_left_shift_64_4"),
+            Elements::FullLeftShift64_8 => f.write_str("full_left_shift_64_8"),
+            Elements::FullLeftShift8_1 => f.write_str("full_left_shift_8_1"),
+            Elements::FullLeftShift8_2 => f.write_str("full_left_shift_8_2"),
+            Elements::FullLeftShift8_4 => f.write_str("full_left_shift_8_4"),
             Elements::FullMultiply16 => f.write_str("full_multiply_16"),
             Elements::FullMultiply32 => f.write_str("full_multiply_32"),
             Elements::FullMultiply64 => f.write_str("full_multiply_64"),
             Elements::FullMultiply8 => f.write_str("full_multiply_8"),
+            Elements::FullRightShift16_1 => f.write_str("full_right_shift_16_1"),
+            Elements::FullRightShift16_2 => f.write_str("full_right_shift_16_2"),
+            Elements::FullRightShift16_4 => f.write_str("full_right_shift_16_4"),
+            Elements::FullRightShift16_8 => f.write_str("full_right_shift_16_8"),
+            Elements::FullRightShift32_1 => f.write_str("full_right_shift_32_1"),
+            Elements::FullRightShift32_16 => f.write_str("full_right_shift_32_16"),
+            Elements::FullRightShift32_2 => f.write_str("full_right_shift_32_2"),
+            Elements::FullRightShift32_4 => f.write_str("full_right_shift_32_4"),
+            Elements::FullRightShift32_8 => f.write_str("full_right_shift_32_8"),
+            Elements::FullRightShift64_1 => f.write_str("full_right_shift_64_1"),
+            Elements::FullRightShift64_16 => f.write_str("full_right_shift_64_16"),
+            Elements::FullRightShift64_2 => f.write_str("full_right_shift_64_2"),
+            Elements::FullRightShift64_32 => f.write_str("full_right_shift_64_32"),
+            Elements::FullRightShift64_4 => f.write_str("full_right_shift_64_4"),
+            Elements::FullRightShift64_8 => f.write_str("full_right_shift_64_8"),
+            Elements::FullRightShift8_1 => f.write_str("full_right_shift_8_1"),
+            Elements::FullRightShift8_2 => f.write_str("full_right_shift_8_2"),
+            Elements::FullRightShift8_4 => f.write_str("full_right_shift_8_4"),
             Elements::FullSubtract16 => f.write_str("full_subtract_16"),
             Elements::FullSubtract32 => f.write_str("full_subtract_32"),
             Elements::FullSubtract64 => f.write_str("full_subtract_64"),
@@ -5018,6 +7868,7 @@ impl fmt::Display for Elements {
             Elements::GejYIsOdd => f.write_str("gej_y_is_odd"),
             Elements::Generate => f.write_str("generate"),
             Elements::GenesisBlockHash => f.write_str("genesis_block_hash"),
+            Elements::High1 => f.write_str("high_1"),
             Elements::High16 => f.write_str("high_16"),
             Elements::High32 => f.write_str("high_32"),
             Elements::High64 => f.write_str("high_64"),
@@ -5068,9 +7919,70 @@ impl fmt::Display for Elements {
             Elements::Le32 => f.write_str("le_32"),
             Elements::Le64 => f.write_str("le_64"),
             Elements::Le8 => f.write_str("le_8"),
+            Elements::LeftExtend16_32 => f.write_str("left_extend_16_32"),
+            Elements::LeftExtend16_64 => f.write_str("left_extend_16_64"),
+            Elements::LeftExtend1_16 => f.write_str("left_extend_1_16"),
+            Elements::LeftExtend1_32 => f.write_str("left_extend_1_32"),
+            Elements::LeftExtend1_64 => f.write_str("left_extend_1_64"),
+            Elements::LeftExtend1_8 => f.write_str("left_extend_1_8"),
+            Elements::LeftExtend32_64 => f.write_str("left_extend_32_64"),
+            Elements::LeftExtend8_16 => f.write_str("left_extend_8_16"),
+            Elements::LeftExtend8_32 => f.write_str("left_extend_8_32"),
+            Elements::LeftExtend8_64 => f.write_str("left_extend_8_64"),
+            Elements::LeftPadHigh16_32 => f.write_str("left_pad_high_16_32"),
+            Elements::LeftPadHigh16_64 => f.write_str("left_pad_high_16_64"),
+            Elements::LeftPadHigh1_16 => f.write_str("left_pad_high_1_16"),
+            Elements::LeftPadHigh1_32 => f.write_str("left_pad_high_1_32"),
+            Elements::LeftPadHigh1_64 => f.write_str("left_pad_high_1_64"),
+            Elements::LeftPadHigh1_8 => f.write_str("left_pad_high_1_8"),
+            Elements::LeftPadHigh32_64 => f.write_str("left_pad_high_32_64"),
+            Elements::LeftPadHigh8_16 => f.write_str("left_pad_high_8_16"),
+            Elements::LeftPadHigh8_32 => f.write_str("left_pad_high_8_32"),
+            Elements::LeftPadHigh8_64 => f.write_str("left_pad_high_8_64"),
+            Elements::LeftPadLow16_32 => f.write_str("left_pad_low_16_32"),
+            Elements::LeftPadLow16_64 => f.write_str("left_pad_low_16_64"),
+            Elements::LeftPadLow1_16 => f.write_str("left_pad_low_1_16"),
+            Elements::LeftPadLow1_32 => f.write_str("left_pad_low_1_32"),
+            Elements::LeftPadLow1_64 => f.write_str("left_pad_low_1_64"),
+            Elements::LeftPadLow1_8 => f.write_str("left_pad_low_1_8"),
+            Elements::LeftPadLow32_64 => f.write_str("left_pad_low_32_64"),
+            Elements::LeftPadLow8_16 => f.write_str("left_pad_low_8_16"),
+            Elements::LeftPadLow8_32 => f.write_str("left_pad_low_8_32"),
+            Elements::LeftPadLow8_64 => f.write_str("left_pad_low_8_64"),
+            Elements::LeftRotate16 => f.write_str("left_rotate_16"),
+            Elements::LeftRotate32 => f.write_str("left_rotate_32"),
+            Elements::LeftRotate64 => f.write_str("left_rotate_64"),
+            Elements::LeftRotate8 => f.write_str("left_rotate_8"),
+            Elements::LeftShift16 => f.write_str("left_shift_16"),
+            Elements::LeftShift32 => f.write_str("left_shift_32"),
+            Elements::LeftShift64 => f.write_str("left_shift_64"),
+            Elements::LeftShift8 => f.write_str("left_shift_8"),
+            Elements::LeftShiftWith16 => f.write_str("left_shift_with_16"),
+            Elements::LeftShiftWith32 => f.write_str("left_shift_with_32"),
+            Elements::LeftShiftWith64 => f.write_str("left_shift_with_64"),
+            Elements::LeftShiftWith8 => f.write_str("left_shift_with_8"),
+            Elements::Leftmost16_1 => f.write_str("leftmost_16_1"),
+            Elements::Leftmost16_2 => f.write_str("leftmost_16_2"),
+            Elements::Leftmost16_4 => f.write_str("leftmost_16_4"),
+            Elements::Leftmost16_8 => f.write_str("leftmost_16_8"),
+            Elements::Leftmost32_1 => f.write_str("leftmost_32_1"),
+            Elements::Leftmost32_16 => f.write_str("leftmost_32_16"),
+            Elements::Leftmost32_2 => f.write_str("leftmost_32_2"),
+            Elements::Leftmost32_4 => f.write_str("leftmost_32_4"),
+            Elements::Leftmost32_8 => f.write_str("leftmost_32_8"),
+            Elements::Leftmost64_1 => f.write_str("leftmost_64_1"),
+            Elements::Leftmost64_16 => f.write_str("leftmost_64_16"),
+            Elements::Leftmost64_2 => f.write_str("leftmost_64_2"),
+            Elements::Leftmost64_32 => f.write_str("leftmost_64_32"),
+            Elements::Leftmost64_4 => f.write_str("leftmost_64_4"),
+            Elements::Leftmost64_8 => f.write_str("leftmost_64_8"),
+            Elements::Leftmost8_1 => f.write_str("leftmost_8_1"),
+            Elements::Leftmost8_2 => f.write_str("leftmost_8_2"),
+            Elements::Leftmost8_4 => f.write_str("leftmost_8_4"),
             Elements::LinearCombination1 => f.write_str("linear_combination_1"),
             Elements::LinearVerify1 => f.write_str("linear_verify_1"),
             Elements::LockTime => f.write_str("lock_time"),
+            Elements::Low1 => f.write_str("low_1"),
             Elements::Low16 => f.write_str("low_16"),
             Elements::Low32 => f.write_str("low_32"),
             Elements::Low64 => f.write_str("low_64"),
@@ -5079,6 +7991,7 @@ impl fmt::Display for Elements {
             Elements::Lt32 => f.write_str("lt_32"),
             Elements::Lt64 => f.write_str("lt_64"),
             Elements::Lt8 => f.write_str("lt_8"),
+            Elements::Maj1 => f.write_str("maj_1"),
             Elements::Maj16 => f.write_str("maj_16"),
             Elements::Maj32 => f.write_str("maj_32"),
             Elements::Maj64 => f.write_str("maj_64"),
@@ -5115,6 +8028,7 @@ impl fmt::Display for Elements {
             Elements::One32 => f.write_str("one_32"),
             Elements::One64 => f.write_str("one_64"),
             Elements::One8 => f.write_str("one_8"),
+            Elements::Or1 => f.write_str("or_1"),
             Elements::Or16 => f.write_str("or_16"),
             Elements::Or32 => f.write_str("or_32"),
             Elements::Or64 => f.write_str("or_64"),
@@ -5139,6 +8053,62 @@ impl fmt::Display for Elements {
             Elements::PointVerify1 => f.write_str("point_verify_1"),
             Elements::ReissuanceBlinding => f.write_str("reissuance_blinding"),
             Elements::ReissuanceEntropy => f.write_str("reissuance_entropy"),
+            Elements::RightExtend16_32 => f.write_str("right_extend_16_32"),
+            Elements::RightExtend16_64 => f.write_str("right_extend_16_64"),
+            Elements::RightExtend32_64 => f.write_str("right_extend_32_64"),
+            Elements::RightExtend8_16 => f.write_str("right_extend_8_16"),
+            Elements::RightExtend8_32 => f.write_str("right_extend_8_32"),
+            Elements::RightExtend8_64 => f.write_str("right_extend_8_64"),
+            Elements::RightPadHigh16_32 => f.write_str("right_pad_high_16_32"),
+            Elements::RightPadHigh16_64 => f.write_str("right_pad_high_16_64"),
+            Elements::RightPadHigh1_16 => f.write_str("right_pad_high_1_16"),
+            Elements::RightPadHigh1_32 => f.write_str("right_pad_high_1_32"),
+            Elements::RightPadHigh1_64 => f.write_str("right_pad_high_1_64"),
+            Elements::RightPadHigh1_8 => f.write_str("right_pad_high_1_8"),
+            Elements::RightPadHigh32_64 => f.write_str("right_pad_high_32_64"),
+            Elements::RightPadHigh8_16 => f.write_str("right_pad_high_8_16"),
+            Elements::RightPadHigh8_32 => f.write_str("right_pad_high_8_32"),
+            Elements::RightPadHigh8_64 => f.write_str("right_pad_high_8_64"),
+            Elements::RightPadLow16_32 => f.write_str("right_pad_low_16_32"),
+            Elements::RightPadLow16_64 => f.write_str("right_pad_low_16_64"),
+            Elements::RightPadLow1_16 => f.write_str("right_pad_low_1_16"),
+            Elements::RightPadLow1_32 => f.write_str("right_pad_low_1_32"),
+            Elements::RightPadLow1_64 => f.write_str("right_pad_low_1_64"),
+            Elements::RightPadLow1_8 => f.write_str("right_pad_low_1_8"),
+            Elements::RightPadLow32_64 => f.write_str("right_pad_low_32_64"),
+            Elements::RightPadLow8_16 => f.write_str("right_pad_low_8_16"),
+            Elements::RightPadLow8_32 => f.write_str("right_pad_low_8_32"),
+            Elements::RightPadLow8_64 => f.write_str("right_pad_low_8_64"),
+            Elements::RightRotate16 => f.write_str("right_rotate_16"),
+            Elements::RightRotate32 => f.write_str("right_rotate_32"),
+            Elements::RightRotate64 => f.write_str("right_rotate_64"),
+            Elements::RightRotate8 => f.write_str("right_rotate_8"),
+            Elements::RightShift16 => f.write_str("right_shift_16"),
+            Elements::RightShift32 => f.write_str("right_shift_32"),
+            Elements::RightShift64 => f.write_str("right_shift_64"),
+            Elements::RightShift8 => f.write_str("right_shift_8"),
+            Elements::RightShiftWith16 => f.write_str("right_shift_with_16"),
+            Elements::RightShiftWith32 => f.write_str("right_shift_with_32"),
+            Elements::RightShiftWith64 => f.write_str("right_shift_with_64"),
+            Elements::RightShiftWith8 => f.write_str("right_shift_with_8"),
+            Elements::Rightmost16_1 => f.write_str("rightmost_16_1"),
+            Elements::Rightmost16_2 => f.write_str("rightmost_16_2"),
+            Elements::Rightmost16_4 => f.write_str("rightmost_16_4"),
+            Elements::Rightmost16_8 => f.write_str("rightmost_16_8"),
+            Elements::Rightmost32_1 => f.write_str("rightmost_32_1"),
+            Elements::Rightmost32_16 => f.write_str("rightmost_32_16"),
+            Elements::Rightmost32_2 => f.write_str("rightmost_32_2"),
+            Elements::Rightmost32_4 => f.write_str("rightmost_32_4"),
+            Elements::Rightmost32_8 => f.write_str("rightmost_32_8"),
+            Elements::Rightmost64_1 => f.write_str("rightmost_64_1"),
+            Elements::Rightmost64_16 => f.write_str("rightmost_64_16"),
+            Elements::Rightmost64_2 => f.write_str("rightmost_64_2"),
+            Elements::Rightmost64_32 => f.write_str("rightmost_64_32"),
+            Elements::Rightmost64_4 => f.write_str("rightmost_64_4"),
+            Elements::Rightmost64_8 => f.write_str("rightmost_64_8"),
+            Elements::Rightmost8_1 => f.write_str("rightmost_8_1"),
+            Elements::Rightmost8_2 => f.write_str("rightmost_8_2"),
+            Elements::Rightmost8_4 => f.write_str("rightmost_8_4"),
             Elements::ScalarAdd => f.write_str("scalar_add"),
             Elements::ScalarInvert => f.write_str("scalar_invert"),
             Elements::ScalarIsZero => f.write_str("scalar_is_zero"),
@@ -5165,6 +8135,7 @@ impl fmt::Display for Elements {
             Elements::Sha256Ctx8Init => f.write_str("sha_256_ctx_8_init"),
             Elements::Sha256Iv => f.write_str("sha_256_iv"),
             Elements::SigAllHash => f.write_str("sig_all_hash"),
+            Elements::Some1 => f.write_str("some_1"),
             Elements::Some16 => f.write_str("some_16"),
             Elements::Some32 => f.write_str("some_32"),
             Elements::Some64 => f.write_str("some_64"),
@@ -5186,10 +8157,12 @@ impl fmt::Display for Elements {
             Elements::TxLockTime => f.write_str("tx_lock_time"),
             Elements::Verify => f.write_str("verify"),
             Elements::Version => f.write_str("version"),
+            Elements::Xor1 => f.write_str("xor_1"),
             Elements::Xor16 => f.write_str("xor_16"),
             Elements::Xor32 => f.write_str("xor_32"),
             Elements::Xor64 => f.write_str("xor_64"),
             Elements::Xor8 => f.write_str("xor_8"),
+            Elements::XorXor1 => f.write_str("xor_xor_1"),
             Elements::XorXor16 => f.write_str("xor_xor_16"),
             Elements::XorXor32 => f.write_str("xor_xor_32"),
             Elements::XorXor64 => f.write_str("xor_xor_64"),
@@ -5211,6 +8184,7 @@ impl str::FromStr for Elements {
             "all_32" => Ok(Elements::All32),
             "all_64" => Ok(Elements::All64),
             "all_8" => Ok(Elements::All8),
+            "and_1" => Ok(Elements::And1),
             "and_16" => Ok(Elements::And16),
             "and_32" => Ok(Elements::And32),
             "and_64" => Ok(Elements::And64),
@@ -5224,6 +8198,7 @@ impl str::FromStr for Elements {
             "calculate_confidential_token" => Ok(Elements::CalculateConfidentialToken),
             "calculate_explicit_token" => Ok(Elements::CalculateExplicitToken),
             "calculate_issuance_entropy" => Ok(Elements::CalculateIssuanceEntropy),
+            "ch_1" => Ok(Elements::Ch1),
             "ch_16" => Ok(Elements::Ch16),
             "ch_32" => Ok(Elements::Ch32),
             "ch_64" => Ok(Elements::Ch64),
@@ -5233,6 +8208,7 @@ impl str::FromStr for Elements {
             "check_lock_height" => Ok(Elements::CheckLockHeight),
             "check_lock_time" => Ok(Elements::CheckLockTime),
             "check_sig_verify" => Ok(Elements::CheckSigVerify),
+            "complement_1" => Ok(Elements::Complement1),
             "complement_16" => Ok(Elements::Complement16),
             "complement_32" => Ok(Elements::Complement32),
             "complement_64" => Ok(Elements::Complement64),
@@ -5270,6 +8246,7 @@ impl str::FromStr for Elements {
             "divides_32" => Ok(Elements::Divides32),
             "divides_64" => Ok(Elements::Divides64),
             "divides_8" => Ok(Elements::Divides8),
+            "eq_1" => Ok(Elements::Eq1),
             "eq_16" => Ok(Elements::Eq16),
             "eq_256" => Ok(Elements::Eq256),
             "eq_32" => Ok(Elements::Eq32),
@@ -5297,10 +8274,46 @@ impl str::FromStr for Elements {
             "full_increment_32" => Ok(Elements::FullIncrement32),
             "full_increment_64" => Ok(Elements::FullIncrement64),
             "full_increment_8" => Ok(Elements::FullIncrement8),
+            "full_left_shift_16_1" => Ok(Elements::FullLeftShift16_1),
+            "full_left_shift_16_2" => Ok(Elements::FullLeftShift16_2),
+            "full_left_shift_16_4" => Ok(Elements::FullLeftShift16_4),
+            "full_left_shift_16_8" => Ok(Elements::FullLeftShift16_8),
+            "full_left_shift_32_1" => Ok(Elements::FullLeftShift32_1),
+            "full_left_shift_32_16" => Ok(Elements::FullLeftShift32_16),
+            "full_left_shift_32_2" => Ok(Elements::FullLeftShift32_2),
+            "full_left_shift_32_4" => Ok(Elements::FullLeftShift32_4),
+            "full_left_shift_32_8" => Ok(Elements::FullLeftShift32_8),
+            "full_left_shift_64_1" => Ok(Elements::FullLeftShift64_1),
+            "full_left_shift_64_16" => Ok(Elements::FullLeftShift64_16),
+            "full_left_shift_64_2" => Ok(Elements::FullLeftShift64_2),
+            "full_left_shift_64_32" => Ok(Elements::FullLeftShift64_32),
+            "full_left_shift_64_4" => Ok(Elements::FullLeftShift64_4),
+            "full_left_shift_64_8" => Ok(Elements::FullLeftShift64_8),
+            "full_left_shift_8_1" => Ok(Elements::FullLeftShift8_1),
+            "full_left_shift_8_2" => Ok(Elements::FullLeftShift8_2),
+            "full_left_shift_8_4" => Ok(Elements::FullLeftShift8_4),
             "full_multiply_16" => Ok(Elements::FullMultiply16),
             "full_multiply_32" => Ok(Elements::FullMultiply32),
             "full_multiply_64" => Ok(Elements::FullMultiply64),
             "full_multiply_8" => Ok(Elements::FullMultiply8),
+            "full_right_shift_16_1" => Ok(Elements::FullRightShift16_1),
+            "full_right_shift_16_2" => Ok(Elements::FullRightShift16_2),
+            "full_right_shift_16_4" => Ok(Elements::FullRightShift16_4),
+            "full_right_shift_16_8" => Ok(Elements::FullRightShift16_8),
+            "full_right_shift_32_1" => Ok(Elements::FullRightShift32_1),
+            "full_right_shift_32_16" => Ok(Elements::FullRightShift32_16),
+            "full_right_shift_32_2" => Ok(Elements::FullRightShift32_2),
+            "full_right_shift_32_4" => Ok(Elements::FullRightShift32_4),
+            "full_right_shift_32_8" => Ok(Elements::FullRightShift32_8),
+            "full_right_shift_64_1" => Ok(Elements::FullRightShift64_1),
+            "full_right_shift_64_16" => Ok(Elements::FullRightShift64_16),
+            "full_right_shift_64_2" => Ok(Elements::FullRightShift64_2),
+            "full_right_shift_64_32" => Ok(Elements::FullRightShift64_32),
+            "full_right_shift_64_4" => Ok(Elements::FullRightShift64_4),
+            "full_right_shift_64_8" => Ok(Elements::FullRightShift64_8),
+            "full_right_shift_8_1" => Ok(Elements::FullRightShift8_1),
+            "full_right_shift_8_2" => Ok(Elements::FullRightShift8_2),
+            "full_right_shift_8_4" => Ok(Elements::FullRightShift8_4),
             "full_subtract_16" => Ok(Elements::FullSubtract16),
             "full_subtract_32" => Ok(Elements::FullSubtract32),
             "full_subtract_64" => Ok(Elements::FullSubtract64),
@@ -5321,6 +8334,7 @@ impl str::FromStr for Elements {
             "gej_y_is_odd" => Ok(Elements::GejYIsOdd),
             "generate" => Ok(Elements::Generate),
             "genesis_block_hash" => Ok(Elements::GenesisBlockHash),
+            "high_1" => Ok(Elements::High1),
             "high_16" => Ok(Elements::High16),
             "high_32" => Ok(Elements::High32),
             "high_64" => Ok(Elements::High64),
@@ -5371,9 +8385,70 @@ impl str::FromStr for Elements {
             "le_32" => Ok(Elements::Le32),
             "le_64" => Ok(Elements::Le64),
             "le_8" => Ok(Elements::Le8),
+            "left_extend_16_32" => Ok(Elements::LeftExtend16_32),
+            "left_extend_16_64" => Ok(Elements::LeftExtend16_64),
+            "left_extend_1_16" => Ok(Elements::LeftExtend1_16),
+            "left_extend_1_32" => Ok(Elements::LeftExtend1_32),
+            "left_extend_1_64" => Ok(Elements::LeftExtend1_64),
+            "left_extend_1_8" => Ok(Elements::LeftExtend1_8),
+            "left_extend_32_64" => Ok(Elements::LeftExtend32_64),
+            "left_extend_8_16" => Ok(Elements::LeftExtend8_16),
+            "left_extend_8_32" => Ok(Elements::LeftExtend8_32),
+            "left_extend_8_64" => Ok(Elements::LeftExtend8_64),
+            "left_pad_high_16_32" => Ok(Elements::LeftPadHigh16_32),
+            "left_pad_high_16_64" => Ok(Elements::LeftPadHigh16_64),
+            "left_pad_high_1_16" => Ok(Elements::LeftPadHigh1_16),
+            "left_pad_high_1_32" => Ok(Elements::LeftPadHigh1_32),
+            "left_pad_high_1_64" => Ok(Elements::LeftPadHigh1_64),
+            "left_pad_high_1_8" => Ok(Elements::LeftPadHigh1_8),
+            "left_pad_high_32_64" => Ok(Elements::LeftPadHigh32_64),
+            "left_pad_high_8_16" => Ok(Elements::LeftPadHigh8_16),
+            "left_pad_high_8_32" => Ok(Elements::LeftPadHigh8_32),
+            "left_pad_high_8_64" => Ok(Elements::LeftPadHigh8_64),
+            "left_pad_low_16_32" => Ok(Elements::LeftPadLow16_32),
+            "left_pad_low_16_64" => Ok(Elements::LeftPadLow16_64),
+            "left_pad_low_1_16" => Ok(Elements::LeftPadLow1_16),
+            "left_pad_low_1_32" => Ok(Elements::LeftPadLow1_32),
+            "left_pad_low_1_64" => Ok(Elements::LeftPadLow1_64),
+            "left_pad_low_1_8" => Ok(Elements::LeftPadLow1_8),
+            "left_pad_low_32_64" => Ok(Elements::LeftPadLow32_64),
+            "left_pad_low_8_16" => Ok(Elements::LeftPadLow8_16),
+            "left_pad_low_8_32" => Ok(Elements::LeftPadLow8_32),
+            "left_pad_low_8_64" => Ok(Elements::LeftPadLow8_64),
+            "left_rotate_16" => Ok(Elements::LeftRotate16),
+            "left_rotate_32" => Ok(Elements::LeftRotate32),
+            "left_rotate_64" => Ok(Elements::LeftRotate64),
+            "left_rotate_8" => Ok(Elements::LeftRotate8),
+            "left_shift_16" => Ok(Elements::LeftShift16),
+            "left_shift_32" => Ok(Elements::LeftShift32),
+            "left_shift_64" => Ok(Elements::LeftShift64),
+            "left_shift_8" => Ok(Elements::LeftShift8),
+            "left_shift_with_16" => Ok(Elements::LeftShiftWith16),
+            "left_shift_with_32" => Ok(Elements::LeftShiftWith32),
+            "left_shift_with_64" => Ok(Elements::LeftShiftWith64),
+            "left_shift_with_8" => Ok(Elements::LeftShiftWith8),
+            "leftmost_16_1" => Ok(Elements::Leftmost16_1),
+            "leftmost_16_2" => Ok(Elements::Leftmost16_2),
+            "leftmost_16_4" => Ok(Elements::Leftmost16_4),
+            "leftmost_16_8" => Ok(Elements::Leftmost16_8),
+            "leftmost_32_1" => Ok(Elements::Leftmost32_1),
+            "leftmost_32_16" => Ok(Elements::Leftmost32_16),
+            "leftmost_32_2" => Ok(Elements::Leftmost32_2),
+            "leftmost_32_4" => Ok(Elements::Leftmost32_4),
+            "leftmost_32_8" => Ok(Elements::Leftmost32_8),
+            "leftmost_64_1" => Ok(Elements::Leftmost64_1),
+            "leftmost_64_16" => Ok(Elements::Leftmost64_16),
+            "leftmost_64_2" => Ok(Elements::Leftmost64_2),
+            "leftmost_64_32" => Ok(Elements::Leftmost64_32),
+            "leftmost_64_4" => Ok(Elements::Leftmost64_4),
+            "leftmost_64_8" => Ok(Elements::Leftmost64_8),
+            "leftmost_8_1" => Ok(Elements::Leftmost8_1),
+            "leftmost_8_2" => Ok(Elements::Leftmost8_2),
+            "leftmost_8_4" => Ok(Elements::Leftmost8_4),
             "linear_combination_1" => Ok(Elements::LinearCombination1),
             "linear_verify_1" => Ok(Elements::LinearVerify1),
             "lock_time" => Ok(Elements::LockTime),
+            "low_1" => Ok(Elements::Low1),
             "low_16" => Ok(Elements::Low16),
             "low_32" => Ok(Elements::Low32),
             "low_64" => Ok(Elements::Low64),
@@ -5382,6 +8457,7 @@ impl str::FromStr for Elements {
             "lt_32" => Ok(Elements::Lt32),
             "lt_64" => Ok(Elements::Lt64),
             "lt_8" => Ok(Elements::Lt8),
+            "maj_1" => Ok(Elements::Maj1),
             "maj_16" => Ok(Elements::Maj16),
             "maj_32" => Ok(Elements::Maj32),
             "maj_64" => Ok(Elements::Maj64),
@@ -5418,6 +8494,7 @@ impl str::FromStr for Elements {
             "one_32" => Ok(Elements::One32),
             "one_64" => Ok(Elements::One64),
             "one_8" => Ok(Elements::One8),
+            "or_1" => Ok(Elements::Or1),
             "or_16" => Ok(Elements::Or16),
             "or_32" => Ok(Elements::Or32),
             "or_64" => Ok(Elements::Or64),
@@ -5442,6 +8519,62 @@ impl str::FromStr for Elements {
             "point_verify_1" => Ok(Elements::PointVerify1),
             "reissuance_blinding" => Ok(Elements::ReissuanceBlinding),
             "reissuance_entropy" => Ok(Elements::ReissuanceEntropy),
+            "right_extend_16_32" => Ok(Elements::RightExtend16_32),
+            "right_extend_16_64" => Ok(Elements::RightExtend16_64),
+            "right_extend_32_64" => Ok(Elements::RightExtend32_64),
+            "right_extend_8_16" => Ok(Elements::RightExtend8_16),
+            "right_extend_8_32" => Ok(Elements::RightExtend8_32),
+            "right_extend_8_64" => Ok(Elements::RightExtend8_64),
+            "right_pad_high_16_32" => Ok(Elements::RightPadHigh16_32),
+            "right_pad_high_16_64" => Ok(Elements::RightPadHigh16_64),
+            "right_pad_high_1_16" => Ok(Elements::RightPadHigh1_16),
+            "right_pad_high_1_32" => Ok(Elements::RightPadHigh1_32),
+            "right_pad_high_1_64" => Ok(Elements::RightPadHigh1_64),
+            "right_pad_high_1_8" => Ok(Elements::RightPadHigh1_8),
+            "right_pad_high_32_64" => Ok(Elements::RightPadHigh32_64),
+            "right_pad_high_8_16" => Ok(Elements::RightPadHigh8_16),
+            "right_pad_high_8_32" => Ok(Elements::RightPadHigh8_32),
+            "right_pad_high_8_64" => Ok(Elements::RightPadHigh8_64),
+            "right_pad_low_16_32" => Ok(Elements::RightPadLow16_32),
+            "right_pad_low_16_64" => Ok(Elements::RightPadLow16_64),
+            "right_pad_low_1_16" => Ok(Elements::RightPadLow1_16),
+            "right_pad_low_1_32" => Ok(Elements::RightPadLow1_32),
+            "right_pad_low_1_64" => Ok(Elements::RightPadLow1_64),
+            "right_pad_low_1_8" => Ok(Elements::RightPadLow1_8),
+            "right_pad_low_32_64" => Ok(Elements::RightPadLow32_64),
+            "right_pad_low_8_16" => Ok(Elements::RightPadLow8_16),
+            "right_pad_low_8_32" => Ok(Elements::RightPadLow8_32),
+            "right_pad_low_8_64" => Ok(Elements::RightPadLow8_64),
+            "right_rotate_16" => Ok(Elements::RightRotate16),
+            "right_rotate_32" => Ok(Elements::RightRotate32),
+            "right_rotate_64" => Ok(Elements::RightRotate64),
+            "right_rotate_8" => Ok(Elements::RightRotate8),
+            "right_shift_16" => Ok(Elements::RightShift16),
+            "right_shift_32" => Ok(Elements::RightShift32),
+            "right_shift_64" => Ok(Elements::RightShift64),
+            "right_shift_8" => Ok(Elements::RightShift8),
+            "right_shift_with_16" => Ok(Elements::RightShiftWith16),
+            "right_shift_with_32" => Ok(Elements::RightShiftWith32),
+            "right_shift_with_64" => Ok(Elements::RightShiftWith64),
+            "right_shift_with_8" => Ok(Elements::RightShiftWith8),
+            "rightmost_16_1" => Ok(Elements::Rightmost16_1),
+            "rightmost_16_2" => Ok(Elements::Rightmost16_2),
+            "rightmost_16_4" => Ok(Elements::Rightmost16_4),
+            "rightmost_16_8" => Ok(Elements::Rightmost16_8),
+            "rightmost_32_1" => Ok(Elements::Rightmost32_1),
+            "rightmost_32_16" => Ok(Elements::Rightmost32_16),
+            "rightmost_32_2" => Ok(Elements::Rightmost32_2),
+            "rightmost_32_4" => Ok(Elements::Rightmost32_4),
+            "rightmost_32_8" => Ok(Elements::Rightmost32_8),
+            "rightmost_64_1" => Ok(Elements::Rightmost64_1),
+            "rightmost_64_16" => Ok(Elements::Rightmost64_16),
+            "rightmost_64_2" => Ok(Elements::Rightmost64_2),
+            "rightmost_64_32" => Ok(Elements::Rightmost64_32),
+            "rightmost_64_4" => Ok(Elements::Rightmost64_4),
+            "rightmost_64_8" => Ok(Elements::Rightmost64_8),
+            "rightmost_8_1" => Ok(Elements::Rightmost8_1),
+            "rightmost_8_2" => Ok(Elements::Rightmost8_2),
+            "rightmost_8_4" => Ok(Elements::Rightmost8_4),
             "scalar_add" => Ok(Elements::ScalarAdd),
             "scalar_invert" => Ok(Elements::ScalarInvert),
             "scalar_is_zero" => Ok(Elements::ScalarIsZero),
@@ -5468,6 +8601,7 @@ impl str::FromStr for Elements {
             "sha_256_ctx_8_init" => Ok(Elements::Sha256Ctx8Init),
             "sha_256_iv" => Ok(Elements::Sha256Iv),
             "sig_all_hash" => Ok(Elements::SigAllHash),
+            "some_1" => Ok(Elements::Some1),
             "some_16" => Ok(Elements::Some16),
             "some_32" => Ok(Elements::Some32),
             "some_64" => Ok(Elements::Some64),
@@ -5489,10 +8623,12 @@ impl str::FromStr for Elements {
             "tx_lock_time" => Ok(Elements::TxLockTime),
             "verify" => Ok(Elements::Verify),
             "version" => Ok(Elements::Version),
+            "xor_1" => Ok(Elements::Xor1),
             "xor_16" => Ok(Elements::Xor16),
             "xor_32" => Ok(Elements::Xor32),
             "xor_64" => Ok(Elements::Xor64),
             "xor_8" => Ok(Elements::Xor8),
+            "xor_xor_1" => Ok(Elements::XorXor1),
             "xor_xor_16" => Ok(Elements::XorXor16),
             "xor_xor_32" => Ok(Elements::XorXor32),
             "xor_xor_64" => Ok(Elements::XorXor64),

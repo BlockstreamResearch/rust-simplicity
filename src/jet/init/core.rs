@@ -22,16 +22,19 @@ pub enum Core {
     All32,
     All64,
     All8,
+    And1,
     And16,
     And32,
     And64,
     And8,
     Bip0340Verify,
+    Ch1,
     Ch16,
     Ch32,
     Ch64,
     Ch8,
     CheckSigVerify,
+    Complement1,
     Complement16,
     Complement32,
     Complement64,
@@ -53,6 +56,7 @@ pub enum Core {
     Divides32,
     Divides64,
     Divides8,
+    Eq1,
     Eq16,
     Eq256,
     Eq32,
@@ -80,10 +84,46 @@ pub enum Core {
     FullIncrement32,
     FullIncrement64,
     FullIncrement8,
+    FullLeftShift16_1,
+    FullLeftShift16_2,
+    FullLeftShift16_4,
+    FullLeftShift16_8,
+    FullLeftShift32_1,
+    FullLeftShift32_16,
+    FullLeftShift32_2,
+    FullLeftShift32_4,
+    FullLeftShift32_8,
+    FullLeftShift64_1,
+    FullLeftShift64_16,
+    FullLeftShift64_2,
+    FullLeftShift64_32,
+    FullLeftShift64_4,
+    FullLeftShift64_8,
+    FullLeftShift8_1,
+    FullLeftShift8_2,
+    FullLeftShift8_4,
     FullMultiply16,
     FullMultiply32,
     FullMultiply64,
     FullMultiply8,
+    FullRightShift16_1,
+    FullRightShift16_2,
+    FullRightShift16_4,
+    FullRightShift16_8,
+    FullRightShift32_1,
+    FullRightShift32_16,
+    FullRightShift32_2,
+    FullRightShift32_4,
+    FullRightShift32_8,
+    FullRightShift64_1,
+    FullRightShift64_16,
+    FullRightShift64_2,
+    FullRightShift64_32,
+    FullRightShift64_4,
+    FullRightShift64_8,
+    FullRightShift8_1,
+    FullRightShift8_2,
+    FullRightShift8_4,
     FullSubtract16,
     FullSubtract32,
     FullSubtract64,
@@ -103,6 +143,7 @@ pub enum Core {
     GejXEquiv,
     GejYIsOdd,
     Generate,
+    High1,
     High16,
     High32,
     High64,
@@ -123,8 +164,69 @@ pub enum Core {
     Le32,
     Le64,
     Le8,
+    LeftExtend16_32,
+    LeftExtend16_64,
+    LeftExtend1_16,
+    LeftExtend1_32,
+    LeftExtend1_64,
+    LeftExtend1_8,
+    LeftExtend32_64,
+    LeftExtend8_16,
+    LeftExtend8_32,
+    LeftExtend8_64,
+    LeftPadHigh16_32,
+    LeftPadHigh16_64,
+    LeftPadHigh1_16,
+    LeftPadHigh1_32,
+    LeftPadHigh1_64,
+    LeftPadHigh1_8,
+    LeftPadHigh32_64,
+    LeftPadHigh8_16,
+    LeftPadHigh8_32,
+    LeftPadHigh8_64,
+    LeftPadLow16_32,
+    LeftPadLow16_64,
+    LeftPadLow1_16,
+    LeftPadLow1_32,
+    LeftPadLow1_64,
+    LeftPadLow1_8,
+    LeftPadLow32_64,
+    LeftPadLow8_16,
+    LeftPadLow8_32,
+    LeftPadLow8_64,
+    LeftRotate16,
+    LeftRotate32,
+    LeftRotate64,
+    LeftRotate8,
+    LeftShift16,
+    LeftShift32,
+    LeftShift64,
+    LeftShift8,
+    LeftShiftWith16,
+    LeftShiftWith32,
+    LeftShiftWith64,
+    LeftShiftWith8,
+    Leftmost16_1,
+    Leftmost16_2,
+    Leftmost16_4,
+    Leftmost16_8,
+    Leftmost32_1,
+    Leftmost32_16,
+    Leftmost32_2,
+    Leftmost32_4,
+    Leftmost32_8,
+    Leftmost64_1,
+    Leftmost64_16,
+    Leftmost64_2,
+    Leftmost64_32,
+    Leftmost64_4,
+    Leftmost64_8,
+    Leftmost8_1,
+    Leftmost8_2,
+    Leftmost8_4,
     LinearCombination1,
     LinearVerify1,
+    Low1,
     Low16,
     Low32,
     Low64,
@@ -133,6 +235,7 @@ pub enum Core {
     Lt32,
     Lt64,
     Lt8,
+    Maj1,
     Maj16,
     Maj32,
     Maj64,
@@ -165,6 +268,7 @@ pub enum Core {
     One32,
     One64,
     One8,
+    Or1,
     Or16,
     Or32,
     Or64,
@@ -172,6 +276,62 @@ pub enum Core {
     ParseLock,
     ParseSequence,
     PointVerify1,
+    RightExtend16_32,
+    RightExtend16_64,
+    RightExtend32_64,
+    RightExtend8_16,
+    RightExtend8_32,
+    RightExtend8_64,
+    RightPadHigh16_32,
+    RightPadHigh16_64,
+    RightPadHigh1_16,
+    RightPadHigh1_32,
+    RightPadHigh1_64,
+    RightPadHigh1_8,
+    RightPadHigh32_64,
+    RightPadHigh8_16,
+    RightPadHigh8_32,
+    RightPadHigh8_64,
+    RightPadLow16_32,
+    RightPadLow16_64,
+    RightPadLow1_16,
+    RightPadLow1_32,
+    RightPadLow1_64,
+    RightPadLow1_8,
+    RightPadLow32_64,
+    RightPadLow8_16,
+    RightPadLow8_32,
+    RightPadLow8_64,
+    RightRotate16,
+    RightRotate32,
+    RightRotate64,
+    RightRotate8,
+    RightShift16,
+    RightShift32,
+    RightShift64,
+    RightShift8,
+    RightShiftWith16,
+    RightShiftWith32,
+    RightShiftWith64,
+    RightShiftWith8,
+    Rightmost16_1,
+    Rightmost16_2,
+    Rightmost16_4,
+    Rightmost16_8,
+    Rightmost32_1,
+    Rightmost32_16,
+    Rightmost32_2,
+    Rightmost32_4,
+    Rightmost32_8,
+    Rightmost64_1,
+    Rightmost64_16,
+    Rightmost64_2,
+    Rightmost64_32,
+    Rightmost64_4,
+    Rightmost64_8,
+    Rightmost8_1,
+    Rightmost8_2,
+    Rightmost8_4,
     ScalarAdd,
     ScalarInvert,
     ScalarIsZero,
@@ -196,6 +356,7 @@ pub enum Core {
     Sha256Ctx8Finalize,
     Sha256Ctx8Init,
     Sha256Iv,
+    Some1,
     Some16,
     Some32,
     Some64,
@@ -205,10 +366,12 @@ pub enum Core {
     Subtract64,
     Subtract8,
     Verify,
+    Xor1,
     Xor16,
     Xor32,
     Xor64,
     Xor8,
+    XorXor1,
     XorXor16,
     XorXor32,
     XorXor64,
@@ -266,6 +429,11 @@ impl Jet for Core {
                 0xd0, 0xb2, 0xac, 0xce, 0x5c, 0xb3, 0xec, 0xc1, 0x2e, 0x8c, 0xb8, 0x16, 0x7f, 0x7b,
                 0x6e, 0xaa, 0x40, 0x69,
             ],
+            Core::And1 => [
+                0x2d, 0xc2, 0xdb, 0xcc, 0x69, 0xc1, 0x2c, 0x78, 0x30, 0xdf, 0x11, 0x70, 0xd9, 0xe9,
+                0x3a, 0x35, 0xd8, 0x28, 0x4c, 0xc8, 0x15, 0x91, 0x6a, 0xeb, 0x3b, 0x1b, 0x95, 0xef,
+                0xda, 0xa9, 0x2c, 0x26,
+            ],
             Core::And16 => [
                 0x4f, 0x42, 0xc6, 0x88, 0xcc, 0x3c, 0xeb, 0x76, 0x1f, 0x66, 0x2a, 0x0b, 0x8e, 0x77,
                 0xb1, 0x96, 0x42, 0xda, 0xb5, 0x40, 0x7d, 0x9a, 0x87, 0x3c, 0xd9, 0xc1, 0x86, 0x09,
@@ -291,6 +459,11 @@ impl Jet for Core {
                 0x1a, 0x6e, 0x31, 0xf0, 0x33, 0x1b, 0x00, 0xd1, 0x34, 0xac, 0xab, 0x79, 0x49, 0xd5,
                 0x9e, 0x32, 0x21, 0x94,
             ],
+            Core::Ch1 => [
+                0xc2, 0x32, 0x36, 0x12, 0x4d, 0xa0, 0x1f, 0x3d, 0x8e, 0xb7, 0x42, 0xc2, 0xed, 0x47,
+                0x95, 0x3f, 0x66, 0xc8, 0xb0, 0x84, 0xd9, 0x5a, 0x10, 0xc6, 0x0c, 0xae, 0x69, 0xba,
+                0x98, 0x42, 0xae, 0x96,
+            ],
             Core::Ch16 => [
                 0xdc, 0xcd, 0xe6, 0xa9, 0x54, 0x58, 0x75, 0xc5, 0xcb, 0x46, 0xe7, 0x2c, 0x7b, 0x04,
                 0xce, 0xeb, 0x92, 0x0c, 0x20, 0x3d, 0x1c, 0x04, 0x2a, 0xec, 0x91, 0x24, 0x1d, 0xbe,
@@ -315,6 +488,11 @@ impl Jet for Core {
                 0xe8, 0xfe, 0xb5, 0x34, 0x34, 0xe2, 0xbd, 0xb5, 0xcf, 0xe6, 0xa9, 0x1f, 0xa8, 0xf9,
                 0xe1, 0x77, 0xf9, 0x41, 0xa6, 0x7c, 0xc6, 0xce, 0xd8, 0x69, 0x74, 0x6f, 0x1a, 0x8e,
                 0xb6, 0x50, 0x6f, 0x76,
+            ],
+            Core::Complement1 => [
+                0x7e, 0x71, 0x48, 0x13, 0x2e, 0x28, 0x92, 0x82, 0x3f, 0xcf, 0x2a, 0x26, 0xc6, 0x22,
+                0x0b, 0xee, 0x03, 0x9f, 0xf6, 0xc5, 0xd7, 0xc1, 0xb4, 0xe4, 0xca, 0x21, 0x3a, 0xd8,
+                0x37, 0xab, 0x47, 0x74,
             ],
             Core::Complement16 => [
                 0x7f, 0x16, 0xd1, 0x24, 0x15, 0x99, 0x87, 0x68, 0x34, 0x7f, 0x43, 0xa9, 0xb9, 0x1c,
@@ -420,6 +598,11 @@ impl Jet for Core {
                 0x3f, 0xc3, 0xb9, 0xb4, 0x96, 0x8e, 0x16, 0x74, 0xda, 0x9e, 0xc4, 0x57, 0xb1, 0xca,
                 0x8a, 0x66, 0x29, 0xa3, 0x7b, 0x4b, 0xef, 0xdc, 0xd7, 0xcc, 0x55, 0x88, 0x60, 0x80,
                 0xae, 0xf6, 0x8a, 0xf8,
+            ],
+            Core::Eq1 => [
+                0x42, 0x49, 0xc5, 0xbd, 0xec, 0x54, 0x0a, 0x06, 0x95, 0x7d, 0xcd, 0xab, 0x04, 0x5a,
+                0x44, 0x5e, 0xb9, 0x18, 0x91, 0xc0, 0x6c, 0x3f, 0x8f, 0x96, 0xc8, 0x88, 0xe9, 0xdd,
+                0xd2, 0xfb, 0xaa, 0x28,
             ],
             Core::Eq16 => [
                 0xab, 0x31, 0xa7, 0x97, 0x4a, 0xcb, 0xf7, 0x2a, 0xb2, 0xf2, 0x1b, 0xf5, 0x3f, 0xec,
@@ -556,6 +739,96 @@ impl Jet for Core {
                 0xf4, 0x47, 0x8e, 0xc6, 0x32, 0x06, 0xc9, 0x8f, 0xb5, 0xcc, 0xcf, 0x77, 0xc2, 0x09,
                 0xbe, 0xbd, 0x29, 0xef,
             ],
+            Core::FullLeftShift16_1 => [
+                0x74, 0x0e, 0x23, 0x81, 0x1b, 0x3e, 0x62, 0xd4, 0x91, 0x51, 0x0f, 0xc9, 0xed, 0xc4,
+                0xcb, 0x0a, 0x0e, 0xec, 0xfa, 0xdf, 0xd2, 0x1b, 0xb2, 0x7f, 0x33, 0xe2, 0x20, 0xb1,
+                0xd8, 0x7d, 0x14, 0xd7,
+            ],
+            Core::FullLeftShift16_2 => [
+                0xc2, 0x6e, 0x8a, 0xc3, 0xff, 0x9c, 0xc5, 0x18, 0x71, 0x9d, 0x4d, 0x7f, 0xd1, 0x49,
+                0xd8, 0x02, 0xf2, 0x3f, 0x0b, 0x02, 0x49, 0x99, 0xed, 0x5d, 0xaf, 0x36, 0x92, 0x10,
+                0xac, 0xbe, 0x33, 0x45,
+            ],
+            Core::FullLeftShift16_4 => [
+                0x5e, 0x57, 0x0c, 0xbe, 0x4c, 0x7c, 0xa9, 0x4b, 0xe0, 0xfc, 0x7b, 0x3e, 0xe5, 0x79,
+                0xbd, 0xd7, 0x84, 0x26, 0xf0, 0xb7, 0x67, 0xf4, 0x85, 0x17, 0x17, 0xbb, 0xfe, 0xae,
+                0xde, 0x91, 0xfe, 0x30,
+            ],
+            Core::FullLeftShift16_8 => [
+                0x65, 0xad, 0xc5, 0x53, 0x48, 0x38, 0x3b, 0x28, 0xe8, 0x79, 0x7f, 0x81, 0xa9, 0x28,
+                0x2d, 0x91, 0x1b, 0x3f, 0x8f, 0xa6, 0x13, 0x92, 0x72, 0x51, 0xd8, 0x8e, 0x0c, 0x38,
+                0xb0, 0x29, 0xb7, 0x05,
+            ],
+            Core::FullLeftShift32_1 => [
+                0x72, 0xe0, 0x10, 0x4e, 0xfa, 0xf1, 0xde, 0xe4, 0x11, 0x98, 0xec, 0x3b, 0x79, 0x03,
+                0x73, 0xf6, 0x48, 0xf1, 0x3f, 0x5e, 0xe0, 0x65, 0x52, 0xfb, 0x02, 0x0b, 0xaf, 0xb5,
+                0x84, 0x97, 0xc2, 0x5c,
+            ],
+            Core::FullLeftShift32_16 => [
+                0xb9, 0xfb, 0x21, 0x69, 0x90, 0x8d, 0x91, 0x44, 0xcc, 0x73, 0xe6, 0x8f, 0x75, 0x35,
+                0x36, 0xf4, 0x3c, 0xb2, 0xb7, 0x4c, 0xb6, 0x2c, 0x64, 0x08, 0x81, 0x06, 0x70, 0xde,
+                0x84, 0xab, 0x09, 0xbd,
+            ],
+            Core::FullLeftShift32_2 => [
+                0x11, 0xef, 0xdb, 0x81, 0xb0, 0xc4, 0xde, 0xda, 0x4d, 0x4f, 0x98, 0x47, 0x5d, 0x78,
+                0x78, 0xef, 0xa3, 0x38, 0x69, 0x4f, 0xa0, 0xfd, 0x61, 0x3e, 0x12, 0x93, 0x22, 0x5a,
+                0x4f, 0x46, 0x2f, 0x7c,
+            ],
+            Core::FullLeftShift32_4 => [
+                0x77, 0xe3, 0x99, 0xd7, 0xd8, 0x3f, 0x7d, 0x11, 0x44, 0x99, 0x1d, 0xaf, 0xa3, 0xcc,
+                0x98, 0x11, 0xc1, 0x63, 0x2c, 0x29, 0xe4, 0x93, 0xa8, 0xaf, 0x98, 0xe9, 0x8f, 0xbc,
+                0x1d, 0x63, 0x5f, 0xb4,
+            ],
+            Core::FullLeftShift32_8 => [
+                0xba, 0x66, 0x4c, 0xb1, 0xc4, 0x2e, 0xda, 0x17, 0x91, 0x91, 0xeb, 0xc2, 0xa1, 0x10,
+                0x39, 0x6d, 0xae, 0x58, 0xf9, 0x06, 0xa6, 0x41, 0x06, 0xb3, 0x06, 0x67, 0x79, 0x0a,
+                0xc2, 0xf2, 0x38, 0x2d,
+            ],
+            Core::FullLeftShift64_1 => [
+                0x79, 0xd3, 0x8f, 0xe0, 0x75, 0x83, 0x9b, 0x22, 0x7c, 0xff, 0xd9, 0x2a, 0x8c, 0xdb,
+                0x5c, 0x8c, 0x35, 0x22, 0xbc, 0xb4, 0xd1, 0xe0, 0x3b, 0xee, 0xb6, 0xdb, 0x6a, 0xb6,
+                0x4e, 0xd4, 0x72, 0x1f,
+            ],
+            Core::FullLeftShift64_16 => [
+                0x21, 0x43, 0x56, 0x62, 0x45, 0xf5, 0xa1, 0xb9, 0xdf, 0xeb, 0x0c, 0x75, 0x87, 0x8e,
+                0x21, 0xdb, 0xe1, 0x38, 0x04, 0xc2, 0x69, 0x35, 0xee, 0x47, 0xca, 0xc9, 0xad, 0x82,
+                0x2d, 0x6d, 0xed, 0xb2,
+            ],
+            Core::FullLeftShift64_2 => [
+                0x9c, 0x92, 0x16, 0x49, 0x15, 0xaf, 0x0b, 0x15, 0x4e, 0x1d, 0xf5, 0x64, 0xd4, 0xdc,
+                0x9b, 0xe9, 0x80, 0xb3, 0x98, 0x83, 0x5c, 0x99, 0x88, 0xbb, 0xb1, 0x08, 0xd0, 0xcd,
+                0x81, 0x45, 0xb3, 0x30,
+            ],
+            Core::FullLeftShift64_32 => [
+                0xd0, 0xd0, 0x16, 0xe9, 0xc7, 0x8c, 0xd1, 0x12, 0xb4, 0xdd, 0x91, 0xa8, 0x35, 0x9f,
+                0x80, 0x5c, 0x68, 0x41, 0x5b, 0x85, 0x7a, 0x79, 0x9b, 0x00, 0x39, 0x49, 0x54, 0xdc,
+                0xd2, 0x90, 0xac, 0xbc,
+            ],
+            Core::FullLeftShift64_4 => [
+                0x0f, 0x1f, 0x7d, 0x37, 0x4e, 0x82, 0x86, 0x8d, 0x71, 0xe7, 0xe7, 0xc0, 0x32, 0x21,
+                0xb1, 0x50, 0x59, 0x4b, 0x63, 0x04, 0x45, 0xb1, 0xb1, 0x63, 0x56, 0xcf, 0x35, 0x45,
+                0xbd, 0x93, 0x92, 0x63,
+            ],
+            Core::FullLeftShift64_8 => [
+                0xad, 0x7b, 0x44, 0x38, 0xb7, 0x3f, 0x6f, 0x9e, 0x42, 0xf6, 0x4c, 0x70, 0x53, 0x04,
+                0x75, 0xee, 0x08, 0x93, 0x6e, 0x47, 0x63, 0xe5, 0xb7, 0x3e, 0xa4, 0xbc, 0x83, 0x83,
+                0xa2, 0xb9, 0x63, 0xd5,
+            ],
+            Core::FullLeftShift8_1 => [
+                0x21, 0x13, 0x68, 0x1a, 0x11, 0x62, 0x4e, 0x60, 0x60, 0x30, 0xc4, 0x70, 0xd6, 0x8f,
+                0x60, 0x61, 0x23, 0x2f, 0x71, 0xcf, 0xab, 0xc5, 0x05, 0x71, 0x92, 0xc6, 0xc8, 0xbd,
+                0x1d, 0x73, 0xb7, 0xe1,
+            ],
+            Core::FullLeftShift8_2 => [
+                0x36, 0x83, 0x68, 0xc9, 0x4b, 0x04, 0x0e, 0x81, 0xb9, 0x48, 0xd7, 0x37, 0xc1, 0x93,
+                0xc0, 0x42, 0x83, 0xec, 0x80, 0xa2, 0x8f, 0xd3, 0xa0, 0x21, 0xb0, 0xb8, 0xc1, 0xab,
+                0xcf, 0x5e, 0xdc, 0xd3,
+            ],
+            Core::FullLeftShift8_4 => [
+                0x8f, 0x85, 0x4d, 0x58, 0xf9, 0x68, 0xb4, 0xbe, 0x3b, 0x20, 0x21, 0xfb, 0x22, 0x14,
+                0x2d, 0xd3, 0xe6, 0x8a, 0xa8, 0x19, 0x7b, 0x54, 0x75, 0xb7, 0x05, 0x0b, 0x02, 0xe1,
+                0xe5, 0xca, 0xee, 0x47,
+            ],
             Core::FullMultiply16 => [
                 0x32, 0xcf, 0x7f, 0x50, 0x89, 0x4e, 0xa2, 0xc4, 0x61, 0xa0, 0x54, 0x66, 0xbb, 0xfa,
                 0x1e, 0x4e, 0x1b, 0x04, 0x99, 0x57, 0x52, 0x3f, 0x64, 0x93, 0x7a, 0x8b, 0x54, 0x27,
@@ -575,6 +848,96 @@ impl Jet for Core {
                 0xf7, 0xf3, 0x9d, 0x95, 0xda, 0xb5, 0x73, 0x08, 0x52, 0xe9, 0xcc, 0x7e, 0x74, 0xc0,
                 0x74, 0x3b, 0x8f, 0xb3, 0xf7, 0x54, 0x87, 0x12, 0x0b, 0xa3, 0x26, 0xff, 0x60, 0x0a,
                 0xd8, 0xb1, 0xf3, 0xe6,
+            ],
+            Core::FullRightShift16_1 => [
+                0xb8, 0x07, 0x44, 0x23, 0xe6, 0x74, 0x8a, 0x6a, 0xa5, 0x4e, 0xc5, 0x74, 0x1f, 0xee,
+                0xf2, 0x5a, 0x26, 0x2f, 0xde, 0xcb, 0xfc, 0xe3, 0x91, 0x24, 0xe6, 0x10, 0x23, 0x8a,
+                0x3b, 0x0a, 0x23, 0xfc,
+            ],
+            Core::FullRightShift16_2 => [
+                0x3f, 0xcf, 0x98, 0x5e, 0xe0, 0xc7, 0x2c, 0xa4, 0x1d, 0xdf, 0x6c, 0x89, 0xd0, 0xf0,
+                0xf6, 0x9d, 0x50, 0x65, 0x87, 0x6e, 0x3b, 0x60, 0x20, 0xec, 0xc9, 0xbf, 0x05, 0x9e,
+                0x8f, 0x97, 0x19, 0xc6,
+            ],
+            Core::FullRightShift16_4 => [
+                0xa3, 0x0c, 0x7c, 0x29, 0xd0, 0xee, 0xac, 0x29, 0x52, 0x58, 0xb2, 0xb6, 0x1d, 0x0b,
+                0x54, 0x13, 0x46, 0xf4, 0x07, 0xc0, 0x84, 0x8d, 0x44, 0x8e, 0x13, 0xe9, 0x77, 0x4c,
+                0x1c, 0x96, 0x96, 0x79,
+            ],
+            Core::FullRightShift16_8 => [
+                0x5b, 0x88, 0x08, 0xca, 0xda, 0x55, 0x87, 0xb3, 0x6d, 0x1a, 0x6f, 0xad, 0x66, 0xae,
+                0x4d, 0xa0, 0x8d, 0x41, 0x23, 0x64, 0x4c, 0x0b, 0xdd, 0x59, 0x77, 0x2a, 0x70, 0xaa,
+                0x74, 0x32, 0xe7, 0x15,
+            ],
+            Core::FullRightShift32_1 => [
+                0x32, 0xaf, 0xd0, 0xef, 0x94, 0xdf, 0x51, 0xb7, 0xd3, 0x5c, 0x00, 0xe5, 0x61, 0xa8,
+                0x39, 0x0c, 0x5c, 0xf5, 0x0f, 0x93, 0x0b, 0x30, 0xd7, 0x86, 0x88, 0x04, 0xb5, 0x80,
+                0x49, 0x37, 0x58, 0x40,
+            ],
+            Core::FullRightShift32_16 => [
+                0x44, 0xd1, 0x79, 0xa8, 0x90, 0xf7, 0x81, 0x2f, 0x15, 0x13, 0x31, 0xb5, 0x5f, 0xc0,
+                0x7e, 0xb4, 0xe4, 0xd7, 0x81, 0x4e, 0xb6, 0x83, 0xda, 0x28, 0x8f, 0x8f, 0xe7, 0xcd,
+                0x55, 0xb4, 0x39, 0x06,
+            ],
+            Core::FullRightShift32_2 => [
+                0x33, 0xc6, 0x61, 0xdf, 0x3a, 0x32, 0xca, 0xe5, 0x5b, 0x52, 0xa5, 0xf2, 0x63, 0x21,
+                0x54, 0xcc, 0x85, 0xb6, 0x59, 0x13, 0x87, 0xbc, 0x2b, 0x34, 0x83, 0x30, 0xc8, 0x70,
+                0xa6, 0xf6, 0x70, 0x6f,
+            ],
+            Core::FullRightShift32_4 => [
+                0xe4, 0xbe, 0xbf, 0x16, 0x93, 0x5f, 0x67, 0xbe, 0x7d, 0x8c, 0x86, 0xbc, 0x58, 0x8a,
+                0xdb, 0xcf, 0x8e, 0x59, 0x75, 0x39, 0x25, 0x7f, 0xdd, 0xab, 0x9f, 0xb0, 0x43, 0x72,
+                0xc7, 0x70, 0x12, 0xd3,
+            ],
+            Core::FullRightShift32_8 => [
+                0xab, 0xcf, 0xfb, 0x08, 0x4a, 0x23, 0x96, 0x42, 0x16, 0xd5, 0x62, 0x73, 0x30, 0x5c,
+                0x0c, 0x8b, 0x03, 0xbd, 0xab, 0xda, 0xd6, 0x9f, 0xf7, 0xe9, 0x42, 0xf0, 0xd2, 0xcf,
+                0x08, 0x0f, 0xeb, 0xcc,
+            ],
+            Core::FullRightShift64_1 => [
+                0x37, 0x68, 0x82, 0x60, 0xc5, 0x3a, 0xf0, 0x6b, 0x85, 0x6d, 0x90, 0x22, 0xca, 0x5d,
+                0x87, 0xf8, 0xa6, 0x87, 0xee, 0x53, 0xfa, 0xca, 0x18, 0x66, 0xec, 0x84, 0x2a, 0x7c,
+                0x89, 0x0a, 0x4b, 0x70,
+            ],
+            Core::FullRightShift64_16 => [
+                0x41, 0x7b, 0xfb, 0x71, 0x5a, 0x20, 0xb1, 0x0d, 0x48, 0x81, 0xf5, 0xc3, 0x49, 0x6c,
+                0x63, 0xef, 0xee, 0x4a, 0xb5, 0x00, 0x3d, 0xfd, 0x0a, 0x16, 0xb8, 0x5f, 0x94, 0xf8,
+                0xe5, 0xb0, 0x66, 0x7c,
+            ],
+            Core::FullRightShift64_2 => [
+                0xce, 0xca, 0x25, 0x67, 0xb9, 0x1a, 0x63, 0xe9, 0xca, 0x44, 0x03, 0x5e, 0xb5, 0x9e,
+                0x2f, 0x22, 0xd8, 0x1e, 0x37, 0xe1, 0x96, 0x59, 0x5a, 0x74, 0x8c, 0xea, 0x4a, 0x46,
+                0x84, 0xa2, 0x15, 0xb0,
+            ],
+            Core::FullRightShift64_32 => [
+                0x03, 0x96, 0x99, 0x37, 0x84, 0x02, 0x3d, 0x47, 0xe8, 0x51, 0x4b, 0x45, 0x92, 0x98,
+                0x19, 0x8d, 0x33, 0xbd, 0x71, 0xe6, 0xf7, 0x56, 0xd0, 0x8e, 0xdf, 0x46, 0x2a, 0x8f,
+                0x62, 0xa2, 0x1b, 0x80,
+            ],
+            Core::FullRightShift64_4 => [
+                0xde, 0xe4, 0xda, 0xd6, 0x7a, 0x5d, 0xdc, 0xc3, 0x5d, 0xa1, 0xa7, 0x90, 0x63, 0xca,
+                0x97, 0x5f, 0x81, 0x34, 0xc8, 0xea, 0xc5, 0x6a, 0x9f, 0x55, 0x5d, 0x2b, 0x0e, 0x13,
+                0xda, 0x10, 0x99, 0x4d,
+            ],
+            Core::FullRightShift64_8 => [
+                0x9c, 0xd7, 0x78, 0x03, 0xfc, 0x38, 0x9c, 0x94, 0xff, 0xf2, 0x86, 0xda, 0x0b, 0x37,
+                0x4b, 0x89, 0xfe, 0xeb, 0x3d, 0xaa, 0x38, 0xce, 0x67, 0xca, 0xb0, 0x22, 0x0d, 0xab,
+                0xee, 0xfe, 0x23, 0xa2,
+            ],
+            Core::FullRightShift8_1 => [
+                0xee, 0x23, 0xff, 0xf0, 0x7d, 0xe5, 0x3c, 0xc3, 0x71, 0x09, 0xa4, 0x7f, 0x9f, 0xde,
+                0x3c, 0x74, 0x44, 0x7a, 0xe8, 0x31, 0xce, 0xe9, 0xac, 0x4d, 0xb7, 0x90, 0xcd, 0xe8,
+                0xb1, 0x53, 0x23, 0xb2,
+            ],
+            Core::FullRightShift8_2 => [
+                0x25, 0xe1, 0xde, 0xa1, 0x08, 0xc5, 0xf8, 0x9c, 0xce, 0x5b, 0x3d, 0x5b, 0x0e, 0x07,
+                0x92, 0xbe, 0x37, 0x90, 0x1a, 0x5a, 0x65, 0xde, 0xf9, 0x04, 0xdd, 0x51, 0x71, 0x0a,
+                0x35, 0x5a, 0xb5, 0x5f,
+            ],
+            Core::FullRightShift8_4 => [
+                0xd7, 0xf0, 0xa8, 0x3c, 0x41, 0x04, 0x54, 0x3e, 0xc7, 0x5b, 0x5e, 0xe7, 0x5b, 0xf5,
+                0xf7, 0x91, 0x5d, 0x65, 0xfa, 0x50, 0xc2, 0x09, 0x5d, 0xe2, 0xa3, 0x56, 0x70, 0xa5,
+                0x05, 0xbe, 0x12, 0x9a,
             ],
             Core::FullSubtract16 => [
                 0x95, 0xea, 0x5e, 0x54, 0xc5, 0x60, 0x3f, 0x2f, 0x78, 0xac, 0xf6, 0xb8, 0xa8, 0x7a,
@@ -670,6 +1033,11 @@ impl Jet for Core {
                 0xa3, 0xc5, 0x5b, 0xef, 0x32, 0xa3, 0x50, 0xd9, 0x0d, 0x5c, 0x3d, 0xac, 0x24, 0x76,
                 0x7a, 0x03, 0x86, 0x7f, 0xaf, 0x7a, 0x73, 0x27, 0x77, 0x03, 0x89, 0x5a, 0x27, 0xcb,
                 0x6b, 0x44, 0x25, 0x2d,
+            ],
+            Core::High1 => [
+                0x97, 0xa1, 0x43, 0xf0, 0x4c, 0xb6, 0x03, 0xf6, 0x5f, 0x84, 0xa8, 0x0d, 0x31, 0xc3,
+                0x36, 0x4f, 0x8f, 0xda, 0x22, 0x97, 0x3a, 0x9a, 0xe6, 0x95, 0xa5, 0x81, 0x89, 0xc3,
+                0x14, 0x63, 0xa8, 0xbf,
             ],
             Core::High16 => [
                 0x62, 0x10, 0xac, 0x71, 0x36, 0x58, 0x6c, 0x73, 0xa0, 0x9c, 0x94, 0x21, 0xa4, 0x0e,
@@ -771,6 +1139,306 @@ impl Jet for Core {
                 0xe0, 0x11, 0x18, 0xfb, 0x8c, 0x1a, 0xdc, 0xdc, 0x11, 0x21, 0x97, 0x93, 0xcb, 0x2a,
                 0xfc, 0x4a, 0x7e, 0x8c,
             ],
+            Core::LeftExtend16_32 => [
+                0x8c, 0x99, 0x04, 0x35, 0xb1, 0x35, 0xde, 0x74, 0x57, 0xc2, 0x69, 0x0d, 0x2d, 0xc8,
+                0x74, 0x4a, 0x50, 0x66, 0x41, 0xb8, 0x81, 0xf4, 0x1e, 0x5c, 0x17, 0x02, 0x77, 0x65,
+                0xc3, 0x52, 0xdd, 0xcb,
+            ],
+            Core::LeftExtend16_64 => [
+                0x9b, 0x9f, 0xf9, 0xcc, 0x27, 0x13, 0x93, 0x19, 0xb2, 0x24, 0xb7, 0xb2, 0xb8, 0x16,
+                0xc9, 0x13, 0xa5, 0x68, 0xbf, 0xd0, 0x0b, 0xe1, 0xf3, 0x83, 0xc0, 0x26, 0xbc, 0xff,
+                0xe9, 0xbf, 0xe7, 0x12,
+            ],
+            Core::LeftExtend1_16 => [
+                0xb8, 0xff, 0x8d, 0xc1, 0xa0, 0x4c, 0xa7, 0x16, 0x49, 0x17, 0xf4, 0xc4, 0x50, 0x68,
+                0x8c, 0x83, 0xdd, 0x41, 0x6c, 0xef, 0x7b, 0x0f, 0xab, 0xdd, 0x16, 0x92, 0xfa, 0xe6,
+                0xbf, 0xf7, 0xb4, 0xa6,
+            ],
+            Core::LeftExtend1_32 => [
+                0x22, 0x53, 0xa4, 0x52, 0xb9, 0x99, 0x02, 0xab, 0xcf, 0x15, 0x49, 0x6d, 0xf1, 0x9d,
+                0x31, 0x12, 0xa1, 0xce, 0xf5, 0x9b, 0x9a, 0xdc, 0xee, 0x20, 0x6c, 0x0d, 0x8d, 0xce,
+                0xa6, 0x28, 0xd0, 0x73,
+            ],
+            Core::LeftExtend1_64 => [
+                0xc8, 0x59, 0x9c, 0x85, 0x75, 0xed, 0xb7, 0xc2, 0x60, 0x40, 0x2e, 0xf2, 0xf2, 0x6d,
+                0xd4, 0x91, 0xcb, 0x5e, 0x4d, 0x38, 0x18, 0xff, 0x2e, 0x95, 0x85, 0xc8, 0xd3, 0xe7,
+                0x81, 0x2d, 0xb5, 0xaa,
+            ],
+            Core::LeftExtend1_8 => [
+                0xcf, 0xe0, 0x22, 0x00, 0x5f, 0x6b, 0xad, 0x4b, 0x25, 0xb5, 0x1e, 0x9e, 0xbe, 0x92,
+                0x94, 0x24, 0x37, 0x3f, 0xf1, 0x97, 0xce, 0xca, 0x62, 0xb9, 0xe0, 0x69, 0xab, 0x08,
+                0xda, 0x9f, 0x38, 0xf2,
+            ],
+            Core::LeftExtend32_64 => [
+                0x3f, 0x66, 0x84, 0x04, 0x7e, 0xda, 0xfb, 0x76, 0xf1, 0x1f, 0xbf, 0x59, 0x54, 0x99,
+                0xc5, 0xab, 0xa9, 0xc4, 0xba, 0x55, 0xca, 0xb5, 0x87, 0xcd, 0xfe, 0xba, 0xd4, 0x57,
+                0xb5, 0x5b, 0xf5, 0xbb,
+            ],
+            Core::LeftExtend8_16 => [
+                0xdb, 0xd5, 0x5f, 0x41, 0x70, 0x15, 0x38, 0x53, 0xba, 0xd0, 0xe0, 0x84, 0xf9, 0xe1,
+                0xa7, 0xe7, 0x5a, 0x7a, 0x0d, 0xc9, 0xd8, 0x92, 0x07, 0x75, 0x57, 0x5b, 0x0d, 0x48,
+                0xe5, 0x07, 0xaf, 0x2f,
+            ],
+            Core::LeftExtend8_32 => [
+                0x5b, 0x5b, 0x45, 0x67, 0x6a, 0x75, 0x03, 0xee, 0xd0, 0x85, 0x57, 0x38, 0x69, 0xdb,
+                0xc5, 0x80, 0x0b, 0x35, 0x02, 0x9d, 0x14, 0x02, 0x90, 0xac, 0x20, 0x89, 0x14, 0x89,
+                0xbd, 0x2a, 0xa7, 0xd5,
+            ],
+            Core::LeftExtend8_64 => [
+                0x7b, 0x9e, 0xa1, 0x48, 0xa3, 0x0f, 0x2a, 0xf4, 0xd4, 0x00, 0x1d, 0x4f, 0x25, 0xb0,
+                0xbf, 0x4f, 0xdd, 0x67, 0xc7, 0xd0, 0xf1, 0x34, 0xd7, 0xef, 0x3f, 0x67, 0x8f, 0x72,
+                0x19, 0x00, 0x2b, 0xcf,
+            ],
+            Core::LeftPadHigh16_32 => [
+                0xe8, 0xc2, 0xd8, 0x5a, 0x7b, 0x7b, 0x2a, 0x8e, 0xbb, 0x5b, 0x0f, 0x21, 0x2f, 0xc8,
+                0x45, 0x0d, 0xc1, 0xd3, 0xa4, 0x68, 0x22, 0xfb, 0x21, 0xe8, 0x6e, 0x3f, 0xee, 0x02,
+                0x0a, 0xf9, 0x73, 0x8f,
+            ],
+            Core::LeftPadHigh16_64 => [
+                0x61, 0x3b, 0x85, 0xd2, 0xa7, 0x51, 0xb3, 0xe5, 0x1f, 0xbc, 0x59, 0xa1, 0xde, 0xdd,
+                0x1f, 0xc7, 0x93, 0x36, 0x5e, 0x40, 0x71, 0xdc, 0x1e, 0x01, 0x41, 0x08, 0xd8, 0x92,
+                0x0d, 0x41, 0xd4, 0x70,
+            ],
+            Core::LeftPadHigh1_16 => [
+                0xe8, 0x2b, 0x00, 0xef, 0xd7, 0xdc, 0xc3, 0x4e, 0x96, 0xe8, 0xf3, 0xe5, 0x1e, 0xad,
+                0x12, 0xd3, 0x84, 0x5f, 0x6c, 0x77, 0x85, 0xe4, 0x43, 0x8b, 0x05, 0x45, 0x7d, 0x95,
+                0x32, 0x6e, 0x59, 0xe3,
+            ],
+            Core::LeftPadHigh1_32 => [
+                0x88, 0x58, 0x5b, 0x8c, 0x45, 0x92, 0xd5, 0xd0, 0x83, 0xdf, 0xf6, 0x8e, 0xb5, 0xc2,
+                0x30, 0xd0, 0x6c, 0x37, 0x99, 0x5a, 0x6f, 0xed, 0xe2, 0x2c, 0x26, 0xe6, 0x61, 0xa7,
+                0x51, 0x6e, 0x5b, 0xf4,
+            ],
+            Core::LeftPadHigh1_64 => [
+                0xc2, 0x7e, 0x3d, 0x02, 0x94, 0x92, 0x20, 0x58, 0x89, 0x0d, 0x5c, 0x8b, 0x67, 0x6c,
+                0x1d, 0xae, 0xfd, 0xde, 0x65, 0x31, 0xe8, 0xae, 0x6d, 0x79, 0x37, 0x53, 0x92, 0x72,
+                0x3e, 0xad, 0x9c, 0x03,
+            ],
+            Core::LeftPadHigh1_8 => [
+                0x14, 0x3e, 0x12, 0x39, 0x2b, 0x8f, 0x2e, 0x73, 0x53, 0x71, 0xfe, 0xd0, 0xb4, 0xb6,
+                0xd6, 0x23, 0xff, 0xa4, 0xf6, 0x60, 0xe5, 0x39, 0x0c, 0x00, 0xe5, 0x67, 0xcf, 0x21,
+                0xa1, 0xc9, 0x20, 0x78,
+            ],
+            Core::LeftPadHigh32_64 => [
+                0xf4, 0x84, 0x7c, 0x67, 0x56, 0x67, 0xb3, 0xc6, 0xa8, 0x90, 0xfd, 0x5a, 0x6a, 0xdb,
+                0x09, 0x27, 0x55, 0x7e, 0xe8, 0x0c, 0xd6, 0xe6, 0x5a, 0xf9, 0xb1, 0xb4, 0x72, 0x95,
+                0x72, 0xcd, 0x86, 0x61,
+            ],
+            Core::LeftPadHigh8_16 => [
+                0x76, 0x18, 0x05, 0x8a, 0x4e, 0x08, 0xeb, 0x52, 0x43, 0xda, 0xd2, 0x05, 0xcc, 0x7e,
+                0x8d, 0x25, 0x47, 0x38, 0x0d, 0xa0, 0x5e, 0xc5, 0x41, 0x1e, 0xfc, 0x37, 0x2b, 0xaa,
+                0x2b, 0xb1, 0x2d, 0xa6,
+            ],
+            Core::LeftPadHigh8_32 => [
+                0x3d, 0xfe, 0xd5, 0xc0, 0xa9, 0xb2, 0x6b, 0x8f, 0x4a, 0x8e, 0xab, 0xd6, 0xfb, 0xed,
+                0x87, 0xbe, 0x45, 0x0d, 0xe7, 0x95, 0xf5, 0x41, 0x95, 0x3e, 0xec, 0x16, 0xa6, 0xd5,
+                0xaa, 0x82, 0x5a, 0x56,
+            ],
+            Core::LeftPadHigh8_64 => [
+                0xce, 0x7c, 0x40, 0x7e, 0x4b, 0x56, 0x17, 0x21, 0xd6, 0x6c, 0x1b, 0xb0, 0xd1, 0x7e,
+                0xe8, 0x41, 0xb4, 0xd5, 0x04, 0xb4, 0xc4, 0xc0, 0x72, 0x00, 0x22, 0x37, 0x14, 0x0b,
+                0x89, 0x09, 0x76, 0x9f,
+            ],
+            Core::LeftPadLow16_32 => [
+                0xa2, 0x8c, 0x79, 0x24, 0xa4, 0x7b, 0x46, 0xec, 0x73, 0xbc, 0xff, 0x6e, 0x13, 0x28,
+                0xd4, 0x39, 0xaa, 0x90, 0x3a, 0xcf, 0x10, 0x3e, 0x9a, 0xa8, 0x0b, 0x65, 0xba, 0x76,
+                0xd2, 0xa0, 0x8e, 0x75,
+            ],
+            Core::LeftPadLow16_64 => [
+                0xb6, 0x25, 0x8a, 0xcd, 0xa2, 0x11, 0x0e, 0xd9, 0x8c, 0x17, 0xbc, 0xa8, 0x27, 0x12,
+                0xe3, 0xea, 0x60, 0x86, 0x6f, 0x7d, 0x40, 0x04, 0xc8, 0x3e, 0x8a, 0xe5, 0x24, 0xb7,
+                0xba, 0x44, 0x00, 0x8b,
+            ],
+            Core::LeftPadLow1_16 => [
+                0x1e, 0x1f, 0x6c, 0xc4, 0x24, 0x64, 0x83, 0x75, 0x49, 0xb9, 0x7d, 0x30, 0x7e, 0x28,
+                0xa9, 0xc2, 0x36, 0x80, 0x91, 0x4c, 0xd8, 0x6d, 0x65, 0xc3, 0x04, 0x67, 0x93, 0x12,
+                0x7b, 0x54, 0xfe, 0x82,
+            ],
+            Core::LeftPadLow1_32 => [
+                0xc3, 0x38, 0xa1, 0x95, 0x5e, 0x99, 0x82, 0x0d, 0x0e, 0xd3, 0x1a, 0x5a, 0xfe, 0xdd,
+                0x13, 0x58, 0xc1, 0x74, 0x44, 0x02, 0x3e, 0x3f, 0x2b, 0x47, 0x33, 0xd9, 0xf6, 0x8c,
+                0xb7, 0xb4, 0x0c, 0xd9,
+            ],
+            Core::LeftPadLow1_64 => [
+                0x68, 0x9e, 0xd5, 0x69, 0xc2, 0x01, 0x52, 0x1e, 0xc1, 0x95, 0x4f, 0x0d, 0xc7, 0xd2,
+                0x12, 0x8e, 0x46, 0x5a, 0x52, 0x04, 0x99, 0x19, 0x05, 0x49, 0x85, 0x8d, 0xe9, 0xed,
+                0x23, 0x1a, 0x5d, 0x69,
+            ],
+            Core::LeftPadLow1_8 => [
+                0x5b, 0x51, 0x90, 0x53, 0xfd, 0x2b, 0xb7, 0x58, 0x47, 0x3a, 0xf8, 0xe3, 0x91, 0x0b,
+                0xae, 0xf3, 0x3c, 0xc8, 0x01, 0xc0, 0xb1, 0x42, 0x0a, 0xaf, 0x81, 0x4a, 0x7e, 0x72,
+                0x54, 0xea, 0x78, 0xf0,
+            ],
+            Core::LeftPadLow32_64 => [
+                0xac, 0x00, 0xa3, 0x4f, 0xb6, 0xa5, 0x8e, 0x57, 0xad, 0x22, 0x39, 0x50, 0x0e, 0x65,
+                0x71, 0x37, 0x5d, 0xfd, 0xa0, 0xce, 0xa1, 0x17, 0x5f, 0xe9, 0x9d, 0x87, 0x5c, 0xd8,
+                0x71, 0x81, 0x05, 0xe9,
+            ],
+            Core::LeftPadLow8_16 => [
+                0xb6, 0xf6, 0x33, 0x4c, 0xc6, 0x60, 0xe3, 0x06, 0x9f, 0x7e, 0x14, 0x37, 0xa1, 0x94,
+                0x3f, 0x61, 0x0f, 0xc5, 0xa5, 0xab, 0x8a, 0xa5, 0x10, 0x5b, 0xfc, 0xec, 0xd3, 0xda,
+                0x0c, 0x59, 0x63, 0x3c,
+            ],
+            Core::LeftPadLow8_32 => [
+                0x8a, 0xee, 0x9f, 0x42, 0xda, 0x9b, 0x84, 0x2e, 0x41, 0x18, 0x95, 0x96, 0x59, 0x47,
+                0x56, 0xba, 0xd9, 0xba, 0xb2, 0x95, 0x3d, 0xea, 0xe6, 0x68, 0x56, 0xb9, 0xcb, 0x60,
+                0x1d, 0x7a, 0xc5, 0x48,
+            ],
+            Core::LeftPadLow8_64 => [
+                0x61, 0x1d, 0x64, 0xce, 0x94, 0xf8, 0x82, 0xfd, 0xa2, 0x4c, 0x97, 0xad, 0xd1, 0x90,
+                0x54, 0x21, 0x2f, 0x46, 0xb3, 0xb9, 0x8e, 0xf2, 0xae, 0x22, 0x79, 0x36, 0x45, 0x39,
+                0xb9, 0x3e, 0x2b, 0x8b,
+            ],
+            Core::LeftRotate16 => [
+                0x25, 0xe2, 0xd4, 0xec, 0xc0, 0x3f, 0x87, 0x65, 0x5e, 0x96, 0x5b, 0x35, 0x7d, 0x6f,
+                0xd0, 0xc2, 0xea, 0x36, 0xd1, 0x12, 0x06, 0x8c, 0x96, 0x33, 0x39, 0xde, 0x46, 0x7e,
+                0x5c, 0x8e, 0x7d, 0x8e,
+            ],
+            Core::LeftRotate32 => [
+                0x2d, 0x41, 0x89, 0xb3, 0x12, 0xe8, 0xce, 0xda, 0xaa, 0x38, 0x53, 0xa4, 0x5a, 0x12,
+                0x98, 0x6e, 0xe2, 0x62, 0xfb, 0x60, 0x5f, 0x0d, 0x59, 0x2d, 0xcb, 0xb9, 0x61, 0x8f,
+                0xe6, 0x7a, 0x25, 0x0b,
+            ],
+            Core::LeftRotate64 => [
+                0xb8, 0xe6, 0x8e, 0x0a, 0xd6, 0x82, 0xb9, 0x67, 0xf2, 0x4c, 0x09, 0x84, 0xf7, 0xd5,
+                0xf8, 0x09, 0xa2, 0x85, 0x97, 0xa0, 0x43, 0x46, 0x18, 0xc8, 0x94, 0x9f, 0xa8, 0x08,
+                0xe3, 0xbe, 0x76, 0x14,
+            ],
+            Core::LeftRotate8 => [
+                0x95, 0x6a, 0x65, 0x3a, 0xe0, 0xb8, 0xf8, 0xc3, 0xf2, 0x9f, 0xd8, 0xf3, 0x31, 0x19,
+                0x16, 0x8f, 0xcb, 0xe6, 0x4f, 0x5d, 0x76, 0x5f, 0xa9, 0xff, 0x6b, 0x8e, 0x3b, 0x0d,
+                0x96, 0x1a, 0x16, 0x29,
+            ],
+            Core::LeftShift16 => [
+                0x9b, 0xbc, 0xe2, 0x9e, 0x69, 0x5b, 0xe2, 0xe4, 0x83, 0x0c, 0x7a, 0x93, 0xa0, 0xd2,
+                0x15, 0x1b, 0x66, 0x4f, 0xc2, 0x72, 0x06, 0xee, 0xd7, 0xe5, 0x0f, 0xce, 0xf6, 0x02,
+                0xd3, 0x45, 0xce, 0x0d,
+            ],
+            Core::LeftShift32 => [
+                0xf9, 0xc4, 0xbf, 0x07, 0xd3, 0xe7, 0x2e, 0x85, 0xb1, 0xd4, 0x55, 0xf7, 0x34, 0xcf,
+                0x1b, 0x11, 0xbe, 0xa5, 0x8e, 0x25, 0x3b, 0x85, 0x4a, 0x1a, 0x09, 0x7b, 0xab, 0x1e,
+                0xc2, 0xc6, 0x2e, 0x1f,
+            ],
+            Core::LeftShift64 => [
+                0x8c, 0xfa, 0x74, 0x1a, 0xa4, 0x1d, 0x82, 0x8a, 0x41, 0x08, 0x3b, 0xb7, 0xcb, 0xdd,
+                0x1f, 0x4e, 0xda, 0x5d, 0xcc, 0xac, 0x52, 0x9b, 0x24, 0x7d, 0x18, 0x84, 0x95, 0xb4,
+                0x9b, 0xb3, 0x8c, 0x2b,
+            ],
+            Core::LeftShift8 => [
+                0x95, 0x66, 0x3e, 0x07, 0x7c, 0xad, 0xca, 0x31, 0xb9, 0x59, 0x6b, 0x09, 0x70, 0x6c,
+                0xdb, 0x4f, 0xa7, 0x03, 0x87, 0x0f, 0x79, 0x2a, 0x46, 0x35, 0x85, 0x2b, 0x5e, 0x24,
+                0x69, 0xe6, 0xfd, 0xba,
+            ],
+            Core::LeftShiftWith16 => [
+                0x62, 0x14, 0xc4, 0x56, 0x25, 0xd7, 0x04, 0xce, 0xc9, 0x87, 0xb7, 0x96, 0x67, 0x6f,
+                0x15, 0x66, 0x1a, 0x6b, 0xf5, 0xdc, 0x0f, 0x6a, 0x51, 0xcb, 0x86, 0x5a, 0x0e, 0x71,
+                0xd6, 0x6f, 0xbf, 0x95,
+            ],
+            Core::LeftShiftWith32 => [
+                0x1b, 0x45, 0x2f, 0xc7, 0xab, 0x5c, 0x71, 0x47, 0x45, 0x4a, 0xf4, 0xd5, 0x59, 0x54,
+                0x81, 0xff, 0xac, 0x42, 0xde, 0xa1, 0x06, 0x03, 0x2b, 0x3b, 0x9f, 0x37, 0x5b, 0xed,
+                0xcd, 0xa6, 0xf4, 0xd6,
+            ],
+            Core::LeftShiftWith64 => [
+                0xc3, 0x8b, 0x02, 0xab, 0xcf, 0xf5, 0x14, 0xd9, 0x61, 0x91, 0xa7, 0xfe, 0xfb, 0xa1,
+                0xac, 0x16, 0xe9, 0xc1, 0x50, 0xa1, 0x8c, 0xe1, 0xc5, 0xbc, 0xf0, 0x9d, 0x67, 0x55,
+                0xe0, 0x36, 0x99, 0x05,
+            ],
+            Core::LeftShiftWith8 => [
+                0x21, 0x7a, 0xd6, 0xdc, 0x12, 0x92, 0xaa, 0x42, 0xdb, 0xd8, 0x4d, 0xbd, 0x97, 0x1c,
+                0x11, 0x8f, 0x02, 0xa9, 0x74, 0x0a, 0x7c, 0xb5, 0x66, 0x1e, 0x90, 0xd4, 0x2d, 0xd5,
+                0xca, 0x8c, 0xa4, 0xd9,
+            ],
+            Core::Leftmost16_1 => [
+                0x3e, 0xa8, 0x9e, 0x43, 0x20, 0x77, 0x94, 0x0d, 0x0b, 0xbf, 0x9e, 0xd2, 0xcf, 0x16,
+                0xba, 0x63, 0x11, 0x10, 0xe7, 0xab, 0x9f, 0x19, 0xee, 0xf3, 0xea, 0x92, 0x5a, 0x69,
+                0x9f, 0x60, 0xc6, 0x0c,
+            ],
+            Core::Leftmost16_2 => [
+                0x5c, 0xe2, 0xbd, 0x7a, 0xc3, 0x5a, 0x7c, 0x33, 0x73, 0xc3, 0xdd, 0x60, 0x7f, 0x48,
+                0xe5, 0xd4, 0xc7, 0xaa, 0xa6, 0xc6, 0x9f, 0xc4, 0x93, 0x0e, 0xca, 0x14, 0x04, 0x9f,
+                0x5d, 0x39, 0xff, 0xab,
+            ],
+            Core::Leftmost16_4 => [
+                0x10, 0x12, 0xa1, 0x39, 0x3e, 0xd0, 0xf9, 0x1d, 0x75, 0xad, 0x59, 0x12, 0x28, 0x53,
+                0x89, 0x3a, 0x7f, 0x25, 0xcd, 0x35, 0xc8, 0x03, 0x6c, 0x7f, 0xa1, 0x95, 0x68, 0x2c,
+                0xa1, 0x45, 0x8c, 0x4a,
+            ],
+            Core::Leftmost16_8 => [
+                0xcc, 0xd3, 0x1e, 0x9e, 0xb1, 0xa1, 0xbb, 0xde, 0x55, 0x5c, 0x0f, 0x73, 0x1a, 0xf2,
+                0xd3, 0xd4, 0xff, 0x53, 0x88, 0xfa, 0x14, 0x61, 0x82, 0x6a, 0xa9, 0xc8, 0x93, 0x42,
+                0x42, 0xac, 0x75, 0x3f,
+            ],
+            Core::Leftmost32_1 => [
+                0xb7, 0x14, 0xad, 0x74, 0xae, 0x04, 0x5a, 0xf7, 0x56, 0x80, 0x77, 0x8a, 0x03, 0x27,
+                0x61, 0xa4, 0xc7, 0x26, 0xd7, 0xb6, 0xd9, 0x77, 0xbc, 0x93, 0xa4, 0x12, 0x56, 0x54,
+                0x3c, 0xae, 0x8d, 0x3d,
+            ],
+            Core::Leftmost32_16 => [
+                0x1b, 0x20, 0x63, 0x4f, 0xb4, 0x3e, 0xb8, 0x3a, 0x96, 0x8c, 0x3c, 0x81, 0xc0, 0x08,
+                0x7c, 0x63, 0xd5, 0xd4, 0xf8, 0xca, 0xcd, 0xbd, 0x3e, 0x0e, 0x9f, 0x9a, 0x3d, 0x75,
+                0x91, 0xc3, 0xef, 0x62,
+            ],
+            Core::Leftmost32_2 => [
+                0x75, 0x2d, 0xda, 0x08, 0xe4, 0x0f, 0xae, 0xa0, 0xf6, 0xc4, 0xee, 0x3d, 0x34, 0x4b,
+                0x7c, 0x4e, 0xa1, 0x1b, 0x97, 0x1d, 0xce, 0xc5, 0x55, 0x92, 0xb8, 0x22, 0xee, 0x56,
+                0x27, 0x1c, 0xa5, 0xdf,
+            ],
+            Core::Leftmost32_4 => [
+                0x44, 0xe9, 0xf7, 0x79, 0xa0, 0x29, 0xec, 0xfc, 0x97, 0x62, 0xb8, 0xb6, 0xcb, 0xaf,
+                0x09, 0x22, 0xd9, 0x35, 0xfe, 0xa5, 0x15, 0x0a, 0x54, 0x6a, 0x5f, 0xc1, 0xfd, 0xb8,
+                0xb9, 0x53, 0x41, 0x34,
+            ],
+            Core::Leftmost32_8 => [
+                0x54, 0x80, 0x1e, 0xb5, 0xe7, 0x78, 0xcf, 0x6c, 0xda, 0x95, 0xcc, 0xf5, 0x70, 0x28,
+                0x6d, 0x81, 0x6d, 0x3a, 0x1f, 0xf1, 0xdd, 0x39, 0xdb, 0x5a, 0xb6, 0x13, 0x6f, 0x0e,
+                0xc3, 0xb7, 0x2d, 0xc6,
+            ],
+            Core::Leftmost64_1 => [
+                0xb3, 0x16, 0xaf, 0x24, 0xc8, 0x6b, 0x39, 0x61, 0x3d, 0x4f, 0xd1, 0xb3, 0x92, 0x6a,
+                0x84, 0x13, 0x0e, 0xb7, 0xab, 0x12, 0xfd, 0xef, 0x62, 0x33, 0x17, 0xab, 0x48, 0xf7,
+                0x7c, 0xb6, 0x21, 0x45,
+            ],
+            Core::Leftmost64_16 => [
+                0x8c, 0xf8, 0x54, 0x81, 0xe0, 0xf0, 0x08, 0x38, 0xb5, 0x23, 0x9b, 0xbf, 0xad, 0x13,
+                0x82, 0xf0, 0x7b, 0xd0, 0x3c, 0x12, 0x1d, 0x5d, 0x8a, 0xaf, 0xa6, 0xd9, 0x83, 0x41,
+                0x6d, 0xe4, 0x5c, 0x32,
+            ],
+            Core::Leftmost64_2 => [
+                0xda, 0x40, 0xc8, 0x9b, 0x15, 0xc9, 0xe8, 0x6b, 0x02, 0x8c, 0xe9, 0xec, 0x07, 0xb7,
+                0xf6, 0x99, 0x5a, 0x5d, 0xdd, 0xa4, 0x85, 0x0a, 0x91, 0xaf, 0x8c, 0x60, 0xe0, 0x2b,
+                0xf9, 0x91, 0xfb, 0x0c,
+            ],
+            Core::Leftmost64_32 => [
+                0x95, 0xf4, 0x6d, 0xb9, 0xd9, 0x06, 0xf0, 0x50, 0x53, 0x45, 0x5e, 0x95, 0x34, 0xeb,
+                0x9b, 0x08, 0xb0, 0x9e, 0x38, 0xbc, 0x0f, 0xc6, 0x98, 0xa1, 0x6f, 0x4b, 0x2a, 0x62,
+                0x71, 0x07, 0x59, 0xd1,
+            ],
+            Core::Leftmost64_4 => [
+                0xf5, 0x01, 0xf9, 0x05, 0xfb, 0x8b, 0xab, 0xa1, 0xa7, 0xe8, 0xa6, 0xbf, 0x68, 0xd3,
+                0xae, 0x6a, 0x0a, 0xdd, 0x91, 0x95, 0x1b, 0x56, 0x62, 0x9d, 0x59, 0xf4, 0x28, 0x73,
+                0x9e, 0x7e, 0x41, 0xa2,
+            ],
+            Core::Leftmost64_8 => [
+                0xb3, 0x7f, 0x0b, 0xa2, 0xfc, 0xbd, 0x4a, 0xe3, 0x31, 0x6a, 0x4f, 0xe4, 0xf5, 0x8a,
+                0xa1, 0xa5, 0x41, 0x74, 0x0c, 0xde, 0x60, 0xed, 0x87, 0xf3, 0x38, 0x62, 0xa2, 0xff,
+                0xec, 0xad, 0x44, 0x2f,
+            ],
+            Core::Leftmost8_1 => [
+                0x5f, 0xdc, 0xfa, 0x9b, 0x9a, 0x4b, 0x65, 0xc7, 0x20, 0x74, 0x71, 0xe5, 0x33, 0x92,
+                0x8d, 0x6a, 0x24, 0xf4, 0xb6, 0xff, 0x9b, 0x34, 0x5e, 0xf7, 0x61, 0xb1, 0x48, 0x0a,
+                0x8a, 0x05, 0xe3, 0xd7,
+            ],
+            Core::Leftmost8_2 => [
+                0x62, 0x42, 0x21, 0xe9, 0xf8, 0xa9, 0x16, 0x91, 0x26, 0xc7, 0x33, 0x47, 0x96, 0x48,
+                0xc7, 0x3b, 0x68, 0xc6, 0xb8, 0xeb, 0xbb, 0x60, 0xc7, 0x2a, 0xf1, 0xe6, 0xfc, 0x65,
+                0xe7, 0xd3, 0x07, 0x23,
+            ],
+            Core::Leftmost8_4 => [
+                0x1a, 0x48, 0x43, 0xc4, 0x08, 0xe1, 0xd4, 0x6c, 0x9c, 0x93, 0x89, 0x46, 0x34, 0x49,
+                0x5f, 0x8a, 0xd6, 0xa6, 0x80, 0xe3, 0x2d, 0xd6, 0xf2, 0x5b, 0xa1, 0x9d, 0xbc, 0x60,
+                0xa6, 0x0d, 0x18, 0x97,
+            ],
             Core::LinearCombination1 => [
                 0xd8, 0x83, 0x20, 0xf4, 0x71, 0xf3, 0xbe, 0xee, 0xa1, 0x31, 0x3d, 0x55, 0x1e, 0x41,
                 0x9b, 0xe0, 0x57, 0x27, 0xae, 0x5f, 0x4d, 0xe6, 0xa2, 0xf2, 0xf2, 0x6f, 0x3c, 0xb5,
@@ -780,6 +1448,11 @@ impl Jet for Core {
                 0x0c, 0x9f, 0xae, 0x64, 0xa6, 0x4c, 0xd6, 0x3c, 0xa8, 0x5b, 0xeb, 0xa7, 0x5c, 0x9f,
                 0x2c, 0x6e, 0x85, 0x34, 0x3b, 0x74, 0xf2, 0x86, 0x34, 0xea, 0x85, 0xf7, 0x0f, 0xc3,
                 0x41, 0xcc, 0xaf, 0xf3,
+            ],
+            Core::Low1 => [
+                0xdb, 0x4a, 0x42, 0x4a, 0x20, 0xae, 0xef, 0xa4, 0xe7, 0x42, 0xd5, 0x1d, 0x84, 0x92,
+                0x92, 0x18, 0xcb, 0xf7, 0x34, 0x72, 0x61, 0x76, 0xdc, 0x4f, 0xf9, 0xf8, 0xbf, 0x13,
+                0xde, 0x10, 0xca, 0x2b,
             ],
             Core::Low16 => [
                 0xa1, 0x14, 0xe9, 0x58, 0x0d, 0xe0, 0x7d, 0x8b, 0x07, 0x7e, 0xb8, 0x89, 0x98, 0x75,
@@ -820,6 +1493,11 @@ impl Jet for Core {
                 0x98, 0x76, 0x3f, 0x78, 0x21, 0x69, 0x09, 0x54, 0xcf, 0x50, 0x81, 0x02, 0x09, 0xdf,
                 0x6e, 0x15, 0x57, 0x03, 0x16, 0xbb, 0xa8, 0x9f, 0xfa, 0x9a, 0xe5, 0x56, 0xa9, 0x15,
                 0xf3, 0x7b, 0x64, 0x0b,
+            ],
+            Core::Maj1 => [
+                0xae, 0x8b, 0x91, 0x2e, 0x3a, 0xd4, 0x7f, 0x68, 0x8b, 0xbb, 0x46, 0xc8, 0xcb, 0x6d,
+                0x53, 0x33, 0x69, 0xf5, 0x10, 0x9a, 0x27, 0x30, 0x47, 0x1e, 0xab, 0x6e, 0xfe, 0x98,
+                0xe9, 0xea, 0x5e, 0x78,
             ],
             Core::Maj16 => [
                 0xf5, 0xa4, 0x1d, 0xa0, 0x37, 0x7f, 0xe6, 0x88, 0xac, 0x2f, 0xcd, 0xf3, 0x5b, 0x6b,
@@ -981,6 +1659,11 @@ impl Jet for Core {
                 0x74, 0x0a, 0x40, 0xfe, 0xce, 0x71, 0x91, 0x30, 0x1d, 0x00, 0xe5, 0x17, 0xd8, 0xd3,
                 0x4f, 0x46, 0xc2, 0x50,
             ],
+            Core::Or1 => [
+                0x93, 0x52, 0x22, 0x30, 0x17, 0x00, 0x98, 0x7d, 0xe1, 0x2c, 0xb4, 0x26, 0x17, 0x21,
+                0x81, 0x53, 0xfd, 0x7c, 0xcd, 0x63, 0x17, 0x4a, 0x17, 0x49, 0xfc, 0x88, 0x0c, 0x39,
+                0xe3, 0xe7, 0x23, 0x9c,
+            ],
             Core::Or16 => [
                 0xdf, 0xea, 0xd0, 0xba, 0x93, 0xe4, 0x91, 0x55, 0xc4, 0x0c, 0xb3, 0x72, 0xca, 0x5e,
                 0xf6, 0x17, 0x97, 0x41, 0xc6, 0x1f, 0x2b, 0x3c, 0xc2, 0x79, 0x7e, 0xf1, 0x62, 0xc8,
@@ -1015,6 +1698,286 @@ impl Jet for Core {
                 0x02, 0xb8, 0x9a, 0x1c, 0xa7, 0xd2, 0x4f, 0x82, 0x35, 0x3e, 0x97, 0x32, 0xfa, 0x39,
                 0xce, 0x65, 0x50, 0x9b, 0x39, 0xae, 0xaf, 0x43, 0xd2, 0xe5, 0xf8, 0x0c, 0xa9, 0x03,
                 0xfc, 0x81, 0xc8, 0x46,
+            ],
+            Core::RightExtend16_32 => [
+                0x36, 0x42, 0x3c, 0x16, 0xd4, 0x8d, 0x6c, 0x7c, 0x91, 0xed, 0x44, 0x16, 0x11, 0xbe,
+                0x30, 0x72, 0xdf, 0xa5, 0xdd, 0x38, 0xe4, 0xd2, 0x7d, 0xa8, 0xda, 0xed, 0x29, 0x78,
+                0x8f, 0xc9, 0x52, 0x08,
+            ],
+            Core::RightExtend16_64 => [
+                0x4b, 0x8a, 0x47, 0xb9, 0x06, 0x70, 0x73, 0xa1, 0xfb, 0x68, 0x30, 0x0f, 0xac, 0xd6,
+                0xc5, 0x06, 0x98, 0x90, 0xab, 0xdb, 0x7e, 0xaa, 0xcb, 0x62, 0x2a, 0xd7, 0x30, 0x9a,
+                0x87, 0xf4, 0xd3, 0x4d,
+            ],
+            Core::RightExtend32_64 => [
+                0xdd, 0x6a, 0xf1, 0xc8, 0x01, 0xd2, 0x6c, 0x0b, 0x2e, 0xdf, 0x83, 0xce, 0x67, 0xb1,
+                0x72, 0xdf, 0x67, 0x57, 0xd0, 0x7f, 0xb7, 0xc8, 0x54, 0x68, 0x6f, 0x42, 0xe5, 0x76,
+                0x8a, 0xdc, 0xc9, 0xe7,
+            ],
+            Core::RightExtend8_16 => [
+                0x1d, 0xe2, 0x01, 0xa8, 0x64, 0x70, 0xa0, 0x2b, 0x2d, 0xfe, 0x48, 0xc6, 0x6a, 0xfe,
+                0x06, 0x73, 0x5b, 0x47, 0x5e, 0x88, 0xd3, 0x25, 0xcb, 0xf1, 0x60, 0x42, 0xa9, 0x10,
+                0x24, 0xd2, 0xbe, 0xd9,
+            ],
+            Core::RightExtend8_32 => [
+                0x7e, 0x9c, 0x5c, 0xb3, 0x54, 0x19, 0xab, 0x06, 0xe1, 0x22, 0x00, 0x23, 0x10, 0x2b,
+                0xe4, 0x6a, 0xb6, 0xd9, 0x69, 0x95, 0xc4, 0x23, 0xc6, 0xb1, 0x4b, 0x9a, 0x66, 0x02,
+                0x8a, 0xec, 0x5d, 0x75,
+            ],
+            Core::RightExtend8_64 => [
+                0x49, 0xd2, 0x46, 0xc2, 0xa6, 0x1c, 0xd3, 0x9d, 0x78, 0x20, 0xdc, 0xd7, 0x5e, 0xee,
+                0x84, 0x7b, 0xf0, 0x57, 0xc0, 0x1a, 0x63, 0xa3, 0xac, 0xbc, 0xc9, 0x46, 0x3e, 0x44,
+                0xbc, 0x1e, 0x0b, 0x6c,
+            ],
+            Core::RightPadHigh16_32 => [
+                0xfe, 0x90, 0x1f, 0xb4, 0xf6, 0xeb, 0xdc, 0x4e, 0xa2, 0x96, 0x19, 0x98, 0x99, 0x22,
+                0xb8, 0x0f, 0xa9, 0xce, 0x24, 0x12, 0x87, 0xfa, 0x54, 0x08, 0x64, 0x36, 0x2c, 0xcc,
+                0xe9, 0xf5, 0x4b, 0x3b,
+            ],
+            Core::RightPadHigh16_64 => [
+                0xda, 0x90, 0xad, 0xd3, 0x10, 0x67, 0xcc, 0xfd, 0xbe, 0xe4, 0xcb, 0xfb, 0x21, 0xde,
+                0x8e, 0x6a, 0xa4, 0xf9, 0x3e, 0x00, 0x22, 0x00, 0x71, 0x1f, 0x99, 0x84, 0xaf, 0x6f,
+                0xc0, 0x1e, 0x27, 0x00,
+            ],
+            Core::RightPadHigh1_16 => [
+                0xe4, 0xcf, 0x11, 0x6c, 0x08, 0x80, 0xf7, 0x3f, 0x99, 0x52, 0xf7, 0x00, 0x81, 0x78,
+                0x84, 0x98, 0xe5, 0x08, 0x4c, 0xbb, 0x72, 0xcf, 0x84, 0x1b, 0xcd, 0x91, 0x67, 0xa6,
+                0xee, 0xa2, 0x64, 0xdc,
+            ],
+            Core::RightPadHigh1_32 => [
+                0x12, 0x76, 0x03, 0x6b, 0xb9, 0x4c, 0xfd, 0x92, 0x0a, 0xb7, 0x31, 0x64, 0x3b, 0x76,
+                0xb1, 0x19, 0x72, 0xdd, 0x26, 0x54, 0x38, 0x53, 0x44, 0x4e, 0x18, 0xd7, 0xf6, 0x3f,
+                0xca, 0xc0, 0x91, 0xa3,
+            ],
+            Core::RightPadHigh1_64 => [
+                0x38, 0xc9, 0x99, 0x80, 0xb1, 0xa9, 0x98, 0x10, 0x51, 0x11, 0xc5, 0x6b, 0xf8, 0x24,
+                0x65, 0x09, 0x65, 0xa5, 0x09, 0xc4, 0x7e, 0x1c, 0x76, 0xd9, 0x00, 0x75, 0x0a, 0x1f,
+                0xee, 0x45, 0xc9, 0x64,
+            ],
+            Core::RightPadHigh1_8 => [
+                0xca, 0x72, 0xce, 0xed, 0x2d, 0x98, 0xdc, 0xcd, 0x81, 0xaa, 0x21, 0xf0, 0xba, 0x21,
+                0xd1, 0xa0, 0x87, 0xb6, 0xf2, 0x52, 0x07, 0xc2, 0x4a, 0x58, 0x0a, 0xda, 0x7e, 0x60,
+                0x5f, 0x79, 0x82, 0xdf,
+            ],
+            Core::RightPadHigh32_64 => [
+                0x17, 0xeb, 0x59, 0x11, 0xf8, 0x54, 0x95, 0x76, 0x68, 0xee, 0xf4, 0x63, 0xb0, 0xcb,
+                0xae, 0x72, 0x08, 0x52, 0x91, 0x34, 0xef, 0x5e, 0x56, 0xcd, 0x33, 0xfb, 0xbc, 0x29,
+                0xc2, 0x8b, 0xbe, 0x92,
+            ],
+            Core::RightPadHigh8_16 => [
+                0xd2, 0x6f, 0x0c, 0xc5, 0xb2, 0x61, 0xeb, 0x83, 0x0e, 0x02, 0xdf, 0x12, 0xcc, 0x57,
+                0x44, 0x25, 0x9b, 0x4a, 0x43, 0xd9, 0x75, 0xbd, 0x2e, 0x3d, 0x7c, 0x78, 0x28, 0x11,
+                0x76, 0x1f, 0xf1, 0xd1,
+            ],
+            Core::RightPadHigh8_32 => [
+                0xbd, 0x2e, 0x5c, 0x92, 0x60, 0xbf, 0x6f, 0x32, 0x4d, 0x2b, 0x1f, 0x40, 0xcb, 0xb1,
+                0x22, 0x40, 0x2f, 0x30, 0xd5, 0x2f, 0x64, 0x34, 0xe3, 0x9f, 0x8a, 0x09, 0xb8, 0x39,
+                0x7b, 0xc3, 0x2e, 0x94,
+            ],
+            Core::RightPadHigh8_64 => [
+                0x94, 0x1b, 0xf4, 0x42, 0xdb, 0xcf, 0x4f, 0x20, 0x04, 0xa4, 0xb1, 0x8b, 0xee, 0xb2,
+                0xad, 0xac, 0x9f, 0x20, 0x9f, 0xea, 0x4c, 0x4b, 0xd4, 0x8c, 0xed, 0xe8, 0xda, 0xfa,
+                0xcf, 0x88, 0x43, 0xb7,
+            ],
+            Core::RightPadLow16_32 => [
+                0xbb, 0x38, 0x7c, 0x29, 0x2d, 0x59, 0xd7, 0x13, 0xad, 0x76, 0xf6, 0xce, 0xd5, 0xb5,
+                0x96, 0xcf, 0xd8, 0x38, 0x58, 0x92, 0x4f, 0x72, 0x5f, 0x7d, 0x11, 0x6b, 0x28, 0x07,
+                0x58, 0x21, 0x92, 0x5a,
+            ],
+            Core::RightPadLow16_64 => [
+                0x02, 0x32, 0x32, 0x6e, 0xe1, 0xb2, 0x06, 0xad, 0x26, 0x34, 0x9b, 0x55, 0x3d, 0x7f,
+                0x24, 0x62, 0x28, 0x73, 0x20, 0xd6, 0x30, 0xe4, 0x29, 0x32, 0x07, 0x40, 0xcb, 0xd3,
+                0xeb, 0x4e, 0xf9, 0xbe,
+            ],
+            Core::RightPadLow1_16 => [
+                0xd9, 0x13, 0xf6, 0x02, 0xb3, 0x59, 0x58, 0xd5, 0x2a, 0xbb, 0x20, 0xb0, 0x2c, 0xe6,
+                0x89, 0x61, 0x6f, 0xfa, 0x66, 0xe0, 0x2d, 0x73, 0x86, 0x7d, 0x29, 0x18, 0x1e, 0x11,
+                0x93, 0xc9, 0xd2, 0x43,
+            ],
+            Core::RightPadLow1_32 => [
+                0x6b, 0x40, 0x33, 0xd9, 0xfc, 0x6c, 0x87, 0x6b, 0x2e, 0x75, 0xd5, 0x82, 0xbb, 0x9b,
+                0x3c, 0x04, 0xfa, 0x29, 0xdf, 0xb2, 0x2c, 0x9e, 0x1a, 0x48, 0x8e, 0x83, 0x7c, 0x2f,
+                0x39, 0xaa, 0x61, 0x60,
+            ],
+            Core::RightPadLow1_64 => [
+                0x4e, 0x2b, 0x20, 0xdd, 0x9d, 0x91, 0x85, 0x7a, 0x49, 0xc8, 0x20, 0xd0, 0x6f, 0x43,
+                0x5d, 0xd3, 0xca, 0x79, 0x1f, 0x17, 0x7e, 0xea, 0xf3, 0x4a, 0xec, 0x36, 0xc4, 0x54,
+                0x19, 0xd1, 0x69, 0x65,
+            ],
+            Core::RightPadLow1_8 => [
+                0x24, 0xee, 0xe4, 0x51, 0xb2, 0x6b, 0xa3, 0x9d, 0x6b, 0xcc, 0x58, 0x8b, 0x72, 0x0f,
+                0xaf, 0x22, 0x32, 0x76, 0x79, 0x12, 0xf6, 0x7d, 0xb3, 0x29, 0x06, 0x0d, 0x90, 0xb7,
+                0x14, 0x17, 0xb6, 0xc3,
+            ],
+            Core::RightPadLow32_64 => [
+                0x52, 0xfb, 0x8b, 0xbc, 0xef, 0x90, 0x32, 0x31, 0xa5, 0xb7, 0x67, 0x91, 0xe4, 0x65,
+                0x2b, 0x38, 0xbe, 0xd8, 0x97, 0x7f, 0x5d, 0xab, 0x17, 0x95, 0x55, 0x99, 0x8d, 0xb2,
+                0x4d, 0x1d, 0x7c, 0x98,
+            ],
+            Core::RightPadLow8_16 => [
+                0x17, 0x19, 0xb2, 0x79, 0x74, 0xe8, 0x43, 0x80, 0x50, 0x88, 0x25, 0x30, 0xa1, 0xa4,
+                0x2e, 0xd7, 0xab, 0x3c, 0xa2, 0x8d, 0x25, 0x4a, 0xdc, 0x37, 0xfe, 0x56, 0x66, 0xfd,
+                0x2f, 0x70, 0xb4, 0xe4,
+            ],
+            Core::RightPadLow8_32 => [
+                0xee, 0x2a, 0x82, 0x30, 0xf2, 0x83, 0xdc, 0x08, 0x3b, 0x8e, 0x19, 0x44, 0x8b, 0xa3,
+                0x24, 0x97, 0xe9, 0x31, 0x8b, 0x4e, 0x9e, 0x1b, 0xd4, 0xeb, 0xe1, 0xbe, 0xc5, 0x24,
+                0x47, 0x6a, 0xb8, 0x6d,
+            ],
+            Core::RightPadLow8_64 => [
+                0x97, 0xda, 0x90, 0xd8, 0x42, 0x8e, 0x6b, 0x94, 0xe6, 0xc1, 0x35, 0x14, 0x60, 0xdc,
+                0x01, 0x12, 0x3e, 0x47, 0x9c, 0x4a, 0xaf, 0xbb, 0xd1, 0x4c, 0x78, 0xad, 0x2f, 0xad,
+                0x0a, 0x89, 0x5e, 0xf3,
+            ],
+            Core::RightRotate16 => [
+                0xee, 0x7d, 0x1c, 0x1f, 0x3d, 0x82, 0xda, 0x56, 0x81, 0xdd, 0x8b, 0x50, 0x69, 0xd5,
+                0x37, 0xd8, 0x9f, 0x22, 0x93, 0xaa, 0x60, 0x53, 0x32, 0xce, 0x10, 0xc1, 0xc4, 0x22,
+                0x4a, 0x53, 0xce, 0xea,
+            ],
+            Core::RightRotate32 => [
+                0x89, 0x2a, 0x28, 0xdb, 0x32, 0x4c, 0xd9, 0x3c, 0xf7, 0xf6, 0x9c, 0x30, 0x72, 0xa7,
+                0xb2, 0x22, 0xb8, 0x8c, 0x81, 0x8e, 0xe0, 0xe5, 0xa1, 0xb8, 0x97, 0xe5, 0x0c, 0x58,
+                0x1f, 0x2a, 0x29, 0x62,
+            ],
+            Core::RightRotate64 => [
+                0x64, 0x31, 0x4f, 0xf1, 0x90, 0x40, 0xa3, 0x76, 0xf9, 0xfc, 0xf0, 0x2e, 0x75, 0x74,
+                0x14, 0x9c, 0x12, 0x3f, 0x99, 0xc3, 0x90, 0x71, 0xcd, 0x37, 0x85, 0x1f, 0x8f, 0x8c,
+                0xdf, 0x0e, 0xed, 0x42,
+            ],
+            Core::RightRotate8 => [
+                0x15, 0x81, 0xe0, 0xca, 0x09, 0xf1, 0x36, 0x84, 0xfe, 0x31, 0x35, 0xc1, 0xc6, 0xb6,
+                0xf9, 0xc4, 0x89, 0xd7, 0xdd, 0x1e, 0xf0, 0xa5, 0xf7, 0x70, 0x83, 0xbb, 0x0e, 0xd0,
+                0x0b, 0x4d, 0xf2, 0x8f,
+            ],
+            Core::RightShift16 => [
+                0x5b, 0x4e, 0xc4, 0x62, 0xd4, 0xe2, 0xed, 0x89, 0xff, 0xe3, 0xfd, 0x40, 0x59, 0x32,
+                0xc7, 0x97, 0x80, 0x28, 0x61, 0x20, 0x3e, 0xcb, 0x61, 0xd5, 0xb5, 0x9a, 0x73, 0xb0,
+                0xfb, 0xfc, 0x4e, 0x84,
+            ],
+            Core::RightShift32 => [
+                0xb2, 0x86, 0x1a, 0x48, 0xb2, 0x05, 0x41, 0x76, 0x91, 0xb6, 0x34, 0x7f, 0xe7, 0x5e,
+                0xbe, 0xa5, 0x45, 0x60, 0xcf, 0x81, 0x38, 0x14, 0xac, 0x31, 0x63, 0x91, 0x70, 0xdb,
+                0x92, 0xb9, 0x47, 0xd6,
+            ],
+            Core::RightShift64 => [
+                0xd3, 0x39, 0x42, 0xbf, 0x18, 0x61, 0x8a, 0x10, 0x4a, 0x57, 0x07, 0x54, 0x7f, 0x78,
+                0xab, 0x72, 0x94, 0x1f, 0x4e, 0xe8, 0x13, 0x21, 0x6c, 0x0c, 0xe5, 0x20, 0xf3, 0x56,
+                0x60, 0xfd, 0xbf, 0x81,
+            ],
+            Core::RightShift8 => [
+                0x73, 0x79, 0x12, 0xae, 0x32, 0x32, 0x50, 0xc0, 0x4e, 0x51, 0x6e, 0x39, 0x66, 0xce,
+                0x94, 0x7e, 0x65, 0x32, 0x6f, 0x47, 0x46, 0x8a, 0xc9, 0x31, 0xc1, 0x63, 0xc3, 0xb0,
+                0x2d, 0xe4, 0x12, 0x45,
+            ],
+            Core::RightShiftWith16 => [
+                0x1e, 0x18, 0x1c, 0x33, 0x16, 0x93, 0x59, 0x4c, 0x6e, 0x0e, 0x8f, 0xde, 0xb4, 0x0a,
+                0x81, 0xa3, 0xaf, 0x8f, 0x56, 0xb7, 0xa5, 0x60, 0xde, 0x64, 0x41, 0x30, 0x3f, 0x65,
+                0xf4, 0xfc, 0x93, 0x7c,
+            ],
+            Core::RightShiftWith32 => [
+                0x69, 0xdb, 0xe1, 0x90, 0xd7, 0x2d, 0x77, 0xd0, 0xd0, 0xdc, 0xf3, 0x25, 0xde, 0x96,
+                0x59, 0x22, 0x14, 0x58, 0x1f, 0x11, 0xe9, 0xed, 0xca, 0x93, 0xe2, 0xf9, 0x28, 0x48,
+                0x2b, 0x5e, 0x77, 0xa7,
+            ],
+            Core::RightShiftWith64 => [
+                0x2d, 0x0a, 0xb8, 0x83, 0x04, 0x69, 0x28, 0x0e, 0x2a, 0x28, 0x99, 0x3c, 0x5a, 0x05,
+                0xf5, 0x6b, 0x91, 0xa8, 0xae, 0xb0, 0x34, 0xcc, 0xeb, 0xe0, 0x9c, 0x50, 0xf1, 0x3e,
+                0xa7, 0x8d, 0xda, 0xfc,
+            ],
+            Core::RightShiftWith8 => [
+                0x1b, 0xdb, 0xdc, 0x8d, 0x8b, 0x74, 0x9b, 0xa3, 0xda, 0x75, 0x75, 0x58, 0x7d, 0x99,
+                0x93, 0x00, 0x72, 0x60, 0x3f, 0x27, 0x5f, 0x7b, 0xd2, 0xf3, 0x24, 0xa3, 0x49, 0x51,
+                0xd4, 0x46, 0x1b, 0x21,
+            ],
+            Core::Rightmost16_1 => [
+                0xe1, 0x29, 0xa8, 0xae, 0x88, 0x0f, 0x51, 0xca, 0x2a, 0x94, 0xdb, 0x44, 0xed, 0xec,
+                0xa1, 0xc3, 0xa7, 0x66, 0xb7, 0x3e, 0x98, 0x97, 0x0b, 0x11, 0x98, 0xad, 0xe2, 0x16,
+                0xae, 0x69, 0xcd, 0x2d,
+            ],
+            Core::Rightmost16_2 => [
+                0x8d, 0x0f, 0x68, 0xda, 0xdf, 0x54, 0x6c, 0x5e, 0xd3, 0x6f, 0x34, 0x70, 0x58, 0x02,
+                0xb0, 0xce, 0x83, 0x9a, 0x63, 0xe5, 0x74, 0x49, 0x77, 0x85, 0x24, 0x30, 0x08, 0xab,
+                0x42, 0x7e, 0x45, 0x6b,
+            ],
+            Core::Rightmost16_4 => [
+                0xb0, 0xd4, 0x13, 0x95, 0x41, 0xec, 0xab, 0x2c, 0x16, 0xfc, 0x1a, 0x87, 0x98, 0x9b,
+                0xdd, 0x04, 0x53, 0x22, 0xef, 0xb1, 0xe7, 0x0b, 0xc1, 0xf7, 0xb0, 0x4d, 0x43, 0xb2,
+                0x8b, 0xb3, 0x49, 0xff,
+            ],
+            Core::Rightmost16_8 => [
+                0x0f, 0x03, 0xfa, 0x0f, 0xa6, 0xce, 0xb5, 0x5d, 0xf9, 0x9b, 0x20, 0xd9, 0xef, 0xcf,
+                0x37, 0x10, 0xa7, 0x08, 0xa2, 0x84, 0xa9, 0x5c, 0x33, 0x4c, 0x1d, 0xa3, 0xcb, 0xfe,
+                0x02, 0xfb, 0x94, 0x67,
+            ],
+            Core::Rightmost32_1 => [
+                0x8f, 0x5e, 0x52, 0x63, 0xbb, 0x8e, 0xf8, 0x00, 0xc9, 0x9d, 0x0c, 0x23, 0xfc, 0xba,
+                0xa3, 0x19, 0x8a, 0x6a, 0xbd, 0xf0, 0x08, 0x58, 0x1e, 0x8c, 0x89, 0x10, 0x52, 0xb4,
+                0x0c, 0xa7, 0xf7, 0xa4,
+            ],
+            Core::Rightmost32_16 => [
+                0xb9, 0xa2, 0x3e, 0x1b, 0xf7, 0xc6, 0x81, 0x43, 0x51, 0x30, 0x74, 0xc9, 0x39, 0xbd,
+                0x73, 0xc9, 0xbf, 0x8e, 0xb5, 0xaa, 0xce, 0x84, 0x15, 0xff, 0x01, 0x02, 0x2f, 0xca,
+                0x65, 0xb3, 0xa3, 0x42,
+            ],
+            Core::Rightmost32_2 => [
+                0xab, 0xf3, 0x23, 0x8d, 0x3c, 0xbf, 0x0b, 0xf3, 0x5a, 0x83, 0x96, 0x1f, 0xb9, 0xf9,
+                0x04, 0xb5, 0x6d, 0x3a, 0x9e, 0x0e, 0x35, 0xc8, 0x9d, 0xf8, 0x72, 0xc9, 0xc9, 0x38,
+                0xd3, 0x44, 0xa5, 0x4a,
+            ],
+            Core::Rightmost32_4 => [
+                0xf7, 0xee, 0xd2, 0xec, 0x80, 0x59, 0x06, 0xfe, 0xb3, 0xac, 0x27, 0xf2, 0xde, 0xe5,
+                0x3b, 0x58, 0xc3, 0xb1, 0x3e, 0x40, 0xe2, 0xbc, 0x3e, 0x8b, 0x10, 0x63, 0x2e, 0xd9,
+                0xc0, 0xe7, 0xca, 0x5f,
+            ],
+            Core::Rightmost32_8 => [
+                0xf3, 0xe4, 0x39, 0xed, 0x98, 0x83, 0xc6, 0xa6, 0xb9, 0x07, 0x20, 0x53, 0x2e, 0xb4,
+                0xe0, 0x43, 0xe8, 0x9a, 0x35, 0xf0, 0xb5, 0x29, 0x5f, 0xd5, 0x02, 0xa0, 0xb0, 0xb2,
+                0x43, 0x6b, 0xd2, 0x13,
+            ],
+            Core::Rightmost64_1 => [
+                0xc9, 0x6b, 0xe3, 0xe3, 0x35, 0x48, 0x25, 0x8e, 0x30, 0x71, 0x7b, 0x30, 0x81, 0x7e,
+                0x44, 0x0f, 0x0a, 0xf4, 0xb1, 0x89, 0x0e, 0xdf, 0xcf, 0x7f, 0xdc, 0xb3, 0x9c, 0xb9,
+                0xef, 0xff, 0x47, 0x1d,
+            ],
+            Core::Rightmost64_16 => [
+                0x5d, 0x55, 0x5f, 0x83, 0xe4, 0x80, 0x87, 0xdb, 0x0c, 0x41, 0x5d, 0xad, 0x17, 0xf0,
+                0x81, 0xd4, 0xf6, 0xb7, 0x60, 0xe9, 0x95, 0xf2, 0x72, 0xbb, 0xb6, 0xe4, 0xcb, 0x42,
+                0xd0, 0xf5, 0x03, 0x25,
+            ],
+            Core::Rightmost64_2 => [
+                0xa9, 0xcb, 0x13, 0x43, 0xdb, 0xd5, 0x22, 0xb9, 0x1b, 0x64, 0x82, 0xe4, 0xba, 0xe6,
+                0x2b, 0x0e, 0x5f, 0x82, 0x98, 0x68, 0x7e, 0x64, 0x23, 0x33, 0x5c, 0x6d, 0xf5, 0x06,
+                0xdc, 0x42, 0x5b, 0x90,
+            ],
+            Core::Rightmost64_32 => [
+                0x47, 0x33, 0xb1, 0x92, 0x59, 0x80, 0x09, 0x64, 0x99, 0xb7, 0x87, 0x7c, 0x04, 0xe0,
+                0x01, 0xba, 0xd3, 0x32, 0x5b, 0x2e, 0xca, 0xb3, 0x48, 0xe5, 0xad, 0xd7, 0x20, 0xd0,
+                0x7b, 0x1b, 0x4a, 0x3a,
+            ],
+            Core::Rightmost64_4 => [
+                0x89, 0xda, 0xf7, 0xbe, 0x2c, 0xde, 0x58, 0xf0, 0x4e, 0x8d, 0xee, 0x58, 0xa4, 0x39,
+                0x10, 0x91, 0x2c, 0x09, 0x6e, 0x95, 0xe1, 0x46, 0xc1, 0x9b, 0x00, 0xf5, 0x4f, 0xe8,
+                0x74, 0x70, 0x07, 0x40,
+            ],
+            Core::Rightmost64_8 => [
+                0x1d, 0xfb, 0x2b, 0xef, 0x4c, 0xae, 0x45, 0x07, 0x92, 0x27, 0x08, 0xe5, 0xa5, 0x70,
+                0x99, 0x49, 0x3f, 0xbe, 0x21, 0x15, 0x98, 0xee, 0xc0, 0xbf, 0xe0, 0xe7, 0x7b, 0x3d,
+                0x41, 0xec, 0x89, 0xab,
+            ],
+            Core::Rightmost8_1 => [
+                0xce, 0xab, 0xd5, 0xca, 0x9f, 0xd9, 0x16, 0x2f, 0x99, 0x5e, 0x37, 0x35, 0x77, 0x04,
+                0x7a, 0xa4, 0xba, 0x71, 0xf8, 0x07, 0xc7, 0x11, 0xf6, 0x0b, 0x08, 0xeb, 0x6a, 0x1c,
+                0xfc, 0x38, 0x1c, 0x9c,
+            ],
+            Core::Rightmost8_2 => [
+                0x39, 0xb2, 0xf0, 0x37, 0xb6, 0xa0, 0x81, 0x86, 0x11, 0x50, 0x65, 0xf3, 0x85, 0x05,
+                0x7a, 0xf3, 0xde, 0x3b, 0x9f, 0x0a, 0x9b, 0xda, 0x68, 0x33, 0x71, 0x46, 0x22, 0x59,
+                0x41, 0x30, 0x28, 0xec,
+            ],
+            Core::Rightmost8_4 => [
+                0xa7, 0xa9, 0x49, 0x49, 0x0d, 0x1a, 0x00, 0xde, 0xfe, 0x5f, 0x61, 0x51, 0x29, 0x23,
+                0x85, 0x0f, 0x51, 0xe3, 0x47, 0xc0, 0x6a, 0x8d, 0x76, 0xa0, 0xcd, 0xab, 0x87, 0xee,
+                0xe2, 0x9a, 0x5d, 0xef,
             ],
             Core::ScalarAdd => [
                 0x4e, 0xe9, 0xa9, 0x6c, 0xef, 0x49, 0x6c, 0xf4, 0xa8, 0xfc, 0x4e, 0x8a, 0x8b, 0xc0,
@@ -1136,6 +2099,11 @@ impl Jet for Core {
                 0x0b, 0x17, 0x32, 0x9f, 0x98, 0x28, 0x1d, 0x13, 0xf5, 0x15, 0x77, 0x00, 0xfa, 0x6a,
                 0x1d, 0x6d, 0x5d, 0x42,
             ],
+            Core::Some1 => [
+                0x0b, 0x9c, 0xb7, 0xb4, 0x7d, 0xeb, 0x4f, 0x9d, 0x95, 0xd5, 0xc0, 0x20, 0x00, 0x1f,
+                0xd0, 0x09, 0xa2, 0xf1, 0x0c, 0xe5, 0xd9, 0x18, 0xd8, 0x18, 0x1e, 0x25, 0x93, 0x15,
+                0xfe, 0x8e, 0xac, 0x53,
+            ],
             Core::Some16 => [
                 0x30, 0xd8, 0x14, 0xff, 0xb4, 0x92, 0x78, 0xb4, 0x25, 0x00, 0x7b, 0x9d, 0xe2, 0x79,
                 0xf7, 0x6f, 0x4a, 0x6d, 0xa4, 0xc0, 0x34, 0x63, 0x4a, 0xbb, 0x87, 0x11, 0x0e, 0xcb,
@@ -1181,6 +2149,11 @@ impl Jet for Core {
                 0x64, 0x99, 0xa0, 0x3a, 0x9a, 0x0f, 0x99, 0x3b, 0xe3, 0xc4, 0x8e, 0x9d, 0x1f, 0x40,
                 0x5d, 0x97, 0x94, 0x7c,
             ],
+            Core::Xor1 => [
+                0x77, 0xb7, 0x14, 0xe6, 0x89, 0xc9, 0xd6, 0xa4, 0x8f, 0xd1, 0xad, 0xd8, 0x65, 0x22,
+                0x82, 0x3d, 0xeb, 0xc7, 0x0d, 0xf6, 0xa7, 0xfe, 0x4b, 0xf2, 0xb8, 0x5d, 0xe5, 0x49,
+                0xe0, 0xcd, 0x0a, 0x05,
+            ],
             Core::Xor16 => [
                 0xca, 0x36, 0x35, 0x51, 0x35, 0xa8, 0x6a, 0x11, 0x68, 0x6c, 0x01, 0xaa, 0x35, 0xf2,
                 0x5b, 0x97, 0xfa, 0xee, 0xda, 0xbf, 0xde, 0xc8, 0xdf, 0x08, 0xd2, 0xc0, 0xf6, 0x65,
@@ -1200,6 +2173,11 @@ impl Jet for Core {
                 0xff, 0x3e, 0x52, 0x62, 0x02, 0xff, 0x89, 0xcf, 0xf7, 0xbb, 0xe7, 0x0f, 0xdb, 0xf9,
                 0xf9, 0x7d, 0x23, 0xc1, 0x2f, 0x6e, 0x2b, 0xb8, 0xbb, 0xe8, 0x30, 0x4a, 0xc7, 0x0f,
                 0x61, 0xc1, 0xcf, 0x2c,
+            ],
+            Core::XorXor1 => [
+                0x22, 0x52, 0xa9, 0x86, 0x08, 0xd2, 0x0b, 0xd4, 0x11, 0x31, 0x7a, 0x20, 0x15, 0xc1,
+                0x56, 0x98, 0x70, 0xa6, 0x2c, 0x95, 0x3a, 0x61, 0x65, 0xfb, 0xe9, 0x77, 0xb4, 0x0d,
+                0x6c, 0xce, 0xa4, 0x95,
             ],
             Core::XorXor16 => [
                 0xa1, 0xf2, 0xd6, 0x33, 0xbf, 0x98, 0x89, 0xa0, 0x8a, 0x42, 0x51, 0x2a, 0x78, 0x93,
@@ -1236,16 +2214,19 @@ impl Jet for Core {
             Core::All32 => b"i",
             Core::All64 => b"l",
             Core::All8 => b"***22*22**22*22",
+            Core::And1 => b"*22",
             Core::And16 => b"i",
             Core::And32 => b"l",
             Core::And64 => b"*ll",
             Core::And8 => b"****22*22**22*22***22*22**22*22",
             Core::Bip0340Verify => b"**hh*hh",
+            Core::Ch1 => b"*2*22",
             Core::Ch16 => b"*****22*22**22*22***22*22**22*22i",
             Core::Ch32 => b"*il",
             Core::Ch64 => b"*l*ll",
             Core::Ch8 => b"****22*22**22*22****22*22**22*22***22*22**22*22",
             Core::CheckSigVerify => b"**h*hh*hh",
+            Core::Complement1 => b"2",
             Core::Complement16 => b"****22*22**22*22***22*22**22*22",
             Core::Complement32 => b"i",
             Core::Complement64 => b"l",
@@ -1267,6 +2248,7 @@ impl Jet for Core {
             Core::Divides32 => b"l",
             Core::Divides64 => b"*ll",
             Core::Divides8 => b"****22*22**22*22***22*22**22*22",
+            Core::Eq1 => b"*22",
             Core::Eq16 => b"i",
             Core::Eq256 => b"*hh",
             Core::Eq32 => b"l",
@@ -1294,10 +2276,46 @@ impl Jet for Core {
             Core::FullIncrement32 => b"*2i",
             Core::FullIncrement64 => b"*2l",
             Core::FullIncrement8 => b"*2***22*22**22*22",
+            Core::FullLeftShift16_1 => b"*****22*22**22*22***22*22**22*222",
+            Core::FullLeftShift16_2 => b"*****22*22**22*22***22*22**22*22*22",
+            Core::FullLeftShift16_4 => b"*****22*22**22*22***22*22**22*22**22*22",
+            Core::FullLeftShift16_8 => b"*****22*22**22*22***22*22**22*22***22*22**22*22",
+            Core::FullLeftShift32_1 => b"*i2",
+            Core::FullLeftShift32_16 => b"*i****22*22**22*22***22*22**22*22",
+            Core::FullLeftShift32_2 => b"*i*22",
+            Core::FullLeftShift32_4 => b"*i**22*22",
+            Core::FullLeftShift32_8 => b"*i***22*22**22*22",
+            Core::FullLeftShift64_1 => b"*l2",
+            Core::FullLeftShift64_16 => b"*l****22*22**22*22***22*22**22*22",
+            Core::FullLeftShift64_2 => b"*l*22",
+            Core::FullLeftShift64_32 => b"*li",
+            Core::FullLeftShift64_4 => b"*l**22*22",
+            Core::FullLeftShift64_8 => b"*l***22*22**22*22",
+            Core::FullLeftShift8_1 => b"****22*22**22*222",
+            Core::FullLeftShift8_2 => b"****22*22**22*22*22",
+            Core::FullLeftShift8_4 => b"****22*22**22*22**22*22",
             Core::FullMultiply16 => b"l",
             Core::FullMultiply32 => b"*ll",
             Core::FullMultiply64 => b"h",
             Core::FullMultiply8 => b"i",
+            Core::FullRightShift16_1 => b"*2****22*22**22*22***22*22**22*22",
+            Core::FullRightShift16_2 => b"**22****22*22**22*22***22*22**22*22",
+            Core::FullRightShift16_4 => b"***22*22****22*22**22*22***22*22**22*22",
+            Core::FullRightShift16_8 => b"****22*22**22*22****22*22**22*22***22*22**22*22",
+            Core::FullRightShift32_1 => b"*2i",
+            Core::FullRightShift32_16 => b"*****22*22**22*22***22*22**22*22i",
+            Core::FullRightShift32_2 => b"**22i",
+            Core::FullRightShift32_4 => b"***22*22i",
+            Core::FullRightShift32_8 => b"****22*22**22*22i",
+            Core::FullRightShift64_1 => b"*2l",
+            Core::FullRightShift64_16 => b"*****22*22**22*22***22*22**22*22l",
+            Core::FullRightShift64_2 => b"**22l",
+            Core::FullRightShift64_32 => b"*il",
+            Core::FullRightShift64_4 => b"***22*22l",
+            Core::FullRightShift64_8 => b"****22*22**22*22l",
+            Core::FullRightShift8_1 => b"*2***22*22**22*22",
+            Core::FullRightShift8_2 => b"**22***22*22**22*22",
+            Core::FullRightShift8_4 => b"***22*22***22*22**22*22",
             Core::FullSubtract16 => b"*2i",
             Core::FullSubtract32 => b"*2l",
             Core::FullSubtract64 => b"*2*ll",
@@ -1317,6 +2335,7 @@ impl Jet for Core {
             Core::GejXEquiv => b"*h**hhh",
             Core::GejYIsOdd => b"**hhh",
             Core::Generate => b"h",
+            Core::High1 => b"1",
             Core::High16 => b"1",
             Core::High32 => b"1",
             Core::High64 => b"1",
@@ -1337,8 +2356,69 @@ impl Jet for Core {
             Core::Le32 => b"l",
             Core::Le64 => b"*ll",
             Core::Le8 => b"****22*22**22*22***22*22**22*22",
+            Core::LeftExtend16_32 => b"****22*22**22*22***22*22**22*22",
+            Core::LeftExtend16_64 => b"****22*22**22*22***22*22**22*22",
+            Core::LeftExtend1_16 => b"2",
+            Core::LeftExtend1_32 => b"2",
+            Core::LeftExtend1_64 => b"2",
+            Core::LeftExtend1_8 => b"2",
+            Core::LeftExtend32_64 => b"i",
+            Core::LeftExtend8_16 => b"***22*22**22*22",
+            Core::LeftExtend8_32 => b"***22*22**22*22",
+            Core::LeftExtend8_64 => b"***22*22**22*22",
+            Core::LeftPadHigh16_32 => b"****22*22**22*22***22*22**22*22",
+            Core::LeftPadHigh16_64 => b"****22*22**22*22***22*22**22*22",
+            Core::LeftPadHigh1_16 => b"2",
+            Core::LeftPadHigh1_32 => b"2",
+            Core::LeftPadHigh1_64 => b"2",
+            Core::LeftPadHigh1_8 => b"2",
+            Core::LeftPadHigh32_64 => b"i",
+            Core::LeftPadHigh8_16 => b"***22*22**22*22",
+            Core::LeftPadHigh8_32 => b"***22*22**22*22",
+            Core::LeftPadHigh8_64 => b"***22*22**22*22",
+            Core::LeftPadLow16_32 => b"****22*22**22*22***22*22**22*22",
+            Core::LeftPadLow16_64 => b"****22*22**22*22***22*22**22*22",
+            Core::LeftPadLow1_16 => b"2",
+            Core::LeftPadLow1_32 => b"2",
+            Core::LeftPadLow1_64 => b"2",
+            Core::LeftPadLow1_8 => b"2",
+            Core::LeftPadLow32_64 => b"i",
+            Core::LeftPadLow8_16 => b"***22*22**22*22",
+            Core::LeftPadLow8_32 => b"***22*22**22*22",
+            Core::LeftPadLow8_64 => b"***22*22**22*22",
+            Core::LeftRotate16 => b"***22*22****22*22**22*22***22*22**22*22",
+            Core::LeftRotate32 => b"****22*22**22*22i",
+            Core::LeftRotate64 => b"****22*22**22*22l",
+            Core::LeftRotate8 => b"***22*22***22*22**22*22",
+            Core::LeftShift16 => b"***22*22****22*22**22*22***22*22**22*22",
+            Core::LeftShift32 => b"****22*22**22*22i",
+            Core::LeftShift64 => b"****22*22**22*22l",
+            Core::LeftShift8 => b"***22*22***22*22**22*22",
+            Core::LeftShiftWith16 => b"*2***22*22****22*22**22*22***22*22**22*22",
+            Core::LeftShiftWith32 => b"*2****22*22**22*22i",
+            Core::LeftShiftWith64 => b"*2****22*22**22*22l",
+            Core::LeftShiftWith8 => b"*2***22*22***22*22**22*22",
+            Core::Leftmost16_1 => b"****22*22**22*22***22*22**22*22",
+            Core::Leftmost16_2 => b"****22*22**22*22***22*22**22*22",
+            Core::Leftmost16_4 => b"****22*22**22*22***22*22**22*22",
+            Core::Leftmost16_8 => b"****22*22**22*22***22*22**22*22",
+            Core::Leftmost32_1 => b"i",
+            Core::Leftmost32_16 => b"i",
+            Core::Leftmost32_2 => b"i",
+            Core::Leftmost32_4 => b"i",
+            Core::Leftmost32_8 => b"i",
+            Core::Leftmost64_1 => b"l",
+            Core::Leftmost64_16 => b"l",
+            Core::Leftmost64_2 => b"l",
+            Core::Leftmost64_32 => b"l",
+            Core::Leftmost64_4 => b"l",
+            Core::Leftmost64_8 => b"l",
+            Core::Leftmost8_1 => b"***22*22**22*22",
+            Core::Leftmost8_2 => b"***22*22**22*22",
+            Core::Leftmost8_4 => b"***22*22**22*22",
             Core::LinearCombination1 => b"**h**hhhh",
             Core::LinearVerify1 => b"***h*hhh*hh",
+            Core::Low1 => b"1",
             Core::Low16 => b"1",
             Core::Low32 => b"1",
             Core::Low64 => b"1",
@@ -1347,6 +2427,7 @@ impl Jet for Core {
             Core::Lt32 => b"l",
             Core::Lt64 => b"*ll",
             Core::Lt8 => b"****22*22**22*22***22*22**22*22",
+            Core::Maj1 => b"*2*22",
             Core::Maj16 => b"*****22*22**22*22***22*22**22*22i",
             Core::Maj32 => b"*il",
             Core::Maj64 => b"*l*ll",
@@ -1379,6 +2460,7 @@ impl Jet for Core {
             Core::One32 => b"1",
             Core::One64 => b"1",
             Core::One8 => b"1",
+            Core::Or1 => b"*22",
             Core::Or16 => b"i",
             Core::Or32 => b"l",
             Core::Or64 => b"*ll",
@@ -1386,6 +2468,62 @@ impl Jet for Core {
             Core::ParseLock => b"i",
             Core::ParseSequence => b"i",
             Core::PointVerify1 => b"***h*2hh*2h",
+            Core::RightExtend16_32 => b"****22*22**22*22***22*22**22*22",
+            Core::RightExtend16_64 => b"****22*22**22*22***22*22**22*22",
+            Core::RightExtend32_64 => b"i",
+            Core::RightExtend8_16 => b"***22*22**22*22",
+            Core::RightExtend8_32 => b"***22*22**22*22",
+            Core::RightExtend8_64 => b"***22*22**22*22",
+            Core::RightPadHigh16_32 => b"****22*22**22*22***22*22**22*22",
+            Core::RightPadHigh16_64 => b"****22*22**22*22***22*22**22*22",
+            Core::RightPadHigh1_16 => b"2",
+            Core::RightPadHigh1_32 => b"2",
+            Core::RightPadHigh1_64 => b"2",
+            Core::RightPadHigh1_8 => b"2",
+            Core::RightPadHigh32_64 => b"i",
+            Core::RightPadHigh8_16 => b"***22*22**22*22",
+            Core::RightPadHigh8_32 => b"***22*22**22*22",
+            Core::RightPadHigh8_64 => b"***22*22**22*22",
+            Core::RightPadLow16_32 => b"****22*22**22*22***22*22**22*22",
+            Core::RightPadLow16_64 => b"****22*22**22*22***22*22**22*22",
+            Core::RightPadLow1_16 => b"2",
+            Core::RightPadLow1_32 => b"2",
+            Core::RightPadLow1_64 => b"2",
+            Core::RightPadLow1_8 => b"2",
+            Core::RightPadLow32_64 => b"i",
+            Core::RightPadLow8_16 => b"***22*22**22*22",
+            Core::RightPadLow8_32 => b"***22*22**22*22",
+            Core::RightPadLow8_64 => b"***22*22**22*22",
+            Core::RightRotate16 => b"***22*22****22*22**22*22***22*22**22*22",
+            Core::RightRotate32 => b"****22*22**22*22i",
+            Core::RightRotate64 => b"****22*22**22*22l",
+            Core::RightRotate8 => b"***22*22***22*22**22*22",
+            Core::RightShift16 => b"***22*22****22*22**22*22***22*22**22*22",
+            Core::RightShift32 => b"****22*22**22*22i",
+            Core::RightShift64 => b"****22*22**22*22l",
+            Core::RightShift8 => b"***22*22***22*22**22*22",
+            Core::RightShiftWith16 => b"*2***22*22****22*22**22*22***22*22**22*22",
+            Core::RightShiftWith32 => b"*2****22*22**22*22i",
+            Core::RightShiftWith64 => b"*2****22*22**22*22l",
+            Core::RightShiftWith8 => b"*2***22*22***22*22**22*22",
+            Core::Rightmost16_1 => b"****22*22**22*22***22*22**22*22",
+            Core::Rightmost16_2 => b"****22*22**22*22***22*22**22*22",
+            Core::Rightmost16_4 => b"****22*22**22*22***22*22**22*22",
+            Core::Rightmost16_8 => b"****22*22**22*22***22*22**22*22",
+            Core::Rightmost32_1 => b"i",
+            Core::Rightmost32_16 => b"i",
+            Core::Rightmost32_2 => b"i",
+            Core::Rightmost32_4 => b"i",
+            Core::Rightmost32_8 => b"i",
+            Core::Rightmost64_1 => b"l",
+            Core::Rightmost64_16 => b"l",
+            Core::Rightmost64_2 => b"l",
+            Core::Rightmost64_32 => b"l",
+            Core::Rightmost64_4 => b"l",
+            Core::Rightmost64_8 => b"l",
+            Core::Rightmost8_1 => b"***22*22**22*22",
+            Core::Rightmost8_2 => b"***22*22**22*22",
+            Core::Rightmost8_4 => b"***22*22**22*22",
             Core::ScalarAdd => b"*hh",
             Core::ScalarInvert => b"h",
             Core::ScalarIsZero => b"h",
@@ -1410,6 +2548,7 @@ impl Jet for Core {
             Core::Sha256Ctx8Finalize => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
             Core::Sha256Ctx8Init => b"1",
             Core::Sha256Iv => b"1",
+            Core::Some1 => b"2",
             Core::Some16 => b"****22*22**22*22***22*22**22*22",
             Core::Some32 => b"i",
             Core::Some64 => b"l",
@@ -1419,10 +2558,12 @@ impl Jet for Core {
             Core::Subtract64 => b"*ll",
             Core::Subtract8 => b"****22*22**22*22***22*22**22*22",
             Core::Verify => b"2",
+            Core::Xor1 => b"*22",
             Core::Xor16 => b"i",
             Core::Xor32 => b"l",
             Core::Xor64 => b"*ll",
             Core::Xor8 => b"****22*22**22*22***22*22**22*22",
+            Core::XorXor1 => b"*2*22",
             Core::XorXor16 => b"*****22*22**22*22***22*22**22*22i",
             Core::XorXor32 => b"*il",
             Core::XorXor64 => b"*l*ll",
@@ -1442,16 +2583,19 @@ impl Jet for Core {
             Core::All32 => b"2",
             Core::All64 => b"2",
             Core::All8 => b"2",
+            Core::And1 => b"2",
             Core::And16 => b"****22*22**22*22***22*22**22*22",
             Core::And32 => b"i",
             Core::And64 => b"l",
             Core::And8 => b"***22*22**22*22",
             Core::Bip0340Verify => b"1",
+            Core::Ch1 => b"2",
             Core::Ch16 => b"****22*22**22*22***22*22**22*22",
             Core::Ch32 => b"i",
             Core::Ch64 => b"l",
             Core::Ch8 => b"***22*22**22*22",
             Core::CheckSigVerify => b"1",
+            Core::Complement1 => b"2",
             Core::Complement16 => b"****22*22**22*22***22*22**22*22",
             Core::Complement32 => b"i",
             Core::Complement64 => b"l",
@@ -1473,6 +2617,7 @@ impl Jet for Core {
             Core::Divides32 => b"2",
             Core::Divides64 => b"2",
             Core::Divides8 => b"2",
+            Core::Eq1 => b"2",
             Core::Eq16 => b"2",
             Core::Eq256 => b"2",
             Core::Eq32 => b"2",
@@ -1500,10 +2645,46 @@ impl Jet for Core {
             Core::FullIncrement32 => b"*2i",
             Core::FullIncrement64 => b"*2l",
             Core::FullIncrement8 => b"*2***22*22**22*22",
+            Core::FullLeftShift16_1 => b"*2****22*22**22*22***22*22**22*22",
+            Core::FullLeftShift16_2 => b"**22****22*22**22*22***22*22**22*22",
+            Core::FullLeftShift16_4 => b"***22*22****22*22**22*22***22*22**22*22",
+            Core::FullLeftShift16_8 => b"****22*22**22*22****22*22**22*22***22*22**22*22",
+            Core::FullLeftShift32_1 => b"*2i",
+            Core::FullLeftShift32_16 => b"*****22*22**22*22***22*22**22*22i",
+            Core::FullLeftShift32_2 => b"**22i",
+            Core::FullLeftShift32_4 => b"***22*22i",
+            Core::FullLeftShift32_8 => b"****22*22**22*22i",
+            Core::FullLeftShift64_1 => b"*2l",
+            Core::FullLeftShift64_16 => b"*****22*22**22*22***22*22**22*22l",
+            Core::FullLeftShift64_2 => b"**22l",
+            Core::FullLeftShift64_32 => b"*il",
+            Core::FullLeftShift64_4 => b"***22*22l",
+            Core::FullLeftShift64_8 => b"****22*22**22*22l",
+            Core::FullLeftShift8_1 => b"*2***22*22**22*22",
+            Core::FullLeftShift8_2 => b"**22***22*22**22*22",
+            Core::FullLeftShift8_4 => b"***22*22***22*22**22*22",
             Core::FullMultiply16 => b"i",
             Core::FullMultiply32 => b"l",
             Core::FullMultiply64 => b"*ll",
             Core::FullMultiply8 => b"****22*22**22*22***22*22**22*22",
+            Core::FullRightShift16_1 => b"*****22*22**22*22***22*22**22*222",
+            Core::FullRightShift16_2 => b"*****22*22**22*22***22*22**22*22*22",
+            Core::FullRightShift16_4 => b"*****22*22**22*22***22*22**22*22**22*22",
+            Core::FullRightShift16_8 => b"*****22*22**22*22***22*22**22*22***22*22**22*22",
+            Core::FullRightShift32_1 => b"*i2",
+            Core::FullRightShift32_16 => b"*i****22*22**22*22***22*22**22*22",
+            Core::FullRightShift32_2 => b"*i*22",
+            Core::FullRightShift32_4 => b"*i**22*22",
+            Core::FullRightShift32_8 => b"*i***22*22**22*22",
+            Core::FullRightShift64_1 => b"*l2",
+            Core::FullRightShift64_16 => b"*l****22*22**22*22***22*22**22*22",
+            Core::FullRightShift64_2 => b"*l*22",
+            Core::FullRightShift64_32 => b"*li",
+            Core::FullRightShift64_4 => b"*l**22*22",
+            Core::FullRightShift64_8 => b"*l***22*22**22*22",
+            Core::FullRightShift8_1 => b"****22*22**22*222",
+            Core::FullRightShift8_2 => b"****22*22**22*22*22",
+            Core::FullRightShift8_4 => b"****22*22**22*22**22*22",
             Core::FullSubtract16 => b"*2****22*22**22*22***22*22**22*22",
             Core::FullSubtract32 => b"*2i",
             Core::FullSubtract64 => b"*2l",
@@ -1523,6 +2704,7 @@ impl Jet for Core {
             Core::GejXEquiv => b"2",
             Core::GejYIsOdd => b"2",
             Core::Generate => b"**hhh",
+            Core::High1 => b"2",
             Core::High16 => b"****22*22**22*22***22*22**22*22",
             Core::High32 => b"i",
             Core::High64 => b"l",
@@ -1543,8 +2725,69 @@ impl Jet for Core {
             Core::Le32 => b"2",
             Core::Le64 => b"2",
             Core::Le8 => b"2",
+            Core::LeftExtend16_32 => b"i",
+            Core::LeftExtend16_64 => b"l",
+            Core::LeftExtend1_16 => b"****22*22**22*22***22*22**22*22",
+            Core::LeftExtend1_32 => b"i",
+            Core::LeftExtend1_64 => b"l",
+            Core::LeftExtend1_8 => b"***22*22**22*22",
+            Core::LeftExtend32_64 => b"l",
+            Core::LeftExtend8_16 => b"****22*22**22*22***22*22**22*22",
+            Core::LeftExtend8_32 => b"i",
+            Core::LeftExtend8_64 => b"l",
+            Core::LeftPadHigh16_32 => b"i",
+            Core::LeftPadHigh16_64 => b"l",
+            Core::LeftPadHigh1_16 => b"****22*22**22*22***22*22**22*22",
+            Core::LeftPadHigh1_32 => b"i",
+            Core::LeftPadHigh1_64 => b"l",
+            Core::LeftPadHigh1_8 => b"***22*22**22*22",
+            Core::LeftPadHigh32_64 => b"l",
+            Core::LeftPadHigh8_16 => b"****22*22**22*22***22*22**22*22",
+            Core::LeftPadHigh8_32 => b"i",
+            Core::LeftPadHigh8_64 => b"l",
+            Core::LeftPadLow16_32 => b"i",
+            Core::LeftPadLow16_64 => b"l",
+            Core::LeftPadLow1_16 => b"****22*22**22*22***22*22**22*22",
+            Core::LeftPadLow1_32 => b"i",
+            Core::LeftPadLow1_64 => b"l",
+            Core::LeftPadLow1_8 => b"***22*22**22*22",
+            Core::LeftPadLow32_64 => b"l",
+            Core::LeftPadLow8_16 => b"****22*22**22*22***22*22**22*22",
+            Core::LeftPadLow8_32 => b"i",
+            Core::LeftPadLow8_64 => b"l",
+            Core::LeftRotate16 => b"****22*22**22*22***22*22**22*22",
+            Core::LeftRotate32 => b"i",
+            Core::LeftRotate64 => b"l",
+            Core::LeftRotate8 => b"***22*22**22*22",
+            Core::LeftShift16 => b"****22*22**22*22***22*22**22*22",
+            Core::LeftShift32 => b"i",
+            Core::LeftShift64 => b"l",
+            Core::LeftShift8 => b"***22*22**22*22",
+            Core::LeftShiftWith16 => b"****22*22**22*22***22*22**22*22",
+            Core::LeftShiftWith32 => b"i",
+            Core::LeftShiftWith64 => b"l",
+            Core::LeftShiftWith8 => b"***22*22**22*22",
+            Core::Leftmost16_1 => b"2",
+            Core::Leftmost16_2 => b"*22",
+            Core::Leftmost16_4 => b"**22*22",
+            Core::Leftmost16_8 => b"***22*22**22*22",
+            Core::Leftmost32_1 => b"2",
+            Core::Leftmost32_16 => b"****22*22**22*22***22*22**22*22",
+            Core::Leftmost32_2 => b"*22",
+            Core::Leftmost32_4 => b"**22*22",
+            Core::Leftmost32_8 => b"***22*22**22*22",
+            Core::Leftmost64_1 => b"2",
+            Core::Leftmost64_16 => b"****22*22**22*22***22*22**22*22",
+            Core::Leftmost64_2 => b"*22",
+            Core::Leftmost64_32 => b"i",
+            Core::Leftmost64_4 => b"**22*22",
+            Core::Leftmost64_8 => b"***22*22**22*22",
+            Core::Leftmost8_1 => b"2",
+            Core::Leftmost8_2 => b"*22",
+            Core::Leftmost8_4 => b"**22*22",
             Core::LinearCombination1 => b"**hhh",
             Core::LinearVerify1 => b"1",
+            Core::Low1 => b"2",
             Core::Low16 => b"****22*22**22*22***22*22**22*22",
             Core::Low32 => b"i",
             Core::Low64 => b"l",
@@ -1553,6 +2796,7 @@ impl Jet for Core {
             Core::Lt32 => b"2",
             Core::Lt64 => b"2",
             Core::Lt8 => b"2",
+            Core::Maj1 => b"2",
             Core::Maj16 => b"****22*22**22*22***22*22**22*22",
             Core::Maj32 => b"i",
             Core::Maj64 => b"l",
@@ -1585,6 +2829,7 @@ impl Jet for Core {
             Core::One32 => b"i",
             Core::One64 => b"l",
             Core::One8 => b"***22*22**22*22",
+            Core::Or1 => b"2",
             Core::Or16 => b"****22*22**22*22***22*22**22*22",
             Core::Or32 => b"i",
             Core::Or64 => b"l",
@@ -1592,6 +2837,62 @@ impl Jet for Core {
             Core::ParseLock => b"+ii",
             Core::ParseSequence => b"+1+****22*22**22*22***22*22**22*22****22*22**22*22***22*22**22*22",
             Core::PointVerify1 => b"1",
+            Core::RightExtend16_32 => b"i",
+            Core::RightExtend16_64 => b"l",
+            Core::RightExtend32_64 => b"l",
+            Core::RightExtend8_16 => b"****22*22**22*22***22*22**22*22",
+            Core::RightExtend8_32 => b"i",
+            Core::RightExtend8_64 => b"l",
+            Core::RightPadHigh16_32 => b"i",
+            Core::RightPadHigh16_64 => b"l",
+            Core::RightPadHigh1_16 => b"****22*22**22*22***22*22**22*22",
+            Core::RightPadHigh1_32 => b"i",
+            Core::RightPadHigh1_64 => b"l",
+            Core::RightPadHigh1_8 => b"***22*22**22*22",
+            Core::RightPadHigh32_64 => b"l",
+            Core::RightPadHigh8_16 => b"****22*22**22*22***22*22**22*22",
+            Core::RightPadHigh8_32 => b"i",
+            Core::RightPadHigh8_64 => b"l",
+            Core::RightPadLow16_32 => b"i",
+            Core::RightPadLow16_64 => b"l",
+            Core::RightPadLow1_16 => b"****22*22**22*22***22*22**22*22",
+            Core::RightPadLow1_32 => b"i",
+            Core::RightPadLow1_64 => b"l",
+            Core::RightPadLow1_8 => b"***22*22**22*22",
+            Core::RightPadLow32_64 => b"l",
+            Core::RightPadLow8_16 => b"****22*22**22*22***22*22**22*22",
+            Core::RightPadLow8_32 => b"i",
+            Core::RightPadLow8_64 => b"l",
+            Core::RightRotate16 => b"****22*22**22*22***22*22**22*22",
+            Core::RightRotate32 => b"i",
+            Core::RightRotate64 => b"l",
+            Core::RightRotate8 => b"***22*22**22*22",
+            Core::RightShift16 => b"****22*22**22*22***22*22**22*22",
+            Core::RightShift32 => b"i",
+            Core::RightShift64 => b"l",
+            Core::RightShift8 => b"***22*22**22*22",
+            Core::RightShiftWith16 => b"****22*22**22*22***22*22**22*22",
+            Core::RightShiftWith32 => b"i",
+            Core::RightShiftWith64 => b"l",
+            Core::RightShiftWith8 => b"***22*22**22*22",
+            Core::Rightmost16_1 => b"2",
+            Core::Rightmost16_2 => b"*22",
+            Core::Rightmost16_4 => b"**22*22",
+            Core::Rightmost16_8 => b"***22*22**22*22",
+            Core::Rightmost32_1 => b"2",
+            Core::Rightmost32_16 => b"****22*22**22*22***22*22**22*22",
+            Core::Rightmost32_2 => b"*22",
+            Core::Rightmost32_4 => b"**22*22",
+            Core::Rightmost32_8 => b"***22*22**22*22",
+            Core::Rightmost64_1 => b"2",
+            Core::Rightmost64_16 => b"****22*22**22*22***22*22**22*22",
+            Core::Rightmost64_2 => b"*22",
+            Core::Rightmost64_32 => b"i",
+            Core::Rightmost64_4 => b"**22*22",
+            Core::Rightmost64_8 => b"***22*22**22*22",
+            Core::Rightmost8_1 => b"2",
+            Core::Rightmost8_2 => b"*22",
+            Core::Rightmost8_4 => b"**22*22",
             Core::ScalarAdd => b"h",
             Core::ScalarInvert => b"h",
             Core::ScalarIsZero => b"2",
@@ -1616,6 +2917,7 @@ impl Jet for Core {
             Core::Sha256Ctx8Finalize => b"h",
             Core::Sha256Ctx8Init => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
             Core::Sha256Iv => b"h",
+            Core::Some1 => b"2",
             Core::Some16 => b"2",
             Core::Some32 => b"2",
             Core::Some64 => b"2",
@@ -1625,10 +2927,12 @@ impl Jet for Core {
             Core::Subtract64 => b"*2l",
             Core::Subtract8 => b"*2***22*22**22*22",
             Core::Verify => b"1",
+            Core::Xor1 => b"2",
             Core::Xor16 => b"****22*22**22*22***22*22**22*22",
             Core::Xor32 => b"i",
             Core::Xor64 => b"l",
             Core::Xor8 => b"***22*22**22*22",
+            Core::XorXor1 => b"2",
             Core::XorXor16 => b"****22*22**22*22***22*22**22*22",
             Core::XorXor32 => b"i",
             Core::XorXor64 => b"l",
@@ -1641,42 +2945,52 @@ impl Jet for Core {
     fn encode<W: Write>(&self, w: &mut BitWriter<W>) -> std::io::Result<usize> {
         let (n, len) = match self {
             Core::Verify => (0, 2),
+            Core::Low1 => (8, 5),
             Core::Low8 => (37, 7),
             Core::Low16 => (304, 10),
             Core::Low32 => (305, 10),
             Core::Low64 => (306, 10),
+            Core::High1 => (10, 5),
             Core::High8 => (45, 7),
             Core::High16 => (368, 10),
             Core::High32 => (369, 10),
             Core::High64 => (370, 10),
+            Core::Complement1 => (96, 8),
             Core::Complement8 => (389, 10),
             Core::Complement16 => (3120, 13),
             Core::Complement32 => (3121, 13),
             Core::Complement64 => (3122, 13),
+            Core::And1 => (98, 8),
             Core::And8 => (397, 10),
             Core::And16 => (3184, 13),
             Core::And32 => (3185, 13),
             Core::And64 => (3186, 13),
+            Core::Or1 => (100, 8),
             Core::Or8 => (405, 10),
             Core::Or16 => (3248, 13),
             Core::Or32 => (3249, 13),
             Core::Or64 => (3250, 13),
+            Core::Xor1 => (102, 8),
             Core::Xor8 => (413, 10),
             Core::Xor16 => (3312, 13),
             Core::Xor32 => (3313, 13),
             Core::Xor64 => (3314, 13),
+            Core::Maj1 => (208, 9),
             Core::Maj8 => (837, 11),
             Core::Maj16 => (6704, 14),
             Core::Maj32 => (6705, 14),
             Core::Maj64 => (6706, 14),
+            Core::XorXor1 => (210, 9),
             Core::XorXor8 => (845, 11),
             Core::XorXor16 => (6768, 14),
             Core::XorXor32 => (6769, 14),
             Core::XorXor64 => (6770, 14),
+            Core::Ch1 => (212, 9),
             Core::Ch8 => (853, 11),
             Core::Ch16 => (6832, 14),
             Core::Ch32 => (6833, 14),
             Core::Ch64 => (6834, 14),
+            Core::Some1 => (214, 9),
             Core::Some8 => (861, 11),
             Core::Some16 => (6896, 14),
             Core::Some32 => (6897, 14),
@@ -1685,11 +2999,164 @@ impl Jet for Core {
             Core::All16 => (6960, 14),
             Core::All32 => (6961, 14),
             Core::All64 => (6962, 14),
+            Core::Eq1 => (218, 9),
             Core::Eq8 => (877, 11),
             Core::Eq16 => (7024, 14),
             Core::Eq32 => (7025, 14),
             Core::Eq64 => (7026, 14),
             Core::Eq256 => (14056, 15),
+            Core::FullLeftShift8_1 => (1765, 12),
+            Core::FullLeftShift16_1 => (14128, 15),
+            Core::FullLeftShift32_1 => (14129, 15),
+            Core::FullLeftShift64_1 => (14130, 15),
+            Core::FullLeftShift8_2 => (7076, 14),
+            Core::FullLeftShift16_2 => (7077, 14),
+            Core::FullLeftShift32_2 => (56624, 17),
+            Core::FullLeftShift64_2 => (56625, 17),
+            Core::FullLeftShift8_4 => (1770, 12),
+            Core::FullLeftShift16_4 => (7084, 14),
+            Core::FullLeftShift32_4 => (7085, 14),
+            Core::FullLeftShift64_4 => (56688, 17),
+            Core::FullLeftShift16_8 => (14176, 15),
+            Core::FullLeftShift32_8 => (56708, 17),
+            Core::FullLeftShift64_8 => (56709, 17),
+            Core::FullLeftShift32_16 => (14178, 15),
+            Core::FullLeftShift64_16 => (56716, 17),
+            Core::FullLeftShift64_32 => (14180, 15),
+            Core::FullRightShift8_1 => (1781, 12),
+            Core::FullRightShift16_1 => (14256, 15),
+            Core::FullRightShift32_1 => (14257, 15),
+            Core::FullRightShift64_1 => (14258, 15),
+            Core::FullRightShift8_2 => (7140, 14),
+            Core::FullRightShift16_2 => (7141, 14),
+            Core::FullRightShift32_2 => (57136, 17),
+            Core::FullRightShift64_2 => (57137, 17),
+            Core::FullRightShift8_4 => (1786, 12),
+            Core::FullRightShift16_4 => (7148, 14),
+            Core::FullRightShift32_4 => (7149, 14),
+            Core::FullRightShift64_4 => (57200, 17),
+            Core::FullRightShift16_8 => (14304, 15),
+            Core::FullRightShift32_8 => (57220, 17),
+            Core::FullRightShift64_8 => (57221, 17),
+            Core::FullRightShift32_16 => (14306, 15),
+            Core::FullRightShift64_16 => (57228, 17),
+            Core::FullRightShift64_32 => (14308, 15),
+            Core::Leftmost8_1 => (28677, 16),
+            Core::Leftmost16_1 => (229424, 19),
+            Core::Leftmost32_1 => (229425, 19),
+            Core::Leftmost64_1 => (229426, 19),
+            Core::Leftmost8_2 => (114724, 18),
+            Core::Leftmost16_2 => (114725, 18),
+            Core::Leftmost32_2 => (917808, 21),
+            Core::Leftmost64_2 => (917809, 21),
+            Core::Leftmost8_4 => (28682, 16),
+            Core::Leftmost16_4 => (114732, 18),
+            Core::Leftmost32_4 => (114733, 18),
+            Core::Leftmost64_4 => (917872, 21),
+            Core::Leftmost16_8 => (229472, 19),
+            Core::Leftmost32_8 => (917892, 21),
+            Core::Leftmost64_8 => (917893, 21),
+            Core::Leftmost32_16 => (229474, 19),
+            Core::Leftmost64_16 => (917900, 21),
+            Core::Leftmost64_32 => (229476, 19),
+            Core::Rightmost8_1 => (28693, 16),
+            Core::Rightmost16_1 => (229552, 19),
+            Core::Rightmost32_1 => (229553, 19),
+            Core::Rightmost64_1 => (229554, 19),
+            Core::Rightmost8_2 => (114788, 18),
+            Core::Rightmost16_2 => (114789, 18),
+            Core::Rightmost32_2 => (918320, 21),
+            Core::Rightmost64_2 => (918321, 21),
+            Core::Rightmost8_4 => (28698, 16),
+            Core::Rightmost16_4 => (114796, 18),
+            Core::Rightmost32_4 => (114797, 18),
+            Core::Rightmost64_4 => (918384, 21),
+            Core::Rightmost16_8 => (229600, 19),
+            Core::Rightmost32_8 => (918404, 21),
+            Core::Rightmost64_8 => (918405, 21),
+            Core::Rightmost32_16 => (229602, 19),
+            Core::Rightmost64_16 => (918412, 21),
+            Core::Rightmost64_32 => (229604, 19),
+            Core::LeftPadLow1_8 => (28709, 16),
+            Core::LeftPadLow1_16 => (229680, 19),
+            Core::LeftPadLow1_32 => (229681, 19),
+            Core::LeftPadLow1_64 => (229682, 19),
+            Core::LeftPadLow8_16 => (229728, 19),
+            Core::LeftPadLow8_32 => (918916, 21),
+            Core::LeftPadLow8_64 => (918917, 21),
+            Core::LeftPadLow16_32 => (229730, 19),
+            Core::LeftPadLow16_64 => (918924, 21),
+            Core::LeftPadLow32_64 => (229732, 19),
+            Core::LeftPadHigh1_8 => (28725, 16),
+            Core::LeftPadHigh1_16 => (229808, 19),
+            Core::LeftPadHigh1_32 => (229809, 19),
+            Core::LeftPadHigh1_64 => (229810, 19),
+            Core::LeftPadHigh8_16 => (229856, 19),
+            Core::LeftPadHigh8_32 => (919428, 21),
+            Core::LeftPadHigh8_64 => (919429, 21),
+            Core::LeftPadHigh16_32 => (229858, 19),
+            Core::LeftPadHigh16_64 => (919436, 21),
+            Core::LeftPadHigh32_64 => (229860, 19),
+            Core::LeftExtend1_8 => (28741, 16),
+            Core::LeftExtend1_16 => (229936, 19),
+            Core::LeftExtend1_32 => (229937, 19),
+            Core::LeftExtend1_64 => (229938, 19),
+            Core::LeftExtend8_16 => (229984, 19),
+            Core::LeftExtend8_32 => (919940, 21),
+            Core::LeftExtend8_64 => (919941, 21),
+            Core::LeftExtend16_32 => (229986, 19),
+            Core::LeftExtend16_64 => (919948, 21),
+            Core::LeftExtend32_64 => (229988, 19),
+            Core::RightPadLow1_8 => (28757, 16),
+            Core::RightPadLow1_16 => (230064, 19),
+            Core::RightPadLow1_32 => (230065, 19),
+            Core::RightPadLow1_64 => (230066, 19),
+            Core::RightPadLow8_16 => (230112, 19),
+            Core::RightPadLow8_32 => (920452, 21),
+            Core::RightPadLow8_64 => (920453, 21),
+            Core::RightPadLow16_32 => (230114, 19),
+            Core::RightPadLow16_64 => (920460, 21),
+            Core::RightPadLow32_64 => (230116, 19),
+            Core::RightPadHigh1_8 => (28773, 16),
+            Core::RightPadHigh1_16 => (230192, 19),
+            Core::RightPadHigh1_32 => (230193, 19),
+            Core::RightPadHigh1_64 => (230194, 19),
+            Core::RightPadHigh8_16 => (230240, 19),
+            Core::RightPadHigh8_32 => (920964, 21),
+            Core::RightPadHigh8_64 => (920965, 21),
+            Core::RightPadHigh16_32 => (230242, 19),
+            Core::RightPadHigh16_64 => (920972, 21),
+            Core::RightPadHigh32_64 => (230244, 19),
+            Core::RightExtend8_16 => (230368, 19),
+            Core::RightExtend8_32 => (921476, 21),
+            Core::RightExtend8_64 => (921477, 21),
+            Core::RightExtend16_32 => (230370, 19),
+            Core::RightExtend16_64 => (921484, 21),
+            Core::RightExtend32_64 => (230372, 19),
+            Core::LeftShiftWith8 => (14405, 15),
+            Core::LeftShiftWith16 => (115248, 18),
+            Core::LeftShiftWith32 => (115249, 18),
+            Core::LeftShiftWith64 => (115250, 18),
+            Core::RightShiftWith8 => (14413, 15),
+            Core::RightShiftWith16 => (115312, 18),
+            Core::RightShiftWith32 => (115313, 18),
+            Core::RightShiftWith64 => (115314, 18),
+            Core::LeftShift8 => (14421, 15),
+            Core::LeftShift16 => (115376, 18),
+            Core::LeftShift32 => (115377, 18),
+            Core::LeftShift64 => (115378, 18),
+            Core::RightShift8 => (14429, 15),
+            Core::RightShift16 => (115440, 18),
+            Core::RightShift32 => (115441, 18),
+            Core::RightShift64 => (115442, 18),
+            Core::LeftRotate8 => (14437, 15),
+            Core::LeftRotate16 => (115504, 18),
+            Core::LeftRotate32 => (115505, 18),
+            Core::LeftRotate64 => (115506, 18),
+            Core::RightRotate8 => (14445, 15),
+            Core::RightRotate16 => (115568, 18),
+            Core::RightRotate32 => (115569, 18),
+            Core::RightRotate64 => (115570, 18),
             Core::One8 => (69, 7),
             Core::One16 => (560, 10),
             Core::One32 => (561, 10),
@@ -1851,7 +3318,7 @@ impl Jet for Core {
                 1 => {
                     0 => {
                         0 => {
-                            0 => {},
+                            0 => {Core::Low1},
                             1 => {
                                 0 => {
                                     0 => {},
@@ -1876,7 +3343,7 @@ impl Jet for Core {
                             }
                         },
                         1 => {
-                            0 => {},
+                            0 => {Core::High1},
                             1 => {
                                 0 => {
                                     0 => {},
@@ -1906,7 +3373,7 @@ impl Jet for Core {
                             0 => {
                                 0 => {
                                     0 => {
-                                        0 => {},
+                                        0 => {Core::Complement1},
                                         1 => {
                                             0 => {
                                                 0 => {},
@@ -1931,7 +3398,7 @@ impl Jet for Core {
                                         }
                                     },
                                     1 => {
-                                        0 => {},
+                                        0 => {Core::And1},
                                         1 => {
                                             0 => {
                                                 0 => {},
@@ -1958,7 +3425,7 @@ impl Jet for Core {
                                 },
                                 1 => {
                                     0 => {
-                                        0 => {},
+                                        0 => {Core::Or1},
                                         1 => {
                                             0 => {
                                                 0 => {},
@@ -1983,7 +3450,7 @@ impl Jet for Core {
                                         }
                                     },
                                     1 => {
-                                        0 => {},
+                                        0 => {Core::Xor1},
                                         1 => {
                                             0 => {
                                                 0 => {},
@@ -2013,7 +3480,7 @@ impl Jet for Core {
                                 0 => {
                                     0 => {
                                         0 => {
-                                            0 => {},
+                                            0 => {Core::Maj1},
                                             1 => {
                                                 0 => {
                                                     0 => {},
@@ -2038,7 +3505,7 @@ impl Jet for Core {
                                             }
                                         },
                                         1 => {
-                                            0 => {},
+                                            0 => {Core::XorXor1},
                                             1 => {
                                                 0 => {
                                                     0 => {},
@@ -2065,7 +3532,7 @@ impl Jet for Core {
                                     },
                                     1 => {
                                         0 => {
-                                            0 => {},
+                                            0 => {Core::Ch1},
                                             1 => {
                                                 0 => {
                                                     0 => {},
@@ -2090,7 +3557,7 @@ impl Jet for Core {
                                             }
                                         },
                                         1 => {
-                                            0 => {},
+                                            0 => {Core::Some1},
                                             1 => {
                                                 0 => {
                                                     0 => {},
@@ -2144,7 +3611,7 @@ impl Jet for Core {
                                             }
                                         },
                                         1 => {
-                                            0 => {},
+                                            0 => {Core::Eq1},
                                             1 => {
                                                 0 => {
                                                     0 => {},
@@ -2178,11 +3645,1028 @@ impl Jet for Core {
                                             }
                                         }
                                     },
-                                    1 => {}
+                                    1 => {
+                                        0 => {
+                                            0 => {
+                                                0 => {},
+                                                1 => {
+                                                    0 => {
+                                                        0 => {},
+                                                        1 => {Core::FullLeftShift8_1}
+                                                    },
+                                                    1 => {
+                                                        0 => {
+                                                            0 => {
+                                                                0 => {
+                                                                    0 => {Core::FullLeftShift16_1},
+                                                                    1 => {Core::FullLeftShift32_1}
+                                                                },
+                                                                1 => {
+                                                                    0 => {Core::FullLeftShift64_1},
+                                                                    1 => {}
+                                                                }
+                                                            },
+                                                            1 => {}
+                                                        },
+                                                        1 => {}
+                                                    }
+                                                }
+                                            },
+                                            1 => {
+                                                0 => {
+                                                    0 => {
+                                                        0 => {},
+                                                        1 => {
+                                                            0 => {
+                                                                0 => {Core::FullLeftShift8_2},
+                                                                1 => {Core::FullLeftShift16_2}
+                                                            },
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {Core::FullLeftShift32_2},
+                                                                            1 => {Core::FullLeftShift64_2}
+                                                                        },
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                },
+                                                                1 => {}
+                                                            }
+                                                        }
+                                                    },
+                                                    1 => {
+                                                        0 => {Core::FullLeftShift8_4},
+                                                        1 => {
+                                                            0 => {
+                                                                0 => {Core::FullLeftShift16_4},
+                                                                1 => {Core::FullLeftShift32_4}
+                                                            },
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {Core::FullLeftShift64_4},
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                },
+                                                                1 => {}
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                1 => {
+                                                    0 => {
+                                                        0 => {
+                                                            0 => {
+                                                                0 => {
+                                                                    0 => {Core::FullLeftShift16_8},
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {Core::FullLeftShift32_8},
+                                                                            1 => {Core::FullLeftShift64_8}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                },
+                                                                1 => {
+                                                                    0 => {Core::FullLeftShift32_16},
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {Core::FullLeftShift64_16},
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            },
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {Core::FullLeftShift64_32},
+                                                                    1 => {}
+                                                                },
+                                                                1 => {}
+                                                            }
+                                                        },
+                                                        1 => {}
+                                                    },
+                                                    1 => {}
+                                                }
+                                            }
+                                        },
+                                        1 => {
+                                            0 => {
+                                                0 => {},
+                                                1 => {
+                                                    0 => {
+                                                        0 => {},
+                                                        1 => {Core::FullRightShift8_1}
+                                                    },
+                                                    1 => {
+                                                        0 => {
+                                                            0 => {
+                                                                0 => {
+                                                                    0 => {Core::FullRightShift16_1},
+                                                                    1 => {Core::FullRightShift32_1}
+                                                                },
+                                                                1 => {
+                                                                    0 => {Core::FullRightShift64_1},
+                                                                    1 => {}
+                                                                }
+                                                            },
+                                                            1 => {}
+                                                        },
+                                                        1 => {}
+                                                    }
+                                                }
+                                            },
+                                            1 => {
+                                                0 => {
+                                                    0 => {
+                                                        0 => {},
+                                                        1 => {
+                                                            0 => {
+                                                                0 => {Core::FullRightShift8_2},
+                                                                1 => {Core::FullRightShift16_2}
+                                                            },
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {Core::FullRightShift32_2},
+                                                                            1 => {Core::FullRightShift64_2}
+                                                                        },
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                },
+                                                                1 => {}
+                                                            }
+                                                        }
+                                                    },
+                                                    1 => {
+                                                        0 => {Core::FullRightShift8_4},
+                                                        1 => {
+                                                            0 => {
+                                                                0 => {Core::FullRightShift16_4},
+                                                                1 => {Core::FullRightShift32_4}
+                                                            },
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {Core::FullRightShift64_4},
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                },
+                                                                1 => {}
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                1 => {
+                                                    0 => {
+                                                        0 => {
+                                                            0 => {
+                                                                0 => {
+                                                                    0 => {Core::FullRightShift16_8},
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {Core::FullRightShift32_8},
+                                                                            1 => {Core::FullRightShift64_8}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                },
+                                                                1 => {
+                                                                    0 => {Core::FullRightShift32_16},
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {Core::FullRightShift64_16},
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            },
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {Core::FullRightShift64_32},
+                                                                    1 => {}
+                                                                },
+                                                                1 => {}
+                                                            }
+                                                        },
+                                                        1 => {}
+                                                    },
+                                                    1 => {}
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         },
-                        1 => {}
+                        1 => {
+                            0 => {
+                                0 => {
+                                    0 => {
+                                        0 => {
+                                            0 => {
+                                                0 => {
+                                                    0 => {
+                                                        0 => {
+                                                            0 => {
+                                                                0 => {},
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {},
+                                                                        1 => {Core::Leftmost8_1}
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {Core::Leftmost16_1},
+                                                                                    1 => {Core::Leftmost32_1}
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {Core::Leftmost64_1},
+                                                                                    1 => {}
+                                                                                }
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            },
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {
+                                                                        0 => {},
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {Core::Leftmost8_2},
+                                                                                1 => {Core::Leftmost16_2}
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {
+                                                                                            0 => {Core::Leftmost32_2},
+                                                                                            1 => {Core::Leftmost64_2}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    },
+                                                                                    1 => {}
+                                                                                },
+                                                                                1 => {}
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {Core::Leftmost8_4},
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {Core::Leftmost16_4},
+                                                                                1 => {Core::Leftmost32_4}
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {
+                                                                                            0 => {Core::Leftmost64_4},
+                                                                                            1 => {}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    },
+                                                                                    1 => {}
+                                                                                },
+                                                                                1 => {}
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                },
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {Core::Leftmost16_8},
+                                                                                    1 => {
+                                                                                        0 => {
+                                                                                            0 => {Core::Leftmost32_8},
+                                                                                            1 => {Core::Leftmost64_8}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    }
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {Core::Leftmost32_16},
+                                                                                    1 => {
+                                                                                        0 => {
+                                                                                            0 => {Core::Leftmost64_16},
+                                                                                            1 => {}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    }
+                                                                                }
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {Core::Leftmost64_32},
+                                                                                    1 => {}
+                                                                                },
+                                                                                1 => {}
+                                                                            }
+                                                                        },
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                }
+                                                            }
+                                                        },
+                                                        1 => {
+                                                            0 => {
+                                                                0 => {},
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {},
+                                                                        1 => {Core::Rightmost8_1}
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {Core::Rightmost16_1},
+                                                                                    1 => {Core::Rightmost32_1}
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {Core::Rightmost64_1},
+                                                                                    1 => {}
+                                                                                }
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            },
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {
+                                                                        0 => {},
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {Core::Rightmost8_2},
+                                                                                1 => {Core::Rightmost16_2}
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {
+                                                                                            0 => {Core::Rightmost32_2},
+                                                                                            1 => {Core::Rightmost64_2}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    },
+                                                                                    1 => {}
+                                                                                },
+                                                                                1 => {}
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {Core::Rightmost8_4},
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {Core::Rightmost16_4},
+                                                                                1 => {Core::Rightmost32_4}
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {
+                                                                                            0 => {Core::Rightmost64_4},
+                                                                                            1 => {}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    },
+                                                                                    1 => {}
+                                                                                },
+                                                                                1 => {}
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                },
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {Core::Rightmost16_8},
+                                                                                    1 => {
+                                                                                        0 => {
+                                                                                            0 => {Core::Rightmost32_8},
+                                                                                            1 => {Core::Rightmost64_8}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    }
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {Core::Rightmost32_16},
+                                                                                    1 => {
+                                                                                        0 => {
+                                                                                            0 => {Core::Rightmost64_16},
+                                                                                            1 => {}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    }
+                                                                                }
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {Core::Rightmost64_32},
+                                                                                    1 => {}
+                                                                                },
+                                                                                1 => {}
+                                                                            }
+                                                                        },
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    1 => {
+                                                        0 => {
+                                                            0 => {
+                                                                0 => {},
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {},
+                                                                        1 => {Core::LeftPadLow1_8}
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {Core::LeftPadLow1_16},
+                                                                                    1 => {Core::LeftPadLow1_32}
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {Core::LeftPadLow1_64},
+                                                                                    1 => {}
+                                                                                }
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            },
+                                                            1 => {
+                                                                0 => {},
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {Core::LeftPadLow8_16},
+                                                                                    1 => {
+                                                                                        0 => {
+                                                                                            0 => {Core::LeftPadLow8_32},
+                                                                                            1 => {Core::LeftPadLow8_64}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    }
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {Core::LeftPadLow16_32},
+                                                                                    1 => {
+                                                                                        0 => {
+                                                                                            0 => {Core::LeftPadLow16_64},
+                                                                                            1 => {}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    }
+                                                                                }
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {Core::LeftPadLow32_64},
+                                                                                    1 => {}
+                                                                                },
+                                                                                1 => {}
+                                                                            }
+                                                                        },
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                }
+                                                            }
+                                                        },
+                                                        1 => {
+                                                            0 => {
+                                                                0 => {},
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {},
+                                                                        1 => {Core::LeftPadHigh1_8}
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {Core::LeftPadHigh1_16},
+                                                                                    1 => {Core::LeftPadHigh1_32}
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {Core::LeftPadHigh1_64},
+                                                                                    1 => {}
+                                                                                }
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            },
+                                                            1 => {
+                                                                0 => {},
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {Core::LeftPadHigh8_16},
+                                                                                    1 => {
+                                                                                        0 => {
+                                                                                            0 => {Core::LeftPadHigh8_32},
+                                                                                            1 => {Core::LeftPadHigh8_64}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    }
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {Core::LeftPadHigh16_32},
+                                                                                    1 => {
+                                                                                        0 => {
+                                                                                            0 => {Core::LeftPadHigh16_64},
+                                                                                            1 => {}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    }
+                                                                                }
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {Core::LeftPadHigh32_64},
+                                                                                    1 => {}
+                                                                                },
+                                                                                1 => {}
+                                                                            }
+                                                                        },
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                1 => {
+                                                    0 => {
+                                                        0 => {
+                                                            0 => {
+                                                                0 => {},
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {},
+                                                                        1 => {Core::LeftExtend1_8}
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {Core::LeftExtend1_16},
+                                                                                    1 => {Core::LeftExtend1_32}
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {Core::LeftExtend1_64},
+                                                                                    1 => {}
+                                                                                }
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            },
+                                                            1 => {
+                                                                0 => {},
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {Core::LeftExtend8_16},
+                                                                                    1 => {
+                                                                                        0 => {
+                                                                                            0 => {Core::LeftExtend8_32},
+                                                                                            1 => {Core::LeftExtend8_64}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    }
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {Core::LeftExtend16_32},
+                                                                                    1 => {
+                                                                                        0 => {
+                                                                                            0 => {Core::LeftExtend16_64},
+                                                                                            1 => {}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    }
+                                                                                }
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {Core::LeftExtend32_64},
+                                                                                    1 => {}
+                                                                                },
+                                                                                1 => {}
+                                                                            }
+                                                                        },
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                }
+                                                            }
+                                                        },
+                                                        1 => {
+                                                            0 => {
+                                                                0 => {},
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {},
+                                                                        1 => {Core::RightPadLow1_8}
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {Core::RightPadLow1_16},
+                                                                                    1 => {Core::RightPadLow1_32}
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {Core::RightPadLow1_64},
+                                                                                    1 => {}
+                                                                                }
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            },
+                                                            1 => {
+                                                                0 => {},
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {Core::RightPadLow8_16},
+                                                                                    1 => {
+                                                                                        0 => {
+                                                                                            0 => {Core::RightPadLow8_32},
+                                                                                            1 => {Core::RightPadLow8_64}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    }
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {Core::RightPadLow16_32},
+                                                                                    1 => {
+                                                                                        0 => {
+                                                                                            0 => {Core::RightPadLow16_64},
+                                                                                            1 => {}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    }
+                                                                                }
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {Core::RightPadLow32_64},
+                                                                                    1 => {}
+                                                                                },
+                                                                                1 => {}
+                                                                            }
+                                                                        },
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    1 => {
+                                                        0 => {
+                                                            0 => {
+                                                                0 => {},
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {},
+                                                                        1 => {Core::RightPadHigh1_8}
+                                                                    },
+                                                                    1 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {Core::RightPadHigh1_16},
+                                                                                    1 => {Core::RightPadHigh1_32}
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {Core::RightPadHigh1_64},
+                                                                                    1 => {}
+                                                                                }
+                                                                            },
+                                                                            1 => {}
+                                                                        },
+                                                                        1 => {}
+                                                                    }
+                                                                }
+                                                            },
+                                                            1 => {
+                                                                0 => {},
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {Core::RightPadHigh8_16},
+                                                                                    1 => {
+                                                                                        0 => {
+                                                                                            0 => {Core::RightPadHigh8_32},
+                                                                                            1 => {Core::RightPadHigh8_64}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    }
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {Core::RightPadHigh16_32},
+                                                                                    1 => {
+                                                                                        0 => {
+                                                                                            0 => {Core::RightPadHigh16_64},
+                                                                                            1 => {}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    }
+                                                                                }
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {Core::RightPadHigh32_64},
+                                                                                    1 => {}
+                                                                                },
+                                                                                1 => {}
+                                                                            }
+                                                                        },
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                }
+                                                            }
+                                                        },
+                                                        1 => {
+                                                            0 => {},
+                                                            1 => {
+                                                                0 => {},
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {Core::RightExtend8_16},
+                                                                                    1 => {
+                                                                                        0 => {
+                                                                                            0 => {Core::RightExtend8_32},
+                                                                                            1 => {Core::RightExtend8_64}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    }
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {Core::RightExtend16_32},
+                                                                                    1 => {
+                                                                                        0 => {
+                                                                                            0 => {Core::RightExtend16_64},
+                                                                                            1 => {}
+                                                                                        },
+                                                                                        1 => {}
+                                                                                    }
+                                                                                }
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {Core::RightExtend32_64},
+                                                                                    1 => {}
+                                                                                },
+                                                                                1 => {}
+                                                                            }
+                                                                        },
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                            1 => {
+                                                0 => {
+                                                    0 => {
+                                                        0 => {
+                                                            0 => {},
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {},
+                                                                    1 => {Core::LeftShiftWith8}
+                                                                },
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {Core::LeftShiftWith16},
+                                                                                1 => {Core::LeftShiftWith32}
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {Core::LeftShiftWith64},
+                                                                                1 => {}
+                                                                            }
+                                                                        },
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                }
+                                                            }
+                                                        },
+                                                        1 => {
+                                                            0 => {},
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {},
+                                                                    1 => {Core::RightShiftWith8}
+                                                                },
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {Core::RightShiftWith16},
+                                                                                1 => {Core::RightShiftWith32}
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {Core::RightShiftWith64},
+                                                                                1 => {}
+                                                                            }
+                                                                        },
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    1 => {
+                                                        0 => {
+                                                            0 => {},
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {},
+                                                                    1 => {Core::LeftShift8}
+                                                                },
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {Core::LeftShift16},
+                                                                                1 => {Core::LeftShift32}
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {Core::LeftShift64},
+                                                                                1 => {}
+                                                                            }
+                                                                        },
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                }
+                                                            }
+                                                        },
+                                                        1 => {
+                                                            0 => {},
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {},
+                                                                    1 => {Core::RightShift8}
+                                                                },
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {Core::RightShift16},
+                                                                                1 => {Core::RightShift32}
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {Core::RightShift64},
+                                                                                1 => {}
+                                                                            }
+                                                                        },
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                },
+                                                1 => {
+                                                    0 => {
+                                                        0 => {
+                                                            0 => {},
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {},
+                                                                    1 => {Core::LeftRotate8}
+                                                                },
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {Core::LeftRotate16},
+                                                                                1 => {Core::LeftRotate32}
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {Core::LeftRotate64},
+                                                                                1 => {}
+                                                                            }
+                                                                        },
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                }
+                                                            }
+                                                        },
+                                                        1 => {
+                                                            0 => {},
+                                                            1 => {
+                                                                0 => {
+                                                                    0 => {},
+                                                                    1 => {Core::RightRotate8}
+                                                                },
+                                                                1 => {
+                                                                    0 => {
+                                                                        0 => {
+                                                                            0 => {
+                                                                                0 => {Core::RightRotate16},
+                                                                                1 => {Core::RightRotate32}
+                                                                            },
+                                                                            1 => {
+                                                                                0 => {Core::RightRotate64},
+                                                                                1 => {}
+                                                                            }
+                                                                        },
+                                                                        1 => {}
+                                                                    },
+                                                                    1 => {}
+                                                                }
+                                                            }
+                                                        }
+                                                    },
+                                                    1 => {}
+                                                }
+                                            }
+                                        },
+                                        1 => {}
+                                    },
+                                    1 => {}
+                                },
+                                1 => {}
+                            },
+                            1 => {}
+                        }
                     }
                 }
             },
@@ -3097,16 +5581,19 @@ impl Jet for Core {
             Core::All32 => &simplicity_sys::c_jets::jets_wrapper::all_32,
             Core::All64 => &simplicity_sys::c_jets::jets_wrapper::all_64,
             Core::All8 => &simplicity_sys::c_jets::jets_wrapper::all_8,
+            Core::And1 => &simplicity_sys::c_jets::jets_wrapper::and_1,
             Core::And16 => &simplicity_sys::c_jets::jets_wrapper::and_16,
             Core::And32 => &simplicity_sys::c_jets::jets_wrapper::and_32,
             Core::And64 => &simplicity_sys::c_jets::jets_wrapper::and_64,
             Core::And8 => &simplicity_sys::c_jets::jets_wrapper::and_8,
             Core::Bip0340Verify => &simplicity_sys::c_jets::jets_wrapper::bip_0340_verify,
+            Core::Ch1 => &simplicity_sys::c_jets::jets_wrapper::ch_1,
             Core::Ch16 => &simplicity_sys::c_jets::jets_wrapper::ch_16,
             Core::Ch32 => &simplicity_sys::c_jets::jets_wrapper::ch_32,
             Core::Ch64 => &simplicity_sys::c_jets::jets_wrapper::ch_64,
             Core::Ch8 => &simplicity_sys::c_jets::jets_wrapper::ch_8,
             Core::CheckSigVerify => &simplicity_sys::c_jets::jets_wrapper::check_sig_verify,
+            Core::Complement1 => &simplicity_sys::c_jets::jets_wrapper::complement_1,
             Core::Complement16 => &simplicity_sys::c_jets::jets_wrapper::complement_16,
             Core::Complement32 => &simplicity_sys::c_jets::jets_wrapper::complement_32,
             Core::Complement64 => &simplicity_sys::c_jets::jets_wrapper::complement_64,
@@ -3128,6 +5615,7 @@ impl Jet for Core {
             Core::Divides32 => &simplicity_sys::c_jets::jets_wrapper::divides_32,
             Core::Divides64 => &simplicity_sys::c_jets::jets_wrapper::divides_64,
             Core::Divides8 => &simplicity_sys::c_jets::jets_wrapper::divides_8,
+            Core::Eq1 => &simplicity_sys::c_jets::jets_wrapper::eq_1,
             Core::Eq16 => &simplicity_sys::c_jets::jets_wrapper::eq_16,
             Core::Eq256 => &simplicity_sys::c_jets::jets_wrapper::eq_256,
             Core::Eq32 => &simplicity_sys::c_jets::jets_wrapper::eq_32,
@@ -3155,10 +5643,46 @@ impl Jet for Core {
             Core::FullIncrement32 => &simplicity_sys::c_jets::jets_wrapper::full_increment_32,
             Core::FullIncrement64 => &simplicity_sys::c_jets::jets_wrapper::full_increment_64,
             Core::FullIncrement8 => &simplicity_sys::c_jets::jets_wrapper::full_increment_8,
+            Core::FullLeftShift16_1 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_16_1,
+            Core::FullLeftShift16_2 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_16_2,
+            Core::FullLeftShift16_4 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_16_4,
+            Core::FullLeftShift16_8 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_16_8,
+            Core::FullLeftShift32_1 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_32_1,
+            Core::FullLeftShift32_16 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_32_16,
+            Core::FullLeftShift32_2 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_32_2,
+            Core::FullLeftShift32_4 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_32_4,
+            Core::FullLeftShift32_8 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_32_8,
+            Core::FullLeftShift64_1 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_1,
+            Core::FullLeftShift64_16 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_16,
+            Core::FullLeftShift64_2 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_2,
+            Core::FullLeftShift64_32 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_32,
+            Core::FullLeftShift64_4 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_4,
+            Core::FullLeftShift64_8 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_8,
+            Core::FullLeftShift8_1 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_8_1,
+            Core::FullLeftShift8_2 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_8_2,
+            Core::FullLeftShift8_4 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_8_4,
             Core::FullMultiply16 => &simplicity_sys::c_jets::jets_wrapper::full_multiply_16,
             Core::FullMultiply32 => &simplicity_sys::c_jets::jets_wrapper::full_multiply_32,
             Core::FullMultiply64 => &simplicity_sys::c_jets::jets_wrapper::full_multiply_64,
             Core::FullMultiply8 => &simplicity_sys::c_jets::jets_wrapper::full_multiply_8,
+            Core::FullRightShift16_1 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_16_1,
+            Core::FullRightShift16_2 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_16_2,
+            Core::FullRightShift16_4 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_16_4,
+            Core::FullRightShift16_8 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_16_8,
+            Core::FullRightShift32_1 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_32_1,
+            Core::FullRightShift32_16 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_32_16,
+            Core::FullRightShift32_2 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_32_2,
+            Core::FullRightShift32_4 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_32_4,
+            Core::FullRightShift32_8 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_32_8,
+            Core::FullRightShift64_1 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_1,
+            Core::FullRightShift64_16 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_16,
+            Core::FullRightShift64_2 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_2,
+            Core::FullRightShift64_32 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_32,
+            Core::FullRightShift64_4 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_4,
+            Core::FullRightShift64_8 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_8,
+            Core::FullRightShift8_1 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_8_1,
+            Core::FullRightShift8_2 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_8_2,
+            Core::FullRightShift8_4 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_8_4,
             Core::FullSubtract16 => &simplicity_sys::c_jets::jets_wrapper::full_subtract_16,
             Core::FullSubtract32 => &simplicity_sys::c_jets::jets_wrapper::full_subtract_32,
             Core::FullSubtract64 => &simplicity_sys::c_jets::jets_wrapper::full_subtract_64,
@@ -3178,6 +5702,7 @@ impl Jet for Core {
             Core::GejXEquiv => &simplicity_sys::c_jets::jets_wrapper::gej_x_equiv,
             Core::GejYIsOdd => &simplicity_sys::c_jets::jets_wrapper::gej_y_is_odd,
             Core::Generate => &simplicity_sys::c_jets::jets_wrapper::generate,
+            Core::High1 => &simplicity_sys::c_jets::jets_wrapper::high_1,
             Core::High16 => &simplicity_sys::c_jets::jets_wrapper::high_16,
             Core::High32 => &simplicity_sys::c_jets::jets_wrapper::high_32,
             Core::High64 => &simplicity_sys::c_jets::jets_wrapper::high_64,
@@ -3198,8 +5723,69 @@ impl Jet for Core {
             Core::Le32 => &simplicity_sys::c_jets::jets_wrapper::le_32,
             Core::Le64 => &simplicity_sys::c_jets::jets_wrapper::le_64,
             Core::Le8 => &simplicity_sys::c_jets::jets_wrapper::le_8,
+            Core::LeftExtend16_32 => &simplicity_sys::c_jets::jets_wrapper::left_extend_16_32,
+            Core::LeftExtend16_64 => &simplicity_sys::c_jets::jets_wrapper::left_extend_16_64,
+            Core::LeftExtend1_16 => &simplicity_sys::c_jets::jets_wrapper::left_extend_1_16,
+            Core::LeftExtend1_32 => &simplicity_sys::c_jets::jets_wrapper::left_extend_1_32,
+            Core::LeftExtend1_64 => &simplicity_sys::c_jets::jets_wrapper::left_extend_1_64,
+            Core::LeftExtend1_8 => &simplicity_sys::c_jets::jets_wrapper::left_extend_1_8,
+            Core::LeftExtend32_64 => &simplicity_sys::c_jets::jets_wrapper::left_extend_32_64,
+            Core::LeftExtend8_16 => &simplicity_sys::c_jets::jets_wrapper::left_extend_8_16,
+            Core::LeftExtend8_32 => &simplicity_sys::c_jets::jets_wrapper::left_extend_8_32,
+            Core::LeftExtend8_64 => &simplicity_sys::c_jets::jets_wrapper::left_extend_8_64,
+            Core::LeftPadHigh16_32 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_16_32,
+            Core::LeftPadHigh16_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_16_64,
+            Core::LeftPadHigh1_16 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_1_16,
+            Core::LeftPadHigh1_32 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_1_32,
+            Core::LeftPadHigh1_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_1_64,
+            Core::LeftPadHigh1_8 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_1_8,
+            Core::LeftPadHigh32_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_32_64,
+            Core::LeftPadHigh8_16 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_8_16,
+            Core::LeftPadHigh8_32 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_8_32,
+            Core::LeftPadHigh8_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_8_64,
+            Core::LeftPadLow16_32 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_16_32,
+            Core::LeftPadLow16_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_16_64,
+            Core::LeftPadLow1_16 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_1_16,
+            Core::LeftPadLow1_32 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_1_32,
+            Core::LeftPadLow1_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_1_64,
+            Core::LeftPadLow1_8 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_1_8,
+            Core::LeftPadLow32_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_32_64,
+            Core::LeftPadLow8_16 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_8_16,
+            Core::LeftPadLow8_32 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_8_32,
+            Core::LeftPadLow8_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_8_64,
+            Core::LeftRotate16 => &simplicity_sys::c_jets::jets_wrapper::left_rotate_16,
+            Core::LeftRotate32 => &simplicity_sys::c_jets::jets_wrapper::left_rotate_32,
+            Core::LeftRotate64 => &simplicity_sys::c_jets::jets_wrapper::left_rotate_64,
+            Core::LeftRotate8 => &simplicity_sys::c_jets::jets_wrapper::left_rotate_8,
+            Core::LeftShift16 => &simplicity_sys::c_jets::jets_wrapper::left_shift_16,
+            Core::LeftShift32 => &simplicity_sys::c_jets::jets_wrapper::left_shift_32,
+            Core::LeftShift64 => &simplicity_sys::c_jets::jets_wrapper::left_shift_64,
+            Core::LeftShift8 => &simplicity_sys::c_jets::jets_wrapper::left_shift_8,
+            Core::LeftShiftWith16 => &simplicity_sys::c_jets::jets_wrapper::left_shift_with_16,
+            Core::LeftShiftWith32 => &simplicity_sys::c_jets::jets_wrapper::left_shift_with_32,
+            Core::LeftShiftWith64 => &simplicity_sys::c_jets::jets_wrapper::left_shift_with_64,
+            Core::LeftShiftWith8 => &simplicity_sys::c_jets::jets_wrapper::left_shift_with_8,
+            Core::Leftmost16_1 => &simplicity_sys::c_jets::jets_wrapper::leftmost_16_1,
+            Core::Leftmost16_2 => &simplicity_sys::c_jets::jets_wrapper::leftmost_16_2,
+            Core::Leftmost16_4 => &simplicity_sys::c_jets::jets_wrapper::leftmost_16_4,
+            Core::Leftmost16_8 => &simplicity_sys::c_jets::jets_wrapper::leftmost_16_8,
+            Core::Leftmost32_1 => &simplicity_sys::c_jets::jets_wrapper::leftmost_32_1,
+            Core::Leftmost32_16 => &simplicity_sys::c_jets::jets_wrapper::leftmost_32_16,
+            Core::Leftmost32_2 => &simplicity_sys::c_jets::jets_wrapper::leftmost_32_2,
+            Core::Leftmost32_4 => &simplicity_sys::c_jets::jets_wrapper::leftmost_32_4,
+            Core::Leftmost32_8 => &simplicity_sys::c_jets::jets_wrapper::leftmost_32_8,
+            Core::Leftmost64_1 => &simplicity_sys::c_jets::jets_wrapper::leftmost_64_1,
+            Core::Leftmost64_16 => &simplicity_sys::c_jets::jets_wrapper::leftmost_64_16,
+            Core::Leftmost64_2 => &simplicity_sys::c_jets::jets_wrapper::leftmost_64_2,
+            Core::Leftmost64_32 => &simplicity_sys::c_jets::jets_wrapper::leftmost_64_32,
+            Core::Leftmost64_4 => &simplicity_sys::c_jets::jets_wrapper::leftmost_64_4,
+            Core::Leftmost64_8 => &simplicity_sys::c_jets::jets_wrapper::leftmost_64_8,
+            Core::Leftmost8_1 => &simplicity_sys::c_jets::jets_wrapper::leftmost_8_1,
+            Core::Leftmost8_2 => &simplicity_sys::c_jets::jets_wrapper::leftmost_8_2,
+            Core::Leftmost8_4 => &simplicity_sys::c_jets::jets_wrapper::leftmost_8_4,
             Core::LinearCombination1 => &simplicity_sys::c_jets::jets_wrapper::linear_combination_1,
             Core::LinearVerify1 => &simplicity_sys::c_jets::jets_wrapper::linear_verify_1,
+            Core::Low1 => &simplicity_sys::c_jets::jets_wrapper::low_1,
             Core::Low16 => &simplicity_sys::c_jets::jets_wrapper::low_16,
             Core::Low32 => &simplicity_sys::c_jets::jets_wrapper::low_32,
             Core::Low64 => &simplicity_sys::c_jets::jets_wrapper::low_64,
@@ -3208,6 +5794,7 @@ impl Jet for Core {
             Core::Lt32 => &simplicity_sys::c_jets::jets_wrapper::lt_32,
             Core::Lt64 => &simplicity_sys::c_jets::jets_wrapper::lt_64,
             Core::Lt8 => &simplicity_sys::c_jets::jets_wrapper::lt_8,
+            Core::Maj1 => &simplicity_sys::c_jets::jets_wrapper::maj_1,
             Core::Maj16 => &simplicity_sys::c_jets::jets_wrapper::maj_16,
             Core::Maj32 => &simplicity_sys::c_jets::jets_wrapper::maj_32,
             Core::Maj64 => &simplicity_sys::c_jets::jets_wrapper::maj_64,
@@ -3240,6 +5827,7 @@ impl Jet for Core {
             Core::One32 => &simplicity_sys::c_jets::jets_wrapper::one_32,
             Core::One64 => &simplicity_sys::c_jets::jets_wrapper::one_64,
             Core::One8 => &simplicity_sys::c_jets::jets_wrapper::one_8,
+            Core::Or1 => &simplicity_sys::c_jets::jets_wrapper::or_1,
             Core::Or16 => &simplicity_sys::c_jets::jets_wrapper::or_16,
             Core::Or32 => &simplicity_sys::c_jets::jets_wrapper::or_32,
             Core::Or64 => &simplicity_sys::c_jets::jets_wrapper::or_64,
@@ -3247,6 +5835,62 @@ impl Jet for Core {
             Core::ParseLock => &simplicity_sys::c_jets::jets_wrapper::parse_lock,
             Core::ParseSequence => &simplicity_sys::c_jets::jets_wrapper::parse_sequence,
             Core::PointVerify1 => &simplicity_sys::c_jets::jets_wrapper::point_verify_1,
+            Core::RightExtend16_32 => &simplicity_sys::c_jets::jets_wrapper::right_extend_16_32,
+            Core::RightExtend16_64 => &simplicity_sys::c_jets::jets_wrapper::right_extend_16_64,
+            Core::RightExtend32_64 => &simplicity_sys::c_jets::jets_wrapper::right_extend_32_64,
+            Core::RightExtend8_16 => &simplicity_sys::c_jets::jets_wrapper::right_extend_8_16,
+            Core::RightExtend8_32 => &simplicity_sys::c_jets::jets_wrapper::right_extend_8_32,
+            Core::RightExtend8_64 => &simplicity_sys::c_jets::jets_wrapper::right_extend_8_64,
+            Core::RightPadHigh16_32 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_16_32,
+            Core::RightPadHigh16_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_16_64,
+            Core::RightPadHigh1_16 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_1_16,
+            Core::RightPadHigh1_32 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_1_32,
+            Core::RightPadHigh1_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_1_64,
+            Core::RightPadHigh1_8 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_1_8,
+            Core::RightPadHigh32_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_32_64,
+            Core::RightPadHigh8_16 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_8_16,
+            Core::RightPadHigh8_32 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_8_32,
+            Core::RightPadHigh8_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_8_64,
+            Core::RightPadLow16_32 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_16_32,
+            Core::RightPadLow16_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_16_64,
+            Core::RightPadLow1_16 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_1_16,
+            Core::RightPadLow1_32 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_1_32,
+            Core::RightPadLow1_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_1_64,
+            Core::RightPadLow1_8 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_1_8,
+            Core::RightPadLow32_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_32_64,
+            Core::RightPadLow8_16 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_8_16,
+            Core::RightPadLow8_32 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_8_32,
+            Core::RightPadLow8_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_8_64,
+            Core::RightRotate16 => &simplicity_sys::c_jets::jets_wrapper::right_rotate_16,
+            Core::RightRotate32 => &simplicity_sys::c_jets::jets_wrapper::right_rotate_32,
+            Core::RightRotate64 => &simplicity_sys::c_jets::jets_wrapper::right_rotate_64,
+            Core::RightRotate8 => &simplicity_sys::c_jets::jets_wrapper::right_rotate_8,
+            Core::RightShift16 => &simplicity_sys::c_jets::jets_wrapper::right_shift_16,
+            Core::RightShift32 => &simplicity_sys::c_jets::jets_wrapper::right_shift_32,
+            Core::RightShift64 => &simplicity_sys::c_jets::jets_wrapper::right_shift_64,
+            Core::RightShift8 => &simplicity_sys::c_jets::jets_wrapper::right_shift_8,
+            Core::RightShiftWith16 => &simplicity_sys::c_jets::jets_wrapper::right_shift_with_16,
+            Core::RightShiftWith32 => &simplicity_sys::c_jets::jets_wrapper::right_shift_with_32,
+            Core::RightShiftWith64 => &simplicity_sys::c_jets::jets_wrapper::right_shift_with_64,
+            Core::RightShiftWith8 => &simplicity_sys::c_jets::jets_wrapper::right_shift_with_8,
+            Core::Rightmost16_1 => &simplicity_sys::c_jets::jets_wrapper::rightmost_16_1,
+            Core::Rightmost16_2 => &simplicity_sys::c_jets::jets_wrapper::rightmost_16_2,
+            Core::Rightmost16_4 => &simplicity_sys::c_jets::jets_wrapper::rightmost_16_4,
+            Core::Rightmost16_8 => &simplicity_sys::c_jets::jets_wrapper::rightmost_16_8,
+            Core::Rightmost32_1 => &simplicity_sys::c_jets::jets_wrapper::rightmost_32_1,
+            Core::Rightmost32_16 => &simplicity_sys::c_jets::jets_wrapper::rightmost_32_16,
+            Core::Rightmost32_2 => &simplicity_sys::c_jets::jets_wrapper::rightmost_32_2,
+            Core::Rightmost32_4 => &simplicity_sys::c_jets::jets_wrapper::rightmost_32_4,
+            Core::Rightmost32_8 => &simplicity_sys::c_jets::jets_wrapper::rightmost_32_8,
+            Core::Rightmost64_1 => &simplicity_sys::c_jets::jets_wrapper::rightmost_64_1,
+            Core::Rightmost64_16 => &simplicity_sys::c_jets::jets_wrapper::rightmost_64_16,
+            Core::Rightmost64_2 => &simplicity_sys::c_jets::jets_wrapper::rightmost_64_2,
+            Core::Rightmost64_32 => &simplicity_sys::c_jets::jets_wrapper::rightmost_64_32,
+            Core::Rightmost64_4 => &simplicity_sys::c_jets::jets_wrapper::rightmost_64_4,
+            Core::Rightmost64_8 => &simplicity_sys::c_jets::jets_wrapper::rightmost_64_8,
+            Core::Rightmost8_1 => &simplicity_sys::c_jets::jets_wrapper::rightmost_8_1,
+            Core::Rightmost8_2 => &simplicity_sys::c_jets::jets_wrapper::rightmost_8_2,
+            Core::Rightmost8_4 => &simplicity_sys::c_jets::jets_wrapper::rightmost_8_4,
             Core::ScalarAdd => &simplicity_sys::c_jets::jets_wrapper::scalar_add,
             Core::ScalarInvert => &simplicity_sys::c_jets::jets_wrapper::scalar_invert,
             Core::ScalarIsZero => &simplicity_sys::c_jets::jets_wrapper::scalar_is_zero,
@@ -3271,6 +5915,7 @@ impl Jet for Core {
             Core::Sha256Ctx8Finalize => &simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_finalize,
             Core::Sha256Ctx8Init => &simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_init,
             Core::Sha256Iv => &simplicity_sys::c_jets::jets_wrapper::sha_256_iv,
+            Core::Some1 => &simplicity_sys::c_jets::jets_wrapper::some_1,
             Core::Some16 => &simplicity_sys::c_jets::jets_wrapper::some_16,
             Core::Some32 => &simplicity_sys::c_jets::jets_wrapper::some_32,
             Core::Some64 => &simplicity_sys::c_jets::jets_wrapper::some_64,
@@ -3280,10 +5925,12 @@ impl Jet for Core {
             Core::Subtract64 => &simplicity_sys::c_jets::jets_wrapper::subtract_64,
             Core::Subtract8 => &simplicity_sys::c_jets::jets_wrapper::subtract_8,
             Core::Verify => &simplicity_sys::c_jets::jets_wrapper::verify,
+            Core::Xor1 => &simplicity_sys::c_jets::jets_wrapper::xor_1,
             Core::Xor16 => &simplicity_sys::c_jets::jets_wrapper::xor_16,
             Core::Xor32 => &simplicity_sys::c_jets::jets_wrapper::xor_32,
             Core::Xor64 => &simplicity_sys::c_jets::jets_wrapper::xor_64,
             Core::Xor8 => &simplicity_sys::c_jets::jets_wrapper::xor_8,
+            Core::XorXor1 => &simplicity_sys::c_jets::jets_wrapper::xor_xor_1,
             Core::XorXor16 => &simplicity_sys::c_jets::jets_wrapper::xor_xor_16,
             Core::XorXor32 => &simplicity_sys::c_jets::jets_wrapper::xor_xor_32,
             Core::XorXor64 => &simplicity_sys::c_jets::jets_wrapper::xor_xor_64,
@@ -3301,16 +5948,19 @@ impl Jet for Core {
             Core::All32 => Cost::from_milliweight(136),
             Core::All64 => Cost::from_milliweight(165),
             Core::All8 => Cost::from_milliweight(113),
+            Core::And1 => Cost::from_milliweight(159),
             Core::And16 => Cost::from_milliweight(195),
             Core::And32 => Cost::from_milliweight(175),
             Core::And64 => Cost::from_milliweight(221),
             Core::And8 => Cost::from_milliweight(159),
             Core::Bip0340Verify => Cost::from_milliweight(49671),
+            Core::Ch1 => Cost::from_milliweight(240),
             Core::Ch16 => Cost::from_milliweight(245),
             Core::Ch32 => Cost::from_milliweight(238),
             Core::Ch64 => Cost::from_milliweight(274),
             Core::Ch8 => Cost::from_milliweight(240),
             Core::CheckSigVerify => Cost::from_milliweight(50000),
+            Core::Complement1 => Cost::from_milliweight(139),
             Core::Complement16 => Cost::from_milliweight(146),
             Core::Complement32 => Cost::from_milliweight(161),
             Core::Complement64 => Cost::from_milliweight(174),
@@ -3332,6 +5982,7 @@ impl Jet for Core {
             Core::Divides32 => Cost::from_milliweight(175),
             Core::Divides64 => Cost::from_milliweight(246),
             Core::Divides8 => Cost::from_milliweight(142),
+            Core::Eq1 => Cost::from_milliweight(120),
             Core::Eq16 => Cost::from_milliweight(174),
             Core::Eq256 => Cost::from_milliweight(431),
             Core::Eq32 => Cost::from_milliweight(233),
@@ -3359,10 +6010,46 @@ impl Jet for Core {
             Core::FullIncrement32 => Cost::from_milliweight(171),
             Core::FullIncrement64 => Cost::from_milliweight(161),
             Core::FullIncrement8 => Cost::from_milliweight(204),
+            Core::FullLeftShift16_1 => Cost::from_milliweight(150),
+            Core::FullLeftShift16_2 => Cost::from_milliweight(150),
+            Core::FullLeftShift16_4 => Cost::from_milliweight(150),
+            Core::FullLeftShift16_8 => Cost::from_milliweight(150),
+            Core::FullLeftShift32_1 => Cost::from_milliweight(150),
+            Core::FullLeftShift32_16 => Cost::from_milliweight(150),
+            Core::FullLeftShift32_2 => Cost::from_milliweight(150),
+            Core::FullLeftShift32_4 => Cost::from_milliweight(150),
+            Core::FullLeftShift32_8 => Cost::from_milliweight(150),
+            Core::FullLeftShift64_1 => Cost::from_milliweight(150),
+            Core::FullLeftShift64_16 => Cost::from_milliweight(150),
+            Core::FullLeftShift64_2 => Cost::from_milliweight(150),
+            Core::FullLeftShift64_32 => Cost::from_milliweight(150),
+            Core::FullLeftShift64_4 => Cost::from_milliweight(150),
+            Core::FullLeftShift64_8 => Cost::from_milliweight(150),
+            Core::FullLeftShift8_1 => Cost::from_milliweight(150),
+            Core::FullLeftShift8_2 => Cost::from_milliweight(150),
+            Core::FullLeftShift8_4 => Cost::from_milliweight(150),
             Core::FullMultiply16 => Cost::from_milliweight(208),
             Core::FullMultiply32 => Cost::from_milliweight(213),
             Core::FullMultiply64 => Cost::from_milliweight(209),
             Core::FullMultiply8 => Cost::from_milliweight(190),
+            Core::FullRightShift16_1 => Cost::from_milliweight(150),
+            Core::FullRightShift16_2 => Cost::from_milliweight(150),
+            Core::FullRightShift16_4 => Cost::from_milliweight(150),
+            Core::FullRightShift16_8 => Cost::from_milliweight(150),
+            Core::FullRightShift32_1 => Cost::from_milliweight(150),
+            Core::FullRightShift32_16 => Cost::from_milliweight(150),
+            Core::FullRightShift32_2 => Cost::from_milliweight(150),
+            Core::FullRightShift32_4 => Cost::from_milliweight(150),
+            Core::FullRightShift32_8 => Cost::from_milliweight(150),
+            Core::FullRightShift64_1 => Cost::from_milliweight(150),
+            Core::FullRightShift64_16 => Cost::from_milliweight(150),
+            Core::FullRightShift64_2 => Cost::from_milliweight(150),
+            Core::FullRightShift64_32 => Cost::from_milliweight(150),
+            Core::FullRightShift64_4 => Cost::from_milliweight(150),
+            Core::FullRightShift64_8 => Cost::from_milliweight(150),
+            Core::FullRightShift8_1 => Cost::from_milliweight(150),
+            Core::FullRightShift8_2 => Cost::from_milliweight(150),
+            Core::FullRightShift8_4 => Cost::from_milliweight(150),
             Core::FullSubtract16 => Cost::from_milliweight(201),
             Core::FullSubtract32 => Cost::from_milliweight(170),
             Core::FullSubtract64 => Cost::from_milliweight(231),
@@ -3382,6 +6069,7 @@ impl Jet for Core {
             Core::GejXEquiv => Cost::from_milliweight(1270),
             Core::GejYIsOdd => Cost::from_milliweight(3665),
             Core::Generate => Cost::from_milliweight(51706),
+            Core::High1 => Cost::from_milliweight(169),
             Core::High16 => Cost::from_milliweight(159),
             Core::High32 => Cost::from_milliweight(121),
             Core::High64 => Cost::from_milliweight(110),
@@ -3402,8 +6090,69 @@ impl Jet for Core {
             Core::Le32 => Cost::from_milliweight(216),
             Core::Le64 => Cost::from_milliweight(173),
             Core::Le8 => Cost::from_milliweight(143),
+            Core::LeftExtend16_32 => Cost::from_milliweight(150),
+            Core::LeftExtend16_64 => Cost::from_milliweight(150),
+            Core::LeftExtend1_16 => Cost::from_milliweight(150),
+            Core::LeftExtend1_32 => Cost::from_milliweight(150),
+            Core::LeftExtend1_64 => Cost::from_milliweight(150),
+            Core::LeftExtend1_8 => Cost::from_milliweight(150),
+            Core::LeftExtend32_64 => Cost::from_milliweight(150),
+            Core::LeftExtend8_16 => Cost::from_milliweight(150),
+            Core::LeftExtend8_32 => Cost::from_milliweight(150),
+            Core::LeftExtend8_64 => Cost::from_milliweight(150),
+            Core::LeftPadHigh16_32 => Cost::from_milliweight(150),
+            Core::LeftPadHigh16_64 => Cost::from_milliweight(150),
+            Core::LeftPadHigh1_16 => Cost::from_milliweight(150),
+            Core::LeftPadHigh1_32 => Cost::from_milliweight(150),
+            Core::LeftPadHigh1_64 => Cost::from_milliweight(150),
+            Core::LeftPadHigh1_8 => Cost::from_milliweight(150),
+            Core::LeftPadHigh32_64 => Cost::from_milliweight(150),
+            Core::LeftPadHigh8_16 => Cost::from_milliweight(150),
+            Core::LeftPadHigh8_32 => Cost::from_milliweight(150),
+            Core::LeftPadHigh8_64 => Cost::from_milliweight(150),
+            Core::LeftPadLow16_32 => Cost::from_milliweight(150),
+            Core::LeftPadLow16_64 => Cost::from_milliweight(150),
+            Core::LeftPadLow1_16 => Cost::from_milliweight(150),
+            Core::LeftPadLow1_32 => Cost::from_milliweight(150),
+            Core::LeftPadLow1_64 => Cost::from_milliweight(150),
+            Core::LeftPadLow1_8 => Cost::from_milliweight(150),
+            Core::LeftPadLow32_64 => Cost::from_milliweight(150),
+            Core::LeftPadLow8_16 => Cost::from_milliweight(150),
+            Core::LeftPadLow8_32 => Cost::from_milliweight(150),
+            Core::LeftPadLow8_64 => Cost::from_milliweight(150),
+            Core::LeftRotate16 => Cost::from_milliweight(150),
+            Core::LeftRotate32 => Cost::from_milliweight(150),
+            Core::LeftRotate64 => Cost::from_milliweight(150),
+            Core::LeftRotate8 => Cost::from_milliweight(150),
+            Core::LeftShift16 => Cost::from_milliweight(150),
+            Core::LeftShift32 => Cost::from_milliweight(150),
+            Core::LeftShift64 => Cost::from_milliweight(150),
+            Core::LeftShift8 => Cost::from_milliweight(150),
+            Core::LeftShiftWith16 => Cost::from_milliweight(150),
+            Core::LeftShiftWith32 => Cost::from_milliweight(150),
+            Core::LeftShiftWith64 => Cost::from_milliweight(150),
+            Core::LeftShiftWith8 => Cost::from_milliweight(150),
+            Core::Leftmost16_1 => Cost::from_milliweight(150),
+            Core::Leftmost16_2 => Cost::from_milliweight(150),
+            Core::Leftmost16_4 => Cost::from_milliweight(150),
+            Core::Leftmost16_8 => Cost::from_milliweight(150),
+            Core::Leftmost32_1 => Cost::from_milliweight(150),
+            Core::Leftmost32_16 => Cost::from_milliweight(150),
+            Core::Leftmost32_2 => Cost::from_milliweight(150),
+            Core::Leftmost32_4 => Cost::from_milliweight(150),
+            Core::Leftmost32_8 => Cost::from_milliweight(150),
+            Core::Leftmost64_1 => Cost::from_milliweight(150),
+            Core::Leftmost64_16 => Cost::from_milliweight(150),
+            Core::Leftmost64_2 => Cost::from_milliweight(150),
+            Core::Leftmost64_32 => Cost::from_milliweight(150),
+            Core::Leftmost64_4 => Cost::from_milliweight(150),
+            Core::Leftmost64_8 => Cost::from_milliweight(150),
+            Core::Leftmost8_1 => Cost::from_milliweight(150),
+            Core::Leftmost8_2 => Cost::from_milliweight(150),
+            Core::Leftmost8_4 => Cost::from_milliweight(150),
             Core::LinearCombination1 => Cost::from_milliweight(86722),
             Core::LinearVerify1 => Cost::from_milliweight(43063),
+            Core::Low1 => Cost::from_milliweight(173),
             Core::Low16 => Cost::from_milliweight(172),
             Core::Low32 => Cost::from_milliweight(170),
             Core::Low64 => Cost::from_milliweight(162),
@@ -3412,6 +6161,7 @@ impl Jet for Core {
             Core::Lt32 => Cost::from_milliweight(215),
             Core::Lt64 => Cost::from_milliweight(195),
             Core::Lt8 => Cost::from_milliweight(130),
+            Core::Maj1 => Cost::from_milliweight(241),
             Core::Maj16 => Cost::from_milliweight(273),
             Core::Maj32 => Cost::from_milliweight(289),
             Core::Maj64 => Cost::from_milliweight(293),
@@ -3444,6 +6194,7 @@ impl Jet for Core {
             Core::One32 => Cost::from_milliweight(122),
             Core::One64 => Cost::from_milliweight(123),
             Core::One8 => Cost::from_milliweight(127),
+            Core::Or1 => Cost::from_milliweight(147),
             Core::Or16 => Cost::from_milliweight(204),
             Core::Or32 => Cost::from_milliweight(197),
             Core::Or64 => Cost::from_milliweight(214),
@@ -3451,6 +6202,62 @@ impl Jet for Core {
             Core::ParseLock => Cost::from_milliweight(177),
             Core::ParseSequence => Cost::from_milliweight(261),
             Core::PointVerify1 => Cost::from_milliweight(50604),
+            Core::RightExtend16_32 => Cost::from_milliweight(150),
+            Core::RightExtend16_64 => Cost::from_milliweight(150),
+            Core::RightExtend32_64 => Cost::from_milliweight(150),
+            Core::RightExtend8_16 => Cost::from_milliweight(150),
+            Core::RightExtend8_32 => Cost::from_milliweight(150),
+            Core::RightExtend8_64 => Cost::from_milliweight(150),
+            Core::RightPadHigh16_32 => Cost::from_milliweight(150),
+            Core::RightPadHigh16_64 => Cost::from_milliweight(150),
+            Core::RightPadHigh1_16 => Cost::from_milliweight(150),
+            Core::RightPadHigh1_32 => Cost::from_milliweight(150),
+            Core::RightPadHigh1_64 => Cost::from_milliweight(150),
+            Core::RightPadHigh1_8 => Cost::from_milliweight(150),
+            Core::RightPadHigh32_64 => Cost::from_milliweight(150),
+            Core::RightPadHigh8_16 => Cost::from_milliweight(150),
+            Core::RightPadHigh8_32 => Cost::from_milliweight(150),
+            Core::RightPadHigh8_64 => Cost::from_milliweight(150),
+            Core::RightPadLow16_32 => Cost::from_milliweight(150),
+            Core::RightPadLow16_64 => Cost::from_milliweight(150),
+            Core::RightPadLow1_16 => Cost::from_milliweight(150),
+            Core::RightPadLow1_32 => Cost::from_milliweight(150),
+            Core::RightPadLow1_64 => Cost::from_milliweight(150),
+            Core::RightPadLow1_8 => Cost::from_milliweight(150),
+            Core::RightPadLow32_64 => Cost::from_milliweight(150),
+            Core::RightPadLow8_16 => Cost::from_milliweight(150),
+            Core::RightPadLow8_32 => Cost::from_milliweight(150),
+            Core::RightPadLow8_64 => Cost::from_milliweight(150),
+            Core::RightRotate16 => Cost::from_milliweight(150),
+            Core::RightRotate32 => Cost::from_milliweight(150),
+            Core::RightRotate64 => Cost::from_milliweight(150),
+            Core::RightRotate8 => Cost::from_milliweight(150),
+            Core::RightShift16 => Cost::from_milliweight(150),
+            Core::RightShift32 => Cost::from_milliweight(150),
+            Core::RightShift64 => Cost::from_milliweight(150),
+            Core::RightShift8 => Cost::from_milliweight(150),
+            Core::RightShiftWith16 => Cost::from_milliweight(150),
+            Core::RightShiftWith32 => Cost::from_milliweight(150),
+            Core::RightShiftWith64 => Cost::from_milliweight(150),
+            Core::RightShiftWith8 => Cost::from_milliweight(150),
+            Core::Rightmost16_1 => Cost::from_milliweight(150),
+            Core::Rightmost16_2 => Cost::from_milliweight(150),
+            Core::Rightmost16_4 => Cost::from_milliweight(150),
+            Core::Rightmost16_8 => Cost::from_milliweight(150),
+            Core::Rightmost32_1 => Cost::from_milliweight(150),
+            Core::Rightmost32_16 => Cost::from_milliweight(150),
+            Core::Rightmost32_2 => Cost::from_milliweight(150),
+            Core::Rightmost32_4 => Cost::from_milliweight(150),
+            Core::Rightmost32_8 => Cost::from_milliweight(150),
+            Core::Rightmost64_1 => Cost::from_milliweight(150),
+            Core::Rightmost64_16 => Cost::from_milliweight(150),
+            Core::Rightmost64_2 => Cost::from_milliweight(150),
+            Core::Rightmost64_32 => Cost::from_milliweight(150),
+            Core::Rightmost64_4 => Cost::from_milliweight(150),
+            Core::Rightmost64_8 => Cost::from_milliweight(150),
+            Core::Rightmost8_1 => Cost::from_milliweight(150),
+            Core::Rightmost8_2 => Cost::from_milliweight(150),
+            Core::Rightmost8_4 => Cost::from_milliweight(150),
             Core::ScalarAdd => Cost::from_milliweight(962),
             Core::ScalarInvert => Cost::from_milliweight(4025),
             Core::ScalarIsZero => Cost::from_milliweight(569),
@@ -3475,6 +6282,7 @@ impl Jet for Core {
             Core::Sha256Ctx8Finalize => Cost::from_milliweight(2111),
             Core::Sha256Ctx8Init => Cost::from_milliweight(184),
             Core::Sha256Iv => Cost::from_milliweight(129),
+            Core::Some1 => Cost::from_milliweight(104),
             Core::Some16 => Cost::from_milliweight(129),
             Core::Some32 => Cost::from_milliweight(183),
             Core::Some64 => Cost::from_milliweight(139),
@@ -3484,10 +6292,12 @@ impl Jet for Core {
             Core::Subtract64 => Cost::from_milliweight(315),
             Core::Subtract8 => Cost::from_milliweight(149),
             Core::Verify => Cost::from_milliweight(144),
+            Core::Xor1 => Cost::from_milliweight(135),
             Core::Xor16 => Cost::from_milliweight(188),
             Core::Xor32 => Cost::from_milliweight(204),
             Core::Xor64 => Cost::from_milliweight(207),
             Core::Xor8 => Cost::from_milliweight(135),
+            Core::XorXor1 => Cost::from_milliweight(258),
             Core::XorXor16 => Cost::from_milliweight(235),
             Core::XorXor32 => Cost::from_milliweight(251),
             Core::XorXor64 => Cost::from_milliweight(285),
@@ -3507,16 +6317,19 @@ impl fmt::Display for Core {
             Core::All32 => f.write_str("all_32"),
             Core::All64 => f.write_str("all_64"),
             Core::All8 => f.write_str("all_8"),
+            Core::And1 => f.write_str("and_1"),
             Core::And16 => f.write_str("and_16"),
             Core::And32 => f.write_str("and_32"),
             Core::And64 => f.write_str("and_64"),
             Core::And8 => f.write_str("and_8"),
             Core::Bip0340Verify => f.write_str("bip_0340_verify"),
+            Core::Ch1 => f.write_str("ch_1"),
             Core::Ch16 => f.write_str("ch_16"),
             Core::Ch32 => f.write_str("ch_32"),
             Core::Ch64 => f.write_str("ch_64"),
             Core::Ch8 => f.write_str("ch_8"),
             Core::CheckSigVerify => f.write_str("check_sig_verify"),
+            Core::Complement1 => f.write_str("complement_1"),
             Core::Complement16 => f.write_str("complement_16"),
             Core::Complement32 => f.write_str("complement_32"),
             Core::Complement64 => f.write_str("complement_64"),
@@ -3538,6 +6351,7 @@ impl fmt::Display for Core {
             Core::Divides32 => f.write_str("divides_32"),
             Core::Divides64 => f.write_str("divides_64"),
             Core::Divides8 => f.write_str("divides_8"),
+            Core::Eq1 => f.write_str("eq_1"),
             Core::Eq16 => f.write_str("eq_16"),
             Core::Eq256 => f.write_str("eq_256"),
             Core::Eq32 => f.write_str("eq_32"),
@@ -3565,10 +6379,46 @@ impl fmt::Display for Core {
             Core::FullIncrement32 => f.write_str("full_increment_32"),
             Core::FullIncrement64 => f.write_str("full_increment_64"),
             Core::FullIncrement8 => f.write_str("full_increment_8"),
+            Core::FullLeftShift16_1 => f.write_str("full_left_shift_16_1"),
+            Core::FullLeftShift16_2 => f.write_str("full_left_shift_16_2"),
+            Core::FullLeftShift16_4 => f.write_str("full_left_shift_16_4"),
+            Core::FullLeftShift16_8 => f.write_str("full_left_shift_16_8"),
+            Core::FullLeftShift32_1 => f.write_str("full_left_shift_32_1"),
+            Core::FullLeftShift32_16 => f.write_str("full_left_shift_32_16"),
+            Core::FullLeftShift32_2 => f.write_str("full_left_shift_32_2"),
+            Core::FullLeftShift32_4 => f.write_str("full_left_shift_32_4"),
+            Core::FullLeftShift32_8 => f.write_str("full_left_shift_32_8"),
+            Core::FullLeftShift64_1 => f.write_str("full_left_shift_64_1"),
+            Core::FullLeftShift64_16 => f.write_str("full_left_shift_64_16"),
+            Core::FullLeftShift64_2 => f.write_str("full_left_shift_64_2"),
+            Core::FullLeftShift64_32 => f.write_str("full_left_shift_64_32"),
+            Core::FullLeftShift64_4 => f.write_str("full_left_shift_64_4"),
+            Core::FullLeftShift64_8 => f.write_str("full_left_shift_64_8"),
+            Core::FullLeftShift8_1 => f.write_str("full_left_shift_8_1"),
+            Core::FullLeftShift8_2 => f.write_str("full_left_shift_8_2"),
+            Core::FullLeftShift8_4 => f.write_str("full_left_shift_8_4"),
             Core::FullMultiply16 => f.write_str("full_multiply_16"),
             Core::FullMultiply32 => f.write_str("full_multiply_32"),
             Core::FullMultiply64 => f.write_str("full_multiply_64"),
             Core::FullMultiply8 => f.write_str("full_multiply_8"),
+            Core::FullRightShift16_1 => f.write_str("full_right_shift_16_1"),
+            Core::FullRightShift16_2 => f.write_str("full_right_shift_16_2"),
+            Core::FullRightShift16_4 => f.write_str("full_right_shift_16_4"),
+            Core::FullRightShift16_8 => f.write_str("full_right_shift_16_8"),
+            Core::FullRightShift32_1 => f.write_str("full_right_shift_32_1"),
+            Core::FullRightShift32_16 => f.write_str("full_right_shift_32_16"),
+            Core::FullRightShift32_2 => f.write_str("full_right_shift_32_2"),
+            Core::FullRightShift32_4 => f.write_str("full_right_shift_32_4"),
+            Core::FullRightShift32_8 => f.write_str("full_right_shift_32_8"),
+            Core::FullRightShift64_1 => f.write_str("full_right_shift_64_1"),
+            Core::FullRightShift64_16 => f.write_str("full_right_shift_64_16"),
+            Core::FullRightShift64_2 => f.write_str("full_right_shift_64_2"),
+            Core::FullRightShift64_32 => f.write_str("full_right_shift_64_32"),
+            Core::FullRightShift64_4 => f.write_str("full_right_shift_64_4"),
+            Core::FullRightShift64_8 => f.write_str("full_right_shift_64_8"),
+            Core::FullRightShift8_1 => f.write_str("full_right_shift_8_1"),
+            Core::FullRightShift8_2 => f.write_str("full_right_shift_8_2"),
+            Core::FullRightShift8_4 => f.write_str("full_right_shift_8_4"),
             Core::FullSubtract16 => f.write_str("full_subtract_16"),
             Core::FullSubtract32 => f.write_str("full_subtract_32"),
             Core::FullSubtract64 => f.write_str("full_subtract_64"),
@@ -3588,6 +6438,7 @@ impl fmt::Display for Core {
             Core::GejXEquiv => f.write_str("gej_x_equiv"),
             Core::GejYIsOdd => f.write_str("gej_y_is_odd"),
             Core::Generate => f.write_str("generate"),
+            Core::High1 => f.write_str("high_1"),
             Core::High16 => f.write_str("high_16"),
             Core::High32 => f.write_str("high_32"),
             Core::High64 => f.write_str("high_64"),
@@ -3608,8 +6459,69 @@ impl fmt::Display for Core {
             Core::Le32 => f.write_str("le_32"),
             Core::Le64 => f.write_str("le_64"),
             Core::Le8 => f.write_str("le_8"),
+            Core::LeftExtend16_32 => f.write_str("left_extend_16_32"),
+            Core::LeftExtend16_64 => f.write_str("left_extend_16_64"),
+            Core::LeftExtend1_16 => f.write_str("left_extend_1_16"),
+            Core::LeftExtend1_32 => f.write_str("left_extend_1_32"),
+            Core::LeftExtend1_64 => f.write_str("left_extend_1_64"),
+            Core::LeftExtend1_8 => f.write_str("left_extend_1_8"),
+            Core::LeftExtend32_64 => f.write_str("left_extend_32_64"),
+            Core::LeftExtend8_16 => f.write_str("left_extend_8_16"),
+            Core::LeftExtend8_32 => f.write_str("left_extend_8_32"),
+            Core::LeftExtend8_64 => f.write_str("left_extend_8_64"),
+            Core::LeftPadHigh16_32 => f.write_str("left_pad_high_16_32"),
+            Core::LeftPadHigh16_64 => f.write_str("left_pad_high_16_64"),
+            Core::LeftPadHigh1_16 => f.write_str("left_pad_high_1_16"),
+            Core::LeftPadHigh1_32 => f.write_str("left_pad_high_1_32"),
+            Core::LeftPadHigh1_64 => f.write_str("left_pad_high_1_64"),
+            Core::LeftPadHigh1_8 => f.write_str("left_pad_high_1_8"),
+            Core::LeftPadHigh32_64 => f.write_str("left_pad_high_32_64"),
+            Core::LeftPadHigh8_16 => f.write_str("left_pad_high_8_16"),
+            Core::LeftPadHigh8_32 => f.write_str("left_pad_high_8_32"),
+            Core::LeftPadHigh8_64 => f.write_str("left_pad_high_8_64"),
+            Core::LeftPadLow16_32 => f.write_str("left_pad_low_16_32"),
+            Core::LeftPadLow16_64 => f.write_str("left_pad_low_16_64"),
+            Core::LeftPadLow1_16 => f.write_str("left_pad_low_1_16"),
+            Core::LeftPadLow1_32 => f.write_str("left_pad_low_1_32"),
+            Core::LeftPadLow1_64 => f.write_str("left_pad_low_1_64"),
+            Core::LeftPadLow1_8 => f.write_str("left_pad_low_1_8"),
+            Core::LeftPadLow32_64 => f.write_str("left_pad_low_32_64"),
+            Core::LeftPadLow8_16 => f.write_str("left_pad_low_8_16"),
+            Core::LeftPadLow8_32 => f.write_str("left_pad_low_8_32"),
+            Core::LeftPadLow8_64 => f.write_str("left_pad_low_8_64"),
+            Core::LeftRotate16 => f.write_str("left_rotate_16"),
+            Core::LeftRotate32 => f.write_str("left_rotate_32"),
+            Core::LeftRotate64 => f.write_str("left_rotate_64"),
+            Core::LeftRotate8 => f.write_str("left_rotate_8"),
+            Core::LeftShift16 => f.write_str("left_shift_16"),
+            Core::LeftShift32 => f.write_str("left_shift_32"),
+            Core::LeftShift64 => f.write_str("left_shift_64"),
+            Core::LeftShift8 => f.write_str("left_shift_8"),
+            Core::LeftShiftWith16 => f.write_str("left_shift_with_16"),
+            Core::LeftShiftWith32 => f.write_str("left_shift_with_32"),
+            Core::LeftShiftWith64 => f.write_str("left_shift_with_64"),
+            Core::LeftShiftWith8 => f.write_str("left_shift_with_8"),
+            Core::Leftmost16_1 => f.write_str("leftmost_16_1"),
+            Core::Leftmost16_2 => f.write_str("leftmost_16_2"),
+            Core::Leftmost16_4 => f.write_str("leftmost_16_4"),
+            Core::Leftmost16_8 => f.write_str("leftmost_16_8"),
+            Core::Leftmost32_1 => f.write_str("leftmost_32_1"),
+            Core::Leftmost32_16 => f.write_str("leftmost_32_16"),
+            Core::Leftmost32_2 => f.write_str("leftmost_32_2"),
+            Core::Leftmost32_4 => f.write_str("leftmost_32_4"),
+            Core::Leftmost32_8 => f.write_str("leftmost_32_8"),
+            Core::Leftmost64_1 => f.write_str("leftmost_64_1"),
+            Core::Leftmost64_16 => f.write_str("leftmost_64_16"),
+            Core::Leftmost64_2 => f.write_str("leftmost_64_2"),
+            Core::Leftmost64_32 => f.write_str("leftmost_64_32"),
+            Core::Leftmost64_4 => f.write_str("leftmost_64_4"),
+            Core::Leftmost64_8 => f.write_str("leftmost_64_8"),
+            Core::Leftmost8_1 => f.write_str("leftmost_8_1"),
+            Core::Leftmost8_2 => f.write_str("leftmost_8_2"),
+            Core::Leftmost8_4 => f.write_str("leftmost_8_4"),
             Core::LinearCombination1 => f.write_str("linear_combination_1"),
             Core::LinearVerify1 => f.write_str("linear_verify_1"),
+            Core::Low1 => f.write_str("low_1"),
             Core::Low16 => f.write_str("low_16"),
             Core::Low32 => f.write_str("low_32"),
             Core::Low64 => f.write_str("low_64"),
@@ -3618,6 +6530,7 @@ impl fmt::Display for Core {
             Core::Lt32 => f.write_str("lt_32"),
             Core::Lt64 => f.write_str("lt_64"),
             Core::Lt8 => f.write_str("lt_8"),
+            Core::Maj1 => f.write_str("maj_1"),
             Core::Maj16 => f.write_str("maj_16"),
             Core::Maj32 => f.write_str("maj_32"),
             Core::Maj64 => f.write_str("maj_64"),
@@ -3650,6 +6563,7 @@ impl fmt::Display for Core {
             Core::One32 => f.write_str("one_32"),
             Core::One64 => f.write_str("one_64"),
             Core::One8 => f.write_str("one_8"),
+            Core::Or1 => f.write_str("or_1"),
             Core::Or16 => f.write_str("or_16"),
             Core::Or32 => f.write_str("or_32"),
             Core::Or64 => f.write_str("or_64"),
@@ -3657,6 +6571,62 @@ impl fmt::Display for Core {
             Core::ParseLock => f.write_str("parse_lock"),
             Core::ParseSequence => f.write_str("parse_sequence"),
             Core::PointVerify1 => f.write_str("point_verify_1"),
+            Core::RightExtend16_32 => f.write_str("right_extend_16_32"),
+            Core::RightExtend16_64 => f.write_str("right_extend_16_64"),
+            Core::RightExtend32_64 => f.write_str("right_extend_32_64"),
+            Core::RightExtend8_16 => f.write_str("right_extend_8_16"),
+            Core::RightExtend8_32 => f.write_str("right_extend_8_32"),
+            Core::RightExtend8_64 => f.write_str("right_extend_8_64"),
+            Core::RightPadHigh16_32 => f.write_str("right_pad_high_16_32"),
+            Core::RightPadHigh16_64 => f.write_str("right_pad_high_16_64"),
+            Core::RightPadHigh1_16 => f.write_str("right_pad_high_1_16"),
+            Core::RightPadHigh1_32 => f.write_str("right_pad_high_1_32"),
+            Core::RightPadHigh1_64 => f.write_str("right_pad_high_1_64"),
+            Core::RightPadHigh1_8 => f.write_str("right_pad_high_1_8"),
+            Core::RightPadHigh32_64 => f.write_str("right_pad_high_32_64"),
+            Core::RightPadHigh8_16 => f.write_str("right_pad_high_8_16"),
+            Core::RightPadHigh8_32 => f.write_str("right_pad_high_8_32"),
+            Core::RightPadHigh8_64 => f.write_str("right_pad_high_8_64"),
+            Core::RightPadLow16_32 => f.write_str("right_pad_low_16_32"),
+            Core::RightPadLow16_64 => f.write_str("right_pad_low_16_64"),
+            Core::RightPadLow1_16 => f.write_str("right_pad_low_1_16"),
+            Core::RightPadLow1_32 => f.write_str("right_pad_low_1_32"),
+            Core::RightPadLow1_64 => f.write_str("right_pad_low_1_64"),
+            Core::RightPadLow1_8 => f.write_str("right_pad_low_1_8"),
+            Core::RightPadLow32_64 => f.write_str("right_pad_low_32_64"),
+            Core::RightPadLow8_16 => f.write_str("right_pad_low_8_16"),
+            Core::RightPadLow8_32 => f.write_str("right_pad_low_8_32"),
+            Core::RightPadLow8_64 => f.write_str("right_pad_low_8_64"),
+            Core::RightRotate16 => f.write_str("right_rotate_16"),
+            Core::RightRotate32 => f.write_str("right_rotate_32"),
+            Core::RightRotate64 => f.write_str("right_rotate_64"),
+            Core::RightRotate8 => f.write_str("right_rotate_8"),
+            Core::RightShift16 => f.write_str("right_shift_16"),
+            Core::RightShift32 => f.write_str("right_shift_32"),
+            Core::RightShift64 => f.write_str("right_shift_64"),
+            Core::RightShift8 => f.write_str("right_shift_8"),
+            Core::RightShiftWith16 => f.write_str("right_shift_with_16"),
+            Core::RightShiftWith32 => f.write_str("right_shift_with_32"),
+            Core::RightShiftWith64 => f.write_str("right_shift_with_64"),
+            Core::RightShiftWith8 => f.write_str("right_shift_with_8"),
+            Core::Rightmost16_1 => f.write_str("rightmost_16_1"),
+            Core::Rightmost16_2 => f.write_str("rightmost_16_2"),
+            Core::Rightmost16_4 => f.write_str("rightmost_16_4"),
+            Core::Rightmost16_8 => f.write_str("rightmost_16_8"),
+            Core::Rightmost32_1 => f.write_str("rightmost_32_1"),
+            Core::Rightmost32_16 => f.write_str("rightmost_32_16"),
+            Core::Rightmost32_2 => f.write_str("rightmost_32_2"),
+            Core::Rightmost32_4 => f.write_str("rightmost_32_4"),
+            Core::Rightmost32_8 => f.write_str("rightmost_32_8"),
+            Core::Rightmost64_1 => f.write_str("rightmost_64_1"),
+            Core::Rightmost64_16 => f.write_str("rightmost_64_16"),
+            Core::Rightmost64_2 => f.write_str("rightmost_64_2"),
+            Core::Rightmost64_32 => f.write_str("rightmost_64_32"),
+            Core::Rightmost64_4 => f.write_str("rightmost_64_4"),
+            Core::Rightmost64_8 => f.write_str("rightmost_64_8"),
+            Core::Rightmost8_1 => f.write_str("rightmost_8_1"),
+            Core::Rightmost8_2 => f.write_str("rightmost_8_2"),
+            Core::Rightmost8_4 => f.write_str("rightmost_8_4"),
             Core::ScalarAdd => f.write_str("scalar_add"),
             Core::ScalarInvert => f.write_str("scalar_invert"),
             Core::ScalarIsZero => f.write_str("scalar_is_zero"),
@@ -3681,6 +6651,7 @@ impl fmt::Display for Core {
             Core::Sha256Ctx8Finalize => f.write_str("sha_256_ctx_8_finalize"),
             Core::Sha256Ctx8Init => f.write_str("sha_256_ctx_8_init"),
             Core::Sha256Iv => f.write_str("sha_256_iv"),
+            Core::Some1 => f.write_str("some_1"),
             Core::Some16 => f.write_str("some_16"),
             Core::Some32 => f.write_str("some_32"),
             Core::Some64 => f.write_str("some_64"),
@@ -3690,10 +6661,12 @@ impl fmt::Display for Core {
             Core::Subtract64 => f.write_str("subtract_64"),
             Core::Subtract8 => f.write_str("subtract_8"),
             Core::Verify => f.write_str("verify"),
+            Core::Xor1 => f.write_str("xor_1"),
             Core::Xor16 => f.write_str("xor_16"),
             Core::Xor32 => f.write_str("xor_32"),
             Core::Xor64 => f.write_str("xor_64"),
             Core::Xor8 => f.write_str("xor_8"),
+            Core::XorXor1 => f.write_str("xor_xor_1"),
             Core::XorXor16 => f.write_str("xor_xor_16"),
             Core::XorXor32 => f.write_str("xor_xor_32"),
             Core::XorXor64 => f.write_str("xor_xor_64"),
@@ -3715,16 +6688,19 @@ impl str::FromStr for Core {
             "all_32" => Ok(Core::All32),
             "all_64" => Ok(Core::All64),
             "all_8" => Ok(Core::All8),
+            "and_1" => Ok(Core::And1),
             "and_16" => Ok(Core::And16),
             "and_32" => Ok(Core::And32),
             "and_64" => Ok(Core::And64),
             "and_8" => Ok(Core::And8),
             "bip_0340_verify" => Ok(Core::Bip0340Verify),
+            "ch_1" => Ok(Core::Ch1),
             "ch_16" => Ok(Core::Ch16),
             "ch_32" => Ok(Core::Ch32),
             "ch_64" => Ok(Core::Ch64),
             "ch_8" => Ok(Core::Ch8),
             "check_sig_verify" => Ok(Core::CheckSigVerify),
+            "complement_1" => Ok(Core::Complement1),
             "complement_16" => Ok(Core::Complement16),
             "complement_32" => Ok(Core::Complement32),
             "complement_64" => Ok(Core::Complement64),
@@ -3746,6 +6722,7 @@ impl str::FromStr for Core {
             "divides_32" => Ok(Core::Divides32),
             "divides_64" => Ok(Core::Divides64),
             "divides_8" => Ok(Core::Divides8),
+            "eq_1" => Ok(Core::Eq1),
             "eq_16" => Ok(Core::Eq16),
             "eq_256" => Ok(Core::Eq256),
             "eq_32" => Ok(Core::Eq32),
@@ -3773,10 +6750,46 @@ impl str::FromStr for Core {
             "full_increment_32" => Ok(Core::FullIncrement32),
             "full_increment_64" => Ok(Core::FullIncrement64),
             "full_increment_8" => Ok(Core::FullIncrement8),
+            "full_left_shift_16_1" => Ok(Core::FullLeftShift16_1),
+            "full_left_shift_16_2" => Ok(Core::FullLeftShift16_2),
+            "full_left_shift_16_4" => Ok(Core::FullLeftShift16_4),
+            "full_left_shift_16_8" => Ok(Core::FullLeftShift16_8),
+            "full_left_shift_32_1" => Ok(Core::FullLeftShift32_1),
+            "full_left_shift_32_16" => Ok(Core::FullLeftShift32_16),
+            "full_left_shift_32_2" => Ok(Core::FullLeftShift32_2),
+            "full_left_shift_32_4" => Ok(Core::FullLeftShift32_4),
+            "full_left_shift_32_8" => Ok(Core::FullLeftShift32_8),
+            "full_left_shift_64_1" => Ok(Core::FullLeftShift64_1),
+            "full_left_shift_64_16" => Ok(Core::FullLeftShift64_16),
+            "full_left_shift_64_2" => Ok(Core::FullLeftShift64_2),
+            "full_left_shift_64_32" => Ok(Core::FullLeftShift64_32),
+            "full_left_shift_64_4" => Ok(Core::FullLeftShift64_4),
+            "full_left_shift_64_8" => Ok(Core::FullLeftShift64_8),
+            "full_left_shift_8_1" => Ok(Core::FullLeftShift8_1),
+            "full_left_shift_8_2" => Ok(Core::FullLeftShift8_2),
+            "full_left_shift_8_4" => Ok(Core::FullLeftShift8_4),
             "full_multiply_16" => Ok(Core::FullMultiply16),
             "full_multiply_32" => Ok(Core::FullMultiply32),
             "full_multiply_64" => Ok(Core::FullMultiply64),
             "full_multiply_8" => Ok(Core::FullMultiply8),
+            "full_right_shift_16_1" => Ok(Core::FullRightShift16_1),
+            "full_right_shift_16_2" => Ok(Core::FullRightShift16_2),
+            "full_right_shift_16_4" => Ok(Core::FullRightShift16_4),
+            "full_right_shift_16_8" => Ok(Core::FullRightShift16_8),
+            "full_right_shift_32_1" => Ok(Core::FullRightShift32_1),
+            "full_right_shift_32_16" => Ok(Core::FullRightShift32_16),
+            "full_right_shift_32_2" => Ok(Core::FullRightShift32_2),
+            "full_right_shift_32_4" => Ok(Core::FullRightShift32_4),
+            "full_right_shift_32_8" => Ok(Core::FullRightShift32_8),
+            "full_right_shift_64_1" => Ok(Core::FullRightShift64_1),
+            "full_right_shift_64_16" => Ok(Core::FullRightShift64_16),
+            "full_right_shift_64_2" => Ok(Core::FullRightShift64_2),
+            "full_right_shift_64_32" => Ok(Core::FullRightShift64_32),
+            "full_right_shift_64_4" => Ok(Core::FullRightShift64_4),
+            "full_right_shift_64_8" => Ok(Core::FullRightShift64_8),
+            "full_right_shift_8_1" => Ok(Core::FullRightShift8_1),
+            "full_right_shift_8_2" => Ok(Core::FullRightShift8_2),
+            "full_right_shift_8_4" => Ok(Core::FullRightShift8_4),
             "full_subtract_16" => Ok(Core::FullSubtract16),
             "full_subtract_32" => Ok(Core::FullSubtract32),
             "full_subtract_64" => Ok(Core::FullSubtract64),
@@ -3796,6 +6809,7 @@ impl str::FromStr for Core {
             "gej_x_equiv" => Ok(Core::GejXEquiv),
             "gej_y_is_odd" => Ok(Core::GejYIsOdd),
             "generate" => Ok(Core::Generate),
+            "high_1" => Ok(Core::High1),
             "high_16" => Ok(Core::High16),
             "high_32" => Ok(Core::High32),
             "high_64" => Ok(Core::High64),
@@ -3816,8 +6830,69 @@ impl str::FromStr for Core {
             "le_32" => Ok(Core::Le32),
             "le_64" => Ok(Core::Le64),
             "le_8" => Ok(Core::Le8),
+            "left_extend_16_32" => Ok(Core::LeftExtend16_32),
+            "left_extend_16_64" => Ok(Core::LeftExtend16_64),
+            "left_extend_1_16" => Ok(Core::LeftExtend1_16),
+            "left_extend_1_32" => Ok(Core::LeftExtend1_32),
+            "left_extend_1_64" => Ok(Core::LeftExtend1_64),
+            "left_extend_1_8" => Ok(Core::LeftExtend1_8),
+            "left_extend_32_64" => Ok(Core::LeftExtend32_64),
+            "left_extend_8_16" => Ok(Core::LeftExtend8_16),
+            "left_extend_8_32" => Ok(Core::LeftExtend8_32),
+            "left_extend_8_64" => Ok(Core::LeftExtend8_64),
+            "left_pad_high_16_32" => Ok(Core::LeftPadHigh16_32),
+            "left_pad_high_16_64" => Ok(Core::LeftPadHigh16_64),
+            "left_pad_high_1_16" => Ok(Core::LeftPadHigh1_16),
+            "left_pad_high_1_32" => Ok(Core::LeftPadHigh1_32),
+            "left_pad_high_1_64" => Ok(Core::LeftPadHigh1_64),
+            "left_pad_high_1_8" => Ok(Core::LeftPadHigh1_8),
+            "left_pad_high_32_64" => Ok(Core::LeftPadHigh32_64),
+            "left_pad_high_8_16" => Ok(Core::LeftPadHigh8_16),
+            "left_pad_high_8_32" => Ok(Core::LeftPadHigh8_32),
+            "left_pad_high_8_64" => Ok(Core::LeftPadHigh8_64),
+            "left_pad_low_16_32" => Ok(Core::LeftPadLow16_32),
+            "left_pad_low_16_64" => Ok(Core::LeftPadLow16_64),
+            "left_pad_low_1_16" => Ok(Core::LeftPadLow1_16),
+            "left_pad_low_1_32" => Ok(Core::LeftPadLow1_32),
+            "left_pad_low_1_64" => Ok(Core::LeftPadLow1_64),
+            "left_pad_low_1_8" => Ok(Core::LeftPadLow1_8),
+            "left_pad_low_32_64" => Ok(Core::LeftPadLow32_64),
+            "left_pad_low_8_16" => Ok(Core::LeftPadLow8_16),
+            "left_pad_low_8_32" => Ok(Core::LeftPadLow8_32),
+            "left_pad_low_8_64" => Ok(Core::LeftPadLow8_64),
+            "left_rotate_16" => Ok(Core::LeftRotate16),
+            "left_rotate_32" => Ok(Core::LeftRotate32),
+            "left_rotate_64" => Ok(Core::LeftRotate64),
+            "left_rotate_8" => Ok(Core::LeftRotate8),
+            "left_shift_16" => Ok(Core::LeftShift16),
+            "left_shift_32" => Ok(Core::LeftShift32),
+            "left_shift_64" => Ok(Core::LeftShift64),
+            "left_shift_8" => Ok(Core::LeftShift8),
+            "left_shift_with_16" => Ok(Core::LeftShiftWith16),
+            "left_shift_with_32" => Ok(Core::LeftShiftWith32),
+            "left_shift_with_64" => Ok(Core::LeftShiftWith64),
+            "left_shift_with_8" => Ok(Core::LeftShiftWith8),
+            "leftmost_16_1" => Ok(Core::Leftmost16_1),
+            "leftmost_16_2" => Ok(Core::Leftmost16_2),
+            "leftmost_16_4" => Ok(Core::Leftmost16_4),
+            "leftmost_16_8" => Ok(Core::Leftmost16_8),
+            "leftmost_32_1" => Ok(Core::Leftmost32_1),
+            "leftmost_32_16" => Ok(Core::Leftmost32_16),
+            "leftmost_32_2" => Ok(Core::Leftmost32_2),
+            "leftmost_32_4" => Ok(Core::Leftmost32_4),
+            "leftmost_32_8" => Ok(Core::Leftmost32_8),
+            "leftmost_64_1" => Ok(Core::Leftmost64_1),
+            "leftmost_64_16" => Ok(Core::Leftmost64_16),
+            "leftmost_64_2" => Ok(Core::Leftmost64_2),
+            "leftmost_64_32" => Ok(Core::Leftmost64_32),
+            "leftmost_64_4" => Ok(Core::Leftmost64_4),
+            "leftmost_64_8" => Ok(Core::Leftmost64_8),
+            "leftmost_8_1" => Ok(Core::Leftmost8_1),
+            "leftmost_8_2" => Ok(Core::Leftmost8_2),
+            "leftmost_8_4" => Ok(Core::Leftmost8_4),
             "linear_combination_1" => Ok(Core::LinearCombination1),
             "linear_verify_1" => Ok(Core::LinearVerify1),
+            "low_1" => Ok(Core::Low1),
             "low_16" => Ok(Core::Low16),
             "low_32" => Ok(Core::Low32),
             "low_64" => Ok(Core::Low64),
@@ -3826,6 +6901,7 @@ impl str::FromStr for Core {
             "lt_32" => Ok(Core::Lt32),
             "lt_64" => Ok(Core::Lt64),
             "lt_8" => Ok(Core::Lt8),
+            "maj_1" => Ok(Core::Maj1),
             "maj_16" => Ok(Core::Maj16),
             "maj_32" => Ok(Core::Maj32),
             "maj_64" => Ok(Core::Maj64),
@@ -3858,6 +6934,7 @@ impl str::FromStr for Core {
             "one_32" => Ok(Core::One32),
             "one_64" => Ok(Core::One64),
             "one_8" => Ok(Core::One8),
+            "or_1" => Ok(Core::Or1),
             "or_16" => Ok(Core::Or16),
             "or_32" => Ok(Core::Or32),
             "or_64" => Ok(Core::Or64),
@@ -3865,6 +6942,62 @@ impl str::FromStr for Core {
             "parse_lock" => Ok(Core::ParseLock),
             "parse_sequence" => Ok(Core::ParseSequence),
             "point_verify_1" => Ok(Core::PointVerify1),
+            "right_extend_16_32" => Ok(Core::RightExtend16_32),
+            "right_extend_16_64" => Ok(Core::RightExtend16_64),
+            "right_extend_32_64" => Ok(Core::RightExtend32_64),
+            "right_extend_8_16" => Ok(Core::RightExtend8_16),
+            "right_extend_8_32" => Ok(Core::RightExtend8_32),
+            "right_extend_8_64" => Ok(Core::RightExtend8_64),
+            "right_pad_high_16_32" => Ok(Core::RightPadHigh16_32),
+            "right_pad_high_16_64" => Ok(Core::RightPadHigh16_64),
+            "right_pad_high_1_16" => Ok(Core::RightPadHigh1_16),
+            "right_pad_high_1_32" => Ok(Core::RightPadHigh1_32),
+            "right_pad_high_1_64" => Ok(Core::RightPadHigh1_64),
+            "right_pad_high_1_8" => Ok(Core::RightPadHigh1_8),
+            "right_pad_high_32_64" => Ok(Core::RightPadHigh32_64),
+            "right_pad_high_8_16" => Ok(Core::RightPadHigh8_16),
+            "right_pad_high_8_32" => Ok(Core::RightPadHigh8_32),
+            "right_pad_high_8_64" => Ok(Core::RightPadHigh8_64),
+            "right_pad_low_16_32" => Ok(Core::RightPadLow16_32),
+            "right_pad_low_16_64" => Ok(Core::RightPadLow16_64),
+            "right_pad_low_1_16" => Ok(Core::RightPadLow1_16),
+            "right_pad_low_1_32" => Ok(Core::RightPadLow1_32),
+            "right_pad_low_1_64" => Ok(Core::RightPadLow1_64),
+            "right_pad_low_1_8" => Ok(Core::RightPadLow1_8),
+            "right_pad_low_32_64" => Ok(Core::RightPadLow32_64),
+            "right_pad_low_8_16" => Ok(Core::RightPadLow8_16),
+            "right_pad_low_8_32" => Ok(Core::RightPadLow8_32),
+            "right_pad_low_8_64" => Ok(Core::RightPadLow8_64),
+            "right_rotate_16" => Ok(Core::RightRotate16),
+            "right_rotate_32" => Ok(Core::RightRotate32),
+            "right_rotate_64" => Ok(Core::RightRotate64),
+            "right_rotate_8" => Ok(Core::RightRotate8),
+            "right_shift_16" => Ok(Core::RightShift16),
+            "right_shift_32" => Ok(Core::RightShift32),
+            "right_shift_64" => Ok(Core::RightShift64),
+            "right_shift_8" => Ok(Core::RightShift8),
+            "right_shift_with_16" => Ok(Core::RightShiftWith16),
+            "right_shift_with_32" => Ok(Core::RightShiftWith32),
+            "right_shift_with_64" => Ok(Core::RightShiftWith64),
+            "right_shift_with_8" => Ok(Core::RightShiftWith8),
+            "rightmost_16_1" => Ok(Core::Rightmost16_1),
+            "rightmost_16_2" => Ok(Core::Rightmost16_2),
+            "rightmost_16_4" => Ok(Core::Rightmost16_4),
+            "rightmost_16_8" => Ok(Core::Rightmost16_8),
+            "rightmost_32_1" => Ok(Core::Rightmost32_1),
+            "rightmost_32_16" => Ok(Core::Rightmost32_16),
+            "rightmost_32_2" => Ok(Core::Rightmost32_2),
+            "rightmost_32_4" => Ok(Core::Rightmost32_4),
+            "rightmost_32_8" => Ok(Core::Rightmost32_8),
+            "rightmost_64_1" => Ok(Core::Rightmost64_1),
+            "rightmost_64_16" => Ok(Core::Rightmost64_16),
+            "rightmost_64_2" => Ok(Core::Rightmost64_2),
+            "rightmost_64_32" => Ok(Core::Rightmost64_32),
+            "rightmost_64_4" => Ok(Core::Rightmost64_4),
+            "rightmost_64_8" => Ok(Core::Rightmost64_8),
+            "rightmost_8_1" => Ok(Core::Rightmost8_1),
+            "rightmost_8_2" => Ok(Core::Rightmost8_2),
+            "rightmost_8_4" => Ok(Core::Rightmost8_4),
             "scalar_add" => Ok(Core::ScalarAdd),
             "scalar_invert" => Ok(Core::ScalarInvert),
             "scalar_is_zero" => Ok(Core::ScalarIsZero),
@@ -3889,6 +7022,7 @@ impl str::FromStr for Core {
             "sha_256_ctx_8_finalize" => Ok(Core::Sha256Ctx8Finalize),
             "sha_256_ctx_8_init" => Ok(Core::Sha256Ctx8Init),
             "sha_256_iv" => Ok(Core::Sha256Iv),
+            "some_1" => Ok(Core::Some1),
             "some_16" => Ok(Core::Some16),
             "some_32" => Ok(Core::Some32),
             "some_64" => Ok(Core::Some64),
@@ -3898,10 +7032,12 @@ impl str::FromStr for Core {
             "subtract_64" => Ok(Core::Subtract64),
             "subtract_8" => Ok(Core::Subtract8),
             "verify" => Ok(Core::Verify),
+            "xor_1" => Ok(Core::Xor1),
             "xor_16" => Ok(Core::Xor16),
             "xor_32" => Ok(Core::Xor32),
             "xor_64" => Ok(Core::Xor64),
             "xor_8" => Ok(Core::Xor8),
+            "xor_xor_1" => Ok(Core::XorXor1),
             "xor_xor_16" => Ok(Core::XorXor16),
             "xor_xor_32" => Ok(Core::XorXor32),
             "xor_xor_64" => Ok(Core::XorXor64),
