@@ -22,10 +22,6 @@ cargo-fuzz = true
 [dependencies]
 honggfuzz = { version = "0.5.55", default-features = false }
 simplicity = { path = ".." }
-
-[patch.crates-io.bitcoin_hashes]
-git = "https://github.com/apoelstra/rust-bitcoin"
-tag = "2023-07--0.30.1-with-fuzzcfg"
 EOF
 
 for targetFile in $(listTargetFiles); do
@@ -72,11 +68,9 @@ $(for name in $(listTargetNames); do echo "$name,"; done)
             fuzz/target
             target
           key: cache-\${{ matrix.target }}-\${{ hashFiles('**/Cargo.toml','**/Cargo.lock') }}
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.65.0
-          override: true
-          profile: minimal
       - name: fuzz
         run: |
           echo "Using RUSTFLAGS \$RUSTFLAGS"
@@ -99,4 +93,3 @@ $(for name in $(listTargetNames); do echo "$name,"; done)
       - run: find executed_* -type f -exec cat {} + | sort > executed
       - run: source ./fuzz/fuzz-util.sh && listTargetNames | sort | diff - executed
 EOF
-

@@ -12,19 +12,14 @@ jobs:
           - stable
     steps:
       - name: Checkout Crate
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Checkout Toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
           components: rustfmt
       - name: Running cargo fmt
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+        run: cargo fmt --all -- --check
 
   simpcli_test:
     name: SimpCLI Tests
@@ -35,13 +30,11 @@ jobs:
           - stable
     steps:
       - name: Checkout Crate
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Checkout Toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
       - name: Running cargo test
         run: |
           cd simpcli
@@ -56,13 +49,11 @@ jobs:
           - stable
     steps:
       - name: Checkout Crate
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Checkout Toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
       - name: Running cargo test
         run: |
           cargo install cargo-criterion
@@ -82,13 +73,11 @@ jobs:
           - nightly
     steps:
       - name: Checkout Crate
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Checkout Toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
       - name: Running cargo test
         env:
           FEATURES: bitcoin elements test-utils
@@ -123,13 +112,11 @@ jobs:
           - stable
     steps:
       - name: Checkout Crate
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Checkout Toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
       - name: Running cargo test
         run: |
           cargo test -- --ignored
@@ -144,16 +131,11 @@ jobs:
           - stable
     steps:
       - name: Checkout Crate
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Checkout Toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: ${{ matrix.rust }}
-          override: true
           components: clippy
       - name: Running cargo clippy
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --all-targets -- --deny warnings
+        run: cargo clippy --all-targets -- --deny warnings
