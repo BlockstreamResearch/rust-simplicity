@@ -12,7 +12,6 @@ cargo-fuzz = true
 honggfuzz = { version = "0.5.55", default-features = false }
 simplicity = { path = ".." }
 
-
 [[bin]]
 name = "c_rust_merkle"
 path = "fuzz_targets/c_rust_merkle.rs"

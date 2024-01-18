@@ -33,11 +33,9 @@ parse_human,
             fuzz/target
             target
           key: cache-${{ matrix.target }}-${{ hashFiles('**/Cargo.toml','**/Cargo.lock') }}
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.65.0
-          override: true
-          profile: minimal
       - name: fuzz
         run: |
           echo "Using RUSTFLAGS $RUSTFLAGS"
