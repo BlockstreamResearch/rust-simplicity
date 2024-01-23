@@ -44,6 +44,7 @@ fn main() {
     cc::Build::new()
         .std("c11")
         .flag_if_supported("-fno-inline-functions")
+        .opt_level(2)
         .files(files)
         .files(test_files)
         .file(Path::new("depend/wrapper.c"))
