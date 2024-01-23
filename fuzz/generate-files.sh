@@ -22,7 +22,7 @@ cargo-fuzz = true
 
 [dependencies]
 honggfuzz = { version = "0.5.55", default-features = false }
-simplicity = { path = ".." }
+simplicity-lang = { path = ".." }
 EOF
 
 for targetFile in $(listTargetFiles); do

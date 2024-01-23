@@ -1,5 +1,5 @@
 [package]
-name = "simplicity"
+name = "simplicity-lang"
 version = "0.2.0"
 authors = ["Andrew Poelstra <apoelstra@wpsoftware.net>"]
 license = "CC0-1.0"
