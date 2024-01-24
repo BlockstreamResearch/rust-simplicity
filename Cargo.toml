@@ -3,9 +3,8 @@ name = "simplicity"
 version = "0.1.0"
 authors = ["Andrew Poelstra <apoelstra@wpsoftware.net>"]
 license = "CC0-1.0"
-edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+edition = "2021"
+rust-version = "1.58.0"
 
 [features]
 default = ["bitcoin", "elements"]
@@ -35,10 +34,7 @@ simplicity-sys = { version = "0.1.0", path = "./simplicity-sys", features = [
 ] }
 
 [workspace]
-members = ["simpcli", "simplicity-sys"]
+members = ["simpcli", "simplicity-sys", "fuzz"]
 # Should be manually/separately tested since it has a massive dep tree
 # and not follow MSRV
-# FIXME we also need to include 'fuzz' in here because it currently uses
-# a patched bitcoin_hashes. When we remove that, we can move it back
-# to "members"
-exclude = ["jets-bench", "fuzz"]
+exclude = ["jets-bench"]

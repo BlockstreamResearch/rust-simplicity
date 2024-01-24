@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: CC0-1.0
 
-use std::str;
 use honggfuzz::fuzz;
-use simplicity::jet::Elements;
 use simplicity::human_encoding::Forest;
+use simplicity::jet::Elements;
+use std::str;
 
 fn do_test(data: &[u8]) {
     let s = match str::from_utf8(data) {
@@ -12,7 +12,7 @@ fn do_test(data: &[u8]) {
     };
 
     if let Ok(program) = Forest::<Elements>::parse(s) {
-        let reserialize= program.string_serialize();
+        let reserialize = program.string_serialize();
         let round_trip = Forest::<Elements>::parse(&reserialize).unwrap();
         assert_eq!(program, round_trip);
     }
