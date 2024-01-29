@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: CC0-1.0
+
 #[macro_export]
 macro_rules! decode_bits {
     ($bits:ident, {}) => {

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: CC0-1.0
+
 use crate::analysis::Cost;
 use crate::jet::Elements;
 use crate::node::{RedeemNode, WitnessNode};

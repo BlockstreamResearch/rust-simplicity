@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: CC0-1.0
+
 //! High level APIs to creating read/write CFrames
 //!
 

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: CC0-1.0
+
 use std::os::raw::{c_uchar, c_uint};
 
 use crate::ffi::sha256::CSha256Midstate;

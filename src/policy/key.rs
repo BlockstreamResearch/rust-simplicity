@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: CC0-1.0
+
 use bitcoin_miniscript::{MiniscriptKey, ToPublicKey};
 use elements::bitcoin::key::XOnlyPublicKey;
 use hashes::sha256;
