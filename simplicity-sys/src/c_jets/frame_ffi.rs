@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: CC0-1.0
+
 //! Frame related FFI bindings and data structures
 
 use std::os::raw::c_uchar;

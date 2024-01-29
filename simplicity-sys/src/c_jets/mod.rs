@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: CC0-1.0
+
 //! FFI related to jets
 // Typically, the only things in the sys crate are the
 // FFI bindings. The high level code should be in the
