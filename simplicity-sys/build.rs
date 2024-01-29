@@ -56,5 +56,5 @@ fn main() {
         build.define("PRODUCTION", None);
     }
 
-    build.compile("simplicity.a");
+    build.compile("ElementsSimplicity");
 }
