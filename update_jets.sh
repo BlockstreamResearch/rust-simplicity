@@ -34,6 +34,7 @@ cabal exec GenRustJets
 cd "$RUST_DIR"
 mv "${C_DIR}/jets_ffi.rs" "./simplicity-sys/src/c_jets/jets_ffi.rs"
 mv "${C_DIR}/jets_wrapper.rs" "./simplicity-sys/src/c_jets/jets_wrapper.rs"
+mv "${C_DIR}/jets_wrapper.c" "./simplicity-sys/depend/jets_wrapper.c"
 
 mv "${C_DIR}/core.rs" "./src/jet/init/"
 mv "${C_DIR}/bitcoin.rs" "./src/jet/init/"
