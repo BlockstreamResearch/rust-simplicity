@@ -1,5 +1,6 @@
 extern crate cc;
 
+use std::env;
 use std::path::Path;
 
 fn main() {
@@ -39,7 +40,6 @@ fn main() {
     .into_iter()
     .map(|x| simplicity_path.join(x))
     .collect();
-    let include = simplicity_path.join("include");
 
     let mut build = cc::Build::new();
     build
@@ -50,10 +50,15 @@ fn main() {
         .files(test_files)
         .file(Path::new("depend/wrapper.c"))
         .file(Path::new("depend/env.c"))
-        .include(include);
+        .include(simplicity_path.join("include"));
 
     if cfg!(not(fuzzing)) {
         build.define("PRODUCTION", None);
+    }
+
+    // Fix missing libc in WASM
+    if env::var("CARGO_CFG_TARGET_ARCH").unwrap() == "wasm32" {
+        build.include("wasm-sysroot");
     }
 
     build.compile("ElementsSimplicity");
