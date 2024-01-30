@@ -41,7 +41,8 @@ fn main() {
     .collect();
     let include = simplicity_path.join("include");
 
-    cc::Build::new()
+    let mut build = cc::Build::new();
+    build
         .std("c11")
         .flag_if_supported("-fno-inline-functions")
         .opt_level(2)
@@ -49,6 +50,11 @@ fn main() {
         .files(test_files)
         .file(Path::new("depend/wrapper.c"))
         .file(Path::new("depend/env.c"))
-        .include(include)
-        .compile("simplicity.a");
+        .include(include);
+
+    if cfg!(not(fuzzing)) {
+        build.define("PRODUCTION", None);
+    }
+
+    build.compile("ElementsSimplicity");
 }
