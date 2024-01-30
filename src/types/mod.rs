@@ -228,13 +228,11 @@ mod bound_mutex {
                     // It also gives the user access to more information about the type,
                     // prior to finalization.
                     if let (Some(data1), Some(data2)) = (y1.final_data(), y2.final_data()) {
-                        self.set(Arc::new(Bound::Complete(Arc::new(
-                            if let Bound::Sum(..) = *bound {
-                                Final::sum(data1, data2)
-                            } else {
-                                Final::product(data1, data2)
-                            },
-                        ))));
+                        self.set(Arc::new(Bound::Complete(if let Bound::Sum(..) = *bound {
+                            Final::sum(data1, data2)
+                        } else {
+                            Final::product(data1, data2)
+                        })));
                     }
                     Ok(())
                 }
@@ -276,12 +274,12 @@ impl Bound {
     }
 
     fn unit() -> Self {
-        Bound::Complete(Arc::new(Final::unit()))
+        Bound::Complete(Final::unit())
     }
 
     fn sum(a: Type, b: Type) -> Self {
         if let (Some(adata), Some(bdata)) = (a.final_data(), b.final_data()) {
-            Bound::Complete(Arc::new(Final::sum(adata, bdata)))
+            Bound::Complete(Final::sum(adata, bdata))
         } else {
             Bound::Sum(a, b)
         }
@@ -289,7 +287,7 @@ impl Bound {
 
     fn product(a: Type, b: Type) -> Self {
         if let (Some(adata), Some(bdata)) = (a.final_data(), b.final_data()) {
-            Bound::Complete(Arc::new(Final::product(adata, bdata)))
+            Bound::Complete(Final::product(adata, bdata))
         } else {
             Bound::Product(a, b)
         }
@@ -474,16 +472,16 @@ impl Type {
             let bound = data.node.bound.root();
             let bound_get = bound.get();
             let final_data = match *bound_get {
-                Bound::Free(_) => Arc::new(Final::unit()),
+                Bound::Free(_) => Final::unit(),
                 Bound::Complete(ref arc) => Arc::clone(arc),
-                Bound::Sum(..) => Arc::new(Final::sum(
+                Bound::Sum(..) => Final::sum(
                     Arc::clone(&finalized[data.left_index.unwrap()]),
                     Arc::clone(&finalized[data.right_index.unwrap()]),
-                )),
-                Bound::Product(..) => Arc::new(Final::product(
+                ),
+                Bound::Product(..) => Final::product(
                     Arc::clone(&finalized[data.left_index.unwrap()]),
                     Arc::clone(&finalized[data.right_index.unwrap()]),
-                )),
+                ),
             };
 
             if !matches!(*bound_get, Bound::Complete(..)) {

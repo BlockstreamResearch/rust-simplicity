@@ -150,12 +150,12 @@ impl<'a> DagLike for &'a Final {
 
 impl Final {
     /// (Non-public) constructor for the final data of the unit type
-    pub(crate) const fn unit() -> Self {
-        Final {
+    pub(crate) fn unit() -> Arc<Self> {
+        Arc::new(Final {
             bound: CompleteBound::Unit,
             bit_width: 0,
             tmr: Tmr::unit(),
-        }
+        })
     }
 
     /// Return a precomputed copy of 2^(2^n), for given n.
@@ -164,21 +164,21 @@ impl Final {
     }
 
     /// (Non-public) constructor for the final data of a sum type
-    pub(crate) fn sum(left: Arc<Self>, right: Arc<Self>) -> Self {
-        Final {
+    pub(crate) fn sum(left: Arc<Self>, right: Arc<Self>) -> Arc<Self> {
+        Arc::new(Final {
             tmr: Tmr::sum(left.tmr, right.tmr),
             bit_width: 1 + cmp::max(left.bit_width, right.bit_width),
             bound: CompleteBound::Sum(left, right),
-        }
+        })
     }
 
     /// (Non-public) constructor for the final data of a product type
-    pub(crate) fn product(left: Arc<Self>, right: Arc<Self>) -> Self {
-        Final {
+    pub(crate) fn product(left: Arc<Self>, right: Arc<Self>) -> Arc<Self> {
+        Arc::new(Final {
             tmr: Tmr::product(left.tmr, right.tmr),
             bit_width: left.bit_width + right.bit_width,
             bound: CompleteBound::Product(left, right),
-        }
+        })
     }
 
     /// Accessor for the TMR
@@ -236,7 +236,7 @@ mod tests {
         let ty1 = Final::two_two_n(0);
         assert_eq!(ty1.to_string(), "2");
 
-        let ty1 = Final::sum(Arc::new(Final::unit()), Final::two_two_n(2));
+        let ty1 = Final::sum(Final::unit(), Final::two_two_n(2));
         assert_eq!(ty1.to_string(), "2^4?");
     }
 }
