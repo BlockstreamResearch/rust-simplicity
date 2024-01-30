@@ -32,7 +32,6 @@ cabal build -j8
 cabal exec GenRustJets
 
 cd "$RUST_DIR"
-# TODO: Change the name on Haskell side
 mv "${C_DIR}/jets_ffi.rs" "./simplicity-sys/src/c_jets/jets_ffi.rs"
 mv "${C_DIR}/jets_wrapper.rs" "./simplicity-sys/src/c_jets/jets_wrapper.rs"
 
