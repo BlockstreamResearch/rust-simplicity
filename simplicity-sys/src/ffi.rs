@@ -18,6 +18,9 @@ pub type c_uchar = u8;
 pub type c_int = i32;
 pub type c_uint = u32;
 pub type c_size_t = usize;
+#[cfg(target_arch = "wasm32")]
+pub type c_uint_fast16_t = u16;
+#[cfg(not(target_arch = "wasm32"))]
 pub type c_uint_fast16_t = usize;
 pub type c_uint_least32_t = u32;
 

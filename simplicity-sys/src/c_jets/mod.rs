@@ -13,7 +13,7 @@ pub mod frame_ffi;
 #[rustfmt::skip] pub mod jets_wrapper;
 
 pub use c_env::{CElementsTxEnv, CTapEnv, CTransaction};
-pub use c_frame::{ffi_bytes_size, round_u_word};
+pub use c_frame::{byte_width, uword_width};
 pub use frame_ffi::CFrameItem;
 
 // The bindings use elements_ffi instead of jets_ffi.

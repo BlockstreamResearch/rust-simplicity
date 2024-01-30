@@ -2,7 +2,7 @@
 
 //! Frame related FFI bindings and data structures
 
-use crate::ffi::{c_size_t, c_uchar};
+use crate::ffi::{c_size_t, c_uchar, UWORD};
 
 /// FrameItem for C FFI.
 /// This type is only used to pass data to the C FFI.
@@ -17,8 +17,8 @@ extern "C" {
     pub static c_sizeof_frameItem: c_size_t;
     pub static c_alignof_frameItem: c_size_t;
 
-    pub(crate) fn c_initWriteFrame(frame: &mut CFrameItem, n: c_size_t, from: *const c_size_t);
-    pub(crate) fn c_initReadFrame(frame: &mut CFrameItem, n: c_size_t, from: *const c_size_t);
+    pub(crate) fn c_initWriteFrame(frame: &mut CFrameItem, n: c_size_t, from: *const UWORD);
+    pub(crate) fn c_initReadFrame(frame: &mut CFrameItem, n: c_size_t, from: *const UWORD);
 
     pub fn c_readBit(frame: &mut CFrameItem) -> bool;
     pub fn c_writeBit(frame: &mut CFrameItem, bit: bool);

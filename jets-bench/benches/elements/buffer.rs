@@ -4,7 +4,8 @@ use crate::JetParams;
 use rand::rngs::ThreadRng;
 use simplicity::types;
 use simplicity_sys::c_jets::frame_ffi::{c_readBit, c_writeBit};
-use simplicity_sys::c_jets::round_u_word;
+use simplicity_sys::c_jets::uword_width;
+use simplicity_sys::ffi::UWORD;
 use simplicity_sys::CFrameItem;
 
 /// A jet buffer with pre-computed and pre-stored pointers to holding
@@ -19,11 +20,11 @@ pub struct JetBuffer {
     cells: Vec<usize>,
     src_bit_width: usize,
     dst_bit_width: usize,
-    src_ptr_begin: *mut usize,
-    src_ptr_end: *mut usize,
+    src_ptr_begin: *mut UWORD,
+    src_ptr_end: *mut UWORD,
     #[allow(dead_code)]
-    dst_ptr_begin: *mut usize,
-    dst_ptr_end: *mut usize,
+    dst_ptr_begin: *mut UWORD,
+    dst_ptr_end: *mut UWORD,
 }
 
 impl JetBuffer {
@@ -36,14 +37,14 @@ impl JetBuffer {
         // Note here that we are adding the alignment to the bit width
         let src_bit_width = src_ty.bit_width() + params.src_align;
         let dst_bit_width = tgt_type.bit_width() + params.tgt_align;
-        let src_frame_size = round_u_word(src_bit_width);
-        let dst_frame_size = round_u_word(dst_bit_width);
+        let src_frame_size = uword_width(src_bit_width);
+        let dst_frame_size = uword_width(dst_bit_width);
 
         if src_frame_size == 0 && dst_frame_size == 0 {
             panic!("No unit to unit jets in our benchmarks");
         }
 
-        let mut cells = vec![0usize; src_frame_size + dst_frame_size];
+        let mut cells = vec![0 as UWORD; src_frame_size + dst_frame_size];
 
         Self {
             src_bit_width,
