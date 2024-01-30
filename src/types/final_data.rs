@@ -150,7 +150,7 @@ impl<'a> DagLike for &'a Final {
 
 impl Final {
     /// (Non-public) constructor for the final data of the unit type
-    pub(super) const fn unit() -> Self {
+    pub(crate) const fn unit() -> Self {
         Final {
             bound: CompleteBound::Unit,
             bit_width: 0,
@@ -164,7 +164,7 @@ impl Final {
     }
 
     /// (Non-public) constructor for the final data of a sum type
-    pub(super) fn sum(left: Arc<Self>, right: Arc<Self>) -> Self {
+    pub(crate) fn sum(left: Arc<Self>, right: Arc<Self>) -> Self {
         Final {
             tmr: Tmr::sum(left.tmr, right.tmr),
             bit_width: 1 + cmp::max(left.bit_width, right.bit_width),
@@ -173,7 +173,7 @@ impl Final {
     }
 
     /// (Non-public) constructor for the final data of a product type
-    pub(super) fn product(left: Arc<Self>, right: Arc<Self>) -> Self {
+    pub(crate) fn product(left: Arc<Self>, right: Arc<Self>) -> Self {
         Final {
             tmr: Tmr::product(left.tmr, right.tmr),
             bit_width: left.bit_width + right.bit_width,
