@@ -4,8 +4,9 @@
 //!
 //! Source and target types of jet nodes need to be specified manually.
 
-use crate::types::Type;
+use crate::types::{Final, Type};
 use std::cmp;
+use std::sync::Arc;
 
 /// Byte-based specification of a Simplicity type.
 ///
@@ -49,6 +50,23 @@ impl TypeConstructible for Type {
 
     fn product(left: Self, right: Self) -> Self {
         Type::product(left, right)
+    }
+}
+
+impl TypeConstructible for Arc<Final> {
+    fn two_two_n(n: Option<u32>) -> Self {
+        match n {
+            None => Final::unit(),
+            Some(m) => Final::two_two_n(m as usize), // cast safety: 32-bit arch or higher
+        }
+    }
+
+    fn sum(left: Self, right: Self) -> Self {
+        Final::sum(left, right)
+    }
+
+    fn product(left: Self, right: Self) -> Self {
+        Final::product(left, right)
     }
 }
 
@@ -116,6 +134,11 @@ impl TypeName {
 
     /// Convert the type name into a type.
     pub fn to_type(&self) -> Type {
+        self.construct()
+    }
+
+    /// Convert the type name into a finalized type.
+    pub fn to_final(&self) -> Arc<Final> {
         self.construct()
     }
 
