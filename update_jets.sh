@@ -1,33 +1,30 @@
 #!/bin/bash
 set -e
 
+# Requires (nix-shell with) cabal
 
 if [ -z "$1" ]; then
-  echo "\$1 parameter must be the simplicity directory"
-  echo "\$2 parameter (optional) can be the revision to check out. If this is not specified, we
-  use the simplicity revision specified in the simplicity-sys/depend/simplicity-HEAD-revision.txt.
-  If this is specified the revision must be available in the simplicity directory."
+  echo "\$1 path to libsimplicity repository root"
   exit 1
 fi
 
-C_DIR=$1
-REV=$2
-RUST_DIR=$(pwd)
+C_DIR="$1"
+RUST_DIR="$(pwd)"
 VENDORED_HEAD=$(sed -n '2p' "$RUST_DIR"/simplicity-sys/depend/simplicity-HEAD-revision.txt)
 
-cd "$C_DIR" || exit 1
-if [ -n "$REV" ]; then
-    if [ "$REV" != "$VENDORED_HEAD" ]; then
-        echo "WARNING: Simplicity GenRustJets and simplicity depend do not have the same git rev"
-        echo "$REV"
-        echo "$VENDORED_HEAD"
-    fi
-    git checkout "$REV"
-else
-    git checkout "$VENDORED_HEAD"
+cd "$C_DIR"
+REV=$(git rev-parse HEAD)
+
+if [ "$REV" != "$VENDORED_HEAD" ]; then
+    echo "WARNING: Haskell and Rust have different libsimplicity version"
+    echo "Haskell: $REV"
+    echo "Rust:    $VENDORED_HEAD"
 fi
 
-cd "$C_DIR"
+if test -n "$(git status --porcelain)"; then
+    echo "WARNING: libsimplicity repo is not clean"
+fi
+
 cabal build -j8
 cabal exec GenRustJets
 
