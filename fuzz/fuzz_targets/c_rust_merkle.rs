@@ -2,13 +2,13 @@
 
 use honggfuzz::fuzz;
 
-use simplicity::ffi::{self, ffi::SimplicityErr};
+use simplicity::ffi::tests::{ffi::SimplicityErr, run_program, TestUpTo};
 use simplicity::hashes::sha256::Midstate;
 use simplicity::jet::Elements;
 use simplicity::{BitIter, RedeemNode};
 
 fn do_test(data: &[u8]) {
-    let c_result = ffi::tests::run_program(data, ffi::tests::TestUpTo::CheckOneOne);
+    let c_result = run_program(data, TestUpTo::CheckOneOne);
 
     let mut iter = BitIter::from(data);
     let rust_result = RedeemNode::<Elements>::decode(&mut iter);

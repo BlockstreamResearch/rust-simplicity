@@ -1,70 +1,22 @@
 // SPDX-License-Identifier: CC0-1.0
 
-use crate::ffi::{
+pub mod ffi;
+
+use std::ptr;
+
+use crate::ffi::{c_size_t, c_void, sha256::CSha256Midstate, ubounded, UBOUNDED_MAX};
+use crate::tests::ffi::{
     bitstream::CBitstream,
     bitstring::CBitstring,
-    c_size_t, c_void,
     dag::{
         computeAnnotatedMerkleRoot, fillWitnessData, verifyNoDuplicateIdentityRoots, CAnalyses,
         CCombinatorCounters,
     },
     deserialize::{decodeMallocDag, decodeWitnessData},
     eval::{analyseBounds, evalTCOProgram},
-    sha256::CSha256Midstate,
     type_inference::mallocTypeInference,
-    ubounded, SimplicityErr, UBOUNDED_MAX,
+    SimplicityErr,
 };
-use std::ptr;
-
-#[cfg(feature = "test-utils")]
-pub mod ffi {
-    use super::*;
-
-    extern "C" {
-        pub static sizeof_ctx8Pruned: c_size_t;
-        pub static ctx8Pruned: [u8; 5015];
-        pub static ctx8Pruned_amr: [u32; 8];
-        pub static ctx8Pruned_cmr: [u32; 8];
-        pub static ctx8Pruned_imr: [u32; 8];
-        pub static ctx8Pruned_cost: ubounded;
-
-        pub static sizeof_ctx8Unpruned: c_size_t;
-        pub static ctx8Unpruned: [u8; 4809];
-        pub static ctx8Unpruned_amr: [u32; 8];
-        pub static ctx8Unpruned_cmr: [u32; 8];
-        pub static ctx8Unpruned_imr: [u32; 8];
-        pub static ctx8Unpruned_cost: ubounded;
-
-        pub static sizeof_schnorr0: c_size_t;
-        pub static schnorr0: [u8; 137];
-        pub static schnorr0_amr: [u32; 8];
-        pub static schnorr0_cmr: [u32; 8];
-        pub static schnorr0_imr: [u32; 8];
-        pub static schnorr0_cost: ubounded;
-
-        pub static sizeof_schnorr6: c_size_t;
-        pub static schnorr6: [u8; 137];
-        pub static schnorr6_amr: [u32; 8];
-        pub static schnorr6_cmr: [u32; 8];
-        pub static schnorr6_imr: [u32; 8];
-        pub static schnorr6_cost: ubounded;
-
-        /*
-        // FIXME enable this test; is not 1->1, requires extra frame setup
-        pub static sizeof_hashBlock: c_size_t;
-        pub static hashBlock: [u8; 3259];
-        pub static hashBlock_amr: [u32; 8];
-        pub static hashBlock_cmr: [u32; 8];
-        pub static hashBlock_imr: [u32; 8];
-
-        // FIXME enable this test; requires a little but of extra work to set up an Elements env
-        pub static elementsCheckSigHashAllTx1: [u8; 1151];
-        pub static elementsCheckSigHashAllTx1_amr: [u32; 8];
-        pub static elementsCheckSigHashAllTx1_cmr: [u32; 8];
-        pub static elementsCheckSigHashAllTx1_imr: [u32; 8];
-        */
-    }
-}
 
 /// The result of parsing, typechecking, and running a Simplicity program
 /// through the C FFI
