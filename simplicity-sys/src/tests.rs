@@ -3,6 +3,7 @@
 use crate::ffi::{
     bitstream::CBitstream,
     bitstring::CBitstring,
+    c_size_t, c_void,
     dag::{
         computeAnnotatedMerkleRoot, fillWitnessData, verifyNoDuplicateIdentityRoots, CAnalyses,
         CCombinatorCounters,
@@ -13,37 +14,35 @@ use crate::ffi::{
     type_inference::mallocTypeInference,
     ubounded, SimplicityErr, UBOUNDED_MAX,
 };
-use libc::{c_void, size_t};
 use std::ptr;
 
 #[cfg(feature = "test-utils")]
 pub mod ffi {
-    use crate::ffi::ubounded;
-    use libc::size_t;
+    use super::*;
 
     extern "C" {
-        pub static sizeof_ctx8Pruned: size_t;
+        pub static sizeof_ctx8Pruned: c_size_t;
         pub static ctx8Pruned: [u8; 5015];
         pub static ctx8Pruned_amr: [u32; 8];
         pub static ctx8Pruned_cmr: [u32; 8];
         pub static ctx8Pruned_imr: [u32; 8];
         pub static ctx8Pruned_cost: ubounded;
 
-        pub static sizeof_ctx8Unpruned: size_t;
+        pub static sizeof_ctx8Unpruned: c_size_t;
         pub static ctx8Unpruned: [u8; 4809];
         pub static ctx8Unpruned_amr: [u32; 8];
         pub static ctx8Unpruned_cmr: [u32; 8];
         pub static ctx8Unpruned_imr: [u32; 8];
         pub static ctx8Unpruned_cost: ubounded;
 
-        pub static sizeof_schnorr0: size_t;
+        pub static sizeof_schnorr0: c_size_t;
         pub static schnorr0: [u8; 137];
         pub static schnorr0_amr: [u32; 8];
         pub static schnorr0_cmr: [u32; 8];
         pub static schnorr0_imr: [u32; 8];
         pub static schnorr0_cost: ubounded;
 
-        pub static sizeof_schnorr6: size_t;
+        pub static sizeof_schnorr6: c_size_t;
         pub static schnorr6: [u8; 137];
         pub static schnorr6_amr: [u32; 8];
         pub static schnorr6_cmr: [u32; 8];
@@ -52,7 +51,7 @@ pub mod ffi {
 
         /*
         // FIXME enable this test; is not 1->1, requires extra frame setup
-        pub static sizeof_hashBlock: size_t;
+        pub static sizeof_hashBlock: c_size_t;
         pub static hashBlock: [u8; 3259];
         pub static hashBlock_amr: [u32; 8];
         pub static hashBlock_cmr: [u32; 8];
@@ -200,7 +199,7 @@ pub fn run_program(program: &[u8], test_up_to: TestUpTo) -> Result<TestOutput, S
         }
 
         // 4. Fill witness data, now that we know the types
-        fillWitnessData(dag, type_dag, len as size_t, witness).into_result()?;
+        fillWitnessData(dag, type_dag, len as c_size_t, witness).into_result()?;
         if test_up_to <= TestUpTo::FillWitnessData {
             return Ok(result);
         }

@@ -9,23 +9,45 @@
 //! All types are converted to CamelCase and prefixed with the letter C;
 //! function names are unchanged.
 
-use libc::size_t;
+#![allow(non_camel_case_types)]
+
+pub use core::ffi::c_void;
 use std::fmt;
 
+pub type c_uchar = u8;
+pub type c_int = i32;
+pub type c_uint = u32;
+pub type c_size_t = usize;
+#[cfg(target_arch = "wasm32")]
+pub type c_uint_fast16_t = u16;
+#[cfg(not(target_arch = "wasm32"))]
+pub type c_uint_fast16_t = usize;
+pub type c_uint_least32_t = u32;
+
+extern "C" {
+    pub static c_sizeof_uchar: c_size_t;
+    pub static c_alignof_uchar: c_size_t;
+    pub static c_sizeof_int: c_size_t;
+    pub static c_alignof_int: c_size_t;
+    pub static c_sizeof_uint: c_size_t;
+    pub static c_alignof_uint: c_size_t;
+    pub static c_sizeof_size_t: c_size_t;
+    pub static c_alignof_size_t: c_size_t;
+    pub static c_sizeof_uint_fast16_t: c_size_t;
+    pub static c_alignof_uint_fast16_t: c_size_t;
+    pub static c_sizeof_uint_least32_t: c_size_t;
+    pub static c_alignof_uint_least32_t: c_size_t;
+}
+
+pub type ubounded = c_uint_least32_t;
 /// Used with `evalTCOProgram` to enforce consensus limits.
 pub const BUDGET_MAX: ubounded = 4000050;
 /// The max value of UBOUNDED_MAX
-pub const UBOUNDED_MAX: ubounded = u32::MAX;
-
-/// Used in the C code for various purposes; actually defined as `uint_least32_t`
-/// which seems not to have an equivalent in Rust libc.
-// There are sanity checks for both these types in c_jets/c_env.rs
-#[allow(non_camel_case_types)]
-pub type ubounded = u32;
+pub const UBOUNDED_MAX: ubounded = ubounded::MAX;
 
 extern "C" {
-    pub static c_sizeof_ubounded: size_t;
-    pub static c_alignof_ubounded: size_t;
+    pub static c_sizeof_ubounded: c_size_t;
+    pub static c_alignof_ubounded: c_size_t;
 }
 
 pub mod bounded {
@@ -40,15 +62,11 @@ pub mod bounded {
     }
 }
 
-/// Used in C code to give the project a Win32 vibe; actually defined as
-/// `uint_least16_t`.
-// There are sanity checks for both these types in c_jets/c_env.rs
-#[allow(non_camel_case_types)]
-pub type UWORD = usize;
+pub type UWORD = c_uint_fast16_t;
 
 extern "C" {
-    pub static c_sizeof_UWORD: size_t;
-    pub static c_alignof_UWORD: size_t;
+    pub static c_sizeof_UWORD: c_size_t;
+    pub static c_alignof_UWORD: c_size_t;
 }
 
 /// Simplicity error codes
@@ -85,8 +103,8 @@ pub enum SimplicityErr {
 }
 
 extern "C" {
-    pub static c_sizeof_simplicity_err: size_t;
-    pub static c_alignof_simplicity_err: size_t;
+    pub static c_sizeof_simplicity_err: c_size_t;
+    pub static c_alignof_simplicity_err: c_size_t;
 }
 
 impl fmt::Display for SimplicityErr {
@@ -564,6 +582,13 @@ mod tests {
     #[rustfmt::skip]
     fn test_sizes() {
         unsafe {
+            assert_eq!(size_of::<c_uchar>(), c_sizeof_uchar);
+            assert_eq!(size_of::<c_int>(), c_sizeof_int);
+            assert_eq!(size_of::<c_uint>(), c_sizeof_uint);
+            assert_eq!(size_of::<c_size_t>(), c_sizeof_size_t);
+            assert_eq!(size_of::<c_uint_fast16_t>(), c_sizeof_uint_fast16_t);
+            assert_eq!(size_of::<c_uint_least32_t>(), c_sizeof_uint_least32_t);
+
             assert_eq!(size_of::<ubounded>(), c_sizeof_ubounded);
             assert_eq!(size_of::<UWORD>(), c_sizeof_UWORD);
             assert_eq!(size_of::<SimplicityErr>(), c_sizeof_simplicity_err);
@@ -584,6 +609,13 @@ mod tests {
     #[rustfmt::skip]
     fn test_aligns() {
         unsafe {
+            assert_eq!(align_of::<c_uchar>(), c_alignof_uchar);
+            assert_eq!(align_of::<c_int>(), c_alignof_int);
+            assert_eq!(align_of::<c_uint>(), c_alignof_uint);
+            assert_eq!(align_of::<c_size_t>(), c_alignof_size_t);
+            assert_eq!(align_of::<c_uint_fast16_t>(), c_alignof_uint_fast16_t);
+            assert_eq!(align_of::<c_uint_least32_t>(), c_alignof_uint_least32_t);
+
             assert_eq!(align_of::<ubounded>(), c_alignof_ubounded);
             assert_eq!(align_of::<UWORD>(), c_alignof_UWORD);
 

@@ -13,7 +13,7 @@ pub mod frame_ffi;
 #[rustfmt::skip] pub mod jets_wrapper;
 
 pub use c_env::{CElementsTxEnv, CTapEnv, CTransaction};
-pub use c_frame::{ffi_bytes_size, round_u_word};
+pub use c_frame::{byte_width, uword_width};
 pub use frame_ffi::CFrameItem;
 
 // The bindings use elements_ffi instead of jets_ffi.
@@ -31,11 +31,8 @@ pub mod exec_ffi;
 /// This will also us detect whenever there is a change in the underlying C representation
 pub fn sanity_checks() -> bool {
     unsafe {
-        // Check that UWORD maps correctly to usize. UWORD maps to uint_fast16_t
-        // which is at least 16 bits, and is the same size as usize on all
-        // platforms 32 and 64 platforms.
-        if std::mem::size_of::<usize>() != crate::ffi::c_sizeof_UWORD
-            || std::mem::align_of::<usize>() != crate::ffi::c_alignof_UWORD
+        if std::mem::size_of::<crate::ffi::UWORD>() != crate::ffi::c_sizeof_UWORD
+            || std::mem::align_of::<crate::ffi::UWORD>() != crate::ffi::c_alignof_UWORD
         {
             return false;
         }
@@ -51,7 +48,6 @@ pub fn sanity_checks() -> bool {
             return false;
         }
 
-        // Check alignments
         if std::mem::align_of::<CFrameItem>() != frame_ffi::c_alignof_frameItem
             || std::mem::align_of::<CRawBuffer>() != c_env::c_alignof_rawBuffer
             || std::mem::align_of::<CRawInput>() != c_env::c_alignof_rawInput

@@ -367,7 +367,8 @@ impl BitMachine {
 
     fn exec_jet<J: Jet>(&mut self, jet: J, env: &J::Environment) -> Result<(), JetFailed> {
         use simplicity_sys::c_jets::frame_ffi::{c_readBit, c_writeBit, CFrameItem};
-        use simplicity_sys::c_jets::round_u_word;
+        use simplicity_sys::c_jets::uword_width;
+        use simplicity_sys::ffi::UWORD;
 
         // Sanity Check: This should never really fail, but still good to do
         if !simplicity_sys::c_jets::sanity_checks() {
@@ -376,13 +377,13 @@ impl BitMachine {
         let src_ty_bit_width = jet.source_ty().to_bit_width();
         let target_ty_bit_width = jet.target_ty().to_bit_width();
 
-        let a_frame_size = round_u_word(src_ty_bit_width);
-        let b_frame_size = round_u_word(target_ty_bit_width);
+        let a_frame_size = uword_width(src_ty_bit_width);
+        let b_frame_size = uword_width(target_ty_bit_width);
         // a_frame_size + b_frame_size must be non-zero unless it is a unit to unit jet
         if a_frame_size == 0 && b_frame_size == 0 {
             return Ok(());
         }
-        let mut src_buf = vec![0usize; a_frame_size + b_frame_size];
+        let mut src_buf = vec![0 as UWORD; a_frame_size + b_frame_size];
         let src_ptr_end = unsafe { src_buf.as_mut_ptr().add(a_frame_size) }; // A frame write
         let src_ptr = src_buf.as_mut_ptr(); // A read frame at ptr start
         let dst_ptr_begin = unsafe { src_buf.as_mut_ptr().add(a_frame_size) }; // B read frame at ptr begin

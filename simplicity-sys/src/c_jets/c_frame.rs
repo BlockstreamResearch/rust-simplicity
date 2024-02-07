@@ -3,9 +3,11 @@
 //! High level APIs to creating read/write CFrames
 //!
 
+use std::mem;
+
 use super::frame_ffi;
 use super::frame_ffi::CFrameItem;
-use std::mem;
+use crate::ffi::UWORD;
 
 impl CFrameItem {
     /// Allocate a new frame item with dummy values
@@ -26,7 +28,7 @@ impl CFrameItem {
     /// # Safety
     ///
     /// `from` must be a valid pointer to a contiguous allocation of at least `n` usizes.
-    pub unsafe fn new_read(n: usize, from: *const usize) -> Self {
+    pub unsafe fn new_read(n: usize, from: *const UWORD) -> Self {
         // Allocate a new vector of required size
         let mut frame = CFrameItem::new_unchecked();
         frame_ffi::c_initReadFrame(&mut frame, n, from);
@@ -41,7 +43,7 @@ impl CFrameItem {
     ///
     /// `from` must be a valid pointer **one past the end** of a contiguous allocation
     /// of at least `n` usizes.
-    pub unsafe fn new_write(n: usize, from: *mut usize) -> Self {
+    pub unsafe fn new_write(n: usize, from: *mut UWORD) -> Self {
         // Allocate a new vector of required size
         let mut frame = CFrameItem::new_unchecked();
         frame_ffi::c_initWriteFrame(&mut frame, n, from);
@@ -49,11 +51,12 @@ impl CFrameItem {
     }
 }
 
-// Number of uwords required to hold n bits
-pub fn round_u_word(n: usize) -> usize {
-    (n + 8 * mem::size_of::<crate::ffi::UWORD>() - 1) / (8 * mem::size_of::<crate::ffi::UWORD>())
+/// Number of UWORDs required to hold n bits
+pub fn uword_width(n_bits: usize) -> usize {
+    (n_bits + 8 * mem::size_of::<UWORD>() - 1) / (8 * mem::size_of::<UWORD>())
 }
 
-pub fn ffi_bytes_size(n: usize) -> usize {
-    round_u_word(n) * mem::size_of::<crate::ffi::UWORD>()
+/// Number of bytes required to hold n bits
+pub fn byte_width(n_bits: usize) -> usize {
+    uword_width(n_bits) * mem::size_of::<UWORD>()
 }

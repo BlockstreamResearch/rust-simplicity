@@ -1,6 +1,6 @@
 /* This file has been automatically generated. */
 
-use std::ffi::c_void;
+use crate::ffi::c_void;
 use super::c_env::CElementsTxEnv;
 use super::frame_ffi::CFrameItem;
 
