@@ -1,20 +1,21 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
+# Requires (nix-shell with) git, rsync
 
-if [ -z "$1" ]; then
-  echo "\$1 parameter must be the rust-simplicity-sys depend directory"
-  echo "\$2 parameter (optional) can be the revision to check out"
+if [ -z "$1" ] || [ -z "$2" ]; then
+  echo "\$1 path to depend directory inside rust-simplicity-sys"
+  echo "\$2 path to libsimplicity repository root"
   exit 1
 fi
 
-PARENT_DIR=$1
-REV=$2
-DIR=simplicity
-ORIGDIR=$(pwd)
+ORIGINAL_PATH=$(pwd)
+DEPEND_PATH=$1
+LIBSIM_PATH=$2
+VENDORED_SIM_DIR=simplicity
 
 while true; do
-    read -r -p "$PARENT_DIR/$DIR will be deleted [yn]: " yn
+    read -r -p "$DEPEND_PATH/$VENDORED_SIM_DIR will be deleted [yn]: " yn
     case $yn in
         [Yy]* ) break;;
         [Nn]* ) exit;;
@@ -22,24 +23,25 @@ while true; do
     esac
 done
 
-cd "$PARENT_DIR" || exit 1
-rm -rf "$DIR"
-git clone https://github.com/ElementsProject/simplicity.git "${DIR}"
+rm -rf "$DEPEND_PATH/$VENDORED_SIM_DIR"
+cd "$LIBSIM_PATH"
 
-cd "$DIR"
-if [ -n "$REV" ]; then
-    git checkout "$REV"
+if test -n "$(git status --porcelain)"; then
+    echo "WARNING: libsimplicity repo is not clean"
 fi
-HEAD=$(git rev-parse HEAD)
-cd ..
-echo "# This file was automatically created by $0" > ./simplicity-HEAD-revision.txt
-echo "$HEAD" >> ./simplicity-HEAD-revision.txt
 
-# Only get the C directory. move C into parent folder, and then move it back
-mv "${DIR}/C" "./${DIR}_C"
-rm -rf "${DIR}"
-mv "${DIR}_C" "${DIR}"
+HEAD=$(git rev-parse HEAD)
+echo "# This file has been automatically generated." > "$ORIGINAL_PATH/$DEPEND_PATH/simplicity-HEAD-revision.txt"
+echo "$HEAD" >> "$ORIGINAL_PATH/$DEPEND_PATH/simplicity-HEAD-revision.txt"
+
+# Copy C folder to simplicity-sys/depend/simplicity
+# Use rsync to copy only files tracked by git
+cd C
+git ls-files | rsync -av --files-from=- . "$ORIGINAL_PATH/$DEPEND_PATH/$VENDORED_SIM_DIR"
+cd ..
 
 # We don't make any automatic source changes here. Optionally patch files
 # can be added here to automate the process. In future, we can have support for
 # symbols if required.
+
+cd "$ORIGINAL_PATH"
