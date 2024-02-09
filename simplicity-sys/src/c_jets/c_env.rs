@@ -207,8 +207,8 @@ impl CElementsTxEnv {
 impl Drop for CElementsTxEnv {
     fn drop(&mut self) {
         unsafe {
-            c_free_transaction(self.tx as *mut CTransaction);
-            c_free_tapEnv(self.taproot as *mut CTapEnv);
+            crate::alloc::rust_free(self.tx as *mut u8);
+            crate::alloc::rust_free(self.taproot as *mut u8);
         }
     }
 }

@@ -4,7 +4,7 @@ pub mod ffi;
 
 use std::ptr;
 
-use crate::ffi::{c_size_t, c_void, sha256::CSha256Midstate, ubounded, UBOUNDED_MAX};
+use crate::ffi::{c_size_t, sha256::CSha256Midstate, ubounded, UBOUNDED_MAX};
 use crate::tests::ffi::{
     bitstream::CBitstream,
     bitstring::CBitstring,
@@ -99,11 +99,11 @@ pub fn run_test_fail(
     assert_eq!(result.eval_result, target_result);
 }
 
-struct FreeOnDrop(*mut c_void);
+struct FreeOnDrop(*mut u8);
 impl Drop for FreeOnDrop {
     fn drop(&mut self) {
         unsafe {
-            libc::free(self.0);
+            crate::alloc::rust_free(self.0);
         }
     }
 }
@@ -129,7 +129,7 @@ pub fn run_program(program: &[u8], test_up_to: TestUpTo) -> Result<TestOutput, S
         let len =
             SimplicityErr::from_i32(decodeMallocDag(&mut dag, &mut census, &mut stream))? as usize;
         assert!(!dag.is_null());
-        let _d1 = FreeOnDrop(dag as *mut c_void);
+        let _d1 = FreeOnDrop(dag as *mut u8);
         if test_up_to <= TestUpTo::DecodeProgram {
             return Ok(result);
         }
@@ -145,7 +145,7 @@ pub fn run_program(program: &[u8], test_up_to: TestUpTo) -> Result<TestOutput, S
         let mut type_dag = ptr::null_mut();
         mallocTypeInference(&mut type_dag, dag, len, &census).into_result()?;
         assert!(!type_dag.is_null());
-        let _d2 = FreeOnDrop(type_dag as *mut c_void);
+        let _d2 = FreeOnDrop(type_dag as *mut u8);
         if test_up_to <= TestUpTo::TypeInference {
             return Ok(result);
         }

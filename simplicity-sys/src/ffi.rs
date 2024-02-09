@@ -52,6 +52,8 @@ extern "C" {
     pub static c_alignof_uint_fast64_t: c_size_t;
     pub static c_sizeof_uint_least32_t: c_size_t;
     pub static c_alignof_uint_least32_t: c_size_t;
+    pub static c_sizeof_long_double: c_size_t;
+    pub static c_alignof_long_double: c_size_t;
 }
 
 pub type ubounded = c_uint_least32_t;

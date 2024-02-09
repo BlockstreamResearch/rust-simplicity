@@ -3,13 +3,20 @@
 
 #include <stdlib.h>
 
-/* Allocate with malloc by default. */
-#define simplicity_malloc malloc
+/* Declare Rust functions so the compiler can handle them.
+ * The linker will include the functions from Rust.
+ */
+extern void* rust_malloc(size_t size);
+extern void* rust_calloc(size_t num, size_t size);
+extern void rust_free(void* ptr);
 
-/* Allocate+zero initialize with calloc by default. */
-#define simplicity_calloc calloc
+/* Allocate with rust_malloc. */
+#define simplicity_malloc rust_malloc
 
-/* Deallocate with free by default. */
-#define simplicity_free free
+/* Allocate+zero initialize with rust_calloc. */
+#define simplicity_calloc rust_calloc
+
+/* Deallocate with rust_free. */
+#define simplicity_free rust_free
 
 #endif /* SIMPLICITY_SIMPLICITY_ALLOC_H */

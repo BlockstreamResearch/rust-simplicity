@@ -2,6 +2,8 @@
 
 pub mod c_jets;
 pub use c_jets::{CElementsTxEnv, CFrameItem, CTapEnv, CTransaction};
+
+pub mod alloc;
 pub mod ffi;
 #[cfg(feature = "test-utils")]
 pub mod tests;
