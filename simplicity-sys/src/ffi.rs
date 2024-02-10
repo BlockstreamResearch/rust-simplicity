@@ -18,10 +18,19 @@ pub type c_uchar = u8;
 pub type c_int = i32;
 pub type c_uint = u32;
 pub type c_size_t = usize;
+pub type c_uint_fast8_t = u8;
 #[cfg(target_arch = "wasm32")]
 pub type c_uint_fast16_t = u16;
 #[cfg(not(target_arch = "wasm32"))]
 pub type c_uint_fast16_t = usize;
+#[cfg(target_arch = "wasm32")]
+pub type c_uint_fast32_t = u32;
+#[cfg(not(target_arch = "wasm32"))]
+pub type c_uint_fast32_t = usize;
+#[cfg(target_arch = "wasm32")]
+pub type c_uint_fast64_t = u64;
+#[cfg(not(target_arch = "wasm32"))]
+pub type c_uint_fast64_t = usize;
 pub type c_uint_least32_t = u32;
 
 extern "C" {
@@ -33,8 +42,14 @@ extern "C" {
     pub static c_alignof_uint: c_size_t;
     pub static c_sizeof_size_t: c_size_t;
     pub static c_alignof_size_t: c_size_t;
+    pub static c_sizeof_uint_fast8_t: c_size_t;
+    pub static c_alignof_uint_fast8_t: c_size_t;
     pub static c_sizeof_uint_fast16_t: c_size_t;
     pub static c_alignof_uint_fast16_t: c_size_t;
+    pub static c_sizeof_uint_fast32_t: c_size_t;
+    pub static c_alignof_uint_fast32_t: c_size_t;
+    pub static c_sizeof_uint_fast64_t: c_size_t;
+    pub static c_alignof_uint_fast64_t: c_size_t;
     pub static c_sizeof_uint_least32_t: c_size_t;
     pub static c_alignof_uint_least32_t: c_size_t;
 }
@@ -119,7 +134,10 @@ mod tests {
             assert_eq!(size_of::<c_int>(), c_sizeof_int);
             assert_eq!(size_of::<c_uint>(), c_sizeof_uint);
             assert_eq!(size_of::<c_size_t>(), c_sizeof_size_t);
+            assert_eq!(size_of::<c_uint_fast8_t>(), c_sizeof_uint_fast8_t);
             assert_eq!(size_of::<c_uint_fast16_t>(), c_sizeof_uint_fast16_t);
+            assert_eq!(size_of::<c_uint_fast32_t>(), c_sizeof_uint_fast32_t);
+            assert_eq!(size_of::<c_uint_fast64_t>(), c_sizeof_uint_fast64_t);
             assert_eq!(size_of::<c_uint_least32_t>(), c_sizeof_uint_least32_t);
             assert_eq!(size_of::<ubounded>(), c_sizeof_ubounded);
             assert_eq!(size_of::<UWORD>(), c_sizeof_UWORD);
@@ -135,7 +153,10 @@ mod tests {
             assert_eq!(align_of::<c_int>(), c_alignof_int);
             assert_eq!(align_of::<c_uint>(), c_alignof_uint);
             assert_eq!(align_of::<c_size_t>(), c_alignof_size_t);
+            assert_eq!(align_of::<c_uint_fast8_t>(), c_alignof_uint_fast8_t);
             assert_eq!(align_of::<c_uint_fast16_t>(), c_alignof_uint_fast16_t);
+            assert_eq!(align_of::<c_uint_fast32_t>(), c_alignof_uint_fast32_t);
+            assert_eq!(align_of::<c_uint_fast64_t>(), c_alignof_uint_fast64_t);
             assert_eq!(align_of::<c_uint_least32_t>(), c_alignof_uint_least32_t);
             assert_eq!(align_of::<ubounded>(), c_alignof_ubounded);
             assert_eq!(align_of::<UWORD>(), c_alignof_UWORD);
