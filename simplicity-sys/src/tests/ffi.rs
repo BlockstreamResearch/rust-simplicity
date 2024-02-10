@@ -14,7 +14,7 @@
 
 use std::fmt;
 
-use crate::ffi::{c_size_t, ubounded};
+use crate::ffi::{c_int, c_size_t, c_uchar, c_void, ubounded};
 
 /// Simplicity error codes
 ///
@@ -107,15 +107,15 @@ impl SimplicityErr {
 }
 
 pub mod bitstream {
+    use super::*;
     use crate::tests::ffi::bitstring::CBitstring;
-    use libc::{c_int, c_uchar, size_t};
 
     /// Stream of bits.
     #[repr(C)]
     #[derive(Copy, Clone)]
     pub struct CBitstream {
         pub arr: *const c_uchar,
-        pub len: size_t,
+        pub len: c_size_t,
         pub offset: c_uchar,
     }
 
@@ -130,26 +130,26 @@ pub mod bitstream {
     }
 
     extern "C" {
-        pub static c_sizeof_bitstream: size_t;
-        pub static c_alignof_bitstream: size_t;
+        pub static c_sizeof_bitstream: c_size_t;
+        pub static c_alignof_bitstream: c_size_t;
 
         pub fn closeBitstream(stream: *mut CBitstream) -> bool;
         pub fn readNBits(n: c_int, stream: *mut CBitstream) -> i32;
         pub fn decodeUptoMaxInt(stream: *mut CBitstream) -> i32;
-        pub fn readBitstring(result: *mut CBitstring, n: size_t, stream: *mut CBitstream) -> i32;
+        pub fn readBitstring(result: *mut CBitstring, n: c_size_t, stream: *mut CBitstream) -> i32;
     }
 }
 
 pub mod bitstring {
-    use libc::{c_uchar, size_t};
+    use super::*;
 
     /// String of bits.
     #[repr(C)]
     #[derive(Copy, Clone)]
     pub struct CBitstring {
         arr: *const c_uchar,
-        len: size_t,
-        offset: size_t,
+        len: c_size_t,
+        offset: c_size_t,
     }
 
     impl Default for CBitstring {
@@ -163,8 +163,8 @@ pub mod bitstring {
     }
 
     extern "C" {
-        pub static c_sizeof_bitstring: size_t;
-        pub static c_alignof_bitstring: size_t;
+        pub static c_sizeof_bitstring: c_size_t;
+        pub static c_alignof_bitstring: c_size_t;
     }
 }
 
@@ -174,7 +174,6 @@ pub mod dag {
     use crate::tests::ffi::bitstring::CBitstring;
     use crate::tests::ffi::ty::CType;
     use crate::tests::ffi::SimplicityErr;
-    use libc::{c_void, size_t};
 
     /// Kind of Simplicity node.
     #[repr(C)]
@@ -202,14 +201,14 @@ pub mod dag {
     #[repr(C)]
     #[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
     pub struct CCombinatorCounters {
-        pub comp_cnt: size_t,
-        pub case_cnt: size_t,
-        pub pair_cnt: size_t,
-        pub disconnect_cnt: size_t,
-        pub injl_cnt: size_t,
-        pub injr_cnt: size_t,
-        pub take_cnt: size_t,
-        pub drop_cnt: size_t,
+        pub comp_cnt: c_size_t,
+        pub case_cnt: c_size_t,
+        pub pair_cnt: c_size_t,
+        pub disconnect_cnt: c_size_t,
+        pub injl_cnt: c_size_t,
+        pub injr_cnt: c_size_t,
+        pub take_cnt: c_size_t,
+        pub drop_cnt: c_size_t,
     }
 
     #[repr(C)]
@@ -217,23 +216,23 @@ pub mod dag {
     /// Anonymous
     pub union CAuxTypes {
         /// scratch space for verifyCanonicalOrder
-        pub aux: size_t,
+        pub aux: c_size_t,
         /// source type, target type
-        pub types: [size_t; 2],
+        pub types: [c_size_t; 2],
     }
 
     #[repr(C)]
     #[derive(Copy, Clone, Eq, PartialEq, Debug)]
     /// Anonymous
     pub struct CSourceIx {
-        source_ix: size_t,
+        source_ix: c_size_t,
     }
 
     #[repr(C)]
     #[derive(Copy, Clone, Eq, PartialEq, Debug)]
     /// Anonymous
     pub struct CChild2 {
-        child: [size_t; 2],
+        child: [c_size_t; 2],
     }
 
     #[repr(C)]
@@ -252,7 +251,7 @@ pub mod dag {
         pub cmr: CSha256Midstate,
         pub aux_types: CAuxTypes,
         pub source_ix_or_child_or_compact_value: CSourceChildValue,
-        pub target_ix: size_t,
+        pub target_ix: c_size_t,
         pub cost: ubounded,
         pub tag: CTag,
     }
@@ -265,14 +264,14 @@ pub mod dag {
     }
 
     extern "C" {
-        pub static c_sizeof_tag: size_t;
-        pub static c_alignof_tag: size_t;
-        pub static c_sizeof_combinator_counters: size_t;
-        pub static c_alignof_combinator_counters: size_t;
-        pub static c_sizeof_dag_node: size_t;
-        pub static c_alignof_dag_node: size_t;
-        pub static c_sizeof_analyses: size_t;
-        pub static c_alignof_analyses: size_t;
+        pub static c_sizeof_tag: c_size_t;
+        pub static c_alignof_tag: c_size_t;
+        pub static c_sizeof_combinator_counters: c_size_t;
+        pub static c_alignof_combinator_counters: c_size_t;
+        pub static c_sizeof_dag_node: c_size_t;
+        pub static c_alignof_dag_node: c_size_t;
+        pub static c_sizeof_analyses: c_size_t;
+        pub static c_alignof_analyses: c_size_t;
 
         /// Given the IMR of a jet specification, return the CMR of a jet that implements
         /// that specification
@@ -280,10 +279,10 @@ pub mod dag {
 
         /// Compute the CMR of a jet of scribe(v) : ONE |- TWO^(2^n) that outputs a given
         /// bitstring
-        pub fn computeWordCMR(value: *const CBitstring, n: size_t) -> CSha256Midstate;
+        pub fn computeWordCMR(value: *const CBitstring, n: c_size_t) -> CSha256Midstate;
 
         /// Given a well-formed dag[i + 1], set the `cmr` field of every node in `dag`
-        pub fn computeCommitmentMerkleRoot(dag: *mut CDagNode, i: size_t);
+        pub fn computeCommitmentMerkleRoot(dag: *mut CDagNode, i: c_size_t);
 
         /// Given a well-typed dag representing a Simplicity expression, compute
         /// the annotated Merkle roots of all subexpressions.
@@ -291,18 +290,18 @@ pub mod dag {
             analyses: *mut CAnalyses,
             dag: *const CDagNode,
             ty: *const CType,
-            len: size_t,
+            len: c_size_t,
         );
 
         /// Verifies that the 'dag' is in canonical order, meaning that nodes
         /// under the left branches have lower indices than nodes under
-        pub fn verifyCanonicalOrder(dag: *mut CDagNode, len: size_t) -> SimplicityErr;
+        pub fn verifyCanonicalOrder(dag: *mut CDagNode, len: c_size_t) -> SimplicityErr;
 
         /// Fills in the 'WITNESS' nodes of a 'dag' with the data from 'witness'
         pub fn fillWitnessData(
             dag: *mut CDagNode,
             type_dag: *mut CType,
-            len: size_t,
+            len: c_size_t,
             witness: CBitstring,
         ) -> SimplicityErr;
 
@@ -311,7 +310,7 @@ pub mod dag {
             imr: *mut CSha256Midstate,
             dag: *const CDagNode,
             type_dag: *const CType,
-            len: size_t,
+            len: c_size_t,
         ) -> SimplicityErr;
     }
 
@@ -353,7 +352,6 @@ pub mod eval {
     use crate::tests::ffi::dag::CDagNode;
     use crate::tests::ffi::ty::CType;
     use crate::tests::ffi::SimplicityErr;
-    use libc::{c_uchar, size_t};
     use std::ptr;
 
     pub const CHECK_NONE: c_uchar = 0;
@@ -369,7 +367,7 @@ pub mod eval {
             input: *const UWORD,
             dag: *const CDagNode,
             type_dag: *mut CType,
-            len: size_t,
+            len: c_size_t,
             budget: *const ubounded,
             env: *const CElementsTxEnv,
         ) -> SimplicityErr;
@@ -387,7 +385,7 @@ pub mod eval {
             max_cost: ubounded,
             dag: *const CDagNode,
             type_dag: *const CType,
-            len: size_t,
+            len: c_size_t,
         ) -> SimplicityErr;
     }
 
@@ -403,7 +401,7 @@ pub mod eval {
     pub unsafe fn evalTCOProgram(
         dag: *const CDagNode,
         type_dag: *mut CType,
-        len: size_t,
+        len: c_size_t,
         budget: *const ubounded,
         env: *const CElementsTxEnv,
     ) -> SimplicityErr {
@@ -424,7 +422,6 @@ pub mod eval {
 pub mod ty {
     use super::*;
     use crate::ffi::sha256::CSha256Midstate;
-    use libc::size_t;
 
     /// Name of a Simplicity type
     #[repr(C)]
@@ -440,16 +437,16 @@ pub mod ty {
     /// Anonymous
     pub union CSkipBack {
         /// Used by `typeSkip`
-        pub skip: size_t,
+        pub skip: c_size_t,
         /// Sometimes used as scratch space when traversing types
-        pub back: size_t,
+        pub back: c_size_t,
     }
 
     /// Simplicity type DAG
     #[repr(C)]
     #[derive(Copy, Clone)]
     pub struct CType {
-        pub type_arg: [size_t; 2],
+        pub type_arg: [c_size_t; 2],
         pub skip_back: CSkipBack,
         pub type_merkle_root: CSha256Midstate,
         pub bit_size: ubounded,
@@ -457,21 +454,21 @@ pub mod ty {
     }
 
     extern "C" {
-        pub static c_sizeof_typename: size_t;
-        pub static c_alignof_typename: size_t;
-        pub static c_sizeof_type: size_t;
-        pub static c_alignof_type: size_t;
+        pub static c_sizeof_typename: c_size_t;
+        pub static c_alignof_typename: c_size_t;
+        pub static c_sizeof_type: c_size_t;
+        pub static c_alignof_type: c_size_t;
 
         /// Given a well-formed 'type_dag', compute the bitSizes, skips, and type Merkle roots of all subexpressions.
-        pub fn computeTypeAnalyses(type_dag: *mut CType, len: size_t);
+        pub fn computeTypeAnalyses(type_dag: *mut CType, len: c_size_t);
     }
 }
 
 pub mod type_inference {
+    use super::*;
     use crate::tests::ffi::dag::{CCombinatorCounters, CDagNode};
     use crate::tests::ffi::ty::CType;
     use crate::tests::ffi::SimplicityErr;
-    use libc::size_t;
 
     extern "C" {
         /// If the Simplicity DAG, 'dag', has a principal type (including constraints
@@ -480,7 +477,7 @@ pub mod type_inference {
         pub fn mallocTypeInference(
             type_dag: *mut *mut CType,
             dag: *mut CDagNode,
-            len: size_t,
+            len: c_size_t,
             census: *const CCombinatorCounters,
         ) -> SimplicityErr;
     }

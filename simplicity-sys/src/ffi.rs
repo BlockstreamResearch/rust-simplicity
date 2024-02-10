@@ -85,8 +85,8 @@ extern "C" {
 }
 
 pub mod sha256 {
+    use super::*;
     use hashes::sha256::Midstate;
-    use libc::size_t;
 
     /// The 256-bit array of a SHA-256 hash or midstate.
     #[repr(C)]
@@ -116,8 +116,8 @@ pub mod sha256 {
     }
 
     extern "C" {
-        pub static c_sizeof_sha256_midstate: size_t;
-        pub static c_alignof_sha256_midstate: size_t;
+        pub static c_sizeof_sha256_midstate: c_size_t;
+        pub static c_alignof_sha256_midstate: c_size_t;
     }
 }
 
