@@ -36,15 +36,6 @@ impl From<elements::TxOut> for ElementsUtxo {
 /// # Note
 /// The order of `utxos` must be same as of the order of inputs in the
 /// transaction.
-// FIXME:
-// Ideally the `Arc<elements::Transaction>` would be a generic
-// `AsRef<elements::Transaction>` or something, but this is an associated type
-// for the `Extension` trait, and Rust will not let us have generic parameters
-// on associated types. (We could possibly add a parameter to the Extension
-// trait itself, but that would be messy and layer-violating.)
-//
-// Similar story if we tried to use a &'a elements::Transaction rather than
-// an Arc: we'd have a lifetime parameter <'a> that would cause us trouble.
 #[allow(dead_code)]
 pub struct ElementsEnv<T: Deref<Target = elements::Transaction>> {
     /// The CTxEnv struct
