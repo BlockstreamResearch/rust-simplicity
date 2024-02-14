@@ -8,15 +8,16 @@
 
 mod frame;
 
+use std::fmt;
+use std::sync::Arc;
+use std::{cmp, error};
+
 use crate::analysis;
 use crate::dag::{DagLike, NoSharing};
 use crate::jet::{Jet, JetFailed};
 use crate::node::{self, RedeemNode};
 use crate::{Cmr, FailEntropy, Value};
 use frame::Frame;
-use std::fmt;
-use std::sync::Arc;
-use std::{cmp, error};
 
 /// An execution context for a Simplicity program
 pub struct BitMachine {
@@ -175,6 +176,19 @@ impl BitMachine {
                 Value::Prod(..) => {}
             }
         }
+    }
+
+    /// Return the bit width of the active read frame.
+    fn active_read_bit_width(&self) -> usize {
+        self.read.last().map(|frame| frame.bit_width()).unwrap_or(0)
+    }
+
+    /// Return the bit width of the active write frame.
+    fn active_write_bit_width(&self) -> usize {
+        self.write
+            .last()
+            .map(|frame| frame.bit_width())
+            .unwrap_or(0)
     }
 
     /// Add a read frame with some given value in it, as input to the
@@ -366,66 +380,104 @@ impl BitMachine {
     }
 
     fn exec_jet<J: Jet>(&mut self, jet: J, env: &J::Environment) -> Result<(), JetFailed> {
-        use simplicity_sys::c_jets::frame_ffi::{c_readBit, c_writeBit, CFrameItem};
-        use simplicity_sys::c_jets::uword_width;
-        use simplicity_sys::ffi::UWORD;
+        use crate::ffi::c_jets::frame_ffi::{c_readBit, c_writeBit, CFrameItem};
+        use crate::ffi::c_jets::uword_width;
+        use crate::ffi::ffi::UWORD;
+
+        /// Create new C read frame that contains `bit_width` many bits from active read frame.
+        ///
+        /// Return C read frame together with underlying buffer.
+        ///
+        /// ## Safety
+        ///
+        /// The returned frame must outlive its buffer or there is a dangling pointer.
+        ///
+        /// ## Panics
+        ///
+        /// Active read frame has fewer bits than `bit_width`.
+        unsafe fn get_input_frame(
+            mac: &mut BitMachine,
+            bit_width: usize,
+        ) -> (CFrameItem, Vec<UWORD>) {
+            assert!(bit_width <= mac.active_read_bit_width());
+            let uword_width = uword_width(bit_width);
+            let mut buffer = vec![0; uword_width];
+
+            // Copy bits from active read frame into input frame
+            let buffer_end = buffer.as_mut_ptr().add(uword_width);
+            let mut write_frame = CFrameItem::new_write(bit_width, buffer_end);
+            for _ in 0..bit_width {
+                let bit = mac.read_bit();
+                c_writeBit(&mut write_frame, bit);
+            }
+            mac.back(bit_width);
+
+            // Convert input frame into read frame
+            let buffer_ptr = buffer.as_mut_ptr();
+            let read_frame = CFrameItem::new_read(bit_width, buffer_ptr);
+
+            (read_frame, buffer)
+        }
+
+        /// Create C write frame that is as wide as `bit_width`.
+        ///
+        /// Return C write frame together with underlying buffer.
+        ///
+        /// ## Safety
+        ///
+        /// The returned frame must outlive its buffer or there is a dangling pointer.
+        unsafe fn get_output_frame(bit_width: usize) -> (CFrameItem, Vec<UWORD>) {
+            let uword_width = uword_width(bit_width);
+            let mut buffer = vec![0; uword_width];
+
+            // Return output frame as write frame
+            let buffer_end = buffer.as_mut_ptr().add(uword_width);
+            let write_frame = CFrameItem::new_write(bit_width, buffer_end);
+
+            (write_frame, buffer)
+        }
+
+        /// Write `bit_width` many bits from `buffer` into active write frame.
+        ///
+        /// ## Panics
+        ///
+        /// Active write frame has fewer bits than `bit_width`.
+        ///
+        /// Buffer has fewer than bits than `bit_width` (converted to UWORDs).
+        fn update_active_write_frame(mac: &mut BitMachine, bit_width: usize, buffer: &[UWORD]) {
+            assert!(bit_width <= mac.active_write_bit_width());
+            assert!(uword_width(bit_width) <= buffer.len());
+            let buffer_ptr = buffer.as_ptr();
+            let mut read_frame = unsafe { CFrameItem::new_read(bit_width, buffer_ptr) };
+
+            for _ in 0..bit_width {
+                let bit = unsafe { c_readBit(&mut read_frame) };
+                mac.write_bit(bit);
+            }
+        }
 
         // Sanity Check: This should never really fail, but still good to do
         if !simplicity_sys::c_jets::sanity_checks() {
             return Err(JetFailed);
         }
-        let src_ty_bit_width = jet.source_ty().to_bit_width();
-        let target_ty_bit_width = jet.target_ty().to_bit_width();
 
-        let a_frame_size = uword_width(src_ty_bit_width);
-        let b_frame_size = uword_width(target_ty_bit_width);
-        // a_frame_size + b_frame_size must be non-zero unless it is a unit to unit jet
-        if a_frame_size == 0 && b_frame_size == 0 {
-            return Ok(());
-        }
-        let mut src_buf = vec![0 as UWORD; a_frame_size + b_frame_size];
-        let src_ptr_end = unsafe { src_buf.as_mut_ptr().add(a_frame_size) }; // A frame write
-        let src_ptr = src_buf.as_mut_ptr(); // A read frame at ptr start
-        let dst_ptr_begin = unsafe { src_buf.as_mut_ptr().add(a_frame_size) }; // B read frame at ptr begin
-        let dst_ptr_end = unsafe { src_buf.as_mut_ptr().add(a_frame_size + b_frame_size) }; // B write frame at ptr end
+        let input_width = jet.source_ty().to_bit_width();
+        let output_width = jet.target_ty().to_bit_width();
+        // Input buffer is implicitly referenced by input read frame!
+        // Same goes for output buffer
+        let (input_read_frame, _input_buffer) = unsafe { get_input_frame(self, input_width) };
+        let (mut output_write_frame, output_buffer) = unsafe { get_output_frame(output_width) };
 
-        // For jet from type A -> B
-        // Jets execution: There is single buffer with a_frame_size + b_frame_size UWORDs
-        // ------[ A read frame     ][    B write frame  ]---
-        //       ^ src_ptr         ^src_ptr_end(dst_ptr_begin)      ^ dst_ptr_end
-        // 1. Write into C bitmachine using A write frame(= src_ptr_end)
-        // Precondition satisfied: src_ptr_end is one past the end of slice of UWORDs for A.
-        let mut a_frame = unsafe { CFrameItem::new_write(src_ty_bit_width, src_ptr_end) };
-        for _ in 0..src_ty_bit_width {
-            let bit = self.read_bit();
-            unsafe {
-                c_writeBit(&mut a_frame, bit);
-            }
-        }
-        self.back(src_ty_bit_width);
-
-        // 2. Execute the jet. src = A read frame, dst = B write frame
-        // Precondition satisfied: src_ptr is the start of slice of UWORDs of A.
-        let src_frame = unsafe { CFrameItem::new_read(src_ty_bit_width, src_ptr) };
-        // Precondition satisfied: dst_ptr_end is one past the end of slice of UWORDs of B.
-        let mut dst_frame = unsafe { CFrameItem::new_write(target_ty_bit_width, dst_ptr_end) };
         let jet_fn = jet.c_jet_ptr();
         let c_env = jet.c_jet_env(env);
-        let res = jet_fn(&mut dst_frame, src_frame, c_env);
+        let success = jet_fn(&mut output_write_frame, input_read_frame, c_env);
 
-        if !res {
-            return Err(JetFailed);
+        if !success {
+            Err(JetFailed)
+        } else {
+            update_active_write_frame(self, output_width, &output_buffer);
+            Ok(())
         }
-
-        // 3. Read the result from B read frame
-        // Precondition satisfied: dst_ptr_begin is the start of slice of UWORDs of B.
-        let mut b_frame = unsafe { CFrameItem::new_read(target_ty_bit_width, dst_ptr_begin) };
-        // Read the value from b_frame
-        for _ in 0..target_ty_bit_width {
-            let bit = unsafe { c_readBit(&mut b_frame) };
-            self.write_bit(bit);
-        }
-        Ok(())
     }
 }
 
