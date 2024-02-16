@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <getopt.h>
 #include <simplicity/elements/exec.h>
 #include "ctx8Pruned.h"
 #include "ctx8Unpruned.h"
@@ -21,6 +22,12 @@ _Static_assert(CHAR_BIT == 8, "Buffers passed to fmemopen presume 8 bit chars");
 static const double secondsPerWU = 0.5 / 1000. / 1000.;
 static int successes = 0;
 static int failures = 0;
+
+#ifdef TIMING_FLAG
+static int timing_flag = 1;
+#else
+static int timing_flag = 0;
+#endif
 
 static void fprint_cmr(FILE* stream, const uint32_t* cmr) {
   fprintf(stream, "0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x, 0x%08x",
@@ -464,25 +471,35 @@ static sha256_midstate hashint(uint_fast32_t n) {
   return result;
 }
 
-static uint_fast32_t rsort_no_duplicates(size_t i) {
-  return i;
+static sha256_midstate rsort_no_duplicates(size_t i) {
+  return hashint(i);
 }
 
-static uint_fast32_t rsort_all_duplicates(size_t i) {
+static sha256_midstate rsort_all_duplicates(size_t i) {
   (void)i;
-  return 0;
+  return hashint(0);
 }
 
-static uint_fast32_t rsort_one_duplicate(size_t i) {
-  return i ? i : 1;
+static sha256_midstate rsort_one_duplicate(size_t i) {
+  return hashint(i ? i : 1);
 }
 
-static void test_hasDuplicates(const char* name, int expected, uint_fast32_t (*f)(size_t), size_t n) {
+/* Tests a worst-case conditions for stack usage in rsort. */
+static sha256_midstate rsort_diagonal(size_t i) {
+  sha256_midstate result = {0};
+  unsigned char *alias = (unsigned char *)(result.s);
+  for (size_t j = 0; j < sizeof(result.s); ++j) {
+    alias[j] = j == i ? 0 : 0xff;
+  }
+  return result;
+}
+
+static void test_hasDuplicates(const char* name, int expected, sha256_midstate (*f)(size_t), size_t n) {
   sha256_midstate hashes[n];
 
   printf("Test %s\n", name);
   for(size_t i = 0; i < n; ++i) {
-    hashes[i] = hashint(f(i));
+    hashes[i] = f(i);
   }
 
   int actual = hasDuplicates(hashes, n);
@@ -529,11 +546,13 @@ static void regression_tests(void) {
     diff = (double)(end - start) / CLOCKS_PER_SEC;
     bound = (double)(sizeof_regression3) * secondsPerWU;
     printf("cpu_time_used by regression3: %f s.  (Should be less than %f s.)\n", diff, bound);
-    if (diff <= bound) {
-      successes++;
-    } else {
-      failures++;
-      printf("regression3 took too long.\n");
+    if (timing_flag) {
+      if (diff <= bound) {
+        successes++;
+      } else {
+        failures++;
+        printf("regression3 took too long.\n");
+      }
     }
     free(regression3);
   }
@@ -552,15 +571,29 @@ static void iden8mebi_test(void) {
   bound = (double)expectedCost / 1000. * secondsPerWU;
 
   printf("cpu_time_used by iden8mebi: %f s.  (Should be less than %f s.)\n", diff, bound);
-  if (diff <= bound) {
-    successes++;
-  } else {
-    failures++;
-    printf("iden8mebi took too long.\n");
+  if (timing_flag) {
+    if (diff <= bound) {
+      successes++;
+    } else {
+      failures++;
+      printf("iden8mebi took too long.\n");
+    }
   }
 }
 
-int main(void) {
+int main(int argc, char **argv) {
+  while (true) {
+    static struct option long_options[] = {
+        /* These options set a flag. */
+        {"timing", no_argument, &timing_flag, 1},
+        {"no-timing", no_argument, &timing_flag, 0},
+        {0, 0, 0, 0}
+      };
+    int opt_result = getopt_long(argc, argv, "", long_options, NULL);
+    if (-1 == opt_result) break;
+    if (0 == opt_result) continue;
+    exit(EXIT_FAILURE);
+  }
   test_decodeUptoMaxInt();
   test_hashBlock();
   test_occursCheck();
@@ -568,6 +601,7 @@ int main(void) {
   test_hasDuplicates("hasDuplicates no duplicates testcase", 0, rsort_no_duplicates, 10000);
   test_hasDuplicates("hasDuplicates all duplicates testcase", 1, rsort_all_duplicates, 10000);
   test_hasDuplicates("hasDuplicates one duplicate testcase", 1, rsort_one_duplicate, 10000);
+  test_hasDuplicates("hasDuplicates diagonal testcase", 0, rsort_diagonal, 33);
 
   test_program("ctx8Pruned", ctx8Pruned, sizeof_ctx8Pruned, SIMPLICITY_NO_ERROR, ctx8Pruned_cmr, ctx8Pruned_imr, ctx8Pruned_amr, &ctx8Pruned_cost);
   test_program("ctx8Unpruned", ctx8Unpruned, sizeof_ctx8Unpruned, SIMPLICITY_ERR_ANTIDOS, ctx8Unpruned_cmr, ctx8Unpruned_imr, ctx8Unpruned_amr, &ctx8Unpruned_cost);
