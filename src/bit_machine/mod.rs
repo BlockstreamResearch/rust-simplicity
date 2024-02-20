@@ -85,8 +85,8 @@ impl BitMachine {
     /// Drop the active read frame
     fn drop_frame(&mut self) {
         let active_read_frame = self.read.pop().unwrap();
-        self.next_frame_start -= active_read_frame.len;
-        assert_eq!(self.next_frame_start, active_read_frame.start);
+        self.next_frame_start -= active_read_frame.bit_width();
+        assert_eq!(self.next_frame_start, active_read_frame.start());
     }
 
     /// Write a single bit to the active write frame

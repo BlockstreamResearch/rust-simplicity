@@ -16,11 +16,11 @@ pub(super) struct Frame {
     /// Current position of the cursor.
     /// For read frames, this is the next bit which is to be read.
     /// For write frames, this is the next bit which is to be (over)written.
-    pub(super) cursor: usize,
+    cursor: usize,
     /// Start index of this frame in the referenced data.
-    pub(super) start: usize,
-    /// The total length of this frame.
-    pub(super) len: usize,
+    start: usize,
+    /// The total bit length of this frame.
+    len: usize,
 }
 
 impl Frame {
@@ -31,6 +31,16 @@ impl Frame {
             start,
             len,
         }
+    }
+
+    /// Return the start index of the frame inside the referenced data.
+    pub fn start(&self) -> usize {
+        self.start
+    }
+
+    /// Return the bit width of the frame.
+    pub fn bit_width(&self) -> usize {
+        self.len
     }
 
     /// Reset the cursor to the start.
