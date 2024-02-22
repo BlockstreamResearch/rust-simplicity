@@ -208,6 +208,9 @@ impl<J: Jet> Forest<J> {
         ret
     }
 
+    /// Convert the forest into a witness node.
+    ///
+    /// Succeeds if the forest contains a "main" root and returns `None` otherwise.
     pub fn to_witness_node(
         &self,
         witness: &HashMap<Arc<str>, Arc<Value>>,
