@@ -583,7 +583,7 @@ mod tests {
     fn assert_cmr_witness<J: Jet>(
         s: &str,
         cmr: &str,
-        witness: &[(&str, &[u8])],
+        witness: &HashMap<Arc<str>, Arc<Value>>,
         env: &J::Environment,
     ) {
         match parse::<J>(s) {
@@ -592,12 +592,8 @@ mod tests {
                 let main = &forest["main"];
                 assert_eq!(main.cmr().to_string(), cmr);
 
-                let witness: HashMap<_, _> = witness
-                    .iter()
-                    .map(|(name, value)| (Arc::from(*name), Value::power_of_two(value)))
-                    .collect();
                 let program = main
-                    .to_witness_node(&witness, &forest)
+                    .to_witness_node(witness, &forest)
                     .finalize()
                     .expect("finalize");
 
@@ -663,13 +659,18 @@ mod tests {
 
     #[test]
     fn simple_program() {
+        let empty = HashMap::new();
         assert_cmr_witness::<Core>(
             "main := unit",
             "62274a89833ece8ba5ff57b28118c0063d3d4a85dd25aae06f87617604402715",
-            &[],
+            &empty,
             &(),
         );
 
+        let witness = HashMap::from([
+            (Arc::from("wit1"), Value::u32(0x00010203)),
+            (Arc::from("wit2"), Value::u32(0x00010203)),
+        ]);
         assert_cmr_witness::<Core>(
             "
                 wit1 := witness : 1 -> 2^32
@@ -679,7 +680,7 @@ mod tests {
                 main := comp wits_are_equal jet_verify            : 1 -> 1
             ",
             "2d170e731b6d6856e69f3c6ee04b368302f7f71b2270a26276d98ea494bbebd7",
-            &[("wit1", &[0, 1, 2, 3]), ("wit2", &[0, 1, 2, 3])],
+            &witness,
             &(),
         );
     }
@@ -704,10 +705,16 @@ mod tests {
         use crate::jet::elements::ElementsEnv;
         use crate::jet::Elements;
 
-        parse::<Elements>("main := unit").unwrap();
+        let empty = HashMap::new();
+        let dummy = ElementsEnv::dummy();
+        assert_cmr_witness::<Elements>(
+            "main := unit",
+            "62274a89833ece8ba5ff57b28118c0063d3d4a85dd25aae06f87617604402715",
+            &empty,
+            &dummy,
+        );
 
         // See https://github.com/bitcoin/bips/blob/master/bip-0340/test-vectors.csv
-        let env = ElementsEnv::dummy();
         let sig = [
             0xe9, 0x07, 0x83, 0x1f, 0x80, 0x84, 0x8d, 0x10, 0x69, 0xa5, 0x37, 0x1b, 0x40, 0x24,
             0x10, 0x36, 0x4b, 0xdf, 0x1c, 0x5f, 0x83, 0x07, 0xb0, 0x08, 0x4c, 0x55, 0xf1, 0xce,
@@ -716,7 +723,9 @@ mod tests {
             0x7d, 0xf4, 0x90, 0x0d, 0x31, 0x05, 0x36, 0xc0,
         ];
 
-        assert_cmr_witness::<Elements>("
+        let signature = HashMap::from([(Arc::from("wit1"), Value::power_of_two(sig.as_ref()))]);
+        assert_cmr_witness::<Elements>(
+            "
                 -- Witnesses
                 wit1 := witness : 1 -> 2^512
 
@@ -730,8 +739,8 @@ mod tests {
                 main := comp pr1 jt2       : 1 -> 1               -- 3f6422da
             ",
            "dacbdfcf64122edf8efda2b34fe353cac4424dd455a9204fc92af258b465bbc4",
-           &[("wit1", &sig)],
-           &env
+            &signature,
+            &dummy
         );
     }
 
