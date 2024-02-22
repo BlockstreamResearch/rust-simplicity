@@ -249,29 +249,6 @@ mod tests {
     }
 
     #[test]
-    fn parse_duplicate_witness_in_disconnected_branch() {
-        let s = "
-            wit1 := witness
-            main := comp wit1 comp disconnect iden ?dis2 unit
-
-            wit1 := witness
-            dis2 := wit1
-        ";
-
-        match Forest::<Core>::parse(s) {
-            Ok(_) => panic!("Duplicate witness names should fail"),
-            Err(set) => {
-                let errors: Vec<_> = set.iter().collect();
-                assert_eq!(1, errors.len());
-                match errors[0] {
-                    super::error::Error::NameRepeated { .. } => {}
-                    error => panic!("Unexpected error {}", error),
-                }
-            }
-        }
-    }
-
-    #[test]
     fn to_witness_node_unfilled_hole() {
         let s = "
             wit1 := witness

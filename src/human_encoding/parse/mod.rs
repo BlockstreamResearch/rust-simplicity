@@ -762,4 +762,20 @@ mod tests {
             assert_const::<Core>(s.as_str(), value);
         }
     }
+
+    #[test]
+    fn duplicate_witness_in_disconnected_branch() {
+        error_contains(
+            parse::<Core>(
+                "
+                wit1 := witness
+                main := comp wit1 comp disconnect iden ?dis2 unit
+
+                wit1 := witness
+                dis2 := wit1
+            ",
+            ),
+            "name `wit1` occured mulitple times",
+        );
+    }
 }
