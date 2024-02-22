@@ -13,7 +13,7 @@ mod serialize;
 
 use crate::dag::{DagLike, MaxSharing};
 use crate::jet::Jet;
-use crate::node::{self, CommitNode};
+use crate::node::{self, CommitNode, NoWitness};
 use crate::{Cmr, Imr, Value, WitnessNode};
 
 use std::collections::HashMap;
@@ -22,7 +22,6 @@ use std::sync::Arc;
 
 pub use self::error::{Error, ErrorSet};
 pub use self::named_node::NamedCommitNode;
-pub use self::parse::parse;
 
 /// Line/column pair
 ///
@@ -74,6 +73,12 @@ impl WitnessOrHole {
             WitnessOrHole::Witness => WitnessOrHole::Witness,
             WitnessOrHole::TypedHole(name) => WitnessOrHole::TypedHole(Arc::clone(name)),
         }
+    }
+}
+
+impl<'a> From<&'a NoWitness> for WitnessOrHole {
+    fn from(_: &NoWitness) -> Self {
+        WitnessOrHole::Witness
     }
 }
 
@@ -136,7 +141,6 @@ impl<J: Jet> Forest<J> {
         let mut witness_lines = vec![];
         let mut const_lines = vec![];
         let mut program_lines = vec![];
-        let mut disc_idx = 0;
         // Pass 1: compute string data for every node
         for root in self.roots.values() {
             for data in root.as_ref().post_order_iter::<MaxSharing<_>>() {
@@ -161,9 +165,8 @@ impl<J: Jet> Forest<J> {
                 } else if let node::Inner::AssertL(_, cmr) = node.inner() {
                     expr_str.push_str(" #");
                     expr_str.push_str(&cmr.to_string());
-                } else if let node::Inner::Disconnect(_, node::NoDisconnect) = node.inner() {
-                    expr_str.push_str(&format!(" ?disc_expr_{}", disc_idx));
-                    disc_idx += 1;
+                } else if let node::Inner::Disconnect(_, hole_name) = node.inner() {
+                    expr_str.push_str(&format!(" ?{}", hole_name));
                 }
 
                 let arrow = node.arrow();
