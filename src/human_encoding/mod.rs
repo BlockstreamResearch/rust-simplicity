@@ -339,6 +339,20 @@ mod tests {
     }
 
     #[test]
+    fn filled_hole() {
+        let empty = HashMap::new();
+        assert_finalize_ok::<Core>(
+            "
+                id1 := iden : 2^256 * 1 -> 2^256 * 1
+                main := comp (disconnect id1 ?hole) unit
+                hole := unit
+            ",
+            &empty,
+            &(),
+        );
+    }
+
+    #[test]
     fn unfilled_hole() {
         let empty = HashMap::new();
         assert_finalize_err::<Core>(
