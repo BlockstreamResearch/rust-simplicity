@@ -223,76 +223,107 @@ impl<J: Jet> Forest<J> {
 #[cfg(test)]
 mod tests {
     use crate::human_encoding::Forest;
-    use crate::jet::Core;
-    use crate::{Error, Value};
+    use crate::jet::{Core, Jet};
+    use crate::{BitMachine, Value};
     use std::collections::HashMap;
     use std::sync::Arc;
 
-    #[test]
-    fn to_witness_node_missing_witness() {
-        let s = "
-            wit1 := witness : 1 -> 2^32
-            wit2 := witness : 1 -> 2^32
+    fn assert_finalize_ok<J: Jet>(
+        s: &str,
+        witness: &HashMap<Arc<str>, Arc<Value>>,
+        env: &J::Environment,
+    ) {
+        let program = Forest::<J>::parse(s)
+            .expect("Failed to parse human encoding")
+            .to_witness_node(witness)
+            .expect("Forest is missing expected root")
+            .finalize()
+            .expect("Failed to finalize");
+        let mut mac = BitMachine::for_program(&program);
+        mac.exec(&program, env).expect("Failed to run program");
+    }
 
-            wits_are_equal := comp (pair wit1 wit2) jet_eq_32 : 1 -> 2
-            main := comp wits_are_equal jet_verify            : 1 -> 1
-        ";
-        let forest = Forest::<Core>::parse(s).unwrap();
-        let mut witness = HashMap::new();
-        witness.insert(Arc::from("wit1"), Value::u32(1337));
-
-        match forest.to_witness_node(&witness).unwrap().finalize() {
-            Ok(_) => panic!("Insufficient witness map should fail"),
-            Err(Error::IncompleteFinalization) => {}
-            Err(error) => panic!("Unexpected error {}", error),
+    fn assert_finalize_err<J: Jet>(
+        s: &str,
+        witness: &HashMap<Arc<str>, Arc<Value>>,
+        env: &J::Environment,
+        err_msg: &'static str,
+    ) {
+        let program = match Forest::<J>::parse(s)
+            .expect("Failed to parse human encoding")
+            .to_witness_node(witness)
+            .expect("Forest is missing expected root")
+            .finalize()
+        {
+            Ok(program) => program,
+            Err(error) => {
+                assert_eq!(&error.to_string(), err_msg);
+                return;
+            }
+        };
+        let mut mac = BitMachine::for_program(&program);
+        match mac.exec(&program, env) {
+            Ok(_) => panic!("Execution is expected to fail"),
+            Err(error) => assert_eq!(&error.to_string(), err_msg),
         }
     }
 
     #[test]
-    fn to_witness_node_unfilled_hole() {
-        let s = "
-            wit1 := witness
-            main := comp wit1 comp disconnect iden ?dis2 unit
-        ";
-        let forest = Forest::<Core>::parse(s).unwrap();
-        let witness = HashMap::new();
+    fn unfilled_witness() {
+        let witness = HashMap::from([(Arc::from("wit1"), Value::u32(1337))]);
+        assert_finalize_err::<Core>(
+            "
+                wit1 := witness : 1 -> 2^32
+                wit2 := witness : 1 -> 2^32
 
-        match forest.to_witness_node(&witness).unwrap().finalize() {
-            Ok(_) => panic!("Duplicate witness names should fail"),
-            Err(Error::IncompleteFinalization) => {}
-            Err(error) => panic!("Unexpected error {}", error),
-        }
+                wits_are_equal := comp (pair wit1 wit2) jet_eq_32 : 1 -> 2
+                main := comp wits_are_equal jet_verify            : 1 -> 1
+            ",
+            &witness,
+            &(),
+            "unable to satisfy program",
+        );
     }
 
     #[test]
-    fn to_witness_node_pruned_witness() {
+    fn unfilled_witness_pruned() {
         let s = "
             wit1 := witness
             wit2 := witness
             main := comp (pair wit1 unit) case unit wit2
         ";
-        let forest = Forest::<Core>::parse(s).unwrap();
-        let mut witness = HashMap::new();
-        witness.insert(Arc::from("wit1"), Value::u1(0));
+        let wit2_is_pruned = HashMap::from([(Arc::from("wit1"), Value::u1(0))]);
+        assert_finalize_ok::<Core>(s, &wit2_is_pruned, &());
 
-        match forest.to_witness_node(&witness).unwrap().finalize() {
-            Ok(_) => {}
-            Err(e) => panic!("Unexpected error {}", e),
-        }
+        let wit2_is_missing = HashMap::from([(Arc::from("wit1"), Value::u1(1))]);
+        // FIXME The finalization should fail
+        // This doesn't happen because we don't run the program,
+        // so we cannot always determine which nodes must be pruned
+        assert_finalize_err::<Core>(
+            s,
+            &wit2_is_missing,
+            &(),
+            "Execution reached a pruned branch: bf12681a76fc7c00c63e583c25cc97237337d6aca30d3f4a664075445385c648"
+        );
 
-        witness.insert(Arc::from("wit1"), Value::u1(1));
+        let wit2_is_present = HashMap::from([
+            (Arc::from("wit1"), Value::u1(1)),
+            (Arc::from("wit2"), Value::unit()),
+        ]);
+        assert_finalize_ok::<Core>(s, &wit2_is_present, &());
+    }
 
-        match forest.to_witness_node(&witness).unwrap().finalize() {
-            Ok(_) => {}
-            Err(Error::IncompleteFinalization) => {}
-            Err(e) => panic!("Unexpected error {}", e),
-        }
-
-        witness.insert(Arc::from("wit2"), Value::unit());
-
-        match forest.to_witness_node(&witness).unwrap().finalize() {
-            Ok(_) => {}
-            Err(e) => panic!("Unexpected error {}", e),
-        }
+    #[test]
+    fn unfilled_hole() {
+        let empty = HashMap::new();
+        assert_finalize_err::<Core>(
+            "
+                wit1 := witness
+                main := comp wit1 comp disconnect iden ?dis2 unit
+            ",
+            &empty,
+            &(),
+            "unable to satisfy program",
+        );
     }
 }
