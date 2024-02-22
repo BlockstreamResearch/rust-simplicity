@@ -365,4 +365,18 @@ mod tests {
             "unable to satisfy program",
         );
     }
+
+    #[test]
+    fn witness_name_override() {
+        let s = "
+            wit1 := witness
+            wit2 := wit1
+            main := comp wit2 iden
+        ";
+        let wit1_populated = HashMap::from([(Arc::from("wit1"), Value::unit())]);
+        assert_finalize_err::<Core>(s, &wit1_populated, &(), "unable to satisfy program");
+
+        let wit2_populated = HashMap::from([(Arc::from("wit2"), Value::unit())]);
+        assert_finalize_ok::<Core>(s, &wit2_populated, &());
+    }
 }
