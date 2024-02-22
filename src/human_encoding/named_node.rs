@@ -461,6 +461,7 @@ impl<J: Jet> NamedConstructNode<J> {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Namer {
     const_idx: usize,
     wit_idx: usize,
