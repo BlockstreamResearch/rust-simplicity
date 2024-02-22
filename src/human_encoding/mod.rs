@@ -269,6 +269,31 @@ mod tests {
     }
 
     #[test]
+    fn filled_witness() {
+        let s = "
+            a := witness
+            b := witness
+            main := comp
+                comp
+                    pair a b
+                    jet_lt_8
+                jet_verify
+        ";
+
+        let a_less_than_b = HashMap::from([
+            (Arc::from("a"), Value::u8(0x00)),
+            (Arc::from("b"), Value::u8(0x01)),
+        ]);
+        assert_finalize_ok::<Core>(s, &a_less_than_b, &());
+
+        let b_greater_equal_a = HashMap::from([
+            (Arc::from("a"), Value::u8(0x01)),
+            (Arc::from("b"), Value::u8(0x01)),
+        ]);
+        assert_finalize_err::<Core>(s, &b_greater_equal_a, &(), "Jet failed during execution");
+    }
+
+    #[test]
     fn unfilled_witness() {
         let witness = HashMap::from([(Arc::from("wit1"), Value::u32(1337))]);
         assert_finalize_err::<Core>(
