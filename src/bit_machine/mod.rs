@@ -201,9 +201,12 @@ impl BitMachine {
         if !input.is_of_type(&self.source_ty) {
             return Err(ExecutionError::InputWrongType(self.source_ty.clone()));
         }
-        self.new_frame(input.len());
-        self.write_value(input);
-        self.move_frame();
+        // Unit value doesn't need extra frame
+        if !input.is_empty() {
+            self.new_frame(input.len());
+            self.write_value(input);
+            self.move_frame();
+        }
         Ok(())
     }
 
