@@ -16,6 +16,7 @@ use crate::analysis;
 use crate::dag::{DagLike, NoSharing};
 use crate::jet::{Jet, JetFailed};
 use crate::node::{self, RedeemNode};
+use crate::types::Final;
 use crate::{Cmr, FailEntropy, Value};
 use frame::Frame;
 
@@ -30,6 +31,8 @@ pub struct BitMachine {
     read: Vec<Frame>,
     /// Write frame stack
     write: Vec<Frame>,
+    /// Acceptable source type
+    source_ty: Arc<Final>,
 }
 
 impl BitMachine {
@@ -42,6 +45,7 @@ impl BitMachine {
             next_frame_start: 0,
             read: Vec::with_capacity(program.bounds().extra_frames + analysis::IO_EXTRA_FRAMES),
             write: Vec::with_capacity(program.bounds().extra_frames + analysis::IO_EXTRA_FRAMES),
+            source_ty: program.arrow().source.clone(),
         }
     }
 
@@ -193,11 +197,14 @@ impl BitMachine {
 
     /// Add a read frame with some given value in it, as input to the
     /// program
-    pub fn input(&mut self, input: &Value) {
-        // FIXME typecheck this
+    pub fn input(&mut self, input: &Value) -> Result<(), ExecutionError> {
+        if !input.is_of_type(&self.source_ty) {
+            return Err(ExecutionError::InputWrongType(self.source_ty.clone()));
+        }
         self.new_frame(input.len());
         self.write_value(input);
         self.move_frame();
+        Ok(())
     }
 
     /// Execute the given program on the Bit Machine, using the given environment.
@@ -484,6 +491,8 @@ impl BitMachine {
 /// Errors related to simplicity Execution
 #[derive(Debug)]
 pub enum ExecutionError {
+    /// Provided input is of wrong type
+    InputWrongType(Arc<Final>),
     /// Reached a fail node
     ReachedFailNode(FailEntropy),
     /// Reached a pruned branch
@@ -495,6 +504,9 @@ pub enum ExecutionError {
 impl fmt::Display for ExecutionError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            ExecutionError::InputWrongType(expected_ty) => {
+                write!(f, "Expected input of type: {expected_ty}")
+            }
             ExecutionError::ReachedFailNode(entropy) => {
                 write!(f, "Execution reached a fail node: {}", entropy)
             }
