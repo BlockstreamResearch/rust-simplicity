@@ -91,6 +91,35 @@ impl Value {
             .count()
     }
 
+    /// Check if the value is a unit.
+    pub fn is_unit(&self) -> bool {
+        matches!(self, Value::Unit)
+    }
+
+    /// Access the inner value of a left sum value.
+    pub fn as_left(&self) -> Option<&Self> {
+        match self {
+            Value::SumL(inner) => Some(inner.as_ref()),
+            _ => None,
+        }
+    }
+
+    /// Access the inner value of a right sum value.
+    pub fn as_right(&self) -> Option<&Self> {
+        match self {
+            Value::SumR(inner) => Some(inner.as_ref()),
+            _ => None,
+        }
+    }
+
+    /// Access the inner values of a product value.
+    pub fn as_product(&self) -> Option<(&Self, &Self)> {
+        match self {
+            Value::Prod(left, right) => Some((left.as_ref(), right.as_ref())),
+            _ => None,
+        }
+    }
+
     /// Encode a single bit as a value. Will panic if the input is out of range
     pub fn u1(n: u8) -> Arc<Self> {
         match n {
