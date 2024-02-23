@@ -239,16 +239,14 @@ impl BitMachine {
             }
         }
 
+        if self.read.is_empty() != self.source_ty.is_empty() {
+            return Err(ExecutionError::InputWrongType(self.source_ty.clone()));
+        }
+
         let mut ip = program;
         let mut call_stack = vec![];
         let mut iterations = 0u64;
 
-        let input_width = ip.arrow().source.bit_width();
-        // TODO: convert into crate::Error
-        assert!(
-            self.read.is_empty() || input_width > 0,
-            "Program requires a non-empty input to execute",
-        );
         let output_width = ip.arrow().target.bit_width();
         if output_width > 0 {
             self.new_frame(output_width);
