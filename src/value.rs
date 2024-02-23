@@ -6,6 +6,7 @@
 //! i.e., inputs, intermediate results and outputs.
 
 use crate::dag::{Dag, DagLike, NoSharing};
+use crate::types::Final;
 
 use std::collections::VecDeque;
 use std::convert::TryInto;
@@ -292,6 +293,36 @@ impl Value {
         }
 
         (bytes, bit_length)
+    }
+
+    /// Check if the value is of the given type.
+    pub fn is_of_type(&self, ty: &Final) -> bool {
+        let mut stack = vec![(self, ty)];
+
+        while let Some((value, ty)) = stack.pop() {
+            if ty.is_unit() {
+                if !value.is_unit() {
+                    return false;
+                }
+            } else if let Some((ty_l, ty_r)) = ty.as_sum() {
+                if let Some(value_l) = value.as_left() {
+                    stack.push((value_l, ty_l));
+                } else if let Some(value_r) = value.as_right() {
+                    stack.push((value_r, ty_r));
+                } else {
+                    return false;
+                }
+            } else if let Some((ty_l, ty_r)) = ty.as_product() {
+                if let Some((value_l, value_r)) = value.as_product() {
+                    stack.push((value_r, ty_r));
+                    stack.push((value_l, ty_l));
+                } else {
+                    return false;
+                }
+            }
+        }
+
+        true
     }
 }
 
