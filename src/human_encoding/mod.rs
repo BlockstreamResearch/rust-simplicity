@@ -208,15 +208,23 @@ impl<J: Jet> Forest<J> {
         ret
     }
 
-    /// Convert the forest into a witness node.
-    ///
-    /// Succeeds if the forest contains a "main" root and returns `None` otherwise.
+    /// Convert the main root of the forest into a witness node, if the root exists.
     pub fn to_witness_node(
         &self,
         witness: &HashMap<Arc<str>, Arc<Value>>,
     ) -> Option<Arc<WitnessNode<J>>> {
-        let main = self.roots.get("main")?;
-        Some(main.to_witness_node(witness, self.roots()))
+        self.to_witness_node_expression(witness, "main")
+    }
+
+    /// Convert the given root of the forest into a witness node, if the root exists.
+    pub fn to_witness_node_expression(
+        &self,
+        witness: &HashMap<Arc<str>, Arc<Value>>,
+        root: &str,
+    ) -> Option<Arc<WitnessNode<J>>> {
+        self.roots
+            .get(root)
+            .map(|commit| commit.to_witness_node(witness, self.roots()))
     }
 }
 
