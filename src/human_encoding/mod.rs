@@ -236,18 +236,30 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::Arc;
 
+    fn get_root(input: &Option<Arc<Value>>) -> &'static str {
+        if input.is_none() {
+            "main"
+        } else {
+            "expr"
+        }
+    }
+
     fn assert_finalize_ok<J: Jet>(
         s: &str,
         witness: &HashMap<Arc<str>, Arc<Value>>,
         env: &J::Environment,
+        input: Option<Arc<Value>>,
     ) {
         let program = Forest::<J>::parse(s)
             .expect("Failed to parse human encoding")
-            .to_witness_node(witness)
+            .to_witness_node_expression(witness, get_root(&input))
             .expect("Forest is missing expected root")
             .finalize()
             .expect("Failed to finalize");
         let mut mac = BitMachine::for_program(&program);
+        if let Some(value) = input {
+            mac.input(&value).expect("Failed to provide input");
+        }
         mac.exec(&program, env).expect("Failed to run program");
     }
 
@@ -255,11 +267,12 @@ mod tests {
         s: &str,
         witness: &HashMap<Arc<str>, Arc<Value>>,
         env: &J::Environment,
+        input: Option<Arc<Value>>,
         err_msg: &'static str,
     ) {
         let program = match Forest::<J>::parse(s)
             .expect("Failed to parse human encoding")
-            .to_witness_node(witness)
+            .to_witness_node_expression(witness, get_root(&input))
             .expect("Forest is missing expected root")
             .finalize()
         {
@@ -270,6 +283,12 @@ mod tests {
             }
         };
         let mut mac = BitMachine::for_program(&program);
+        if let Some(value) = input {
+            if let Err(error) = mac.input(&value) {
+                assert_eq!(error.to_string().as_str(), err_msg);
+                return;
+            }
+        }
         match mac.exec(&program, env) {
             Ok(_) => panic!("Execution is expected to fail"),
             Err(error) => assert_eq!(&error.to_string(), err_msg),
@@ -292,13 +311,19 @@ mod tests {
             (Arc::from("a"), Value::u8(0x00)),
             (Arc::from("b"), Value::u8(0x01)),
         ]);
-        assert_finalize_ok::<Core>(s, &a_less_than_b, &());
+        assert_finalize_ok::<Core>(s, &a_less_than_b, &(), None);
 
         let b_greater_equal_a = HashMap::from([
             (Arc::from("a"), Value::u8(0x01)),
             (Arc::from("b"), Value::u8(0x01)),
         ]);
-        assert_finalize_err::<Core>(s, &b_greater_equal_a, &(), "Jet failed during execution");
+        assert_finalize_err::<Core>(
+            s,
+            &b_greater_equal_a,
+            &(),
+            None,
+            "Jet failed during execution",
+        );
     }
 
     #[test]
@@ -314,6 +339,7 @@ mod tests {
             ",
             &witness,
             &(),
+            None,
             "unable to satisfy program",
         );
     }
@@ -326,7 +352,7 @@ mod tests {
             main := comp (pair wit1 unit) case unit wit2
         ";
         let wit2_is_pruned = HashMap::from([(Arc::from("wit1"), Value::u1(0))]);
-        assert_finalize_ok::<Core>(s, &wit2_is_pruned, &());
+        assert_finalize_ok::<Core>(s, &wit2_is_pruned, &(), None);
 
         let wit2_is_missing = HashMap::from([(Arc::from("wit1"), Value::u1(1))]);
         // FIXME The finalization should fail
@@ -335,7 +361,7 @@ mod tests {
         assert_finalize_err::<Core>(
             s,
             &wit2_is_missing,
-            &(),
+            &(), None,
             "Execution reached a pruned branch: bf12681a76fc7c00c63e583c25cc97237337d6aca30d3f4a664075445385c648"
         );
 
@@ -343,7 +369,7 @@ mod tests {
             (Arc::from("wit1"), Value::u1(1)),
             (Arc::from("wit2"), Value::unit()),
         ]);
-        assert_finalize_ok::<Core>(s, &wit2_is_present, &());
+        assert_finalize_ok::<Core>(s, &wit2_is_present, &(), None);
     }
 
     #[test]
@@ -357,6 +383,7 @@ mod tests {
             ",
             &empty,
             &(),
+            None,
         );
     }
 
@@ -370,6 +397,7 @@ mod tests {
             ",
             &empty,
             &(),
+            None,
             "unable to satisfy program",
         );
     }
@@ -382,9 +410,41 @@ mod tests {
             main := comp wit2 iden
         ";
         let wit1_populated = HashMap::from([(Arc::from("wit1"), Value::unit())]);
-        assert_finalize_err::<Core>(s, &wit1_populated, &(), "unable to satisfy program");
+        assert_finalize_err::<Core>(s, &wit1_populated, &(), None, "unable to satisfy program");
 
         let wit2_populated = HashMap::from([(Arc::from("wit2"), Value::unit())]);
-        assert_finalize_ok::<Core>(s, &wit2_populated, &());
+        assert_finalize_ok::<Core>(s, &wit2_populated, &(), None);
+    }
+
+    #[test]
+    fn expression() {
+        let s = "
+            expr := iden
+        ";
+        let empty = HashMap::new();
+        assert_finalize_ok::<Core>(s, &empty, &(), Some(Value::unit()));
+
+        let s = "
+            expr := comp
+                comp
+                    pair iden (comp unit const 0xff)
+                    jet_eq_8
+                jet_verify
+        ";
+        assert_finalize_err::<Core>(
+            s,
+            &empty,
+            &(),
+            Some(Value::unit()),
+            "Expected input of type: 2^8",
+        );
+        assert_finalize_ok::<Core>(s, &empty, &(), Some(Value::u8(0xff)));
+        assert_finalize_err::<Core>(
+            s,
+            &empty,
+            &(),
+            Some(Value::u8(0x00)),
+            "Jet failed during execution",
+        );
     }
 }
