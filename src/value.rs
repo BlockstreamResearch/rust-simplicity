@@ -368,6 +368,7 @@ impl fmt::Display for Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::jet::type_name::TypeName;
 
     #[test]
     fn value_display() {
@@ -376,5 +377,24 @@ mod tests {
         assert_eq!(Value::u1(0).to_string(), "0",);
         assert_eq!(Value::u1(1).to_string(), "1",);
         assert_eq!(Value::u4(6).to_string(), "((0,1),(1,0))",);
+    }
+
+    #[test]
+    fn is_of_type() {
+        let value_typename = [
+            (Value::unit(), TypeName(b"1")),
+            (Value::sum_l(Value::unit()), TypeName(b"+11")),
+            (Value::sum_r(Value::unit()), TypeName(b"+11")),
+            (Value::sum_l(Value::unit()), TypeName(b"+1h")),
+            (Value::sum_r(Value::unit()), TypeName(b"+h1")),
+            (Value::prod(Value::unit(), Value::unit()), TypeName(b"*11")),
+            (Value::u8(u8::MAX), TypeName(b"c")),
+            (Value::u64(u64::MAX), TypeName(b"l")),
+        ];
+
+        for (value, typename) in value_typename {
+            let ty = typename.to_final();
+            assert!(value.is_of_type(ty.as_ref()));
+        }
     }
 }
