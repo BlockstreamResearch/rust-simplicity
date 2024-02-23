@@ -191,6 +191,12 @@ impl Final {
         self.bit_width
     }
 
+    /// Check if the type is a nested product of units.
+    /// In this case, values contain no information.
+    pub fn is_empty(&self) -> bool {
+        self.bit_width() == 0
+    }
+
     /// Accessor for the type bound
     pub fn bound(&self) -> &CompleteBound {
         &self.bound

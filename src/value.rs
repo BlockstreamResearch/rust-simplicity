@@ -84,12 +84,17 @@ impl Value {
         Arc::new(Value::Prod(left, right))
     }
 
-    #[allow(clippy::len_without_is_empty)]
     /// The length, in bits, of the value when encoded in the Bit Machine
     pub fn len(&self) -> usize {
         self.pre_order_iter::<NoSharing>()
             .filter(|inner| matches!(inner, Value::SumL(_) | Value::SumR(_)))
             .count()
+    }
+
+    /// Check if the value is a nested product of units.
+    /// In this case, the value contains no information.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     /// Check if the value is a unit.
