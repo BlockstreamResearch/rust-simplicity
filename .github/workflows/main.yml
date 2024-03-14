@@ -51,9 +51,9 @@ jobs:
       matrix:
         rust:
           - stable
-          - 1.58.0
           - beta
           - nightly
+          - 1.58.0
     steps:
       - name: Checkout Crate
         uses: actions/checkout@v4
