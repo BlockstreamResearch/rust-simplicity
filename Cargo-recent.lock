@@ -368,7 +368,6 @@ version = "0.2.0"
 dependencies = [
  "bitcoin_hashes",
  "cc",
- "libc",
 ]
 
 [[package]]

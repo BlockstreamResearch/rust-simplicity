@@ -13,7 +13,6 @@ rust-version = "1.58.0"
 cc = "1.0.83"
 
 [dependencies]
-libc = "0.2"
 hashes = { package = "bitcoin_hashes", version = "0.13" }
 
 [features]
