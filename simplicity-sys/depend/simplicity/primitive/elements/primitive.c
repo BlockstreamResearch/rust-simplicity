@@ -2,11 +2,11 @@
  */
 #include "primitive.h"
 
-#include <stdlib.h>
 #include "jets.h"
 #include "../../limitations.h"
 #include "../../prefix.h"
 #include "../../primitive.h"
+#include "../../simplicity_alloc.h"
 #include "../../simplicity_assert.h"
 
 /* An enumeration of all the types we need to construct to specify the input and output types of all jets created by 'decodeJet'. */
@@ -40,7 +40,7 @@ size_t mallocBoundVars(unification_var** bound_var, size_t* word256_ix, size_t* 
   static_assert(NumberOfTypeNames + 6*DAG_LEN_MAX <= SIZE_MAX/sizeof(unification_var) , "bound_var array too large");
   static_assert(NumberOfTypeNames + 6*DAG_LEN_MAX - 1 <= UINT32_MAX, "bound_var array index doesn't fit in uint32_t");
   simplicity_assert(extra_var_len <= 6*DAG_LEN_MAX);
-  *bound_var = malloc((NumberOfTypeNames + extra_var_len) * sizeof(unification_var));
+  *bound_var = simplicity_malloc((NumberOfTypeNames + extra_var_len) * sizeof(unification_var));
   if (!(*bound_var)) return 0;
 #include "primitiveInitTy.inc"
   *word256_ix = ty_w256;
@@ -981,7 +981,8 @@ static simplicity_err decodePrimitive(jetName* result, bitstream* stream) {
        case 14: *result = GEJ_GE_ADD; return SIMPLICITY_NO_ERROR;
        case 15: *result = GEJ_RESCALE; return SIMPLICITY_NO_ERROR;
        case 16: *result = GEJ_IS_INFINITY; return SIMPLICITY_NO_ERROR;
-
+       case 17: *result = GEJ_EQUIV; return SIMPLICITY_NO_ERROR;
+       case 18: *result = GEJ_GE_EQUIV; return SIMPLICITY_NO_ERROR;
        case 19: *result = GEJ_X_EQUIV; return SIMPLICITY_NO_ERROR;
        case 20: *result = GEJ_Y_IS_ODD; return SIMPLICITY_NO_ERROR;
        case 21: *result = GEJ_IS_ON_CURVE; return SIMPLICITY_NO_ERROR;
@@ -1113,7 +1114,7 @@ static simplicity_err decodePrimitive(jetName* result, bitstream* stream) {
        case 12: *result = OUTPUT_IS_FEE; return SIMPLICITY_NO_ERROR;
        case 13: *result = OUTPUT_SURJECTION_PROOF; return SIMPLICITY_NO_ERROR;
        case 14: *result = OUTPUT_RANGE_PROOF; return SIMPLICITY_NO_ERROR;
-       /* case 15: *result = TOTAL_FEE; return SIMPLICITY_NO_ERROR; */
+       case 15: *result = TOTAL_FEE; return SIMPLICITY_NO_ERROR;
        case 16: *result = CURRENT_PEGIN; return SIMPLICITY_NO_ERROR;
        case 17: *result = CURRENT_PREV_OUTPOINT; return SIMPLICITY_NO_ERROR;
        case 18: *result = CURRENT_ASSET; return SIMPLICITY_NO_ERROR;

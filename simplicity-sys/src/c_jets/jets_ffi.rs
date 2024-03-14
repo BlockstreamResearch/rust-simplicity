@@ -296,10 +296,14 @@ extern "C" {
     pub fn gej_add(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
     #[link_name = "c_gej_double"]
     pub fn gej_double(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
+    #[link_name = "c_gej_equiv"]
+    pub fn gej_equiv(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
     #[link_name = "c_gej_ge_add"]
     pub fn gej_ge_add(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
     #[link_name = "c_gej_ge_add_ex"]
     pub fn gej_ge_add_ex(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
+    #[link_name = "c_gej_ge_equiv"]
+    pub fn gej_ge_equiv(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
     #[link_name = "c_gej_infinity"]
     pub fn gej_infinity(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
     #[link_name = "c_gej_is_infinity"]
@@ -882,6 +886,8 @@ extern "C" {
     pub fn tappath(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_tappath_hash"]
     pub fn tappath_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
+    #[link_name = "c_total_fee"]
+    pub fn total_fee(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_tx_hash"]
     pub fn tx_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_tx_is_final"]
