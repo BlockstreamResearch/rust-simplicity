@@ -6,17 +6,12 @@ jobs:
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - stable
     steps:
       - name: Checkout Crate
         uses: actions/checkout@v4
       - name: Checkout Toolchain
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ matrix.rust }}
           components: rustfmt
       - name: Running cargo fmt
         run: cargo fmt --all -- --check
@@ -24,17 +19,11 @@ jobs:
   simpcli_test:
     name: SimpCLI Tests
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - stable
     steps:
       - name: Checkout Crate
         uses: actions/checkout@v4
       - name: Checkout Toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.rust }}
+        uses: dtolnay/rust-toolchain@stable
       - name: Running cargo test
         run: |
           cd simpcli
@@ -43,17 +32,11 @@ jobs:
   bench_test:
     name: Jets-Bench Tests
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - stable
     steps:
       - name: Checkout Crate
         uses: actions/checkout@v4
       - name: Checkout Toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.rust }}
+        uses: dtolnay/rust-toolchain@stable
       - name: Running cargo test
         run: |
           cargo install cargo-criterion
@@ -68,9 +51,9 @@ jobs:
       matrix:
         rust:
           - stable
-          - 1.58.0
           - beta
           - nightly
+          - 1.58.0
     steps:
       - name: Checkout Crate
         uses: actions/checkout@v4
@@ -78,48 +61,29 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
+      - name: Set dependencies
+        run: cp Cargo-recent.lock Cargo.lock
       - name: Running cargo test
         env:
           FEATURES: bitcoin elements test-utils
         run: |
-          if cargo --version | grep "1\.58"; then
-              # 1.0.100 uses syn 2.0 which requires edition 2021
-              cargo update -p serde_json --precise 1.0.99
-              # 1.0.157 uses syn 2.0
-              cargo update -p serde --precise 1.0.156
-              # 1.0.31 uses proc-macro 1.0.66
-              cargo update -p quote --precise 1.0.30
-              # 1.0.66 uses edition 2021
-              cargo update -p proc-macro2 --precise 1.0.65
-              # 1.8.0 requires cargo 1.60+
-              cargo update -p regex --precise 1.7.0
-              # 1.5.0 uses edition 2021
-              cargo update -p byteorder --precise 1.4.3
-          fi
-          for f in $FEATURES; do echo "Features: $f" && cargo test --no-default-features --features="$f"; done
+          for f in $FEATURES; do echo "Features: $f" && cargo test --locked --no-default-features --features="$f"; done
           cd simplicity-sys
-          cargo test --no-default-features
-          cargo test --features="test-utils"
-          echo "No default features" && cargo test --no-default-features
-          echo "All features" && cargo test --all-features
+          cargo test --locked --no-default-features
+          cargo test --locked --features="test-utils"
+          echo "No default features" && cargo test --locked --no-default-features
+          echo "All features" && cargo test --locked --all-features
 
   ignored:
     name: Ignored Tests
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - stable
     steps:
       - name: Checkout Crate
         uses: actions/checkout@v4
       - name: Checkout Toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.rust }}
+        uses: dtolnay/rust-toolchain@stable
       - name: Running cargo test
-        run: |
-          cargo test -- --ignored
+        run: cargo test -- --ignored
 
   clippy:
     name: Clippy
@@ -127,15 +91,12 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        rust:
-          - stable
     steps:
       - name: Checkout Crate
         uses: actions/checkout@v4
       - name: Checkout Toolchain
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ matrix.rust }}
           components: clippy
       - name: Running cargo clippy
         run: cargo clippy --all-targets -- --deny warnings
