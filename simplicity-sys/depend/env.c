@@ -64,13 +64,3 @@ void c_set_txEnv(txEnv *result, const transaction *tx, const tapEnv *taproot, co
     sha256_toMidstate(genesis.s, genesisHash);
     *result = build_txEnv(tx, taproot, &genesis, ix);
 }
-
-void c_free_tapEnv(tapEnv *env)
-{
-    free(env);
-}
-
-void c_free_transaction(transaction *tx)
-{
-    free(tx);
-}

@@ -587,12 +587,20 @@ pub fn gej_double<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
     unsafe { elements_ffi::gej_double(dst, &src, std::ptr::null()) }
 }
 
+pub fn gej_equiv<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::gej_equiv(dst, &src, std::ptr::null()) }
+}
+
 pub fn gej_ge_add<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
     unsafe { elements_ffi::gej_ge_add(dst, &src, std::ptr::null()) }
 }
 
 pub fn gej_ge_add_ex<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
     unsafe { elements_ffi::gej_ge_add_ex(dst, &src, std::ptr::null()) }
+}
+
+pub fn gej_ge_equiv<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::gej_ge_equiv(dst, &src, std::ptr::null()) }
 }
 
 pub fn gej_infinity<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
@@ -1757,6 +1765,10 @@ pub fn tappath(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> b
 
 pub fn tappath_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
     unsafe { elements_ffi::tappath_hash(dst, &src, env) }
+}
+
+pub fn total_fee(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+    unsafe { elements_ffi::total_fee(dst, &src, env) }
 }
 
 pub fn tx_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {

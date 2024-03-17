@@ -3,7 +3,7 @@
 use hashes::{sha256, Hash};
 
 use crate::ffi::sha256::CSha256Midstate;
-use crate::ffi::{c_size_t, c_uchar, c_uint};
+use crate::ffi::{c_size_t, c_uchar, c_uint, c_uint_fast32_t};
 
 /// Documentation of CRawInputData/CRawOutputData/CRawTapData/CRaw
 /// Data structure for holding data that CTransaction points to.
@@ -116,7 +116,7 @@ pub struct CElementsTxEnv {
     taproot: *const CTapEnv,
     genesis_hash: CSha256Midstate,
     sighash_all: CSha256Midstate,
-    ix: usize, // This is uint_fast32_t in C, which is usize for 32/64 bits
+    ix: c_uint_fast32_t,
 }
 
 #[derive(Debug)]
@@ -207,8 +207,8 @@ impl CElementsTxEnv {
 impl Drop for CElementsTxEnv {
     fn drop(&mut self) {
         unsafe {
-            c_free_transaction(self.tx as *mut CTransaction);
-            c_free_tapEnv(self.taproot as *mut CTapEnv);
+            crate::alloc::rust_free(self.tx as *mut u8);
+            crate::alloc::rust_free(self.taproot as *mut u8);
         }
     }
 }

@@ -116,12 +116,13 @@ typedef struct parsedNullData {
  * 'isNullData' is true if the output has a null-data scriptPubKey.
  */
 typedef struct sigOutput {
+  confidential asset;
   sha256_midstate surjectionProofHash;
   sha256_midstate rangeProofHash;
-  confidential asset;
   confAmount amt;
   confidential nonce;
   sha256_midstate scriptPubKey;
+  uint_fast64_t assetFee;
   parsedNullData pnd;
   bool isNullData;
   bool emptyScript;
@@ -196,6 +197,7 @@ typedef struct sigInput {
 typedef struct transaction {
   const sigInput* input;
   const sigOutput* output;
+  const sigOutput* const * feeOutputs;
   sha256_midstate outputAssetAmountsHash;
   sha256_midstate outputNoncesHash;
   sha256_midstate outputScriptsHash;
@@ -218,6 +220,7 @@ typedef struct transaction {
   sha256_midstate txHash;
   uint_fast32_t numInputs;
   uint_fast32_t numOutputs;
+  uint_fast32_t numFees;
   uint_fast32_t version;
   uint_fast32_t lockTime;
   /* lockDuration and lockDistance values are set even when the version is 0 or 1.

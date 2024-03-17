@@ -1,12 +1,14 @@
 #include <simplicity/elements/env.h>
 
-#include <stdlib.h>
 #include <stdalign.h>
+#include <stddef.h>
 #include <string.h>
 #include "primitive.h"
 #include "ops.h"
+#include "../../rsort.h"
 #include "../../sha256.h"
 #include "../../simplicity_assert.h"
+#include "../../simplicity_alloc.h"
 
 #define PADDING(alignType, allocated) ((alignof(alignType) - (allocated) % alignof(alignType)) % alignof(alignType))
 
@@ -158,6 +160,21 @@ static void copyInput(sigInput* result, const rawInput* input) {
   }
 }
 
+/* As specified in https://github.com/ElementsProject/elements/blob/de942511a67c3a3fcbdf002a8ee7e9ba49679b78/src/primitives/transaction.h#L304-L307. */
+static bool isFee(const rawOutput* output) {
+  return 0 == output->scriptPubKey.len &&                 /* Empty scriptPubKey */
+    NULL != output->asset && 0x01 == output->asset[0] &&  /* Explicit asset */
+    NULL != output->value && 0x01 == output->value[0];    /* Explicit amount */
+}
+
+static uint_fast32_t countFeeOutputs(const rawTransaction* rawTx) {
+  uint_fast32_t result = 0;
+  for (uint_fast32_t i = 0; i < rawTx->numOutputs; ++i) {
+    result += isFee(&rawTx->output[i]);
+  }
+  return result;
+}
+
 /* If the 'scriptPubKey' is a TX_NULL_DATA, return a count of the number of "push only" operations (this excludes the OP_RETURN).
  * Otherwise return 0.
  *
@@ -273,7 +290,7 @@ static void parseNullData(parsedNullData* result, opcode** allocation, size_t* a
   *allocationLen -= result->len;
 }
 
-/* Initialize a 'sigOutput' from a 'rawOuput', copying or hashing the data as needed.
+/* Initialize a 'sigOutput' from a 'rawOutput', copying or hashing the data as needed.
  *
  * '*allocation' is incremented by 'countNullDataCodes(&output->scriptPubKey)'
  * '*allocationLen' is decremented by 'countNullDataCodes(&output->scriptPubKey)'.
@@ -295,9 +312,57 @@ static void copyOutput(sigOutput* result, opcode** allocation, size_t* allocatio
   result->isNullData = NULL != result->pnd.op;
   hashBuffer(&result->surjectionProofHash, is_confidential(result->asset.prefix) ? &output->surjectionProof : &(rawBuffer){0});
   hashBuffer(&result->rangeProofHash, is_confidential(result->amt.prefix) ? &output->rangeProof : &(rawBuffer){0});
+  result->assetFee = 0;
 }
 
-/* Allocate and initialize a 'transaction' from a 'rawOuput', copying or hashing the data as needed.
+/* Tally a sorted list of feeOutputs
+ *
+ * Given a sorted array of feeOutput pointers, tally all the (explict) amounts of the entries with the same asset id,
+ * which are all necessarily next to each other, into the assetFee field of the first entry of the bunch.
+ *
+ * Discard all entries other than the first one of each bunch.
+ * Return 'ret_value', the number of remaning entries in the array after these discards.
+ *
+ * Note: the array is not re-allocated, so there will be "junk" values in the array past the end of 'ret_value'.
+ *
+ * Precondition: feeOutputs is sorted by it asset.data.s field, which is to say
+ *               for all 0 <= i <= j < numFees,
+ *                 0 <= memcmp(feeOutputs[j]->asset.data.s, feeOutputs[i]->asset.data.s, sizeof(feeOutputs[i]->asset.data.s));
+ *               for all 0 <= i < numFees,
+ *                feeOutputs[i]->assetFee = 0 and
+ *                feeOutputs[i]->amt.explicit is the active union member.
+ * Postcondition: feeOutputs is uniquely sorted by it asset.data.s field, which is to say
+ *                for all 0 <= i < j < ret_value,
+ *                  0 < memcmp(feeOutputs[j]->asset.data.s, feeOutputs[i]->asset.data.s, sizeof(feeOutputs[i]->asset.data.s));
+ *                for all ret_value <= i < numFees,
+ *                  feeOutputs[i] remains allocated.
+ */
+static uint_fast32_t sumFees(sigOutput** feeOutputs, uint_fast32_t numFees) {
+  uint_fast32_t result = 0;
+
+  if (numFees < 1) return result;
+
+  for(uint_fast32_t i = 0; i < numFees; ++i) {
+    int cmp = memcmp(feeOutputs[i]->asset.data.s, feeOutputs[result]->asset.data.s, sizeof(feeOutputs[i]->asset.data.s));
+    simplicity_assert(0 <= cmp);
+    if (0 < cmp) {
+      result++;
+      feeOutputs[result] = feeOutputs[i];
+    }
+
+    static_assert(0 == offsetof(sigOutput, asset.data), "asset ID is not first field of sigOutput.");
+    /* In Elements consensus rules, the total about of fees is not allowed to exceed MoneyRange:
+     * https://github.com/ElementsProject/elements/blob/de942511a67c3a3fcbdf002a8ee7e9ba49679b78/src/confidential_validation.cpp#L36-L38
+     *
+     * In case of invalid transaction environments, we end up taking the result modulo the size of uint_fast64_t,
+     * which in turn is compatible with our jet specification which returns the tally modulo 2^64.
+     */
+    feeOutputs[result]->assetFee += feeOutputs[i]->amt.explicit;
+  }
+
+  return result + 1;
+}
+/* Allocate and initialize a 'transaction' from a 'rawOutput', copying or hashing the data as needed.
  * Returns NULL if malloc fails (or if malloc cannot be called because we require an allocation larger than SIZE_MAX).
  *
  * Precondition: NULL != rawTx
@@ -325,9 +390,19 @@ extern transaction* elements_simplicity_mallocTransaction(const rawTransaction* 
   if (SIZE_MAX - allocationSize < rawTx->numOutputs * sizeof(sigOutput)) return NULL;
   allocationSize += rawTx->numOutputs * sizeof(sigOutput);
 
-  const size_t pad3 = PADDING(opcode, allocationSize);
+  const size_t pad3 = PADDING(sigOutput*, allocationSize);
   if (SIZE_MAX - allocationSize < pad3) return NULL;
   allocationSize += pad3;
+
+  const uint_fast32_t numFees = countFeeOutputs(rawTx);
+  /* Multiply by (size_t)1 to disable type-limits warning. */
+  if (SIZE_MAX / sizeof(sigOutput*) < (size_t)1 * numFees) return NULL;
+  if (SIZE_MAX - allocationSize < numFees * sizeof(sigOutput*)) return NULL;
+  allocationSize += numFees * sizeof(sigOutput*);
+
+  const size_t pad4 = PADDING(opcode, allocationSize);
+  if (SIZE_MAX - allocationSize < pad4) return NULL;
+  allocationSize += pad4;
 
   const uint_fast64_t totalNullDataCodes = countTotalNullDataCodes(rawTx);
   /* Multiply by (size_t)1 to disable type-limits warning. */
@@ -335,7 +410,7 @@ extern transaction* elements_simplicity_mallocTransaction(const rawTransaction* 
   if (SIZE_MAX - allocationSize < totalNullDataCodes * sizeof(opcode)) return NULL;
   allocationSize += totalNullDataCodes * sizeof(opcode);
 
-  char *allocation = malloc(allocationSize);
+  char *allocation = simplicity_malloc(allocationSize);
   if (!allocation) return NULL;
 
   /* Casting through void* to avoid warning about pointer alignment.
@@ -350,11 +425,19 @@ extern transaction* elements_simplicity_mallocTransaction(const rawTransaction* 
   sigOutput* const output = (sigOutput*)(void*)allocation;
   allocation += rawTx->numOutputs * sizeof(sigOutput) + pad3;
 
+  sigOutput** const feeOutputs = (sigOutput**)(void*)allocation;
+  allocation += numFees * sizeof(sigOutput*) + pad4;
+
   opcode* ops = (opcode*)(void*)allocation;
   size_t opsLen = (size_t)totalNullDataCodes;
 
+  /* In C++ an assignment from (sigOutput**) to (const sigOutput * const *) is allowed,
+     but C forgoes the complicated specification of C++.  Therefore we must make an explicit cast of feeOutputs in C.
+     See <https://c-faq.com/ansi/constmismatch.html> for details.
+  */
   *tx = (transaction){ .input = input
                      , .output = output
+                     , .feeOutputs = (sigOutput const * const *)feeOutputs
                      , .numInputs = rawTx->numInputs
                      , .numOutputs = rawTx->numOutputs
                      , .version = rawTx->version
@@ -466,8 +549,23 @@ extern transaction* elements_simplicity_mallocTransaction(const rawTransaction* 
     sha256_context ctx_outputRangeProofsHash = sha256_init(tx->outputRangeProofsHash.s);
     sha256_context ctx_outputSurjectionProofsHash = sha256_init(tx->outputSurjectionProofsHash.s);
     sha256_context ctx_outputsHash = sha256_init(tx->outputsHash.s);
+    uint_fast32_t ix_fee = 0;
+
+    /* perm is a temporary array the same length (numFees) and size as feeOutputs.
+     * perm is used to initalize feeOutputs and is not used afterward.
+     * This makes it safe for perm to use the same memory allocation as feeOutputs.
+     */
+    static_assert(sizeof(const sha256_midstate*) == sizeof(sigOutput*), "Pointers (to structures) ought to have the same size.");
+    static_assert(alignof(const sha256_midstate*) == alignof(sigOutput*), "Pointers (to structures) ought to have the same alignment.");
+    const sha256_midstate** const perm = (const sha256_midstate**)(void*)feeOutputs;
+
     for (uint_fast32_t i = 0; i < tx->numOutputs; ++i) {
       copyOutput(&output[i], &ops, &opsLen, &rawTx->output[i]);
+      if (isFee(&rawTx->output[i])) {
+        simplicity_assert(ix_fee < numFees);
+        perm[ix_fee] = &output[i].asset.data;
+        ++ix_fee;
+      }
       sha256_confAsset(&ctx_outputAssetAmountsHash, &output[i].asset);
       sha256_confAmt(&ctx_outputAssetAmountsHash, &output[i].amt);
       sha256_confNonce(&ctx_outputNoncesHash, &output[i].nonce);
@@ -475,6 +573,30 @@ extern transaction* elements_simplicity_mallocTransaction(const rawTransaction* 
       sha256_hash(&ctx_outputRangeProofsHash, &output[i].rangeProofHash);
       sha256_hash(&ctx_outputSurjectionProofsHash, &output[i].surjectionProofHash);
     }
+
+    simplicity_assert(numFees == ix_fee);
+    if (!rsort(perm, numFees)) {
+      simplicity_free(tx);
+      return NULL;
+    }
+
+    /* Initialize the feeOutputs array from the perm array.
+     * Because the perm array entries are the same size as the feeOutputs array entries, it is safe to initialize one by one.
+     *
+     * In practical C implementations, the feeOutputs array entires are initalized to the same value as the perm array entries.
+     * In practical C implementations, this is a no-op, and generally compiliers are able to see this fact and eliminate this loop.
+     *
+     * We keep the loop in the code just to be pedantic.
+     */
+    for (size_t i = 0; i < numFees; ++i) {
+      static_assert(0 == offsetof(sigOutput, asset.data), "asset ID is not first field of sigOutput.");
+      /* The uintptr_t cast is to suppress warning about both casting away const and a change in pointer alignment.
+       * Each pointer in perm is pointing the the first field of some (non-const) sigOutput*, so this cast is safe.
+       */
+      feeOutputs[i] = (sigOutput*)(uintptr_t)(perm[i]);
+    }
+    tx->numFees = sumFees(feeOutputs, numFees);
+
     sha256_finalize(&ctx_outputAssetAmountsHash);
     sha256_finalize(&ctx_outputNoncesHash);
     sha256_finalize(&ctx_outputScriptsHash);
@@ -525,7 +647,7 @@ extern tapEnv* elements_simplicity_mallocTapEnv(const rawTapEnv* rawEnv) {
     allocationSize += numMidstate * sizeof(sha256_midstate);
   }
 
-  char *allocation = malloc(allocationSize);
+  char *allocation = simplicity_malloc(allocationSize);
   if (!allocation) return NULL;
 
   /* Casting through void* to avoid warning about pointer alignment.
