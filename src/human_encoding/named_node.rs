@@ -33,7 +33,7 @@ pub struct Named<N> {
 impl<J: Jet> node::Marker for Named<Commit<J>> {
     type CachedData = NamedCommitData<J>;
     type Witness = <Commit<J> as node::Marker>::Witness;
-    type Disconnect = <Commit<J> as node::Marker>::Disconnect;
+    type Disconnect = Arc<str>;
     type SharingId = Arc<str>;
     type Jet = J;
 
@@ -90,7 +90,7 @@ impl<J: Jet> NamedCommitNode<J> {
                 &mut self,
                 _: &PostOrderIterItem<&NamedCommitNode<J>>,
                 _: Option<&Arc<CommitNode<J>>>,
-                _: &NoDisconnect,
+                _: &Arc<str>,
             ) -> Result<NoDisconnect, Self::Error> {
                 Ok(NoDisconnect)
             }
@@ -140,16 +140,19 @@ impl<J: Jet> NamedCommitNode<J> {
                 &mut self,
                 data: &PostOrderIterItem<&Node<Named<Commit<J>>>>,
                 maybe_converted: Option<&Arc<Node<Witness<J>>>>,
-                _: &NoDisconnect,
+                _: &Arc<str>,
             ) -> Result<Option<Arc<Node<Witness<J>>>>, Self::Error> {
                 if let Some(converted) = maybe_converted {
                     Ok(Some(converted.clone()))
                 } else {
-                    let name = &data.node.cached_data().name;
+                    let hole_name = match data.node.inner() {
+                        Inner::Disconnect(_, hole_name) => hole_name,
+                        _ => unreachable!(),
+                    };
                     // We keep the missing disconnected branches empty.
                     // Like witness nodes (see above), disconnect nodes may be pruned later.
                     // The finalization will detect missing branches and throw an error.
-                    let maybe_commit = self.1.get(name);
+                    let maybe_commit = self.1.get(hole_name);
                     // FIXME: Recursive call of to_witness_node
                     // We cannot introduce a stack
                     // because we are implementing methods of the trait Converter
@@ -353,26 +356,28 @@ impl<J: Jet> NamedConstructNode<J> {
                 data: &PostOrderIterItem<&NamedConstructNode<J>>,
                 _: Option<&Arc<NamedCommitNode<J>>>,
                 disc: &Arc<NamedConstructNode<J>>,
-            ) -> Result<NoDisconnect, Self::Error> {
-                if !matches!(
-                    disc.inner(),
-                    node::Inner::Witness(WitnessOrHole::TypedHole(..))
-                ) {
-                    self.errors
-                        .add(data.node.position(), Error::HoleFilledAtCommitTime);
+            ) -> Result<Arc<str>, Self::Error> {
+                match disc.inner() {
+                    node::Inner::Witness(WitnessOrHole::TypedHole(hole_name)) => {
+                        Ok(hole_name.clone())
+                    }
+                    _ => {
+                        self.errors
+                            .add(data.node.position(), Error::HoleFilledAtCommitTime);
+                        Ok(Arc::from(""))
+                    }
                 }
-                Ok(NoDisconnect)
             }
 
             fn convert_data(
                 &mut self,
                 data: &PostOrderIterItem<&NamedConstructNode<J>>,
-                inner: node::Inner<&Arc<NamedCommitNode<J>>, J, &NoDisconnect, &NoWitness>,
+                inner: node::Inner<&Arc<NamedCommitNode<J>>, J, &Arc<str>, &NoWitness>,
             ) -> Result<NamedCommitData<J>, Self::Error> {
                 let converted_data = inner
                     .as_ref()
                     .map(|node| &node.cached_data().internal)
-                    .map_disconnect(|disc| *disc)
+                    .map_disconnect(|_| &NoDisconnect)
                     .copy_witness();
 
                 if !self.for_main {
@@ -461,6 +466,7 @@ impl<J: Jet> NamedConstructNode<J> {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Namer {
     const_idx: usize,
     wit_idx: usize,
@@ -491,7 +497,7 @@ impl Namer {
     }
 
     /// Generate a fresh name for the given node.
-    pub fn assign_name<C, J, X, W>(&mut self, inner: node::Inner<C, J, X, W>) -> String {
+    pub fn assign_name<C, J, X>(&mut self, inner: node::Inner<C, J, X, &WitnessOrHole>) -> String {
         let prefix = match inner {
             node::Inner::Iden => "id",
             node::Inner::Unit => "ut",
@@ -505,7 +511,10 @@ impl Namer {
             node::Inner::AssertR(..) => "asstr",
             node::Inner::Pair(..) => "pr",
             node::Inner::Disconnect(..) => "disc",
-            node::Inner::Witness(..) => "wit",
+            node::Inner::Witness(WitnessOrHole::Witness) => "wit",
+            node::Inner::Witness(WitnessOrHole::TypedHole(name)) => {
+                return name.to_string();
+            }
             node::Inner::Fail(..) => "FAIL",
             node::Inner::Jet(..) => "jt",
             node::Inner::Word(..) => "const",
@@ -535,14 +544,16 @@ impl<J: Jet> Converter<Commit<J>, Named<Commit<J>>> for Namer {
         _: &PostOrderIterItem<&CommitNode<J>>,
         _: Option<&Arc<NamedCommitNode<J>>>,
         _: &NoDisconnect,
-    ) -> Result<NoDisconnect, Self::Error> {
-        Ok(NoDisconnect)
+    ) -> Result<Arc<str>, Self::Error> {
+        let hole_idx = self.other_idx;
+        self.other_idx += 1;
+        Ok(Arc::from(format!("hole {hole_idx}")))
     }
 
     fn convert_data(
         &mut self,
         data: &PostOrderIterItem<&CommitNode<J>>,
-        inner: node::Inner<&Arc<NamedCommitNode<J>>, J, &NoDisconnect, &NoWitness>,
+        inner: node::Inner<&Arc<NamedCommitNode<J>>, J, &Arc<str>, &NoWitness>,
     ) -> Result<NamedCommitData<J>, Self::Error> {
         // Special-case the root node, which is always called main.
         // The CMR of the root node, conveniently, is guaranteed to be
@@ -556,7 +567,10 @@ impl<J: Jet> Converter<Commit<J>, Named<Commit<J>>> for Namer {
 
         Ok(NamedCommitData {
             internal: Arc::clone(data.node.cached_data()),
-            name: Arc::from(self.assign_name(inner).as_str()),
+            name: Arc::from(
+                self.assign_name(inner.map_witness(WitnessOrHole::from).as_ref())
+                    .as_str(),
+            ),
         })
     }
 }

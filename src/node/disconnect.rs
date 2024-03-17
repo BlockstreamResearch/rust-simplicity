@@ -73,3 +73,14 @@ impl<L> Disconnectable<L> for Option<Arc<L>> {
         }
     }
 }
+
+// `Arc<str>` is like `NoDisconnect` but it names the expression that should fill the hole
+impl<L> Disconnectable<L> for Arc<str> {
+    fn disconnect_dag_arc(self, other: Arc<L>) -> Dag<Arc<L>> {
+        Dag::Unary(other)
+    }
+
+    fn disconnect_dag_ref<'s>(&'s self, other: &'s L) -> Dag<&'s L> {
+        Dag::Unary(other)
+    }
+}

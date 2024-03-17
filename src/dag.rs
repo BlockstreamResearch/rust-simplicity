@@ -14,6 +14,7 @@ use crate::node::{self, Disconnectable, Node};
 /// as whether they represent `witness` or `disconnect` combinators, which
 /// are treated specially when working with the graph structure of
 /// Simplicty programs.
+#[derive(Clone, Debug)]
 pub enum Dag<T> {
     /// Combinator with no children
     Nullary,
@@ -347,6 +348,7 @@ pub trait DagLike: Sized {
 /// To avoid confusion, this structure cannot be directly costructed.
 /// Instead it is implicit in the [`DagLike::rtl_post_order_iter`]
 /// method.
+#[derive(Clone, Debug)]
 pub struct SwapChildren<D>(D);
 
 impl<D: DagLike> DagLike for SwapChildren<D> {
@@ -510,6 +512,7 @@ pub struct PostOrderIter<D, S> {
 }
 
 /// A set of data yielded by a `PostOrderIter`
+#[derive(Clone, Debug)]
 pub struct PostOrderIterItem<D> {
     /// The actual node data
     pub node: D,
