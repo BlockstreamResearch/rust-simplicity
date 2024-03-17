@@ -48,7 +48,7 @@ impl Amr {
     /// Produce a CMR for an injl combinator
     pub fn injl(ty: &FinalArrow, child: Amr) -> Self {
         let a = &ty.source;
-        let (b, c) = ty.target.split_sum().unwrap();
+        let (b, c) = ty.target.as_sum().unwrap();
         Self::INJL_IV
             .update(a.tmr().into(), b.tmr().into())
             .update(c.tmr().into(), child)
@@ -57,7 +57,7 @@ impl Amr {
     /// Produce a CMR for an injr combinator
     pub fn injr(ty: &FinalArrow, child: Amr) -> Self {
         let a = &ty.source;
-        let (b, c) = ty.target.split_sum().unwrap();
+        let (b, c) = ty.target.as_sum().unwrap();
         Self::INJR_IV
             .update(a.tmr().into(), b.tmr().into())
             .update(c.tmr().into(), child)
@@ -65,7 +65,7 @@ impl Amr {
 
     /// Produce a CMR for a take combinator
     pub fn take(ty: &FinalArrow, child: Amr) -> Self {
-        let (a, b) = ty.source.split_product().unwrap();
+        let (a, b) = ty.source.as_sum().unwrap();
         let c = &ty.target;
         Self::TAKE_IV
             .update(a.tmr().into(), b.tmr().into())
@@ -74,7 +74,7 @@ impl Amr {
 
     /// Produce a CMR for a drop combinator
     pub fn drop(ty: &FinalArrow, child: Amr) -> Self {
-        let (a, b) = ty.source.split_product().unwrap();
+        let (a, b) = ty.source.as_product().unwrap();
         let c = &ty.target;
         Self::DROP_IV
             .update(a.tmr().into(), b.tmr().into())
@@ -93,8 +93,8 @@ impl Amr {
     }
 
     fn case_helper(iv: Amr, ty: &FinalArrow, left: Amr, right: Amr) -> Self {
-        let (sum_a_b, c) = ty.source.split_product().unwrap();
-        let (a, b) = sum_a_b.split_sum().unwrap();
+        let (sum_a_b, c) = ty.source.as_product().unwrap();
+        let (a, b) = sum_a_b.as_sum().unwrap();
         let d = &ty.target;
         iv.update(a.tmr().into(), b.tmr().into())
             .update(c.tmr().into(), d.tmr().into())
@@ -136,7 +136,7 @@ impl Amr {
     /// Produce a CMR for a disconnect combinator
     pub fn disconnect(ty: &FinalArrow, right_arrow: &FinalArrow, left: Amr, right: Amr) -> Self {
         let a = &ty.source;
-        let (b, d) = ty.target.split_product().unwrap();
+        let (b, d) = ty.target.as_product().unwrap();
         let c = &right_arrow.source;
         Self::DISCONNECT_IV
             .update(a.tmr().into(), b.tmr().into())

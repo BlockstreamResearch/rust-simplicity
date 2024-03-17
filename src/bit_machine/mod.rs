@@ -257,14 +257,14 @@ impl BitMachine {
                     self.copy(size_a);
                 }
                 node::Inner::InjL(left) => {
-                    let (b, _c) = ip.arrow().target.split_sum().unwrap();
+                    let (b, _c) = ip.arrow().target.as_sum().unwrap();
                     let padl_b_c = ip.arrow().target.bit_width() - b.bit_width() - 1;
                     self.write_bit(false);
                     self.skip(padl_b_c);
                     call_stack.push(CallStack::Goto(left));
                 }
                 node::Inner::InjR(left) => {
-                    let (_b, c) = ip.arrow().target.split_sum().unwrap();
+                    let (_b, c) = ip.arrow().target.as_sum().unwrap();
                     let padr_b_c = ip.arrow().target.bit_width() - c.bit_width() - 1;
                     self.write_bit(true);
                     self.skip(padr_b_c);
@@ -305,7 +305,7 @@ impl BitMachine {
                 }
                 node::Inner::Take(left) => call_stack.push(CallStack::Goto(left)),
                 node::Inner::Drop(left) => {
-                    let size_a = ip.arrow().source.split_product().unwrap().0.bit_width();
+                    let size_a = ip.arrow().source.as_product().unwrap().0.bit_width();
                     self.fwd(size_a);
                     call_stack.push(CallStack::Back(size_a));
                     call_stack.push(CallStack::Goto(left));
@@ -313,8 +313,8 @@ impl BitMachine {
                 node::Inner::Case(..) | node::Inner::AssertL(..) | node::Inner::AssertR(..) => {
                     let choice_bit = self.read[self.read.len() - 1].peek_bit(&self.data);
 
-                    let (sum_a_b, _c) = ip.arrow().source.split_product().unwrap();
-                    let (a, b) = sum_a_b.split_sum().unwrap();
+                    let (sum_a_b, _c) = ip.arrow().source.as_product().unwrap();
+                    let (a, b) = sum_a_b.as_sum().unwrap();
                     let size_a = a.bit_width();
                     let size_b = b.bit_width();
 
