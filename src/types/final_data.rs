@@ -191,28 +191,34 @@ impl Final {
         self.bit_width
     }
 
+    /// Check if the type is a nested product of units.
+    /// In this case, values contain no information.
+    pub fn is_empty(&self) -> bool {
+        self.bit_width() == 0
+    }
+
     /// Accessor for the type bound
     pub fn bound(&self) -> &CompleteBound {
         &self.bound
     }
 
-    /// Returns whether this is the unit type
+    /// Check if the type is a unit.
     pub fn is_unit(&self) -> bool {
         self.bound == CompleteBound::Unit
     }
 
-    /// Return both children, if the type is a sum type
-    pub fn split_sum(&self) -> Option<(Arc<Self>, Arc<Self>)> {
+    /// Access the inner types of a sum type.
+    pub fn as_sum(&self) -> Option<(&Self, &Self)> {
         match &self.bound {
-            CompleteBound::Sum(left, right) => Some((left.clone(), right.clone())),
+            CompleteBound::Sum(left, right) => Some((left.as_ref(), right.as_ref())),
             _ => None,
         }
     }
 
-    /// Return both children, if the type is a product type
-    pub fn split_product(&self) -> Option<(Arc<Self>, Arc<Self>)> {
+    /// Access the inner types of a product type.
+    pub fn as_product(&self) -> Option<(&Self, &Self)> {
         match &self.bound {
-            CompleteBound::Product(left, right) => Some((left.clone(), right.clone())),
+            CompleteBound::Product(left, right) => Some((left.as_ref(), right.as_ref())),
             _ => None,
         }
     }

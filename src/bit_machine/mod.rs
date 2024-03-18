@@ -16,6 +16,7 @@ use crate::analysis;
 use crate::dag::{DagLike, NoSharing};
 use crate::jet::{Jet, JetFailed};
 use crate::node::{self, RedeemNode};
+use crate::types::Final;
 use crate::{Cmr, FailEntropy, Value};
 use frame::Frame;
 
@@ -30,6 +31,8 @@ pub struct BitMachine {
     read: Vec<Frame>,
     /// Write frame stack
     write: Vec<Frame>,
+    /// Acceptable source type
+    source_ty: Arc<Final>,
 }
 
 impl BitMachine {
@@ -42,6 +45,7 @@ impl BitMachine {
             next_frame_start: 0,
             read: Vec::with_capacity(program.bounds().extra_frames + analysis::IO_EXTRA_FRAMES),
             write: Vec::with_capacity(program.bounds().extra_frames + analysis::IO_EXTRA_FRAMES),
+            source_ty: program.arrow().source.clone(),
         }
     }
 
@@ -193,11 +197,17 @@ impl BitMachine {
 
     /// Add a read frame with some given value in it, as input to the
     /// program
-    pub fn input(&mut self, input: &Value) {
-        // FIXME typecheck this
-        self.new_frame(input.len());
-        self.write_value(input);
-        self.move_frame();
+    pub fn input(&mut self, input: &Value) -> Result<(), ExecutionError> {
+        if !input.is_of_type(&self.source_ty) {
+            return Err(ExecutionError::InputWrongType(self.source_ty.clone()));
+        }
+        // Unit value doesn't need extra frame
+        if !input.is_empty() {
+            self.new_frame(input.len());
+            self.write_value(input);
+            self.move_frame();
+        }
+        Ok(())
     }
 
     /// Execute the given program on the Bit Machine, using the given environment.
@@ -229,16 +239,14 @@ impl BitMachine {
             }
         }
 
+        if self.read.is_empty() != self.source_ty.is_empty() {
+            return Err(ExecutionError::InputWrongType(self.source_ty.clone()));
+        }
+
         let mut ip = program;
         let mut call_stack = vec![];
         let mut iterations = 0u64;
 
-        let input_width = ip.arrow().source.bit_width();
-        // TODO: convert into crate::Error
-        assert!(
-            self.read.is_empty() || input_width > 0,
-            "Program requires a non-empty input to execute",
-        );
         let output_width = ip.arrow().target.bit_width();
         if output_width > 0 {
             self.new_frame(output_width);
@@ -257,14 +265,14 @@ impl BitMachine {
                     self.copy(size_a);
                 }
                 node::Inner::InjL(left) => {
-                    let (b, _c) = ip.arrow().target.split_sum().unwrap();
+                    let (b, _c) = ip.arrow().target.as_sum().unwrap();
                     let padl_b_c = ip.arrow().target.bit_width() - b.bit_width() - 1;
                     self.write_bit(false);
                     self.skip(padl_b_c);
                     call_stack.push(CallStack::Goto(left));
                 }
                 node::Inner::InjR(left) => {
-                    let (_b, c) = ip.arrow().target.split_sum().unwrap();
+                    let (_b, c) = ip.arrow().target.as_sum().unwrap();
                     let padr_b_c = ip.arrow().target.bit_width() - c.bit_width() - 1;
                     self.write_bit(true);
                     self.skip(padr_b_c);
@@ -305,7 +313,7 @@ impl BitMachine {
                 }
                 node::Inner::Take(left) => call_stack.push(CallStack::Goto(left)),
                 node::Inner::Drop(left) => {
-                    let size_a = ip.arrow().source.split_product().unwrap().0.bit_width();
+                    let size_a = ip.arrow().source.as_product().unwrap().0.bit_width();
                     self.fwd(size_a);
                     call_stack.push(CallStack::Back(size_a));
                     call_stack.push(CallStack::Goto(left));
@@ -313,8 +321,8 @@ impl BitMachine {
                 node::Inner::Case(..) | node::Inner::AssertL(..) | node::Inner::AssertR(..) => {
                     let choice_bit = self.read[self.read.len() - 1].peek_bit(&self.data);
 
-                    let (sum_a_b, _c) = ip.arrow().source.split_product().unwrap();
-                    let (a, b) = sum_a_b.split_sum().unwrap();
+                    let (sum_a_b, _c) = ip.arrow().source.as_product().unwrap();
+                    let (a, b) = sum_a_b.as_sum().unwrap();
                     let size_a = a.bit_width();
                     let size_b = b.bit_width();
 
@@ -484,6 +492,8 @@ impl BitMachine {
 /// Errors related to simplicity Execution
 #[derive(Debug)]
 pub enum ExecutionError {
+    /// Provided input is of wrong type
+    InputWrongType(Arc<Final>),
     /// Reached a fail node
     ReachedFailNode(FailEntropy),
     /// Reached a pruned branch
@@ -495,6 +505,9 @@ pub enum ExecutionError {
 impl fmt::Display for ExecutionError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            ExecutionError::InputWrongType(expected_ty) => {
+                write!(f, "Expected input of type: {expected_ty}")
+            }
             ExecutionError::ReachedFailNode(entropy) => {
                 write!(f, "Execution reached a fail node: {}", entropy)
             }

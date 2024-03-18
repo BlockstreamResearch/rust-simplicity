@@ -6,6 +6,7 @@
 //! i.e., inputs, intermediate results and outputs.
 
 use crate::dag::{Dag, DagLike, NoSharing};
+use crate::types::Final;
 
 use std::collections::VecDeque;
 use std::convert::TryInto;
@@ -83,12 +84,46 @@ impl Value {
         Arc::new(Value::Prod(left, right))
     }
 
-    #[allow(clippy::len_without_is_empty)]
     /// The length, in bits, of the value when encoded in the Bit Machine
     pub fn len(&self) -> usize {
         self.pre_order_iter::<NoSharing>()
             .filter(|inner| matches!(inner, Value::SumL(_) | Value::SumR(_)))
             .count()
+    }
+
+    /// Check if the value is a nested product of units.
+    /// In this case, the value contains no information.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Check if the value is a unit.
+    pub fn is_unit(&self) -> bool {
+        matches!(self, Value::Unit)
+    }
+
+    /// Access the inner value of a left sum value.
+    pub fn as_left(&self) -> Option<&Self> {
+        match self {
+            Value::SumL(inner) => Some(inner.as_ref()),
+            _ => None,
+        }
+    }
+
+    /// Access the inner value of a right sum value.
+    pub fn as_right(&self) -> Option<&Self> {
+        match self {
+            Value::SumR(inner) => Some(inner.as_ref()),
+            _ => None,
+        }
+    }
+
+    /// Access the inner values of a product value.
+    pub fn as_product(&self) -> Option<(&Self, &Self)> {
+        match self {
+            Value::Prod(left, right) => Some((left.as_ref(), right.as_ref())),
+            _ => None,
+        }
     }
 
     /// Encode a single bit as a value. Will panic if the input is out of range
@@ -264,6 +299,36 @@ impl Value {
 
         (bytes, bit_length)
     }
+
+    /// Check if the value is of the given type.
+    pub fn is_of_type(&self, ty: &Final) -> bool {
+        let mut stack = vec![(self, ty)];
+
+        while let Some((value, ty)) = stack.pop() {
+            if ty.is_unit() {
+                if !value.is_unit() {
+                    return false;
+                }
+            } else if let Some((ty_l, ty_r)) = ty.as_sum() {
+                if let Some(value_l) = value.as_left() {
+                    stack.push((value_l, ty_l));
+                } else if let Some(value_r) = value.as_right() {
+                    stack.push((value_r, ty_r));
+                } else {
+                    return false;
+                }
+            } else if let Some((ty_l, ty_r)) = ty.as_product() {
+                if let Some((value_l, value_r)) = value.as_product() {
+                    stack.push((value_r, ty_r));
+                    stack.push((value_l, ty_l));
+                } else {
+                    return false;
+                }
+            }
+        }
+
+        true
+    }
 }
 
 impl fmt::Debug for Value {
@@ -308,6 +373,7 @@ impl fmt::Display for Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::jet::type_name::TypeName;
 
     #[test]
     fn value_display() {
@@ -316,5 +382,24 @@ mod tests {
         assert_eq!(Value::u1(0).to_string(), "0",);
         assert_eq!(Value::u1(1).to_string(), "1",);
         assert_eq!(Value::u4(6).to_string(), "((0,1),(1,0))",);
+    }
+
+    #[test]
+    fn is_of_type() {
+        let value_typename = [
+            (Value::unit(), TypeName(b"1")),
+            (Value::sum_l(Value::unit()), TypeName(b"+11")),
+            (Value::sum_r(Value::unit()), TypeName(b"+11")),
+            (Value::sum_l(Value::unit()), TypeName(b"+1h")),
+            (Value::sum_r(Value::unit()), TypeName(b"+h1")),
+            (Value::prod(Value::unit(), Value::unit()), TypeName(b"*11")),
+            (Value::u8(u8::MAX), TypeName(b"c")),
+            (Value::u64(u64::MAX), TypeName(b"l")),
+        ];
+
+        for (value, typename) in value_typename {
+            let ty = typename.to_final();
+            assert!(value.is_of_type(ty.as_ref()));
+        }
     }
 }
