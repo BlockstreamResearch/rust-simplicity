@@ -197,16 +197,21 @@ impl<J: Jet> WitnessNode<J> {
 
         // 1. First, prune everything that we can
         let pruned_self = self.prune_and_retype();
+
         // 2. Then, set the root arrow to 1->1
         let unit_ty = types::Type::unit();
-        pruned_self
-            .arrow()
-            .source
-            .unify(&unit_ty, "setting root source to unit")?;
-        pruned_self
-            .arrow()
-            .target
-            .unify(&unit_ty, "setting root source to unit")?;
+        if pruned_self.arrow().source.final_data().is_none() {
+            pruned_self
+                .arrow()
+                .source
+                .unify(&unit_ty, "setting root source to unit")?;
+        }
+        if pruned_self.arrow().target.final_data().is_none() {
+            pruned_self
+                .arrow()
+                .target
+                .unify(&unit_ty, "setting root source to unit")?;
+        }
 
         // 3. Then attempt to convert the whole program to a RedeemNode.
         //    Despite all of the above this can still fail due to the
