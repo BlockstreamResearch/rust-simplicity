@@ -4,7 +4,9 @@
     // we use `bool` to represent bits and frequentely assert_eq against them
     clippy::bool_assert_comparison,
     // we use () as the environment for Core (FIXME we should probabl use a newtype)
-    clippy::let_unit_value
+    clippy::let_unit_value,
+    // We write map(Arc::clone) to signify that a cheap Arc is being cloned
+    clippy::map_clone
 )]
 
 #[cfg(feature = "serde")]
