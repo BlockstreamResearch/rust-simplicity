@@ -65,7 +65,7 @@ impl Amr {
 
     /// Produce a CMR for a take combinator
     pub fn take(ty: &FinalArrow, child: Amr) -> Self {
-        let (a, b) = ty.source.as_sum().unwrap();
+        let (a, b) = ty.source.as_product().unwrap();
         let c = &ty.target;
         Self::TAKE_IV
             .update(a.tmr().into(), b.tmr().into())

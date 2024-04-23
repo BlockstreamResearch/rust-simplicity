@@ -3,7 +3,6 @@
 //! Parsing
 
 use std::mem;
-use std::str::FromStr;
 use std::sync::Arc;
 
 use crate::human_encoding::{Error, ErrorSet, Position, WitnessOrHole};
@@ -61,7 +60,7 @@ pub enum ExprInner<J> {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum AstCmr<J> {
     Expr(Arc<Expression<J>>),
-    Literal(Cmr),
+    Literal,
 }
 
 /// A type, as represented in the AST
@@ -395,9 +394,7 @@ impl<J: Jet> Ast<J> {
         assert_eq!(lexemes.len(), 1);
         assert_eq!(lexemes[0].raw.len(), 65);
 
-        Ast::Cmr(AstCmr::Literal(
-            Cmr::from_str(&lexemes[0].raw[1..]).unwrap(),
-        ))
+        Ast::Cmr(AstCmr::Literal)
     }
 
     fn expect_arrow(&mut self) -> (Option<Type>, Option<Type>) {

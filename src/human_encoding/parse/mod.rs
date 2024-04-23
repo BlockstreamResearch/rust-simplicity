@@ -8,7 +8,6 @@ use crate::dag::{Dag, DagLike, InternalSharing};
 use crate::jet::Jet;
 use crate::node;
 use crate::types::Type;
-use crate::Cmr;
 use std::collections::HashMap;
 use std::mem;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -139,7 +138,7 @@ struct ResolvedExpression<J: Jet> {
 
 enum ResolvedCmr<J: Jet> {
     Expr(Arc<ResolvedExpression<J>>),
-    Literal(Cmr),
+    Literal,
 }
 
 enum ResolvedInner<J: Jet> {
@@ -312,7 +311,7 @@ pub fn parse<J: Jet + 'static>(
                             right.in_degree.fetch_add(1, Ordering::SeqCst);
                             ResolvedCmr::Expr(right)
                         }
-                        ast::AstCmr::Literal(cmr) => ResolvedCmr::Literal(*cmr),
+                        ast::AstCmr::Literal => ResolvedCmr::Literal,
                     };
                     ResolvedInner::AssertL(left, right)
                 }
@@ -323,7 +322,7 @@ pub fn parse<J: Jet + 'static>(
                             left.in_degree.fetch_add(1, Ordering::SeqCst);
                             ResolvedCmr::Expr(left)
                         }
-                        ast::AstCmr::Literal(cmr) => ResolvedCmr::Literal(*cmr),
+                        ast::AstCmr::Literal => ResolvedCmr::Literal,
                     };
 
                     let right = inline_stack.pop().unwrap();
@@ -413,8 +412,8 @@ pub fn parse<J: Jet + 'static>(
                 | ResolvedInner::AssertR(ResolvedCmr::Expr(ref left), ref right) => {
                     Dag::Binary(left, right)
                 }
-                ResolvedInner::AssertL(ref child, ResolvedCmr::Literal(..))
-                | ResolvedInner::AssertR(ResolvedCmr::Literal(..), ref child) => Dag::Unary(child),
+                ResolvedInner::AssertL(ref child, ResolvedCmr::Literal)
+                | ResolvedInner::AssertR(ResolvedCmr::Literal, ref child) => Dag::Unary(child),
                 ResolvedInner::Inline(ref inner) => inner.as_dag().map(|node| node),
             }
         }
@@ -431,10 +430,10 @@ pub fn parse<J: Jet + 'static>(
         for data in expr.as_ref().post_order_iter::<InternalSharing>() {
             let left = data
                 .left_index
-                .and_then(|idx| converted[idx].as_ref().map(Arc::clone));
+                .and_then(|idx| Option::<Arc<_>>::clone(&converted[idx]));
             let right = data
                 .right_index
-                .and_then(|idx| converted[idx].as_ref().map(Arc::clone));
+                .and_then(|idx| Option::<Arc<_>>::clone(&converted[idx]));
 
             let maybe_inner = match data.node.inner {
                 ResolvedInner::Missing { ref name, .. } => {
@@ -482,11 +481,7 @@ pub fn parse<J: Jet + 'static>(
                 }
             };
 
-            let name = data
-                .node
-                .name
-                .as_ref()
-                .map(Arc::clone)
+            let name = Option::<Arc<str>>::clone(&data.node.name)
                 .unwrap_or_else(|| Arc::from(namer.assign_name(inner.as_ref()).as_str()));
 
             let node = NamedConstructNode::new(

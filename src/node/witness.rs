@@ -59,7 +59,7 @@ impl<J: Jet> WitnessNode<J> {
                 .as_ref()
                 .map(Arc::clone)
                 .map_disconnect(Option::<Arc<_>>::clone)
-                .map_witness(|wit| wit.as_ref().map(Arc::clone)),
+                .map_witness(Option::<Arc<Value>>::clone),
         })
     }
 
@@ -83,7 +83,7 @@ impl<J: Jet> WitnessNode<J> {
                 _: &PostOrderIterItem<&WitnessNode<J>>,
                 wit: &Option<Arc<Value>>,
             ) -> Result<Option<Arc<Value>>, Self::Error> {
-                Ok(wit.as_ref().map(Arc::clone))
+                Ok(Option::<Arc<Value>>::clone(wit))
             }
 
             fn prune_case(
@@ -129,7 +129,7 @@ impl<J: Jet> WitnessNode<J> {
             ) -> Result<WitnessData<J>, Self::Error> {
                 let converted_inner = inner
                     .map(|node| node.cached_data())
-                    .map_witness(|wit| wit.as_ref().map(Arc::clone));
+                    .map_witness(Option::<Arc<Value>>::clone);
                 // This next line does the actual retyping.
                 let mut retyped = WitnessData::from_inner(converted_inner)?;
                 // Sometimes we set the prune bit on nodes without setting that
