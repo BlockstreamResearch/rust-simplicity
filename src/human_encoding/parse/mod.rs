@@ -431,10 +431,10 @@ pub fn parse<J: Jet + 'static>(
         for data in expr.as_ref().post_order_iter::<InternalSharing>() {
             let left = data
                 .left_index
-                .and_then(|idx| converted[idx].as_ref().map(Arc::clone));
+                .and_then(|idx| Option::<Arc<_>>::clone(&converted[idx]));
             let right = data
                 .right_index
-                .and_then(|idx| converted[idx].as_ref().map(Arc::clone));
+                .and_then(|idx| Option::<Arc<_>>::clone(&converted[idx]));
 
             let maybe_inner = match data.node.inner {
                 ResolvedInner::Missing { ref name, .. } => {
@@ -482,11 +482,7 @@ pub fn parse<J: Jet + 'static>(
                 }
             };
 
-            let name = data
-                .node
-                .name
-                .as_ref()
-                .map(Arc::clone)
+            let name = Option::<Arc<str>>::clone(&data.node.name)
                 .unwrap_or_else(|| Arc::from(namer.assign_name(inner.as_ref()).as_str()));
 
             let node = NamedConstructNode::new(

@@ -7,6 +7,7 @@ use std::mem;
 /// [16 bytes is the greatest alignment of any architecture Rust currently supports](https://github.com/rust-lang/rust/blob/61223975d46f794466efa832bc7562b9707ecc46/library/std/src/sys/pal/common/alloc.rs).
 #[repr(align(16))]
 #[derive(Default, Copy, Clone)]
+#[allow(dead_code)]
 pub struct AlignedType([u8; 16]);
 
 /// Minimal alignment which is valid for all C types.
