@@ -477,7 +477,7 @@ impl BitMachine {
         let (mut output_write_frame, output_buffer) = unsafe { get_output_frame(output_width) };
 
         let jet_fn = jet.c_jet_ptr();
-        let c_env = jet.c_jet_env(env);
+        let c_env = J::c_jet_env(env);
         let success = jet_fn(&mut output_write_frame, input_read_frame, c_env);
 
         if !success {

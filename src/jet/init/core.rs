@@ -385,7 +385,7 @@ impl Jet for Core {
     type Environment = ();
     type CJetEnvironment = ();
 
-    fn c_jet_env<'env>(&self, env: &'env Self::Environment) -> &'env Self::CJetEnvironment {
+    fn c_jet_env(env: &Self::Environment) -> &Self::CJetEnvironment {
         env
     }
 

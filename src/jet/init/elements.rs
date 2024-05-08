@@ -483,7 +483,7 @@ impl Jet for Elements {
     type Environment = ElementsEnv<std::sync::Arc<elements::Transaction>>;
     type CJetEnvironment = CElementsTxEnv;
 
-    fn c_jet_env<'env>(&self, env: &'env Self::Environment) -> &'env Self::CJetEnvironment {
+    fn c_jet_env(env: &Self::Environment) -> &Self::CJetEnvironment {
         env.c_tx_env()
     }
 
