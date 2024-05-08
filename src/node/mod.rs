@@ -74,6 +74,7 @@ mod commit;
 mod construct;
 mod convert;
 mod disconnect;
+mod display;
 mod inner;
 mod redeem;
 mod witness;
@@ -82,6 +83,7 @@ pub use commit::{Commit, CommitData, CommitNode};
 pub use construct::{Construct, ConstructData, ConstructNode};
 pub use convert::{Converter, Hide, SimpleFinalizer};
 pub use disconnect::{Disconnectable, NoDisconnect};
+use display::DisplayExpr;
 pub use inner::Inner;
 pub use redeem::{Redeem, RedeemData, RedeemNode};
 pub use witness::{Witness, WitnessData, WitnessNode};
@@ -638,6 +640,14 @@ impl<N: Marker> Node<N> {
             }));
         }
         Ok(converted.pop().unwrap())
+    }
+
+    /// Display the Simplicity expression as a linear string.
+    ///
+    /// The linear string has no sharing and may be **exponentially larger**
+    /// than the originally shared expression!
+    pub fn display_expr(&self) -> DisplayExpr<N> {
+        DisplayExpr::from(self)
     }
 }
 
