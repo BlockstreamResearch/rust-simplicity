@@ -3,6 +3,7 @@
 use bitcoin::absolute;
 
 /// Environment for Bitcoin Simplicity
+#[derive(Debug)]
 pub struct BitcoinEnv {
     pub tx: bitcoin::Transaction,
 }
