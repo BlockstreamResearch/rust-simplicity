@@ -149,8 +149,8 @@ impl<'a> DagLike for &'a Final {
 }
 
 impl Final {
-    /// (Non-public) constructor for the final data of the unit type
-    pub(crate) fn unit() -> Arc<Self> {
+    /// Create the unit type.
+    pub fn unit() -> Arc<Self> {
         Arc::new(Final {
             bound: CompleteBound::Unit,
             bit_width: 0,
@@ -163,8 +163,8 @@ impl Final {
         super::precomputed::nth_power_of_2(n).final_data().unwrap()
     }
 
-    /// (Non-public) constructor for the final data of a sum type
-    pub(crate) fn sum(left: Arc<Self>, right: Arc<Self>) -> Arc<Self> {
+    /// Create the sum of the given `left` and `right` types.
+    pub fn sum(left: Arc<Self>, right: Arc<Self>) -> Arc<Self> {
         Arc::new(Final {
             tmr: Tmr::sum(left.tmr, right.tmr),
             bit_width: 1 + cmp::max(left.bit_width, right.bit_width),
@@ -172,8 +172,8 @@ impl Final {
         })
     }
 
-    /// (Non-public) constructor for the final data of a product type
-    pub(crate) fn product(left: Arc<Self>, right: Arc<Self>) -> Arc<Self> {
+    /// Create the product of the given `left` and `right` types.
+    pub fn product(left: Arc<Self>, right: Arc<Self>) -> Arc<Self> {
         Arc::new(Final {
             tmr: Tmr::product(left.tmr, right.tmr),
             bit_width: left.bit_width + right.bit_width,
