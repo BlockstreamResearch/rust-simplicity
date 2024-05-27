@@ -12,6 +12,7 @@
 //!
 
 use crate::dag::{Dag, DagLike, NoSharing};
+use crate::types::{Bound, Type};
 use crate::Tmr;
 
 use std::sync::Arc;
@@ -223,6 +224,12 @@ impl Final {
             CompleteBound::Product(left, right) => Some((left.as_ref(), right.as_ref())),
             _ => None,
         }
+    }
+}
+
+impl From<Arc<Final>> for Type {
+    fn from(value: Arc<Final>) -> Self {
+        Type::from(Bound::Complete(value))
     }
 }
 
