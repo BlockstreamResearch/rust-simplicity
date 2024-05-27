@@ -158,7 +158,9 @@ impl Final {
         })
     }
 
-    /// Return a precomputed copy of 2^(2^n), for given n.
+    /// Create the type `2^(2^n)` for the given `n`.
+    ///
+    /// The type is precomputed and fast to access.
     pub fn two_two_n(n: usize) -> Arc<Self> {
         super::precomputed::nth_power_of_2(n).final_data().unwrap()
     }
