@@ -371,24 +371,26 @@ impl Type {
         Type::from(Bound::free(name))
     }
 
-    /// Return a unit type.
+    /// Create the unit type.
     pub fn unit() -> Self {
         Type::from(Bound::unit())
     }
 
-    /// Return a precomputed copy of 2^(2^n), for given n.
+    /// Create the type `2^(2^n)` for the given `n`.
+    ///
+    /// The type is precomputed and fast to access.
     pub fn two_two_n(n: usize) -> Self {
         precomputed::nth_power_of_2(n)
     }
 
-    /// Return the sum of the given two types.
-    pub fn sum(a: Self, b: Self) -> Self {
-        Type::from(Bound::sum(a, b))
+    /// Create the sum of the given `left` and `right` types.
+    pub fn sum(left: Self, right: Self) -> Self {
+        Type::from(Bound::sum(left, right))
     }
 
-    /// Return the product of the given two types.
-    pub fn product(a: Self, b: Self) -> Self {
-        Type::from(Bound::product(a, b))
+    /// Create the product of the given `left` and `right` types.
+    pub fn product(left: Self, right: Self) -> Self {
+        Type::from(Bound::product(left, right))
     }
 
     /// Clones the `Type`.
