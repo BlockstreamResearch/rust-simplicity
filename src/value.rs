@@ -14,36 +14,29 @@ use std::fmt;
 use std::hash::Hash;
 use std::sync::Arc;
 
-/// Value of some type.
-///
-/// The _unit value_ is the only value of the _unit type_.
-/// This is the basis for everything we are doing.
-/// Because there is only a single unit value, there is no information contained in it.
-/// Instead, we wrap unit values in sum and product values to encode information.
-///
-/// A _sum value_ wraps another value.
-/// The _left sum value_ `L(a)` wraps a value `a` from the _left type_ `A`.
-/// The _right sum value_ `R(b)` wraps a value `b` from the _right type_ `B`.
-/// The type of the sum value is the _sum type_ `A + B` of the left type and the right type.
-///
-/// We represent the false bit as a left value that wraps a unit value.
-/// The true bit is represented as a right value that wraps a unit value.
-///
-/// A _product value_ `(a, b)` wraps two values:
-/// a value `a` from the _left type_ `A` and a value `b` from the _right type_ `B`.
-/// The type of the product value is the _product type_ `A × B` of the left type and the right type.
-///
-/// We represent bit strings (tuples of bits) as trees of nested product values
-/// that have bit values (sum values wrapping the unit value) at their leaves.
+/// A Simplicity value.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Value {
-    /// Unit value
+    /// The unit value.
+    ///
+    /// The unit value is the only value of the unit type `1`.
+    /// It must be wrapped in left and right values to encode information.
     Unit,
-    /// Sum value that wraps a left value
+    /// A left value.
+    ///
+    /// A left value wraps a value of type `A` and its type is the sum `A + B` for some `B`.
+    /// A `false` bit encodes that a left value is wrapped.
     Left(Arc<Value>),
-    /// Sum value that wraps a right value
+    /// A right value.
+    ///
+    /// A right value wraps a value of type `B` and its type is the sum `A + B` for some `A`.
+    /// A `true` bit encodes that a right value is wrapped.
     Right(Arc<Value>),
-    /// Product value that wraps a left and a right value
+    /// A product value.
+    ///
+    /// A product value wraps a left value of type `A` and a right value of type `B`,
+    /// and its type is the product `A × B`.
+    /// A product value combines the information of its inner values.
     Product(Arc<Value>, Arc<Value>),
 }
 
@@ -69,17 +62,17 @@ impl Value {
         Arc::new(Self::Unit)
     }
 
-    /// Create a sum value that wraps a left value.
-    pub fn left(left: Arc<Self>) -> Arc<Self> {
-        Arc::new(Value::Left(left))
+    /// Create a left value that wraps the given `inner` value.
+    pub fn left(inner: Arc<Self>) -> Arc<Self> {
+        Arc::new(Value::Left(inner))
     }
 
-    /// Create a sum value that wraps a right value.
-    pub fn right(right: Arc<Self>) -> Arc<Self> {
-        Arc::new(Value::Right(right))
+    /// Create a right value that wraps the given `inner` value.
+    pub fn right(inner: Arc<Self>) -> Arc<Self> {
+        Arc::new(Value::Right(inner))
     }
 
-    /// Create a product value that wraps a left and a right value.
+    /// Create a product value that wraps the given `left` and `right` values.
     pub fn product(left: Arc<Self>, right: Arc<Self>) -> Arc<Self> {
         Arc::new(Value::Product(left, right))
     }
