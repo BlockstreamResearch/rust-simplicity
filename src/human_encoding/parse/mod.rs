@@ -136,6 +136,27 @@ struct ResolvedExpression<J: Jet> {
     in_degree: AtomicUsize,
 }
 
+impl<'a, J: Jet> DagLike for &'a ResolvedExpression<J> {
+    type Node = ResolvedExpression<J>;
+    fn data(&self) -> &ResolvedExpression<J> {
+        self
+    }
+
+    fn as_dag_node(&self) -> Dag<Self> {
+        match self.inner {
+            ResolvedInner::Missing { .. } | ResolvedInner::NoExpr { .. } => Dag::Nullary,
+            ResolvedInner::Reference(ref child) => Dag::Unary(child),
+            ResolvedInner::AssertL(ref left, ResolvedCmr::Expr(ref right))
+            | ResolvedInner::AssertR(ResolvedCmr::Expr(ref left), ref right) => {
+                Dag::Binary(left, right)
+            }
+            ResolvedInner::AssertL(ref child, ResolvedCmr::Literal)
+            | ResolvedInner::AssertR(ResolvedCmr::Literal, ref child) => Dag::Unary(child),
+            ResolvedInner::Inline(ref inner) => inner.as_dag().map(|node| node),
+        }
+    }
+}
+
 enum ResolvedCmr<J: Jet> {
     Expr(Arc<ResolvedExpression<J>>),
     Literal,
@@ -398,27 +419,6 @@ pub fn parse<J: Jet + 'static>(
     drop(unresolved_map);
 
     // ** Step 3: convert each DAG of names/expressions into a DAG of NamedNodes.
-    impl<'a, J: Jet> DagLike for &'a ResolvedExpression<J> {
-        type Node = ResolvedExpression<J>;
-        fn data(&self) -> &ResolvedExpression<J> {
-            self
-        }
-
-        fn as_dag_node(&self) -> Dag<Self> {
-            match self.inner {
-                ResolvedInner::Missing { .. } | ResolvedInner::NoExpr { .. } => Dag::Nullary,
-                ResolvedInner::Reference(ref child) => Dag::Unary(child),
-                ResolvedInner::AssertL(ref left, ResolvedCmr::Expr(ref right))
-                | ResolvedInner::AssertR(ResolvedCmr::Expr(ref left), ref right) => {
-                    Dag::Binary(left, right)
-                }
-                ResolvedInner::AssertL(ref child, ResolvedCmr::Literal)
-                | ResolvedInner::AssertR(ResolvedCmr::Literal, ref child) => Dag::Unary(child),
-                ResolvedInner::Inline(ref inner) => inner.as_dag().map(|node| node),
-            }
-        }
-    }
-
     let mut roots = HashMap::<Arc<str>, Arc<NamedCommitNode<J>>>::new();
     for (name, expr) in &resolved_map {
         if expr.in_degree.load(Ordering::SeqCst) > 0 {
