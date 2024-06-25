@@ -5,7 +5,8 @@ use hashes::{sha256, Hash};
 use crate::ffi::sha256::CSha256Midstate;
 use crate::ffi::{c_size_t, c_uchar, c_uint, c_uint_fast32_t};
 
-/// Documentation of CRawInputData/CRawOutputData/CRawTapData/CRaw
+/// Documentation of RawInputData/RawOutputData/RawTapData/Raw.
+///
 /// Data structure for holding data that CTransaction points to.
 ///
 /// Why do we this special data structure?
@@ -32,7 +33,7 @@ pub struct CRawBuffer {
     pub len: u32,
 }
 
-/// Similar to [`CRawOutputData`], for inputs.
+/// Similar to [`RawOutputData`], for inputs.
 #[derive(Debug)]
 pub struct RawInputData {
     pub annex: Option<Vec<c_uchar>>,
@@ -46,7 +47,7 @@ pub struct RawInputData {
     pub value: Vec<c_uchar>,
 }
 
-/// Similar to [`CRawOutputData`], but for transaction
+/// Similar to [`RawOutputData`], but for transaction
 #[derive(Debug)]
 pub struct RawTransactionData {
     pub inputs: Vec<RawInputData>,

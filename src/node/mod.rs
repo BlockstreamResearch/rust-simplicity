@@ -12,7 +12,7 @@
 //!
 //! There are three main node types:
 //!
-//! 1. [`ReedemNode`] represents a Simplicity node as it exists on the blockchain.
+//! 1. [`crate::RedeemNode`] represents a Simplicity node as it exists on the blockchain.
 //!    Every witness node is populated with a correctly-typed [`Value`], every
 //!    disconnect node has a child, every non-executed branch of a `case` combinator
 //!    is pruned, and there is nothing you can do to modify the expression.

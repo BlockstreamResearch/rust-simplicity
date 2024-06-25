@@ -222,7 +222,7 @@ pub struct WitnessData<J> {
     arrow: Arrow,
     must_prune: bool,
     /// This isn't really necessary, but it helps type inference if every
-    /// struct has a <J> parameter, since it forces the choice of jets to
+    /// struct has a \<J\> parameter, since it forces the choice of jets to
     /// be consistent without the user needing to specify it too many times.
     phantom: PhantomData<J>,
 }

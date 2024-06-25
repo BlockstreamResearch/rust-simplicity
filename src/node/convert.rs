@@ -27,7 +27,7 @@ use super::{
 use std::sync::Arc;
 
 /// A decision about which, if any, child branches of a `case` combinator to hide
-/// during a [`Node::convert_hiding`] conversion
+/// during a [`Node::convert`] conversion
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub enum Hide {
     Neither,

@@ -67,7 +67,7 @@ impl<J: Jet> ConstructNode<J> {
     /// Also sets the source and target type of this node to unit. This is almost
     /// certainly what you want, since the resulting `CommitNode` cannot be further
     /// composed, and needs to be 1->1 to go on-chain. But if you don't, call
-    /// [`Self::finalize_types_without_fixing`] instead.
+    /// [`Self::finalize_types_non_program`] instead.
     pub fn finalize_types(&self) -> Result<Arc<CommitNode<J>>, crate::Error> {
         self.set_arrow_to_program()?;
         self.finalize_types_non_program()
@@ -125,7 +125,7 @@ impl<J: Jet> ConstructNode<J> {
     /// This means, the program simply has no witness during commitment,
     /// or the witness is provided by other means.
     ///
-    /// If the serialization contains the witness data, then use [`RedeemNode::decode()`].
+    /// If the serialization contains the witness data, then use [`crate::RedeemNode::decode()`].
     pub fn decode<I: Iterator<Item = u8>>(
         bits: &mut BitIter<I>,
     ) -> Result<Arc<Self>, crate::decode::Error> {
@@ -144,7 +144,7 @@ impl<J: Jet> ConstructNode<J> {
 pub struct ConstructData<J> {
     arrow: Arrow,
     /// This isn't really necessary, but it helps type inference if every
-    /// struct has a <J> parameter, since it forces the choice of jets to
+    /// struct has a \<J\> parameter, since it forces the choice of jets to
     /// be consistent without the user needing to specify it too many times.
     phantom: PhantomData<J>,
 }

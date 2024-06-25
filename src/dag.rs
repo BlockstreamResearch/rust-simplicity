@@ -529,7 +529,7 @@ impl<D: DagLike> PostOrderIterItem<SwapChildren<D>> {
     /// When iterating in right-to-left mode using the [`SwapChildren`] adaptor,
     /// use this method to correct the child indices. See documentation on
     /// [`SwapChildren`] or [`DagLike::rtl_post_order_iter`].
-    fn unswap(mut self) -> PostOrderIterItem<D> {
+    pub fn unswap(mut self) -> PostOrderIterItem<D> {
         if matches!(self.node.as_dag_node(), Dag::Binary(..)) {
             std::mem::swap(&mut self.left_index, &mut self.right_index);
         }
