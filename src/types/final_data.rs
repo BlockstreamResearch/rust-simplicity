@@ -77,7 +77,7 @@ impl fmt::Debug for Final {
 impl fmt::Display for Final {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut skipping: Option<Tmr> = None;
-        for data in self.verbose_pre_order_iter::<NoSharing>() {
+        for data in self.verbose_pre_order_iter::<NoSharing>(None) {
             if let Some(skip) = skipping {
                 if data.is_complete && data.node.tmr == skip {
                     skipping = None;
