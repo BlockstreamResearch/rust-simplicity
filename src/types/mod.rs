@@ -465,6 +465,13 @@ impl Type {
 
     /// Attempts to finalize the type. Returns its TMR on success.
     pub fn finalize(&self) -> Result<Arc<Final>, Error> {
+        /// Helper type for the occurs-check.
+        enum OccursCheckStack {
+            Iterate(Arc<Bound>),
+            Complete(*const Bound),
+        }
+
+        // Done with sharing tracker. Actual algorithm follows.
         let root = self.bound.root();
         let bound = root.get();
         if let Bound::Complete(ref data) = *bound {
@@ -472,16 +479,37 @@ impl Type {
         }
 
         // First, do occurs-check to ensure that we have no infinitely sized types.
-        let mut occurs_check = HashSet::new();
-        for data in Arc::clone(&bound).verbose_pre_order_iter::<NoSharing>(None) {
-            if data.is_complete {
-                occurs_check.remove(&(data.node.as_ref() as *const _));
-            } else if data.n_children_yielded == 0
-                && !occurs_check.insert(data.node.as_ref() as *const _)
-            {
+        let mut stack = vec![OccursCheckStack::Iterate(Arc::clone(&bound))];
+        let mut in_progress = HashSet::new();
+        let mut completed = HashSet::new();
+        while let Some(top) = stack.pop() {
+            let bound = match top {
+                OccursCheckStack::Complete(ptr) => {
+                    in_progress.remove(&ptr);
+                    completed.insert(ptr);
+                    continue;
+                }
+                OccursCheckStack::Iterate(b) => b,
+            };
+
+            let ptr = bound.as_ref() as *const _;
+            if completed.contains(&ptr) {
+                // Once we have iterated through a type, we don't need to check it again.
+                // Without this shortcut the occurs-check would take exponential time.
+                continue;
+            }
+            if !in_progress.insert(ptr) {
                 return Err(Error::OccursCheck {
                     infinite_bound: bound,
                 });
+            }
+
+            stack.push(OccursCheckStack::Complete(ptr));
+            if let Some(child) = bound.right_child() {
+                stack.push(OccursCheckStack::Iterate(child));
+            }
+            if let Some(child) = bound.left_child() {
+                stack.push(OccursCheckStack::Iterate(child));
             }
         }
 
