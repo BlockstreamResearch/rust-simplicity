@@ -538,4 +538,18 @@ mod tests {
         // I created this unit test by hand
         assert_program_not_deserializable::<Core>(&[0xa9, 0x48, 0x00], &Error::NotInCanonicalOrder);
     }
+
+    #[test]
+    fn regression_177_1() {
+        // `case (drop iden) iden` from upstream occurs-check test. Has an infinitely sized
+        // input type. Will fail trying to unify the input type with the unit type *before*
+        // doing the occurs check, putting an infinitely-sized type into the error variant.
+        // Check that this error type can be printed in finite space/time.
+        let mut iter = BitIter::from([0xc1, 0x07, 0x20, 0x30].iter().copied());
+        match CommitNode::<Core>::decode(&mut iter) {
+            Err(crate::Error::Type(e @ types::Error::Bind { .. })) => e.to_string(),
+            Ok(_) => panic!("program should have failed"),
+            Err(_) => panic!("program should have failed with type unification error"),
+        };
+    }
 }
