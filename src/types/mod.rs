@@ -294,10 +294,18 @@ impl Bound {
     }
 }
 
+const MAX_DISPLAY_DEPTH: usize = 64;
+
 impl fmt::Debug for Bound {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let arc = Arc::new(self.shallow_clone());
-        for data in arc.verbose_pre_order_iter::<NoSharing>() {
+        for data in arc.verbose_pre_order_iter::<NoSharing>(Some(MAX_DISPLAY_DEPTH)) {
+            if data.depth == MAX_DISPLAY_DEPTH {
+                if data.n_children_yielded == 0 {
+                    f.write_str("...")?;
+                }
+                continue;
+            }
             match (&*data.node, data.n_children_yielded) {
                 (Bound::Free(ref s), _) => f.write_str(s)?,
                 (Bound::Complete(ref comp), _) => fmt::Debug::fmt(comp, f)?,
@@ -314,13 +322,19 @@ impl fmt::Debug for Bound {
 impl fmt::Display for Bound {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let arc = Arc::new(self.shallow_clone());
-        for data in arc.verbose_pre_order_iter::<NoSharing>() {
+        for data in arc.verbose_pre_order_iter::<NoSharing>(Some(MAX_DISPLAY_DEPTH)) {
+            if data.depth == MAX_DISPLAY_DEPTH {
+                if data.n_children_yielded == 0 {
+                    f.write_str("...")?;
+                }
+                continue;
+            }
             match (&*data.node, data.n_children_yielded) {
                 (Bound::Free(ref s), _) => f.write_str(s)?,
                 (Bound::Complete(ref comp), _) => fmt::Display::fmt(comp, f)?,
                 (Bound::Sum(..), 0) | (Bound::Product(..), 0) => {
                     if data.index > 0 {
-                        f.write_str("(")?
+                        f.write_str("(")?;
                     }
                 }
                 (Bound::Sum(..), 2) | (Bound::Product(..), 2) => {
@@ -457,7 +471,7 @@ impl Type {
 
         // First, do occurs-check to ensure that we have no infinitely sized types.
         let mut occurs_check = HashSet::new();
-        for data in bound.verbose_pre_order_iter::<NoSharing>() {
+        for data in bound.verbose_pre_order_iter::<NoSharing>(None) {
             if data.is_complete {
                 occurs_check.remove(&(data.node.as_ref() as *const _));
             } else if data.n_children_yielded == 0

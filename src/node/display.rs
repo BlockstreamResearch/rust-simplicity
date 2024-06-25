@@ -46,7 +46,7 @@ where
     &'a Node<M>: DagLike,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for data in self.0.verbose_pre_order_iter::<NoSharing>() {
+        for data in self.0.verbose_pre_order_iter::<NoSharing>(None) {
             match data.n_children_yielded {
                 1 => match data.node.inner() {
                     Inner::Comp(..) => f.write_str("; ")?,

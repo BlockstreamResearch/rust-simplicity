@@ -339,7 +339,7 @@ impl fmt::Debug for Value {
 
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for data in self.verbose_pre_order_iter::<NoSharing>() {
+        for data in self.verbose_pre_order_iter::<NoSharing>(None) {
             match data.node {
                 Value::Unit => {
                     if data.n_children_yielded == 0
