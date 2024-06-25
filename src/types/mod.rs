@@ -103,7 +103,7 @@ pub enum Error {
         hint: &'static str,
     },
     /// A type is recursive (i.e., occurs within itself), violating the "occurs check"
-    OccursCheck,
+    OccursCheck { infinite_bound: Arc<Bound> },
 }
 
 impl fmt::Display for Error {
@@ -131,7 +131,9 @@ impl fmt::Display for Error {
                     type1, type2, hint,
                 )
             }
-            Error::OccursCheck => f.write_str("detected infinitely-sized type"),
+            Error::OccursCheck { infinite_bound } => {
+                write!(f, "infinitely-sized type {}", infinite_bound,)
+            }
         }
     }
 }
@@ -471,13 +473,15 @@ impl Type {
 
         // First, do occurs-check to ensure that we have no infinitely sized types.
         let mut occurs_check = HashSet::new();
-        for data in bound.verbose_pre_order_iter::<NoSharing>(None) {
+        for data in Arc::clone(&bound).verbose_pre_order_iter::<NoSharing>(None) {
             if data.is_complete {
                 occurs_check.remove(&(data.node.as_ref() as *const _));
             } else if data.n_children_yielded == 0
                 && !occurs_check.insert(data.node.as_ref() as *const _)
             {
-                return Err(Error::OccursCheck);
+                return Err(Error::OccursCheck {
+                    infinite_bound: bound,
+                });
             }
         }
 
