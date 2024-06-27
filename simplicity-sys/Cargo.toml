@@ -17,3 +17,6 @@ hashes = { package = "bitcoin_hashes", version = "0.13" }
 
 [features]
 test-utils = []
+
+[lints.rust]
+unexpected_cfgs = { level = "deny", check-cfg = ['cfg(fuzzing)'] }

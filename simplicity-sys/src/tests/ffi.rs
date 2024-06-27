@@ -281,7 +281,7 @@ pub mod dag {
         /// bitstring
         pub fn computeWordCMR(value: *const CBitstring, n: c_size_t) -> CSha256Midstate;
 
-        /// Given a well-formed dag[i + 1], set the `cmr` field of every node in `dag`
+        /// Given a well-formed dag\[i + 1\], set the `cmr` field of every node in `dag`
         pub fn computeCommitmentMerkleRoot(dag: *mut CDagNode, i: c_size_t);
 
         /// Given a well-typed dag representing a Simplicity expression, compute
@@ -360,7 +360,7 @@ pub mod eval {
     pub const CHECK_ALL: c_uchar = 0xFF;
 
     extern "C" {
-        /// Run the Bit Machine on the well-typed Simplicity expression 'dag[len]'.
+        /// Run the Bit Machine on the well-typed Simplicity expression 'dag\[len\]'.
         pub fn evalTCOExpression(
             anti_dos_checks: c_uchar,
             output: *mut UWORD,
@@ -389,7 +389,7 @@ pub mod eval {
         ) -> SimplicityErr;
     }
 
-    /// Run the Bit Machine on the well-typed Simplicity program 'dag[len]'.
+    /// Run the Bit Machine on the well-typed Simplicity program 'dag\[len\]'.
     ///
     /// Defined insine in eval.h; since it is a 1-liner we just copy it into Rust.
     ///

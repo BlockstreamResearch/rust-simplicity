@@ -2,7 +2,7 @@
 
 //! The Simplicity Human-Readable Encoding
 //!
-//! This module provides the ability to decode and encode [`crate::NamedCommitNode`]s
+//! This module provides the ability to decode and encode [`NamedCommitNode`]s
 //! in a human-readable format.
 //!
 

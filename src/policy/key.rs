@@ -40,9 +40,9 @@ where
     P: SimplicityKey,
     Q: SimplicityKey,
 {
-    /// Translates public keys [`P`] → [`Q`].
+    /// Translates public keys `P` → `Q`.
     fn pk(&mut self, pk: &P) -> Result<Q, E>;
 
-    /// Translates SHA 256 hashes [`P::Sha256`] → [`Q::Sha256`].
+    /// Translates SHA 256 hashes `P::Sha256` → `Q::Sha256`.
     fn sha256(&mut self, sha256: &P::Sha256) -> Result<Q::Sha256, E>;
 }

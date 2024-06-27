@@ -289,12 +289,12 @@ impl<J: Jet> NamedConstructNode<J> {
         self.cached_data().internal.arrow()
     }
 
-    /// Finalizes the types of the underlying [`ConstructNode`].
+    /// Finalizes the types of the underlying [`crate::ConstructNode`].
     pub fn finalize_types_main(&self) -> Result<Arc<NamedCommitNode<J>>, ErrorSet> {
         self.finalize_types_inner(true)
     }
 
-    /// Finalizes the types of the underlying [`ConstructNode`], without setting
+    /// Finalizes the types of the underlying [`crate::ConstructNode`], without setting
     /// the root node's arrow to 1->1.
     pub fn finalize_types_non_main(&self) -> Result<Arc<NamedCommitNode<J>>, ErrorSet> {
         self.finalize_types_inner(false)
