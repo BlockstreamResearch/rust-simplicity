@@ -253,75 +253,108 @@ impl Cmr {
     ];
 }
 
-impl CoreConstructible for Cmr {
+/// Wrapper around a CMR which allows it to be constructed with the
+/// `*Constructible*` traits, allowing CMRs to be computed using the
+/// same generic construction code that nodes are.
+pub struct ConstructibleCmr {
+    pub cmr: Cmr,
+}
+
+impl CoreConstructible for ConstructibleCmr {
     fn iden() -> Self {
-        Cmr::iden()
+        ConstructibleCmr { cmr: Cmr::iden() }
     }
 
     fn unit() -> Self {
-        Cmr::unit()
+        ConstructibleCmr { cmr: Cmr::unit() }
     }
 
     fn injl(child: &Self) -> Self {
-        Cmr::injl(*child)
+        ConstructibleCmr {
+            cmr: Cmr::injl(child.cmr),
+        }
     }
 
     fn injr(child: &Self) -> Self {
-        Cmr::injl(*child)
+        ConstructibleCmr {
+            cmr: Cmr::injl(child.cmr),
+        }
     }
 
     fn take(child: &Self) -> Self {
-        Cmr::take(*child)
+        ConstructibleCmr {
+            cmr: Cmr::take(child.cmr),
+        }
     }
 
     fn drop_(child: &Self) -> Self {
-        Cmr::drop(*child)
+        ConstructibleCmr {
+            cmr: Cmr::drop(child.cmr),
+        }
     }
 
     fn comp(left: &Self, right: &Self) -> Result<Self, Error> {
-        Ok(Cmr::comp(*left, *right))
+        Ok(ConstructibleCmr {
+            cmr: Cmr::comp(left.cmr, right.cmr),
+        })
     }
 
     fn case(left: &Self, right: &Self) -> Result<Self, Error> {
-        Ok(Cmr::case(*left, *right))
+        Ok(ConstructibleCmr {
+            cmr: Cmr::case(left.cmr, right.cmr),
+        })
     }
 
     fn assertl(left: &Self, right: Cmr) -> Result<Self, Error> {
-        Ok(Cmr::case(*left, right))
+        Ok(ConstructibleCmr {
+            cmr: Cmr::case(left.cmr, right),
+        })
     }
 
     fn assertr(left: Cmr, right: &Self) -> Result<Self, Error> {
-        Ok(Cmr::case(left, *right))
+        Ok(ConstructibleCmr {
+            cmr: Cmr::case(left, right.cmr),
+        })
     }
 
     fn pair(left: &Self, right: &Self) -> Result<Self, Error> {
-        Ok(Cmr::pair(*left, *right))
+        Ok(ConstructibleCmr {
+            cmr: Cmr::pair(left.cmr, right.cmr),
+        })
     }
 
     fn fail(entropy: FailEntropy) -> Self {
-        Cmr::fail(entropy)
+        ConstructibleCmr {
+            cmr: Cmr::fail(entropy),
+        }
     }
 
     fn const_word(word: Arc<Value>) -> Self {
-        Cmr::const_word(&word)
+        ConstructibleCmr {
+            cmr: Cmr::const_word(&word),
+        }
     }
 }
 
-impl<X> DisconnectConstructible<X> for Cmr {
+impl<X> DisconnectConstructible<X> for ConstructibleCmr {
     fn disconnect(left: &Self, _right: &X) -> Result<Self, Error> {
-        Ok(Cmr::disconnect(*left))
+        Ok(ConstructibleCmr {
+            cmr: Cmr::disconnect(left.cmr),
+        })
     }
 }
 
-impl<W> WitnessConstructible<W> for Cmr {
+impl<W> WitnessConstructible<W> for ConstructibleCmr {
     fn witness(_witness: W) -> Self {
-        Cmr::witness()
+        ConstructibleCmr {
+            cmr: Cmr::witness(),
+        }
     }
 }
 
-impl<J: Jet> JetConstructible<J> for Cmr {
+impl<J: Jet> JetConstructible<J> for ConstructibleCmr {
     fn jet(jet: J) -> Self {
-        jet.cmr()
+        ConstructibleCmr { cmr: jet.cmr() }
     }
 }
 
