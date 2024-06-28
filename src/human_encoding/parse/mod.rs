@@ -7,7 +7,7 @@ mod ast;
 use crate::dag::{Dag, DagLike, InternalSharing};
 use crate::jet::Jet;
 use crate::node;
-use crate::types::Type;
+use crate::types::{self, Type};
 use std::collections::HashMap;
 use std::mem;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -419,6 +419,7 @@ pub fn parse<J: Jet + 'static>(
     drop(unresolved_map);
 
     // ** Step 3: convert each DAG of names/expressions into a DAG of NamedNodes.
+    let inference_context = types::Context::new();
     let mut roots = HashMap::<Arc<str>, Arc<NamedCommitNode<J>>>::new();
     for (name, expr) in &resolved_map {
         if expr.in_degree.load(Ordering::SeqCst) > 0 {
@@ -485,6 +486,7 @@ pub fn parse<J: Jet + 'static>(
                 .unwrap_or_else(|| Arc::from(namer.assign_name(inner.as_ref()).as_str()));
 
             let node = NamedConstructNode::new(
+                &inference_context,
                 Arc::clone(&name),
                 data.node.position,
                 Arc::clone(&data.node.user_source_types),

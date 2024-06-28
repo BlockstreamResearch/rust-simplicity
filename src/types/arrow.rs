@@ -18,19 +18,30 @@ use crate::node::{
     CoreConstructible, DisconnectConstructible, JetConstructible, NoDisconnect,
     WitnessConstructible,
 };
-use crate::types::{Bound, Error, Final, Type};
+use crate::types::{Bound, Context, Error, Final, Type};
 use crate::{jet::Jet, Value};
 
 use super::variable::new_name;
 
 /// A container for an expression's source and target types, whether or not
 /// these types are complete.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Arrow {
     /// The source type
     pub source: Type,
     /// The target type
     pub target: Type,
+    /// Type inference context for both types.
+    pub inference_context: Context,
+}
+
+// Having `Clone` makes it easier to derive Clone on structures
+// that contain Arrow, even though it is potentially confusing
+// to use `.clone` to mean a shallow clone.
+impl Clone for Arrow {
+    fn clone(&self) -> Self {
+        self.shallow_clone()
+    }
 }
 
 impl fmt::Display for Arrow {
@@ -79,6 +90,7 @@ impl Arrow {
         Arrow {
             source: self.source.shallow_clone(),
             target: self.target.shallow_clone(),
+            inference_context: self.inference_context.shallow_clone(),
         }
     }
 
@@ -88,9 +100,20 @@ impl Arrow {
     /// an assertion, which for type-inference purposes means there are no bounds
     /// on the missing child.
     ///
-    /// If neither child is provided, this function will not raise an error; it
-    /// is the responsibility of the caller to detect this case and error elsewhere.
+    /// # Panics
+    ///
+    /// If neither child is provided, this function will panic.
     fn for_case(lchild_arrow: Option<&Arrow>, rchild_arrow: Option<&Arrow>) -> Result<Self, Error> {
+        if let (Some(left), Some(right)) = (lchild_arrow, rchild_arrow) {
+            left.inference_context.check_eq(&right.inference_context)?;
+        }
+
+        let inference_context = match (lchild_arrow, rchild_arrow) {
+            (Some(left), _) => left.inference_context.shallow_clone(),
+            (_, Some(right)) => right.inference_context.shallow_clone(),
+            (None, None) => panic!("called `for_case` with no children"),
+        };
+
         let a = Type::free(new_name("case_a_"));
         let b = Type::free(new_name("case_b_"));
         let c = Type::free(new_name("case_c_"));
@@ -120,11 +143,16 @@ impl Arrow {
         Ok(Arrow {
             source: prod_sum_a_b_c,
             target,
+            inference_context,
         })
     }
 
     /// Helper function to combine code for the two `DisconnectConstructible` impls for [`Arrow`].
     fn for_disconnect(lchild_arrow: &Arrow, rchild_arrow: &Arrow) -> Result<Self, Error> {
+        lchild_arrow
+            .inference_context
+            .check_eq(&rchild_arrow.inference_context)?;
+
         let a = Type::free(new_name("disconnect_a_"));
         let b = Type::free(new_name("disconnect_b_"));
         let c = rchild_arrow.source.shallow_clone();
@@ -146,12 +174,13 @@ impl Arrow {
         Ok(Arrow {
             source: a,
             target: prod_b_d,
+            inference_context: lchild_arrow.inference_context.shallow_clone(),
         })
     }
 }
 
 impl CoreConstructible for Arrow {
-    fn iden() -> Self {
+    fn iden(inference_context: &Context) -> Self {
         // Throughout this module, when two types are the same, we reuse a
         // pointer to them rather than creating distinct types and unifying
         // them. This theoretically could lead to more confusing errors for
@@ -161,13 +190,15 @@ impl CoreConstructible for Arrow {
         Arrow {
             source: new.shallow_clone(),
             target: new,
+            inference_context: inference_context.shallow_clone(),
         }
     }
 
-    fn unit() -> Self {
+    fn unit(inference_context: &Context) -> Self {
         Arrow {
             source: Type::free(new_name("unit_src_")),
             target: Type::unit(),
+            inference_context: inference_context.shallow_clone(),
         }
     }
 
@@ -178,6 +209,7 @@ impl CoreConstructible for Arrow {
                 child.target.shallow_clone(),
                 Type::free(new_name("injl_tgt_")),
             ),
+            inference_context: child.inference_context.shallow_clone(),
         }
     }
 
@@ -188,6 +220,7 @@ impl CoreConstructible for Arrow {
                 Type::free(new_name("injr_tgt_")),
                 child.target.shallow_clone(),
             ),
+            inference_context: child.inference_context.shallow_clone(),
         }
     }
 
@@ -198,6 +231,7 @@ impl CoreConstructible for Arrow {
                 Type::free(new_name("take_src_")),
             ),
             target: child.target.shallow_clone(),
+            inference_context: child.inference_context.shallow_clone(),
         }
     }
 
@@ -208,15 +242,18 @@ impl CoreConstructible for Arrow {
                 child.source.shallow_clone(),
             ),
             target: child.target.shallow_clone(),
+            inference_context: child.inference_context.shallow_clone(),
         }
     }
 
     fn comp(left: &Self, right: &Self) -> Result<Self, Error> {
+        left.inference_context.check_eq(&right.inference_context)?;
         left.target
             .unify(&right.source, "comp combinator: left target = right source")?;
         Ok(Arrow {
             source: left.source.shallow_clone(),
             target: right.target.shallow_clone(),
+            inference_context: left.inference_context.shallow_clone(),
         })
     }
 
@@ -233,22 +270,25 @@ impl CoreConstructible for Arrow {
     }
 
     fn pair(left: &Self, right: &Self) -> Result<Self, Error> {
+        left.inference_context.check_eq(&right.inference_context)?;
         left.source
             .unify(&right.source, "pair combinator: left source = right source")?;
         Ok(Arrow {
             source: left.source.shallow_clone(),
             target: Type::product(left.target.shallow_clone(), right.target.shallow_clone()),
+            inference_context: left.inference_context.shallow_clone(),
         })
     }
 
-    fn fail(_: crate::FailEntropy) -> Self {
+    fn fail(inference_context: &Context, _: crate::FailEntropy) -> Self {
         Arrow {
             source: Type::free(new_name("fail_src_")),
             target: Type::free(new_name("fail_tgt_")),
+            inference_context: inference_context.shallow_clone(),
         }
     }
 
-    fn const_word(word: Arc<Value>) -> Self {
+    fn const_word(inference_context: &Context, word: Arc<Value>) -> Self {
         let len = word.len();
         assert!(len > 0, "Words must not be the empty bitstring");
         assert!(len.is_power_of_two());
@@ -256,7 +296,12 @@ impl CoreConstructible for Arrow {
         Arrow {
             source: Type::unit(),
             target: Type::two_two_n(depth as usize),
+            inference_context: inference_context.shallow_clone(),
         }
+    }
+
+    fn inference_context(&self) -> &Context {
+        &self.inference_context
     }
 }
 
@@ -273,6 +318,7 @@ impl DisconnectConstructible<NoDisconnect> for Arrow {
             &Arrow {
                 source: Type::free("disc_src".into()),
                 target: Type::free("disc_tgt".into()),
+                inference_context: left.inference_context.shallow_clone(),
             },
         )
     }
@@ -288,19 +334,21 @@ impl DisconnectConstructible<Option<&Arrow>> for Arrow {
 }
 
 impl<J: Jet> JetConstructible<J> for Arrow {
-    fn jet(jet: J) -> Self {
+    fn jet(inference_context: &Context, jet: J) -> Self {
         Arrow {
             source: jet.source_ty().to_type(),
             target: jet.target_ty().to_type(),
+            inference_context: inference_context.shallow_clone(),
         }
     }
 }
 
 impl<W> WitnessConstructible<W> for Arrow {
-    fn witness(_: W) -> Self {
+    fn witness(inference_context: &Context, _: W) -> Self {
         Arrow {
             source: Type::free(new_name("witness_src_")),
             target: Type::free(new_name("witness_tgt_")),
+            inference_context: inference_context.shallow_clone(),
         }
     }
 }

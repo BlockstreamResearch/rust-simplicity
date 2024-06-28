@@ -79,11 +79,13 @@ use std::fmt;
 use std::sync::Arc;
 
 pub mod arrow;
+mod context;
 mod final_data;
 mod precomputed;
 mod union_bound;
 mod variable;
 
+pub use context::Context;
 pub use final_data::{CompleteBound, Final};
 
 /// Error type for simplicity
@@ -104,6 +106,9 @@ pub enum Error {
     },
     /// A type is recursive (i.e., occurs within itself), violating the "occurs check"
     OccursCheck { infinite_bound: Arc<Bound> },
+    /// Attempted to combine two nodes which had different type inference
+    /// contexts. This is probably a programming error.
+    InferenceContextMismatch,
 }
 
 impl fmt::Display for Error {
@@ -133,6 +138,9 @@ impl fmt::Display for Error {
             }
             Error::OccursCheck { infinite_bound } => {
                 write!(f, "infinitely-sized type {}", infinite_bound,)
+            }
+            Error::InferenceContextMismatch => {
+                f.write_str("attempted to combine two nodes with different type inference contexts")
             }
         }
     }
@@ -606,8 +614,10 @@ mod tests {
 
     #[test]
     fn inference_failure() {
+        let ctx = Context::new();
+
         // unit: A -> 1
-        let unit = Arc::<ConstructNode<Core>>::unit(); // 1 -> 1
+        let unit = Arc::<ConstructNode<Core>>::unit(&ctx); // 1 -> 1
 
         // Force unit to be 1->1
         Arc::<ConstructNode<Core>>::comp(&unit, &unit).unwrap();
@@ -623,7 +633,8 @@ mod tests {
 
     #[test]
     fn memory_leak() {
-        let iden = Arc::<WitnessNode<Core>>::iden();
+        let ctx = Context::new();
+        let iden = Arc::<WitnessNode<Core>>::iden(&ctx);
         let drop = Arc::<WitnessNode<Core>>::drop_(&iden);
         let case = Arc::<WitnessNode<Core>>::case(&iden, &drop).unwrap();
 

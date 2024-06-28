@@ -5,6 +5,7 @@
 use crate::jet::{Elements, Jet};
 use crate::merkle::cmr::ConstructibleCmr;
 use crate::node::{CoreConstructible, JetConstructible, WitnessConstructible};
+use crate::types;
 use crate::{Cmr, ConstructNode, ToXOnlyPubkey};
 use crate::{FailEntropy, Value};
 
@@ -16,69 +17,72 @@ pub trait AssemblyConstructible: Sized {
     /// Construct the assembly fragment with the given CMR.
     ///
     /// The construction fails if the CMR alone is not enough information to construct the object.
-    fn assembly(cmr: Cmr) -> Option<Self>;
+    fn assembly(inference_context: &types::Context, cmr: Cmr) -> Option<Self>;
 }
 
 impl AssemblyConstructible for ConstructibleCmr {
-    fn assembly(cmr: Cmr) -> Option<Self> {
-        Some(ConstructibleCmr { cmr })
+    fn assembly(inference_context: &types::Context, cmr: Cmr) -> Option<Self> {
+        Some(ConstructibleCmr {
+            cmr,
+            inference_context: inference_context.shallow_clone(),
+        })
     }
 }
 
 impl<J: Jet> AssemblyConstructible for Arc<ConstructNode<J>> {
-    fn assembly(_cmr: Cmr) -> Option<Self> {
+    fn assembly(_: &types::Context, _cmr: Cmr) -> Option<Self> {
         None
     }
 }
 
-pub fn unsatisfiable<N>(entropy: FailEntropy) -> N
+pub fn unsatisfiable<N>(inference_context: &types::Context, entropy: FailEntropy) -> N
 where
     N: CoreConstructible,
 {
-    N::fail(entropy)
+    N::fail(inference_context, entropy)
 }
 
-pub fn trivial<N>() -> N
+pub fn trivial<N>(inference_context: &types::Context) -> N
 where
     N: CoreConstructible,
 {
-    N::unit()
+    N::unit(inference_context)
 }
 
-pub fn key<Pk, N, W>(key: &Pk, witness: W) -> N
+pub fn key<Pk, N, W>(inference_context: &types::Context, key: &Pk, witness: W) -> N
 where
     Pk: ToXOnlyPubkey,
     N: CoreConstructible + JetConstructible<Elements> + WitnessConstructible<W>,
 {
     let key_value = Value::u256_from_slice(&key.to_x_only_pubkey().serialize());
-    let const_key = N::const_word(key_value);
-    let sighash_all = N::jet(Elements::SigAllHash);
+    let const_key = N::const_word(inference_context, key_value);
+    let sighash_all = N::jet(inference_context, Elements::SigAllHash);
     let pair_key_msg = N::pair(&const_key, &sighash_all).expect("consistent types");
-    let witness = N::witness(witness);
+    let witness = N::witness(inference_context, witness);
     let pair_key_msg_sig = N::pair(&pair_key_msg, &witness).expect("consistent types");
-    let bip_0340_verify = N::jet(Elements::Bip0340Verify);
+    let bip_0340_verify = N::jet(inference_context, Elements::Bip0340Verify);
 
     N::comp(&pair_key_msg_sig, &bip_0340_verify).expect("consistent types")
 }
 
-pub fn after<N>(n: u32) -> N
+pub fn after<N>(inference_context: &types::Context, n: u32) -> N
 where
     N: CoreConstructible + JetConstructible<Elements>,
 {
     let n_value = Value::u32(n);
-    let const_n = N::const_word(n_value);
-    let check_lock_height = N::jet(Elements::CheckLockHeight);
+    let const_n = N::const_word(inference_context, n_value);
+    let check_lock_height = N::jet(inference_context, Elements::CheckLockHeight);
 
     N::comp(&const_n, &check_lock_height).expect("consistent types")
 }
 
-pub fn older<N>(n: u16) -> N
+pub fn older<N>(inference_context: &types::Context, n: u16) -> N
 where
     N: CoreConstructible + JetConstructible<Elements>,
 {
     let n_value = Value::u16(n);
-    let const_n = N::const_word(n_value);
-    let check_lock_distance = N::jet(Elements::CheckLockDistance);
+    let const_n = N::const_word(inference_context, n_value);
+    let check_lock_distance = N::jet(inference_context, Elements::CheckLockDistance);
 
     N::comp(&const_n, &check_lock_distance).expect("consistent types")
 }
@@ -87,11 +91,11 @@ pub fn compute_sha256<N>(witness256: &N) -> N
 where
     N: CoreConstructible + JetConstructible<Elements>,
 {
-    let ctx = N::jet(Elements::Sha256Ctx8Init);
+    let ctx = N::jet(witness256.inference_context(), Elements::Sha256Ctx8Init);
     let pair_ctx_witness = N::pair(&ctx, witness256).expect("consistent types");
-    let add256 = N::jet(Elements::Sha256Ctx8Add32);
+    let add256 = N::jet(witness256.inference_context(), Elements::Sha256Ctx8Add32);
     let digest_ctx = N::comp(&pair_ctx_witness, &add256).expect("consistent types");
-    let finalize = N::jet(Elements::Sha256Ctx8Finalize);
+    let finalize = N::jet(witness256.inference_context(), Elements::Sha256Ctx8Finalize);
     N::comp(&digest_ctx, &finalize).expect("consistent types")
 }
 
@@ -99,22 +103,27 @@ pub fn verify_bexp<N>(input: &N, bexp: &N) -> N
 where
     N: CoreConstructible + JetConstructible<Elements>,
 {
+    assert_eq!(
+        input.inference_context(),
+        bexp.inference_context(),
+        "cannot compose policy fragments with different type inference contexts",
+    );
     let computed_bexp = N::comp(input, bexp).expect("consistent types");
-    let verify = N::jet(Elements::Verify);
+    let verify = N::jet(input.inference_context(), Elements::Verify);
     N::comp(&computed_bexp, &verify).expect("consistent types")
 }
 
-pub fn sha256<Pk, N, W>(hash: &Pk::Sha256, witness: W) -> N
+pub fn sha256<Pk, N, W>(inference_context: &types::Context, hash: &Pk::Sha256, witness: W) -> N
 where
     Pk: ToXOnlyPubkey,
     N: CoreConstructible + JetConstructible<Elements> + WitnessConstructible<W>,
 {
     let hash_value = Value::u256_from_slice(Pk::to_sha256(hash).as_ref());
-    let const_hash = N::const_word(hash_value);
-    let witness256 = N::witness(witness);
+    let const_hash = N::const_word(inference_context, hash_value);
+    let witness256 = N::witness(inference_context, witness);
     let computed_hash = compute_sha256(&witness256);
     let pair_hash_computed_hash = N::pair(&const_hash, &computed_hash).expect("consistent types");
-    let eq256 = N::jet(Elements::Eq256);
+    let eq256 = N::jet(inference_context, Elements::Eq256);
 
     verify_bexp(&pair_hash_computed_hash, &eq256)
 }
@@ -126,12 +135,12 @@ where
     N::comp(left, right).expect("consistent types")
 }
 
-pub fn selector<N, W>(witness_bit: W) -> N
+pub fn selector<N, W>(inference_context: &types::Context, witness_bit: W) -> N
 where
     N: CoreConstructible + WitnessConstructible<W>,
 {
-    let witness = N::witness(witness_bit);
-    let unit = N::unit();
+    let witness = N::witness(inference_context, witness_bit);
+    let unit = N::unit(inference_context);
     N::pair(&witness, &unit).expect("consistent types")
 }
 
@@ -139,10 +148,15 @@ pub fn or<N, W>(left: &N, right: &N, witness_bit: W) -> N
 where
     N: CoreConstructible + WitnessConstructible<W>,
 {
+    assert_eq!(
+        left.inference_context(),
+        right.inference_context(),
+        "cannot compose policy fragments with different type inference contexts",
+    );
     let drop_left = N::drop_(left);
     let drop_right = N::drop_(right);
     let case_left_right = N::case(&drop_left, &drop_right).expect("consistent types");
-    let selector = selector(witness_bit);
+    let selector = selector(left.inference_context(), witness_bit);
 
     N::comp(&selector, &case_left_right).expect("consistent types")
 }
@@ -155,14 +169,14 @@ where
     N: CoreConstructible + WitnessConstructible<W>,
 {
     // 1 → 2 x 1
-    let selector = selector(witness_bit);
+    let selector = selector(child.inference_context(), witness_bit);
 
     // 1 → 2^32
-    let const_one = N::const_word(Value::u32(1));
+    let const_one = N::const_word(child.inference_context(), Value::u32(1));
     // 1 → 2^32
     let child_one = N::comp(child, &const_one).expect("consistent types");
     // 1 → 2^32
-    let const_zero = N::const_word(Value::u32(0));
+    let const_zero = N::const_word(child.inference_context(), Value::u32(0));
 
     // 1 × 1 → 2^32
     let drop_left = N::drop_(&const_zero);
@@ -182,14 +196,19 @@ pub fn thresh_add<N>(sum: &N, summand: &N) -> N
 where
     N: CoreConstructible + JetConstructible<Elements>,
 {
+    assert_eq!(
+        sum.inference_context(),
+        summand.inference_context(),
+        "cannot compose policy fragments with different type inference contexts",
+    );
     // 1 → 2^32 × 2^32
     let pair_sum_summand = N::pair(sum, summand).expect("consistent types");
     // 2^32 × 2^32 → 2 × 2^32
-    let add32 = N::jet(Elements::Add32);
+    let add32 = N::jet(sum.inference_context(), Elements::Add32);
     // 1 → 2 x 2^32
     let full_sum = N::comp(&pair_sum_summand, &add32).expect("consistent types");
     // 2^32 → 2^32
-    let iden = N::iden();
+    let iden = N::iden(sum.inference_context());
     // 2 × 2^32 → 2^32
     let drop_iden = N::drop_(&iden);
 
@@ -205,11 +224,11 @@ where
     N: CoreConstructible + JetConstructible<Elements>,
 {
     // 1 → 2^32
-    let const_k = N::const_word(Value::u32(k));
+    let const_k = N::const_word(sum.inference_context(), Value::u32(k));
     // 1 → 2^32 × 2^32
     let pair_k_sum = N::pair(&const_k, sum).expect("consistent types");
     // 2^32 × 2^32 → 2
-    let eq32 = N::jet(Elements::Eq32);
+    let eq32 = N::jet(sum.inference_context(), Elements::Eq32);
 
     // 1 → 1
     verify_bexp(&pair_k_sum, &eq32)

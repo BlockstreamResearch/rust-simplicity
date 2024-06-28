@@ -7,7 +7,7 @@ use crate::jet::Jet;
 use crate::node::{
     CoreConstructible, DisconnectConstructible, JetConstructible, WitnessConstructible,
 };
-use crate::types::Error;
+use crate::types::{self, Error};
 use crate::{FailEntropy, Tmr, Value};
 use hashes::sha256::Midstate;
 
@@ -258,103 +258,137 @@ impl Cmr {
 /// same generic construction code that nodes are.
 pub struct ConstructibleCmr {
     pub cmr: Cmr,
+    pub inference_context: types::Context,
 }
 
 impl CoreConstructible for ConstructibleCmr {
-    fn iden() -> Self {
-        ConstructibleCmr { cmr: Cmr::iden() }
+    fn iden(inference_context: &types::Context) -> Self {
+        ConstructibleCmr {
+            cmr: Cmr::iden(),
+            inference_context: inference_context.shallow_clone(),
+        }
     }
 
-    fn unit() -> Self {
-        ConstructibleCmr { cmr: Cmr::unit() }
+    fn unit(inference_context: &types::Context) -> Self {
+        ConstructibleCmr {
+            cmr: Cmr::unit(),
+            inference_context: inference_context.shallow_clone(),
+        }
     }
 
     fn injl(child: &Self) -> Self {
         ConstructibleCmr {
             cmr: Cmr::injl(child.cmr),
+            inference_context: child.inference_context.shallow_clone(),
         }
     }
 
     fn injr(child: &Self) -> Self {
         ConstructibleCmr {
             cmr: Cmr::injl(child.cmr),
+            inference_context: child.inference_context.shallow_clone(),
         }
     }
 
     fn take(child: &Self) -> Self {
         ConstructibleCmr {
             cmr: Cmr::take(child.cmr),
+            inference_context: child.inference_context.shallow_clone(),
         }
     }
 
     fn drop_(child: &Self) -> Self {
         ConstructibleCmr {
             cmr: Cmr::drop(child.cmr),
+            inference_context: child.inference_context.shallow_clone(),
         }
     }
 
     fn comp(left: &Self, right: &Self) -> Result<Self, Error> {
+        left.inference_context.check_eq(&right.inference_context)?;
         Ok(ConstructibleCmr {
             cmr: Cmr::comp(left.cmr, right.cmr),
+            inference_context: left.inference_context.shallow_clone(),
         })
     }
 
     fn case(left: &Self, right: &Self) -> Result<Self, Error> {
+        left.inference_context.check_eq(&right.inference_context)?;
         Ok(ConstructibleCmr {
             cmr: Cmr::case(left.cmr, right.cmr),
+            inference_context: left.inference_context.shallow_clone(),
         })
     }
 
     fn assertl(left: &Self, right: Cmr) -> Result<Self, Error> {
         Ok(ConstructibleCmr {
             cmr: Cmr::case(left.cmr, right),
+            inference_context: left.inference_context.shallow_clone(),
         })
     }
 
     fn assertr(left: Cmr, right: &Self) -> Result<Self, Error> {
         Ok(ConstructibleCmr {
             cmr: Cmr::case(left, right.cmr),
+            inference_context: right.inference_context.shallow_clone(),
         })
     }
 
     fn pair(left: &Self, right: &Self) -> Result<Self, Error> {
+        left.inference_context.check_eq(&right.inference_context)?;
         Ok(ConstructibleCmr {
             cmr: Cmr::pair(left.cmr, right.cmr),
+            inference_context: left.inference_context.shallow_clone(),
         })
     }
 
-    fn fail(entropy: FailEntropy) -> Self {
+    fn fail(inference_context: &types::Context, entropy: FailEntropy) -> Self {
         ConstructibleCmr {
             cmr: Cmr::fail(entropy),
+            inference_context: inference_context.shallow_clone(),
         }
     }
 
-    fn const_word(word: Arc<Value>) -> Self {
+    fn const_word(inference_context: &types::Context, word: Arc<Value>) -> Self {
         ConstructibleCmr {
             cmr: Cmr::const_word(&word),
+            inference_context: inference_context.shallow_clone(),
         }
+    }
+
+    fn inference_context(&self) -> &types::Context {
+        &self.inference_context
     }
 }
 
 impl<X> DisconnectConstructible<X> for ConstructibleCmr {
+    // Specifically with disconnect we don't check for consistency between the
+    // type inference context of the disconnected node, if any, and that of
+    // the left node. The idea is, from the point of view of (Constructible)Cmr,
+    // the right child of disconnect doesn't even exist.
     fn disconnect(left: &Self, _right: &X) -> Result<Self, Error> {
         Ok(ConstructibleCmr {
             cmr: Cmr::disconnect(left.cmr),
+            inference_context: left.inference_context.shallow_clone(),
         })
     }
 }
 
 impl<W> WitnessConstructible<W> for ConstructibleCmr {
-    fn witness(_witness: W) -> Self {
+    fn witness(inference_context: &types::Context, _witness: W) -> Self {
         ConstructibleCmr {
             cmr: Cmr::witness(),
+            inference_context: inference_context.shallow_clone(),
         }
     }
 }
 
 impl<J: Jet> JetConstructible<J> for ConstructibleCmr {
-    fn jet(jet: J) -> Self {
-        ConstructibleCmr { cmr: jet.cmr() }
+    fn jet(inference_context: &types::Context, jet: J) -> Self {
+        ConstructibleCmr {
+            cmr: jet.cmr(),
+            inference_context: inference_context.shallow_clone(),
+        }
     }
 }
 
@@ -370,7 +404,8 @@ mod tests {
 
     #[test]
     fn cmr_display_unit() {
-        let c = Arc::<ConstructNode<Core>>::unit();
+        let ctx = types::Context::new();
+        let c = Arc::<ConstructNode<Core>>::unit(&ctx);
 
         assert_eq!(
             c.cmr().to_string(),
@@ -397,7 +432,8 @@ mod tests {
 
     #[test]
     fn bit_cmr() {
-        let unit = Arc::<ConstructNode<Core>>::unit();
+        let ctx = types::Context::new();
+        let unit = Arc::<ConstructNode<Core>>::unit(&ctx);
         let bit0 = Arc::<ConstructNode<Core>>::injl(&unit);
         assert_eq!(bit0.cmr(), Cmr::BITS[0]);
 

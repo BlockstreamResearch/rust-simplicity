@@ -12,6 +12,7 @@ use crate::node::{
     ConstructNode, CoreConstructible, DisconnectConstructible, JetConstructible, NoWitness,
     WitnessConstructible,
 };
+use crate::types;
 use crate::{BitIter, FailEntropy, Value};
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -178,6 +179,7 @@ pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
         return Err(Error::TooManyNodes(len));
     }
 
+    let inference_context = types::Context::new();
     let mut nodes = Vec::with_capacity(len);
     for _ in 0..len {
         let new_node = decode_node(bits, nodes.len())?;
@@ -195,8 +197,8 @@ pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
         }
 
         let new = match nodes[data.node.0] {
-            DecodeNode::Unit => Node(ArcNode::unit()),
-            DecodeNode::Iden => Node(ArcNode::iden()),
+            DecodeNode::Unit => Node(ArcNode::unit(&inference_context)),
+            DecodeNode::Iden => Node(ArcNode::iden(&inference_context)),
             DecodeNode::InjL(i) => Node(ArcNode::injl(converted[i].get()?)),
             DecodeNode::InjR(i) => Node(ArcNode::injr(converted[i].get()?)),
             DecodeNode::Take(i) => Node(ArcNode::take(converted[i].get()?)),
@@ -222,16 +224,16 @@ pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
                 converted[i].get()?,
                 &Some(Arc::clone(converted[j].get()?)),
             )?),
-            DecodeNode::Witness => Node(ArcNode::witness(NoWitness)),
-            DecodeNode::Fail(entropy) => Node(ArcNode::fail(entropy)),
+            DecodeNode::Witness => Node(ArcNode::witness(&inference_context, NoWitness)),
+            DecodeNode::Fail(entropy) => Node(ArcNode::fail(&inference_context, entropy)),
             DecodeNode::Hidden(cmr) => {
                 if !hidden_set.insert(cmr) {
                     return Err(Error::SharingNotMaximal);
                 }
                 Hidden(cmr)
             }
-            DecodeNode::Jet(j) => Node(ArcNode::jet(j)),
-            DecodeNode::Word(ref w) => Node(ArcNode::const_word(Arc::clone(w))),
+            DecodeNode::Jet(j) => Node(ArcNode::jet(&inference_context, j)),
+            DecodeNode::Word(ref w) => Node(ArcNode::const_word(&inference_context, Arc::clone(w))),
         };
         converted.push(new);
     }

@@ -74,7 +74,10 @@ impl<J: Jet> WitnessNode<J> {
     }
 
     pub fn prune_and_retype(&self) -> Arc<Self> {
-        struct Retyper<J>(PhantomData<J>);
+        struct Retyper<J> {
+            inference_context: types::Context,
+            phantom: PhantomData<J>,
+        }
 
         impl<J: Jet> Converter<Witness<J>, Witness<J>> for Retyper<J> {
             type Error = types::Error;
@@ -131,7 +134,8 @@ impl<J: Jet> WitnessNode<J> {
                     .map(|node| node.cached_data())
                     .map_witness(Option::<Arc<Value>>::clone);
                 // This next line does the actual retyping.
-                let mut retyped = WitnessData::from_inner(converted_inner)?;
+                let mut retyped =
+                    WitnessData::from_inner(&self.inference_context, converted_inner)?;
                 // Sometimes we set the prune bit on nodes without setting that
                 // of their children; in this case the prune bit inferred from
                 // `converted_inner` will be incorrect.
@@ -144,8 +148,11 @@ impl<J: Jet> WitnessNode<J> {
 
         // FIXME after running the `ReTyper` we should run a `WitnessShrinker` which
         // shrinks the witness data in case the ReTyper shrank its types.
-        self.convert::<InternalSharing, _, _>(&mut Retyper(PhantomData))
-            .expect("type inference won't fail if it succeeded before")
+        self.convert::<InternalSharing, _, _>(&mut Retyper {
+            inference_context: types::Context::new(),
+            phantom: PhantomData,
+        })
+        .expect("type inference won't fail if it succeeded before")
     }
 
     pub fn finalize(&self) -> Result<Arc<RedeemNode<J>>, Error> {
@@ -228,17 +235,17 @@ pub struct WitnessData<J> {
 }
 
 impl<J> CoreConstructible for WitnessData<J> {
-    fn iden() -> Self {
+    fn iden(inference_context: &types::Context) -> Self {
         WitnessData {
-            arrow: Arrow::iden(),
+            arrow: Arrow::iden(inference_context),
             must_prune: false,
             phantom: PhantomData,
         }
     }
 
-    fn unit() -> Self {
+    fn unit(inference_context: &types::Context) -> Self {
         WitnessData {
-            arrow: Arrow::unit(),
+            arrow: Arrow::unit(inference_context),
             must_prune: false,
             phantom: PhantomData,
         }
@@ -319,21 +326,25 @@ impl<J> CoreConstructible for WitnessData<J> {
         })
     }
 
-    fn fail(entropy: FailEntropy) -> Self {
+    fn fail(inference_context: &types::Context, entropy: FailEntropy) -> Self {
         // Fail nodes always get pruned.
         WitnessData {
-            arrow: Arrow::fail(entropy),
+            arrow: Arrow::fail(inference_context, entropy),
             must_prune: true,
             phantom: PhantomData,
         }
     }
 
-    fn const_word(word: Arc<Value>) -> Self {
+    fn const_word(inference_context: &types::Context, word: Arc<Value>) -> Self {
         WitnessData {
-            arrow: Arrow::const_word(word),
+            arrow: Arrow::const_word(inference_context, word),
             must_prune: false,
             phantom: PhantomData,
         }
+    }
+
+    fn inference_context(&self) -> &types::Context {
+        self.arrow.inference_context()
     }
 }
 
@@ -349,9 +360,9 @@ impl<J: Jet> DisconnectConstructible<Option<Arc<WitnessNode<J>>>> for WitnessDat
 }
 
 impl<J> WitnessConstructible<Option<Arc<Value>>> for WitnessData<J> {
-    fn witness(witness: Option<Arc<Value>>) -> Self {
+    fn witness(inference_context: &types::Context, witness: Option<Arc<Value>>) -> Self {
         WitnessData {
-            arrow: Arrow::witness(NoWitness),
+            arrow: Arrow::witness(inference_context, NoWitness),
             must_prune: witness.is_none(),
             phantom: PhantomData,
         }
@@ -359,9 +370,9 @@ impl<J> WitnessConstructible<Option<Arc<Value>>> for WitnessData<J> {
 }
 
 impl<J: Jet> JetConstructible<J> for WitnessData<J> {
-    fn jet(jet: J) -> Self {
+    fn jet(inference_context: &types::Context, jet: J) -> Self {
         WitnessData {
-            arrow: Arrow::jet(jet),
+            arrow: Arrow::jet(inference_context, jet),
             must_prune: false,
             phantom: PhantomData,
         }

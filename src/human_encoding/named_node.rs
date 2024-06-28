@@ -116,6 +116,7 @@ impl<J: Jet> NamedCommitNode<J> {
         struct Populator<'a, J: Jet> {
             witness_map: &'a HashMap<Arc<str>, Arc<Value>>,
             disconnect_map: &'a HashMap<Arc<str>, Arc<NamedCommitNode<J>>>,
+            inference_context: types::Context,
             phantom: PhantomData<J>,
         }
 
@@ -153,17 +154,16 @@ impl<J: Jet> NamedCommitNode<J> {
                     // Like witness nodes (see above), disconnect nodes may be pruned later.
                     // The finalization will detect missing branches and throw an error.
                     let maybe_commit = self.disconnect_map.get(hole_name);
-                    // FIXME: Recursive call of to_witness_node
-                    // We cannot introduce a stack
-                    // because we are implementing methods of the trait Converter
-                    // which are used Marker::convert().
+                    // FIXME: recursive call to convert
+                    // We cannot introduce a stack because we are implementing the Converter
+                    // trait and do not have access to the actual algorithm used for conversion
+                    // in order to save its state.
                     //
                     // OTOH, if a user writes a program with so many disconnected expressions
                     // that there is a stack overflow, it's his own fault :)
-                    // This would fail in a fuzz test.
-                    let witness = maybe_commit.map(|commit| {
-                        commit.to_witness_node(self.witness_map, self.disconnect_map)
-                    });
+                    // This may fail in a fuzz test.
+                    let witness = maybe_commit
+                        .map(|commit| commit.convert::<InternalSharing, _, _>(self).unwrap());
                     Ok(witness)
                 }
             }
@@ -181,13 +181,15 @@ impl<J: Jet> NamedCommitNode<J> {
                 let inner = inner
                     .map(|node| node.cached_data())
                     .map_witness(|maybe_value| maybe_value.clone());
-                Ok(WitnessData::from_inner(inner).expect("types are already finalized"))
+                Ok(WitnessData::from_inner(&self.inference_context, inner)
+                    .expect("types are already finalized"))
             }
         }
 
         self.convert::<InternalSharing, _, _>(&mut Populator {
             witness_map: witness,
             disconnect_map: disconnect,
+            inference_context: types::Context::new(),
             phantom: PhantomData,
         })
         .unwrap()
@@ -245,6 +247,7 @@ pub struct NamedConstructData<J> {
 impl<J: Jet> NamedConstructNode<J> {
     /// Construct a named construct node from parts.
     pub fn new(
+        inference_context: &types::Context,
         name: Arc<str>,
         position: Position,
         user_source_types: Arc<[types::Type]>,
@@ -252,6 +255,7 @@ impl<J: Jet> NamedConstructNode<J> {
         inner: node::Inner<Arc<Self>, J, Arc<Self>, WitnessOrHole>,
     ) -> Result<Self, types::Error> {
         let construct_data = ConstructData::from_inner(
+            inference_context,
             inner
                 .as_ref()
                 .map(|data| &data.cached_data().internal)

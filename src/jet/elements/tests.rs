@@ -5,6 +5,7 @@ use std::sync::Arc;
 use crate::jet::elements::{ElementsEnv, ElementsUtxo};
 use crate::jet::Elements;
 use crate::node::{ConstructNode, JetConstructible};
+use crate::types;
 use crate::{BitMachine, Cmr, Value};
 use elements::secp256k1_zkp::Tweak;
 use elements::taproot::ControlBlock;
@@ -99,7 +100,7 @@ fn test_ffi_env() {
         BlockHash::all_zeros(),
     );
 
-    let prog = Arc::<ConstructNode<_>>::jet(Elements::LockTime);
+    let prog = Arc::<ConstructNode<_>>::jet(&types::Context::new(), Elements::LockTime);
     assert_eq!(
         BitMachine::test_exec(prog, &env).expect("executing"),
         Value::u32(100),
