@@ -113,11 +113,11 @@ impl<J: Jet> NamedCommitNode<J> {
         witness: &HashMap<Arc<str>, Arc<Value>>,
         disconnect: &HashMap<Arc<str>, Arc<NamedCommitNode<J>>>,
     ) -> Arc<WitnessNode<J>> {
-        struct Populator<'a, J: Jet>(
-            &'a HashMap<Arc<str>, Arc<Value>>,
-            &'a HashMap<Arc<str>, Arc<NamedCommitNode<J>>>,
-            PhantomData<J>,
-        );
+        struct Populator<'a, J: Jet> {
+            witness_map: &'a HashMap<Arc<str>, Arc<Value>>,
+            disconnect_map: &'a HashMap<Arc<str>, Arc<NamedCommitNode<J>>>,
+            phantom: PhantomData<J>,
+        }
 
         impl<'a, J: Jet> Converter<Named<Commit<J>>, Witness<J>> for Populator<'a, J> {
             type Error = ();
@@ -133,7 +133,7 @@ impl<J: Jet> NamedCommitNode<J> {
                 // Which nodes are pruned is not known when this code is executed.
                 // If an unpruned node is unpopulated, then there will be an error
                 // during the finalization.
-                Ok(self.0.get(name).cloned())
+                Ok(self.witness_map.get(name).cloned())
             }
 
             fn convert_disconnect(
@@ -152,7 +152,7 @@ impl<J: Jet> NamedCommitNode<J> {
                     // We keep the missing disconnected branches empty.
                     // Like witness nodes (see above), disconnect nodes may be pruned later.
                     // The finalization will detect missing branches and throw an error.
-                    let maybe_commit = self.1.get(hole_name);
+                    let maybe_commit = self.disconnect_map.get(hole_name);
                     // FIXME: Recursive call of to_witness_node
                     // We cannot introduce a stack
                     // because we are implementing methods of the trait Converter
@@ -161,7 +161,9 @@ impl<J: Jet> NamedCommitNode<J> {
                     // OTOH, if a user writes a program with so many disconnected expressions
                     // that there is a stack overflow, it's his own fault :)
                     // This would fail in a fuzz test.
-                    let witness = maybe_commit.map(|commit| commit.to_witness_node(self.0, self.1));
+                    let witness = maybe_commit.map(|commit| {
+                        commit.to_witness_node(self.witness_map, self.disconnect_map)
+                    });
                     Ok(witness)
                 }
             }
@@ -183,8 +185,12 @@ impl<J: Jet> NamedCommitNode<J> {
             }
         }
 
-        self.convert::<InternalSharing, _, _>(&mut Populator(witness, disconnect, PhantomData))
-            .unwrap()
+        self.convert::<InternalSharing, _, _>(&mut Populator {
+            witness_map: witness,
+            disconnect_map: disconnect,
+            phantom: PhantomData,
+        })
+        .unwrap()
     }
 
     /// Encode a Simplicity expression to bits without any witness data
