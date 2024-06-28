@@ -538,4 +538,41 @@ mod tests {
         // I created this unit test by hand
         assert_program_not_deserializable::<Core>(&[0xa9, 0x48, 0x00], &Error::NotInCanonicalOrder);
     }
+
+    #[test]
+    fn regression_177() {
+        // `case (drop iden) iden` from upstream occurs-check test. Has an infinitely sized
+        // input type. Will fail trying to unify the input type with the unit type before
+        // doing the occurs check, putting an infinitely-sized type into the error variant.
+        //
+        // The human-readable encoding will keep going and then also hit the occurs check.
+        //
+        // Check that both error types can be generated and printed in finite space/time.
+        let bad_prog = "
+            id := iden
+            main := case (drop id) id
+        ";
+        match Forest::<Core>::parse(bad_prog) {
+            Ok(_) => panic!("program should have failed"),
+            Err(set) => {
+                let mut errs_happened = (false, false);
+                for err in set.iter() {
+                    match err {
+                        crate::human_encoding::Error::TypeCheck(e @ types::Error::Bind { .. }) => {
+                            errs_happened.0 = true;
+                            e.to_string();
+                        }
+                        crate::human_encoding::Error::TypeCheck(
+                            e @ types::Error::OccursCheck { .. },
+                        ) => {
+                            errs_happened.1 = true;
+                            e.to_string();
+                        }
+                        x => panic!("unexpected error {x:?}"),
+                    }
+                }
+                assert_eq!(errs_happened, (true, true));
+            }
+        };
+    }
 }

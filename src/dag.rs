@@ -278,13 +278,15 @@ pub trait DagLike: Sized {
     /// yielded, you may be better off using this iterator instead.
     fn verbose_pre_order_iter<S: SharingTracker<Self> + Default>(
         self,
+        max_depth: Option<usize>,
     ) -> VerbosePreOrderIter<Self, S>
     where
         Self: Clone,
     {
         VerbosePreOrderIter {
-            stack: vec![PreOrderIterItem::initial(self, None)],
+            stack: vec![PreOrderIterItem::initial(self, 0, None)],
             index: 0,
+            max_depth,
             tracker: Default::default(),
         }
     }
@@ -775,6 +777,16 @@ pub struct VerbosePreOrderIter<D, S> {
     /// children are put onto the stack followed by their left, so that the
     /// appropriate one will be yielded on the next iteration.
     stack: Vec<PreOrderIterItem<D>>,
+    /// Maximum depth (distance from root) that the iterator will go to. Any
+    /// children at a greater depth will not be yielded. However, the parent
+    /// of such children will still be yielded multiple times, one for each
+    /// (unyielded) child, with `n_children_yielded` incremented as though
+    /// the children had been yielded.
+    ///
+    /// To determine whether pruning has happened, you should manually check
+    /// the [`PreOrderIterItem::depth`] field against the maximum depth that
+    /// you set when constructing the iterator.
+    max_depth: Option<usize>,
     /// The index of the next item to be yielded.
     ///
     /// Note that unlike the [`PostOrderIter`], this value is not monotonic
@@ -809,19 +821,31 @@ impl<D: DagLike + Clone, S: SharingTracker<D>> Iterator for VerbosePreOrderIter<
                 (0, 0) => {}
                 (0, n) => {
                     self.stack.push(top.clone().increment(n == 1));
-                    let child = top.node.left_child().unwrap();
-                    self.stack
-                        .push(PreOrderIterItem::initial(child, Some(top.node.clone())));
+                    if top.depth < self.max_depth.unwrap_or(top.depth + 1) {
+                        let child = top.node.left_child().unwrap();
+                        self.stack.push(PreOrderIterItem::initial(
+                            child,
+                            top.depth + 1,
+                            Some(top.node.clone()),
+                        ));
+                    }
                 }
                 (1, 0) => unreachable!(),
                 (1, 1) => {}
                 (1, _) => {
                     self.stack.push(top.clone().increment(true));
-                    let child = top.node.right_child().unwrap();
-                    self.stack
-                        .push(PreOrderIterItem::initial(child, Some(top.node.clone())));
+                    if top.depth < self.max_depth.unwrap_or(top.depth + 1) {
+                        let child = top.node.right_child().unwrap();
+                        self.stack.push(PreOrderIterItem::initial(
+                            child,
+                            top.depth + 1,
+                            Some(top.node.clone()),
+                        ));
+                    }
                 }
-                (_, _) => {}
+                (x, y) => {
+                    debug_assert_eq!((x, y), (2, 2));
+                }
             }
             // Then yield the element.
             return Some(top);
@@ -840,6 +864,9 @@ pub struct PreOrderIterItem<D> {
     pub parent: Option<D>,
     /// The index when the element was first yielded.
     pub index: usize,
+    /// The distance of this element from the initial node. 0 for the initial
+    /// node itself.
+    pub depth: usize,
     /// How many of this item's children have been yielded.
     ///
     /// This can also be interpreted as a count of how many times this
@@ -853,12 +880,13 @@ impl<D: DagLike + Clone> PreOrderIterItem<D> {
     /// Creates a `PreOrderIterItem` which yields a given element for the first time.
     ///
     /// Marks the index as 0. The index must be manually set before yielding.
-    fn initial(d: D, parent: Option<D>) -> Self {
+    fn initial(d: D, depth: usize, parent: Option<D>) -> Self {
         PreOrderIterItem {
             is_complete: matches!(d.as_dag_node(), Dag::Nullary),
             node: d,
             parent,
             index: 0,
+            depth,
             n_children_yielded: 0,
         }
     }
@@ -868,6 +896,7 @@ impl<D: DagLike + Clone> PreOrderIterItem<D> {
         PreOrderIterItem {
             node: self.node,
             index: self.index,
+            depth: self.depth,
             parent: self.parent,
             n_children_yielded: self.n_children_yielded + 1,
             is_complete,

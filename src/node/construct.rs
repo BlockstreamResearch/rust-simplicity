@@ -300,7 +300,7 @@ mod tests {
 
         assert!(matches!(
             node.finalize_types_non_program(),
-            Err(crate::Error::Type(types::Error::OccursCheck)),
+            Err(crate::Error::Type(types::Error::OccursCheck { .. })),
         ));
     }
 
@@ -320,7 +320,7 @@ mod tests {
 
         assert!(matches!(
             comp2.finalize_types_non_program(),
-            Err(crate::Error::Type(types::Error::OccursCheck)),
+            Err(crate::Error::Type(types::Error::OccursCheck { .. })),
         ));
     }
 
@@ -347,7 +347,7 @@ mod tests {
 
         assert!(matches!(
             comp8.finalize_types_non_program(),
-            Err(crate::Error::Type(types::Error::OccursCheck)),
+            Err(crate::Error::Type(types::Error::OccursCheck { .. })),
         ));
     }
 
