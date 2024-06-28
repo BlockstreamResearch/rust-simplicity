@@ -112,8 +112,9 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
 
     /// Return the CMR of the policy.
     pub fn cmr(&self) -> Cmr {
-        self.serialize_no_witness()
+        self.serialize_no_witness::<crate::merkle::cmr::ConstructibleCmr>()
             .expect("CMR is defined for asm fragment")
+            .cmr
     }
 }
 
