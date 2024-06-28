@@ -291,11 +291,13 @@ mod tests {
 
     use crate::jet::Core;
     use crate::node::{ConstructNode, JetConstructible};
+    use crate::types;
     use std::sync::Arc;
 
     #[test]
     fn fixed_amr() {
-        let node = Arc::<ConstructNode<_>>::jet(Core::Verify)
+        let ctx = types::Context::new();
+        let node = Arc::<ConstructNode<_>>::jet(&ctx, Core::Verify)
             .finalize_types_non_program()
             .unwrap();
         // Checked against C implementation

@@ -130,10 +130,13 @@ pub trait Constructible<J, X, W>:
     + CoreConstructible
     + Sized
 {
-    fn from_inner(inner: Inner<&Self, J, &X, W>) -> Result<Self, types::Error> {
+    fn from_inner(
+        inference_context: &types::Context,
+        inner: Inner<&Self, J, &X, W>,
+    ) -> Result<Self, types::Error> {
         match inner {
-            Inner::Iden => Ok(Self::iden()),
-            Inner::Unit => Ok(Self::unit()),
+            Inner::Iden => Ok(Self::iden(inference_context)),
+            Inner::Unit => Ok(Self::unit(inference_context)),
             Inner::InjL(child) => Ok(Self::injl(child)),
             Inner::InjR(child) => Ok(Self::injr(child)),
             Inner::Take(child) => Ok(Self::take(child)),
@@ -144,10 +147,10 @@ pub trait Constructible<J, X, W>:
             Inner::AssertR(l_cmr, right) => Self::assertr(l_cmr, right),
             Inner::Pair(left, right) => Self::pair(left, right),
             Inner::Disconnect(left, right) => Self::disconnect(left, right),
-            Inner::Fail(entropy) => Ok(Self::fail(entropy)),
-            Inner::Word(ref w) => Ok(Self::const_word(Arc::clone(w))),
-            Inner::Jet(j) => Ok(Self::jet(j)),
-            Inner::Witness(w) => Ok(Self::witness(w)),
+            Inner::Fail(entropy) => Ok(Self::fail(inference_context, entropy)),
+            Inner::Word(ref w) => Ok(Self::const_word(inference_context, Arc::clone(w))),
+            Inner::Jet(j) => Ok(Self::jet(inference_context, j)),
+            Inner::Witness(w) => Ok(Self::witness(inference_context, w)),
         }
     }
 }
@@ -162,8 +165,8 @@ impl<J, X, W, T> Constructible<J, X, W> for T where
 }
 
 pub trait CoreConstructible: Sized {
-    fn iden() -> Self;
-    fn unit() -> Self;
+    fn iden(inference_context: &types::Context) -> Self;
+    fn unit(inference_context: &types::Context) -> Self;
     fn injl(child: &Self) -> Self;
     fn injr(child: &Self) -> Self;
     fn take(child: &Self) -> Self;
@@ -173,17 +176,20 @@ pub trait CoreConstructible: Sized {
     fn assertl(left: &Self, right: Cmr) -> Result<Self, types::Error>;
     fn assertr(left: Cmr, right: &Self) -> Result<Self, types::Error>;
     fn pair(left: &Self, right: &Self) -> Result<Self, types::Error>;
-    fn fail(entropy: FailEntropy) -> Self;
-    fn const_word(word: Arc<Value>) -> Self;
+    fn fail(inference_context: &types::Context, entropy: FailEntropy) -> Self;
+    fn const_word(inference_context: &types::Context, word: Arc<Value>) -> Self;
+
+    /// Accessor for the type inference context used to create the object.
+    fn inference_context(&self) -> &types::Context;
 
     /// Create a DAG that takes any input and returns `value` as constant output.
     ///
     /// _Overall type: A → B where value: B_
-    fn scribe(value: &Value) -> Self {
+    fn scribe(inference_context: &types::Context, value: &Value) -> Self {
         let mut stack = vec![];
         for data in value.post_order_iter::<NoSharing>() {
             match data.node {
-                Value::Unit => stack.push(Self::unit()),
+                Value::Unit => stack.push(Self::unit(inference_context)),
                 Value::SumL(..) => {
                     let child = stack.pop().unwrap();
                     stack.push(Self::injl(&child));
@@ -208,16 +214,16 @@ pub trait CoreConstructible: Sized {
     /// Create a DAG that takes any input and returns bit `0` as constant output.
     ///
     /// _Overall type: A → 2_
-    fn bit_false() -> Self {
-        let unit = Self::unit();
+    fn bit_false(inference_context: &types::Context) -> Self {
+        let unit = Self::unit(inference_context);
         Self::injl(&unit)
     }
 
     /// Create a DAG that takes any input and returns bit `1` as constant output.
     ///
     /// _Overall type: A → 2_
-    fn bit_true() -> Self {
-        let unit = Self::unit();
+    fn bit_true(inference_context: &types::Context) -> Self {
+        let unit = Self::unit(inference_context);
         Self::injr(&unit)
     }
 
@@ -241,7 +247,7 @@ pub trait CoreConstructible: Sized {
     ///
     /// _Type inference will fail if children are not of the correct type._
     fn assert(child: &Self, hash: Cmr) -> Result<Self, types::Error> {
-        let unit = Self::unit();
+        let unit = Self::unit(child.inference_context());
         let pair_child_unit = Self::pair(child, &unit)?;
         let assertr_hidden_unit = Self::assertr(hash, &unit)?;
 
@@ -255,10 +261,10 @@ pub trait CoreConstructible: Sized {
     /// _Type inference will fail if children are not of the correct type._
     #[allow(clippy::should_implement_trait)]
     fn not(child: &Self) -> Result<Self, types::Error> {
-        let unit = Self::unit();
+        let unit = Self::unit(child.inference_context());
         let pair_child_unit = Self::pair(child, &unit)?;
-        let bit_true = Self::bit_true();
-        let bit_false = Self::bit_false();
+        let bit_true = Self::bit_true(child.inference_context());
+        let bit_false = Self::bit_false(child.inference_context());
         let case_true_false = Self::case(&bit_true, &bit_false)?;
 
         Self::comp(&pair_child_unit, &case_true_false)
@@ -270,9 +276,11 @@ pub trait CoreConstructible: Sized {
     ///
     /// _Type inference will fail if children are not of the correct type._
     fn and(left: &Self, right: &Self) -> Result<Self, types::Error> {
-        let iden = Self::iden();
+        left.inference_context()
+            .check_eq(right.inference_context())?;
+        let iden = Self::iden(left.inference_context());
         let pair_left_iden = Self::pair(left, &iden)?;
-        let bit_false = Self::bit_false();
+        let bit_false = Self::bit_false(left.inference_context());
         let drop_right = Self::drop_(right);
         let case_false_right = Self::case(&bit_false, &drop_right)?;
 
@@ -285,10 +293,12 @@ pub trait CoreConstructible: Sized {
     ///
     /// _Type inference will fail if children are not of the correct type._
     fn or(left: &Self, right: &Self) -> Result<Self, types::Error> {
-        let iden = Self::iden();
+        left.inference_context()
+            .check_eq(right.inference_context())?;
+        let iden = Self::iden(left.inference_context());
         let pair_left_iden = Self::pair(left, &iden)?;
         let drop_right = Self::drop_(right);
-        let bit_true = Self::bit_true();
+        let bit_true = Self::bit_true(left.inference_context());
         let case_right_true = Self::case(&drop_right, &bit_true)?;
 
         Self::comp(&pair_left_iden, &case_right_true)
@@ -300,11 +310,11 @@ pub trait DisconnectConstructible<X>: Sized {
 }
 
 pub trait JetConstructible<J>: Sized {
-    fn jet(jet: J) -> Self;
+    fn jet(inference_context: &types::Context, jet: J) -> Self;
 }
 
 pub trait WitnessConstructible<W>: Sized {
-    fn witness(witness: W) -> Self;
+    fn witness(inference_context: &types::Context, witness: W) -> Self;
 }
 
 /// A node in a Simplicity expression.
@@ -373,18 +383,18 @@ where
     N: Marker,
     N::CachedData: CoreConstructible,
 {
-    fn iden() -> Self {
+    fn iden(inference_context: &types::Context) -> Self {
         Arc::new(Node {
             cmr: Cmr::iden(),
-            data: N::CachedData::iden(),
+            data: N::CachedData::iden(inference_context),
             inner: Inner::Iden,
         })
     }
 
-    fn unit() -> Self {
+    fn unit(inference_context: &types::Context) -> Self {
         Arc::new(Node {
             cmr: Cmr::unit(),
-            data: N::CachedData::unit(),
+            data: N::CachedData::unit(inference_context),
             inner: Inner::Unit,
         })
     }
@@ -461,20 +471,24 @@ where
         }))
     }
 
-    fn fail(entropy: FailEntropy) -> Self {
+    fn fail(inference_context: &types::Context, entropy: FailEntropy) -> Self {
         Arc::new(Node {
             cmr: Cmr::fail(entropy),
-            data: N::CachedData::fail(entropy),
+            data: N::CachedData::fail(inference_context, entropy),
             inner: Inner::Fail(entropy),
         })
     }
 
-    fn const_word(value: Arc<Value>) -> Self {
+    fn const_word(inference_context: &types::Context, value: Arc<Value>) -> Self {
         Arc::new(Node {
             cmr: Cmr::const_word(&value),
-            data: N::CachedData::const_word(Arc::clone(&value)),
+            data: N::CachedData::const_word(inference_context, Arc::clone(&value)),
             inner: Inner::Word(value),
         })
+    }
+
+    fn inference_context(&self) -> &types::Context {
+        self.data.inference_context()
     }
 }
 
@@ -497,10 +511,10 @@ where
     N: Marker,
     N::CachedData: WitnessConstructible<N::Witness>,
 {
-    fn witness(value: N::Witness) -> Self {
+    fn witness(inference_context: &types::Context, value: N::Witness) -> Self {
         Arc::new(Node {
             cmr: Cmr::witness(),
-            data: N::CachedData::witness(value.clone()),
+            data: N::CachedData::witness(inference_context, value.clone()),
             inner: Inner::Witness(value),
         })
     }
@@ -511,10 +525,10 @@ where
     N: Marker,
     N::CachedData: JetConstructible<N::Jet>,
 {
-    fn jet(jet: N::Jet) -> Self {
+    fn jet(inference_context: &types::Context, jet: N::Jet) -> Self {
         Arc::new(Node {
             cmr: Cmr::jet(jet),
-            data: N::CachedData::jet(jet),
+            data: N::CachedData::jet(inference_context, jet),
             inner: Inner::Jet(jet),
         })
     }
