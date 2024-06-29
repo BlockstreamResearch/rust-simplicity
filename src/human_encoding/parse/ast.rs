@@ -86,9 +86,20 @@ impl Type {
         match self {
             Type::Name(s) => types::Type::free(ctx, s),
             Type::One => types::Type::unit(ctx),
-            Type::Two => types::Type::sum(types::Type::unit(ctx), types::Type::unit(ctx)),
-            Type::Product(left, right) => types::Type::product(left.reify(ctx), right.reify(ctx)),
-            Type::Sum(left, right) => types::Type::sum(left.reify(ctx), right.reify(ctx)),
+            Type::Two => {
+                let unit_ty = types::Type::unit(ctx);
+                types::Type::sum(ctx, unit_ty.shallow_clone(), unit_ty)
+            }
+            Type::Product(left, right) => {
+                let left = left.reify(ctx);
+                let right = right.reify(ctx);
+                types::Type::product(ctx, left, right)
+            }
+            Type::Sum(left, right) => {
+                let left = left.reify(ctx);
+                let right = right.reify(ctx);
+                types::Type::sum(ctx, left, right)
+            }
             Type::TwoTwoN(n) => types::Type::two_two_n(ctx, n as usize), // cast OK as we are only using tiny numbers
         }
     }

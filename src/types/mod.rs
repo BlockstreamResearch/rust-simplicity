@@ -414,12 +414,12 @@ impl Type {
     }
 
     /// Create the sum of the given `left` and `right` types.
-    pub fn sum(left: Self, right: Self) -> Self {
+    pub fn sum(_: &Context, left: Self, right: Self) -> Self {
         Type::from(Bound::sum(left, right))
     }
 
     /// Create the product of the given `left` and `right` types.
-    pub fn product(left: Self, right: Self) -> Self {
+    pub fn product(_: &Context, left: Self, right: Self) -> Self {
         Type::from(Bound::product(left, right))
     }
 
@@ -565,10 +565,10 @@ impl Type {
         let mut ret = Vec::with_capacity(n);
 
         let unit = Type::unit(ctx);
-        let mut two = Type::sum(unit.shallow_clone(), unit);
+        let mut two = Type::sum(ctx, unit.shallow_clone(), unit);
         for _ in 0..n {
             ret.push(two.shallow_clone());
-            two = Type::product(two.shallow_clone(), two);
+            two = Type::product(ctx, two.shallow_clone(), two);
         }
         ret
     }

@@ -118,8 +118,8 @@ impl Arrow {
         let b = Type::free(&ctx, new_name("case_b_"));
         let c = Type::free(&ctx, new_name("case_c_"));
 
-        let sum_a_b = Type::sum(a.shallow_clone(), b.shallow_clone());
-        let prod_sum_a_b_c = Type::product(sum_a_b, c.shallow_clone());
+        let sum_a_b = Type::sum(&ctx, a.shallow_clone(), b.shallow_clone());
+        let prod_sum_a_b_c = Type::product(&ctx, sum_a_b, c.shallow_clone());
 
         let target = Type::free(&ctx, String::new());
         if let Some(lchild_arrow) = lchild_arrow {
@@ -164,7 +164,7 @@ impl Arrow {
 
         let prod_256_a = Bound::Product(Type::two_two_n(ctx, 8), a.shallow_clone());
         let prod_b_c = Bound::Product(b.shallow_clone(), c);
-        let prod_b_d = Type::product(b, d);
+        let prod_b_d = Type::product(ctx, b, d);
 
         ctx.bind(
             &lchild_arrow.source,
@@ -212,6 +212,7 @@ impl CoreConstructible for Arrow {
         Arrow {
             source: child.source.shallow_clone(),
             target: Type::sum(
+                &child.inference_context,
                 child.target.shallow_clone(),
                 Type::free(&child.inference_context, new_name("injl_tgt_")),
             ),
@@ -223,6 +224,7 @@ impl CoreConstructible for Arrow {
         Arrow {
             source: child.source.shallow_clone(),
             target: Type::sum(
+                &child.inference_context,
                 Type::free(&child.inference_context, new_name("injr_tgt_")),
                 child.target.shallow_clone(),
             ),
@@ -233,6 +235,7 @@ impl CoreConstructible for Arrow {
     fn take(child: &Self) -> Self {
         Arrow {
             source: Type::product(
+                &child.inference_context,
                 child.source.shallow_clone(),
                 Type::free(&child.inference_context, new_name("take_src_")),
             ),
@@ -244,6 +247,7 @@ impl CoreConstructible for Arrow {
     fn drop_(child: &Self) -> Self {
         Arrow {
             source: Type::product(
+                &child.inference_context,
                 Type::free(&child.inference_context, new_name("drop_src_")),
                 child.source.shallow_clone(),
             ),
@@ -287,7 +291,11 @@ impl CoreConstructible for Arrow {
         )?;
         Ok(Arrow {
             source: left.source.shallow_clone(),
-            target: Type::product(left.target.shallow_clone(), right.target.shallow_clone()),
+            target: Type::product(
+                &left.inference_context,
+                left.target.shallow_clone(),
+                right.target.shallow_clone(),
+            ),
             inference_context: left.inference_context.shallow_clone(),
         })
     }
