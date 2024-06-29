@@ -206,7 +206,7 @@ impl<J: Jet> WitnessNode<J> {
         let pruned_self = self.prune_and_retype();
         // 2. Then, set the root arrow to 1->1
         let ctx = pruned_self.inference_context();
-        let unit_ty = types::Type::unit();
+        let unit_ty = types::Type::unit(ctx);
         ctx.unify(
             &pruned_self.arrow().source,
             &unit_ty,

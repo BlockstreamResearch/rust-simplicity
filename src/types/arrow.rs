@@ -108,37 +108,35 @@ impl Arrow {
             left.inference_context.check_eq(&right.inference_context)?;
         }
 
-        let inference_context = match (lchild_arrow, rchild_arrow) {
+        let ctx = match (lchild_arrow, rchild_arrow) {
             (Some(left), _) => left.inference_context.shallow_clone(),
             (_, Some(right)) => right.inference_context.shallow_clone(),
             (None, None) => panic!("called `for_case` with no children"),
         };
 
-        let a = Type::free(new_name("case_a_"));
-        let b = Type::free(new_name("case_b_"));
-        let c = Type::free(new_name("case_c_"));
+        let a = Type::free(&ctx, new_name("case_a_"));
+        let b = Type::free(&ctx, new_name("case_b_"));
+        let c = Type::free(&ctx, new_name("case_c_"));
 
         let sum_a_b = Type::sum(a.shallow_clone(), b.shallow_clone());
         let prod_sum_a_b_c = Type::product(sum_a_b, c.shallow_clone());
 
-        let target = Type::free(String::new());
+        let target = Type::free(&ctx, String::new());
         if let Some(lchild_arrow) = lchild_arrow {
-            inference_context.bind(
+            ctx.bind(
                 &lchild_arrow.source,
                 Arc::new(Bound::Product(a, c.shallow_clone())),
                 "case combinator: left source = A × C",
             )?;
-            inference_context
-                .unify(&target, &lchild_arrow.target, "")
-                .unwrap();
+            ctx.unify(&target, &lchild_arrow.target, "").unwrap();
         }
         if let Some(rchild_arrow) = rchild_arrow {
-            inference_context.bind(
+            ctx.bind(
                 &rchild_arrow.source,
                 Arc::new(Bound::Product(b, c)),
                 "case combinator: left source = B × C",
             )?;
-            inference_context.unify(
+            ctx.unify(
                 &target,
                 &rchild_arrow.target,
                 "case combinator: left target = right target",
@@ -148,7 +146,7 @@ impl Arrow {
         Ok(Arrow {
             source: prod_sum_a_b_c,
             target,
-            inference_context,
+            inference_context: ctx,
         })
     }
 
@@ -159,12 +157,12 @@ impl Arrow {
             .check_eq(&rchild_arrow.inference_context)?;
 
         let ctx = lchild_arrow.inference_context();
-        let a = Type::free(new_name("disconnect_a_"));
-        let b = Type::free(new_name("disconnect_b_"));
+        let a = Type::free(ctx, new_name("disconnect_a_"));
+        let b = Type::free(ctx, new_name("disconnect_b_"));
         let c = rchild_arrow.source.shallow_clone();
         let d = rchild_arrow.target.shallow_clone();
 
-        let prod_256_a = Bound::Product(Type::two_two_n(8), a.shallow_clone());
+        let prod_256_a = Bound::Product(Type::two_two_n(ctx, 8), a.shallow_clone());
         let prod_b_c = Bound::Product(b.shallow_clone(), c);
         let prod_b_d = Type::product(b, d);
 
@@ -194,7 +192,7 @@ impl CoreConstructible for Arrow {
         // them. This theoretically could lead to more confusing errors for
         // the user during type inference, but in practice type inference
         // is completely opaque and there's no harm in making it moreso.
-        let new = Type::free(new_name("iden_src_"));
+        let new = Type::free(inference_context, new_name("iden_src_"));
         Arrow {
             source: new.shallow_clone(),
             target: new,
@@ -204,8 +202,8 @@ impl CoreConstructible for Arrow {
 
     fn unit(inference_context: &Context) -> Self {
         Arrow {
-            source: Type::free(new_name("unit_src_")),
-            target: Type::unit(),
+            source: Type::free(inference_context, new_name("unit_src_")),
+            target: Type::unit(inference_context),
             inference_context: inference_context.shallow_clone(),
         }
     }
@@ -215,7 +213,7 @@ impl CoreConstructible for Arrow {
             source: child.source.shallow_clone(),
             target: Type::sum(
                 child.target.shallow_clone(),
-                Type::free(new_name("injl_tgt_")),
+                Type::free(&child.inference_context, new_name("injl_tgt_")),
             ),
             inference_context: child.inference_context.shallow_clone(),
         }
@@ -225,7 +223,7 @@ impl CoreConstructible for Arrow {
         Arrow {
             source: child.source.shallow_clone(),
             target: Type::sum(
-                Type::free(new_name("injr_tgt_")),
+                Type::free(&child.inference_context, new_name("injr_tgt_")),
                 child.target.shallow_clone(),
             ),
             inference_context: child.inference_context.shallow_clone(),
@@ -236,7 +234,7 @@ impl CoreConstructible for Arrow {
         Arrow {
             source: Type::product(
                 child.source.shallow_clone(),
-                Type::free(new_name("take_src_")),
+                Type::free(&child.inference_context, new_name("take_src_")),
             ),
             target: child.target.shallow_clone(),
             inference_context: child.inference_context.shallow_clone(),
@@ -246,7 +244,7 @@ impl CoreConstructible for Arrow {
     fn drop_(child: &Self) -> Self {
         Arrow {
             source: Type::product(
-                Type::free(new_name("drop_src_")),
+                Type::free(&child.inference_context, new_name("drop_src_")),
                 child.source.shallow_clone(),
             ),
             target: child.target.shallow_clone(),
@@ -296,8 +294,8 @@ impl CoreConstructible for Arrow {
 
     fn fail(inference_context: &Context, _: crate::FailEntropy) -> Self {
         Arrow {
-            source: Type::free(new_name("fail_src_")),
-            target: Type::free(new_name("fail_tgt_")),
+            source: Type::free(inference_context, new_name("fail_src_")),
+            target: Type::free(inference_context, new_name("fail_tgt_")),
             inference_context: inference_context.shallow_clone(),
         }
     }
@@ -308,8 +306,8 @@ impl CoreConstructible for Arrow {
         assert!(len.is_power_of_two());
         let depth = word.len().trailing_zeros();
         Arrow {
-            source: Type::unit(),
-            target: Type::two_two_n(depth as usize),
+            source: Type::unit(inference_context),
+            target: Type::two_two_n(inference_context, depth as usize),
             inference_context: inference_context.shallow_clone(),
         }
     }
@@ -327,11 +325,13 @@ impl DisconnectConstructible<Arrow> for Arrow {
 
 impl DisconnectConstructible<NoDisconnect> for Arrow {
     fn disconnect(left: &Self, _: &NoDisconnect) -> Result<Self, Error> {
+        let source = Type::free(&left.inference_context, "disc_src".into());
+        let target = Type::free(&left.inference_context, "disc_tgt".into());
         Self::for_disconnect(
             left,
             &Arrow {
-                source: Type::free("disc_src".into()),
-                target: Type::free("disc_tgt".into()),
+                source,
+                target,
                 inference_context: left.inference_context.shallow_clone(),
             },
         )
@@ -350,8 +350,8 @@ impl DisconnectConstructible<Option<&Arrow>> for Arrow {
 impl<J: Jet> JetConstructible<J> for Arrow {
     fn jet(inference_context: &Context, jet: J) -> Self {
         Arrow {
-            source: jet.source_ty().to_type(),
-            target: jet.target_ty().to_type(),
+            source: jet.source_ty().to_type(inference_context),
+            target: jet.target_ty().to_type(inference_context),
             inference_context: inference_context.shallow_clone(),
         }
     }
@@ -360,8 +360,8 @@ impl<J: Jet> JetConstructible<J> for Arrow {
 impl<W> WitnessConstructible<W> for Arrow {
     fn witness(inference_context: &Context, _: W) -> Self {
         Arrow {
-            source: Type::free(new_name("witness_src_")),
-            target: Type::free(new_name("witness_tgt_")),
+            source: Type::free(inference_context, new_name("witness_src_")),
+            target: Type::free(inference_context, new_name("witness_tgt_")),
             inference_context: inference_context.shallow_clone(),
         }
     }

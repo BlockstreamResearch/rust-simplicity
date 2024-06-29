@@ -428,14 +428,16 @@ impl<J: Jet> NamedConstructNode<J> {
                 if self.for_main {
                     // For `main`, only apply type ascriptions *after* inference has completely
                     // determined the type.
-                    let source_ty = types::Type::complete(Arc::clone(&commit_data.arrow().source));
+                    let source_ty =
+                        types::Type::complete(ctx, Arc::clone(&commit_data.arrow().source));
                     for ty in data.node.cached_data().user_source_types.as_ref() {
                         if let Err(e) = ctx.unify(&source_ty, ty, "binding source type annotation")
                         {
                             self.errors.add(data.node.position(), e);
                         }
                     }
-                    let target_ty = types::Type::complete(Arc::clone(&commit_data.arrow().target));
+                    let target_ty =
+                        types::Type::complete(ctx, Arc::clone(&commit_data.arrow().target));
                     for ty in data.node.cached_data().user_target_types.as_ref() {
                         if let Err(e) = ctx.unify(&target_ty, ty, "binding target type annotation")
                         {
@@ -460,7 +462,7 @@ impl<J: Jet> NamedConstructNode<J> {
 
         if for_main {
             let ctx = self.inference_context();
-            let unit_ty = types::Type::unit();
+            let unit_ty = types::Type::unit(ctx);
             if self.cached_data().user_source_types.is_empty() {
                 if let Err(e) = ctx.unify(
                     &self.arrow().source,

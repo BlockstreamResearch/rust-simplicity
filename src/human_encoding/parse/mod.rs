@@ -181,6 +181,7 @@ pub fn parse<J: Jet + 'static>(
     program: &str,
 ) -> Result<HashMap<Arc<str>, Arc<NamedCommitNode<J>>>, ErrorSet> {
     let mut errors = ErrorSet::new();
+    let inference_context = types::Context::new();
     // **
     // Step 1: Read expressions into HashMap, checking for dupes and illegal names.
     // **
@@ -205,10 +206,10 @@ pub fn parse<J: Jet + 'static>(
             }
         }
         if let Some(ty) = line.arrow.0 {
-            entry.add_source_type(ty.reify());
+            entry.add_source_type(ty.reify(&inference_context));
         }
         if let Some(ty) = line.arrow.1 {
-            entry.add_target_type(ty.reify());
+            entry.add_target_type(ty.reify(&inference_context));
         }
     }
 
@@ -419,7 +420,6 @@ pub fn parse<J: Jet + 'static>(
     drop(unresolved_map);
 
     // ** Step 3: convert each DAG of names/expressions into a DAG of NamedNodes.
-    let inference_context = types::Context::new();
     let mut roots = HashMap::<Arc<str>, Arc<NamedCommitNode<J>>>::new();
     for (name, expr) in &resolved_map {
         if expr.in_degree.load(Ordering::SeqCst) > 0 {
