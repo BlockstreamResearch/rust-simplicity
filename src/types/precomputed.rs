@@ -14,33 +14,34 @@
 
 use crate::Tmr;
 
-use super::Type;
+use super::Final;
 
 use std::cell::RefCell;
 use std::convert::TryInto;
+use std::sync::Arc;
 
 // Directly use the size of the precomputed TMR table to make sure they're in sync.
 const N_POWERS: usize = Tmr::POWERS_OF_TWO.len();
 
 thread_local! {
-    static POWERS_OF_TWO: RefCell<Option<[Type; N_POWERS]>> = RefCell::new(None);
+    static POWERS_OF_TWO: RefCell<Option<[Arc<Final>; N_POWERS]>> = RefCell::new(None);
 }
 
-fn initialize(write: &mut Option<[Type; N_POWERS]>) {
-    let one = Type::unit();
+fn initialize(write: &mut Option<[Arc<Final>; N_POWERS]>) {
+    let one = Final::unit();
     let mut powers = Vec::with_capacity(N_POWERS);
 
     // Two^(2^0) = Two = (One + One)
-    let mut power = Type::sum(one.shallow_clone(), one);
-    powers.push(power.shallow_clone());
+    let mut power = Final::sum(Arc::clone(&one), one);
+    powers.push(Arc::clone(&power));
 
     // Two^(2^(i + 1)) = (Two^(2^i) * Two^(2^i))
     for _ in 1..N_POWERS {
-        power = Type::product(power.shallow_clone(), power);
-        powers.push(power.shallow_clone());
+        power = Final::product(Arc::clone(&power), power);
+        powers.push(Arc::clone(&power));
     }
 
-    let powers: [Type; N_POWERS] = powers.try_into().unwrap();
+    let powers: [Arc<Final>; N_POWERS] = powers.try_into().unwrap();
     *write = Some(powers);
 }
 
@@ -49,12 +50,12 @@ fn initialize(write: &mut Option<[Type; N_POWERS]>) {
 /// # Panics
 ///
 /// Panics if you request a number `n` greater than or equal to [`Tmr::POWERS_OF_TWO`].
-pub fn nth_power_of_2(n: usize) -> Type {
+pub fn nth_power_of_2(n: usize) -> Arc<Final> {
     POWERS_OF_TWO.with(|arr| {
         if arr.borrow().is_none() {
             initialize(&mut arr.borrow_mut());
         }
         debug_assert!(arr.borrow().is_some());
-        arr.borrow().as_ref().unwrap()[n].shallow_clone()
+        Arc::clone(&arr.borrow().as_ref().unwrap()[n])
     })
 }

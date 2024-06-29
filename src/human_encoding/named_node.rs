@@ -413,17 +413,13 @@ impl<J: Jet> NamedConstructNode<J> {
                 if self.for_main {
                     // For `main`, only apply type ascriptions *after* inference has completely
                     // determined the type.
-                    let source_bound =
-                        types::Bound::Complete(Arc::clone(&commit_data.arrow().source));
-                    let source_ty = types::Type::from(source_bound);
+                    let source_ty = types::Type::complete(Arc::clone(&commit_data.arrow().source));
                     for ty in data.node.cached_data().user_source_types.as_ref() {
                         if let Err(e) = source_ty.unify(ty, "binding source type annotation") {
                             self.errors.add(data.node.position(), e);
                         }
                     }
-                    let target_bound =
-                        types::Bound::Complete(Arc::clone(&commit_data.arrow().target));
-                    let target_ty = types::Type::from(target_bound);
+                    let target_ty = types::Type::complete(Arc::clone(&commit_data.arrow().target));
                     for ty in data.node.cached_data().user_target_types.as_ref() {
                         if let Err(e) = target_ty.unify(ty, "binding target type annotation") {
                             self.errors.add(data.node.position(), e);
