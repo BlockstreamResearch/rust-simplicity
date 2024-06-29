@@ -397,20 +397,20 @@ pub struct Type {
 
 impl Type {
     /// Return an unbound type with the given name
-    pub fn free(name: String) -> Self {
+    pub fn free(_: &Context, name: String) -> Self {
         Type::from(Bound::free(name))
     }
 
     /// Create the unit type.
-    pub fn unit() -> Self {
+    pub fn unit(_: &Context) -> Self {
         Type::from(Bound::unit())
     }
 
     /// Create the type `2^(2^n)` for the given `n`.
     ///
     /// The type is precomputed and fast to access.
-    pub fn two_two_n(n: usize) -> Self {
-        Self::complete(precomputed::nth_power_of_2(n))
+    pub fn two_two_n(ctx: &Context, n: usize) -> Self {
+        Self::complete(ctx, precomputed::nth_power_of_2(n))
     }
 
     /// Create the sum of the given `left` and `right` types.
@@ -424,7 +424,7 @@ impl Type {
     }
 
     /// Create a complete type.
-    pub fn complete(final_data: Arc<Final>) -> Self {
+    pub fn complete(_: &Context, final_data: Arc<Final>) -> Self {
         Type::from(Bound::Complete(final_data))
     }
 
@@ -561,10 +561,10 @@ impl Type {
     }
 
     /// Return a vector containing the types 2^(2^i) for i from 0 to n-1.
-    pub fn powers_of_two(n: usize) -> Vec<Self> {
+    pub fn powers_of_two(ctx: &Context, n: usize) -> Vec<Self> {
         let mut ret = Vec::with_capacity(n);
 
-        let unit = Type::unit();
+        let unit = Type::unit(ctx);
         let mut two = Type::sum(unit.shallow_clone(), unit);
         for _ in 0..n {
             ret.push(two.shallow_clone());
