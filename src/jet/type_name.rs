@@ -30,94 +30,32 @@ use std::sync::Arc;
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct TypeName(pub &'static [u8]);
 
-trait TypeConstructible {
-    fn two_two_n(n: Option<u32>) -> Self;
-    fn sum(left: Self, right: Self) -> Self;
-    fn product(left: Self, right: Self) -> Self;
-}
-
-impl TypeConstructible for Type {
-    fn two_two_n(n: Option<u32>) -> Self {
-        match n {
-            None => Type::unit(),
-            Some(m) => Type::two_two_n(m as usize), // cast safety: 32-bit arch or higher
-        }
-    }
-
-    fn sum(left: Self, right: Self) -> Self {
-        Type::sum(left, right)
-    }
-
-    fn product(left: Self, right: Self) -> Self {
-        Type::product(left, right)
-    }
-}
-
-impl TypeConstructible for Arc<Final> {
-    fn two_two_n(n: Option<u32>) -> Self {
-        match n {
-            None => Final::unit(),
-            Some(m) => Final::two_two_n(m as usize), // cast safety: 32-bit arch or higher
-        }
-    }
-
-    fn sum(left: Self, right: Self) -> Self {
-        Final::sum(left, right)
-    }
-
-    fn product(left: Self, right: Self) -> Self {
-        Final::product(left, right)
-    }
-}
-
-struct BitWidth(usize);
-
-impl TypeConstructible for BitWidth {
-    fn two_two_n(n: Option<u32>) -> Self {
-        match n {
-            None => BitWidth(0),
-            Some(m) => BitWidth(usize::pow(2, m)),
-        }
-    }
-
-    fn sum(left: Self, right: Self) -> Self {
-        BitWidth(1 + cmp::max(left.0, right.0))
-    }
-
-    fn product(left: Self, right: Self) -> Self {
-        BitWidth(left.0 + right.0)
-    }
-}
-
 impl TypeName {
-    // b'1' = 49
-    // b'2' = 50
-    // b'c' = 99
-    // b's' = 115
-    // b'i' = 105
-    // b'l' = 108
-    // b'h' = 104
-    // b'+' = 43
-    // b'*' = 42
-    fn construct<T: TypeConstructible>(&self) -> T {
+    /// Convert the type name into a type.
+    pub fn to_type(&self) -> Type {
+        Type::complete(self.to_final())
+    }
+
+    /// Convert the type name into a finalized type.
+    pub fn to_final(&self) -> Arc<Final> {
         let mut stack = Vec::with_capacity(16);
 
         for c in self.0.iter().rev() {
             match c {
-                b'1' => stack.push(T::two_two_n(None)),
-                b'2' => stack.push(T::two_two_n(Some(0))),
-                b'c' => stack.push(T::two_two_n(Some(3))),
-                b's' => stack.push(T::two_two_n(Some(4))),
-                b'i' => stack.push(T::two_two_n(Some(5))),
-                b'l' => stack.push(T::two_two_n(Some(6))),
-                b'h' => stack.push(T::two_two_n(Some(8))),
+                b'1' => stack.push(Final::unit()),
+                b'2' => stack.push(Final::two_two_n(0)),
+                b'c' => stack.push(Final::two_two_n(3)),
+                b's' => stack.push(Final::two_two_n(4)),
+                b'i' => stack.push(Final::two_two_n(5)),
+                b'l' => stack.push(Final::two_two_n(6)),
+                b'h' => stack.push(Final::two_two_n(8)),
                 b'+' | b'*' => {
                     let left = stack.pop().expect("Illegal type name syntax!");
                     let right = stack.pop().expect("Illegal type name syntax!");
 
                     match c {
-                        b'+' => stack.push(T::sum(left, right)),
-                        b'*' => stack.push(T::product(left, right)),
+                        b'+' => stack.push(Final::sum(left, right)),
+                        b'*' => stack.push(Final::product(left, right)),
                         _ => unreachable!(),
                     }
                 }
@@ -132,20 +70,39 @@ impl TypeName {
         }
     }
 
-    /// Convert the type name into a type.
-    pub fn to_type(&self) -> Type {
-        self.construct()
-    }
-
-    /// Convert the type name into a finalized type.
-    pub fn to_final(&self) -> Arc<Final> {
-        self.construct()
-    }
-
     /// Convert the type name into a type's bitwidth.
     ///
     /// This is more efficient than creating the type and computing its bit-width
     pub fn to_bit_width(&self) -> usize {
-        self.construct::<BitWidth>().0
+        let mut stack = Vec::with_capacity(16);
+
+        for c in self.0.iter().rev() {
+            match c {
+                b'1' => stack.push(0),
+                b'2' => stack.push(1),
+                b'c' => stack.push(8),
+                b's' => stack.push(16),
+                b'i' => stack.push(32),
+                b'l' => stack.push(64),
+                b'h' => stack.push(256),
+                b'+' | b'*' => {
+                    let left = stack.pop().expect("Illegal type name syntax!");
+                    let right = stack.pop().expect("Illegal type name syntax!");
+
+                    match c {
+                        b'+' => stack.push(1 + cmp::max(left, right)),
+                        b'*' => stack.push(left + right),
+                        _ => unreachable!(),
+                    }
+                }
+                _ => panic!("Illegal type name syntax!"),
+            }
+        }
+
+        if stack.len() == 1 {
+            stack.pop().unwrap()
+        } else {
+            panic!("Illegal type name syntax!")
+        }
     }
 }
