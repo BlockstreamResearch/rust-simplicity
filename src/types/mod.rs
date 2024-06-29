@@ -142,13 +142,19 @@ impl std::error::Error for Error {}
 
 mod bound_mutex {
     use super::{Bound, CompleteBound, Error, Final};
+    use std::fmt;
     use std::sync::{Arc, Mutex};
 
     /// Source or target type of a Simplicity expression
-    #[derive(Debug)]
     pub struct BoundMutex {
         /// The type's status according to the union-bound algorithm.
         inner: Mutex<Arc<Bound>>,
+    }
+
+    impl fmt::Debug for BoundMutex {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            self.get().fmt(f)
+        }
     }
 
     impl BoundMutex {
@@ -591,7 +597,7 @@ mod tests {
     use super::*;
 
     use crate::jet::Core;
-    use crate::node::{ConstructNode, CoreConstructible};
+    use crate::node::{ConstructNode, CoreConstructible, WitnessNode};
 
     #[test]
     fn inference_failure() {
@@ -608,5 +614,14 @@ mod tests {
         Arc::<ConstructNode<Core>>::pair(&unit, &take_unit).unwrap_err();
         // Trying to do it again should not work.
         Arc::<ConstructNode<Core>>::pair(&unit, &take_unit).unwrap_err();
+    }
+
+    #[test]
+    fn memory_leak() {
+        let iden = Arc::<WitnessNode<Core>>::iden();
+        let drop = Arc::<WitnessNode<Core>>::drop_(&iden);
+        let case = Arc::<WitnessNode<Core>>::case(&iden, &drop).unwrap();
+
+        format!("{:?}", case.arrow().source);
     }
 }
