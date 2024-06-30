@@ -125,7 +125,7 @@ impl Arrow {
         if let Some(lchild_arrow) = lchild_arrow {
             ctx.bind(
                 &lchild_arrow.source,
-                Arc::new(Bound::Product(a, c.shallow_clone())),
+                Bound::Product(a, c.shallow_clone()),
                 "case combinator: left source = A × C",
             )?;
             ctx.unify(&target, &lchild_arrow.target, "").unwrap();
@@ -133,7 +133,7 @@ impl Arrow {
         if let Some(rchild_arrow) = rchild_arrow {
             ctx.bind(
                 &rchild_arrow.source,
-                Arc::new(Bound::Product(b, c)),
+                Bound::Product(b, c),
                 "case combinator: left source = B × C",
             )?;
             ctx.unify(
@@ -168,12 +168,12 @@ impl Arrow {
 
         ctx.bind(
             &lchild_arrow.source,
-            Arc::new(prod_256_a),
+            prod_256_a,
             "disconnect combinator: left source = 2^256 × A",
         )?;
         ctx.bind(
             &lchild_arrow.target,
-            Arc::new(prod_b_c),
+            prod_b_c,
             "disconnect combinator: left target = B × C",
         )?;
 

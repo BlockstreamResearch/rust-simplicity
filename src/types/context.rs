@@ -17,6 +17,8 @@
 use std::fmt;
 use std::sync::{Arc, Mutex};
 
+use crate::dag::{Dag, DagLike};
+
 use super::bound_mutex::BoundMutex;
 use super::{Bound, Error, Final, Type};
 
@@ -123,11 +125,37 @@ impl Context {
         }
     }
 
+    /// Accesses a bound.
+    ///
+    /// # Panics
+    ///
+    /// Panics if passed a `BoundRef` that was not allocated by this context.
+    pub fn get(&self, bound: &BoundRef) -> Bound {
+        bound.assert_matches_context(self);
+        bound.index.get().shallow_clone()
+    }
+
+    /// Reassigns a bound to a different bound.
+    ///
+    /// # Panics
+    ///
+    /// Panics if called on a complete type. This is a sanity-check to avoid
+    /// replacing already-completed types, which can cause inefficiencies in
+    /// the union-bound algorithm (and if our replacement changes the type,
+    /// this is probably a bug.
+    /// probably a bug.
+    ///
+    /// Also panics if passed a `BoundRef` that was not allocated by this context.
+    pub fn reassign_non_complete(&self, bound: BoundRef, new: Bound) {
+        bound.assert_matches_context(self);
+        bound.index.set(new)
+    }
+
     /// Binds the type to a given bound. If this fails, attach the provided
     /// hint to the error.
     ///
     /// Fails if the type has an existing incompatible bound.
-    pub fn bind(&self, existing: &Type, new: Arc<Bound>, hint: &'static str) -> Result<(), Error> {
+    pub fn bind(&self, existing: &Type, new: Bound, hint: &'static str) -> Result<(), Error> {
         existing.bind(new, hint)
     }
 
@@ -139,7 +167,7 @@ impl Context {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BoundRef {
     context: *const Mutex<Vec<Bound>>,
     // Will become an index into the context in a latter commit, but for
@@ -156,16 +184,18 @@ impl BoundRef {
         );
     }
 
-    pub fn get(&self) -> Arc<Bound> {
-        self.index.get()
-    }
-
-    pub fn set(&self, new: Arc<Bound>) {
-        self.index.set(new)
-    }
-
-    pub fn bind(&self, bound: Arc<Bound>, hint: &'static str) -> Result<(), Error> {
+    pub fn bind(&self, bound: Bound, hint: &'static str) -> Result<(), Error> {
         self.index.bind(bound, hint)
+    }
+
+    /// Creates an "occurs-check ID" which is just a copy of the [`BoundRef`]
+    /// with `PartialEq` and `Eq` implemented in terms of underlying pointer
+    /// equality.
+    pub fn occurs_check_id(&self) -> OccursCheckId {
+        OccursCheckId {
+            context: self.context,
+            index: Arc::as_ptr(&self.index),
+        }
     }
 }
 
@@ -184,4 +214,28 @@ impl super::PointerLike for BoundRef {
             index: Arc::clone(&self.index),
         }
     }
+}
+
+impl<'ctx> DagLike for (&'ctx Context, BoundRef) {
+    type Node = BoundRef;
+    fn data(&self) -> &BoundRef {
+        &self.1
+    }
+
+    fn as_dag_node(&self) -> Dag<Self> {
+        match self.0.get(&self.1) {
+            Bound::Free(..) | Bound::Complete(..) => Dag::Nullary,
+            Bound::Sum(ref ty1, ref ty2) | Bound::Product(ref ty1, ref ty2) => {
+                Dag::Binary((self.0, ty1.bound.root()), (self.0, ty2.bound.root()))
+            }
+        }
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
+pub struct OccursCheckId {
+    context: *const Mutex<Vec<Bound>>,
+    // Will become an index into the context in a latter commit, but for
+    // now we set it to an Arc<BoundMutex> to preserve semantics.
+    index: *const BoundMutex,
 }
