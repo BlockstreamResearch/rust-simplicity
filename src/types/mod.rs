@@ -440,7 +440,7 @@ impl Type {
     /// hint to the error.
     ///
     /// Fails if the type has an existing incompatible bound.
-    pub fn bind(&self, bound: Arc<Bound>, hint: &'static str) -> Result<(), Error> {
+    fn bind(&self, bound: Arc<Bound>, hint: &'static str) -> Result<(), Error> {
         let root = self.bound.root();
         root.bind(bound, hint)
     }
@@ -448,7 +448,7 @@ impl Type {
     /// Unify the type with another one.
     ///
     /// Fails if the bounds on the two types are incompatible
-    pub fn unify(&self, other: &Self, hint: &'static str) -> Result<(), Error> {
+    fn unify(&self, other: &Self, hint: &'static str) -> Result<(), Error> {
         self.bound.unify(&other.bound, |x_bound, y_bound| {
             x_bound.bind(y_bound.get(), hint)
         })

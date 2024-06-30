@@ -17,7 +17,7 @@
 use std::fmt;
 use std::sync::{Arc, Mutex};
 
-use super::Bound;
+use super::{Bound, Error, Type};
 
 /// Type inference context, or handle to a context.
 ///
@@ -73,5 +73,20 @@ impl Context {
         } else {
             Err(super::Error::InferenceContextMismatch)
         }
+    }
+
+    /// Binds the type to a given bound. If this fails, attach the provided
+    /// hint to the error.
+    ///
+    /// Fails if the type has an existing incompatible bound.
+    pub fn bind(&self, existing: &Type, new: Arc<Bound>, hint: &'static str) -> Result<(), Error> {
+        existing.bind(new, hint)
+    }
+
+    /// Unify the type with another one.
+    ///
+    /// Fails if the bounds on the two types are incompatible
+    pub fn unify(&self, ty1: &Type, ty2: &Type, hint: &'static str) -> Result<(), Error> {
+        ty1.unify(ty2, hint)
     }
 }

@@ -52,13 +52,18 @@ impl<J: Jet> ConstructNode<J> {
 
     /// Sets the source and target type of the node to unit
     pub fn set_arrow_to_program(&self) -> Result<(), types::Error> {
+        let ctx = self.data.inference_context();
         let unit_ty = types::Type::unit();
-        self.arrow()
-            .source
-            .unify(&unit_ty, "setting root source to unit")?;
-        self.arrow()
-            .target
-            .unify(&unit_ty, "setting root target to unit")?;
+        ctx.unify(
+            &self.arrow().source,
+            &unit_ty,
+            "setting root source to unit",
+        )?;
+        ctx.unify(
+            &self.arrow().target,
+            &unit_ty,
+            "setting root target to unit",
+        )?;
         Ok(())
     }
 
