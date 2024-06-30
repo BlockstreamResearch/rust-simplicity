@@ -17,7 +17,8 @@
 use std::fmt;
 use std::sync::{Arc, Mutex};
 
-use super::{Bound, Error, Type};
+use super::bound_mutex::BoundMutex;
+use super::{Bound, Error, Final, Type};
 
 /// Type inference context, or handle to a context.
 ///
@@ -55,6 +56,53 @@ impl Context {
         }
     }
 
+    /// Helper function to allocate a bound and return a reference to it.
+    fn alloc_bound(&self, bound: Bound) -> BoundRef {
+        BoundRef {
+            context: Arc::as_ptr(&self.slab),
+            index: Arc::new(BoundMutex::new(bound)),
+        }
+    }
+
+    /// Allocate a new free type bound, and return a reference to it.
+    pub fn alloc_free(&self, name: String) -> BoundRef {
+        self.alloc_bound(Bound::Free(name))
+    }
+
+    /// Allocate a new unit type bound, and return a reference to it.
+    pub fn alloc_unit(&self) -> BoundRef {
+        self.alloc_bound(Bound::Complete(Final::unit()))
+    }
+
+    /// Allocate a new unit type bound, and return a reference to it.
+    pub fn alloc_complete(&self, data: Arc<Final>) -> BoundRef {
+        self.alloc_bound(Bound::Complete(data))
+    }
+
+    /// Allocate a new sum-type bound, and return a reference to it.
+    ///
+    /// # Panics
+    ///
+    /// Panics if either of the child types are from a different inference context.
+    pub fn alloc_sum(&self, left: Type, right: Type) -> BoundRef {
+        left.bound.root().assert_matches_context(self);
+        right.bound.root().assert_matches_context(self);
+
+        self.alloc_bound(Bound::sum(left, right))
+    }
+
+    /// Allocate a new product-type bound, and return a reference to it.
+    ///
+    /// # Panics
+    ///
+    /// Panics if either of the child types are from a different inference context.
+    pub fn alloc_product(&self, left: Type, right: Type) -> BoundRef {
+        left.bound.root().assert_matches_context(self);
+        right.bound.root().assert_matches_context(self);
+
+        self.alloc_bound(Bound::product(left, right))
+    }
+
     /// Creates a new handle to the context.
     ///
     /// This handle holds a reference to the underlying context and will keep
@@ -88,5 +136,52 @@ impl Context {
     /// Fails if the bounds on the two types are incompatible
     pub fn unify(&self, ty1: &Type, ty2: &Type, hint: &'static str) -> Result<(), Error> {
         ty1.unify(ty2, hint)
+    }
+}
+
+#[derive(Debug)]
+pub struct BoundRef {
+    context: *const Mutex<Vec<Bound>>,
+    // Will become an index into the context in a latter commit, but for
+    // now we set it to an Arc<BoundMutex> to preserve semantics.
+    index: Arc<BoundMutex>,
+}
+
+impl BoundRef {
+    pub fn assert_matches_context(&self, ctx: &Context) {
+        assert_eq!(
+            self.context,
+            Arc::as_ptr(&ctx.slab),
+            "bound was accessed from a type inference context that did not create it",
+        );
+    }
+
+    pub fn get(&self) -> Arc<Bound> {
+        self.index.get()
+    }
+
+    pub fn set(&self, new: Arc<Bound>) {
+        self.index.set(new)
+    }
+
+    pub fn bind(&self, bound: Arc<Bound>, hint: &'static str) -> Result<(), Error> {
+        self.index.bind(bound, hint)
+    }
+}
+
+impl super::PointerLike for BoundRef {
+    fn ptr_eq(&self, other: &Self) -> bool {
+        debug_assert_eq!(
+            self.context, other.context,
+            "tried to compare two bounds from different inference contexts"
+        );
+        Arc::ptr_eq(&self.index, &other.index)
+    }
+
+    fn shallow_clone(&self) -> Self {
+        BoundRef {
+            context: self.context,
+            index: Arc::clone(&self.index),
+        }
     }
 }
