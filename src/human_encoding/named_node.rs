@@ -9,7 +9,7 @@ use crate::node::{
     self, Commit, CommitData, CommitNode, Converter, Inner, NoDisconnect, NoWitness, Node, Witness,
     WitnessData,
 };
-use crate::node::{Construct, ConstructData, Constructible};
+use crate::node::{Construct, ConstructData, Constructible as _, CoreConstructible as _};
 use crate::types;
 use crate::types::arrow::{Arrow, FinalArrow};
 use crate::{encode, Value, WitnessNode};
@@ -299,6 +299,11 @@ impl<J: Jet> NamedConstructNode<J> {
         self.cached_data().internal.arrow()
     }
 
+    /// Accessor for the node's type inference context.
+    pub fn inference_context(&self) -> &types::Context {
+        self.cached_data().internal.inference_context()
+    }
+
     /// Finalizes the types of the underlying [`crate::ConstructNode`].
     pub fn finalize_types_main(&self) -> Result<Arc<NamedCommitNode<J>>, ErrorSet> {
         self.finalize_types_inner(true)
@@ -390,17 +395,23 @@ impl<J: Jet> NamedConstructNode<J> {
                     .map_disconnect(|_| &NoDisconnect)
                     .copy_witness();
 
+                let ctx = data.node.inference_context();
+
                 if !self.for_main {
                     // For non-`main` fragments, treat the ascriptions as normative, and apply them
                     // before finalizing the type.
                     let arrow = data.node.arrow();
                     for ty in data.node.cached_data().user_source_types.as_ref() {
-                        if let Err(e) = arrow.source.unify(ty, "binding source type annotation") {
+                        if let Err(e) =
+                            ctx.unify(&arrow.source, ty, "binding source type annotation")
+                        {
                             self.errors.add(data.node.position(), e);
                         }
                     }
                     for ty in data.node.cached_data().user_target_types.as_ref() {
-                        if let Err(e) = arrow.target.unify(ty, "binding target type annotation") {
+                        if let Err(e) =
+                            ctx.unify(&arrow.target, ty, "binding target type annotation")
+                        {
                             self.errors.add(data.node.position(), e);
                         }
                     }
@@ -419,13 +430,15 @@ impl<J: Jet> NamedConstructNode<J> {
                     // determined the type.
                     let source_ty = types::Type::complete(Arc::clone(&commit_data.arrow().source));
                     for ty in data.node.cached_data().user_source_types.as_ref() {
-                        if let Err(e) = source_ty.unify(ty, "binding source type annotation") {
+                        if let Err(e) = ctx.unify(&source_ty, ty, "binding source type annotation")
+                        {
                             self.errors.add(data.node.position(), e);
                         }
                     }
                     let target_ty = types::Type::complete(Arc::clone(&commit_data.arrow().target));
                     for ty in data.node.cached_data().user_target_types.as_ref() {
-                        if let Err(e) = target_ty.unify(ty, "binding target type annotation") {
+                        if let Err(e) = ctx.unify(&target_ty, ty, "binding target type annotation")
+                        {
                             self.errors.add(data.node.position(), e);
                         }
                     }
@@ -446,22 +459,23 @@ impl<J: Jet> NamedConstructNode<J> {
         };
 
         if for_main {
+            let ctx = self.inference_context();
             let unit_ty = types::Type::unit();
             if self.cached_data().user_source_types.is_empty() {
-                if let Err(e) = self
-                    .arrow()
-                    .source
-                    .unify(&unit_ty, "setting root source to unit")
-                {
+                if let Err(e) = ctx.unify(
+                    &self.arrow().source,
+                    &unit_ty,
+                    "setting root source to unit",
+                ) {
                     finalizer.errors.add(self.position(), e);
                 }
             }
             if self.cached_data().user_target_types.is_empty() {
-                if let Err(e) = self
-                    .arrow()
-                    .target
-                    .unify(&unit_ty, "setting root source to unit")
-                {
+                if let Err(e) = ctx.unify(
+                    &self.arrow().target,
+                    &unit_ty,
+                    "setting root target to unit",
+                ) {
                     finalizer.errors.add(self.position(), e);
                 }
             }

@@ -123,18 +123,23 @@ impl Arrow {
 
         let target = Type::free(String::new());
         if let Some(lchild_arrow) = lchild_arrow {
-            lchild_arrow.source.bind(
+            inference_context.bind(
+                &lchild_arrow.source,
                 Arc::new(Bound::Product(a, c.shallow_clone())),
                 "case combinator: left source = A × C",
             )?;
-            target.unify(&lchild_arrow.target, "").unwrap();
+            inference_context
+                .unify(&target, &lchild_arrow.target, "")
+                .unwrap();
         }
         if let Some(rchild_arrow) = rchild_arrow {
-            rchild_arrow.source.bind(
+            inference_context.bind(
+                &rchild_arrow.source,
                 Arc::new(Bound::Product(b, c)),
                 "case combinator: left source = B × C",
             )?;
-            target.unify(
+            inference_context.unify(
+                &target,
                 &rchild_arrow.target,
                 "case combinator: left target = right target",
             )?;
@@ -153,6 +158,7 @@ impl Arrow {
             .inference_context
             .check_eq(&rchild_arrow.inference_context)?;
 
+        let ctx = lchild_arrow.inference_context();
         let a = Type::free(new_name("disconnect_a_"));
         let b = Type::free(new_name("disconnect_b_"));
         let c = rchild_arrow.source.shallow_clone();
@@ -162,11 +168,13 @@ impl Arrow {
         let prod_b_c = Bound::Product(b.shallow_clone(), c);
         let prod_b_d = Type::product(b, d);
 
-        lchild_arrow.source.bind(
+        ctx.bind(
+            &lchild_arrow.source,
             Arc::new(prod_256_a),
             "disconnect combinator: left source = 2^256 × A",
         )?;
-        lchild_arrow.target.bind(
+        ctx.bind(
+            &lchild_arrow.target,
             Arc::new(prod_b_c),
             "disconnect combinator: left target = B × C",
         )?;
@@ -248,8 +256,11 @@ impl CoreConstructible for Arrow {
 
     fn comp(left: &Self, right: &Self) -> Result<Self, Error> {
         left.inference_context.check_eq(&right.inference_context)?;
-        left.target
-            .unify(&right.source, "comp combinator: left target = right source")?;
+        left.inference_context.unify(
+            &left.target,
+            &right.source,
+            "comp combinator: left target = right source",
+        )?;
         Ok(Arrow {
             source: left.source.shallow_clone(),
             target: right.target.shallow_clone(),
@@ -271,8 +282,11 @@ impl CoreConstructible for Arrow {
 
     fn pair(left: &Self, right: &Self) -> Result<Self, Error> {
         left.inference_context.check_eq(&right.inference_context)?;
-        left.source
-            .unify(&right.source, "pair combinator: left source = right source")?;
+        left.inference_context.unify(
+            &left.source,
+            &right.source,
+            "pair combinator: left source = right source",
+        )?;
         Ok(Arrow {
             source: left.source.shallow_clone(),
             target: Type::product(left.target.shallow_clone(), right.target.shallow_clone()),
