@@ -32,6 +32,30 @@
 use std::sync::{Arc, Mutex};
 use std::{cmp, fmt, mem};
 
+/// Trait describing objects that can be stored and manipulated by the union-bound
+/// algorithm.
+///
+/// Because the algorithm depends on identity equality (i.e. two objects being
+/// exactly the same in memory) such objects need to have such a notion of
+/// equality. In general this differs from the `Eq` trait which implements
+/// "semantic equality".
+pub trait PointerLike {
+    /// Whether two objects are the same.
+    fn ptr_eq(&self, other: &Self) -> bool;
+
+    /// A "shallow copy" of the object.
+    fn shallow_clone(&self) -> Self;
+}
+
+impl<T> PointerLike for Arc<T> {
+    fn ptr_eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(self, other)
+    }
+    fn shallow_clone(&self) -> Self {
+        Arc::clone(self)
+    }
+}
+
 pub struct UbElement<T> {
     inner: Arc<Mutex<UbInner<T>>>,
 }
@@ -44,7 +68,7 @@ impl<T> Clone for UbElement<T> {
     }
 }
 
-impl<T: fmt::Debug> fmt::Debug for UbElement<T> {
+impl<T: PointerLike + fmt::Debug> fmt::Debug for UbElement<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Debug::fmt(&self.root(), f)
     }
@@ -56,19 +80,12 @@ struct UbInner<T> {
 }
 
 enum UbData<T> {
-    Root(Arc<T>),
+    Root(T),
     EqualTo(UbElement<T>),
 }
 
 impl<T> UbData<T> {
-    fn shallow_clone(&self) -> Self {
-        match self {
-            UbData::Root(x) => UbData::Root(Arc::clone(x)),
-            UbData::EqualTo(eq) => UbData::EqualTo(eq.shallow_clone()),
-        }
-    }
-
-    fn unwrap_root(&self) -> &Arc<T> {
+    fn unwrap_root(&self) -> &T {
         match self {
             UbData::Root(ref x) => x,
             UbData::EqualTo(..) => unreachable!(),
@@ -76,9 +93,18 @@ impl<T> UbData<T> {
     }
 }
 
+impl<T: PointerLike> UbData<T> {
+    fn shallow_clone(&self) -> Self {
+        match self {
+            UbData::Root(x) => UbData::Root(x.shallow_clone()),
+            UbData::EqualTo(eq) => UbData::EqualTo(eq.shallow_clone()),
+        }
+    }
+}
+
 impl<T> UbElement<T> {
     /// Turns an existing piece of data into a singleton union-bound set.
-    pub fn new(data: Arc<T>) -> Self {
+    pub fn new(data: T) -> Self {
         UbElement {
             inner: Arc::new(Mutex::new(UbInner {
                 data: UbData::Root(data),
@@ -92,14 +118,18 @@ impl<T> UbElement<T> {
     /// This is the same as just calling `.clone()` but has a different name to
     /// emphasize that what's being cloned is internally just an Arc.
     pub fn shallow_clone(&self) -> Self {
-        self.clone()
+        Self {
+            inner: Arc::clone(&self.inner),
+        }
     }
+}
 
+impl<T: PointerLike> UbElement<T> {
     /// Find the representative of this object in its disjoint set.
-    pub fn root(&self) -> Arc<T> {
+    pub fn root(&self) -> T {
         let root = self.root_element();
         let inner_lock = root.inner.lock().unwrap();
-        Arc::clone(inner_lock.data.unwrap_root())
+        inner_lock.data.unwrap_root().shallow_clone()
     }
 
     /// Find the representative of this object in its disjoint set.
@@ -145,7 +175,7 @@ impl<T> UbElement<T> {
     /// to actually be equal. This is accomplished with the `bind_fn` function,
     /// which takes two arguments: the **new representative that will be kept**
     /// followed by the **old representative that will be dropped**.
-    pub fn unify<E, Bind: FnOnce(Arc<T>, &Arc<T>) -> Result<(), E>>(
+    pub fn unify<E, Bind: FnOnce(T, &T) -> Result<(), E>>(
         &self,
         other: &Self,
         bind_fn: Bind,
@@ -167,7 +197,7 @@ impl<T> UbElement<T> {
 
         // If our two variables are not literally the same, but through
         // unification have become the same, we detect _this_ and exit early.
-        if Arc::ptr_eq(x_lock.data.unwrap_root(), y_lock.data.unwrap_root()) {
+        if x_lock.data.unwrap_root().ptr_eq(y_lock.data.unwrap_root()) {
             return Ok(());
         }
 
@@ -197,7 +227,7 @@ impl<T> UbElement<T> {
         }
 
         let x_data = match x_lock.data {
-            UbData::Root(ref arc) => Arc::clone(arc),
+            UbData::Root(ref data) => data.shallow_clone(),
             UbData::EqualTo(..) => unreachable!(),
         };
         drop(x_lock);
