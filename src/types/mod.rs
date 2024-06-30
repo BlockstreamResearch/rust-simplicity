@@ -70,7 +70,7 @@
 //!     or a sum or product of other types.
 //!
 
-use self::union_bound::UbElement;
+use self::union_bound::{PointerLike, UbElement};
 use crate::dag::{Dag, DagLike, NoSharing};
 use crate::Tmr;
 
@@ -85,7 +85,7 @@ mod precomputed;
 mod union_bound;
 mod variable;
 
-pub use context::Context;
+pub use context::{BoundRef, Context};
 pub use final_data::{CompleteBound, Final};
 
 /// Error type for simplicity
@@ -285,14 +285,6 @@ impl Bound {
         self.clone()
     }
 
-    fn free(name: String) -> Self {
-        Bound::Free(name)
-    }
-
-    fn unit() -> Self {
-        Bound::Complete(Final::unit())
-    }
-
     fn sum(a: Type, b: Type) -> Self {
         if let (Some(adata), Some(bdata)) = (a.final_data(), b.final_data()) {
             Bound::Complete(Final::sum(adata, bdata))
@@ -392,18 +384,22 @@ impl DagLike for Arc<Bound> {
 pub struct Type {
     /// A set of constraints, which maintained by the union-bound algorithm and
     /// is progressively tightened as type inference proceeds.
-    bound: UbElement<Arc<bound_mutex::BoundMutex>>,
+    bound: UbElement<BoundRef>,
 }
 
 impl Type {
     /// Return an unbound type with the given name
-    pub fn free(_: &Context, name: String) -> Self {
-        Type::from(Bound::free(name))
+    pub fn free(ctx: &Context, name: String) -> Self {
+        Type {
+            bound: UbElement::new(ctx.alloc_free(name)),
+        }
     }
 
     /// Create the unit type.
-    pub fn unit(_: &Context) -> Self {
-        Type::from(Bound::unit())
+    pub fn unit(ctx: &Context) -> Self {
+        Type {
+            bound: UbElement::new(ctx.alloc_unit()),
+        }
     }
 
     /// Create the type `2^(2^n)` for the given `n`.
@@ -414,18 +410,24 @@ impl Type {
     }
 
     /// Create the sum of the given `left` and `right` types.
-    pub fn sum(_: &Context, left: Self, right: Self) -> Self {
-        Type::from(Bound::sum(left, right))
+    pub fn sum(ctx: &Context, left: Self, right: Self) -> Self {
+        Type {
+            bound: UbElement::new(ctx.alloc_sum(left, right)),
+        }
     }
 
     /// Create the product of the given `left` and `right` types.
-    pub fn product(_: &Context, left: Self, right: Self) -> Self {
-        Type::from(Bound::product(left, right))
+    pub fn product(ctx: &Context, left: Self, right: Self) -> Self {
+        Type {
+            bound: UbElement::new(ctx.alloc_product(left, right)),
+        }
     }
 
     /// Create a complete type.
-    pub fn complete(_: &Context, final_data: Arc<Final>) -> Self {
-        Type::from(Bound::Complete(final_data))
+    pub fn complete(ctx: &Context, final_data: Arc<Final>) -> Self {
+        Type {
+            bound: UbElement::new(ctx.alloc_complete(final_data)),
+        }
     }
 
     /// Clones the `Type`.
@@ -577,15 +579,6 @@ impl Type {
 impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self.bound.root().get(), f)
-    }
-}
-
-impl From<Bound> for Type {
-    /// Promotes a `Bound` to a type defined by that constraint
-    fn from(bound: Bound) -> Type {
-        Type {
-            bound: UbElement::new(Arc::new(bound_mutex::BoundMutex::new(bound))),
-        }
     }
 }
 
