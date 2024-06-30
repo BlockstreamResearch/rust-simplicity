@@ -290,7 +290,8 @@ impl<J: Jet> RedeemNode<J> {
                 data: &PostOrderIterItem<&ConstructNode<J>>,
                 _: &NoWitness,
             ) -> Result<Arc<Value>, Self::Error> {
-                let target_ty = data.node.data.arrow().target.finalize()?;
+                let arrow = data.node.data.arrow();
+                let target_ty = arrow.target.finalize()?;
                 self.bits.read_value(&target_ty).map_err(Error::from)
             }
 
