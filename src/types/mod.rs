@@ -392,7 +392,7 @@ impl DagLike for Arc<Bound> {
 pub struct Type {
     /// A set of constraints, which maintained by the union-bound algorithm and
     /// is progressively tightened as type inference proceeds.
-    bound: UbElement<bound_mutex::BoundMutex>,
+    bound: UbElement<Arc<bound_mutex::BoundMutex>>,
 }
 
 impl Type {
