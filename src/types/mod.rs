@@ -148,45 +148,6 @@ impl fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
-mod bound_mutex {
-    use super::Bound;
-    use std::fmt;
-    use std::sync::Mutex;
-
-    /// Source or target type of a Simplicity expression
-    pub struct BoundMutex {
-        /// The type's status according to the union-bound algorithm.
-        inner: Mutex<Bound>,
-    }
-
-    impl fmt::Debug for BoundMutex {
-        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-            self.get().fmt(f)
-        }
-    }
-
-    impl BoundMutex {
-        pub fn new(bound: Bound) -> Self {
-            BoundMutex {
-                inner: Mutex::new(bound),
-            }
-        }
-
-        pub fn get(&self) -> Bound {
-            self.inner.lock().unwrap().shallow_clone()
-        }
-
-        pub fn set(&self, new: Bound) {
-            let mut lock = self.inner.lock().unwrap();
-            assert!(
-                !matches!(*lock, Bound::Complete(..)),
-                "tried to modify finalized type",
-            );
-            *lock = new;
-        }
-    }
-}
-
 /// The state of a [`Type`] based on all constraints currently imposed on it.
 #[derive(Clone, Debug)]
 pub enum Bound {
