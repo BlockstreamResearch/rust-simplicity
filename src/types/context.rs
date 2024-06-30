@@ -19,7 +19,6 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use crate::dag::{Dag, DagLike};
 
-use super::bound_mutex::BoundMutex;
 use super::{Bound, CompleteBound, Error, Final, Type};
 
 /// Type inference context, or handle to a context.
@@ -60,9 +59,13 @@ impl Context {
 
     /// Helper function to allocate a bound and return a reference to it.
     fn alloc_bound(&self, bound: Bound) -> BoundRef {
+        let mut lock = self.lock();
+        lock.slab.push(bound);
+        let index = lock.slab.len() - 1;
+
         BoundRef {
             context: Arc::as_ptr(&self.slab),
-            index: Arc::new(BoundMutex::new(bound)),
+            index,
         }
     }
 
@@ -132,7 +135,8 @@ impl Context {
     /// Panics if passed a `BoundRef` that was not allocated by this context.
     pub fn get(&self, bound: &BoundRef) -> Bound {
         bound.assert_matches_context(self);
-        bound.index.get().shallow_clone()
+        let lock = self.lock();
+        lock.slab[bound.index].shallow_clone()
     }
 
     /// Reassigns a bound to a different bound.
@@ -146,8 +150,8 @@ impl Context {
     ///
     /// Also panics if passed a `BoundRef` that was not allocated by this context.
     pub fn reassign_non_complete(&self, bound: BoundRef, new: Bound) {
-        bound.assert_matches_context(self);
-        bound.index.set(new)
+        let mut lock = self.lock();
+        lock.reassign_non_complete(bound, new);
     }
 
     /// Binds the type to a given bound. If this fails, attach the provided
@@ -156,7 +160,7 @@ impl Context {
     /// Fails if the type has an existing incompatible bound.
     pub fn bind(&self, existing: &Type, new: Bound, hint: &'static str) -> Result<(), Error> {
         let existing_root = existing.bound.root();
-        let lock = self.lock();
+        let mut lock = self.lock();
         lock.bind(existing_root, new, hint)
     }
 
@@ -164,7 +168,7 @@ impl Context {
     ///
     /// Fails if the bounds on the two types are incompatible
     pub fn unify(&self, ty1: &Type, ty2: &Type, hint: &'static str) -> Result<(), Error> {
-        let lock = self.lock();
+        let mut lock = self.lock();
         lock.unify(ty1, ty2, hint)
     }
 
@@ -179,9 +183,7 @@ impl Context {
 #[derive(Debug, Clone)]
 pub struct BoundRef {
     context: *const Mutex<Vec<Bound>>,
-    // Will become an index into the context in a latter commit, but for
-    // now we set it to an Arc<BoundMutex> to preserve semantics.
-    index: Arc<BoundMutex>,
+    index: usize,
 }
 
 impl BoundRef {
@@ -199,7 +201,7 @@ impl BoundRef {
     pub fn occurs_check_id(&self) -> OccursCheckId {
         OccursCheckId {
             context: self.context,
-            index: Arc::as_ptr(&self.index),
+            index: self.index,
         }
     }
 }
@@ -210,13 +212,13 @@ impl super::PointerLike for BoundRef {
             self.context, other.context,
             "tried to compare two bounds from different inference contexts"
         );
-        Arc::ptr_eq(&self.index, &other.index)
+        self.index == other.index
     }
 
     fn shallow_clone(&self) -> Self {
         BoundRef {
             context: self.context,
-            index: Arc::clone(&self.index),
+            index: self.index,
         }
     }
 }
@@ -240,9 +242,7 @@ impl<'ctx> DagLike for (&'ctx Context, BoundRef) {
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
 pub struct OccursCheckId {
     context: *const Mutex<Vec<Bound>>,
-    // Will become an index into the context in a latter commit, but for
-    // now we set it to an Arc<BoundMutex> to preserve semantics.
-    index: *const BoundMutex,
+    index: usize,
 }
 
 /// Structure representing an inference context with its slab allocator mutex locked.
@@ -254,17 +254,25 @@ struct LockedContext<'ctx> {
 }
 
 impl<'ctx> LockedContext<'ctx> {
+    fn reassign_non_complete(&mut self, bound: BoundRef, new: Bound) {
+        assert!(
+            !matches!(self.slab[bound.index], Bound::Complete(..)),
+            "tried to modify finalized type",
+        );
+        self.slab[bound.index] = new;
+    }
+
     /// Unify the type with another one.
     ///
     /// Fails if the bounds on the two types are incompatible
-    fn unify(&self, existing: &Type, other: &Type, hint: &'static str) -> Result<(), Error> {
+    fn unify(&mut self, existing: &Type, other: &Type, hint: &'static str) -> Result<(), Error> {
         existing.bound.unify(&other.bound, |x_bound, y_bound| {
-            self.bind(x_bound, y_bound.index.get(), hint)
+            self.bind(x_bound, self.slab[y_bound.index].shallow_clone(), hint)
         })
     }
 
-    fn bind(&self, existing: BoundRef, new: Bound, hint: &'static str) -> Result<(), Error> {
-        let existing_bound = existing.index.get();
+    fn bind(&mut self, existing: BoundRef, new: Bound, hint: &'static str) -> Result<(), Error> {
+        let existing_bound = self.slab[existing.index].shallow_clone();
         let bind_error = || Error::Bind {
             existing_bound: existing_bound.shallow_clone(),
             new_bound: new.shallow_clone(),
@@ -277,7 +285,7 @@ impl<'ctx> LockedContext<'ctx> {
             // Free types are simply dropped and replaced by the new bound
             (Bound::Free(_), _) => {
                 // Free means non-finalized, so set() is ok.
-                existing.index.set(new);
+                self.reassign_non_complete(existing, new);
                 Ok(())
             }
             // Binding complete->complete shouldn't ever happen, but if so, we just
@@ -319,14 +327,17 @@ impl<'ctx> LockedContext<'ctx> {
                 //
                 // It also gives the user access to more information about the type,
                 // prior to finalization.
-                if let (Some(data1), Some(data2)) = (y1.final_data(), y2.final_data()) {
-                    existing
-                        .index
-                        .set(Bound::Complete(if let Bound::Sum(..) = existing_bound {
-                            Final::sum(data1, data2)
+                let y1_bound = &self.slab[y1.bound.root().index];
+                let y2_bound = &self.slab[y2.bound.root().index];
+                if let (Bound::Complete(data1), Bound::Complete(data2)) = (y1_bound, y2_bound) {
+                    self.reassign_non_complete(
+                        existing,
+                        Bound::Complete(if let Bound::Sum(..) = existing_bound {
+                            Final::sum(Arc::clone(data1), Arc::clone(data2))
                         } else {
-                            Final::product(data1, data2)
-                        }));
+                            Final::product(Arc::clone(data1), Arc::clone(data2))
+                        }),
+                    );
                 }
                 Ok(())
             }
