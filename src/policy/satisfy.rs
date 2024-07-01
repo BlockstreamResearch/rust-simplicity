@@ -4,6 +4,7 @@ use crate::analysis::Cost;
 use crate::jet::Elements;
 use crate::node::{RedeemNode, WitnessNode};
 use crate::policy::ToXOnlyPubkey;
+use crate::types;
 use crate::{Cmr, Error, Policy, Value};
 use elements::bitcoin;
 
@@ -93,19 +94,22 @@ impl<Pk: ToXOnlyPubkey> Satisfier<Pk> for elements::LockTime {
 impl<Pk: ToXOnlyPubkey> Policy<Pk> {
     fn satisfy_internal<S: Satisfier<Pk>>(
         &self,
+        inference_context: &types::Context,
         satisfier: &S,
     ) -> Result<Arc<WitnessNode<Elements>>, Error> {
         let node = match *self {
-            Policy::Unsatisfiable(entropy) => super::serialize::unsatisfiable(entropy),
-            Policy::Trivial => super::serialize::trivial(),
+            Policy::Unsatisfiable(entropy) => {
+                super::serialize::unsatisfiable(inference_context, entropy)
+            }
+            Policy::Trivial => super::serialize::trivial(inference_context),
             Policy::Key(ref key) => {
                 let sig_wit = satisfier
                     .lookup_tap_leaf_script_sig(key, &TapLeafHash::all_zeros())
                     .map(|sig| Value::u512_from_slice(sig.sig.as_ref()));
-                super::serialize::key(key, sig_wit)
+                super::serialize::key(inference_context, key, sig_wit)
             }
             Policy::After(n) => {
-                let node = super::serialize::after::<Arc<_>>(n);
+                let node = super::serialize::after::<Arc<_>>(inference_context, n);
                 let height = Height::from_consensus(n).expect("timelock is valid");
                 if satisfier.check_after(elements::LockTime::Blocks(height)) {
                     node
@@ -114,7 +118,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                 }
             }
             Policy::Older(n) => {
-                let node = super::serialize::older::<Arc<_>>(n);
+                let node = super::serialize::older::<Arc<_>>(inference_context, n);
                 if satisfier.check_older(elements::Sequence((n).into())) {
                     node
                 } else {
@@ -125,22 +129,22 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                 let preimage_wit = satisfier
                     .lookup_sha256(hash)
                     .map(|preimage| Value::u256_from_slice(preimage.as_ref()));
-                super::serialize::sha256::<Pk, _, _>(hash, preimage_wit)
+                super::serialize::sha256::<Pk, _, _>(inference_context, hash, preimage_wit)
             }
             Policy::And {
                 ref left,
                 ref right,
             } => {
-                let left = left.satisfy_internal(satisfier)?;
-                let right = right.satisfy_internal(satisfier)?;
+                let left = left.satisfy_internal(inference_context, satisfier)?;
+                let right = right.satisfy_internal(inference_context, satisfier)?;
                 super::serialize::and(&left, &right)
             }
             Policy::Or {
                 ref left,
                 ref right,
             } => {
-                let left = left.satisfy_internal(satisfier)?;
-                let right = right.satisfy_internal(satisfier)?;
+                let left = left.satisfy_internal(inference_context, satisfier)?;
+                let right = right.satisfy_internal(inference_context, satisfier)?;
 
                 let take_right = match (left.must_prune(), right.must_prune()) {
                     (false, false) => {
@@ -165,7 +169,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
             Policy::Threshold(k, ref subs) => {
                 let nodes: Result<Vec<Arc<WitnessNode<_>>>, Error> = subs
                     .iter()
-                    .map(|sub| sub.satisfy_internal(satisfier))
+                    .map(|sub| sub.satisfy_internal(inference_context, satisfier))
                     .collect();
                 let mut nodes = nodes?;
                 let mut costs = vec![Cost::CONSENSUS_MAX; subs.len()];
@@ -215,7 +219,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
         &self,
         satisfier: &S,
     ) -> Result<Arc<RedeemNode<Elements>>, Error> {
-        let witnode = self.satisfy_internal(satisfier)?;
+        let witnode = self.satisfy_internal(&types::Context::new(), satisfier)?;
         if witnode.must_prune() {
             Err(Error::IncompleteFinalization)
         } else {
@@ -626,17 +630,18 @@ mod tests {
 
     #[test]
     fn satisfy_asm() {
+        let ctx = types::Context::new();
         let env = ElementsEnv::dummy();
         let mut satisfier = get_satisfier(&env);
 
         let mut assert_branch = |witness0: Arc<Value>, witness1: Arc<Value>| {
             let asm_program = serialize::verify_bexp(
                 &Arc::<WitnessNode<Elements>>::pair(
-                    &Arc::<WitnessNode<Elements>>::witness(Some(witness0.clone())),
-                    &Arc::<WitnessNode<Elements>>::witness(Some(witness1.clone())),
+                    &Arc::<WitnessNode<Elements>>::witness(&ctx, Some(witness0.clone())),
+                    &Arc::<WitnessNode<Elements>>::witness(&ctx, Some(witness1.clone())),
                 )
                 .expect("sound types"),
-                &Arc::<WitnessNode<Elements>>::jet(Elements::Eq8),
+                &Arc::<WitnessNode<Elements>>::jet(&ctx, Elements::Eq8),
             );
             let cmr = asm_program.cmr();
             satisfier.assembly.insert(cmr, asm_program);

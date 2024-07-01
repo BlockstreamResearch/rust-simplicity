@@ -93,18 +93,20 @@ pub trait Jet:
 mod tests {
     use crate::jet::Core;
     use crate::node::{ConstructNode, CoreConstructible, JetConstructible};
+    use crate::types;
     use crate::{BitMachine, Value};
     use std::sync::Arc;
 
     #[test]
     fn test_ffi_jet() {
+        let ctx = types::Context::new();
         let two_words = Arc::<ConstructNode<_>>::comp(
             &Arc::<ConstructNode<_>>::pair(
-                &Arc::<ConstructNode<_>>::const_word(Value::u32(2)),
-                &Arc::<ConstructNode<_>>::const_word(Value::u32(16)),
+                &Arc::<ConstructNode<_>>::const_word(&ctx, Value::u32(2)),
+                &Arc::<ConstructNode<_>>::const_word(&ctx, Value::u32(16)),
             )
             .unwrap(),
-            &Arc::<ConstructNode<_>>::jet(Core::Add32),
+            &Arc::<ConstructNode<_>>::jet(&ctx, Core::Add32),
         )
         .unwrap();
         assert_eq!(
@@ -118,9 +120,10 @@ mod tests {
 
     #[test]
     fn test_simple() {
+        let ctx = types::Context::new();
         let two_words = Arc::<ConstructNode<Core>>::pair(
-            &Arc::<ConstructNode<_>>::const_word(Value::u32(2)),
-            &Arc::<ConstructNode<_>>::const_word(Value::u16(16)),
+            &Arc::<ConstructNode<_>>::const_word(&ctx, Value::u32(2)),
+            &Arc::<ConstructNode<_>>::const_word(&ctx, Value::u16(16)),
         )
         .unwrap();
         assert_eq!(

@@ -4,9 +4,8 @@
 use bitcoin::secp256k1;
 use elements::Txid;
 use rand::{thread_rng, RngCore};
-pub use simplicity::hashes::sha256;
 use simplicity::{
-    bitcoin, elements, hashes::Hash, hex::FromHex, types::Type, BitIter, Error, Value,
+    bitcoin, elements, hashes::Hash, hex::FromHex, types::{self, Type}, BitIter, Error, Value,
 };
 use std::sync::Arc;
 
@@ -57,7 +56,8 @@ pub fn var_len_buf_from_slice(v: &[u8], mut n: usize) -> Result<Arc<Value>, Erro
     assert!(n < 16);
     assert!(v.len() < (1 << (n + 1)));
     let mut iter = BitIter::new(v.iter().copied());
-    let types = Type::powers_of_two(n); // size n + 1
+    let ctx = types::Context::new();
+    let types = Type::powers_of_two(&ctx, n); // size n + 1
     let mut res = None;
     while n > 0 {
         let v = if v.len() >= (1 << (n + 1)) {

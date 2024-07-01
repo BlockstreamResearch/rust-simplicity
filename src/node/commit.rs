@@ -202,7 +202,10 @@ impl<J: Jet> CommitNode<J> {
 
     /// Convert a [`CommitNode`] back to a [`ConstructNode`] by redoing type inference
     pub fn unfinalize_types(&self) -> Result<Arc<ConstructNode<J>>, types::Error> {
-        struct UnfinalizeTypes<J: Jet>(PhantomData<J>);
+        struct UnfinalizeTypes<J: Jet> {
+            inference_context: types::Context,
+            phantom: PhantomData<J>,
+        }
 
         impl<J: Jet> Converter<Commit<J>, Construct<J>> for UnfinalizeTypes<J> {
             type Error = types::Error;
@@ -232,11 +235,17 @@ impl<J: Jet> CommitNode<J> {
                     .map(|node| node.arrow())
                     .map_disconnect(|maybe_node| maybe_node.as_ref().map(|node| node.arrow()));
                 let inner = inner.disconnect_as_ref(); // lol sigh rust
-                Ok(ConstructData::new(Arrow::from_inner(inner)?))
+                Ok(ConstructData::new(Arrow::from_inner(
+                    &self.inference_context,
+                    inner,
+                )?))
             }
         }
 
-        self.convert::<MaxSharing<Commit<J>>, _, _>(&mut UnfinalizeTypes(PhantomData))
+        self.convert::<MaxSharing<Commit<J>>, _, _>(&mut UnfinalizeTypes {
+            inference_context: types::Context::new(),
+            phantom: PhantomData,
+        })
     }
 
     /// Decode a Simplicity program from bits, without witness data.

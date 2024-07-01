@@ -257,8 +257,10 @@ impl Tmr {
 
 #[cfg(test)]
 mod tests {
-    use super::super::bip340_iv;
     use super::*;
+
+    use crate::merkle::bip340_iv;
+    use crate::types;
 
     #[test]
     fn const_ivs() {
@@ -280,7 +282,7 @@ mod tests {
     #[allow(clippy::needless_range_loop)]
     fn const_powers_of_2() {
         let n = Tmr::POWERS_OF_TWO.len();
-        let types = crate::types::Type::powers_of_two(n);
+        let types = crate::types::Type::powers_of_two(&types::Context::new(), n);
         for i in 0..n {
             assert_eq!(Some(Tmr::POWERS_OF_TWO[i]), types[i].tmr());
         }

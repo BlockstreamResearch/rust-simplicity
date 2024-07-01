@@ -52,13 +52,18 @@ impl<J: Jet> ConstructNode<J> {
 
     /// Sets the source and target type of the node to unit
     pub fn set_arrow_to_program(&self) -> Result<(), types::Error> {
-        let unit_ty = types::Type::unit();
-        self.arrow()
-            .source
-            .unify(&unit_ty, "setting root source to unit")?;
-        self.arrow()
-            .target
-            .unify(&unit_ty, "setting root target to unit")?;
+        let ctx = self.data.inference_context();
+        let unit_ty = types::Type::unit(ctx);
+        ctx.unify(
+            &self.arrow().source,
+            &unit_ty,
+            "setting root source to unit",
+        )?;
+        ctx.unify(
+            &self.arrow().target,
+            &unit_ty,
+            "setting root target to unit",
+        )?;
         Ok(())
     }
 
@@ -165,16 +170,16 @@ impl<J: Jet> ConstructData<J> {
 }
 
 impl<J> CoreConstructible for ConstructData<J> {
-    fn iden() -> Self {
+    fn iden(inference_context: &types::Context) -> Self {
         ConstructData {
-            arrow: Arrow::iden(),
+            arrow: Arrow::iden(inference_context),
             phantom: PhantomData,
         }
     }
 
-    fn unit() -> Self {
+    fn unit(inference_context: &types::Context) -> Self {
         ConstructData {
-            arrow: Arrow::unit(),
+            arrow: Arrow::unit(inference_context),
             phantom: PhantomData,
         }
     }
@@ -242,18 +247,22 @@ impl<J> CoreConstructible for ConstructData<J> {
         })
     }
 
-    fn fail(entropy: FailEntropy) -> Self {
+    fn fail(inference_context: &types::Context, entropy: FailEntropy) -> Self {
         ConstructData {
-            arrow: Arrow::fail(entropy),
+            arrow: Arrow::fail(inference_context, entropy),
             phantom: PhantomData,
         }
     }
 
-    fn const_word(word: Arc<Value>) -> Self {
+    fn const_word(inference_context: &types::Context, word: Arc<Value>) -> Self {
         ConstructData {
-            arrow: Arrow::const_word(word),
+            arrow: Arrow::const_word(inference_context, word),
             phantom: PhantomData,
         }
+    }
+
+    fn inference_context(&self) -> &types::Context {
+        self.arrow.inference_context()
     }
 }
 
@@ -271,18 +280,18 @@ impl<J: Jet> DisconnectConstructible<Option<Arc<ConstructNode<J>>>> for Construc
 }
 
 impl<J> WitnessConstructible<NoWitness> for ConstructData<J> {
-    fn witness(witness: NoWitness) -> Self {
+    fn witness(inference_context: &types::Context, witness: NoWitness) -> Self {
         ConstructData {
-            arrow: Arrow::witness(witness),
+            arrow: Arrow::witness(inference_context, witness),
             phantom: PhantomData,
         }
     }
 }
 
 impl<J: Jet> JetConstructible<J> for ConstructData<J> {
-    fn jet(jet: J) -> Self {
+    fn jet(inference_context: &types::Context, jet: J) -> Self {
         ConstructData {
-            arrow: Arrow::jet(jet),
+            arrow: Arrow::jet(inference_context, jet),
             phantom: PhantomData,
         }
     }
@@ -295,7 +304,8 @@ mod tests {
 
     #[test]
     fn occurs_check_error() {
-        let iden = Arc::<ConstructNode<Core>>::iden();
+        let ctx = types::Context::new();
+        let iden = Arc::<ConstructNode<Core>>::iden(&ctx);
         let node = Arc::<ConstructNode<Core>>::disconnect(&iden, &Some(Arc::clone(&iden))).unwrap();
 
         assert!(matches!(
@@ -306,8 +316,9 @@ mod tests {
 
     #[test]
     fn occurs_check_2() {
+        let ctx = types::Context::new();
         // A more complicated occurs-check test that caused a deadlock in the past.
-        let iden = Arc::<ConstructNode<Core>>::iden();
+        let iden = Arc::<ConstructNode<Core>>::iden(&ctx);
         let injr = Arc::<ConstructNode<Core>>::injr(&iden);
         let pair = Arc::<ConstructNode<Core>>::pair(&injr, &iden).unwrap();
         let drop = Arc::<ConstructNode<Core>>::drop_(&pair);
@@ -326,8 +337,9 @@ mod tests {
 
     #[test]
     fn occurs_check_3() {
+        let ctx = types::Context::new();
         // A similar example that caused a slightly different deadlock in the past.
-        let wit = Arc::<ConstructNode<Core>>::witness(NoWitness);
+        let wit = Arc::<ConstructNode<Core>>::witness(&ctx, NoWitness);
         let drop = Arc::<ConstructNode<Core>>::drop_(&wit);
 
         let comp1 = Arc::<ConstructNode<Core>>::comp(&drop, &drop).unwrap();
@@ -353,7 +365,8 @@ mod tests {
 
     #[test]
     fn type_check_error() {
-        let unit = Arc::<ConstructNode<Core>>::unit();
+        let ctx = types::Context::new();
+        let unit = Arc::<ConstructNode<Core>>::unit(&ctx);
         let case = Arc::<ConstructNode<Core>>::case(&unit, &unit).unwrap();
 
         assert!(matches!(
@@ -364,26 +377,30 @@ mod tests {
 
     #[test]
     fn scribe() {
-        let unit = Arc::<ConstructNode<Core>>::unit();
+        // Ok to use same type inference context for all the below tests,
+        // since everything has concrete types and anyway we only care
+        // about CMRs, for which type inference is irrelevant.
+        let ctx = types::Context::new();
+        let unit = Arc::<ConstructNode<Core>>::unit(&ctx);
         let bit0 = Arc::<ConstructNode<Core>>::injl(&unit);
         let bit1 = Arc::<ConstructNode<Core>>::injr(&unit);
         let bits01 = Arc::<ConstructNode<Core>>::pair(&bit0, &bit1).unwrap();
 
         assert_eq!(
             unit.cmr(),
-            Arc::<ConstructNode<Core>>::scribe(&Value::Unit).cmr()
+            Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::Unit).cmr()
         );
         assert_eq!(
             bit0.cmr(),
-            Arc::<ConstructNode<Core>>::scribe(&Value::u1(0)).cmr()
+            Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::u1(0)).cmr()
         );
         assert_eq!(
             bit1.cmr(),
-            Arc::<ConstructNode<Core>>::scribe(&Value::u1(1)).cmr()
+            Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::u1(1)).cmr()
         );
         assert_eq!(
             bits01.cmr(),
-            Arc::<ConstructNode<Core>>::scribe(&Value::u2(1)).cmr()
+            Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::u2(1)).cmr()
         );
     }
 }

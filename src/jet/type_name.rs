@@ -4,7 +4,7 @@
 //!
 //! Source and target types of jet nodes need to be specified manually.
 
-use crate::types::{Final, Type};
+use crate::types::{self, Final, Type};
 use std::cmp;
 use std::sync::Arc;
 
@@ -32,8 +32,8 @@ pub struct TypeName(pub &'static [u8]);
 
 impl TypeName {
     /// Convert the type name into a type.
-    pub fn to_type(&self) -> Type {
-        Type::complete(self.to_final())
+    pub fn to_type(&self, ctx: &types::Context) -> Type {
+        Type::complete(ctx, self.to_final())
     }
 
     /// Convert the type name into a finalized type.

@@ -93,8 +93,8 @@ impl ElementsBenchEnvType {
 }
 
 fn jet_arrow(jet: Elements) -> (Arc<types::Final>, Arc<types::Final>) {
-    let src_ty = jet.source_ty().to_type().final_data().unwrap();
-    let tgt_ty = jet.target_ty().to_type().final_data().unwrap();
+    let src_ty = jet.source_ty().to_final();
+    let tgt_ty = jet.target_ty().to_final();
     (src_ty, tgt_ty)
 }
 
@@ -302,7 +302,7 @@ fn bench(c: &mut Criterion) {
         let keypair = bitcoin::key::Keypair::new(&secp_ctx, &mut thread_rng());
         let xpk = bitcoin::key::XOnlyPublicKey::from_keypair(&keypair);
 
-        let msg = bitcoin::secp256k1::Message::from_slice(&rand::random::<[u8; 32]>()).unwrap();
+        let msg = bitcoin::secp256k1::Message::from_digest_slice(&rand::random::<[u8; 32]>()).unwrap();
         let sig = secp_ctx.sign_schnorr(&msg, &keypair);
         let xpk_value = Value::u256_from_slice(&xpk.0.serialize());
         let sig_value = Value::u512_from_slice(sig.as_ref());

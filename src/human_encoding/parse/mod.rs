@@ -7,7 +7,7 @@ mod ast;
 use crate::dag::{Dag, DagLike, InternalSharing};
 use crate::jet::Jet;
 use crate::node;
-use crate::types::Type;
+use crate::types::{self, Type};
 use std::collections::HashMap;
 use std::mem;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -181,6 +181,7 @@ pub fn parse<J: Jet + 'static>(
     program: &str,
 ) -> Result<HashMap<Arc<str>, Arc<NamedCommitNode<J>>>, ErrorSet> {
     let mut errors = ErrorSet::new();
+    let inference_context = types::Context::new();
     // **
     // Step 1: Read expressions into HashMap, checking for dupes and illegal names.
     // **
@@ -205,10 +206,10 @@ pub fn parse<J: Jet + 'static>(
             }
         }
         if let Some(ty) = line.arrow.0 {
-            entry.add_source_type(ty.reify());
+            entry.add_source_type(ty.reify(&inference_context));
         }
         if let Some(ty) = line.arrow.1 {
-            entry.add_target_type(ty.reify());
+            entry.add_target_type(ty.reify(&inference_context));
         }
     }
 
@@ -485,6 +486,7 @@ pub fn parse<J: Jet + 'static>(
                 .unwrap_or_else(|| Arc::from(namer.assign_name(inner.as_ref()).as_str()));
 
             let node = NamedConstructNode::new(
+                &inference_context,
                 Arc::clone(&name),
                 data.node.position,
                 Arc::clone(&data.node.user_source_types),

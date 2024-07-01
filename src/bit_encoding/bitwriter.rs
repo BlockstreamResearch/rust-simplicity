@@ -117,12 +117,13 @@ mod tests {
     use super::*;
     use crate::jet::Core;
     use crate::node::CoreConstructible;
+    use crate::types;
     use crate::ConstructNode;
     use std::sync::Arc;
 
     #[test]
     fn vec() {
-        let program = Arc::<ConstructNode<Core>>::unit();
+        let program = Arc::<ConstructNode<Core>>::unit(&types::Context::new());
         let _ = write_to_vec(|w| program.encode(w));
     }
 
