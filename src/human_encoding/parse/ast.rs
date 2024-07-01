@@ -633,9 +633,7 @@ fn grammar<J: Jet + 'static>() -> Grammar<Ast<J>> {
                     Error::BadWordLength { bit_length },
                 ));
             }
-            let ty = types::Type::two_two_n(bit_length.trailing_zeros() as usize)
-                .final_data()
-                .unwrap();
+            let ty = types::Final::two_two_n(bit_length.trailing_zeros() as usize);
             // unwrap ok here since literally every sequence of bits is a valid
             // value for the given type
             let value = iter.read_value(&ty).unwrap();

@@ -402,7 +402,7 @@ impl Type {
     ///
     /// The type is precomputed and fast to access.
     pub fn two_two_n(n: usize) -> Self {
-        precomputed::nth_power_of_2(n)
+        Self::complete(precomputed::nth_power_of_2(n))
     }
 
     /// Create the sum of the given `left` and `right` types.
@@ -413,6 +413,11 @@ impl Type {
     /// Create the product of the given `left` and `right` types.
     pub fn product(left: Self, right: Self) -> Self {
         Type::from(Bound::product(left, right))
+    }
+
+    /// Create a complete type.
+    pub fn complete(final_data: Arc<Final>) -> Self {
+        Type::from(Bound::Complete(final_data))
     }
 
     /// Clones the `Type`.

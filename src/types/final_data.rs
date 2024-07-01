@@ -12,7 +12,6 @@
 //!
 
 use crate::dag::{Dag, DagLike, NoSharing};
-use crate::types::{Bound, Type};
 use crate::Tmr;
 
 use std::sync::Arc;
@@ -163,7 +162,7 @@ impl Final {
     ///
     /// The type is precomputed and fast to access.
     pub fn two_two_n(n: usize) -> Arc<Self> {
-        super::precomputed::nth_power_of_2(n).final_data().unwrap()
+        super::precomputed::nth_power_of_2(n)
     }
 
     /// Create the sum of the given `left` and `right` types.
@@ -224,12 +223,6 @@ impl Final {
             CompleteBound::Product(left, right) => Some((left.as_ref(), right.as_ref())),
             _ => None,
         }
-    }
-}
-
-impl From<Arc<Final>> for Type {
-    fn from(value: Arc<Final>) -> Self {
-        Type::from(Bound::Complete(value))
     }
 }
 
