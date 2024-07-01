@@ -161,7 +161,11 @@ impl Context {
     pub fn bind(&self, existing: &Type, new: Bound, hint: &'static str) -> Result<(), Error> {
         let existing_root = existing.bound.root();
         let mut lock = self.lock();
-        lock.bind(existing_root, new, hint)
+        lock.bind(existing_root, new).map_err(|e| Error::Bind {
+            existing_bound: e.existing,
+            new_bound: e.new,
+            hint,
+        })
     }
 
     /// Unify the type with another one.
@@ -169,7 +173,11 @@ impl Context {
     /// Fails if the bounds on the two types are incompatible
     pub fn unify(&self, ty1: &Type, ty2: &Type, hint: &'static str) -> Result<(), Error> {
         let mut lock = self.lock();
-        lock.unify(ty1, ty2, hint)
+        lock.unify(ty1, ty2).map_err(|e| Error::Bind {
+            existing_bound: e.existing,
+            new_bound: e.new,
+            hint,
+        })
     }
 
     /// Locks the underlying slab mutex.
@@ -245,6 +253,11 @@ pub struct OccursCheckId {
     index: usize,
 }
 
+struct BindError {
+    existing: Bound,
+    new: Bound,
+}
+
 /// Structure representing an inference context with its slab allocator mutex locked.
 ///
 /// This type is never exposed outside of this module and should only exist
@@ -265,18 +278,17 @@ impl<'ctx> LockedContext<'ctx> {
     /// Unify the type with another one.
     ///
     /// Fails if the bounds on the two types are incompatible
-    fn unify(&mut self, existing: &Type, other: &Type, hint: &'static str) -> Result<(), Error> {
+    fn unify(&mut self, existing: &Type, other: &Type) -> Result<(), BindError> {
         existing.bound.unify(&other.bound, |x_bound, y_bound| {
-            self.bind(x_bound, self.slab[y_bound.index].shallow_clone(), hint)
+            self.bind(x_bound, self.slab[y_bound.index].shallow_clone())
         })
     }
 
-    fn bind(&mut self, existing: BoundRef, new: Bound, hint: &'static str) -> Result<(), Error> {
+    fn bind(&mut self, existing: BoundRef, new: Bound) -> Result<(), BindError> {
         let existing_bound = self.slab[existing.index].shallow_clone();
-        let bind_error = || Error::Bind {
-            existing_bound: existing_bound.shallow_clone(),
-            new_bound: new.shallow_clone(),
-            hint,
+        let bind_error = || BindError {
+            existing: existing_bound.shallow_clone(),
+            new: new.shallow_clone(),
         };
 
         match (&existing_bound, &new) {
@@ -310,16 +322,16 @@ impl<'ctx> LockedContext<'ctx> {
                     | (CompleteBound::Sum(ref comp1, ref comp2), Bound::Sum(ref ty1, ref ty2)) => {
                         let bound1 = ty1.bound.root();
                         let bound2 = ty2.bound.root();
-                        self.bind(bound1, Bound::Complete(Arc::clone(comp1)), hint)?;
-                        self.bind(bound2, Bound::Complete(Arc::clone(comp2)), hint)
+                        self.bind(bound1, Bound::Complete(Arc::clone(comp1)))?;
+                        self.bind(bound2, Bound::Complete(Arc::clone(comp2)))
                     }
                     _ => Err(bind_error()),
                 }
             }
             (Bound::Sum(ref x1, ref x2), Bound::Sum(ref y1, ref y2))
             | (Bound::Product(ref x1, ref x2), Bound::Product(ref y1, ref y2)) => {
-                self.unify(x1, y1, hint)?;
-                self.unify(x2, y2, hint)?;
+                self.unify(x1, y1)?;
+                self.unify(x2, y2)?;
                 // This type was not complete, but it may be after unification, giving us
                 // an opportunity to finaliize it. We do this eagerly to make sure that
                 // "complete" (no free children) is always equivalent to "finalized" (the
@@ -341,10 +353,9 @@ impl<'ctx> LockedContext<'ctx> {
                 }
                 Ok(())
             }
-            (x, y) => Err(Error::Bind {
-                existing_bound: x.shallow_clone(),
-                new_bound: y.shallow_clone(),
-                hint,
+            (x, y) => Err(BindError {
+                existing: x.shallow_clone(),
+                new: y.shallow_clone(),
             }),
         }
     }
