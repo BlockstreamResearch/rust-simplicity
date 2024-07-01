@@ -19,7 +19,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use crate::dag::{Dag, DagLike};
 
-use super::{Bound, CompleteBound, Error, Final, Type};
+use super::{Bound, CompleteBound, Error, Final, Type, TypeInner};
 
 /// Type inference context, or handle to a context.
 ///
@@ -60,13 +60,7 @@ impl Context {
     /// Helper function to allocate a bound and return a reference to it.
     fn alloc_bound(&self, bound: Bound) -> BoundRef {
         let mut lock = self.lock();
-        lock.slab.push(bound);
-        let index = lock.slab.len() - 1;
-
-        BoundRef {
-            context: Arc::as_ptr(&self.slab),
-            index,
-        }
+        lock.alloc_bound(Arc::as_ptr(&self.slab), bound)
     }
 
     /// Allocate a new free type bound, and return a reference to it.
@@ -90,10 +84,24 @@ impl Context {
     ///
     /// Panics if either of the child types are from a different inference context.
     pub fn alloc_sum(&self, left: Type, right: Type) -> BoundRef {
-        left.bound.root().assert_matches_context(self);
-        right.bound.root().assert_matches_context(self);
+        assert_eq!(
+            left.ctx, *self,
+            "left type did not match inference context of sum"
+        );
+        assert_eq!(
+            right.ctx, *self,
+            "right type did not match inference context of sum"
+        );
 
-        self.alloc_bound(Bound::sum(left, right))
+        let mut lock = self.lock();
+        if let Some((data1, data2)) = lock.complete_pair_data(&left.inner, &right.inner) {
+            lock.alloc_bound(
+                Arc::as_ptr(&self.slab),
+                Bound::Complete(Final::sum(data1, data2)),
+            )
+        } else {
+            lock.alloc_bound(Arc::as_ptr(&self.slab), Bound::Sum(left.inner, right.inner))
+        }
     }
 
     /// Allocate a new product-type bound, and return a reference to it.
@@ -102,10 +110,27 @@ impl Context {
     ///
     /// Panics if either of the child types are from a different inference context.
     pub fn alloc_product(&self, left: Type, right: Type) -> BoundRef {
-        left.bound.root().assert_matches_context(self);
-        right.bound.root().assert_matches_context(self);
+        assert_eq!(
+            left.ctx, *self,
+            "left type did not match inference context of product"
+        );
+        assert_eq!(
+            right.ctx, *self,
+            "right type did not match inference context of product"
+        );
 
-        self.alloc_bound(Bound::product(left, right))
+        let mut lock = self.lock();
+        if let Some((data1, data2)) = lock.complete_pair_data(&left.inner, &right.inner) {
+            lock.alloc_bound(
+                Arc::as_ptr(&self.slab),
+                Bound::Complete(Final::product(data1, data2)),
+            )
+        } else {
+            lock.alloc_bound(
+                Arc::as_ptr(&self.slab),
+                Bound::Product(left.inner, right.inner),
+            )
+        }
     }
 
     /// Creates a new handle to the context.
@@ -133,7 +158,7 @@ impl Context {
     /// # Panics
     ///
     /// Panics if passed a `BoundRef` that was not allocated by this context.
-    pub fn get(&self, bound: &BoundRef) -> Bound {
+    pub(super) fn get(&self, bound: &BoundRef) -> Bound {
         bound.assert_matches_context(self);
         let lock = self.lock();
         lock.slab[bound.index].shallow_clone()
@@ -150,22 +175,37 @@ impl Context {
     /// probably a bug.
     ///
     /// Also panics if passed a `BoundRef` that was not allocated by this context.
-    pub fn reassign_non_complete(&self, bound: BoundRef, new: Bound) {
+    pub(super) fn reassign_non_complete(&self, bound: BoundRef, new: Bound) {
         let mut lock = self.lock();
         lock.reassign_non_complete(bound, new);
     }
 
-    /// Binds the type to a given bound. If this fails, attach the provided
-    /// hint to the error.
+    /// Binds the type to a product bound formed by the two inner types. If this
+    /// fails, attach the provided hint to the error.
     ///
     /// Fails if the type has an existing incompatible bound.
-    pub fn bind(&self, existing: &Type, new: Bound, hint: &'static str) -> Result<(), Error> {
-        let existing_root = existing.bound.root();
+    pub fn bind_product(
+        &self,
+        existing: &Type,
+        prod_l: &Type,
+        prod_r: &Type,
+        hint: &'static str,
+    ) -> Result<(), Error> {
+        assert_eq!(existing.ctx, *self);
+        assert_eq!(prod_l.ctx, *self);
+        assert_eq!(prod_r.ctx, *self);
+
+        let existing_root = existing.inner.bound.root();
+        let new_bound = Bound::Product(prod_l.inner.shallow_clone(), prod_r.inner.shallow_clone());
+
         let mut lock = self.lock();
-        lock.bind(existing_root, new).map_err(|e| Error::Bind {
-            existing_bound: e.existing,
-            new_bound: e.new,
-            hint,
+        lock.bind(existing_root, new_bound).map_err(|e| {
+            let new_bound = lock.alloc_bound(Arc::as_ptr(&self.slab), e.new);
+            Error::Bind {
+                existing_bound: Type::wrap_bound(self, e.existing),
+                new_bound: Type::wrap_bound(self, new_bound),
+                hint,
+            }
         })
     }
 
@@ -173,11 +213,16 @@ impl Context {
     ///
     /// Fails if the bounds on the two types are incompatible
     pub fn unify(&self, ty1: &Type, ty2: &Type, hint: &'static str) -> Result<(), Error> {
+        assert_eq!(ty1.ctx, *self);
+        assert_eq!(ty2.ctx, *self);
         let mut lock = self.lock();
-        lock.unify(ty1, ty2).map_err(|e| Error::Bind {
-            existing_bound: e.existing,
-            new_bound: e.new,
-            hint,
+        lock.unify(&ty1.inner, &ty2.inner).map_err(|e| {
+            let new_bound = lock.alloc_bound(Arc::as_ptr(&self.slab), e.new);
+            Error::Bind {
+                existing_bound: Type::wrap_bound(self, e.existing),
+                new_bound: Type::wrap_bound(self, new_bound),
+                hint,
+            }
         })
     }
 
@@ -257,7 +302,7 @@ pub struct OccursCheckId {
 }
 
 struct BindError {
-    existing: Bound,
+    existing: BoundRef,
     new: Bound,
 }
 
@@ -270,6 +315,16 @@ struct LockedContext<'ctx> {
 }
 
 impl<'ctx> LockedContext<'ctx> {
+    fn alloc_bound(&mut self, ctx_ptr: *const Mutex<Vec<Bound>>, bound: Bound) -> BoundRef {
+        self.slab.push(bound);
+        let index = self.slab.len() - 1;
+
+        BoundRef {
+            context: ctx_ptr,
+            index,
+        }
+    }
+
     fn reassign_non_complete(&mut self, bound: BoundRef, new: Bound) {
         assert!(
             !matches!(self.slab[bound.index], Bound::Complete(..)),
@@ -278,10 +333,29 @@ impl<'ctx> LockedContext<'ctx> {
         self.slab[bound.index] = new;
     }
 
+    /// It is a common situation that we are pairing two types, and in the
+    /// case that they are both complete, we want to pair the complete types.
+    ///
+    /// This method deals with all the annoying/complicated member variable
+    /// paths to get the actual complete data out.
+    fn complete_pair_data(
+        &self,
+        inn1: &TypeInner,
+        inn2: &TypeInner,
+    ) -> Option<(Arc<Final>, Arc<Final>)> {
+        let bound1 = &self.slab[inn1.bound.root().index];
+        let bound2 = &self.slab[inn2.bound.root().index];
+        if let (Bound::Complete(ref data1), Bound::Complete(ref data2)) = (bound1, bound2) {
+            Some((Arc::clone(data1), Arc::clone(data2)))
+        } else {
+            None
+        }
+    }
+
     /// Unify the type with another one.
     ///
     /// Fails if the bounds on the two types are incompatible
-    fn unify(&mut self, existing: &Type, other: &Type) -> Result<(), BindError> {
+    fn unify(&mut self, existing: &TypeInner, other: &TypeInner) -> Result<(), BindError> {
         existing.bound.unify(&other.bound, |x_bound, y_bound| {
             self.bind(x_bound, self.slab[y_bound.index].shallow_clone())
         })
@@ -290,7 +364,7 @@ impl<'ctx> LockedContext<'ctx> {
     fn bind(&mut self, existing: BoundRef, new: Bound) -> Result<(), BindError> {
         let existing_bound = self.slab[existing.index].shallow_clone();
         let bind_error = || BindError {
-            existing: existing_bound.shallow_clone(),
+            existing: existing.clone(),
             new: new.shallow_clone(),
         };
 
@@ -342,24 +416,19 @@ impl<'ctx> LockedContext<'ctx> {
                 //
                 // It also gives the user access to more information about the type,
                 // prior to finalization.
-                let y1_bound = &self.slab[y1.bound.root().index];
-                let y2_bound = &self.slab[y2.bound.root().index];
-                if let (Bound::Complete(data1), Bound::Complete(data2)) = (y1_bound, y2_bound) {
+                if let Some((data1, data2)) = self.complete_pair_data(y1, y2) {
                     self.reassign_non_complete(
                         existing,
                         Bound::Complete(if let Bound::Sum(..) = existing_bound {
-                            Final::sum(Arc::clone(data1), Arc::clone(data2))
+                            Final::sum(data1, data2)
                         } else {
-                            Final::product(Arc::clone(data1), Arc::clone(data2))
+                            Final::product(data1, data2)
                         }),
                     );
                 }
                 Ok(())
             }
-            (x, y) => Err(BindError {
-                existing: x.shallow_clone(),
-                new: y.shallow_clone(),
-            }),
+            (_, _) => Err(bind_error()),
         }
     }
 }
