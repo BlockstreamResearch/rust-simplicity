@@ -125,6 +125,7 @@ fn new_tx_data(tx: &elements::Transaction, in_utxos: &[ElementsUtxo]) -> RawTran
 pub(super) fn new_tx(tx: &elements::Transaction, in_utxos: &[ElementsUtxo]) -> *mut CTransaction {
     let mut raw_inputs = Vec::new();
     let mut raw_outputs = Vec::new();
+    let txid = tx.txid();
     let tx_data = new_tx_data(tx, in_utxos);
     for ((inp, in_utxo), inp_data) in tx
         .input
@@ -143,6 +144,7 @@ pub(super) fn new_tx(tx: &elements::Transaction, in_utxos: &[ElementsUtxo]) -> *
         c_set_rawTransaction(
             raw_tx.as_mut_ptr(),
             tx.version as c_uint,
+            AsRef::<[u8]>::as_ref(&txid).as_ptr(),
             raw_inputs.as_ptr(),
             raw_inputs.len() as c_uint,
             raw_outputs.as_ptr(),

@@ -640,9 +640,9 @@ mod tests {
                 0x67, 0xd3, 0x22, 0xd4, 0x4a, 0xe0, 0xda, 0x2e,
                 0xb4, 0x75, 0x12, 0x60, 0x00,
             ],
-            "3c77e90bcf5ff2bf45f6f30ecb093da96ff22509b5e981af0c21dddb84eec184",
-            "8e1ea76972cfe1684295784a59cb3c7229c9ab64bcdbc159278a7092b625d67c",
-            "dfb28b5859be539546f4fe9ce8c89083f021c76895be684d337087ffcfb4a7af",
+            "e2a6e4a223c0da97ebbf5f401e2d622535c3ed538e70f344318e9e5e4c2e02af",
+            "dc52a75e2137c0e2c63c0e49e3a226441234f2bb99236eaeee6d87e5a45a71c7",
+            "b6b12e9cd674927fea216e24b81df0daf03aa7b15cc8f9110ce506232be08671",
         );
     }
 
@@ -684,9 +684,9 @@ mod tests {
         ];
         assert_program_deserializable::<crate::jet::Elements>(
             &schnorr0,
-            "dacbdfcf64122edf8efda2b34fe353cac4424dd455a9204fc92af258b465bbc4",
-            "097f231c68c5cd55fc23c70c6101463d3547046e62b90c43ed65c4c1c2aeea91",
-            "190bfc6677d227f1301ab6694f4de230b02277a8d2936517bddf9ebd16dc8250",
+            "70a617f32098132fe01ad5ff6748d3b94f803f4d851dd5764d99437c1b8dd7e8",
+            "f9ab63b6ea2a9cc1df9cc1e1bc96c945b655ec843eb6967d4429a1a0c8519633",
+            "fd9423e5ca51d3efea27596b65a61792497a68351ee43f235e6edfc344cf4951",
         );
     }
 }

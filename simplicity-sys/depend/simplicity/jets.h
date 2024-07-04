@@ -327,6 +327,7 @@ bool divides_8(frameItem* dst, frameItem src, const txEnv* env);
 bool divides_16(frameItem* dst, frameItem src, const txEnv* env);
 bool divides_32(frameItem* dst, frameItem src, const txEnv* env);
 bool divides_64(frameItem* dst, frameItem src, const txEnv* env);
+bool div_mod_128_64(frameItem* dst, frameItem src, const txEnv* env);
 
 bool sha_256_iv(frameItem* dst, frameItem src, const txEnv* env);
 bool sha_256_block(frameItem* dst, frameItem src, const txEnv* env);
@@ -384,6 +385,8 @@ bool linear_combination_1(frameItem* dst, frameItem src, const txEnv* env);
 bool linear_verify_1(frameItem* dst, frameItem src, const txEnv* env);
 bool decompress(frameItem* dst, frameItem src, const txEnv* env);
 bool point_verify_1(frameItem* dst, frameItem src, const txEnv* env);
+bool swu(frameItem* dst, frameItem src, const txEnv* env);
+bool hash_to_curve(frameItem* dst, frameItem src, const txEnv* env);
 
 bool check_sig_verify(frameItem* dst, frameItem src, const txEnv* env);
 bool bip_0340_verify(frameItem* dst, frameItem src, const txEnv* env);

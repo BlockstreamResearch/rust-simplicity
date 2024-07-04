@@ -91,6 +91,7 @@ pub struct CRawInput {
 #[derive(Debug)]
 #[repr(C)]
 pub struct CRawTransaction {
+    txid: *const c_uchar,
     inputs: *const CRawInput,
     outputs: *const CRawOutput,
     version: u32,
@@ -171,6 +172,7 @@ extern "C" {
     pub fn c_set_rawTransaction(
         result: *mut CRawTransaction,
         version: c_uint,
+        txid: *const c_uchar,
         input: *const CRawInput,
         numInputs: c_uint,
         output: *const CRawOutput,

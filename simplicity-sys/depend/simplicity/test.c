@@ -4,6 +4,7 @@
 #include <time.h>
 #include <getopt.h>
 #include <simplicity/elements/exec.h>
+#include <simplicity/cmr.h>
 #include "ctx8Pruned.h"
 #include "ctx8Unpruned.h"
 #include "dag.h"
@@ -335,7 +336,8 @@ static void test_elements(void) {
   printf("Test elements\n");
   {
     rawTransaction testTx1 = (rawTransaction)
-      { .input = (rawInput[])
+      { .txid = (unsigned char[32]){"\xdb\x9a\x3d\xe0\xb6\xb8\xcc\x74\x1e\x4d\x6c\x8f\x19\xce\x75\xec\x0d\xfd\x01\x02\xdb\x9c\xb5\xcd\x27\xa4\x1a\x66\x91\x66\x3a\x07"}
+      , .input = (rawInput[])
                  { { .annex = NULL
                    , .prevTxid = (unsigned char[32]){"\xeb\x04\xb6\x8e\x9a\x26\xd1\x16\x04\x6c\x76\xe8\xff\x47\x33\x2f\xb7\x1d\xda\x90\xff\x4b\xef\x53\x70\xf2\x52\x26\xd3\xbc\x09\xfc"}
                    , .prevIx = 0
@@ -368,6 +370,20 @@ static void test_elements(void) {
     if (tx1) {
       successes++;
       simplicity_err execResult;
+      {
+        unsigned char cmrResult[32];
+        if (simplicity_computeCmr(&execResult, cmrResult, elementsCheckSigHashAllTx1, sizeof_elementsCheckSigHashAllTx1) && IS_OK(execResult)) {
+          if (0 == memcmp(cmrResult, cmr, sizeof(unsigned char[8]))) {
+            successes++;
+          } else {
+            failures++;
+            printf("Unexpected CMR of elementsCheckSigHashAllTx1\n");
+          }
+        } else {
+          failures++;
+          printf("simplicity_computeCmr of elementsCheckSigHashAllTx1 unexpectedly produced %d.\n", execResult);
+        }
+      }
       {
         unsigned char imrResult[32];
         if (elements_simplicity_execSimplicity(&execResult, imrResult, tx1, 0, taproot, genesisHash, (elementsCheckSigHashAllTx1_cost + 999)/1000, amr, elementsCheckSigHashAllTx1, sizeof_elementsCheckSigHashAllTx1) && IS_OK(execResult)) {
@@ -415,7 +431,8 @@ static void test_elements(void) {
   /* test a modified transaction with the same signature. */
   {
     rawTransaction testTx2 = (rawTransaction)
-      { .input = (rawInput[])
+      { .txid = (unsigned char[32]){"\xdb\x9a\x3d\xe0\xb6\xb8\xcc\x74\x1e\x4d\x6c\x8f\x19\xce\x75\xec\x0d\xfd\x01\x02\xdb\x9c\xb5\xcd\x27\xa4\x1a\x66\x91\x66\x3a\x07"}
+      , .input = (rawInput[])
                  { { .prevTxid = (unsigned char[32]){"\xeb\x04\xb6\x8e\x9a\x26\xd1\x16\x04\x6c\x76\xe8\xff\x47\x33\x2f\xb7\x1d\xda\x90\xff\x4b\xef\x53\x70\xf2\x52\x26\xd3\xbc\x09\xfc"}
                    , .prevIx = 0
                    , .sequence = 0xffffffff /* Here is the modification. */

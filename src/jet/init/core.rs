@@ -44,6 +44,7 @@ pub enum Core {
     Decrement32,
     Decrement64,
     Decrement8,
+    DivMod128_64,
     DivMod16,
     DivMod32,
     DivMod64,
@@ -145,6 +146,7 @@ pub enum Core {
     GejXEquiv,
     GejYIsOdd,
     Generate,
+    HashToCurve,
     High1,
     High16,
     High32,
@@ -367,6 +369,7 @@ pub enum Core {
     Subtract32,
     Subtract64,
     Subtract8,
+    Swu,
     Verify,
     Xor1,
     Xor16,
@@ -457,9 +460,9 @@ impl Jet for Core {
                 0x0c, 0xc1, 0x20, 0x75,
             ],
             Core::Bip0340Verify => [
-                0xba, 0x22, 0x11, 0x7f, 0xcd, 0x13, 0x81, 0x5b, 0xf3, 0xe3, 0xc8, 0x8a, 0x46, 0x55,
-                0x1a, 0x6e, 0x31, 0xf0, 0x33, 0x1b, 0x00, 0xd1, 0x34, 0xac, 0xab, 0x79, 0x49, 0xd5,
-                0x9e, 0x32, 0x21, 0x94,
+                0x3a, 0x19, 0x6e, 0xc1, 0x9d, 0x8f, 0x3f, 0xcc, 0x67, 0xb0, 0xad, 0x8f, 0x61, 0x1e,
+                0x76, 0x2d, 0xc1, 0x18, 0x9a, 0x72, 0x2f, 0xaa, 0x74, 0x5b, 0x69, 0x4d, 0x29, 0x2c,
+                0x47, 0x37, 0x3f, 0x53,
             ],
             Core::Ch1 => [
                 0xc2, 0x32, 0x36, 0x12, 0x4d, 0xa0, 0x1f, 0x3d, 0x8e, 0xb7, 0x42, 0xc2, 0xed, 0x47,
@@ -487,9 +490,9 @@ impl Jet for Core {
                 0x79, 0xd8, 0x78, 0x01,
             ],
             Core::CheckSigVerify => [
-                0xe8, 0xfe, 0xb5, 0x34, 0x34, 0xe2, 0xbd, 0xb5, 0xcf, 0xe6, 0xa9, 0x1f, 0xa8, 0xf9,
-                0xe1, 0x77, 0xf9, 0x41, 0xa6, 0x7c, 0xc6, 0xce, 0xd8, 0x69, 0x74, 0x6f, 0x1a, 0x8e,
-                0xb6, 0x50, 0x6f, 0x76,
+                0xa5, 0x16, 0xdd, 0x5c, 0x9c, 0xab, 0xd0, 0x41, 0x12, 0x0e, 0xa3, 0x68, 0xab, 0x4c,
+                0xcd, 0x92, 0x31, 0x25, 0x5e, 0xf5, 0x79, 0x96, 0x85, 0x58, 0xc1, 0xaa, 0x6a, 0x21,
+                0x2f, 0x16, 0x83, 0x29,
             ],
             Core::Complement1 => [
                 0x7e, 0x71, 0x48, 0x13, 0x2e, 0x28, 0x92, 0x82, 0x3f, 0xcf, 0x2a, 0x26, 0xc6, 0x22,
@@ -517,9 +520,9 @@ impl Jet for Core {
                 0xea, 0xbf, 0x45, 0x8e,
             ],
             Core::Decompress => [
-                0x99, 0xca, 0xc8, 0xf0, 0x6f, 0xac, 0x40, 0x51, 0x42, 0x37, 0x49, 0xc0, 0xb0, 0x99,
-                0x45, 0x20, 0xf9, 0x14, 0xd1, 0x96, 0x6f, 0x9f, 0x02, 0x97, 0x78, 0xc4, 0xe7, 0x45,
-                0x68, 0x90, 0xb7, 0xd6,
+                0xa4, 0x3c, 0x39, 0x26, 0x7f, 0xac, 0xd1, 0xe2, 0xb6, 0xd4, 0x2c, 0x76, 0x15, 0xad,
+                0x3f, 0x28, 0x68, 0x63, 0x75, 0x72, 0xf4, 0x6e, 0x18, 0x79, 0x4e, 0x34, 0x75, 0xb9,
+                0xb2, 0xea, 0xef, 0x84,
             ],
             Core::Decrement16 => [
                 0x19, 0x6b, 0x2d, 0xc6, 0x32, 0xe6, 0xc5, 0xd0, 0x94, 0xff, 0x9d, 0x34, 0xa2, 0x09,
@@ -540,6 +543,11 @@ impl Jet for Core {
                 0x2b, 0x59, 0x11, 0xe6, 0x67, 0xe6, 0x96, 0xf9, 0xcd, 0x03, 0xe9, 0xdf, 0x7d, 0x40,
                 0x0a, 0x55, 0x45, 0xe7, 0xe9, 0x74, 0x4a, 0xfb, 0xf9, 0x2e, 0x0b, 0xa8, 0x7f, 0x6c,
                 0x7c, 0xc4, 0x42, 0x87,
+            ],
+            Core::DivMod128_64 => [
+                0x1e, 0xe3, 0xe6, 0x0f, 0x5c, 0x9e, 0x4f, 0x0d, 0x3e, 0xc9, 0xeb, 0xea, 0x36, 0x98,
+                0xec, 0xa8, 0xbd, 0x32, 0xac, 0x16, 0x7e, 0x69, 0xb2, 0x96, 0xab, 0x9c, 0x18, 0x36,
+                0xb6, 0x10, 0x1d, 0x04,
             ],
             Core::DivMod16 => [
                 0x15, 0x85, 0xd1, 0xbf, 0xe9, 0x52, 0xf7, 0x1b, 0x1c, 0xfe, 0xbb, 0xef, 0x29, 0x2c,
@@ -1045,6 +1053,11 @@ impl Jet for Core {
                 0xa3, 0xc5, 0x5b, 0xef, 0x32, 0xa3, 0x50, 0xd9, 0x0d, 0x5c, 0x3d, 0xac, 0x24, 0x76,
                 0x7a, 0x03, 0x86, 0x7f, 0xaf, 0x7a, 0x73, 0x27, 0x77, 0x03, 0x89, 0x5a, 0x27, 0xcb,
                 0x6b, 0x44, 0x25, 0x2d,
+            ],
+            Core::HashToCurve => [
+                0x4d, 0xc3, 0xeb, 0x6a, 0x6f, 0xbe, 0x37, 0x4b, 0xa7, 0x69, 0x64, 0x72, 0x63, 0xa6,
+                0x95, 0xa4, 0x5d, 0x09, 0x21, 0x13, 0x8a, 0x17, 0xf0, 0x03, 0xc4, 0xab, 0xb7, 0x58,
+                0xd8, 0x38, 0xb1, 0x33,
             ],
             Core::High1 => [
                 0x97, 0xa1, 0x43, 0xf0, 0x4c, 0xb6, 0x03, 0xf6, 0x5f, 0x84, 0xa8, 0x0d, 0x31, 0xc3,
@@ -1707,9 +1720,9 @@ impl Jet for Core {
                 0x2e, 0xba, 0xf9, 0x4a,
             ],
             Core::PointVerify1 => [
-                0x02, 0xb8, 0x9a, 0x1c, 0xa7, 0xd2, 0x4f, 0x82, 0x35, 0x3e, 0x97, 0x32, 0xfa, 0x39,
-                0xce, 0x65, 0x50, 0x9b, 0x39, 0xae, 0xaf, 0x43, 0xd2, 0xe5, 0xf8, 0x0c, 0xa9, 0x03,
-                0xfc, 0x81, 0xc8, 0x46,
+                0xb6, 0x00, 0x9c, 0xec, 0x8b, 0xe8, 0xb1, 0x4a, 0x1d, 0x31, 0x32, 0x99, 0xd6, 0x67,
+                0x61, 0xd6, 0x59, 0xad, 0xff, 0xf8, 0x23, 0x28, 0x99, 0xab, 0x7d, 0xb4, 0x09, 0x7f,
+                0x52, 0xc7, 0xd0, 0xbe,
             ],
             Core::RightExtend16_32 => [
                 0x36, 0x42, 0x3c, 0x16, 0xd4, 0x8d, 0x6c, 0x7c, 0x91, 0xed, 0x44, 0x16, 0x11, 0xbe,
@@ -2156,6 +2169,11 @@ impl Jet for Core {
                 0xa4, 0x87, 0x7c, 0x50, 0xb2, 0xbf, 0x91, 0x65, 0xe5, 0xb7, 0x96, 0x35, 0xbf, 0x8b,
                 0xcb, 0x84, 0xd4, 0x42,
             ],
+            Core::Swu => [
+                0x69, 0x45, 0x9b, 0x6d, 0xd1, 0x0a, 0x63, 0xdf, 0x37, 0xde, 0xdf, 0x18, 0x6c, 0xb4,
+                0xd2, 0x08, 0xd8, 0xc0, 0x39, 0x61, 0x1c, 0xec, 0xdd, 0x09, 0xcf, 0xe0, 0x7a, 0xc9,
+                0x1d, 0x01, 0x42, 0x2f,
+            ],
             Core::Verify => [
                 0xf1, 0x1c, 0x94, 0x81, 0xe7, 0x18, 0x63, 0xa2, 0x44, 0x53, 0xc3, 0xe2, 0x13, 0x04,
                 0x64, 0x99, 0xa0, 0x3a, 0x9a, 0x0f, 0x99, 0x3b, 0xe3, 0xc4, 0x8e, 0x9d, 0x1f, 0x40,
@@ -2248,6 +2266,7 @@ impl Jet for Core {
             Core::Decrement32 => b"i",
             Core::Decrement64 => b"l",
             Core::Decrement8 => b"***22*22**22*22",
+            Core::DivMod128_64 => b"**lll",
             Core::DivMod16 => b"i",
             Core::DivMod32 => b"l",
             Core::DivMod64 => b"*ll",
@@ -2349,6 +2368,7 @@ impl Jet for Core {
             Core::GejXEquiv => b"*h**hhh",
             Core::GejYIsOdd => b"**hhh",
             Core::Generate => b"h",
+            Core::HashToCurve => b"h",
             Core::High1 => b"1",
             Core::High16 => b"1",
             Core::High32 => b"1",
@@ -2571,6 +2591,7 @@ impl Jet for Core {
             Core::Subtract32 => b"l",
             Core::Subtract64 => b"*ll",
             Core::Subtract8 => b"****22*22**22*22***22*22**22*22",
+            Core::Swu => b"h",
             Core::Verify => b"2",
             Core::Xor1 => b"*22",
             Core::Xor16 => b"i",
@@ -2619,6 +2640,7 @@ impl Jet for Core {
             Core::Decrement32 => b"*2i",
             Core::Decrement64 => b"*2l",
             Core::Decrement8 => b"*2***22*22**22*22",
+            Core::DivMod128_64 => b"*ll",
             Core::DivMod16 => b"i",
             Core::DivMod32 => b"l",
             Core::DivMod64 => b"*ll",
@@ -2720,6 +2742,7 @@ impl Jet for Core {
             Core::GejXEquiv => b"2",
             Core::GejYIsOdd => b"2",
             Core::Generate => b"**hhh",
+            Core::HashToCurve => b"*hh",
             Core::High1 => b"2",
             Core::High16 => b"****22*22**22*22***22*22**22*22",
             Core::High32 => b"i",
@@ -2942,6 +2965,7 @@ impl Jet for Core {
             Core::Subtract32 => b"*2i",
             Core::Subtract64 => b"*2l",
             Core::Subtract8 => b"*2***22*22**22*22",
+            Core::Swu => b"*hh",
             Core::Verify => b"1",
             Core::Xor1 => b"2",
             Core::Xor16 => b"****22*22**22*22***22*22**22*22",
@@ -3249,6 +3273,7 @@ impl Jet for Core {
             Core::Median16 => (639280, 20),
             Core::Median32 => (639281, 20),
             Core::Median64 => (639282, 20),
+            Core::DivMod128_64 => (639346, 20),
             Core::DivMod8 => (79925, 17),
             Core::DivMod16 => (639408, 20),
             Core::DivMod32 => (639409, 20),
@@ -3320,6 +3345,8 @@ impl Jet for Core {
             Core::FeSquareRoot => (200234, 18),
             Core::FeIsZero => (200235, 18),
             Core::FeIsOdd => (200236, 18),
+            Core::HashToCurve => (200238, 18),
+            Core::Swu => (200239, 18),
             Core::CheckSigVerify => (98, 7),
             Core::Bip0340Verify => (396, 9),
             Core::ParseLock => (102, 7),
@@ -5207,7 +5234,25 @@ impl Jet for Core {
                                                                         }
                                                                     }
                                                                 },
-                                                                1 => {}
+                                                                1 => {
+                                                                    0 => {},
+                                                                    1 => {
+                                                                        0 => {},
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {},
+                                                                                    1 => {
+                                                                                        0 => {Core::DivMod128_64},
+                                                                                        1 => {}
+                                                                                    }
+                                                                                },
+                                                                                1 => {}
+                                                                            },
+                                                                            1 => {}
+                                                                        }
+                                                                    }
+                                                                }
                                                             },
                                                             1 => {
                                                                 0 => {
@@ -5540,7 +5585,10 @@ impl Jet for Core {
                                                                                 0 => {Core::FeIsOdd},
                                                                                 1 => {}
                                                                             },
-                                                                            1 => {}
+                                                                            1 => {
+                                                                                0 => {Core::HashToCurve},
+                                                                                1 => {Core::Swu}
+                                                                            }
                                                                         }
                                                                     }
                                                                 },
@@ -5621,6 +5669,7 @@ impl Jet for Core {
             Core::Decrement32 => &simplicity_sys::c_jets::jets_wrapper::decrement_32,
             Core::Decrement64 => &simplicity_sys::c_jets::jets_wrapper::decrement_64,
             Core::Decrement8 => &simplicity_sys::c_jets::jets_wrapper::decrement_8,
+            Core::DivMod128_64 => &simplicity_sys::c_jets::jets_wrapper::div_mod_128_64,
             Core::DivMod16 => &simplicity_sys::c_jets::jets_wrapper::div_mod_16,
             Core::DivMod32 => &simplicity_sys::c_jets::jets_wrapper::div_mod_32,
             Core::DivMod64 => &simplicity_sys::c_jets::jets_wrapper::div_mod_64,
@@ -5722,6 +5771,7 @@ impl Jet for Core {
             Core::GejXEquiv => &simplicity_sys::c_jets::jets_wrapper::gej_x_equiv,
             Core::GejYIsOdd => &simplicity_sys::c_jets::jets_wrapper::gej_y_is_odd,
             Core::Generate => &simplicity_sys::c_jets::jets_wrapper::generate,
+            Core::HashToCurve => &simplicity_sys::c_jets::jets_wrapper::hash_to_curve,
             Core::High1 => &simplicity_sys::c_jets::jets_wrapper::high_1,
             Core::High16 => &simplicity_sys::c_jets::jets_wrapper::high_16,
             Core::High32 => &simplicity_sys::c_jets::jets_wrapper::high_32,
@@ -5944,6 +5994,7 @@ impl Jet for Core {
             Core::Subtract32 => &simplicity_sys::c_jets::jets_wrapper::subtract_32,
             Core::Subtract64 => &simplicity_sys::c_jets::jets_wrapper::subtract_64,
             Core::Subtract8 => &simplicity_sys::c_jets::jets_wrapper::subtract_8,
+            Core::Swu => &simplicity_sys::c_jets::jets_wrapper::swu,
             Core::Verify => &simplicity_sys::c_jets::jets_wrapper::verify,
             Core::Xor1 => &simplicity_sys::c_jets::jets_wrapper::xor_1,
             Core::Xor16 => &simplicity_sys::c_jets::jets_wrapper::xor_16,
@@ -5990,6 +6041,7 @@ impl Jet for Core {
             Core::Decrement32 => Cost::from_milliweight(159),
             Core::Decrement64 => Cost::from_milliweight(160),
             Core::Decrement8 => Cost::from_milliweight(195),
+            Core::DivMod128_64 => Cost::from_milliweight(220),
             Core::DivMod16 => Cost::from_milliweight(223),
             Core::DivMod32 => Cost::from_milliweight(198),
             Core::DivMod64 => Cost::from_milliweight(220),
@@ -6091,6 +6143,7 @@ impl Jet for Core {
             Core::GejXEquiv => Cost::from_milliweight(1270),
             Core::GejYIsOdd => Cost::from_milliweight(3665),
             Core::Generate => Cost::from_milliweight(51706),
+            Core::HashToCurve => Cost::from_milliweight(10956),
             Core::High1 => Cost::from_milliweight(169),
             Core::High16 => Cost::from_milliweight(159),
             Core::High32 => Cost::from_milliweight(121),
@@ -6313,6 +6366,7 @@ impl Jet for Core {
             Core::Subtract32 => Cost::from_milliweight(186),
             Core::Subtract64 => Cost::from_milliweight(315),
             Core::Subtract8 => Cost::from_milliweight(149),
+            Core::Swu => Cost::from_milliweight(10956),
             Core::Verify => Cost::from_milliweight(144),
             Core::Xor1 => Cost::from_milliweight(135),
             Core::Xor16 => Cost::from_milliweight(188),
@@ -6361,6 +6415,7 @@ impl fmt::Display for Core {
             Core::Decrement32 => f.write_str("decrement_32"),
             Core::Decrement64 => f.write_str("decrement_64"),
             Core::Decrement8 => f.write_str("decrement_8"),
+            Core::DivMod128_64 => f.write_str("div_mod_128_64"),
             Core::DivMod16 => f.write_str("div_mod_16"),
             Core::DivMod32 => f.write_str("div_mod_32"),
             Core::DivMod64 => f.write_str("div_mod_64"),
@@ -6462,6 +6517,7 @@ impl fmt::Display for Core {
             Core::GejXEquiv => f.write_str("gej_x_equiv"),
             Core::GejYIsOdd => f.write_str("gej_y_is_odd"),
             Core::Generate => f.write_str("generate"),
+            Core::HashToCurve => f.write_str("hash_to_curve"),
             Core::High1 => f.write_str("high_1"),
             Core::High16 => f.write_str("high_16"),
             Core::High32 => f.write_str("high_32"),
@@ -6684,6 +6740,7 @@ impl fmt::Display for Core {
             Core::Subtract32 => f.write_str("subtract_32"),
             Core::Subtract64 => f.write_str("subtract_64"),
             Core::Subtract8 => f.write_str("subtract_8"),
+            Core::Swu => f.write_str("swu"),
             Core::Verify => f.write_str("verify"),
             Core::Xor1 => f.write_str("xor_1"),
             Core::Xor16 => f.write_str("xor_16"),
@@ -6734,6 +6791,7 @@ impl str::FromStr for Core {
             "decrement_32" => Ok(Core::Decrement32),
             "decrement_64" => Ok(Core::Decrement64),
             "decrement_8" => Ok(Core::Decrement8),
+            "div_mod_128_64" => Ok(Core::DivMod128_64),
             "div_mod_16" => Ok(Core::DivMod16),
             "div_mod_32" => Ok(Core::DivMod32),
             "div_mod_64" => Ok(Core::DivMod64),
@@ -6835,6 +6893,7 @@ impl str::FromStr for Core {
             "gej_x_equiv" => Ok(Core::GejXEquiv),
             "gej_y_is_odd" => Ok(Core::GejYIsOdd),
             "generate" => Ok(Core::Generate),
+            "hash_to_curve" => Ok(Core::HashToCurve),
             "high_1" => Ok(Core::High1),
             "high_16" => Ok(Core::High16),
             "high_32" => Ok(Core::High32),
@@ -7057,6 +7116,7 @@ impl str::FromStr for Core {
             "subtract_32" => Ok(Core::Subtract32),
             "subtract_64" => Ok(Core::Subtract64),
             "subtract_8" => Ok(Core::Subtract8),
+            "swu" => Ok(Core::Swu),
             "verify" => Ok(Core::Verify),
             "xor_1" => Ok(Core::Xor1),
             "xor_16" => Ok(Core::Xor16),

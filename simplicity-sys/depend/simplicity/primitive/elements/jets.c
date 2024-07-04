@@ -528,6 +528,13 @@ bool script_cmr(frameItem* dst, frameItem src, const txEnv* env) {
   return true;
 }
 
+/* transaction_id : ONE |- TWO^256 */
+bool transaction_id(frameItem* dst, frameItem src, const txEnv* env) {
+  (void) src; // src is unused;
+  write32s(dst, env->tx->txid.s, 8);
+  return true;
+}
+
 /* current_index : ONE |- TWO^32 */
 bool current_index(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
@@ -821,6 +828,18 @@ bool calculate_confidential_token(frameItem* dst, frameItem src, const txEnv* en
   return true;
 }
 
+/* lbtc_asset : ONE |- TWO^256 */
+bool lbtc_asset(frameItem* dst, frameItem src, const txEnv* env) {
+  (void) src; // src is unused.
+  (void) env; // env is unused.
+  const sha256_midstate lbtc_assetid = {{
+    0x6d521c38u, 0xec1ea157u, 0x34ae22b7u, 0xc4606441u, 0x2829c0d0u, 0x579f0a71u, 0x3d1c04edu, 0xe979026fu
+  }};
+
+  writeHash(dst, &lbtc_assetid);
+  return true;
+}
+
 /* build_tapleaf_simplicity : TWO^256 |- TWO^256 */
 bool build_tapleaf_simplicity(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused.
@@ -1085,6 +1104,26 @@ bool outputs_hash(frameItem* dst, frameItem src, const txEnv* env) {
   return true;
 }
 
+/* output_hash : TWO^32 |- S TWO^256 */
+bool output_hash(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = read32(&src);
+  if (writeBit(dst, i < env->tx->numOutputs)) {
+    const sigOutput* output = &env->tx->output[i];
+    sha256_midstate midstate;
+    sha256_context ctx = sha256_init(midstate.s);
+    sha256_confAsset(&ctx, &output->asset);
+    sha256_confAmt(&ctx, &output->amt);
+    sha256_confNonce(&ctx, &output->nonce);
+    sha256_hash(&ctx, &output->scriptPubKey);
+    sha256_hash(&ctx, &output->rangeProofHash);
+    sha256_finalize(&ctx);
+    writeHash(dst, &midstate);
+  } else {
+    skipBits(dst, 256);
+  }
+  return true;
+}
+
 /* input_outpoints_hash : ONE |- TWO^256 */
 bool input_outpoints_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
@@ -1113,6 +1152,24 @@ bool input_utxos_hash(frameItem* dst, frameItem src, const txEnv* env) {
   return true;
 }
 
+/* input_utxo_hash : TWO^32 |- S TWO^256 */
+bool input_utxo_hash(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = read32(&src);
+  if (writeBit(dst, i < env->tx->numInputs)) {
+    const utxo* txo = &env->tx->input[i].txo;
+    sha256_midstate midstate;
+    sha256_context ctx = sha256_init(midstate.s);
+    sha256_confAsset(&ctx, &txo->asset);
+    sha256_confAmt(&ctx, &txo->amt);
+    sha256_hash(&ctx, &txo->scriptPubKey);
+    sha256_finalize(&ctx);
+    writeHash(dst, &midstate);
+  } else {
+    skipBits(dst, 256);
+  }
+  return true;
+}
+
 /* input_sequences_hash : ONE |- TWO^256 */
 bool input_sequences_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
@@ -1138,6 +1195,36 @@ bool input_script_sigs_hash(frameItem* dst, frameItem src, const txEnv* env) {
 bool inputs_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->inputsHash);
+  return true;
+}
+
+/* input_hash : TWO^32 |- S TWO^256 */
+bool input_hash(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = read32(&src);
+  if (writeBit(dst, i < env->tx->numInputs)) {
+    const sigInput* input = &env->tx->input[i];
+    sha256_midstate midstate;
+    sha256_context ctx = sha256_init(midstate.s);
+    if (input->isPegin) {
+      sha256_uchar(&ctx, 1);
+      sha256_hash(&ctx, &input->pegin);
+    } else {
+      sha256_uchar(&ctx, 0);
+    }
+    sha256_hash(&ctx, &input->prevOutpoint.txid);
+    sha256_u32be(&ctx, input->prevOutpoint.ix);
+    sha256_u32be(&ctx, input->sequence);
+    if (input->hasAnnex) {
+      sha256_uchar(&ctx, 1);
+      sha256_hash(&ctx, &input->annexHash);
+    } else {
+      sha256_uchar(&ctx, 0);
+    }
+    sha256_finalize(&ctx);
+    writeHash(dst, &midstate);
+  } else {
+    skipBits(dst, 256);
+  }
   return true;
 }
 
@@ -1173,6 +1260,47 @@ bool issuance_blinding_entropy_hash(frameItem* dst, frameItem src, const txEnv* 
 bool issuances_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->issuancesHash);
+  return true;
+}
+
+/* issuance_hash : TWO^32 |- S TWO^256 */
+bool issuance_hash(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = read32(&src);
+  if (writeBit(dst, i < env->tx->numInputs)) {
+    const assetIssuance* issuance = &env->tx->input[i].issuance;
+    sha256_midstate midstate;
+    sha256_context ctx = sha256_init(midstate.s);
+    if (NO_ISSUANCE == issuance->type) {
+      sha256_uchar(&ctx, 0);
+      sha256_uchar(&ctx, 0);
+      sha256_uchar(&ctx, 0);
+      sha256_uchar(&ctx, 0);
+      sha256_hash(&ctx, &issuance->assetRangeProofHash);
+      sha256_hash(&ctx, &issuance->tokenRangeProofHash);
+      sha256_uchar(&ctx, 0);
+    } else {
+      sha256_confAsset(&ctx, &(confidential){ .prefix = EXPLICIT, .data = issuance->assetId});
+      sha256_confAmt(&ctx, &issuance->assetAmt);
+      sha256_confAsset(&ctx, &(confidential){ .prefix = EXPLICIT, .data = issuance->tokenId});
+      sha256_confAmt(&ctx, NEW_ISSUANCE == issuance->type
+                                         ? &issuance->tokenAmt
+                                         : &(confAmount){ .prefix = EXPLICIT, .explicit = 0});
+      sha256_hash(&ctx, &issuance->assetRangeProofHash);
+      sha256_hash(&ctx, &issuance->tokenRangeProofHash);
+      sha256_uchar(&ctx, 1);
+      if (NEW_ISSUANCE == issuance->type) {
+        sha256_uchars(&ctx, (unsigned char[32]){0}, 32);
+        sha256_hash(&ctx, &issuance->contractHash);
+      } else {
+        sha256_hash(&ctx, &issuance->blindingNonce);
+        sha256_hash(&ctx, &issuance->entropy);
+      }
+    }
+    sha256_finalize(&ctx);
+    writeHash(dst, &midstate);
+  } else {
+    skipBits(dst, 256);
+  }
   return true;
 }
 

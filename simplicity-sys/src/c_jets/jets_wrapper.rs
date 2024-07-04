@@ -235,6 +235,10 @@ pub fn decrement_8<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
     unsafe { elements_ffi::decrement_8(dst, &src, std::ptr::null()) }
 }
 
+pub fn div_mod_128_64<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::div_mod_128_64(dst, &src, std::ptr::null()) }
+}
+
 pub fn div_mod_16<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
     unsafe { elements_ffi::div_mod_16(dst, &src, std::ptr::null()) }
 }
@@ -643,6 +647,10 @@ pub fn genesis_block_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElements
     unsafe { elements_ffi::genesis_block_hash(dst, &src, env) }
 }
 
+pub fn hash_to_curve<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::hash_to_curve(dst, &src, std::ptr::null()) }
+}
+
 pub fn high_1<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
     unsafe { elements_ffi::high_1(dst, &src, std::ptr::null()) }
 }
@@ -699,6 +707,10 @@ pub fn input_asset(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) 
     unsafe { elements_ffi::input_asset(dst, &src, env) }
 }
 
+pub fn input_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+    unsafe { elements_ffi::input_hash(dst, &src, env) }
+}
+
 pub fn input_outpoints_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
     unsafe { elements_ffi::input_outpoints_hash(dst, &src, env) }
 }
@@ -733,6 +745,10 @@ pub fn input_sequence(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEn
 
 pub fn input_sequences_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
     unsafe { elements_ffi::input_sequences_hash(dst, &src, env) }
+}
+
+pub fn input_utxo_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+    unsafe { elements_ffi::input_utxo_hash(dst, &src, env) }
 }
 
 pub fn input_utxos_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
@@ -807,6 +823,10 @@ pub fn issuance_entropy(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTx
     unsafe { elements_ffi::issuance_entropy(dst, &src, env) }
 }
 
+pub fn issuance_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+    unsafe { elements_ffi::issuance_hash(dst, &src, env) }
+}
+
 pub fn issuance_range_proofs_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
     unsafe { elements_ffi::issuance_range_proofs_hash(dst, &src, env) }
 }
@@ -829,6 +849,10 @@ pub fn issuance_token_proof(dst: &mut CFrameItem, src: CFrameItem, env: &CElemen
 
 pub fn issuances_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
     unsafe { elements_ffi::issuances_hash(dst, &src, env) }
+}
+
+pub fn lbtc_asset(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+    unsafe { elements_ffi::lbtc_asset(dst, &src, env) }
 }
 
 pub fn le_16<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
@@ -1319,6 +1343,10 @@ pub fn output_asset(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv)
     unsafe { elements_ffi::output_asset(dst, &src, env) }
 }
 
+pub fn output_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+    unsafe { elements_ffi::output_hash(dst, &src, env) }
+}
+
 pub fn output_is_fee(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
     unsafe { elements_ffi::output_is_fee(dst, &src, env) }
 }
@@ -1747,6 +1775,10 @@ pub fn subtract_8<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
     unsafe { elements_ffi::subtract_8(dst, &src, std::ptr::null()) }
 }
 
+pub fn swu<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::swu(dst, &src, std::ptr::null()) }
+}
+
 pub fn tap_env_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
     unsafe { elements_ffi::tap_env_hash(dst, &src, env) }
 }
@@ -1769,6 +1801,10 @@ pub fn tappath_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv)
 
 pub fn total_fee(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
     unsafe { elements_ffi::total_fee(dst, &src, env) }
+}
+
+pub fn transaction_id(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+    unsafe { elements_ffi::transaction_id(dst, &src, env) }
 }
 
 pub fn tx_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {

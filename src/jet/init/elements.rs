@@ -74,6 +74,7 @@ pub enum Elements {
     Decrement32,
     Decrement64,
     Decrement8,
+    DivMod128_64,
     DivMod16,
     DivMod32,
     DivMod64,
@@ -176,6 +177,7 @@ pub enum Elements {
     GejYIsOdd,
     Generate,
     GenesisBlockHash,
+    HashToCurve,
     High1,
     High16,
     High32,
@@ -190,6 +192,7 @@ pub enum Elements {
     InputAnnexHash,
     InputAnnexesHash,
     InputAsset,
+    InputHash,
     InputOutpointsHash,
     InputPegin,
     InputPrevOutpoint,
@@ -199,6 +202,7 @@ pub enum Elements {
     InputScriptsHash,
     InputSequence,
     InputSequencesHash,
+    InputUtxoHash,
     InputUtxosHash,
     InputsHash,
     InternalKey,
@@ -217,12 +221,14 @@ pub enum Elements {
     IssuanceAssetProof,
     IssuanceBlindingEntropyHash,
     IssuanceEntropy,
+    IssuanceHash,
     IssuanceRangeProofsHash,
     IssuanceToken,
     IssuanceTokenAmount,
     IssuanceTokenAmountsHash,
     IssuanceTokenProof,
     IssuancesHash,
+    LbtcAsset,
     Le16,
     Le32,
     Le64,
@@ -345,6 +351,7 @@ pub enum Elements {
     OutputAmount,
     OutputAmountsHash,
     OutputAsset,
+    OutputHash,
     OutputIsFee,
     OutputNonce,
     OutputNoncesHash,
@@ -452,12 +459,14 @@ pub enum Elements {
     Subtract32,
     Subtract64,
     Subtract8,
+    Swu,
     TapEnvHash,
     TapleafHash,
     TapleafVersion,
     Tappath,
     TappathHash,
     TotalFee,
+    TransactionId,
     TxHash,
     TxIsFinal,
     TxLockDistance,
@@ -565,9 +574,9 @@ impl Jet for Elements {
                 0xdb, 0x22, 0x42, 0x58,
             ],
             Elements::Bip0340Verify => [
-                0xba, 0x22, 0x11, 0x7f, 0xcd, 0x13, 0x81, 0x5b, 0xf3, 0xe3, 0xc8, 0x8a, 0x46, 0x55,
-                0x1a, 0x6e, 0x31, 0xf0, 0x33, 0x1b, 0x00, 0xd1, 0x34, 0xac, 0xab, 0x79, 0x49, 0xd5,
-                0x9e, 0x32, 0x21, 0x94,
+                0x3a, 0x19, 0x6e, 0xc1, 0x9d, 0x8f, 0x3f, 0xcc, 0x67, 0xb0, 0xad, 0x8f, 0x61, 0x1e,
+                0x76, 0x2d, 0xc1, 0x18, 0x9a, 0x72, 0x2f, 0xaa, 0x74, 0x5b, 0x69, 0x4d, 0x29, 0x2c,
+                0x47, 0x37, 0x3f, 0x53,
             ],
             Elements::BuildTapbranch => [
                 0xd4, 0xb3, 0x13, 0x12, 0x78, 0x6c, 0xb3, 0x3b, 0x43, 0xb0, 0x62, 0xd4, 0x8e, 0x0b,
@@ -645,9 +654,9 @@ impl Jet for Elements {
                 0xab, 0x57, 0xde, 0x53,
             ],
             Elements::CheckSigVerify => [
-                0xe8, 0xfe, 0xb5, 0x34, 0x34, 0xe2, 0xbd, 0xb5, 0xcf, 0xe6, 0xa9, 0x1f, 0xa8, 0xf9,
-                0xe1, 0x77, 0xf9, 0x41, 0xa6, 0x7c, 0xc6, 0xce, 0xd8, 0x69, 0x74, 0x6f, 0x1a, 0x8e,
-                0xb6, 0x50, 0x6f, 0x76,
+                0xa5, 0x16, 0xdd, 0x5c, 0x9c, 0xab, 0xd0, 0x41, 0x12, 0x0e, 0xa3, 0x68, 0xab, 0x4c,
+                0xcd, 0x92, 0x31, 0x25, 0x5e, 0xf5, 0x79, 0x96, 0x85, 0x58, 0xc1, 0xaa, 0x6a, 0x21,
+                0x2f, 0x16, 0x83, 0x29,
             ],
             Elements::Complement1 => [
                 0x7e, 0x71, 0x48, 0x13, 0x2e, 0x28, 0x92, 0x82, 0x3f, 0xcf, 0x2a, 0x26, 0xc6, 0x22,
@@ -755,9 +764,9 @@ impl Jet for Elements {
                 0x88, 0xde, 0x00, 0xf6,
             ],
             Elements::Decompress => [
-                0x99, 0xca, 0xc8, 0xf0, 0x6f, 0xac, 0x40, 0x51, 0x42, 0x37, 0x49, 0xc0, 0xb0, 0x99,
-                0x45, 0x20, 0xf9, 0x14, 0xd1, 0x96, 0x6f, 0x9f, 0x02, 0x97, 0x78, 0xc4, 0xe7, 0x45,
-                0x68, 0x90, 0xb7, 0xd6,
+                0xa4, 0x3c, 0x39, 0x26, 0x7f, 0xac, 0xd1, 0xe2, 0xb6, 0xd4, 0x2c, 0x76, 0x15, 0xad,
+                0x3f, 0x28, 0x68, 0x63, 0x75, 0x72, 0xf4, 0x6e, 0x18, 0x79, 0x4e, 0x34, 0x75, 0xb9,
+                0xb2, 0xea, 0xef, 0x84,
             ],
             Elements::Decrement16 => [
                 0x19, 0x6b, 0x2d, 0xc6, 0x32, 0xe6, 0xc5, 0xd0, 0x94, 0xff, 0x9d, 0x34, 0xa2, 0x09,
@@ -778,6 +787,11 @@ impl Jet for Elements {
                 0x2b, 0x59, 0x11, 0xe6, 0x67, 0xe6, 0x96, 0xf9, 0xcd, 0x03, 0xe9, 0xdf, 0x7d, 0x40,
                 0x0a, 0x55, 0x45, 0xe7, 0xe9, 0x74, 0x4a, 0xfb, 0xf9, 0x2e, 0x0b, 0xa8, 0x7f, 0x6c,
                 0x7c, 0xc4, 0x42, 0x87,
+            ],
+            Elements::DivMod128_64 => [
+                0x1e, 0xe3, 0xe6, 0x0f, 0x5c, 0x9e, 0x4f, 0x0d, 0x3e, 0xc9, 0xeb, 0xea, 0x36, 0x98,
+                0xec, 0xa8, 0xbd, 0x32, 0xac, 0x16, 0x7e, 0x69, 0xb2, 0x96, 0xab, 0x9c, 0x18, 0x36,
+                0xb6, 0x10, 0x1d, 0x04,
             ],
             Elements::DivMod16 => [
                 0x15, 0x85, 0xd1, 0xbf, 0xe9, 0x52, 0xf7, 0x1b, 0x1c, 0xfe, 0xbb, 0xef, 0x29, 0x2c,
@@ -1289,6 +1303,11 @@ impl Jet for Elements {
                 0x5a, 0x58, 0x60, 0x77, 0x9d, 0xf2, 0x83, 0x34, 0x48, 0x71, 0x41, 0xf4, 0x09, 0xb4,
                 0xb2, 0x9e, 0xfb, 0x65,
             ],
+            Elements::HashToCurve => [
+                0x4d, 0xc3, 0xeb, 0x6a, 0x6f, 0xbe, 0x37, 0x4b, 0xa7, 0x69, 0x64, 0x72, 0x63, 0xa6,
+                0x95, 0xa4, 0x5d, 0x09, 0x21, 0x13, 0x8a, 0x17, 0xf0, 0x03, 0xc4, 0xab, 0xb7, 0x58,
+                0xd8, 0x38, 0xb1, 0x33,
+            ],
             Elements::High1 => [
                 0x97, 0xa1, 0x43, 0xf0, 0x4c, 0xb6, 0x03, 0xf6, 0x5f, 0x84, 0xa8, 0x0d, 0x31, 0xc3,
                 0x36, 0x4f, 0x8f, 0xda, 0x22, 0x97, 0x3a, 0x9a, 0xe6, 0x95, 0xa5, 0x81, 0x89, 0xc3,
@@ -1359,6 +1378,11 @@ impl Jet for Elements {
                 0x38, 0x04, 0x26, 0xef, 0x0a, 0x12, 0xf9, 0x0d, 0x61, 0xe1, 0xd4, 0x19, 0xd0, 0x82,
                 0xe6, 0x7b, 0x75, 0x65,
             ],
+            Elements::InputHash => [
+                0xb5, 0xd0, 0xd7, 0x77, 0x85, 0x1e, 0x89, 0xd1, 0x41, 0xd3, 0xcd, 0xa1, 0xb0, 0xf2,
+                0x51, 0xe9, 0xc3, 0x10, 0x11, 0xd1, 0xb0, 0x1c, 0x29, 0x39, 0x77, 0x11, 0x96, 0x62,
+                0xc3, 0x49, 0x95, 0x9e,
+            ],
             Elements::InputOutpointsHash => [
                 0xda, 0xd2, 0x60, 0x93, 0x0c, 0x5f, 0x4d, 0x23, 0x8d, 0x83, 0x56, 0x5a, 0x67, 0x57,
                 0xe1, 0x47, 0x00, 0x30, 0xcb, 0x29, 0xe0, 0xfd, 0x1e, 0x18, 0xfc, 0x46, 0xed, 0xf3,
@@ -1403,6 +1427,11 @@ impl Jet for Elements {
                 0x4b, 0x8b, 0x17, 0xe2, 0x5e, 0x91, 0x81, 0x56, 0xd5, 0x62, 0x55, 0x86, 0x01, 0x9a,
                 0xa0, 0xf7, 0x6b, 0x79, 0xa5, 0x3a, 0x24, 0x49, 0x5d, 0xe3, 0xe3, 0x9c, 0x48, 0xbb,
                 0x03, 0x72, 0x2e, 0xda,
+            ],
+            Elements::InputUtxoHash => [
+                0xd6, 0x45, 0x3a, 0xee, 0xb2, 0xb1, 0x8b, 0x4c, 0x1b, 0xb0, 0x2b, 0x33, 0x51, 0xce,
+                0x51, 0x35, 0x45, 0xcb, 0x7f, 0x10, 0x62, 0xf2, 0xa3, 0xfa, 0xc6, 0x80, 0xd0, 0xbb,
+                0xca, 0xc6, 0x3e, 0x86,
             ],
             Elements::InputUtxosHash => [
                 0xde, 0x24, 0x82, 0x5f, 0xdb, 0x9d, 0x56, 0xda, 0x36, 0x38, 0xbd, 0x48, 0x00, 0x05,
@@ -1475,9 +1504,9 @@ impl Jet for Elements {
                 0x37, 0xa1, 0xbe, 0x0d,
             ],
             Elements::IssuanceAssetAmountsHash => [
-                0x55, 0x97, 0x5f, 0xb4, 0x00, 0x19, 0x93, 0x4a, 0x06, 0xa1, 0x5f, 0xf6, 0xb5, 0x1c,
-                0x64, 0x53, 0xfa, 0x43, 0x5a, 0xc6, 0x7f, 0x21, 0x0d, 0x22, 0xdf, 0x55, 0x2d, 0x43,
-                0x93, 0x55, 0xa5, 0xa0,
+                0x8c, 0x09, 0x0d, 0x1a, 0x32, 0xb3, 0x2b, 0x27, 0x1f, 0xa3, 0x76, 0xa3, 0xba, 0x30,
+                0x36, 0x16, 0x8c, 0x0f, 0x62, 0xf9, 0xa4, 0x46, 0xac, 0xe2, 0x9b, 0x35, 0x45, 0xc9,
+                0xe5, 0x1f, 0x3e, 0x47,
             ],
             Elements::IssuanceAssetProof => [
                 0xc0, 0x48, 0x20, 0x71, 0x1d, 0xc2, 0x5a, 0xb0, 0x61, 0xda, 0x6d, 0xe8, 0x32, 0x78,
@@ -1485,14 +1514,19 @@ impl Jet for Elements {
                 0x0a, 0x76, 0x6e, 0xe9,
             ],
             Elements::IssuanceBlindingEntropyHash => [
-                0x02, 0x54, 0x9a, 0xc6, 0x66, 0xe0, 0x9b, 0x7b, 0x21, 0x83, 0x56, 0xd0, 0x3d, 0x6c,
-                0xa6, 0x8c, 0xb8, 0xe2, 0x54, 0x6b, 0xb3, 0x03, 0xe1, 0x66, 0x31, 0x3f, 0x68, 0x42,
-                0xb4, 0x4f, 0xbb, 0x60,
+                0x3c, 0x42, 0x9f, 0xa6, 0x28, 0xe1, 0x2c, 0xcf, 0x9f, 0x16, 0x7a, 0x07, 0xe2, 0x6f,
+                0x70, 0xaf, 0x36, 0xcb, 0x34, 0x59, 0x96, 0x4d, 0xbc, 0x14, 0x2b, 0x52, 0x4d, 0x40,
+                0x9d, 0xb1, 0x69, 0x9b,
             ],
             Elements::IssuanceEntropy => [
                 0x61, 0xf3, 0x14, 0x55, 0xd9, 0x98, 0x28, 0x01, 0x25, 0xdf, 0x98, 0xe5, 0x98, 0x3d,
                 0x72, 0xf5, 0xfb, 0xfd, 0xd6, 0x5c, 0x63, 0x69, 0xa0, 0xe7, 0x8d, 0x07, 0x70, 0x2f,
                 0x28, 0xe2, 0xff, 0x5e,
+            ],
+            Elements::IssuanceHash => [
+                0x3a, 0x7c, 0x8e, 0xa2, 0xde, 0x57, 0x98, 0x79, 0x27, 0x5b, 0xf1, 0xbe, 0xa7, 0xbe,
+                0x52, 0x79, 0xe7, 0x03, 0xa3, 0x6d, 0xc5, 0xf4, 0xe4, 0x88, 0x53, 0xa3, 0xaf, 0x9b,
+                0x0c, 0x50, 0x1b, 0x66,
             ],
             Elements::IssuanceRangeProofsHash => [
                 0xe0, 0x5a, 0x29, 0xd1, 0x71, 0x61, 0x10, 0x5e, 0x3b, 0x52, 0x21, 0xf4, 0xeb, 0xae,
@@ -1510,9 +1544,9 @@ impl Jet for Elements {
                 0xf2, 0xf4, 0x09, 0x7a,
             ],
             Elements::IssuanceTokenAmountsHash => [
-                0x1f, 0xdd, 0x41, 0x8e, 0x37, 0xc8, 0x0c, 0xee, 0x29, 0xed, 0x9b, 0x4f, 0x0d, 0xcb,
-                0x49, 0xff, 0x59, 0xf2, 0x47, 0xd4, 0x3f, 0x85, 0xfb, 0xf9, 0x69, 0x82, 0xd1, 0x59,
-                0x8e, 0xc6, 0x83, 0x65,
+                0x19, 0x5e, 0x76, 0x66, 0x1a, 0x78, 0xbc, 0x69, 0x1e, 0xf0, 0x13, 0x9e, 0x1f, 0x36,
+                0x6a, 0x96, 0x6f, 0x75, 0x58, 0x4a, 0xb7, 0x76, 0x8d, 0xc7, 0x8f, 0xff, 0xab, 0xde,
+                0x15, 0x56, 0x01, 0xf6,
             ],
             Elements::IssuanceTokenProof => [
                 0x9b, 0xd4, 0x5c, 0x77, 0x4d, 0x41, 0xd2, 0x08, 0x96, 0x8d, 0x9a, 0xde, 0x7d, 0x28,
@@ -1520,9 +1554,14 @@ impl Jet for Elements {
                 0xb5, 0x2e, 0xc8, 0xfe,
             ],
             Elements::IssuancesHash => [
-                0x56, 0xc2, 0x20, 0x96, 0x5e, 0x49, 0x94, 0x55, 0x5e, 0x17, 0x4d, 0xfd, 0x7e, 0xa1,
-                0xc4, 0x64, 0xaa, 0x33, 0x8a, 0xda, 0x9b, 0x79, 0x9b, 0xc1, 0x05, 0x6f, 0x1a, 0xff,
-                0xa7, 0x03, 0x53, 0xf1,
+                0x9a, 0xb9, 0xfd, 0x03, 0xff, 0x1c, 0x69, 0x58, 0x61, 0x74, 0xbc, 0x26, 0xa8, 0x87,
+                0x64, 0xf0, 0xdf, 0x9c, 0xc7, 0xdd, 0x6e, 0x61, 0xf3, 0xdc, 0x3e, 0x42, 0x66, 0x60,
+                0xf0, 0x91, 0x22, 0x30,
+            ],
+            Elements::LbtcAsset => [
+                0x49, 0x5d, 0xd0, 0xa1, 0xcb, 0x39, 0xee, 0x84, 0xff, 0x45, 0xe1, 0xdf, 0x3d, 0xb4,
+                0xb6, 0x9d, 0xe2, 0x7c, 0x37, 0xc3, 0x6d, 0x69, 0xb3, 0x12, 0x97, 0x6c, 0x43, 0xf5,
+                0x0e, 0x5d, 0x94, 0x1a,
             ],
             Elements::Le16 => [
                 0xd6, 0x17, 0xfe, 0xea, 0xfd, 0x6f, 0xfc, 0x23, 0xfe, 0xff, 0xbe, 0x70, 0x12, 0xce,
@@ -2134,6 +2173,11 @@ impl Jet for Elements {
                 0xa1, 0xdf, 0x02, 0x5e, 0x37, 0xdb, 0x9b, 0x6a, 0x2a, 0xbb, 0x74, 0xd9, 0x70, 0x66,
                 0xa6, 0x9b, 0xf3, 0xa0,
             ],
+            Elements::OutputHash => [
+                0x78, 0x75, 0xcc, 0x33, 0x2c, 0xf1, 0xb4, 0x9c, 0xdc, 0xf1, 0x1e, 0x70, 0x18, 0xdc,
+                0x81, 0x19, 0x3e, 0xe4, 0xb1, 0x9e, 0xa1, 0x42, 0xfc, 0x0a, 0xe7, 0xdb, 0xdd, 0xb3,
+                0x36, 0xe2, 0xfb, 0xfa,
+            ],
             Elements::OutputIsFee => [
                 0xf7, 0x0e, 0xb0, 0x68, 0xd2, 0x00, 0xb7, 0xbc, 0x5a, 0xaa, 0xab, 0xa1, 0x29, 0x28,
                 0xe8, 0x19, 0x2b, 0x29, 0x48, 0xcd, 0xe7, 0xe8, 0xf3, 0x14, 0x1c, 0x6b, 0x43, 0x11,
@@ -2200,9 +2244,9 @@ impl Jet for Elements {
                 0x2e, 0xba, 0xf9, 0x4a,
             ],
             Elements::PointVerify1 => [
-                0x02, 0xb8, 0x9a, 0x1c, 0xa7, 0xd2, 0x4f, 0x82, 0x35, 0x3e, 0x97, 0x32, 0xfa, 0x39,
-                0xce, 0x65, 0x50, 0x9b, 0x39, 0xae, 0xaf, 0x43, 0xd2, 0xe5, 0xf8, 0x0c, 0xa9, 0x03,
-                0xfc, 0x81, 0xc8, 0x46,
+                0xb6, 0x00, 0x9c, 0xec, 0x8b, 0xe8, 0xb1, 0x4a, 0x1d, 0x31, 0x32, 0x99, 0xd6, 0x67,
+                0x61, 0xd6, 0x59, 0xad, 0xff, 0xf8, 0x23, 0x28, 0x99, 0xab, 0x7d, 0xb4, 0x09, 0x7f,
+                0x52, 0xc7, 0xd0, 0xbe,
             ],
             Elements::ReissuanceBlinding => [
                 0x0b, 0x9a, 0x0a, 0xaf, 0xed, 0xb1, 0x02, 0xa1, 0x64, 0x06, 0x14, 0x19, 0xa7, 0x89,
@@ -2620,9 +2664,9 @@ impl Jet for Elements {
                 0x1d, 0x6d, 0x5d, 0x42,
             ],
             Elements::SigAllHash => [
-                0xaa, 0xa3, 0x9d, 0x05, 0x09, 0xcc, 0xd9, 0x7f, 0xb4, 0xae, 0xfd, 0xd2, 0x0b, 0xdd,
-                0x60, 0xa5, 0x78, 0x8c, 0xfe, 0x12, 0x72, 0x86, 0x4e, 0xb7, 0xa6, 0x9d, 0xa7, 0xe9,
-                0xa9, 0xf1, 0xcd, 0xe7,
+                0x0d, 0xc3, 0xf1, 0x0b, 0xbb, 0xbf, 0x9a, 0xa4, 0x91, 0xbb, 0x88, 0x14, 0x63, 0x1d,
+                0x3b, 0x6d, 0x41, 0x95, 0xf8, 0x2c, 0x97, 0x73, 0xbb, 0xcb, 0x2d, 0xa3, 0xef, 0x0c,
+                0xf0, 0xcd, 0x94, 0xd2,
             ],
             Elements::Some1 => [
                 0x0b, 0x9c, 0xb7, 0xb4, 0x7d, 0xeb, 0x4f, 0x9d, 0x95, 0xd5, 0xc0, 0x20, 0x00, 0x1f,
@@ -2669,6 +2713,11 @@ impl Jet for Elements {
                 0xa4, 0x87, 0x7c, 0x50, 0xb2, 0xbf, 0x91, 0x65, 0xe5, 0xb7, 0x96, 0x35, 0xbf, 0x8b,
                 0xcb, 0x84, 0xd4, 0x42,
             ],
+            Elements::Swu => [
+                0x69, 0x45, 0x9b, 0x6d, 0xd1, 0x0a, 0x63, 0xdf, 0x37, 0xde, 0xdf, 0x18, 0x6c, 0xb4,
+                0xd2, 0x08, 0xd8, 0xc0, 0x39, 0x61, 0x1c, 0xec, 0xdd, 0x09, 0xcf, 0xe0, 0x7a, 0xc9,
+                0x1d, 0x01, 0x42, 0x2f,
+            ],
             Elements::TapEnvHash => [
                 0x59, 0xe0, 0x4e, 0xee, 0x36, 0x88, 0x3d, 0xd5, 0xe7, 0xc2, 0x69, 0x5d, 0x7c, 0x99,
                 0x38, 0xc0, 0x6d, 0x98, 0x3f, 0xba, 0x88, 0xdc, 0x2a, 0x04, 0x84, 0x3a, 0xb8, 0x0b,
@@ -2699,10 +2748,15 @@ impl Jet for Elements {
                 0x46, 0x7f, 0xbe, 0x8d, 0x08, 0xa7, 0x70, 0x94, 0x22, 0xee, 0xc2, 0x8e, 0xd6, 0x32,
                 0xb2, 0x8a, 0xba, 0x63,
             ],
+            Elements::TransactionId => [
+                0xab, 0x4b, 0xf4, 0x78, 0x2d, 0x35, 0x8c, 0xd3, 0x1f, 0x22, 0xe0, 0x66, 0x64, 0x16,
+                0x70, 0x78, 0x45, 0x7c, 0x76, 0xe3, 0xfa, 0x8e, 0x42, 0x1c, 0x79, 0x29, 0xde, 0x11,
+                0x31, 0x0b, 0x07, 0xd9,
+            ],
             Elements::TxHash => [
-                0xc6, 0xa6, 0x4e, 0xaa, 0x2b, 0x99, 0x86, 0xc0, 0x18, 0xab, 0xfa, 0x70, 0xd4, 0xd0,
-                0x49, 0x81, 0x19, 0xa5, 0x87, 0x90, 0x27, 0xcc, 0x0b, 0xcf, 0x55, 0x02, 0x1c, 0x49,
-                0x30, 0xb8, 0xf8, 0x75,
+                0xb7, 0xe0, 0xa2, 0xdc, 0x5c, 0xa1, 0x1c, 0xe5, 0x82, 0xa7, 0xaa, 0x29, 0x9a, 0x51,
+                0xb2, 0x3e, 0x66, 0xef, 0xe6, 0x23, 0x60, 0x2a, 0x7b, 0x7d, 0x43, 0x4e, 0xec, 0x51,
+                0xaf, 0x24, 0x5a, 0x07,
             ],
             Elements::TxIsFinal => [
                 0xeb, 0x8e, 0x83, 0xd1, 0xe0, 0x2c, 0x3c, 0xe7, 0xaf, 0x2d, 0x28, 0xf0, 0xce, 0xc0,
@@ -2854,6 +2908,7 @@ impl Jet for Elements {
             Elements::Decrement32 => b"i",
             Elements::Decrement64 => b"l",
             Elements::Decrement8 => b"***22*22**22*22",
+            Elements::DivMod128_64 => b"**lll",
             Elements::DivMod16 => b"i",
             Elements::DivMod32 => b"l",
             Elements::DivMod64 => b"*ll",
@@ -2956,6 +3011,7 @@ impl Jet for Elements {
             Elements::GejYIsOdd => b"**hhh",
             Elements::Generate => b"h",
             Elements::GenesisBlockHash => b"1",
+            Elements::HashToCurve => b"h",
             Elements::High1 => b"1",
             Elements::High16 => b"1",
             Elements::High32 => b"1",
@@ -2970,6 +3026,7 @@ impl Jet for Elements {
             Elements::InputAnnexHash => b"i",
             Elements::InputAnnexesHash => b"1",
             Elements::InputAsset => b"i",
+            Elements::InputHash => b"i",
             Elements::InputOutpointsHash => b"1",
             Elements::InputPegin => b"i",
             Elements::InputPrevOutpoint => b"i",
@@ -2979,6 +3036,7 @@ impl Jet for Elements {
             Elements::InputScriptsHash => b"1",
             Elements::InputSequence => b"i",
             Elements::InputSequencesHash => b"1",
+            Elements::InputUtxoHash => b"i",
             Elements::InputUtxosHash => b"1",
             Elements::InputsHash => b"1",
             Elements::InternalKey => b"1",
@@ -2997,12 +3055,14 @@ impl Jet for Elements {
             Elements::IssuanceAssetProof => b"i",
             Elements::IssuanceBlindingEntropyHash => b"1",
             Elements::IssuanceEntropy => b"i",
+            Elements::IssuanceHash => b"i",
             Elements::IssuanceRangeProofsHash => b"1",
             Elements::IssuanceToken => b"i",
             Elements::IssuanceTokenAmount => b"i",
             Elements::IssuanceTokenAmountsHash => b"1",
             Elements::IssuanceTokenProof => b"i",
             Elements::IssuancesHash => b"1",
+            Elements::LbtcAsset => b"1",
             Elements::Le16 => b"i",
             Elements::Le32 => b"l",
             Elements::Le64 => b"*ll",
@@ -3125,6 +3185,7 @@ impl Jet for Elements {
             Elements::OutputAmount => b"i",
             Elements::OutputAmountsHash => b"1",
             Elements::OutputAsset => b"i",
+            Elements::OutputHash => b"i",
             Elements::OutputIsFee => b"i",
             Elements::OutputNonce => b"i",
             Elements::OutputNoncesHash => b"1",
@@ -3232,12 +3293,14 @@ impl Jet for Elements {
             Elements::Subtract32 => b"l",
             Elements::Subtract64 => b"*ll",
             Elements::Subtract8 => b"****22*22**22*22***22*22**22*22",
+            Elements::Swu => b"h",
             Elements::TapEnvHash => b"1",
             Elements::TapleafHash => b"1",
             Elements::TapleafVersion => b"1",
             Elements::Tappath => b"***22*22**22*22",
             Elements::TappathHash => b"1",
             Elements::TotalFee => b"h",
+            Elements::TransactionId => b"1",
             Elements::TxHash => b"1",
             Elements::TxIsFinal => b"1",
             Elements::TxLockDistance => b"1",
@@ -3321,6 +3384,7 @@ impl Jet for Elements {
             Elements::Decrement32 => b"*2i",
             Elements::Decrement64 => b"*2l",
             Elements::Decrement8 => b"*2***22*22**22*22",
+            Elements::DivMod128_64 => b"*ll",
             Elements::DivMod16 => b"i",
             Elements::DivMod32 => b"l",
             Elements::DivMod64 => b"*ll",
@@ -3423,6 +3487,7 @@ impl Jet for Elements {
             Elements::GejYIsOdd => b"2",
             Elements::Generate => b"**hhh",
             Elements::GenesisBlockHash => b"h",
+            Elements::HashToCurve => b"*hh",
             Elements::High1 => b"2",
             Elements::High16 => b"****22*22**22*22***22*22**22*22",
             Elements::High32 => b"i",
@@ -3437,6 +3502,7 @@ impl Jet for Elements {
             Elements::InputAnnexHash => b"+1+1h",
             Elements::InputAnnexesHash => b"h",
             Elements::InputAsset => b"+1+*2hh",
+            Elements::InputHash => b"+1h",
             Elements::InputOutpointsHash => b"h",
             Elements::InputPegin => b"+1+1h",
             Elements::InputPrevOutpoint => b"+1*hi",
@@ -3446,6 +3512,7 @@ impl Jet for Elements {
             Elements::InputScriptsHash => b"h",
             Elements::InputSequence => b"+1i",
             Elements::InputSequencesHash => b"h",
+            Elements::InputUtxoHash => b"+1h",
             Elements::InputUtxosHash => b"h",
             Elements::InputsHash => b"h",
             Elements::InternalKey => b"h",
@@ -3464,12 +3531,14 @@ impl Jet for Elements {
             Elements::IssuanceAssetProof => b"+1h",
             Elements::IssuanceBlindingEntropyHash => b"h",
             Elements::IssuanceEntropy => b"+1+1h",
+            Elements::IssuanceHash => b"+1h",
             Elements::IssuanceRangeProofsHash => b"h",
             Elements::IssuanceToken => b"+1+1h",
             Elements::IssuanceTokenAmount => b"+1+1+*2hl",
             Elements::IssuanceTokenAmountsHash => b"h",
             Elements::IssuanceTokenProof => b"+1h",
             Elements::IssuancesHash => b"h",
+            Elements::LbtcAsset => b"h",
             Elements::Le16 => b"2",
             Elements::Le32 => b"2",
             Elements::Le64 => b"2",
@@ -3592,6 +3661,7 @@ impl Jet for Elements {
             Elements::OutputAmount => b"+1*+*2hh+*2hl",
             Elements::OutputAmountsHash => b"h",
             Elements::OutputAsset => b"+1+*2hh",
+            Elements::OutputHash => b"+1h",
             Elements::OutputIsFee => b"+12",
             Elements::OutputNonce => b"+1+1+*2hh",
             Elements::OutputNoncesHash => b"h",
@@ -3699,12 +3769,14 @@ impl Jet for Elements {
             Elements::Subtract32 => b"*2i",
             Elements::Subtract64 => b"*2l",
             Elements::Subtract8 => b"*2***22*22**22*22",
+            Elements::Swu => b"*hh",
             Elements::TapEnvHash => b"h",
             Elements::TapleafHash => b"h",
             Elements::TapleafVersion => b"***22*22**22*22",
             Elements::Tappath => b"+1h",
             Elements::TappathHash => b"h",
             Elements::TotalFee => b"l",
+            Elements::TransactionId => b"h",
             Elements::TxHash => b"h",
             Elements::TxIsFinal => b"2",
             Elements::TxLockDistance => b"****22*22**22*22***22*22**22*22",
@@ -4019,6 +4091,7 @@ impl Jet for Elements {
             Elements::Median16 => (639280, 21),
             Elements::Median32 => (639281, 21),
             Elements::Median64 => (639282, 21),
+            Elements::DivMod128_64 => (639346, 21),
             Elements::DivMod8 => (79925, 18),
             Elements::DivMod16 => (639408, 21),
             Elements::DivMod32 => (639409, 21),
@@ -4090,6 +4163,8 @@ impl Jet for Elements {
             Elements::FeSquareRoot => (200234, 19),
             Elements::FeIsZero => (200235, 19),
             Elements::FeIsOdd => (200236, 19),
+            Elements::HashToCurve => (200238, 19),
+            Elements::Swu => (200239, 19),
             Elements::CheckSigVerify => (98, 8),
             Elements::Bip0340Verify => (396, 10),
             Elements::ParseLock => (102, 8),
@@ -4097,33 +4172,37 @@ impl Jet for Elements {
             Elements::SigAllHash => (4, 3),
             Elements::TxHash => (20, 5),
             Elements::TapEnvHash => (21, 5),
-            Elements::InputsHash => (176, 8),
-            Elements::OutputsHash => (177, 8),
+            Elements::OutputsHash => (176, 8),
+            Elements::InputsHash => (177, 8),
             Elements::IssuancesHash => (178, 8),
             Elements::InputUtxosHash => (179, 8),
-            Elements::OutputAmountsHash => (360, 9),
-            Elements::OutputScriptsHash => (361, 9),
-            Elements::OutputNoncesHash => (362, 9),
-            Elements::OutputRangeProofsHash => (363, 9),
-            Elements::OutputSurjectionProofsHash => (364, 9),
-            Elements::InputOutpointsHash => (365, 9),
-            Elements::InputSequencesHash => (366, 9),
-            Elements::InputAnnexesHash => (367, 9),
-            Elements::InputScriptSigsHash => (5888, 13),
-            Elements::IssuanceAssetAmountsHash => (5889, 13),
-            Elements::IssuanceTokenAmountsHash => (5890, 13),
-            Elements::IssuanceRangeProofsHash => (5891, 13),
-            Elements::IssuanceBlindingEntropyHash => (5892, 13),
-            Elements::InputAmountsHash => (5893, 13),
-            Elements::InputScriptsHash => (5894, 13),
-            Elements::TapleafHash => (5895, 13),
-            Elements::TappathHash => (5896, 13),
-            Elements::OutpointHash => (5897, 13),
-            Elements::AssetAmountHash => (5898, 13),
-            Elements::NonceHash => (5899, 13),
-            Elements::AnnexHash => (5900, 13),
-            Elements::BuildTapleafSimplicity => (5901, 13),
-            Elements::BuildTapbranch => (5902, 13),
+            Elements::OutputHash => (360, 9),
+            Elements::OutputAmountsHash => (361, 9),
+            Elements::OutputScriptsHash => (362, 9),
+            Elements::OutputNoncesHash => (363, 9),
+            Elements::OutputRangeProofsHash => (364, 9),
+            Elements::OutputSurjectionProofsHash => (365, 9),
+            Elements::InputHash => (366, 9),
+            Elements::InputOutpointsHash => (367, 9),
+            Elements::InputSequencesHash => (5888, 13),
+            Elements::InputAnnexesHash => (5889, 13),
+            Elements::InputScriptSigsHash => (5890, 13),
+            Elements::IssuanceHash => (5891, 13),
+            Elements::IssuanceAssetAmountsHash => (5892, 13),
+            Elements::IssuanceTokenAmountsHash => (5893, 13),
+            Elements::IssuanceRangeProofsHash => (5894, 13),
+            Elements::IssuanceBlindingEntropyHash => (5895, 13),
+            Elements::InputUtxoHash => (5896, 13),
+            Elements::InputAmountsHash => (5897, 13),
+            Elements::InputScriptsHash => (5898, 13),
+            Elements::TapleafHash => (5899, 13),
+            Elements::TappathHash => (5900, 13),
+            Elements::OutpointHash => (5901, 13),
+            Elements::AssetAmountHash => (5902, 13),
+            Elements::NonceHash => (5903, 13),
+            Elements::AnnexHash => (11808, 14),
+            Elements::BuildTapleafSimplicity => (11809, 14),
+            Elements::BuildTapbranch => (11810, 14),
             Elements::CheckLockHeight => (24, 5),
             Elements::CheckLockTime => (100, 7),
             Elements::CheckLockDistance => (101, 7),
@@ -4141,6 +4220,7 @@ impl Jet for Elements {
             Elements::CalculateAsset => (882, 10),
             Elements::CalculateExplicitToken => (883, 10),
             Elements::CalculateConfidentialToken => (1768, 11),
+            Elements::LbtcAsset => (1769, 11),
             Elements::ScriptCMR => (224, 8),
             Elements::InternalKey => (900, 10),
             Elements::CurrentIndex => (901, 10),
@@ -4190,6 +4270,7 @@ impl Jet for Elements {
             Elements::Tappath => (462383, 19),
             Elements::Version => (462384, 19),
             Elements::GenesisBlockHash => (462385, 19),
+            Elements::TransactionId => (462386, 19),
         };
 
         w.write_bits_be(n, len)
@@ -6074,7 +6155,25 @@ impl Jet for Elements {
                                                                             }
                                                                         }
                                                                     },
-                                                                    1 => {}
+                                                                    1 => {
+                                                                        0 => {},
+                                                                        1 => {
+                                                                            0 => {},
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {},
+                                                                                        1 => {
+                                                                                            0 => {Elements::DivMod128_64},
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    },
+                                                                                    1 => {}
+                                                                                },
+                                                                                1 => {}
+                                                                            }
+                                                                        }
+                                                                    }
                                                                 },
                                                                 1 => {
                                                                     0 => {
@@ -6407,7 +6506,10 @@ impl Jet for Elements {
                                                                                     0 => {Elements::FeIsOdd},
                                                                                     1 => {}
                                                                                 },
-                                                                                1 => {}
+                                                                                1 => {
+                                                                                    0 => {Elements::HashToCurve},
+                                                                                    1 => {Elements::Swu}
+                                                                                }
                                                                             }
                                                                         }
                                                                     },
@@ -6466,8 +6568,8 @@ impl Jet for Elements {
                             0 => {
                                 0 => {
                                     0 => {
-                                        0 => {Elements::InputsHash},
-                                        1 => {Elements::OutputsHash}
+                                        0 => {Elements::OutputsHash},
+                                        1 => {Elements::InputsHash}
                                     },
                                     1 => {
                                         0 => {Elements::IssuancesHash},
@@ -6477,22 +6579,22 @@ impl Jet for Elements {
                                 1 => {
                                     0 => {
                                         0 => {
-                                            0 => {Elements::OutputAmountsHash},
-                                            1 => {Elements::OutputScriptsHash}
+                                            0 => {Elements::OutputHash},
+                                            1 => {Elements::OutputAmountsHash}
                                         },
                                         1 => {
-                                            0 => {Elements::OutputNoncesHash},
-                                            1 => {Elements::OutputRangeProofsHash}
+                                            0 => {Elements::OutputScriptsHash},
+                                            1 => {Elements::OutputNoncesHash}
                                         }
                                     },
                                     1 => {
                                         0 => {
-                                            0 => {Elements::OutputSurjectionProofsHash},
-                                            1 => {Elements::InputOutpointsHash}
+                                            0 => {Elements::OutputRangeProofsHash},
+                                            1 => {Elements::OutputSurjectionProofsHash}
                                         },
                                         1 => {
-                                            0 => {Elements::InputSequencesHash},
-                                            1 => {Elements::InputAnnexesHash}
+                                            0 => {Elements::InputHash},
+                                            1 => {Elements::InputOutpointsHash}
                                         }
                                     }
                                 }
@@ -6505,27 +6607,37 @@ impl Jet for Elements {
                                                 0 => {
                                                     0 => {
                                                         0 => {
-                                                            0 => {Elements::InputScriptSigsHash},
-                                                            1 => {Elements::IssuanceAssetAmountsHash}
+                                                            0 => {Elements::InputSequencesHash},
+                                                            1 => {Elements::InputAnnexesHash}
                                                         },
                                                         1 => {
-                                                            0 => {Elements::IssuanceTokenAmountsHash},
-                                                            1 => {Elements::IssuanceRangeProofsHash}
+                                                            0 => {Elements::InputScriptSigsHash},
+                                                            1 => {Elements::IssuanceHash}
                                                         }
                                                     },
                                                     1 => {
                                                         0 => {
-                                                            0 => {Elements::IssuanceBlindingEntropyHash},
+                                                            0 => {Elements::IssuanceAssetAmountsHash},
+                                                            1 => {Elements::IssuanceTokenAmountsHash}
+                                                        },
+                                                        1 => {
+                                                            0 => {Elements::IssuanceRangeProofsHash},
+                                                            1 => {Elements::IssuanceBlindingEntropyHash}
+                                                        }
+                                                    }
+                                                },
+                                                1 => {
+                                                    0 => {
+                                                        0 => {
+                                                            0 => {Elements::InputUtxoHash},
                                                             1 => {Elements::InputAmountsHash}
                                                         },
                                                         1 => {
                                                             0 => {Elements::InputScriptsHash},
                                                             1 => {Elements::TapleafHash}
                                                         }
-                                                    }
-                                                },
-                                                1 => {
-                                                    0 => {
+                                                    },
+                                                    1 => {
                                                         0 => {
                                                             0 => {Elements::TappathHash},
                                                             1 => {Elements::OutpointHash}
@@ -6534,20 +6646,28 @@ impl Jet for Elements {
                                                             0 => {Elements::AssetAmountHash},
                                                             1 => {Elements::NonceHash}
                                                         }
-                                                    },
-                                                    1 => {
-                                                        0 => {
-                                                            0 => {Elements::AnnexHash},
-                                                            1 => {Elements::BuildTapleafSimplicity}
-                                                        },
-                                                        1 => {
-                                                            0 => {Elements::BuildTapbranch},
-                                                            1 => {}
-                                                        }
                                                     }
                                                 }
                                             },
-                                            1 => {}
+                                            1 => {
+                                                0 => {
+                                                    0 => {
+                                                        0 => {
+                                                            0 => {
+                                                                0 => {Elements::AnnexHash},
+                                                                1 => {Elements::BuildTapleafSimplicity}
+                                                            },
+                                                            1 => {
+                                                                0 => {Elements::BuildTapbranch},
+                                                                1 => {}
+                                                            }
+                                                        },
+                                                        1 => {}
+                                                    },
+                                                    1 => {}
+                                                },
+                                                1 => {}
+                                            }
                                         },
                                         1 => {}
                                     },
@@ -6617,7 +6737,7 @@ impl Jet for Elements {
                                             0 => {
                                                 0 => {
                                                     0 => {Elements::CalculateConfidentialToken},
-                                                    1 => {}
+                                                    1 => {Elements::LbtcAsset}
                                                 },
                                                 1 => {}
                                             },
@@ -6779,7 +6899,10 @@ impl Jet for Elements {
                                                                                     0 => {Elements::Version},
                                                                                     1 => {Elements::GenesisBlockHash}
                                                                                 },
-                                                                                1 => {}
+                                                                                1 => {
+                                                                                    0 => {Elements::TransactionId},
+                                                                                    1 => {}
+                                                                                }
                                                                             },
                                                                             1 => {}
                                                                         },
@@ -6869,6 +6992,7 @@ impl Jet for Elements {
             Elements::Decrement32 => &simplicity_sys::c_jets::jets_wrapper::decrement_32,
             Elements::Decrement64 => &simplicity_sys::c_jets::jets_wrapper::decrement_64,
             Elements::Decrement8 => &simplicity_sys::c_jets::jets_wrapper::decrement_8,
+            Elements::DivMod128_64 => &simplicity_sys::c_jets::jets_wrapper::div_mod_128_64,
             Elements::DivMod16 => &simplicity_sys::c_jets::jets_wrapper::div_mod_16,
             Elements::DivMod32 => &simplicity_sys::c_jets::jets_wrapper::div_mod_32,
             Elements::DivMod64 => &simplicity_sys::c_jets::jets_wrapper::div_mod_64,
@@ -6971,6 +7095,7 @@ impl Jet for Elements {
             Elements::GejYIsOdd => &simplicity_sys::c_jets::jets_wrapper::gej_y_is_odd,
             Elements::Generate => &simplicity_sys::c_jets::jets_wrapper::generate,
             Elements::GenesisBlockHash => &simplicity_sys::c_jets::jets_wrapper::genesis_block_hash,
+            Elements::HashToCurve => &simplicity_sys::c_jets::jets_wrapper::hash_to_curve,
             Elements::High1 => &simplicity_sys::c_jets::jets_wrapper::high_1,
             Elements::High16 => &simplicity_sys::c_jets::jets_wrapper::high_16,
             Elements::High32 => &simplicity_sys::c_jets::jets_wrapper::high_32,
@@ -6985,6 +7110,7 @@ impl Jet for Elements {
             Elements::InputAnnexHash => &simplicity_sys::c_jets::jets_wrapper::input_annex_hash,
             Elements::InputAnnexesHash => &simplicity_sys::c_jets::jets_wrapper::input_annexes_hash,
             Elements::InputAsset => &simplicity_sys::c_jets::jets_wrapper::input_asset,
+            Elements::InputHash => &simplicity_sys::c_jets::jets_wrapper::input_hash,
             Elements::InputOutpointsHash => &simplicity_sys::c_jets::jets_wrapper::input_outpoints_hash,
             Elements::InputPegin => &simplicity_sys::c_jets::jets_wrapper::input_pegin,
             Elements::InputPrevOutpoint => &simplicity_sys::c_jets::jets_wrapper::input_prev_outpoint,
@@ -6994,6 +7120,7 @@ impl Jet for Elements {
             Elements::InputScriptsHash => &simplicity_sys::c_jets::jets_wrapper::input_scripts_hash,
             Elements::InputSequence => &simplicity_sys::c_jets::jets_wrapper::input_sequence,
             Elements::InputSequencesHash => &simplicity_sys::c_jets::jets_wrapper::input_sequences_hash,
+            Elements::InputUtxoHash => &simplicity_sys::c_jets::jets_wrapper::input_utxo_hash,
             Elements::InputUtxosHash => &simplicity_sys::c_jets::jets_wrapper::input_utxos_hash,
             Elements::InputsHash => &simplicity_sys::c_jets::jets_wrapper::inputs_hash,
             Elements::InternalKey => &simplicity_sys::c_jets::jets_wrapper::internal_key,
@@ -7012,12 +7139,14 @@ impl Jet for Elements {
             Elements::IssuanceAssetProof => &simplicity_sys::c_jets::jets_wrapper::issuance_asset_proof,
             Elements::IssuanceBlindingEntropyHash => &simplicity_sys::c_jets::jets_wrapper::issuance_blinding_entropy_hash,
             Elements::IssuanceEntropy => &simplicity_sys::c_jets::jets_wrapper::issuance_entropy,
+            Elements::IssuanceHash => &simplicity_sys::c_jets::jets_wrapper::issuance_hash,
             Elements::IssuanceRangeProofsHash => &simplicity_sys::c_jets::jets_wrapper::issuance_range_proofs_hash,
             Elements::IssuanceToken => &simplicity_sys::c_jets::jets_wrapper::issuance_token,
             Elements::IssuanceTokenAmount => &simplicity_sys::c_jets::jets_wrapper::issuance_token_amount,
             Elements::IssuanceTokenAmountsHash => &simplicity_sys::c_jets::jets_wrapper::issuance_token_amounts_hash,
             Elements::IssuanceTokenProof => &simplicity_sys::c_jets::jets_wrapper::issuance_token_proof,
             Elements::IssuancesHash => &simplicity_sys::c_jets::jets_wrapper::issuances_hash,
+            Elements::LbtcAsset => &simplicity_sys::c_jets::jets_wrapper::lbtc_asset,
             Elements::Le16 => &simplicity_sys::c_jets::jets_wrapper::le_16,
             Elements::Le32 => &simplicity_sys::c_jets::jets_wrapper::le_32,
             Elements::Le64 => &simplicity_sys::c_jets::jets_wrapper::le_64,
@@ -7140,6 +7269,7 @@ impl Jet for Elements {
             Elements::OutputAmount => &simplicity_sys::c_jets::jets_wrapper::output_amount,
             Elements::OutputAmountsHash => &simplicity_sys::c_jets::jets_wrapper::output_amounts_hash,
             Elements::OutputAsset => &simplicity_sys::c_jets::jets_wrapper::output_asset,
+            Elements::OutputHash => &simplicity_sys::c_jets::jets_wrapper::output_hash,
             Elements::OutputIsFee => &simplicity_sys::c_jets::jets_wrapper::output_is_fee,
             Elements::OutputNonce => &simplicity_sys::c_jets::jets_wrapper::output_nonce,
             Elements::OutputNoncesHash => &simplicity_sys::c_jets::jets_wrapper::output_nonces_hash,
@@ -7247,12 +7377,14 @@ impl Jet for Elements {
             Elements::Subtract32 => &simplicity_sys::c_jets::jets_wrapper::subtract_32,
             Elements::Subtract64 => &simplicity_sys::c_jets::jets_wrapper::subtract_64,
             Elements::Subtract8 => &simplicity_sys::c_jets::jets_wrapper::subtract_8,
+            Elements::Swu => &simplicity_sys::c_jets::jets_wrapper::swu,
             Elements::TapEnvHash => &simplicity_sys::c_jets::jets_wrapper::tap_env_hash,
             Elements::TapleafHash => &simplicity_sys::c_jets::jets_wrapper::tapleaf_hash,
             Elements::TapleafVersion => &simplicity_sys::c_jets::jets_wrapper::tapleaf_version,
             Elements::Tappath => &simplicity_sys::c_jets::jets_wrapper::tappath,
             Elements::TappathHash => &simplicity_sys::c_jets::jets_wrapper::tappath_hash,
             Elements::TotalFee => &simplicity_sys::c_jets::jets_wrapper::total_fee,
+            Elements::TransactionId => &simplicity_sys::c_jets::jets_wrapper::transaction_id,
             Elements::TxHash => &simplicity_sys::c_jets::jets_wrapper::tx_hash,
             Elements::TxIsFinal => &simplicity_sys::c_jets::jets_wrapper::tx_is_final,
             Elements::TxLockDistance => &simplicity_sys::c_jets::jets_wrapper::tx_lock_distance,
@@ -7334,6 +7466,7 @@ impl Jet for Elements {
             Elements::Decrement32 => Cost::from_milliweight(159),
             Elements::Decrement64 => Cost::from_milliweight(160),
             Elements::Decrement8 => Cost::from_milliweight(195),
+            Elements::DivMod128_64 => Cost::from_milliweight(220),
             Elements::DivMod16 => Cost::from_milliweight(223),
             Elements::DivMod32 => Cost::from_milliweight(198),
             Elements::DivMod64 => Cost::from_milliweight(220),
@@ -7436,6 +7569,7 @@ impl Jet for Elements {
             Elements::GejYIsOdd => Cost::from_milliweight(3665),
             Elements::Generate => Cost::from_milliweight(51706),
             Elements::GenesisBlockHash => Cost::from_milliweight(395),
+            Elements::HashToCurve => Cost::from_milliweight(10956),
             Elements::High1 => Cost::from_milliweight(169),
             Elements::High16 => Cost::from_milliweight(159),
             Elements::High32 => Cost::from_milliweight(121),
@@ -7450,6 +7584,7 @@ impl Jet for Elements {
             Elements::InputAnnexHash => Cost::from_milliweight(122),
             Elements::InputAnnexesHash => Cost::from_milliweight(290),
             Elements::InputAsset => Cost::from_milliweight(220),
+            Elements::InputHash => Cost::from_milliweight(289),
             Elements::InputOutpointsHash => Cost::from_milliweight(408),
             Elements::InputPegin => Cost::from_milliweight(235),
             Elements::InputPrevOutpoint => Cost::from_milliweight(326),
@@ -7459,6 +7594,7 @@ impl Jet for Elements {
             Elements::InputScriptsHash => Cost::from_milliweight(280),
             Elements::InputSequence => Cost::from_milliweight(144),
             Elements::InputSequencesHash => Cost::from_milliweight(292),
+            Elements::InputUtxoHash => Cost::from_milliweight(409),
             Elements::InputUtxosHash => Cost::from_milliweight(409),
             Elements::InputsHash => Cost::from_milliweight(289),
             Elements::InternalKey => Cost::from_milliweight(272),
@@ -7477,12 +7613,14 @@ impl Jet for Elements {
             Elements::IssuanceAssetProof => Cost::from_milliweight(229),
             Elements::IssuanceBlindingEntropyHash => Cost::from_milliweight(278),
             Elements::IssuanceEntropy => Cost::from_milliweight(437),
+            Elements::IssuanceHash => Cost::from_milliweight(281),
             Elements::IssuanceRangeProofsHash => Cost::from_milliweight(280),
             Elements::IssuanceToken => Cost::from_milliweight(253),
             Elements::IssuanceTokenAmount => Cost::from_milliweight(240),
             Elements::IssuanceTokenAmountsHash => Cost::from_milliweight(289),
             Elements::IssuanceTokenProof => Cost::from_milliweight(233),
             Elements::IssuancesHash => Cost::from_milliweight(281),
+            Elements::LbtcAsset => Cost::from_milliweight(3065),
             Elements::Le16 => Cost::from_milliweight(166),
             Elements::Le32 => Cost::from_milliweight(216),
             Elements::Le64 => Cost::from_milliweight(173),
@@ -7605,6 +7743,7 @@ impl Jet for Elements {
             Elements::OutputAmount => Cost::from_milliweight(709),
             Elements::OutputAmountsHash => Cost::from_milliweight(404),
             Elements::OutputAsset => Cost::from_milliweight(621),
+            Elements::OutputHash => Cost::from_milliweight(296),
             Elements::OutputIsFee => Cost::from_milliweight(270),
             Elements::OutputNonce => Cost::from_milliweight(396),
             Elements::OutputNoncesHash => Cost::from_milliweight(387),
@@ -7712,12 +7851,14 @@ impl Jet for Elements {
             Elements::Subtract32 => Cost::from_milliweight(186),
             Elements::Subtract64 => Cost::from_milliweight(315),
             Elements::Subtract8 => Cost::from_milliweight(149),
+            Elements::Swu => Cost::from_milliweight(10956),
             Elements::TapEnvHash => Cost::from_milliweight(301),
             Elements::TapleafHash => Cost::from_milliweight(279),
             Elements::TapleafVersion => Cost::from_milliweight(141),
             Elements::Tappath => Cost::from_milliweight(143),
             Elements::TappathHash => Cost::from_milliweight(282),
             Elements::TotalFee => Cost::from_milliweight(397),
+            Elements::TransactionId => Cost::from_milliweight(281),
             Elements::TxHash => Cost::from_milliweight(290),
             Elements::TxIsFinal => Cost::from_milliweight(128),
             Elements::TxLockDistance => Cost::from_milliweight(133),
@@ -7801,6 +7942,7 @@ impl fmt::Display for Elements {
             Elements::Decrement32 => f.write_str("decrement_32"),
             Elements::Decrement64 => f.write_str("decrement_64"),
             Elements::Decrement8 => f.write_str("decrement_8"),
+            Elements::DivMod128_64 => f.write_str("div_mod_128_64"),
             Elements::DivMod16 => f.write_str("div_mod_16"),
             Elements::DivMod32 => f.write_str("div_mod_32"),
             Elements::DivMod64 => f.write_str("div_mod_64"),
@@ -7903,6 +8045,7 @@ impl fmt::Display for Elements {
             Elements::GejYIsOdd => f.write_str("gej_y_is_odd"),
             Elements::Generate => f.write_str("generate"),
             Elements::GenesisBlockHash => f.write_str("genesis_block_hash"),
+            Elements::HashToCurve => f.write_str("hash_to_curve"),
             Elements::High1 => f.write_str("high_1"),
             Elements::High16 => f.write_str("high_16"),
             Elements::High32 => f.write_str("high_32"),
@@ -7917,6 +8060,7 @@ impl fmt::Display for Elements {
             Elements::InputAnnexHash => f.write_str("input_annex_hash"),
             Elements::InputAnnexesHash => f.write_str("input_annexes_hash"),
             Elements::InputAsset => f.write_str("input_asset"),
+            Elements::InputHash => f.write_str("input_hash"),
             Elements::InputOutpointsHash => f.write_str("input_outpoints_hash"),
             Elements::InputPegin => f.write_str("input_pegin"),
             Elements::InputPrevOutpoint => f.write_str("input_prev_outpoint"),
@@ -7926,6 +8070,7 @@ impl fmt::Display for Elements {
             Elements::InputScriptsHash => f.write_str("input_scripts_hash"),
             Elements::InputSequence => f.write_str("input_sequence"),
             Elements::InputSequencesHash => f.write_str("input_sequences_hash"),
+            Elements::InputUtxoHash => f.write_str("input_utxo_hash"),
             Elements::InputUtxosHash => f.write_str("input_utxos_hash"),
             Elements::InputsHash => f.write_str("inputs_hash"),
             Elements::InternalKey => f.write_str("internal_key"),
@@ -7944,12 +8089,14 @@ impl fmt::Display for Elements {
             Elements::IssuanceAssetProof => f.write_str("issuance_asset_proof"),
             Elements::IssuanceBlindingEntropyHash => f.write_str("issuance_blinding_entropy_hash"),
             Elements::IssuanceEntropy => f.write_str("issuance_entropy"),
+            Elements::IssuanceHash => f.write_str("issuance_hash"),
             Elements::IssuanceRangeProofsHash => f.write_str("issuance_range_proofs_hash"),
             Elements::IssuanceToken => f.write_str("issuance_token"),
             Elements::IssuanceTokenAmount => f.write_str("issuance_token_amount"),
             Elements::IssuanceTokenAmountsHash => f.write_str("issuance_token_amounts_hash"),
             Elements::IssuanceTokenProof => f.write_str("issuance_token_proof"),
             Elements::IssuancesHash => f.write_str("issuances_hash"),
+            Elements::LbtcAsset => f.write_str("lbtc_asset"),
             Elements::Le16 => f.write_str("le_16"),
             Elements::Le32 => f.write_str("le_32"),
             Elements::Le64 => f.write_str("le_64"),
@@ -8072,6 +8219,7 @@ impl fmt::Display for Elements {
             Elements::OutputAmount => f.write_str("output_amount"),
             Elements::OutputAmountsHash => f.write_str("output_amounts_hash"),
             Elements::OutputAsset => f.write_str("output_asset"),
+            Elements::OutputHash => f.write_str("output_hash"),
             Elements::OutputIsFee => f.write_str("output_is_fee"),
             Elements::OutputNonce => f.write_str("output_nonce"),
             Elements::OutputNoncesHash => f.write_str("output_nonces_hash"),
@@ -8179,12 +8327,14 @@ impl fmt::Display for Elements {
             Elements::Subtract32 => f.write_str("subtract_32"),
             Elements::Subtract64 => f.write_str("subtract_64"),
             Elements::Subtract8 => f.write_str("subtract_8"),
+            Elements::Swu => f.write_str("swu"),
             Elements::TapEnvHash => f.write_str("tap_env_hash"),
             Elements::TapleafHash => f.write_str("tapleaf_hash"),
             Elements::TapleafVersion => f.write_str("tapleaf_version"),
             Elements::Tappath => f.write_str("tappath"),
             Elements::TappathHash => f.write_str("tappath_hash"),
             Elements::TotalFee => f.write_str("total_fee"),
+            Elements::TransactionId => f.write_str("transaction_id"),
             Elements::TxHash => f.write_str("tx_hash"),
             Elements::TxIsFinal => f.write_str("tx_is_final"),
             Elements::TxLockDistance => f.write_str("tx_lock_distance"),
@@ -8270,6 +8420,7 @@ impl str::FromStr for Elements {
             "decrement_32" => Ok(Elements::Decrement32),
             "decrement_64" => Ok(Elements::Decrement64),
             "decrement_8" => Ok(Elements::Decrement8),
+            "div_mod_128_64" => Ok(Elements::DivMod128_64),
             "div_mod_16" => Ok(Elements::DivMod16),
             "div_mod_32" => Ok(Elements::DivMod32),
             "div_mod_64" => Ok(Elements::DivMod64),
@@ -8372,6 +8523,7 @@ impl str::FromStr for Elements {
             "gej_y_is_odd" => Ok(Elements::GejYIsOdd),
             "generate" => Ok(Elements::Generate),
             "genesis_block_hash" => Ok(Elements::GenesisBlockHash),
+            "hash_to_curve" => Ok(Elements::HashToCurve),
             "high_1" => Ok(Elements::High1),
             "high_16" => Ok(Elements::High16),
             "high_32" => Ok(Elements::High32),
@@ -8386,6 +8538,7 @@ impl str::FromStr for Elements {
             "input_annex_hash" => Ok(Elements::InputAnnexHash),
             "input_annexes_hash" => Ok(Elements::InputAnnexesHash),
             "input_asset" => Ok(Elements::InputAsset),
+            "input_hash" => Ok(Elements::InputHash),
             "input_outpoints_hash" => Ok(Elements::InputOutpointsHash),
             "input_pegin" => Ok(Elements::InputPegin),
             "input_prev_outpoint" => Ok(Elements::InputPrevOutpoint),
@@ -8395,6 +8548,7 @@ impl str::FromStr for Elements {
             "input_scripts_hash" => Ok(Elements::InputScriptsHash),
             "input_sequence" => Ok(Elements::InputSequence),
             "input_sequences_hash" => Ok(Elements::InputSequencesHash),
+            "input_utxo_hash" => Ok(Elements::InputUtxoHash),
             "input_utxos_hash" => Ok(Elements::InputUtxosHash),
             "inputs_hash" => Ok(Elements::InputsHash),
             "internal_key" => Ok(Elements::InternalKey),
@@ -8413,12 +8567,14 @@ impl str::FromStr for Elements {
             "issuance_asset_proof" => Ok(Elements::IssuanceAssetProof),
             "issuance_blinding_entropy_hash" => Ok(Elements::IssuanceBlindingEntropyHash),
             "issuance_entropy" => Ok(Elements::IssuanceEntropy),
+            "issuance_hash" => Ok(Elements::IssuanceHash),
             "issuance_range_proofs_hash" => Ok(Elements::IssuanceRangeProofsHash),
             "issuance_token" => Ok(Elements::IssuanceToken),
             "issuance_token_amount" => Ok(Elements::IssuanceTokenAmount),
             "issuance_token_amounts_hash" => Ok(Elements::IssuanceTokenAmountsHash),
             "issuance_token_proof" => Ok(Elements::IssuanceTokenProof),
             "issuances_hash" => Ok(Elements::IssuancesHash),
+            "lbtc_asset" => Ok(Elements::LbtcAsset),
             "le_16" => Ok(Elements::Le16),
             "le_32" => Ok(Elements::Le32),
             "le_64" => Ok(Elements::Le64),
@@ -8541,6 +8697,7 @@ impl str::FromStr for Elements {
             "output_amount" => Ok(Elements::OutputAmount),
             "output_amounts_hash" => Ok(Elements::OutputAmountsHash),
             "output_asset" => Ok(Elements::OutputAsset),
+            "output_hash" => Ok(Elements::OutputHash),
             "output_is_fee" => Ok(Elements::OutputIsFee),
             "output_nonce" => Ok(Elements::OutputNonce),
             "output_nonces_hash" => Ok(Elements::OutputNoncesHash),
@@ -8648,12 +8805,14 @@ impl str::FromStr for Elements {
             "subtract_32" => Ok(Elements::Subtract32),
             "subtract_64" => Ok(Elements::Subtract64),
             "subtract_8" => Ok(Elements::Subtract8),
+            "swu" => Ok(Elements::Swu),
             "tap_env_hash" => Ok(Elements::TapEnvHash),
             "tapleaf_hash" => Ok(Elements::TapleafHash),
             "tapleaf_version" => Ok(Elements::TapleafVersion),
             "tappath" => Ok(Elements::Tappath),
             "tappath_hash" => Ok(Elements::TappathHash),
             "total_fee" => Ok(Elements::TotalFee),
+            "transaction_id" => Ok(Elements::TransactionId),
             "tx_hash" => Ok(Elements::TxHash),
             "tx_is_final" => Ok(Elements::TxIsFinal),
             "tx_lock_distance" => Ok(Elements::TxLockDistance),

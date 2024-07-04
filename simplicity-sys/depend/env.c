@@ -39,12 +39,14 @@ void c_set_rawInput(rawInput *result, const rawBuffer *annex, const unsigned cha
 }
 
 void c_set_rawTransaction(rawTransaction *result, unsigned int version,
+                          const unsigned char *txid,
                           const rawInput *input, unsigned int numInputs,
                           const rawOutput *output, unsigned int numOutputs,
                           unsigned int lockTime)
 {
     *result = (rawTransaction){
         .version = version,
+        .txid = txid,
         .input = input,
         .numInputs = numInputs,
         .output = output,
