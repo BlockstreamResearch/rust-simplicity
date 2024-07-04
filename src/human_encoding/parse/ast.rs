@@ -82,14 +82,25 @@ pub enum Type {
 
 impl Type {
     /// Convert to a Simplicity type
-    pub fn reify(self) -> types::Type {
+    pub fn reify(self, ctx: &types::Context) -> types::Type {
         match self {
-            Type::Name(s) => types::Type::free(s),
-            Type::One => types::Type::unit(),
-            Type::Two => types::Type::sum(types::Type::unit(), types::Type::unit()),
-            Type::Product(left, right) => types::Type::product(left.reify(), right.reify()),
-            Type::Sum(left, right) => types::Type::sum(left.reify(), right.reify()),
-            Type::TwoTwoN(n) => types::Type::two_two_n(n as usize), // cast OK as we are only using tiny numbers
+            Type::Name(s) => types::Type::free(ctx, s),
+            Type::One => types::Type::unit(ctx),
+            Type::Two => {
+                let unit_ty = types::Type::unit(ctx);
+                types::Type::sum(ctx, unit_ty.shallow_clone(), unit_ty)
+            }
+            Type::Product(left, right) => {
+                let left = left.reify(ctx);
+                let right = right.reify(ctx);
+                types::Type::product(ctx, left, right)
+            }
+            Type::Sum(left, right) => {
+                let left = left.reify(ctx);
+                let right = right.reify(ctx);
+                types::Type::sum(ctx, left, right)
+            }
+            Type::TwoTwoN(n) => types::Type::two_two_n(ctx, n as usize), // cast OK as we are only using tiny numbers
         }
     }
 }

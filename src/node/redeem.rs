@@ -223,7 +223,10 @@ impl<J: Jet> RedeemNode<J> {
     /// Convert a [`RedeemNode`] back into a [`WitnessNode`]
     /// by loosening the finalized types, witness data and disconnected branches.
     pub fn to_witness_node(&self) -> Arc<WitnessNode<J>> {
-        struct ToWitness<J>(PhantomData<J>);
+        struct ToWitness<J> {
+            inference_context: types::Context,
+            phantom: PhantomData<J>,
+        }
 
         impl<J: Jet> Converter<Redeem<J>, Witness<J>> for ToWitness<J> {
             type Error = ();
@@ -258,12 +261,16 @@ impl<J: Jet> RedeemNode<J> {
                 let inner = inner
                     .map(|node| node.cached_data())
                     .map_witness(|maybe_value| maybe_value.clone());
-                Ok(WitnessData::from_inner(inner).expect("types are already finalized"))
+                Ok(WitnessData::from_inner(&self.inference_context, inner)
+                    .expect("types were already finalized"))
             }
         }
 
-        self.convert::<InternalSharing, _, _>(&mut ToWitness(PhantomData))
-            .unwrap()
+        self.convert::<InternalSharing, _, _>(&mut ToWitness {
+            inference_context: types::Context::new(),
+            phantom: PhantomData,
+        })
+        .unwrap()
     }
 
     /// Decode a Simplicity program from bits, including the witness data.
@@ -283,7 +290,8 @@ impl<J: Jet> RedeemNode<J> {
                 data: &PostOrderIterItem<&ConstructNode<J>>,
                 _: &NoWitness,
             ) -> Result<Arc<Value>, Self::Error> {
-                let target_ty = data.node.data.arrow().target.finalize()?;
+                let arrow = data.node.data.arrow();
+                let target_ty = arrow.target.finalize()?;
                 self.bits.read_value(&target_ty).map_err(Error::from)
             }
 

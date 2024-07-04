@@ -17,6 +17,7 @@ use crate::node::{
     ConstructNode, CoreConstructible, JetConstructible, NoWitness, WitnessConstructible,
 };
 use crate::policy::serialize::{self, AssemblyConstructible};
+use crate::types;
 use crate::{Cmr, CommitNode, FailEntropy};
 use crate::{SimplicityKey, ToXOnlyPubkey, Translator};
 
@@ -58,7 +59,7 @@ pub enum Policy<Pk: SimplicityKey> {
 
 impl<Pk: ToXOnlyPubkey> Policy<Pk> {
     /// Serializes the policy as a Simplicity fragment, with all witness nodes unpopulated.
-    fn serialize_no_witness<N>(&self) -> Option<N>
+    fn serialize_no_witness<N>(&self, inference_context: &types::Context) -> Option<N>
     where
         N: CoreConstructible
             + JetConstructible<Elements>
@@ -66,54 +67,62 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
             + AssemblyConstructible,
     {
         match *self {
-            Policy::Unsatisfiable(entropy) => Some(serialize::unsatisfiable(entropy)),
-            Policy::Trivial => Some(serialize::trivial()),
-            Policy::After(n) => Some(serialize::after(n)),
-            Policy::Older(n) => Some(serialize::older(n)),
-            Policy::Key(ref key) => Some(serialize::key(key, NoWitness)),
-            Policy::Sha256(ref hash) => Some(serialize::sha256::<Pk, _, _>(hash, NoWitness)),
+            Policy::Unsatisfiable(entropy) => {
+                Some(serialize::unsatisfiable(inference_context, entropy))
+            }
+            Policy::Trivial => Some(serialize::trivial(inference_context)),
+            Policy::After(n) => Some(serialize::after(inference_context, n)),
+            Policy::Older(n) => Some(serialize::older(inference_context, n)),
+            Policy::Key(ref key) => Some(serialize::key(inference_context, key, NoWitness)),
+            Policy::Sha256(ref hash) => Some(serialize::sha256::<Pk, _, _>(
+                inference_context,
+                hash,
+                NoWitness,
+            )),
             Policy::And {
                 ref left,
                 ref right,
             } => {
-                let left = left.serialize_no_witness()?;
-                let right = right.serialize_no_witness()?;
+                let left = left.serialize_no_witness(inference_context)?;
+                let right = right.serialize_no_witness(inference_context)?;
                 Some(serialize::and(&left, &right))
             }
             Policy::Or {
                 ref left,
                 ref right,
             } => {
-                let left = left.serialize_no_witness()?;
-                let right = right.serialize_no_witness()?;
+                let left = left.serialize_no_witness(inference_context)?;
+                let right = right.serialize_no_witness(inference_context)?;
                 Some(serialize::or(&left, &right, NoWitness))
             }
             Policy::Threshold(k, ref subs) => {
                 let k = u32::try_from(k).expect("can have k at most 2^32 in a threshold");
                 let subs = subs
                     .iter()
-                    .map(Self::serialize_no_witness)
+                    .map(|sub| sub.serialize_no_witness(inference_context))
                     .collect::<Option<Vec<N>>>()?;
                 let wits = iter::repeat(NoWitness)
                     .take(subs.len())
                     .collect::<Vec<NoWitness>>();
                 Some(serialize::threshold(k, &subs, &wits))
             }
-            Policy::Assembly(cmr) => N::assembly(cmr),
+            Policy::Assembly(cmr) => N::assembly(inference_context, cmr),
         }
     }
 
     /// Return the program commitment of the policy.
     pub fn commit(&self) -> Option<Arc<CommitNode<Elements>>> {
-        let construct: Arc<ConstructNode<Elements>> = self.serialize_no_witness()?;
+        let construct: Arc<ConstructNode<Elements>> =
+            self.serialize_no_witness(&types::Context::new())?;
         let commit = construct.finalize_types().expect("policy has sound types");
         Some(commit)
     }
 
     /// Return the CMR of the policy.
     pub fn cmr(&self) -> Cmr {
-        self.serialize_no_witness()
+        self.serialize_no_witness::<crate::merkle::cmr::ConstructibleCmr>(&types::Context::new())
             .expect("CMR is defined for asm fragment")
+            .cmr
     }
 }
 
