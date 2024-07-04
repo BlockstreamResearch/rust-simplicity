@@ -224,18 +224,12 @@ pub struct Type {
 impl Type {
     /// Return an unbound type with the given name
     pub fn free(ctx: &Context, name: String) -> Self {
-        Type {
-            ctx: ctx.shallow_clone(),
-            bound: UbElement::new(ctx.alloc_free(name)),
-        }
+        Self::wrap_bound(ctx, ctx.alloc_free(name))
     }
 
     /// Create the unit type.
     pub fn unit(ctx: &Context) -> Self {
-        Type {
-            ctx: ctx.shallow_clone(),
-            bound: UbElement::new(ctx.alloc_unit()),
-        }
+        Self::wrap_bound(ctx, ctx.alloc_unit())
     }
 
     /// Create the type `2^(2^n)` for the given `n`.
@@ -247,25 +241,24 @@ impl Type {
 
     /// Create the sum of the given `left` and `right` types.
     pub fn sum(ctx: &Context, left: Self, right: Self) -> Self {
-        Type {
-            ctx: ctx.shallow_clone(),
-            bound: UbElement::new(ctx.alloc_sum(left, right)),
-        }
+        Self::wrap_bound(ctx, ctx.alloc_sum(left, right))
     }
 
     /// Create the product of the given `left` and `right` types.
     pub fn product(ctx: &Context, left: Self, right: Self) -> Self {
-        Type {
-            ctx: ctx.shallow_clone(),
-            bound: UbElement::new(ctx.alloc_product(left, right)),
-        }
+        Self::wrap_bound(ctx, ctx.alloc_product(left, right))
     }
 
     /// Create a complete type.
     pub fn complete(ctx: &Context, final_data: Arc<Final>) -> Self {
+        Self::wrap_bound(ctx, ctx.alloc_complete(final_data))
+    }
+
+    fn wrap_bound(ctx: &Context, bound: BoundRef) -> Self {
+        bound.assert_matches_context(ctx);
         Type {
             ctx: ctx.shallow_clone(),
-            bound: UbElement::new(ctx.alloc_complete(final_data)),
+            bound: UbElement::new(bound),
         }
     }
 
