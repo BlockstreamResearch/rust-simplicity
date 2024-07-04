@@ -274,7 +274,7 @@ impl<J: Jet> RedeemNode<J> {
     }
 
     /// Decode a Simplicity program from bits, including the witness data.
-    pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Arc<Self>, Error> {
+    pub fn decode<I: Iterator<Item = u8>>(mut bits: BitIter<I>) -> Result<Arc<Self>, Error> {
         // 0. Set up a type to help with the call to `convert` below
         struct DecodeFinalizer<'bits, J: Jet, I: Iterator<Item = u8>> {
             bits: &'bits mut BitIter<I>,
@@ -323,7 +323,7 @@ impl<J: Jet> RedeemNode<J> {
         }
 
         // 1. Decode program without witnesses as ConstructNode
-        let construct = crate::decode::decode_expression(bits)?;
+        let construct = crate::decode::decode_expression(&mut bits)?;
         construct.set_arrow_to_program()?;
 
         // 2. Convert to RedeemNode, reading witnesses as we go
@@ -338,7 +338,7 @@ impl<J: Jet> RedeemNode<J> {
         // the sharing choices that were actually encoded in the bitstream.
         let program: Arc<Self> =
             construct.convert::<InternalSharing, _, _>(&mut DecodeFinalizer {
-                bits,
+                bits: &mut bits,
                 phantom: PhantomData,
             })?;
 
@@ -346,6 +346,9 @@ impl<J: Jet> RedeemNode<J> {
         if bits.n_total_read() != witness_start + witness_len {
             return Err(Error::InconsistentWitnessLength);
         }
+        bits.close()
+            .map_err(crate::decode::Error::BitIter)
+            .map_err(Error::Decode)?;
 
         // 4. Check sharing
         // This loop is equivalent to using `program.is_shared_as::<MaxSharing>()`
@@ -398,8 +401,8 @@ mod tests {
     ) -> Arc<RedeemNode<J>> {
         let prog_hex = prog_bytes.as_hex();
 
-        let mut iter = BitIter::from(prog_bytes);
-        let prog = match RedeemNode::<J>::decode(&mut iter) {
+        let iter = BitIter::from(prog_bytes);
+        let prog = match RedeemNode::<J>::decode(iter) {
             Ok(prog) => prog,
             Err(e) => panic!("program {} failed: {}", prog_hex, e),
         };
@@ -446,8 +449,8 @@ mod tests {
         let prog_hex = prog.as_hex();
         let err_str = err.to_string();
 
-        let mut iter = BitIter::from(prog);
-        match RedeemNode::<J>::decode(&mut iter) {
+        let iter = BitIter::from(prog);
+        match RedeemNode::<J>::decode(iter) {
             Ok(prog) => panic!(
                 "Program {} succeded (expected error {}). Program parsed as:\n{}",
                 prog_hex, err, prog
@@ -469,8 +472,8 @@ mod tests {
         // wits_are_equal = comp (pair wit1 wit2) jet_eq_32 :: 1 -> 2
         // main = comp wits_are_equal jet_verify            :: 1 -> 1
         let eqwits = [0xcd, 0xdc, 0x51, 0xb6, 0xe2, 0x08, 0xc0, 0x40];
-        let mut iter = BitIter::from(&eqwits[..]);
-        let eqwits_prog = CommitNode::<Core>::decode(&mut iter).unwrap();
+        let iter = BitIter::from(&eqwits[..]);
+        let eqwits_prog = CommitNode::<Core>::decode(iter).unwrap();
 
         let eqwits_final = eqwits_prog
             .finalize(&mut SimpleFinalizer::new(std::iter::repeat(Value::u32(
@@ -508,7 +511,7 @@ mod tests {
         // cp3 = comp id1 id2  :: A -> A # cmr c1ae55b5...
         // main = comp cp3 cp3 :: A -> A # cmr 314e2879...
         assert_program_not_deserializable::<Core>(
-            &[0xc1, 0x08, 0x04, 0x00, 0x00, 0x74, 0x74, 0x74],
+            &[0xc1, 0x08, 0x04, 0x00, 0x00],
             &Error::Decode(crate::decode::Error::SharingNotMaximal),
         );
     }
@@ -517,9 +520,8 @@ mod tests {
     fn witness_consumed() {
         // "main = unit", but with a witness attached. Found by fuzzer.
         let badwit = [0x27, 0x00];
-        let mut iter = BitIter::from(&badwit[..]);
-        if let Err(Error::InconsistentWitnessLength) =
-            RedeemNode::<crate::jet::Core>::decode(&mut iter)
+        let iter = BitIter::from(&badwit[..]);
+        if let Err(Error::InconsistentWitnessLength) = RedeemNode::<crate::jet::Core>::decode(iter)
         {
             // ok
         } else {

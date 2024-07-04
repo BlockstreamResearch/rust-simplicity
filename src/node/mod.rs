@@ -678,9 +678,9 @@ mod tests {
     use crate::RedeemNode;
 
     fn check_merkle_roots(test: &TestData) {
-        let mut bits = BitIter::from(test.prog.as_slice());
+        let prog = BitIter::from(test.prog.as_slice());
         ffi::tests::run_program(&test.prog, ffi::tests::TestUpTo::CheckOneOne).unwrap();
-        let prog = RedeemNode::<Elements>::decode(&mut bits).unwrap();
+        let prog = RedeemNode::<Elements>::decode(prog).unwrap();
         assert_eq!(prog.cmr().to_byte_array(), test.cmr);
         assert_eq!(prog.amr().to_byte_array(), test.amr);
         assert_eq!(prog.imr().to_byte_array(), test.imr);

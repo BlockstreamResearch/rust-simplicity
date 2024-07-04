@@ -12,10 +12,50 @@
 use crate::{decode, types};
 use crate::{Cmr, FailEntropy, Value};
 use std::sync::Arc;
+use std::{error, fmt};
 
 /// Attempted to read from a bit iterator, but there was no more data
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct EarlyEndOfStreamError;
+
+/// Closed out a bit iterator and there was remaining data.
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum CloseError {
+    /// The iterator was closed but the underlying byte iterator was
+    /// still yielding data.
+    TrailingBytes {
+        /// The first unused byte from the iterator.
+        first_byte: u8,
+    },
+    IllegalPadding {
+        masked_padding: u8,
+        n_bits: usize,
+    },
+}
+
+impl fmt::Display for CloseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            CloseError::TrailingBytes { first_byte } => {
+                write!(f, "bitstream had trailing bytes 0x{:02x}...", first_byte)
+            }
+            CloseError::IllegalPadding {
+                masked_padding,
+                n_bits,
+            } => write!(
+                f,
+                "bitstream had {n_bits} bits in its last byte 0x{:02x}, not all zero",
+                masked_padding
+            ),
+        }
+    }
+}
+
+impl error::Error for CloseError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        None
+    }
+}
 
 /// Two-bit type used during decoding
 ///
@@ -241,6 +281,27 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
     /// in total, from this iterator
     pub fn n_total_read(&self) -> usize {
         self.total_read
+    }
+
+    /// Consumes the bit iterator, checking that there are no remaining
+    /// bytes and that any unread bits are zero.
+    pub fn close(mut self) -> Result<(), CloseError> {
+        if let Some(first_byte) = self.iter.next() {
+            return Err(CloseError::TrailingBytes { first_byte });
+        }
+
+        debug_assert!(self.read_bits >= 1);
+        debug_assert!(self.read_bits <= 8);
+        let n_bits = 8 - self.read_bits;
+        let masked_padding = self.cached_byte & ((1u8 << n_bits) - 1);
+        if masked_padding != 0 {
+            Err(CloseError::IllegalPadding {
+                masked_padding,
+                n_bits,
+            })
+        } else {
+            Ok(())
+        }
     }
 }
 

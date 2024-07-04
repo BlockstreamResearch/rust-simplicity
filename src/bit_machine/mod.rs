@@ -548,8 +548,8 @@ mod tests {
     ) -> Result<Arc<Value>, ExecutionError> {
         let prog_hex = prog_bytes.as_hex();
 
-        let mut iter = BitIter::from(prog_bytes);
-        let prog = match RedeemNode::<Elements>::decode(&mut iter) {
+        let iter = BitIter::from(prog_bytes);
+        let prog = match RedeemNode::<Elements>::decode(iter) {
             Ok(prog) => prog,
             Err(e) => panic!("program {} failed: {}", prog_hex, e),
         };

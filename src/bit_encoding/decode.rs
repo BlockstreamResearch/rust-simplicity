@@ -28,6 +28,8 @@ type ArcNode<J> = Arc<ConstructNode<J>>;
 pub enum Error {
     /// Node made a back-reference past the beginning of the program
     BadIndex,
+    /// Error closing the bitstream
+    BitIter(crate::BitIterCloseError),
     /// Both children of a node are hidden
     BothChildrenHidden,
     /// Program must not be empty
@@ -50,9 +52,15 @@ pub enum Error {
     Type(crate::types::Error),
 }
 
-impl From<super::bititer::EarlyEndOfStreamError> for Error {
-    fn from(_: super::bititer::EarlyEndOfStreamError) -> Error {
+impl From<crate::EarlyEndOfStreamError> for Error {
+    fn from(_: crate::EarlyEndOfStreamError) -> Error {
         Error::EndOfStream
+    }
+}
+
+impl From<crate::BitIterCloseError> for Error {
+    fn from(e: crate::BitIterCloseError) -> Error {
+        Error::BitIter(e)
     }
 }
 
@@ -68,6 +76,7 @@ impl fmt::Display for Error {
             Error::BadIndex => {
                 f.write_str("node made a back-reference past the beginning of the program")
             }
+            Error::BitIter(ref e) => fmt::Display::fmt(e, f),
             Error::BothChildrenHidden => f.write_str("both children of a case node are hidden"),
             Error::EmptyProgram => f.write_str("empty program"),
             Error::EndOfStream => f.write_str("bitstream ended early"),
@@ -88,6 +97,7 @@ impl error::Error for Error {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match *self {
             Error::BadIndex => None,
+            Error::BitIter(ref e) => Some(e),
             Error::BothChildrenHidden => None,
             Error::EmptyProgram => None,
             Error::EndOfStream => None,
@@ -405,11 +415,11 @@ mod tests {
         let mut iter = BitIter::from(&justjet[..]);
         decode_expression::<_, Core>(&mut iter).unwrap();
         // ...but NOT as a CommitNode
-        let mut iter = BitIter::from(&justjet[..]);
-        CommitNode::<Core>::decode::<_>(&mut iter).unwrap_err();
+        let iter = BitIter::from(&justjet[..]);
+        CommitNode::<Core>::decode::<_>(iter).unwrap_err();
         // ...or as a RedeemNode
-        let mut iter = BitIter::from(&justjet[..]);
-        RedeemNode::<Core>::decode::<_>(&mut iter).unwrap_err();
+        let iter = BitIter::from(&justjet[..]);
+        RedeemNode::<Core>::decode::<_>(iter).unwrap_err();
     }
 
     #[test]
