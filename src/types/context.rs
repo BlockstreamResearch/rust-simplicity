@@ -165,10 +165,13 @@ impl Context {
     pub fn bind(&self, existing: &Type, new: Bound, hint: &'static str) -> Result<(), Error> {
         let existing_root = existing.bound.root();
         let mut lock = self.lock();
-        lock.bind(existing_root, new).map_err(|e| Error::Bind {
-            existing_bound: e.existing,
-            new_bound: e.new,
-            hint,
+        lock.bind(existing_root, new).map_err(|e| {
+            let new_bound = lock.alloc_bound(e.new);
+            Error::Bind {
+                existing_bound: Type::wrap_bound(self, e.existing),
+                new_bound: Type::wrap_bound(self, new_bound),
+                hint,
+            }
         })
     }
 
@@ -177,10 +180,13 @@ impl Context {
     /// Fails if the bounds on the two types are incompatible
     pub fn unify(&self, ty1: &Type, ty2: &Type, hint: &'static str) -> Result<(), Error> {
         let mut lock = self.lock();
-        lock.unify(ty1, ty2).map_err(|e| Error::Bind {
-            existing_bound: e.existing,
-            new_bound: e.new,
-            hint,
+        lock.unify(ty1, ty2).map_err(|e| {
+            let new_bound = lock.alloc_bound(e.new);
+            Error::Bind {
+                existing_bound: Type::wrap_bound(self, e.existing),
+                new_bound: Type::wrap_bound(self, new_bound),
+                hint,
+            }
         })
     }
 
@@ -259,7 +265,7 @@ pub struct OccursCheckId {
 }
 
 struct BindError {
-    existing: Bound,
+    existing: BoundRef,
     new: Bound,
 }
 
@@ -322,7 +328,7 @@ impl<'ctx> LockedContext<'ctx> {
     fn bind(&mut self, existing: BoundRef, new: Bound) -> Result<(), BindError> {
         let existing_bound = self.slab[existing.index].shallow_clone();
         let bind_error = || BindError {
-            existing: existing_bound.shallow_clone(),
+            existing: existing.clone(),
             new: new.shallow_clone(),
         };
 
@@ -386,10 +392,7 @@ impl<'ctx> LockedContext<'ctx> {
                 }
                 Ok(())
             }
-            (x, y) => Err(BindError {
-                existing: x.shallow_clone(),
-                new: y.shallow_clone(),
-            }),
+            (_, _) => Err(bind_error()),
         }
     }
 }

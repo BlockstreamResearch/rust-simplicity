@@ -17,36 +17,6 @@
 //! that its left child's target type be the same as its right child's source
 //! type), and by unifying all these constraints, all types can be inferred.
 //!
-//! In this module, during inference types are characterized by their [`Bound`],
-//! which describes the constraints on the type. The bound of a type can be
-//! obtained by the [`Type::bound`] method, and is an enum with four variants:
-//!
-//! * [`Bound::Free`] means that the type has no constraints; it is a free
-//!   variable. The type has a name which can be used to identify it in error
-//!   messages.
-//! * [`Bound::Sum`] and [`Bound::Product`] means that the the type is a sum
-//!   (resp. product) of two other types, which are characterized by their
-//!   own bounds.
-//! * [`Bound::Complete`] means that the type has no free variables at all,
-//!   and has an already-computed [`Final`] structure suitable for use in
-//!   contexts that require complete types. (Unit types are always complete,
-//!   and therefore use this variant rather than getting their own.)
-//!
-//! During inference, it is possible for a type to be complete, in the sense
-//! of having no free variables, without its bound being [`Bound::Complete`].
-//! This occurs, for example, if a type is a sum of two incomplete types, then
-//! the child types are completed during type inference on an unrelated part
-//! of the type hierarchy. The type would then have a [`Bound::Sum`] with two
-//! children, both of which are complete.
-//!
-//! The inference engine makes an effort to notice when this happens and set
-//! the bound of complete types to [`Bound::Complete`], but since type inference
-//! is inherently non-local this cannot always be done.
-//!
-//! When the distinction matters, we say a type is "finalized" only if its bound
-//! is `Complete` and "complete" if it has no free variables. But the distinction
-//! usually does not matter, so we prefer to use the word "complete".
-//!
 //! Type inference is done progressively during construction of Simplicity
 //! expressions. It is completed by the [`Type::finalize`] method, which
 //! recursively completes types by setting any remaining free variables to unit.
@@ -59,16 +29,47 @@
 //! types. Such types occur when a type has itself as a child, are illegal in
 //! Simplicity, and could not be represented by our data structures.
 //!
-//! There are three main types in this module:
-//!   * [`Type`] is the main type representing a Simplicity type, whether it is
-//!     complete or not. Its main methods are [`Type::bound`] which returns the
-//!     current state of the type and [`Type::bind`] which adds a new constraint
-//!     to the type.
-//!   * `Final` is a mutex-free structure that can be obtained from a complete
-//!     type. It includes the TMR and the complete bound describing the type.
-//!   * `Bound` defines the structure of a type: whether it is free, complete,
-//!     or a sum or product of other types.
-//!
+
+// In this module, during inference types are characterized by their [`Bound`],
+// which describes the constraints on the type. The bound of a type can be
+// obtained by the [`Type::bound`] method, and is an enum with four variants:
+//
+// * [`Bound::Free`] means that the type has no constraints; it is a free
+//   variable. The type has a name which can be used to identify it in error
+//   messages.
+// * [`Bound::Sum`] and [`Bound::Product`] means that the the type is a sum
+//   (resp. product) of two other types, which are characterized by their
+//   own bounds.
+// * [`Bound::Complete`] means that the type has no free variables at all,
+//   and has an already-computed [`Final`] structure suitable for use in
+//   contexts that require complete types. (Unit types are always complete,
+//   and therefore use this variant rather than getting their own.)
+//
+// During inference, it is possible for a type to be complete, in the sense
+// of having no free variables, without its bound being [`Bound::Complete`].
+// This occurs, for example, if a type is a sum of two incomplete types, then
+// the child types are completed during type inference on an unrelated part
+// of the type hierarchy. The type would then have a [`Bound::Sum`] with two
+// children, both of which are complete.
+//
+// The inference engine makes an effort to notice when this happens and set
+// the bound of complete types to [`Bound::Complete`], but since type inference
+// is inherently non-local this cannot always be done.
+//
+// When the distinction matters, we say a type is "finalized" only if its bound
+// is `Complete` and "complete" if it has no free variables. But the distinction
+// usually does not matter, so we prefer to use the word "complete".
+//
+// There are three main types in this module:
+//   * [`Type`] is the main type representing a Simplicity type, whether it is
+//     complete or not. Its main methods are [`Type::bound`] which returns the
+//     current state of the type and [`Type::bind`] which adds a new constraint
+//     to the type.
+//   * `Final` is a mutex-free structure that can be obtained from a complete
+//     type. It includes the TMR and the complete bound describing the type.
+//   * `Bound` defines the structure of a type: whether it is free, complete,
+//     or a sum or product of other types.
+//
 
 use self::union_bound::{PointerLike, UbElement};
 use crate::dag::{Dag, DagLike, NoSharing};
@@ -94,8 +95,8 @@ pub use final_data::{CompleteBound, Final};
 pub enum Error {
     /// An attempt to bind a type conflicted with an existing bound on the type
     Bind {
-        existing_bound: Bound,
-        new_bound: Bound,
+        existing_bound: Type,
+        new_bound: Type,
         hint: &'static str,
     },
     /// Two unequal complete types were attempted to be unified
@@ -105,7 +106,7 @@ pub enum Error {
         hint: &'static str,
     },
     /// A type is recursive (i.e., occurs within itself), violating the "occurs check"
-    OccursCheck { infinite_bound: Bound },
+    OccursCheck { infinite_bound: Type },
     /// Attempted to combine two nodes which had different type inference
     /// contexts. This is probably a programming error.
     InferenceContextMismatch,
@@ -321,7 +322,7 @@ impl Type {
             }
             if !in_progress.insert(id) {
                 return Err(Error::OccursCheck {
-                    infinite_bound: self.ctx.get(&bound),
+                    infinite_bound: Type::wrap_bound(&self.ctx, bound),
                 });
             }
 
