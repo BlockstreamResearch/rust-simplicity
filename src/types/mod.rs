@@ -189,22 +189,6 @@ impl Bound {
     pub fn shallow_clone(&self) -> Bound {
         self.clone()
     }
-
-    fn sum(a: Type, b: Type) -> Self {
-        if let (Some(adata), Some(bdata)) = (a.final_data(), b.final_data()) {
-            Bound::Complete(Final::sum(adata, bdata))
-        } else {
-            Bound::Sum(a, b)
-        }
-    }
-
-    fn product(a: Type, b: Type) -> Self {
-        if let (Some(adata), Some(bdata)) = (a.final_data(), b.final_data()) {
-            Bound::Complete(Final::product(adata, bdata))
-        } else {
-            Bound::Product(a, b)
-        }
-    }
 }
 
 /// Source or target type of a Simplicity expression.

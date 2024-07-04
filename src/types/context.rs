@@ -60,13 +60,7 @@ impl Context {
     /// Helper function to allocate a bound and return a reference to it.
     fn alloc_bound(&self, bound: Bound) -> BoundRef {
         let mut lock = self.lock();
-        lock.slab.push(bound);
-        let index = lock.slab.len() - 1;
-
-        BoundRef {
-            context: Arc::as_ptr(&self.slab),
-            index,
-        }
+        lock.alloc_bound(bound)
     }
 
     /// Allocate a new free type bound, and return a reference to it.
@@ -93,7 +87,12 @@ impl Context {
         left.bound.root().assert_matches_context(self);
         right.bound.root().assert_matches_context(self);
 
-        self.alloc_bound(Bound::sum(left, right))
+        let mut lock = self.lock();
+        if let Some((data1, data2)) = lock.complete_pair_data(&left, &right) {
+            lock.alloc_bound(Bound::Complete(Final::sum(data1, data2)))
+        } else {
+            lock.alloc_bound(Bound::Sum(left, right))
+        }
     }
 
     /// Allocate a new product-type bound, and return a reference to it.
@@ -105,7 +104,12 @@ impl Context {
         left.bound.root().assert_matches_context(self);
         right.bound.root().assert_matches_context(self);
 
-        self.alloc_bound(Bound::product(left, right))
+        let mut lock = self.lock();
+        if let Some((data1, data2)) = lock.complete_pair_data(&left, &right) {
+            lock.alloc_bound(Bound::Complete(Final::product(data1, data2)))
+        } else {
+            lock.alloc_bound(Bound::Product(left, right))
+        }
     }
 
     /// Creates a new handle to the context.
@@ -183,6 +187,7 @@ impl Context {
     /// Locks the underlying slab mutex.
     fn lock(&self) -> LockedContext {
         LockedContext {
+            context: Arc::as_ptr(&self.slab),
             slab: self.slab.lock().unwrap(),
         }
     }
@@ -263,10 +268,21 @@ struct BindError {
 /// This type is never exposed outside of this module and should only exist
 /// ephemerally within function calls into this module.
 struct LockedContext<'ctx> {
+    context: *const Mutex<Vec<Bound>>,
     slab: MutexGuard<'ctx, Vec<Bound>>,
 }
 
 impl<'ctx> LockedContext<'ctx> {
+    fn alloc_bound(&mut self, bound: Bound) -> BoundRef {
+        self.slab.push(bound);
+        let index = self.slab.len() - 1;
+
+        BoundRef {
+            context: self.context,
+            index,
+        }
+    }
+
     fn reassign_non_complete(&mut self, bound: BoundRef, new: Bound) {
         assert!(
             !matches!(self.slab[bound.index], Bound::Complete(..)),
