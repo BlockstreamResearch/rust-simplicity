@@ -275,6 +275,25 @@ impl<'ctx> LockedContext<'ctx> {
         self.slab[bound.index] = new;
     }
 
+    /// It is a common situation that we are pairing two types, and in the
+    /// case that they are both complete, we want to pair the complete types.
+    ///
+    /// This method deals with all the annoying/complicated member variable
+    /// paths to get the actual complete data out.
+    fn complete_pair_data(
+        &self,
+        inn1: &Type,
+        inn2: &Type,
+    ) -> Option<(Arc<Final>, Arc<Final>)> {
+        let bound1 = &self.slab[inn1.bound.root().index];
+        let bound2 = &self.slab[inn2.bound.root().index];
+        if let (Bound::Complete(ref data1), Bound::Complete(ref data2)) = (bound1, bound2) {
+            Some((Arc::clone(data1), Arc::clone(data2)))
+        } else {
+            None
+        }
+    }
+
     /// Unify the type with another one.
     ///
     /// Fails if the bounds on the two types are incompatible
@@ -339,15 +358,13 @@ impl<'ctx> LockedContext<'ctx> {
                 //
                 // It also gives the user access to more information about the type,
                 // prior to finalization.
-                let y1_bound = &self.slab[y1.bound.root().index];
-                let y2_bound = &self.slab[y2.bound.root().index];
-                if let (Bound::Complete(data1), Bound::Complete(data2)) = (y1_bound, y2_bound) {
+                if let Some((data1, data2)) = self.complete_pair_data(y1, y2) {
                     self.reassign_non_complete(
                         existing,
                         Bound::Complete(if let Bound::Sum(..) = existing_bound {
-                            Final::sum(Arc::clone(data1), Arc::clone(data2))
+                            Final::sum(data1, data2)
                         } else {
-                            Final::product(Arc::clone(data1), Arc::clone(data2))
+                            Final::product(data1, data2)
                         }),
                     );
                 }
