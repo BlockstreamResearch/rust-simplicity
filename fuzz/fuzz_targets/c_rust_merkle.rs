@@ -8,9 +8,22 @@ use simplicity::jet::Elements;
 use simplicity::{BitIter, RedeemNode};
 
 fn do_test(data: &[u8]) {
-    let c_result = run_program(data, TestUpTo::CheckOneOne);
+    if data.len() < 4 {
+        return;
+    }
+    let prog_len = (usize::from(data[0]) << 24)
+        + (usize::from(data[1]) << 16)
+        + (usize::from(data[2]) << 8)
+        + usize::from(data[3]);
+    if prog_len >= data.len() {
+        return;
+    }
+    let data = &data[4..];
 
-    let mut iter = BitIter::from(data);
+    let (program, witness) = data.split_at(prog_len);
+    let c_result = run_program(program, witness, TestUpTo::CheckOneOne);
+
+    let mut iter = BitIter::from(program);
     let rust_result = RedeemNode::<Elements>::decode(&mut iter);
 
     match (c_result, rust_result) {

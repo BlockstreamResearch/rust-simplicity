@@ -6,13 +6,12 @@ use std::ptr;
 
 use crate::ffi::{c_size_t, sha256::CSha256Midstate, ubounded, UBOUNDED_MAX};
 use crate::tests::ffi::{
-    bitstream::CBitstream,
-    bitstring::CBitstring,
+    bitstream::{closeBitstream, CBitstream},
     dag::{
         computeAnnotatedMerkleRoot, fillWitnessData, verifyNoDuplicateIdentityRoots, CAnalyses,
         CCombinatorCounters,
     },
-    deserialize::{decodeMallocDag, decodeWitnessData},
+    deserialize::decodeMallocDag,
     eval::{analyseBounds, evalTCOProgram},
     type_inference::mallocTypeInference,
     SimplicityErr,
@@ -41,8 +40,6 @@ pub struct TestOutput {
 pub enum TestUpTo {
     /// Just decode the program, not the witnesses. Will compute and retrieve the root CMR.
     DecodeProgram,
-    /// Also decode witnesses into a bitstring
-    DecodeWitness,
     /// Also do type inference
     TypeInference,
     /// Fill in the witness data, now that their types are known
@@ -69,12 +66,13 @@ pub enum TestUpTo {
 /// Run a program, check its merkle roots, and that it succeeds
 pub fn run_test(
     program: &[u8],
+    witness: &[u8],
     target_amr: &[u32; 8],
     target_cmr: &[u32; 8],
     target_imr: &[u32; 8],
     cost_bound: ubounded,
 ) {
-    let result = run_program(program, TestUpTo::Everything).expect("running program");
+    let result = run_program(program, witness, TestUpTo::Everything).expect("running program");
     assert_eq!(result.amr, CSha256Midstate { s: *target_amr });
     assert_eq!(result.cmr, CSha256Midstate { s: *target_cmr });
     assert_eq!(result.imr, CSha256Midstate { s: *target_imr });
@@ -85,13 +83,14 @@ pub fn run_test(
 /// Run a program, check its merkle roots, and that it fails
 pub fn run_test_fail(
     program: &[u8],
+    witness: &[u8],
     target_result: SimplicityErr,
     target_amr: &[u32; 8],
     target_cmr: &[u32; 8],
     target_imr: &[u32; 8],
     cost_bound: ubounded,
 ) {
-    let result = run_program(program, TestUpTo::Everything).expect("running program");
+    let result = run_program(program, witness, TestUpTo::Everything).expect("running program");
     assert_eq!(result.amr, CSha256Midstate { s: *target_amr });
     assert_eq!(result.cmr, CSha256Midstate { s: *target_cmr });
     assert_eq!(result.imr, CSha256Midstate { s: *target_imr });
@@ -111,7 +110,11 @@ impl Drop for FreeOnDrop {
 /// Run a program and return data about it
 ///
 /// This is mostly a direct port of `run_program` in C `tests.c`.
-pub fn run_program(program: &[u8], test_up_to: TestUpTo) -> Result<TestOutput, SimplicityErr> {
+pub fn run_program(
+    program: &[u8],
+    witness: &[u8],
+    test_up_to: TestUpTo,
+) -> Result<TestOutput, SimplicityErr> {
     let mut result = TestOutput {
         amr: CSha256Midstate::default(),
         cmr: CSha256Midstate::default(),
@@ -120,21 +123,18 @@ pub fn run_program(program: &[u8], test_up_to: TestUpTo) -> Result<TestOutput, S
         eval_result: SimplicityErr::NoError,
     };
 
-    let mut stream = CBitstream::from(program);
-    let mut witness = CBitstring::default();
+    let mut prog_stream = CBitstream::from(program);
+    let mut wit_stream = CBitstream::from(witness);
     let mut census = CCombinatorCounters::default();
     unsafe {
         // 1. Parse DAG.
         let mut dag = ptr::null_mut();
-        let len =
-            SimplicityErr::from_i32(decodeMallocDag(&mut dag, &mut census, &mut stream))? as usize;
+        let len = SimplicityErr::from_i32(decodeMallocDag(&mut dag, &mut census, &mut prog_stream))?
+            as usize;
         assert!(!dag.is_null());
         let _d1 = FreeOnDrop(dag as *mut u8);
+        SimplicityErr::from_i32(closeBitstream(&mut prog_stream))?;
         if test_up_to <= TestUpTo::DecodeProgram {
-            return Ok(result);
-        }
-        decodeWitnessData(&mut witness, &mut stream).into_result()?;
-        if test_up_to <= TestUpTo::DecodeWitness {
             return Ok(result);
         }
 
@@ -151,7 +151,8 @@ pub fn run_program(program: &[u8], test_up_to: TestUpTo) -> Result<TestOutput, S
         }
 
         // 4. Fill witness data, now that we know the types
-        fillWitnessData(dag, type_dag, len as c_size_t, witness).into_result()?;
+        fillWitnessData(dag, type_dag, len as c_size_t, &mut wit_stream).into_result()?;
+        SimplicityErr::from_i32(closeBitstream(&mut wit_stream))?;
         if test_up_to <= TestUpTo::FillWitnessData {
             return Ok(result);
         }
@@ -353,8 +354,13 @@ mod tests {
     fn ctx8_pruned() {
         unsafe {
             assert_eq!(ffi::sizeof_ctx8Pruned, ffi::ctx8Pruned.len());
+            assert_eq!(
+                ffi::sizeof_ctx8Pruned_witness,
+                ffi::ctx8Pruned_witness.len()
+            );
             run_test(
                 &ffi::ctx8Pruned,
+                &ffi::ctx8Pruned_witness,
                 &ffi::ctx8Pruned_amr,
                 &ffi::ctx8Pruned_cmr,
                 &ffi::ctx8Pruned_imr,
@@ -367,8 +373,13 @@ mod tests {
     fn ctx8_unpruned() {
         unsafe {
             assert_eq!(ffi::sizeof_ctx8Unpruned, ffi::ctx8Unpruned.len());
+            assert_eq!(
+                ffi::sizeof_ctx8Unpruned_witness,
+                ffi::ctx8Unpruned_witness.len()
+            );
             run_test_fail(
                 &ffi::ctx8Unpruned,
+                &ffi::ctx8Unpruned_witness,
                 SimplicityErr::AntiDoS,
                 &ffi::ctx8Unpruned_amr,
                 &ffi::ctx8Unpruned_cmr,
@@ -382,8 +393,10 @@ mod tests {
     fn schnorr0() {
         unsafe {
             assert_eq!(ffi::sizeof_schnorr0, ffi::schnorr0.len());
+            assert_eq!(ffi::sizeof_schnorr0_witness, ffi::schnorr0_witness.len());
             run_test(
                 &ffi::schnorr0,
+                &ffi::schnorr0_witness,
                 &ffi::schnorr0_amr,
                 &ffi::schnorr0_cmr,
                 &ffi::schnorr0_imr,
@@ -396,8 +409,10 @@ mod tests {
     fn schnorr6() {
         unsafe {
             assert_eq!(ffi::sizeof_schnorr6, ffi::schnorr6.len());
+            assert_eq!(ffi::sizeof_schnorr6_witness, ffi::schnorr6_witness.len());
             run_test_fail(
                 &ffi::schnorr6,
+                &ffi::schnorr6_witness,
                 SimplicityErr::ExecJet,
                 &ffi::schnorr6_amr,
                 &ffi::schnorr6_cmr,
