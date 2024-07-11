@@ -8,23 +8,29 @@ use simplicity::jet::Elements;
 use simplicity::{BitIter, RedeemNode};
 
 fn do_test(data: &[u8]) {
-    if data.len() < 4 {
-        return;
-    }
-    let prog_len = (usize::from(data[0]) << 24)
-        + (usize::from(data[1]) << 16)
-        + (usize::from(data[2]) << 8)
-        + usize::from(data[3]);
-    if prog_len >= data.len() {
-        return;
-    }
-    let data = &data[4..];
+    // To decode the program length, we first try decoding the program using
+    // `decode_expression` which will not error on a length check. Alternately
+    // we could decode using RedeemNode::decode and then extract the length
+    // from the error return.
+    //
+    // If the program doesn't decode, just use the first byte as a "length".
+    let prog_len = {
+        let mut iter = BitIter::from(data);
+        match simplicity::decode::decode_expression::<_, Elements>(&mut iter) {
+            Ok(_) => (iter.n_total_read() + 7) / 8,
+            Err(_) => match data.first() {
+                Some(&n) => core::cmp::min(data.len(), n.into()),
+                None => return,
+            },
+        }
+    };
 
     let (program, witness) = data.split_at(prog_len);
     let c_result = run_program(program, witness, TestUpTo::CheckOneOne);
 
-    let mut iter = BitIter::from(program);
-    let rust_result = RedeemNode::<Elements>::decode(&mut iter);
+    let prog_iter = BitIter::from(program);
+    let wit_iter = BitIter::from(witness);
+    let rust_result = RedeemNode::<Elements>::decode(prog_iter, wit_iter);
 
     match (c_result, rust_result) {
         (Ok(_), Err(e)) => panic!("C accepted code that Rust rejected: {}", e),
@@ -78,7 +84,7 @@ mod tests {
     #[test]
     fn duplicate_crash() {
         let mut a = Vec::new();
-        extend_vec_from_hex("d73804000000000000000000000002040404040000000000000040000001ff0000000800380000000000000002040404040000000000000040000001ff0000000800380000000000000000000000000000385cf8ffffff10cdf7bb2cd063000000000000042d343507fffffffffff800404220fffffff800000040420f0000", &mut a);
+        extend_vec_from_hex("ffffff0000010080800000000000380000001adfc7040000000000000000000007fffffffffffffe1000000000000000000001555600000000000000000000000000000000000000000000000000000000000000000000ffffffffffffff0300000000000000000000000000000000000000000000000000008000000000000000ffffffffffffff7f00000000000000ffffff151515111515155555555555d6eeffffff00", &mut a);
         super::do_test(&a);
     }
 }

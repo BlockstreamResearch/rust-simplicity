@@ -679,8 +679,10 @@ mod tests {
 
     fn check_merkle_roots(test: &TestData) {
         let prog = BitIter::from(test.prog.as_slice());
-        ffi::tests::run_program(&test.prog, ffi::tests::TestUpTo::CheckOneOne).unwrap();
-        let prog = RedeemNode::<Elements>::decode(prog).unwrap();
+        let witness = BitIter::from(test.witness.as_slice());
+        ffi::tests::run_program(&test.prog, &test.witness, ffi::tests::TestUpTo::CheckOneOne)
+            .unwrap();
+        let prog = RedeemNode::<Elements>::decode(prog, witness).unwrap();
         assert_eq!(prog.cmr().to_byte_array(), test.cmr);
         assert_eq!(prog.amr().to_byte_array(), test.amr);
         assert_eq!(prog.imr().to_byte_array(), test.imr);

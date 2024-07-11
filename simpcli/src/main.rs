@@ -151,9 +151,9 @@ fn main() -> Result<(), String> {
         Command::Disassemble => {
             let v = base64::Engine::decode(&STANDARD, first_arg.as_bytes())
                 .map_err(|e| format!("failed to parse base64: {}", e))?;
-            let mut iter = BitIter::from(v.into_iter());
-            let commit = CommitNode::decode(&mut iter)
-                .map_err(|e| format!("failed to decode program: {}", e))?;
+            let iter = BitIter::from(v.into_iter());
+            let commit =
+                CommitNode::decode(iter).map_err(|e| format!("failed to decode program: {}", e))?;
             let prog = Forest::<DefaultJet>::from_program(commit);
             println!("{}", prog.string_serialize());
         }

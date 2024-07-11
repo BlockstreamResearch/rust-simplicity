@@ -278,25 +278,11 @@ pub fn encode_witness<'a, W: io::Write, I>(witness: I, w: &mut BitWriter<W>) -> 
 where
     I: Iterator<Item = &'a Value> + Clone,
 {
-    let mut bit_len = 0;
-    let n_start = w.n_total_written();
-
-    for value in witness.clone() {
-        bit_len += value.len();
+    let mut len = 0;
+    for value in witness {
+        len += encode_value(value, w)?;
     }
-
-    if bit_len == 0 {
-        w.write_bit(false)?;
-    } else {
-        w.write_bit(true)?;
-        encode_natural(bit_len, w)?;
-
-        for value in witness {
-            encode_value(value, w)?;
-        }
-    }
-
-    Ok(w.n_total_written() - n_start)
+    Ok(len)
 }
 
 /// Encode a value to bits.

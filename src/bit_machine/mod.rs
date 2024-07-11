@@ -542,14 +542,16 @@ mod tests {
     #[cfg(feature = "elements")]
     fn run_program_elements(
         prog_bytes: &[u8],
+        witness_bytes: &[u8],
         cmr_str: &str,
         amr_str: &str,
         imr_str: &str,
     ) -> Result<Arc<Value>, ExecutionError> {
         let prog_hex = prog_bytes.as_hex();
 
-        let iter = BitIter::from(prog_bytes);
-        let prog = match RedeemNode::<Elements>::decode(iter) {
+        let prog = BitIter::from(prog_bytes);
+        let witness = BitIter::from(witness_bytes);
+        let prog = match RedeemNode::<Elements>::decode(prog, witness) {
             Ok(prog) => prog,
             Err(e) => panic!("program {} failed: {}", prog_hex, e),
         };
@@ -605,6 +607,7 @@ mod tests {
 
         let res = run_program_elements(
             &[0xcf, 0xe1, 0x8f, 0xb4, 0x40, 0x28, 0x87, 0x04, 0x00],
+            &[],
             "ec48102095c13fcdc1d539de2848ae287acdea249e2cda6f0d8f34bccd292294",
             "abd217b5ea14d7da249a03e16dd047b136a2efec4b82c1b60675297d782b51ad",
             "dea130f31a0754ea2f82ad570f7a4882c9e465b6bdd6f8be4d6d68342a57dff3",

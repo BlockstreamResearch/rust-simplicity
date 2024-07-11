@@ -285,6 +285,7 @@ pub struct TestData {
     pub amr: [u8; 32],
     pub imr: [u8; 32],
     pub prog: Vec<u8>,
+    pub witness: Vec<u8>,
     pub cost: ubounded,
 }
 
@@ -299,6 +300,11 @@ mod test_data {
                 amr: parse_root(&ffi::schnorr0_amr),
                 imr: parse_root(&ffi::schnorr0_imr),
                 prog: slice::from_raw_parts(ffi::schnorr0.as_ptr(), ffi::sizeof_schnorr0).into(),
+                witness: slice::from_raw_parts(
+                    ffi::schnorr0_witness.as_ptr(),
+                    ffi::sizeof_schnorr0_witness,
+                )
+                .into(),
                 cost: ffi::schnorr0_cost,
             }
         }
@@ -311,6 +317,11 @@ mod test_data {
                 amr: parse_root(&ffi::schnorr6_amr),
                 imr: parse_root(&ffi::schnorr6_imr),
                 prog: slice::from_raw_parts(ffi::schnorr6.as_ptr(), ffi::sizeof_schnorr6).into(),
+                witness: slice::from_raw_parts(
+                    ffi::schnorr6_witness.as_ptr(),
+                    ffi::sizeof_schnorr6_witness,
+                )
+                .into(),
                 cost: ffi::schnorr6_cost,
             }
         }
@@ -324,6 +335,11 @@ mod test_data {
                 imr: parse_root(&ffi::ctx8Pruned_imr),
                 prog: slice::from_raw_parts(ffi::ctx8Pruned.as_ptr(), ffi::sizeof_ctx8Pruned)
                     .into(),
+                witness: slice::from_raw_parts(
+                    ffi::ctx8Pruned_witness.as_ptr(),
+                    ffi::sizeof_ctx8Pruned_witness,
+                )
+                .into(),
                 cost: ffi::ctx8Pruned_cost,
             }
         }
@@ -337,6 +353,11 @@ mod test_data {
                 imr: parse_root(&ffi::ctx8Unpruned_imr),
                 prog: slice::from_raw_parts(ffi::ctx8Unpruned.as_ptr(), ffi::sizeof_ctx8Unpruned)
                     .into(),
+                witness: slice::from_raw_parts(
+                    ffi::ctx8Unpruned_witness.as_ptr(),
+                    ffi::sizeof_ctx8Unpruned_witness,
+                )
+                .into(),
                 cost: ffi::ctx8Unpruned_cost,
             }
         }

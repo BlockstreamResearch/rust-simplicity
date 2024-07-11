@@ -416,10 +416,10 @@ mod tests {
         decode_expression::<_, Core>(&mut iter).unwrap();
         // ...but NOT as a CommitNode
         let iter = BitIter::from(&justjet[..]);
-        CommitNode::<Core>::decode::<_>(iter).unwrap_err();
+        CommitNode::<Core>::decode(iter).unwrap_err();
         // ...or as a RedeemNode
         let iter = BitIter::from(&justjet[..]);
-        RedeemNode::<Core>::decode::<_>(iter).unwrap_err();
+        RedeemNode::<Core>::decode(iter, BitIter::from(&[][..])).unwrap_err();
     }
 
     #[test]
