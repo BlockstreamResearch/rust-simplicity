@@ -22,7 +22,7 @@ cargo-fuzz = true
 
 [dependencies]
 honggfuzz = { version = "0.5.55", default-features = false }
-simplicity-lang = { path = ".." }
+simplicity-lang = { path = "..", features = ["test-utils"] }
 EOF
 
 for targetFile in $(listTargetFiles); do
@@ -75,7 +75,7 @@ $(for name in $(listTargetNames); do echo "$name,"; done)
       - name: fuzz
         run: |
           echo "Using RUSTFLAGS \$RUSTFLAGS"
-          cd fuzz && ./fuzz.sh "\${{ matrix.fuzz_target }}"
+          cd fuzz && cargo update && cargo update -p cc --precise 1.0.83 && ./fuzz.sh "\${{ matrix.fuzz_target }}"
       - run: echo "\${{ matrix.fuzz_target }}" >executed_\${{ matrix.fuzz_target }}
       - uses: actions/upload-artifact@v3
         with:

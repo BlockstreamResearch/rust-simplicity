@@ -18,7 +18,7 @@ use crate::node::{
     CoreConstructible, DisconnectConstructible, JetConstructible, NoDisconnect,
     WitnessConstructible,
 };
-use crate::types::{Bound, Context, Error, Final, Type};
+use crate::types::{Context, Error, Final, Type};
 use crate::{jet::Jet, Value};
 
 use super::variable::new_name;
@@ -123,17 +123,19 @@ impl Arrow {
 
         let target = Type::free(&ctx, String::new());
         if let Some(lchild_arrow) = lchild_arrow {
-            ctx.bind(
+            ctx.bind_product(
                 &lchild_arrow.source,
-                Bound::Product(a, c.shallow_clone()),
+                &a,
+                &c,
                 "case combinator: left source = A × C",
             )?;
             ctx.unify(&target, &lchild_arrow.target, "").unwrap();
         }
         if let Some(rchild_arrow) = rchild_arrow {
-            ctx.bind(
+            ctx.bind_product(
                 &rchild_arrow.source,
-                Bound::Product(b, c),
+                &b,
+                &c,
                 "case combinator: left source = B × C",
             )?;
             ctx.unify(
@@ -162,20 +164,20 @@ impl Arrow {
         let c = rchild_arrow.source.shallow_clone();
         let d = rchild_arrow.target.shallow_clone();
 
-        let prod_256_a = Bound::Product(Type::two_two_n(ctx, 8), a.shallow_clone());
-        let prod_b_c = Bound::Product(b.shallow_clone(), c);
-        let prod_b_d = Type::product(ctx, b, d);
-
-        ctx.bind(
+        ctx.bind_product(
             &lchild_arrow.source,
-            prod_256_a,
+            &Type::two_two_n(ctx, 8),
+            &a,
             "disconnect combinator: left source = 2^256 × A",
         )?;
-        ctx.bind(
+        ctx.bind_product(
             &lchild_arrow.target,
-            prod_b_c,
+            &b,
+            &c,
             "disconnect combinator: left target = B × C",
         )?;
+
+        let prod_b_d = Type::product(ctx, b, d);
 
         Ok(Arrow {
             source: a,
