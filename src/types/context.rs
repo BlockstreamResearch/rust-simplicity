@@ -158,14 +158,40 @@ impl Context {
         lock.reassign_non_complete(bound, new);
     }
 
-    /// Binds the type to a given bound. If this fails, attach the provided
-    /// hint to the error.
+    /// Binds the type to a product bound formed by the two inner types. If this
+    /// fails, attach the provided hint to the error.
     ///
     /// Fails if the type has an existing incompatible bound.
-    pub fn bind(&self, existing: &Type, new: Bound, hint: &'static str) -> Result<(), Error> {
+    ///
+    /// # Panics
+    ///
+    /// Panics if any of the three types passed in were allocated from a different
+    /// context than this one.
+    pub fn bind_product(
+        &self,
+        existing: &Type,
+        prod_l: &Type,
+        prod_r: &Type,
+        hint: &'static str,
+    ) -> Result<(), Error> {
+        assert_eq!(
+            existing.ctx, *self,
+            "attempted to bind existing type with wrong context",
+        );
+        assert_eq!(
+            prod_l.ctx, *self,
+            "attempted to bind product whose left type had wrong context",
+        );
+        assert_eq!(
+            prod_r.ctx, *self,
+            "attempted to bind product whose right type had wrong context",
+        );
+
         let existing_root = existing.bound.root();
+        let new_bound = Bound::Product(prod_l.shallow_clone(), prod_r.shallow_clone());
+
         let mut lock = self.lock();
-        lock.bind(existing_root, new).map_err(|e| {
+        lock.bind(existing_root, new_bound).map_err(|e| {
             let new_bound = lock.alloc_bound(e.new);
             Error::Bind {
                 existing_bound: Type::wrap_bound(self, e.existing),
