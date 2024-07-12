@@ -72,7 +72,7 @@
 //
 
 use self::union_bound::{PointerLike, UbElement};
-use crate::dag::{Dag, DagLike, NoSharing};
+use crate::dag::{DagLike, NoSharing};
 use crate::Tmr;
 
 use std::collections::HashSet;
@@ -150,35 +150,16 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {}
 
 /// The state of a [`Type`] based on all constraints currently imposed on it.
-#[derive(Clone, Debug)]
-pub enum Bound {
+#[derive(Clone)]
+enum Bound {
     /// Fully-unconstrained type
     Free(String),
     /// Fully-constrained (i.e. complete) type, which has no free variables.
     Complete(Arc<Final>),
     /// A sum of two other types
-    Sum(Type, Type),
+    Sum(TypeInner, TypeInner),
     /// A product of two other types
-    Product(Type, Type),
-}
-
-impl fmt::Display for Bound {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Bound::Free(s) => f.write_str(s),
-            Bound::Complete(comp) => comp.fmt(f),
-            Bound::Sum(ty1, ty2) => {
-                ty1.fmt(f)?;
-                f.write_str(" + ")?;
-                ty2.fmt(f)
-            }
-            Bound::Product(ty1, ty2) => {
-                ty1.fmt(f)?;
-                f.write_str(" × ")?;
-                ty2.fmt(f)
-            }
-        }
-    }
+    Product(TypeInner, TypeInner),
 }
 
 impl Bound {
@@ -200,10 +181,23 @@ impl Bound {
 /// first one.
 #[derive(Clone)]
 pub struct Type {
+    /// Handle to the type context.
     ctx: Context,
+    /// The actual contents of the type.
+    inner: TypeInner,
+}
+
+#[derive(Clone)]
+struct TypeInner {
     /// A set of constraints, which maintained by the union-bound algorithm and
     /// is progressively tightened as type inference proceeds.
     bound: UbElement<BoundRef>,
+}
+
+impl TypeInner {
+    fn shallow_clone(&self) -> Self {
+        self.clone()
+    }
 }
 
 impl Type {
@@ -243,7 +237,9 @@ impl Type {
         bound.assert_matches_context(ctx);
         Type {
             ctx: ctx.shallow_clone(),
-            bound: UbElement::new(bound),
+            inner: TypeInner {
+                bound: UbElement::new(bound),
+            },
         }
     }
 
@@ -255,11 +251,6 @@ impl Type {
         self.clone()
     }
 
-    /// Accessor for this type's bound
-    pub fn bound(&self) -> Bound {
-        self.ctx.get(&self.bound.root())
-    }
-
     /// Accessor for the TMR of this type, if it is final
     pub fn tmr(&self) -> Option<Tmr> {
         self.final_data().map(|data| data.tmr())
@@ -267,7 +258,7 @@ impl Type {
 
     /// Accessor for the data of this type, if it is complete
     pub fn final_data(&self) -> Option<Arc<Final>> {
-        if let Bound::Complete(ref data) = self.bound() {
+        if let Bound::Complete(ref data) = self.ctx.get(&self.inner.bound.root()) {
             Some(Arc::clone(data))
         } else {
             None
@@ -294,7 +285,7 @@ impl Type {
         }
 
         // Done with sharing tracker. Actual algorithm follows.
-        let root = self.bound.root();
+        let root = self.inner.bound.root();
         let bound = self.ctx.get(&root);
         if let Bound::Complete(ref data) = bound {
             return Ok(Arc::clone(data));
@@ -338,9 +329,8 @@ impl Type {
         // Now that we know our types have finite size, we can safely use a
         // post-order iterator to finalize them.
         let mut finalized = vec![];
-        for data in self.shallow_clone().post_order_iter::<NoSharing>() {
-            let bound = data.node.bound.root();
-            let bound_get = self.ctx.get(&bound);
+        for data in (&self.ctx, self.inner.bound.root()).post_order_iter::<NoSharing>() {
+            let bound_get = data.node.0.get(&data.node.1);
             let final_data = match bound_get {
                 Bound::Free(_) => Final::unit(),
                 Bound::Complete(ref arc) => Arc::clone(arc),
@@ -356,7 +346,7 @@ impl Type {
 
             if !matches!(bound_get, Bound::Complete(..)) {
                 self.ctx
-                    .reassign_non_complete(bound, Bound::Complete(Arc::clone(&final_data)));
+                    .reassign_non_complete(data.node.1, Bound::Complete(Arc::clone(&final_data)));
             }
             finalized.push(final_data);
         }
@@ -381,7 +371,7 @@ const MAX_DISPLAY_DEPTH: usize = 64;
 
 impl fmt::Debug for Type {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for data in (&self.ctx, self.bound.root())
+        for data in (&self.ctx, self.inner.bound.root())
             .verbose_pre_order_iter::<NoSharing>(Some(MAX_DISPLAY_DEPTH))
         {
             if data.depth == MAX_DISPLAY_DEPTH {
@@ -414,7 +404,7 @@ impl fmt::Debug for Type {
 
 impl fmt::Display for Type {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for data in (&self.ctx, self.bound.root())
+        for data in (&self.ctx, self.inner.bound.root())
             .verbose_pre_order_iter::<NoSharing>(Some(MAX_DISPLAY_DEPTH))
         {
             if data.depth == MAX_DISPLAY_DEPTH {
@@ -442,22 +432,6 @@ impl fmt::Display for Type {
             }
         }
         Ok(())
-    }
-}
-
-impl DagLike for Type {
-    type Node = Type;
-    fn data(&self) -> &Type {
-        self
-    }
-
-    fn as_dag_node(&self) -> Dag<Self> {
-        match self.bound() {
-            Bound::Free(..) | Bound::Complete(..) => Dag::Nullary,
-            Bound::Sum(ref ty1, ref ty2) | Bound::Product(ref ty1, ref ty2) => {
-                Dag::Binary(ty1.shallow_clone(), ty2.shallow_clone())
-            }
-        }
     }
 }
 
