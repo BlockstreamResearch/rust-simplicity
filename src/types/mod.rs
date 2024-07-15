@@ -468,6 +468,6 @@ mod tests {
         let drop = Arc::<WitnessNode<Core>>::drop_(&iden);
         let case = Arc::<WitnessNode<Core>>::case(&iden, &drop).unwrap();
 
-        format!("{:?}", case.arrow().source);
+        let _ = format!("{:?}", case.arrow().source);
     }
 }

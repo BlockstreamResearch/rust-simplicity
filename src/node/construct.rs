@@ -132,9 +132,11 @@ impl<J: Jet> ConstructNode<J> {
     ///
     /// If the serialization contains the witness data, then use [`crate::RedeemNode::decode()`].
     pub fn decode<I: Iterator<Item = u8>>(
-        bits: &mut BitIter<I>,
+        mut bits: BitIter<I>,
     ) -> Result<Arc<Self>, crate::decode::Error> {
-        crate::decode::decode_expression(bits)
+        let res = crate::decode::decode_expression(&mut bits)?;
+        bits.close()?;
+        Ok(res)
     }
 
     /// Encode a Simplicity expression to bits, with no witness data

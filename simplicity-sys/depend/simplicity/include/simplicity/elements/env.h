@@ -74,6 +74,7 @@ typedef struct rawInput {
  *            rawOutput output[numOutputs];
  */
 typedef struct rawTransaction {
+  const unsigned char* txid; /* While in theory we could recompute the txid ourselves, it is easier and safer for it to be provided. */
   const rawInput* input;
   const rawOutput* output;
   uint32_t numInputs;
@@ -85,7 +86,7 @@ typedef struct rawTransaction {
 /* A forward declaration for the structure containing a copy (and digest) of the rawTransaction data */
 typedef struct transaction transaction;
 
-/* Allocate and initialize a 'transaction' from a 'rawOuput', copying or hashing the data as needed.
+/* Allocate and initialize a 'transaction' from a 'rawOutput', copying or hashing the data as needed.
  * Returns NULL if malloc fails (or if malloc cannot be called because we require an allocation larger than SIZE_MAX).
  *
  * Precondition: NULL != rawTx
@@ -96,6 +97,7 @@ extern transaction* elements_simplicity_mallocTransaction(const rawTransaction* 
  *
  * Invariant: pathLen <= 128;
  *            unsigned char controlBlock[33+pathLen*32];
+ *            unsigned char scriptCMR[32];
  */
 typedef struct rawTapEnv {
   const unsigned char* controlBlock;

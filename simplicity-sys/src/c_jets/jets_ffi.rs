@@ -120,6 +120,8 @@ extern "C" {
     pub fn decrement_64(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
     #[link_name = "c_decrement_8"]
     pub fn decrement_8(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
+    #[link_name = "c_div_mod_128_64"]
+    pub fn div_mod_128_64(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
     #[link_name = "c_div_mod_16"]
     pub fn div_mod_16(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
     #[link_name = "c_div_mod_32"]
@@ -324,6 +326,8 @@ extern "C" {
     pub fn generate(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
     #[link_name = "c_genesis_block_hash"]
     pub fn genesis_block_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
+    #[link_name = "c_hash_to_curve"]
+    pub fn hash_to_curve(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
     #[link_name = "c_high_1"]
     pub fn high_1(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
     #[link_name = "c_high_16"]
@@ -352,6 +356,8 @@ extern "C" {
     pub fn input_annexes_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_input_asset"]
     pub fn input_asset(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
+    #[link_name = "c_input_hash"]
+    pub fn input_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_input_outpoints_hash"]
     pub fn input_outpoints_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_input_pegin"]
@@ -370,6 +376,8 @@ extern "C" {
     pub fn input_sequence(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_input_sequences_hash"]
     pub fn input_sequences_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
+    #[link_name = "c_input_utxo_hash"]
+    pub fn input_utxo_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_input_utxos_hash"]
     pub fn input_utxos_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_inputs_hash"]
@@ -406,6 +414,8 @@ extern "C" {
     pub fn issuance_blinding_entropy_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_issuance_entropy"]
     pub fn issuance_entropy(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
+    #[link_name = "c_issuance_hash"]
+    pub fn issuance_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_issuance_range_proofs_hash"]
     pub fn issuance_range_proofs_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_issuance_token"]
@@ -418,6 +428,8 @@ extern "C" {
     pub fn issuance_token_proof(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_issuances_hash"]
     pub fn issuances_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
+    #[link_name = "c_lbtc_asset"]
+    pub fn lbtc_asset(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_le_16"]
     pub fn le_16(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
     #[link_name = "c_le_32"]
@@ -662,6 +674,8 @@ extern "C" {
     pub fn output_amounts_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_output_asset"]
     pub fn output_asset(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
+    #[link_name = "c_output_hash"]
+    pub fn output_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_output_is_fee"]
     pub fn output_is_fee(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_output_nonce"]
@@ -876,6 +890,8 @@ extern "C" {
     pub fn subtract_64(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
     #[link_name = "c_subtract_8"]
     pub fn subtract_8(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
+    #[link_name = "c_swu"]
+    pub fn swu(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
     #[link_name = "c_tap_env_hash"]
     pub fn tap_env_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_tapleaf_hash"]
@@ -888,6 +904,8 @@ extern "C" {
     pub fn tappath_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_total_fee"]
     pub fn total_fee(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
+    #[link_name = "c_transaction_id"]
+    pub fn transaction_id(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_tx_hash"]
     pub fn tx_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_tx_is_final"]

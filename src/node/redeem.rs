@@ -4,7 +4,7 @@ use crate::analysis::NodeBounds;
 use crate::dag::{DagLike, InternalSharing, MaxSharing, PostOrderIterItem};
 use crate::jet::Jet;
 use crate::types::{self, arrow::FinalArrow};
-use crate::{encode, write_to_vec, WitnessNode};
+use crate::{encode, WitnessNode};
 use crate::{Amr, BitIter, BitWriter, Cmr, Error, FirstPassImr, Imr, Value};
 
 use super::{
@@ -274,7 +274,14 @@ impl<J: Jet> RedeemNode<J> {
     }
 
     /// Decode a Simplicity program from bits, including the witness data.
-    pub fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Arc<Self>, Error> {
+    pub fn decode<I1, I2>(
+        mut program: BitIter<I1>,
+        mut witness: BitIter<I2>,
+    ) -> Result<Arc<Self>, Error>
+    where
+        I1: Iterator<Item = u8>,
+        I2: Iterator<Item = u8>,
+    {
         // 0. Set up a type to help with the call to `convert` below
         struct DecodeFinalizer<'bits, J: Jet, I: Iterator<Item = u8>> {
             bits: &'bits mut BitIter<I>,
@@ -323,29 +330,26 @@ impl<J: Jet> RedeemNode<J> {
         }
 
         // 1. Decode program without witnesses as ConstructNode
-        let construct = crate::decode::decode_expression(bits)?;
+        let construct = crate::decode::decode_expression(&mut program)?;
+        program
+            .close()
+            .map_err(crate::decode::Error::BitIter)
+            .map_err(Error::Decode)?;
         construct.set_arrow_to_program()?;
-
-        // 2. Convert to RedeemNode, reading witnesses as we go
-        let witness_len = if bits.read_bit()? {
-            bits.read_natural(None)?
-        } else {
-            0
-        };
-        let witness_start = bits.n_total_read();
 
         // Importantly, we  use `InternalSharing` here to make sure that we respect
         // the sharing choices that were actually encoded in the bitstream.
         let program: Arc<Self> =
             construct.convert::<InternalSharing, _, _>(&mut DecodeFinalizer {
-                bits,
+                bits: &mut witness,
                 phantom: PhantomData,
             })?;
 
         // 3. Check that we read exactly as much witness data as we expected
-        if bits.n_total_read() != witness_start + witness_len {
-            return Err(Error::InconsistentWitnessLength);
-        }
+        witness
+            .close()
+            .map_err(crate::decode::Error::BitIter)
+            .map_err(Error::Decode)?;
 
         // 4. Check sharing
         // This loop is equivalent to using `program.is_shared_as::<MaxSharing>()`
@@ -363,20 +367,34 @@ impl<J: Jet> RedeemNode<J> {
     /// Encode the program to bits.
     ///
     /// Includes witness data. Returns the number of written bits.
-    pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
+    pub fn encode<W1, W2>(
+        &self,
+        prog: &mut BitWriter<W1>,
+        witness: &mut BitWriter<W2>,
+    ) -> io::Result<usize>
+    where
+        W1: io::Write,
+        W2: io::Write,
+    {
         let sharing_iter = self.post_order_iter::<MaxSharing<Redeem<J>>>();
-        let program_bits = encode::encode_program(self, w)?;
+        let program_bits = encode::encode_program(self, prog)?;
+        prog.flush_all()?;
         let witness_bits =
-            encode::encode_witness(sharing_iter.into_witnesses().map(Arc::as_ref), w)?;
-        w.flush_all()?;
+            encode::encode_witness(sharing_iter.into_witnesses().map(Arc::as_ref), witness)?;
+        witness.flush_all()?;
         Ok(program_bits + witness_bits)
     }
 
-    /// Encode the program to a byte vector.
-    ///
-    /// Includes witness data.
-    pub fn encode_to_vec(&self) -> Vec<u8> {
-        write_to_vec(|w| self.encode(w))
+    /// Encode the program and witness data to byte vectors.
+    pub fn encode_to_vec(&self) -> (Vec<u8>, Vec<u8>) {
+        let mut ret_1 = vec![];
+        let mut ret_2 = vec![];
+        self.encode(
+            &mut BitWriter::new(&mut ret_1),
+            &mut BitWriter::new(&mut ret_2),
+        )
+        .unwrap();
+        (ret_1, ret_2)
     }
 }
 
@@ -392,14 +410,17 @@ mod tests {
 
     fn assert_program_deserializable<J: Jet>(
         prog_bytes: &[u8],
+        witness_bytes: &[u8],
         cmr_str: &str,
         amr_str: &str,
         imr_str: &str,
     ) -> Arc<RedeemNode<J>> {
         let prog_hex = prog_bytes.as_hex();
+        let witness_hex = witness_bytes.as_hex();
 
-        let mut iter = BitIter::from(prog_bytes);
-        let prog = match RedeemNode::<J>::decode(&mut iter) {
+        let prog = BitIter::from(prog_bytes);
+        let witness = BitIter::from(witness_bytes);
+        let prog = match RedeemNode::<J>::decode(prog, witness) {
             Ok(prog) => prog,
             Err(e) => panic!("program {} failed: {}", prog_hex, e),
         };
@@ -430,32 +451,45 @@ mod tests {
             prog_hex,
         );
 
-        let reser_sink = prog.encode_to_vec();
+        let (reser_prog, reser_witness) = prog.encode_to_vec();
         assert_eq!(
             prog_bytes,
-            &reser_sink[..],
+            &reser_prog[..],
             "program {} reserialized as {}",
             prog_hex,
-            reser_sink.as_hex(),
+            reser_prog.as_hex(),
+        );
+        assert_eq!(
+            witness_bytes,
+            &reser_witness[..],
+            "witness {} reserialized as {}",
+            witness_hex,
+            reser_witness.as_hex(),
         );
 
         prog
     }
 
-    fn assert_program_not_deserializable<J: Jet>(prog: &[u8], err: &dyn fmt::Display) {
-        let prog_hex = prog.as_hex();
+    fn assert_program_not_deserializable<J: Jet>(
+        prog_bytes: &[u8],
+        witness_bytes: &[u8],
+        err: &dyn fmt::Display,
+    ) {
+        let prog_hex = prog_bytes.as_hex();
+        let witness_hex = witness_bytes.as_hex();
         let err_str = err.to_string();
 
-        let mut iter = BitIter::from(prog);
-        match RedeemNode::<J>::decode(&mut iter) {
+        let prog = BitIter::from(prog_bytes);
+        let witness = BitIter::from(witness_bytes);
+        match RedeemNode::<J>::decode(prog, witness) {
             Ok(prog) => panic!(
-                "Program {} succeded (expected error {}). Program parsed as:\n{}",
-                prog_hex, err, prog
+                "Program {} wit {} succeded (expected error {}). Program parsed as:\n{}",
+                prog_hex, witness_hex, err, prog
             ),
             Err(e) if e.to_string() == err_str => {} // ok
             Err(e) => panic!(
-                "Program {} failed with error {} (expected error {})",
-                prog_hex, e, err
+                "Program {} wit {} failed with error {} (expected error {})",
+                prog_hex, witness_hex, e, err
             ),
         };
     }
@@ -469,8 +503,8 @@ mod tests {
         // wits_are_equal = comp (pair wit1 wit2) jet_eq_32 :: 1 -> 2
         // main = comp wits_are_equal jet_verify            :: 1 -> 1
         let eqwits = [0xcd, 0xdc, 0x51, 0xb6, 0xe2, 0x08, 0xc0, 0x40];
-        let mut iter = BitIter::from(&eqwits[..]);
-        let eqwits_prog = CommitNode::<Core>::decode(&mut iter).unwrap();
+        let iter = BitIter::from(&eqwits[..]);
+        let eqwits_prog = CommitNode::<Core>::decode(iter).unwrap();
 
         let eqwits_final = eqwits_prog
             .finalize(&mut SimpleFinalizer::new(std::iter::repeat(Value::u32(
@@ -481,7 +515,13 @@ mod tests {
 
         assert_eq!(
             output,
-            [0xc9, 0xc4, 0x6d, 0xb8, 0x82, 0x30, 0x11, 0xe2, 0x0d, 0xea, 0xdb, 0xee, 0xf0],
+            (
+                [0xc9, 0xc4, 0x6d, 0xb8, 0x82, 0x30, 0x10].into(),
+                [0xde, 0xad, 0xbe, 0xef].into(),
+            ),
+            "output {} {}",
+            output.0.as_hex(),
+            output.1.as_hex()
         );
     }
 
@@ -491,9 +531,8 @@ mod tests {
         // The point of this is to make sure that our witness-unsharing logic doesn't
         // get confused here and try to read two witnesses when there are only one.
         assert_program_deserializable::<Core>(
-            &[
-                0xc9, 0xc4, 0x6d, 0xb8, 0x82, 0x30, 0x11, 0xe2, 0x0d, 0xea, 0xdb, 0xee, 0xf0,
-            ],
+            &[0xc9, 0xc4, 0x6d, 0xb8, 0x82, 0x30, 0x10],
+            &[0xde, 0xad, 0xbe, 0xef],
             "2d170e731b6d6856e69f3c6ee04b368302f7f71b2270a26276d98ea494bbebd7",
             "9bdb88f9a9ef64d5ec507af96e5b88ae3a8b09c042cb3c3563f982cafc572bae",
             "71cdfd26a3f4dd865e2e92b526fc2083260c964c52dd9773aa52771f253b73e1",
@@ -508,7 +547,8 @@ mod tests {
         // cp3 = comp id1 id2  :: A -> A # cmr c1ae55b5...
         // main = comp cp3 cp3 :: A -> A # cmr 314e2879...
         assert_program_not_deserializable::<Core>(
-            &[0xc1, 0x08, 0x04, 0x00, 0x00, 0x74, 0x74, 0x74],
+            &[0xc1, 0x08, 0x04, 0x00],
+            &[],
             &Error::Decode(crate::decode::Error::SharingNotMaximal),
         );
     }
@@ -516,14 +556,14 @@ mod tests {
     #[test]
     fn witness_consumed() {
         // "main = unit", but with a witness attached. Found by fuzzer.
-        let badwit = [0x27, 0x00];
-        let mut iter = BitIter::from(&badwit[..]);
-        if let Err(Error::InconsistentWitnessLength) =
-            RedeemNode::<crate::jet::Core>::decode(&mut iter)
-        {
-            // ok
-        } else {
-            panic!("accepted program with bad witness length")
+        let prog = BitIter::from(&[0x24][..]);
+        let wit = BitIter::from(&[0x00][..]);
+        match RedeemNode::<Core>::decode(prog, wit) {
+            Err(Error::Decode(crate::decode::Error::BitIter(
+                crate::BitIterCloseError::TrailingBytes { first_byte: 0 },
+            ))) => {} // ok,
+            Err(e) => panic!("got incorrect error {e}"),
+            Ok(_) => panic!("accepted program with bad witness length"),
         }
     }
 
@@ -539,6 +579,7 @@ mod tests {
         // main = comp cp3 cp2
         assert_program_deserializable::<Core>(
             &[0xc1, 0x00, 0x00, 0x01, 0x00],
+            &[],
             "c2c86be0081a9c75af49098f359c7efdfa7ccbd0459adb11bcf676b80c8644b1",
             "e053520f0c3219d1cabd705b4523ccd05c8d703a70f6f3994a20774a42b5ccfc",
             "7b0ad0514279280d5c2ac1da729222936b8768d9f465c6c6ade3b0ed7dc97263",
@@ -559,6 +600,7 @@ mod tests {
                 0xef, 0x56, 0xdf, 0x77, 0xef, 0x56, 0xdf, 0x77,
                 0xef, 0x56, 0xdf, 0x77, 0x86, 0x01, 0x80,
             ],
+            &[],
             "c7194362a5480900dd44f9f647a49b8adcb92a25fb293c920e6bbcf6977cf63d",
             "eaf95c23d967563132b65e43578fe08dae2a29ac66775ddd37af3ac7de28678b",
             "d2927a9a54ddea8359ee00aa27e0aa1e354cc6924b090c759e2ed686712700a0",
@@ -576,6 +618,7 @@ mod tests {
                 0xea, 0xdb, 0xee, 0xfd, 0xea, 0xdb, 0xee, 0xfd,
                 0xea, 0xdb, 0xee, 0xf4, 0x86, 0x01, 0x80,
             ],
+            &[],
             "8e471ac519e0b16a2b7dda7e8d68165f260cae4823861ddc494b7c73a615b212",
             "ea1ee417816a57b80739520c7319c33a39a5f4ce7b59856e69f768d5d8f174a6",
             "f262f83f1c9341390e015e4c5126f3954e17a1f275af73da2948eaf4797fda48",
@@ -592,6 +635,7 @@ mod tests {
         // main = comp disc3 ut4      :: B -> 1                                           # cmr a453360c...
         assert_program_deserializable::<Core>(
             &[0xc5, 0x02, 0x06, 0x24, 0x10],
+            &[],
             "a453360c0825cc2d3c4c907d67b174273b0e0386c7e5ecdb28394a8f37fd68b9",
             "d5b05a5da87ee490312279496e12e17bc987c98219d8961bc3a7c3ec95a7ce1e",
             "3579ae2a05bbe689f16bd3ff29d840ae8aa8bbad70f6de27b7473746637abeb6",
@@ -623,24 +667,19 @@ mod tests {
         // main = comp pr5 jt6        :: 1 -> 1                         # cmr 14a5e0cc...
         assert_program_deserializable::<crate::jet::Elements>(
             &[
-                0xd3, 0x69, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x3b, 0x78, 0xce,
-                0x56, 0x3f, 0x89, 0xa0, 0xed, 0x94, 0x14, 0xf5,
-                0xaa, 0x28, 0xad, 0x0d, 0x96, 0xd6, 0x79, 0x5f,
-                0x9c, 0x63, 0x47, 0x07, 0x02, 0xc0, 0xe2, 0x8d,
-                0x88, 0x11, 0xe9, 0x00, 0x00, 0x00, 0x00, 0x00,
-                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1d,
-                0xbc, 0x67, 0x2b, 0x1f, 0xc4, 0xd0, 0x76, 0xca,
-                0x0a, 0x7a, 0xd5, 0x14, 0x56, 0x86, 0xcb, 0x6b,
-                0x3c, 0xaf, 0xce, 0x31, 0xed, 0xc3, 0x46, 0xa2,
-                0xd0, 0x5e, 0x0e, 0x8c, 0x80, 0x98, 0x15, 0xe4,
-                0x3d, 0x43, 0x8e, 0x78, 0xac, 0x71, 0x5e, 0xf1,
-                0x67, 0xd3, 0x22, 0xd4, 0x4a, 0xe0, 0xda, 0x2e,
-                0xb4, 0x75, 0x12, 0x60, 0x00,
+                0xd3, 0x69, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3b, 0x78, 0xce,
+                0x56, 0x3f, 0x89, 0xa0, 0xed, 0x94, 0x14, 0xf5, 0xaa, 0x28, 0xad, 0x0d, 0x96, 0xd6, 0x79, 0x5f,
+                0x9c, 0x63, 0x47, 0x07, 0x02, 0xc0, 0xe2, 0x8d, 0x88, 0x10, 
             ],
-            "3c77e90bcf5ff2bf45f6f30ecb093da96ff22509b5e981af0c21dddb84eec184",
-            "8e1ea76972cfe1684295784a59cb3c7229c9ab64bcdbc159278a7092b625d67c",
-            "dfb28b5859be539546f4fe9ce8c89083f021c76895be684d337087ffcfb4a7af",
+            &[
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3b, 0x78, 0xce, 0x56, 0x3f,
+                0x89, 0xa0, 0xed, 0x94, 0x14, 0xf5, 0xaa, 0x28, 0xad, 0x0d, 0x96, 0xd6, 0x79, 0x5f, 0x9c, 0x63,
+                0xdb, 0x86, 0x8d, 0x45, 0xa0, 0xbc, 0x1d, 0x19, 0x01, 0x30, 0x2b, 0xc8, 0x7a, 0x87, 0x1c, 0xf1,
+                0x58, 0xe2, 0xbd, 0xe2, 0xcf, 0xa6, 0x45, 0xa8, 0x95, 0xc1, 0xb4, 0x5d, 0x68, 0xea, 0x24, 0xc0, 
+            ],
+            "e2a6e4a223c0da97ebbf5f401e2d622535c3ed538e70f344318e9e5e4c2e02af",
+            "dc52a75e2137c0e2c63c0e49e3a226441234f2bb99236eaeee6d87e5a45a71c7",
+            "b6b12e9cd674927fea216e24b81df0daf03aa7b15cc8f9110ce506232be08671",
         );
     }
 
@@ -659,6 +698,7 @@ mod tests {
         // main = comp disc4 ut5      :: 1 -> 1                     # cmr a8c9cc7a...
         assert_program_deserializable::<crate::jet::Elements>(
             &[0xc9, 0x09, 0x20, 0x74, 0x90, 0x40],
+            &[],
             "a8c9cc7a83518d0886afe1078d88eabca8353509e8c2e3b5c72cf559c713c9f5",
             "97f77a7e7d7f3b2b1ac790bf54b39d47d6db8dcab7ed3c0a48df12f2c940af58",
             "ed8152948589d65e0dea6d84f90eb752f63df818041f46bdc8f959f33299cbd3",
@@ -674,17 +714,21 @@ mod tests {
             0xa4, 0x53, 0x6a, 0x63, 0x90, 0x8b, 0x06, 0xdf, 0x33, 0x61, 0x0c, 0x03, 0xe2, 0x27, 0x79, 0xc0,
             0x6d, 0xf2, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0xe2, 0x8d, 0x8c, 0x04, 0x7a, 0x40, 0x1d, 0x20, 0xf0, 0x63, 0xf0, 0x10, 0x91, 0xa2,
-            0x0d, 0x34, 0xa6, 0xe3, 0x68, 0x04, 0x82, 0x06, 0xc9, 0x7b, 0xe3, 0x8b, 0xf0, 0x60, 0xf6, 0x01,
-            0x09, 0x8a, 0xbe, 0x39, 0xc5, 0xb9, 0x50, 0x42, 0xa4, 0xbe, 0xcd, 0x49, 0x50, 0xbd, 0x51, 0x6e,
-            0x3c, 0x90, 0x54, 0xe9, 0xe7, 0x05, 0xa5, 0x9c, 0xbd, 0x7d, 0xdd, 0x1f, 0xb6, 0x42, 0xe5, 0xe8,
-            0xef, 0xbe, 0x92, 0x01, 0xa6, 0x20, 0xa6, 0xd8, 0x00
+            0x00, 0x00, 0xe2, 0x8d, 0x8c, 0x04, 0x00,
+        ];
+        #[rustfmt::skip]
+        let schnorr0_wit = vec![
+            0xe9, 0x07, 0x83, 0x1f, 0x80, 0x84, 0x8d, 0x10, 0x69, 0xa5, 0x37, 0x1b, 0x40, 0x24, 0x10, 0x36,
+            0x4b, 0xdf, 0x1c, 0x5f, 0x83, 0x07, 0xb0, 0x08, 0x4c, 0x55, 0xf1, 0xce, 0x2d, 0xca, 0x82, 0x15,
+            0x25, 0xf6, 0x6a, 0x4a, 0x85, 0xea, 0x8b, 0x71, 0xe4, 0x82, 0xa7, 0x4f, 0x38, 0x2d, 0x2c, 0xe5,
+            0xeb, 0xee, 0xe8, 0xfd, 0xb2, 0x17, 0x2f, 0x47, 0x7d, 0xf4, 0x90, 0x0d, 0x31, 0x05, 0x36, 0xc0,
         ];
         assert_program_deserializable::<crate::jet::Elements>(
             &schnorr0,
-            "dacbdfcf64122edf8efda2b34fe353cac4424dd455a9204fc92af258b465bbc4",
-            "097f231c68c5cd55fc23c70c6101463d3547046e62b90c43ed65c4c1c2aeea91",
-            "190bfc6677d227f1301ab6694f4de230b02277a8d2936517bddf9ebd16dc8250",
+            &schnorr0_wit,
+            "70a617f32098132fe01ad5ff6748d3b94f803f4d851dd5764d99437c1b8dd7e8",
+            "f9ab63b6ea2a9cc1df9cc1e1bc96c945b655ec843eb6967d4429a1a0c8519633",
+            "fd9423e5ca51d3efea27596b65a61792497a68351ee43f235e6edfc344cf4951",
         );
     }
 }

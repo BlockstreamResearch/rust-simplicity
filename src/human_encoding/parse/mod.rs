@@ -735,7 +735,7 @@ mod tests {
 
                 main := comp pr1 jt2       : 1 -> 1               -- 3f6422da
             ",
-           "dacbdfcf64122edf8efda2b34fe353cac4424dd455a9204fc92af258b465bbc4",
+           "70a617f32098132fe01ad5ff6748d3b94f803f4d851dd5764d99437c1b8dd7e8",
             &signature,
             &dummy
         );

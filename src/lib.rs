@@ -41,7 +41,7 @@ mod value;
 
 pub use bit_encoding::decode;
 pub use bit_encoding::encode;
-pub use bit_encoding::{u2, BitIter, EarlyEndOfStreamError};
+pub use bit_encoding::{u2, BitIter, CloseError as BitIterCloseError, EarlyEndOfStreamError};
 pub use bit_encoding::{write_to_vec, BitWriter};
 
 #[cfg(feature = "elements")]
@@ -86,8 +86,6 @@ pub enum Error {
     NoMoreWitnesses,
     /// Finalization failed; did not have enough witness data to satisfy program.
     IncompleteFinalization,
-    /// Witness has different length than defined in its preamble
-    InconsistentWitnessLength,
     /// Tried to parse a jet but the name wasn't recognized
     InvalidJetName(String),
     /// Policy error
@@ -107,9 +105,6 @@ impl fmt::Display for Error {
             }
             Error::Type(ref e) => fmt::Display::fmt(e, f),
             Error::IncompleteFinalization => f.write_str("unable to satisfy program"),
-            Error::InconsistentWitnessLength => {
-                f.write_str("witness has different length than defined in its preamble")
-            }
             Error::InvalidJetName(s) => write!(f, "unknown jet `{}`", s),
             Error::NoMoreWitnesses => f.write_str("no more witness data available"),
             #[cfg(feature = "elements")]
@@ -127,7 +122,6 @@ impl std::error::Error for Error {
             Error::Type(ref e) => Some(e),
             Error::NoMoreWitnesses => None,
             Error::IncompleteFinalization => None,
-            Error::InconsistentWitnessLength => None,
             Error::InvalidJetName(..) => None,
             #[cfg(feature = "elements")]
             Error::Policy(ref e) => Some(e),

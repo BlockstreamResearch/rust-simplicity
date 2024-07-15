@@ -24,29 +24,30 @@ use crate::ffi::{c_int, c_size_t, c_uchar, c_void, ubounded};
 pub enum SimplicityErr {
     NoError = 0,
     Malloc = -1,
-    BitstreamEof = -2,
     NotYetImplemented = -3,
-    DataOutOfRange = -4,
-    DataOutOfOrder = -6,
-    FailCode = -8,
-    StopCode = -10,
-    Hidden = -12,
-    BitstreamUnusedBytes = -14,
-    BitstreamUnusedBits = -16,
+    DataOutOfRange = -2,
+    DataOutOfOrder = -4,
+    FailCode = -6,
+    StopCode = -8,
+    Hidden = -10,
+    BitstreamEof = -12,
+    BitstreamTrailingBytes = -14,
+    BitstreamIllegalPadding = -16,
     TypeInferenceUnification = -18,
     TypeInferenceOccursCheck = -20,
     TypeInferenceNotProgram = -22,
     WitnessEof = -24,
-    WitnessUnusedBits = -26,
-    UnsharedSubexpression = -28,
-    Cmr = -30,
-    Amr = -32,
+    WitnessTrailingBytes = -26,
+    WitnessIllegalPadding = -28,
+    UnsharedSubexpression = -30,
+    Cmr = -32,
     ExecBudget = -34,
     ExecMemory = -36,
     ExecJet = -38,
     ExecAssert = -40,
     AntiDoS = -42,
     HiddenRoot = -44,
+    Amr = -46,
 }
 
 extern "C" {
@@ -78,29 +79,30 @@ impl SimplicityErr {
         match n {
             n if n >= 0 => Ok(n as u32),
             -1 => Err(SimplicityErr::Malloc),
-            -2 => Err(SimplicityErr::BitstreamEof),
+            -2 => Err(SimplicityErr::DataOutOfRange),
             -3 => Err(SimplicityErr::NotYetImplemented),
-            -4 => Err(SimplicityErr::DataOutOfRange),
-            -6 => Err(SimplicityErr::DataOutOfOrder),
-            -8 => Err(SimplicityErr::FailCode),
-            -10 => Err(SimplicityErr::StopCode),
-            -12 => Err(SimplicityErr::Hidden),
-            -14 => Err(SimplicityErr::BitstreamUnusedBytes),
-            -16 => Err(SimplicityErr::BitstreamUnusedBits),
+            -4 => Err(SimplicityErr::DataOutOfOrder),
+            -6 => Err(SimplicityErr::FailCode),
+            -8 => Err(SimplicityErr::StopCode),
+            -10 => Err(SimplicityErr::Hidden),
+            -12 => Err(SimplicityErr::BitstreamEof),
+            -14 => Err(SimplicityErr::BitstreamTrailingBytes),
+            -16 => Err(SimplicityErr::BitstreamIllegalPadding),
             -18 => Err(SimplicityErr::TypeInferenceUnification),
             -20 => Err(SimplicityErr::TypeInferenceOccursCheck),
             -22 => Err(SimplicityErr::TypeInferenceNotProgram),
             -24 => Err(SimplicityErr::WitnessEof),
-            -26 => Err(SimplicityErr::WitnessUnusedBits),
-            -28 => Err(SimplicityErr::UnsharedSubexpression),
-            -30 => Err(SimplicityErr::Cmr),
-            -32 => Err(SimplicityErr::Amr),
+            -26 => Err(SimplicityErr::WitnessTrailingBytes),
+            -28 => Err(SimplicityErr::WitnessIllegalPadding),
+            -30 => Err(SimplicityErr::UnsharedSubexpression),
+            -32 => Err(SimplicityErr::Cmr),
             -34 => Err(SimplicityErr::ExecBudget),
             -36 => Err(SimplicityErr::ExecMemory),
             -38 => Err(SimplicityErr::ExecJet),
             -40 => Err(SimplicityErr::ExecAssert),
             -42 => Err(SimplicityErr::AntiDoS),
             -44 => Err(SimplicityErr::HiddenRoot),
+            -46 => Err(SimplicityErr::Amr),
             x => panic!("unexpected error code {}", x),
         }
     }
@@ -133,7 +135,7 @@ pub mod bitstream {
         pub static c_sizeof_bitstream: c_size_t;
         pub static c_alignof_bitstream: c_size_t;
 
-        pub fn closeBitstream(stream: *mut CBitstream) -> bool;
+        pub fn closeBitstream(stream: *mut CBitstream) -> i32;
         pub fn readNBits(n: c_int, stream: *mut CBitstream) -> i32;
         pub fn decodeUptoMaxInt(stream: *mut CBitstream) -> i32;
         pub fn readBitstring(result: *mut CBitstring, n: c_size_t, stream: *mut CBitstream) -> i32;
@@ -171,6 +173,7 @@ pub mod bitstring {
 pub mod dag {
     use super::*;
     use crate::ffi::sha256::CSha256Midstate;
+    use crate::tests::ffi::bitstream::CBitstream;
     use crate::tests::ffi::bitstring::CBitstring;
     use crate::tests::ffi::ty::CType;
     use crate::tests::ffi::SimplicityErr;
@@ -302,7 +305,7 @@ pub mod dag {
             dag: *mut CDagNode,
             type_dag: *mut CType,
             len: c_size_t,
-            witness: CBitstring,
+            witness: *mut CBitstream,
         ) -> SimplicityErr;
 
         /// Computes the identity Merkle roots of every subexpression in a well-typed 'dag' with witnesses    .
@@ -327,9 +330,7 @@ pub mod dag {
 
 pub mod deserialize {
     use crate::tests::ffi::bitstream::CBitstream;
-    use crate::tests::ffi::bitstring::CBitstring;
     use crate::tests::ffi::dag::{CCombinatorCounters, CDagNode};
-    use crate::tests::ffi::SimplicityErr;
 
     extern "C" {
         pub fn decodeMallocDag(
@@ -337,11 +338,6 @@ pub mod deserialize {
             combinator_counters: *mut CCombinatorCounters,
             stream: *mut CBitstream,
         ) -> i32;
-
-        pub fn decodeWitnessData(
-            witness: *mut CBitstring,
-            stream: *mut CBitstream,
-        ) -> SimplicityErr;
     }
 }
 
@@ -486,6 +482,8 @@ pub mod type_inference {
 extern "C" {
     pub static sizeof_ctx8Pruned: c_size_t;
     pub static ctx8Pruned: [u8; 5015];
+    pub static sizeof_ctx8Pruned_witness: c_size_t;
+    pub static ctx8Pruned_witness: [u8; 0];
     pub static ctx8Pruned_amr: [u32; 8];
     pub static ctx8Pruned_cmr: [u32; 8];
     pub static ctx8Pruned_imr: [u32; 8];
@@ -493,20 +491,26 @@ extern "C" {
 
     pub static sizeof_ctx8Unpruned: c_size_t;
     pub static ctx8Unpruned: [u8; 4809];
+    pub static sizeof_ctx8Unpruned_witness: c_size_t;
+    pub static ctx8Unpruned_witness: [u8; 0];
     pub static ctx8Unpruned_amr: [u32; 8];
     pub static ctx8Unpruned_cmr: [u32; 8];
     pub static ctx8Unpruned_imr: [u32; 8];
     pub static ctx8Unpruned_cost: ubounded;
 
     pub static sizeof_schnorr0: c_size_t;
-    pub static schnorr0: [u8; 137];
+    pub static schnorr0: [u8; 71];
+    pub static sizeof_schnorr0_witness: c_size_t;
+    pub static schnorr0_witness: [u8; 64];
     pub static schnorr0_amr: [u32; 8];
     pub static schnorr0_cmr: [u32; 8];
     pub static schnorr0_imr: [u32; 8];
     pub static schnorr0_cost: ubounded;
 
     pub static sizeof_schnorr6: c_size_t;
-    pub static schnorr6: [u8; 137];
+    pub static schnorr6: [u8; 71];
+    pub static sizeof_schnorr6_witness: c_size_t;
+    pub static schnorr6_witness: [u8; 64];
     pub static schnorr6_amr: [u32; 8];
     pub static schnorr6_cmr: [u32; 8];
     pub static schnorr6_imr: [u32; 8];

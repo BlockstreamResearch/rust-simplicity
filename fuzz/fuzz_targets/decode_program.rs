@@ -6,25 +6,21 @@ use simplicity::jet::Core;
 use simplicity::{BitIter, BitWriter, RedeemNode};
 
 fn do_test(data: &[u8]) {
-    let mut iter = BitIter::new(data.iter().cloned());
+    let prog_iter = BitIter::new(data.iter().cloned());
+    let wit_iter = BitIter::new(core::iter::repeat(0));
+    if let Ok(program) = RedeemNode::<Core>::decode(prog_iter, wit_iter) {
+        let mut prog_reser = Vec::<u8>::new();
+        let mut wit_reser = std::io::sink();
 
-    if let Ok(program) = RedeemNode::<Core>::decode(&mut iter) {
-        let bit_len = iter.n_total_read();
+        let mut prog_w = BitWriter::from(&mut prog_reser);
+        let mut wit_w = BitWriter::from(&mut wit_reser);
+        program
+            .encode(&mut prog_w, &mut wit_w)
+            .expect("encoding to vector");
+        prog_w.flush_all().expect("flushing");
+        wit_w.flush_all().expect("flushing");
 
-        let mut sink = Vec::<u8>::new();
-        let mut w = BitWriter::from(&mut sink);
-        program.encode(&mut w).expect("encoding to vector");
-        w.flush_all().expect("flushing");
-        assert_eq!(w.n_total_written(), bit_len);
-
-        // RedeemNode::<Value, Core>::decode() may stop reading `data` mid-byte:
-        // copy trailing bits from `data` to `sink`
-        if bit_len % 8 != 0 {
-            let mask = !(1u8 << (8 - (bit_len % 8)));
-            let idx = sink.len() - 1;
-            sink[idx] |= data[idx] & mask;
-        }
-        assert_eq!(sink, &data[0..sink.len()]);
+        assert_eq!(prog_reser, &data[0..prog_reser.len()]);
     }
 }
 

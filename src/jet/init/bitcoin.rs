@@ -55,6 +55,7 @@ pub enum Bitcoin {
     Decrement32,
     Decrement64,
     Decrement8,
+    DivMod128_64,
     DivMod16,
     DivMod32,
     DivMod64,
@@ -156,6 +157,7 @@ pub enum Bitcoin {
     GejXEquiv,
     GejYIsOdd,
     Generate,
+    HashToCurve,
     High1,
     High16,
     High32,
@@ -390,6 +392,7 @@ pub enum Bitcoin {
     Subtract32,
     Subtract64,
     Subtract8,
+    Swu,
     TapleafVersion,
     Tappath,
     TotalInputValue,
@@ -468,6 +471,7 @@ impl Jet for Bitcoin {
             Bitcoin::Decrement32 => b"i",
             Bitcoin::Decrement64 => b"l",
             Bitcoin::Decrement8 => b"***22*22**22*22",
+            Bitcoin::DivMod128_64 => b"**lll",
             Bitcoin::DivMod16 => b"i",
             Bitcoin::DivMod32 => b"l",
             Bitcoin::DivMod64 => b"*ll",
@@ -569,6 +573,7 @@ impl Jet for Bitcoin {
             Bitcoin::GejXEquiv => b"*h**hhh",
             Bitcoin::GejYIsOdd => b"**hhh",
             Bitcoin::Generate => b"h",
+            Bitcoin::HashToCurve => b"h",
             Bitcoin::High1 => b"1",
             Bitcoin::High16 => b"1",
             Bitcoin::High32 => b"1",
@@ -803,6 +808,7 @@ impl Jet for Bitcoin {
             Bitcoin::Subtract32 => b"l",
             Bitcoin::Subtract64 => b"*ll",
             Bitcoin::Subtract8 => b"****22*22**22*22***22*22**22*22",
+            Bitcoin::Swu => b"h",
             Bitcoin::TapleafVersion => b"1",
             Bitcoin::Tappath => b"***22*22**22*22",
             Bitcoin::TotalInputValue => b"1",
@@ -871,6 +877,7 @@ impl Jet for Bitcoin {
             Bitcoin::Decrement32 => b"*2i",
             Bitcoin::Decrement64 => b"*2l",
             Bitcoin::Decrement8 => b"*2***22*22**22*22",
+            Bitcoin::DivMod128_64 => b"*ll",
             Bitcoin::DivMod16 => b"i",
             Bitcoin::DivMod32 => b"l",
             Bitcoin::DivMod64 => b"*ll",
@@ -972,6 +979,7 @@ impl Jet for Bitcoin {
             Bitcoin::GejXEquiv => b"2",
             Bitcoin::GejYIsOdd => b"2",
             Bitcoin::Generate => b"**hhh",
+            Bitcoin::HashToCurve => b"*hh",
             Bitcoin::High1 => b"2",
             Bitcoin::High16 => b"****22*22**22*22***22*22**22*22",
             Bitcoin::High32 => b"i",
@@ -1206,6 +1214,7 @@ impl Jet for Bitcoin {
             Bitcoin::Subtract32 => b"*2i",
             Bitcoin::Subtract64 => b"*2l",
             Bitcoin::Subtract8 => b"*2***22*22**22*22",
+            Bitcoin::Swu => b"*hh",
             Bitcoin::TapleafVersion => b"***22*22**22*22",
             Bitcoin::Tappath => b"+1h",
             Bitcoin::TotalInputValue => b"l",
@@ -1523,6 +1532,7 @@ impl Jet for Bitcoin {
             Bitcoin::Median16 => (639280, 21),
             Bitcoin::Median32 => (639281, 21),
             Bitcoin::Median64 => (639282, 21),
+            Bitcoin::DivMod128_64 => (639346, 21),
             Bitcoin::DivMod8 => (79925, 18),
             Bitcoin::DivMod16 => (639408, 21),
             Bitcoin::DivMod32 => (639409, 21),
@@ -1594,6 +1604,8 @@ impl Jet for Bitcoin {
             Bitcoin::FeSquareRoot => (200234, 19),
             Bitcoin::FeIsZero => (200235, 19),
             Bitcoin::FeIsOdd => (200236, 19),
+            Bitcoin::HashToCurve => (200238, 19),
+            Bitcoin::Swu => (200239, 19),
             Bitcoin::CheckSigVerify => (98, 8),
             Bitcoin::Bip0340Verify => (396, 10),
             Bitcoin::ParseLock => (102, 8),
@@ -3514,7 +3526,25 @@ impl Jet for Bitcoin {
                                                                             }
                                                                         }
                                                                     },
-                                                                    1 => {}
+                                                                    1 => {
+                                                                        0 => {},
+                                                                        1 => {
+                                                                            0 => {},
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {
+                                                                                        0 => {},
+                                                                                        1 => {
+                                                                                            0 => {Bitcoin::DivMod128_64},
+                                                                                            1 => {}
+                                                                                        }
+                                                                                    },
+                                                                                    1 => {}
+                                                                                },
+                                                                                1 => {}
+                                                                            }
+                                                                        }
+                                                                    }
                                                                 },
                                                                 1 => {
                                                                     0 => {
@@ -3847,7 +3877,10 @@ impl Jet for Bitcoin {
                                                                                     0 => {Bitcoin::FeIsOdd},
                                                                                     1 => {}
                                                                                 },
-                                                                                1 => {}
+                                                                                1 => {
+                                                                                    0 => {Bitcoin::HashToCurve},
+                                                                                    1 => {Bitcoin::Swu}
+                                                                                }
                                                                             }
                                                                         }
                                                                     },
@@ -4085,6 +4118,7 @@ impl fmt::Display for Bitcoin {
             Bitcoin::Decrement32 => f.write_str("decrement_32"),
             Bitcoin::Decrement64 => f.write_str("decrement_64"),
             Bitcoin::Decrement8 => f.write_str("decrement_8"),
+            Bitcoin::DivMod128_64 => f.write_str("div_mod_128_64"),
             Bitcoin::DivMod16 => f.write_str("div_mod_16"),
             Bitcoin::DivMod32 => f.write_str("div_mod_32"),
             Bitcoin::DivMod64 => f.write_str("div_mod_64"),
@@ -4186,6 +4220,7 @@ impl fmt::Display for Bitcoin {
             Bitcoin::GejXEquiv => f.write_str("gej_x_equiv"),
             Bitcoin::GejYIsOdd => f.write_str("gej_y_is_odd"),
             Bitcoin::Generate => f.write_str("generate"),
+            Bitcoin::HashToCurve => f.write_str("hash_to_curve"),
             Bitcoin::High1 => f.write_str("high_1"),
             Bitcoin::High16 => f.write_str("high_16"),
             Bitcoin::High32 => f.write_str("high_32"),
@@ -4420,6 +4455,7 @@ impl fmt::Display for Bitcoin {
             Bitcoin::Subtract32 => f.write_str("subtract_32"),
             Bitcoin::Subtract64 => f.write_str("subtract_64"),
             Bitcoin::Subtract8 => f.write_str("subtract_8"),
+            Bitcoin::Swu => f.write_str("swu"),
             Bitcoin::TapleafVersion => f.write_str("tapleaf_version"),
             Bitcoin::Tappath => f.write_str("tappath"),
             Bitcoin::TotalInputValue => f.write_str("total_input_value"),
@@ -4490,6 +4526,7 @@ impl str::FromStr for Bitcoin {
             "decrement_32" => Ok(Bitcoin::Decrement32),
             "decrement_64" => Ok(Bitcoin::Decrement64),
             "decrement_8" => Ok(Bitcoin::Decrement8),
+            "div_mod_128_64" => Ok(Bitcoin::DivMod128_64),
             "div_mod_16" => Ok(Bitcoin::DivMod16),
             "div_mod_32" => Ok(Bitcoin::DivMod32),
             "div_mod_64" => Ok(Bitcoin::DivMod64),
@@ -4591,6 +4628,7 @@ impl str::FromStr for Bitcoin {
             "gej_x_equiv" => Ok(Bitcoin::GejXEquiv),
             "gej_y_is_odd" => Ok(Bitcoin::GejYIsOdd),
             "generate" => Ok(Bitcoin::Generate),
+            "hash_to_curve" => Ok(Bitcoin::HashToCurve),
             "high_1" => Ok(Bitcoin::High1),
             "high_16" => Ok(Bitcoin::High16),
             "high_32" => Ok(Bitcoin::High32),
@@ -4825,6 +4863,7 @@ impl str::FromStr for Bitcoin {
             "subtract_32" => Ok(Bitcoin::Subtract32),
             "subtract_64" => Ok(Bitcoin::Subtract64),
             "subtract_8" => Ok(Bitcoin::Subtract8),
+            "swu" => Ok(Bitcoin::Swu),
             "tapleaf_version" => Ok(Bitcoin::TapleafVersion),
             "tappath" => Ok(Bitcoin::Tappath),
             "total_input_value" => Ok(Bitcoin::TotalInputValue),
