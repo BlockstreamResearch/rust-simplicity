@@ -5,7 +5,11 @@ use bitcoin::secp256k1;
 use elements::Txid;
 use rand::{thread_rng, RngCore};
 use simplicity::{
-    bitcoin, elements, hashes::Hash, hex::FromHex, types::{self, Type}, BitIter, Error, Value,
+    bitcoin, elements,
+    hashes::Hash,
+    hex::FromHex,
+    types::{self, Type},
+    BitIter, Error, Value,
 };
 use std::sync::Arc;
 

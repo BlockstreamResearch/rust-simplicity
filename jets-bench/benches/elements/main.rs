@@ -869,7 +869,7 @@ fn bench(c: &mut Criterion) {
     }
 }
 
-criterion_group!{
+criterion_group! {
     name = benches;
     config = Criterion::default()
         // For simpler benchmarks, we don't need to run for long
