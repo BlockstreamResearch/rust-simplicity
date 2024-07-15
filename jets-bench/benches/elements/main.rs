@@ -162,6 +162,9 @@ fn bench(c: &mut Criterion) {
         panic!("Sanity checks failed");
     }
 
+    // Initialize set of all jets
+    simplicity_bench::check_all_jets::initialize();
+
     let mut rng = ThreadRng::default();
 
     fn eq_256() -> Arc<Value> {
@@ -569,6 +572,8 @@ fn bench(c: &mut Criterion) {
         (Elements::ParseSequence, InputSampling::Custom(Arc::new(sequence))),
     ];
     for (jet, sample) in arr {
+        simplicity_bench::check_all_jets::record(jet);
+
         let (src_ty, tgt_ty) = jet_arrow(jet);
 
         let mut group = c.benchmark_group(jet.to_string());
@@ -685,6 +690,8 @@ fn bench(c: &mut Criterion) {
 
     // Elements environment jets
     for (jet, env_sampler) in jets {
+        simplicity_bench::check_all_jets::record(jet);
+
         let (src_ty, tgt_ty) = jet_arrow(jet);
         let env = env_sampler.env();
 
@@ -745,6 +752,8 @@ fn bench(c: &mut Criterion) {
     ];
 
     for (jet, inp_fn) in arr {
+        simplicity_bench::check_all_jets::record(jet);
+
         let (src_ty, tgt_ty) = jet_arrow(jet);
         let env = EnvSampling::Null.env();
 
@@ -828,6 +837,8 @@ fn bench(c: &mut Criterion) {
     ];
 
     for (jet, index, env_type) in arr {
+        simplicity_bench::check_all_jets::record(jet);
+
         let (src_ty, tgt_ty) = jet_arrow(jet);
         let env = env_type.env();
         let mut group = c.benchmark_group(jet.to_string());
@@ -856,6 +867,8 @@ fn bench(c: &mut Criterion) {
             });
         }
     }
+
+    simplicity_bench::check_all_jets::check_all_covered();
 }
 
 criterion_group! {
