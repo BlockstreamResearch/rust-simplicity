@@ -33,6 +33,7 @@ pub const NUM_TX_INPUTS: usize = 3;
 pub const NUM_TX_OUTPUTS: usize = 6;
 
 /// Worst case env for each jet
+#[derive(PartialEq, Eq)]
 enum ElementsBenchEnvType {
     /// None
     None,
@@ -46,23 +47,30 @@ enum ElementsBenchEnvType {
     Pegin,
     /// Annex inputs
     Annex,
+    /// Jets have worst case on fee outputs
+    AllFeeOutputs,
 }
 
 impl ElementsBenchEnvType {
     fn env(&self) -> ElementsEnv<Arc<elements::Transaction>> {
-        let env_sampler = match self {
+        let mut env_sampler = match self {
             ElementsBenchEnvType::None => EnvSampling::null(),
-            ElementsBenchEnvType::Random | ElementsBenchEnvType::Annex => {
+            ElementsBenchEnvType::Random
+            | ElementsBenchEnvType::Annex
+            | ElementsBenchEnvType::AllFeeOutputs => {
                 let selector = rand::random::<usize>() % 4;
                 EnvSampling::random(selector)
             }
             ElementsBenchEnvType::Issuance => EnvSampling::issuance(),
             ElementsBenchEnvType::Pegin => EnvSampling::pegin(),
         };
-        env_sampler
+        if *self == ElementsBenchEnvType::AllFeeOutputs {
+            env_sampler = env_sampler.all_fee_outputs();
+        }
+        env_sampler = env_sampler
             .n_inputs(NUM_TX_INPUTS)
-            .n_outputs(NUM_TX_OUTPUTS)
-            .env()
+            .n_outputs(NUM_TX_OUTPUTS);
+        env_sampler.env()
     }
 }
 
@@ -483,6 +491,7 @@ fn bench(c: &mut Criterion) {
         (Elements::NumInputs, ElementsBenchEnvType::Random),
         (Elements::NumOutputs, ElementsBenchEnvType::Random),
         (Elements::LockTime, ElementsBenchEnvType::Random),
+        (Elements::TotalFee, ElementsBenchEnvType::AllFeeOutputs),
         // // -----------------------------------------
         // Current Input
         // Each jet has worst case dependent on whether it is pegin or issuance
@@ -639,6 +648,7 @@ fn bench(c: &mut Criterion) {
         (Elements::OutputNullDatum, Index::Output, ElementsBenchEnvType::Random), // I Don't know what this is, and how to test this, presumably related to how pegouts work
         (Elements::OutputSurjectionProof, Index::Output, ElementsBenchEnvType::Random),
         (Elements::OutputRangeProof, Index::Output, ElementsBenchEnvType::Random),
+        (Elements::OutputIsFee, Index::Output, ElementsBenchEnvType::AllFeeOutputs), // slowest will be for fee outputs 
         // // Transaction chapter jets with input index
         (Elements::InputPegin, Index::InputIdx0, ElementsBenchEnvType::Pegin),
         (Elements::InputPrevOutpoint, Index::Input, ElementsBenchEnvType::Random),
