@@ -154,7 +154,7 @@ pub struct SimplicityPoint(pub bitcoin::secp256k1::PublicKey);
 
 /// Trait defining how to encode a data structure into a Simplicity value
 /// This is then used to write these vales into the bit machine.
-pub(crate) trait SimplicityEncode {
+pub trait SimplicityEncode {
     fn value(&self) -> Arc<Value>;
 }
 

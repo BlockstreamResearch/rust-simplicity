@@ -1,16 +1,7 @@
 use std::sync::Arc;
 
-use crate::buffer::JetBuffer;
-use crate::data_structures::{
-    genesis_pegin, BenchSample, SimplicityFe, SimplicityGe, SimplicityGej, SimplicityPoint,
-    SimplicityScalar,
-};
-use crate::input::InputSampling;
-use crate::params::JetParams;
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
-use data_structures::{SimplicityCtx8, SimplicityEncode};
 use elements::confidential;
-use env::EnvSampling;
 use rand::rngs::ThreadRng;
 use rand::{thread_rng, RngCore};
 use simplicity::hashes::{sha256, Hash, HashEngine};
@@ -19,12 +10,10 @@ use simplicity::jet::{Elements, Jet};
 use simplicity::types;
 use simplicity::Value;
 use simplicity::{bitcoin, elements};
-
-mod buffer;
-mod data_structures;
-mod env;
-mod input;
-mod params;
+use simplicity_bench::{
+    genesis_pegin, BenchSample, EnvSampling, InputSampling, JetBuffer, JetParams, SimplicityCtx8,
+    SimplicityEncode, SimplicityFe, SimplicityGe, SimplicityGej, SimplicityPoint, SimplicityScalar,
+};
 
 const NUM_RANDOM_SAMPLES: usize = 100;
 
@@ -219,7 +208,7 @@ fn bench(c: &mut Criterion) {
                 // Worst case when all bytes are present for ctx8 < 512
                 let mut v = [0u8; 511];
                 thread_rng().fill_bytes(&mut v);
-                data_structures::var_len_buf_from_slice(&v, 8).unwrap()
+                simplicity_bench::var_len_buf_from_slice(&v, 8).unwrap()
             }
             _ => unreachable!(),
         };
