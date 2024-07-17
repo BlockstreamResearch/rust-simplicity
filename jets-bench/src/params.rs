@@ -1,4 +1,3 @@
-
 use crate::input::{InputSample, InputSampling};
 
 pub enum Input<'samp> {

@@ -10,6 +10,7 @@ use simplicity::types;
 use simplicity::Value;
 use simplicity_bench::input::{
     self, EqProduct, GenericProduct, InputSample, PrefixBit, Sha256Ctx, UniformBits,
+    UniformBitsExact,
 };
 use simplicity_bench::{
     genesis_pegin, BenchSample, EnvSampling, InputSampling, JetBuffer, JetParams, SimplicityCtx8,
@@ -84,6 +85,7 @@ fn jet_arrow(jet: Elements) -> (Arc<types::Final>, Arc<types::Final>) {
 fn is_heavy_jet(jet: Elements) -> bool {
     // Hashes
     match jet {
+        Elements::HashToCurve |
         Elements::Sha256Iv |
         Elements::Sha256Block |
         Elements::Sha256Ctx8Init |
@@ -99,6 +101,7 @@ fn is_heavy_jet(jet: Elements) -> bool {
         Elements::Sha256Ctx8Add512 |
         Elements::Sha256Ctx8AddBuffer511 |
         Elements::Sha256Ctx8Finalize |
+        Elements::Swu |
         // Jets for secp FE
         Elements::FeNormalize |
         Elements::FeNegate |
@@ -130,6 +133,8 @@ fn is_heavy_jet(jet: Elements) -> bool {
         Elements::GejGeAddEx |
         Elements::GejGeAdd |
         Elements::GejIsInfinity |
+        Elements::GejEquiv |
+        Elements::GejGeEquiv |
         Elements::GejXEquiv |
         Elements::GejYIsOdd |
         Elements::GejIsOnCurve |
@@ -159,56 +164,232 @@ fn bench(c: &mut Criterion) {
     simplicity_bench::check_all_jets::initialize();
 
     let mut rng = ThreadRng::default();
+    let mut count = 0;
 
-    let arr: [(Elements, &dyn InputSample); 191] = [
+    let arr: [(Elements, &dyn InputSample); 367] = [
         // Bit logics
         (Elements::Verify, &UniformBits),
         // low
+        (Elements::Low1, &input::Unit),
         (Elements::Low8, &input::Unit),
         (Elements::Low16, &input::Unit),
         (Elements::Low32, &input::Unit),
         (Elements::Low64, &input::Unit),
         // high
+        (Elements::High1, &input::Unit),
         (Elements::High8, &input::Unit),
         (Elements::High16, &input::Unit),
         (Elements::High32, &input::Unit),
         (Elements::High64, &input::Unit),
         // complement
+        (Elements::Complement1, &UniformBits),
         (Elements::Complement8, &UniformBits),
         (Elements::Complement16, &UniformBits),
         (Elements::Complement32, &UniformBits),
         (Elements::Complement64, &UniformBits),
         // and
+        (Elements::And1, &EqProduct(UniformBits)),
         (Elements::And8, &EqProduct(UniformBits)),
         (Elements::And16, &EqProduct(UniformBits)),
         (Elements::And32, &EqProduct(UniformBits)),
         (Elements::And64, &EqProduct(UniformBits)),
         // or
+        (Elements::Or1, &EqProduct(UniformBits)),
         (Elements::Or8, &EqProduct(UniformBits)),
         (Elements::Or16, &EqProduct(UniformBits)),
         (Elements::Or32, &EqProduct(UniformBits)),
         (Elements::Or64, &EqProduct(UniformBits)),
         // xor
+        (Elements::Xor1, &EqProduct(UniformBits)),
         (Elements::Xor8, &EqProduct(UniformBits)),
         (Elements::Xor16, &EqProduct(UniformBits)),
         (Elements::Xor32, &EqProduct(UniformBits)),
         (Elements::Xor64, &EqProduct(UniformBits)),
         // maj
+        (Elements::Maj1, &UniformBits),
         (Elements::Maj8, &UniformBits),
         (Elements::Maj16, &UniformBits),
         (Elements::Maj32, &UniformBits),
         (Elements::Maj64, &UniformBits),
         // xor xor
+        (Elements::XorXor1, &UniformBits),
         (Elements::XorXor8, &UniformBits),
         (Elements::XorXor16, &UniformBits),
         (Elements::XorXor32, &UniformBits),
         (Elements::XorXor64, &UniformBits),
         // ch
+        (Elements::Ch1, &UniformBits),
         (Elements::Ch8, &UniformBits),
         (Elements::Ch16, &UniformBits),
         (Elements::Ch32, &UniformBits),
         (Elements::Ch64, &UniformBits),
+        // left shift
+        (Elements::LeftShift8, &UniformBits),
+        (Elements::LeftShift16, &UniformBits),
+        (Elements::LeftShift32, &UniformBits),
+        (Elements::LeftShift64, &UniformBits),
+        (Elements::LeftShiftWith8, &UniformBits),
+        (Elements::LeftShiftWith16, &UniformBits),
+        (Elements::LeftShiftWith32, &UniformBits),
+        (Elements::LeftShiftWith64, &UniformBits),
+        // right shift
+        (Elements::RightShift8, &UniformBits),
+        (Elements::RightShift16, &UniformBits),
+        (Elements::RightShift32, &UniformBits),
+        (Elements::RightShift64, &UniformBits),
+        (Elements::RightShiftWith8, &UniformBits),
+        (Elements::RightShiftWith16, &UniformBits),
+        (Elements::RightShiftWith32, &UniformBits),
+        (Elements::RightShiftWith64, &UniformBits),
+        // full left shift
+        (Elements::FullLeftShift8_1, &UniformBits),
+        (Elements::FullLeftShift8_2, &UniformBits),
+        (Elements::FullLeftShift8_4, &UniformBits),
+        (Elements::FullLeftShift16_1, &UniformBits),
+        (Elements::FullLeftShift16_2, &UniformBits),
+        (Elements::FullLeftShift16_4, &UniformBits),
+        (Elements::FullLeftShift16_8, &UniformBits),
+        (Elements::FullLeftShift32_1, &UniformBits),
+        (Elements::FullLeftShift32_2, &UniformBits),
+        (Elements::FullLeftShift32_4, &UniformBits),
+        (Elements::FullLeftShift32_8, &UniformBits),
+        (Elements::FullLeftShift32_16, &UniformBits),
+        (Elements::FullLeftShift64_1, &UniformBits),
+        (Elements::FullLeftShift64_2, &UniformBits),
+        (Elements::FullLeftShift64_4, &UniformBits),
+        (Elements::FullLeftShift64_8, &UniformBits),
+        (Elements::FullLeftShift64_16, &UniformBits),
+        (Elements::FullLeftShift64_32, &UniformBits),
+        // full right shift
+        (Elements::FullRightShift8_1, &UniformBits),
+        (Elements::FullRightShift8_2, &UniformBits),
+        (Elements::FullRightShift8_4, &UniformBits),
+        (Elements::FullRightShift16_1, &UniformBits),
+        (Elements::FullRightShift16_2, &UniformBits),
+        (Elements::FullRightShift16_4, &UniformBits),
+        (Elements::FullRightShift16_8, &UniformBits),
+        (Elements::FullRightShift32_1, &UniformBits),
+        (Elements::FullRightShift32_2, &UniformBits),
+        (Elements::FullRightShift32_4, &UniformBits),
+        (Elements::FullRightShift32_8, &UniformBits),
+        (Elements::FullRightShift32_16, &UniformBits),
+        (Elements::FullRightShift64_1, &UniformBits),
+        (Elements::FullRightShift64_2, &UniformBits),
+        (Elements::FullRightShift64_4, &UniformBits),
+        (Elements::FullRightShift64_8, &UniformBits),
+        (Elements::FullRightShift64_16, &UniformBits),
+        (Elements::FullRightShift64_32, &UniformBits),
+        // left rotate
+        (Elements::LeftRotate8, &UniformBits),
+        (Elements::LeftRotate16, &UniformBits),
+        (Elements::LeftRotate32, &UniformBits),
+        (Elements::LeftRotate64, &UniformBits),
+        // right rotate
+        (Elements::RightRotate8, &UniformBits),
+        (Elements::RightRotate16, &UniformBits),
+        (Elements::RightRotate32, &UniformBits),
+        (Elements::RightRotate64, &UniformBits),
+        // left extend
+        (Elements::LeftExtend1_8, &UniformBits),
+        (Elements::LeftExtend1_16, &UniformBits),
+        (Elements::LeftExtend1_32, &UniformBits),
+        (Elements::LeftExtend1_64, &UniformBits),
+        (Elements::LeftExtend8_16, &UniformBits),
+        (Elements::LeftExtend8_32, &UniformBits),
+        (Elements::LeftExtend8_64, &UniformBits),
+        (Elements::LeftExtend16_32, &UniformBits),
+        (Elements::LeftExtend16_64, &UniformBits),
+        (Elements::LeftExtend32_64, &UniformBits),
+        // right extend
+        // no right-extend for 1-bit values
+        (Elements::RightExtend8_16, &UniformBits),
+        (Elements::RightExtend8_32, &UniformBits),
+        (Elements::RightExtend8_64, &UniformBits),
+        (Elements::RightExtend16_32, &UniformBits),
+        (Elements::RightExtend16_64, &UniformBits),
+        (Elements::RightExtend32_64, &UniformBits),
+        // left pad
+        (Elements::LeftPadLow1_8, &UniformBits),
+        (Elements::LeftPadLow1_16, &UniformBits),
+        (Elements::LeftPadLow1_32, &UniformBits),
+        (Elements::LeftPadLow1_64, &UniformBits),
+        (Elements::LeftPadLow8_16, &UniformBits),
+        (Elements::LeftPadLow8_32, &UniformBits),
+        (Elements::LeftPadLow8_64, &UniformBits),
+        (Elements::LeftPadLow16_32, &UniformBits),
+        (Elements::LeftPadLow16_64, &UniformBits),
+        (Elements::LeftPadLow32_64, &UniformBits),
+        (Elements::LeftPadHigh1_8, &UniformBits),
+        (Elements::LeftPadHigh1_16, &UniformBits),
+        (Elements::LeftPadHigh1_32, &UniformBits),
+        (Elements::LeftPadHigh1_64, &UniformBits),
+        (Elements::LeftPadHigh8_16, &UniformBits),
+        (Elements::LeftPadHigh8_32, &UniformBits),
+        (Elements::LeftPadHigh8_64, &UniformBits),
+        (Elements::LeftPadHigh16_32, &UniformBits),
+        (Elements::LeftPadHigh16_64, &UniformBits),
+        (Elements::LeftPadHigh32_64, &UniformBits),
+        // right pad
+        (Elements::RightPadLow1_8, &UniformBits),
+        (Elements::RightPadLow1_16, &UniformBits),
+        (Elements::RightPadLow1_32, &UniformBits),
+        (Elements::RightPadLow1_64, &UniformBits),
+        (Elements::RightPadLow8_16, &UniformBits),
+        (Elements::RightPadLow8_32, &UniformBits),
+        (Elements::RightPadLow8_64, &UniformBits),
+        (Elements::RightPadLow16_32, &UniformBits),
+        (Elements::RightPadLow16_64, &UniformBits),
+        (Elements::RightPadLow32_64, &UniformBits),
+        (Elements::RightPadHigh1_8, &UniformBits),
+        (Elements::RightPadHigh1_16, &UniformBits),
+        (Elements::RightPadHigh1_32, &UniformBits),
+        (Elements::RightPadHigh1_64, &UniformBits),
+        (Elements::RightPadHigh8_16, &UniformBits),
+        (Elements::RightPadHigh8_32, &UniformBits),
+        (Elements::RightPadHigh8_64, &UniformBits),
+        (Elements::RightPadHigh16_32, &UniformBits),
+        (Elements::RightPadHigh16_64, &UniformBits),
+        (Elements::RightPadHigh32_64, &UniformBits),
+        // leftmost
+        (Elements::Leftmost8_1, &UniformBits),
+        (Elements::Leftmost8_2, &UniformBits),
+        (Elements::Leftmost8_4, &UniformBits),
+        (Elements::Leftmost16_1, &UniformBits),
+        (Elements::Leftmost16_2, &UniformBits),
+        (Elements::Leftmost16_4, &UniformBits),
+        (Elements::Leftmost16_8, &UniformBits),
+        (Elements::Leftmost32_1, &UniformBits),
+        (Elements::Leftmost32_2, &UniformBits),
+        (Elements::Leftmost32_4, &UniformBits),
+        (Elements::Leftmost32_8, &UniformBits),
+        (Elements::Leftmost32_16, &UniformBits),
+        (Elements::Leftmost64_1, &UniformBits),
+        (Elements::Leftmost64_2, &UniformBits),
+        (Elements::Leftmost64_4, &UniformBits),
+        (Elements::Leftmost64_8, &UniformBits),
+        (Elements::Leftmost64_16, &UniformBits),
+        (Elements::Leftmost64_32, &UniformBits),
+        // rightmost
+        (Elements::Rightmost8_1, &UniformBits),
+        (Elements::Rightmost8_2, &UniformBits),
+        (Elements::Rightmost8_4, &UniformBits),
+        (Elements::Rightmost16_1, &UniformBits),
+        (Elements::Rightmost16_2, &UniformBits),
+        (Elements::Rightmost16_4, &UniformBits),
+        (Elements::Rightmost16_8, &UniformBits),
+        (Elements::Rightmost32_1, &UniformBits),
+        (Elements::Rightmost32_2, &UniformBits),
+        (Elements::Rightmost32_4, &UniformBits),
+        (Elements::Rightmost32_8, &UniformBits),
+        (Elements::Rightmost32_16, &UniformBits),
+        (Elements::Rightmost64_1, &UniformBits),
+        (Elements::Rightmost64_2, &UniformBits),
+        (Elements::Rightmost64_4, &UniformBits),
+        (Elements::Rightmost64_8, &UniformBits),
+        (Elements::Rightmost64_16, &UniformBits),
+        (Elements::Rightmost64_32, &UniformBits),
         // some
+        (Elements::Some1, &UniformBits),
         (Elements::Some8, &UniformBits),
         (Elements::Some16, &UniformBits),
         (Elements::Some32, &UniformBits),
@@ -219,11 +400,12 @@ fn bench(c: &mut Criterion) {
         (Elements::All32, &UniformBits),
         (Elements::All64, &UniformBits),
         // one
-        (Elements::One8, &UniformBits),
-        (Elements::One16, &UniformBits),
-        (Elements::One32, &UniformBits),
-        (Elements::One64, &UniformBits),
+        (Elements::One8, &input::Unit),
+        (Elements::One16, &input::Unit),
+        (Elements::One32, &input::Unit),
+        (Elements::One64, &input::Unit),
         // eq
+        (Elements::Eq1, &EqProduct(UniformBits)),
         (Elements::Eq8, &EqProduct(UniformBits)),
         (Elements::Eq16, &EqProduct(UniformBits)),
         (Elements::Eq32, &EqProduct(UniformBits)),
@@ -255,6 +437,11 @@ fn bench(c: &mut Criterion) {
         (Elements::Subtract16, &EqProduct(UniformBits)),
         (Elements::Subtract32, &EqProduct(UniformBits)),
         (Elements::Subtract64, &EqProduct(UniformBits)),
+        // full subtract
+        (Elements::FullSubtract8, &PrefixBit(EqProduct(UniformBits))),
+        (Elements::FullSubtract16, &PrefixBit(EqProduct(UniformBits))),
+        (Elements::FullSubtract32, &PrefixBit(EqProduct(UniformBits))),
+        (Elements::FullSubtract64, &PrefixBit(EqProduct(UniformBits))),
         // negate
         (Elements::Negate8, &UniformBits),
         (Elements::Negate16, &UniformBits),
@@ -265,6 +452,11 @@ fn bench(c: &mut Criterion) {
         (Elements::FullDecrement16, &PrefixBit(UniformBits)),
         (Elements::FullDecrement32, &PrefixBit(UniformBits)),
         (Elements::FullDecrement64, &PrefixBit(UniformBits)),
+        // decrement
+        (Elements::Decrement8, &UniformBits),
+        (Elements::Decrement16, &UniformBits),
+        (Elements::Decrement32, &UniformBits),
+        (Elements::Decrement64, &UniformBits),
         // multiply
         (Elements::Multiply8, &EqProduct(UniformBits)),
         (Elements::Multiply16, &EqProduct(UniformBits)),
@@ -315,6 +507,7 @@ fn bench(c: &mut Criterion) {
         (Elements::DivMod16, &EqProduct(UniformBits)),
         (Elements::DivMod32, &EqProduct(UniformBits)),
         (Elements::DivMod64, &EqProduct(UniformBits)),
+        (Elements::DivMod128_64, &GenericProduct(UniformBitsExact::<128>, UniformBitsExact::<64>)),
         // divide
         (Elements::Divide8, &EqProduct(UniformBits)),
         (Elements::Divide16, &EqProduct(UniformBits)),
@@ -332,6 +525,7 @@ fn bench(c: &mut Criterion) {
         (Elements::Divides64, &EqProduct(UniformBits)),
 
         // Hashes
+        (Elements::HashToCurve, &UniformBits),
         (Elements::Sha256Iv, &input::Unit),
         (Elements::Sha256Block, &UniformBits),
         (Elements::Sha256Ctx8Init, &input::Unit),
@@ -347,6 +541,7 @@ fn bench(c: &mut Criterion) {
         (Elements::Sha256Ctx8Add512, &GenericProduct(Sha256Ctx, UniformBits)),
         (Elements::Sha256Ctx8AddBuffer511, &GenericProduct(Sha256Ctx, UniformBits)),
         (Elements::Sha256Ctx8Finalize, &Sha256Ctx),
+        (Elements::Swu, &UniformBits),
         // Jets for secp FE
         (Elements::FeNormalize, &input::Fe),
         (Elements::FeNegate, &input::Fe),
@@ -381,6 +576,8 @@ fn bench(c: &mut Criterion) {
         (Elements::GejGeAddEx, &GenericProduct(input::Gej, input::Ge)),
         (Elements::GejGeAdd, &GenericProduct(input::Gej, input::Ge)),
         (Elements::GejIsInfinity, &input::Gej), 
+        (Elements::GejEquiv, &GenericProduct(input::Gej, input::Gej)),
+        (Elements::GejGeEquiv, &GenericProduct(input::Gej, input::Ge)),
         (Elements::GejXEquiv, &GenericProduct(input::Fe, input::Gej)),
         (Elements::GejYIsOdd, &input::Gej), 
         (Elements::GejIsOnCurve, &input::Gej), 
@@ -401,8 +598,12 @@ fn bench(c: &mut Criterion) {
         (Elements::ParseSequence, &PrefixBit(UniformBits)), // top bit treated specially
     ];
     for (jet, sample) in arr {
+        count += 1;
         simplicity_bench::check_all_jets::record(jet);
-        println!("For {} we have {} distributions", jet, sample.n_distributions());
+        println!(
+            "[{:3}/{:3}] For {} we have {} distributions",
+            count, simplicity_bench::check_all_jets::N_TOTAL, jet, sample.n_distributions(),
+        );
 
         let (src_ty, tgt_ty) = jet_arrow(jet);
 
@@ -462,6 +663,7 @@ fn bench(c: &mut Criterion) {
         //
         // ------------------------------------
         // Jets with no environment required. But no custom sampling
+        (Elements::LbtcAsset, ElementsBenchEnvType::None),
         (Elements::BuildTapleafSimplicity, ElementsBenchEnvType::None),
         (Elements::BuildTapbranch, ElementsBenchEnvType::None),
         // ------------------------------------
@@ -491,6 +693,7 @@ fn bench(c: &mut Criterion) {
         (Elements::NumInputs, ElementsBenchEnvType::Random),
         (Elements::NumOutputs, ElementsBenchEnvType::Random),
         (Elements::LockTime, ElementsBenchEnvType::Random),
+        (Elements::TransactionId, ElementsBenchEnvType::Random),
         (Elements::TotalFee, ElementsBenchEnvType::AllFeeOutputs),
         // // -----------------------------------------
         // Current Input
@@ -644,6 +847,7 @@ fn bench(c: &mut Criterion) {
         (Elements::OutputAsset, Index::Output, ElementsBenchEnvType::Random),
         (Elements::OutputAmount, Index::Output, ElementsBenchEnvType::Random),
         (Elements::OutputNonce, Index::Output, ElementsBenchEnvType::Random),
+        (Elements::OutputHash, Index::Output, ElementsBenchEnvType::Random),
         (Elements::OutputScriptHash, Index::Output, ElementsBenchEnvType::Random),
         (Elements::OutputNullDatum, Index::Output, ElementsBenchEnvType::Random), // I Don't know what this is, and how to test this, presumably related to how pegouts work
         (Elements::OutputSurjectionProof, Index::Output, ElementsBenchEnvType::Random),
@@ -654,8 +858,10 @@ fn bench(c: &mut Criterion) {
         (Elements::InputPrevOutpoint, Index::Input, ElementsBenchEnvType::Random),
         (Elements::InputAsset, Index::Input, ElementsBenchEnvType::Random),
         (Elements::InputAmount, Index::Input, ElementsBenchEnvType::Random),
+        (Elements::InputHash, Index::Input, ElementsBenchEnvType::Random),
         (Elements::InputScriptHash, Index::Input, ElementsBenchEnvType::Random),
         (Elements::InputSequence, Index::Input, ElementsBenchEnvType::Random),
+        (Elements::InputUtxoHash, Index::Input, ElementsBenchEnvType::Random),
         (Elements::InputAnnexHash, Index::InputIdx0, ElementsBenchEnvType::Annex),
         (Elements::InputScriptSigHash, Index::Input, ElementsBenchEnvType::Random),
         (Elements::ReissuanceBlinding, Index::InputIdx0, ElementsBenchEnvType::Issuance),
@@ -665,6 +871,7 @@ fn bench(c: &mut Criterion) {
         (Elements::IssuanceTokenAmount, Index::InputIdx0, ElementsBenchEnvType::Issuance),
         (Elements::IssuanceAssetProof, Index::InputIdx0, ElementsBenchEnvType::Issuance),
         (Elements::IssuanceTokenProof, Index::InputIdx0, ElementsBenchEnvType::Issuance),
+        (Elements::IssuanceHash, Index::InputIdx0, ElementsBenchEnvType::Issuance),
         (Elements::Tappath, Index::MarkleBranchIndex, ElementsBenchEnvType::Random),
     ];
 
