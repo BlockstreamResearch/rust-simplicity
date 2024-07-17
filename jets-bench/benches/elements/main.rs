@@ -3,16 +3,17 @@ use std::sync::Arc;
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use elements::confidential;
 use rand::rngs::ThreadRng;
-use rand::{thread_rng, RngCore};
-use simplicity::hashes::{sha256, Hash, HashEngine};
+use simplicity::elements;
 use simplicity::jet::elements::ElementsEnv;
 use simplicity::jet::{Elements, Jet};
 use simplicity::types;
 use simplicity::Value;
-use simplicity::{bitcoin, elements};
+use simplicity_bench::input::{
+    self, EqProduct, GenericProduct, InputSample, PrefixBit, Sha256Ctx, UniformBits,
+};
 use simplicity_bench::{
     genesis_pegin, BenchSample, EnvSampling, InputSampling, JetBuffer, JetParams, SimplicityCtx8,
-    SimplicityEncode, SimplicityFe, SimplicityGe, SimplicityGej, SimplicityPoint, SimplicityScalar,
+    SimplicityEncode,
 };
 
 const NUM_RANDOM_SAMPLES: usize = 100;
@@ -151,412 +152,249 @@ fn bench(c: &mut Criterion) {
 
     let mut rng = ThreadRng::default();
 
-    fn eq_256() -> Arc<Value> {
-        let v  = rand::random::<[u8; 32]>();
-        Value::prod(Value::u256_from_slice(&v), Value::u256_from_slice(&v))
-    }
-
-    fn value_64_bytes() -> Arc<Value> {
-        let (a, b) = (rand::random::<[u8; 32]>(), rand::random::<[u8; 32]>());
-        Value::prod(Value::u256_from_slice(&a), Value::u256_from_slice(&b))
-    }
-
-    fn value_128_bytes() -> Arc<Value> {
-        Value::prod(value_64_bytes(), value_64_bytes())
-    }
-
-    fn value_256_bytes() -> Arc<Value> {
-        Value::prod(value_128_bytes(), value_128_bytes())
-    }
-
-    fn value_512_bytes() -> Arc<Value> {
-        Value::prod(value_256_bytes(), value_256_bytes())
-    }
-
-    fn ctx8_add_n(n: usize) -> Arc<Value> {
-        let v = match n {
-            1 => Value::u8(rand::random::<u8>()),
-            2 => Value::u16(rand::random::<u16>()),
-            4 => Value::u32(rand::random::<u32>()),
-            8 => Value::u64(rand::random::<u64>()),
-            16 => {
-                let (a, b) = (rand::random::<u64>(), rand::random::<u64>());
-                Value::prod(Value::u64(a), Value::u64(b))
-            }
-            32 => {
-                let v = rand::random::<[u8; 32]>();
-                Value::u256_from_slice(&v)
-            }
-            64 => value_64_bytes(),
-            128 => value_128_bytes(),
-            256 => value_256_bytes(),
-            512 => value_512_bytes(),
-            511 => {
-                // Worst case when all bytes are present for ctx8 < 512
-                let mut v = [0u8; 511];
-                thread_rng().fill_bytes(&mut v);
-                simplicity_bench::var_len_buf_from_slice(&v, 8).unwrap()
-            }
-            _ => unreachable!(),
-        };
-        let ctx8 = SimplicityCtx8::with_len(511).value();
-        Value::prod(ctx8, v)
-    }
-
-    fn sequence() -> Arc<Value> {
-        let v = rand::random::<u32>();
-        // set the first bit to zero
-        Value::u32(v & !(1 << 31))
-    }
-
-    fn fe_pair() -> Arc<Value> {
-        let (a, b) = (SimplicityFe::sample().value(), SimplicityFe::sample().value());
-        Value::prod(a, b)
-    }
-
-    fn scalar_pair() -> Arc<Value> {
-        let (a, b) = (SimplicityScalar::sample().value(), SimplicityScalar::sample().value());
-        Value::prod(a, b)
-    }
-
-    fn gej_fe_pair() -> Arc<Value> {
-        let (a, b) = (SimplicityGej::sample().value(), SimplicityFe::sample().value());
-        Value::prod(a, b)
-    }
-
-    fn fe_gej_pair() -> Arc<Value> {
-        let (a, b) = (SimplicityFe::sample().value(), SimplicityGej::sample().value());
-        Value::prod(a, b)
-    }
-
-    fn gej_pair() -> Arc<Value> {
-        let (a, b) = (SimplicityGej::sample().value(), SimplicityGej::sample().value());
-        Value::prod(a, b)
-    }
-
-    fn gej_ge_pair() -> Arc<Value> {
-        let (a, b) = (SimplicityGej::sample().value(), SimplicityGe::sample().value());
-        Value::prod(a, b)
-    }
-
-    fn scalar_gej_pair() -> Arc<Value> {
-        let (a, b) = (SimplicityScalar::sample().value(), SimplicityGej::sample().value());
-        Value::prod(a, b)
-    }
-
-    fn scalar_gej_scalar_pair() -> Arc<Value> {
-        let (a, b, c) = (
-            SimplicityScalar::sample().value(),
-            SimplicityGej::sample().value(),
-            SimplicityScalar::sample().value(),
-        );
-        Value::prod(Value::prod(a, b), c)
-    }
-
-    fn linear_verify() -> Arc<Value> {
-        let (a, b, c, d) = (
-            SimplicityScalar::sample().value(),
-            SimplicityGe::sample().value(),
-            SimplicityScalar::sample().value(),
-            SimplicityGe::sample().value(),
-        );
-        Value::prod(Value::prod(Value::prod(a, b), c), d)
-    }
-
-    fn point_verify() -> Arc<Value> {
-        let (a, b, c, d) = (
-            SimplicityScalar::sample().value(),
-            SimplicityPoint::sample().value(),
-            SimplicityScalar::sample().value(),
-            SimplicityPoint::sample().value(),
-        );
-        Value::prod(Value::prod(Value::prod(a, b), c), d)
-    }
-
-    fn bip_0340() -> Arc<Value> {
-        let secp_ctx = bitcoin::secp256k1::Secp256k1::new();
-        let keypair = bitcoin::key::Keypair::new(&secp_ctx, &mut thread_rng());
-        let xpk = bitcoin::key::XOnlyPublicKey::from_keypair(&keypair);
-
-        let msg = bitcoin::secp256k1::Message::from_digest_slice(&rand::random::<[u8; 32]>()).unwrap();
-        let sig = secp_ctx.sign_schnorr(&msg, &keypair);
-        let xpk_value = Value::u256_from_slice(&xpk.0.serialize());
-        let sig_value = Value::u512_from_slice(sig.as_ref());
-        let msg_value = Value::u256_from_slice(&msg[..]);
-        assert!(secp_ctx.verify_schnorr(&sig, &msg, &xpk.0).is_ok());
-        Value::prod(Value::prod(xpk_value, msg_value), sig_value)
-    }
-
-    fn tagged_hash(tag: &[u8], msg_block: [u8; 64]) -> sha256::Hash {
-        let tag_hash = sha256::Hash::hash(tag);
-        let block = [tag_hash.to_byte_array(), tag_hash.to_byte_array()].concat();
-        let mut engine = sha256::Hash::engine();
-        engine.input(&block);
-        engine.input(&msg_block);
-
-        sha256::Hash::from_engine(engine)
-    }
-
-    fn check_sig_verify() -> Arc<Value> {
-        let secp_ctx = bitcoin::secp256k1::Secp256k1::signing_only();
-        let keypair = bitcoin::key::Keypair::new(&secp_ctx, &mut thread_rng());
-        let xpk = bitcoin::key::XOnlyPublicKey::from_keypair(&keypair);
-
-        let msg = [0xab; 64];
-        let hashed_msg = tagged_hash(b"Simplicity-Draft\x1fSignature", msg);
-        let hashed_msg = bitcoin::secp256k1::Message::from(hashed_msg);
-        let sig = secp_ctx.sign_schnorr(&hashed_msg, &keypair);
-        let xpk_value = Value::u256_from_slice(&xpk.0.serialize());
-        let sig_value = Value::u512_from_slice(sig.as_ref());
-        let msg_value = Value::u512_from_slice(&msg[..]);
-        Value::prod(Value::prod(xpk_value, msg_value), sig_value)
-    }
-
-    // Worst case for eq should be when all bytes are the same
-    let arr = [
+    let arr: [(Elements, &dyn InputSample); 191] = [
         // Bit logics
-        (Elements::Verify, InputSampling::Random),
+        (Elements::Verify, &UniformBits),
         // low
-        (Elements::Low8, InputSampling::Random),
-        (Elements::Low16, InputSampling::Random),
-        (Elements::Low32, InputSampling::Random),
-        (Elements::Low64, InputSampling::Random),
+        (Elements::Low8, &input::Unit),
+        (Elements::Low16, &input::Unit),
+        (Elements::Low32, &input::Unit),
+        (Elements::Low64, &input::Unit),
         // high
-        (Elements::High8, InputSampling::Random),
-        (Elements::High16, InputSampling::Random),
-        (Elements::High32, InputSampling::Random),
-        (Elements::High64, InputSampling::Random),
+        (Elements::High8, &input::Unit),
+        (Elements::High16, &input::Unit),
+        (Elements::High32, &input::Unit),
+        (Elements::High64, &input::Unit),
         // complement
-        (Elements::Complement8, InputSampling::Random),
-        (Elements::Complement16, InputSampling::Random),
-        (Elements::Complement32, InputSampling::Random),
-        (Elements::Complement64, InputSampling::Random),
+        (Elements::Complement8, &UniformBits),
+        (Elements::Complement16, &UniformBits),
+        (Elements::Complement32, &UniformBits),
+        (Elements::Complement64, &UniformBits),
         // and
-        (Elements::And8, InputSampling::Random),
-        (Elements::And16, InputSampling::Random),
-        (Elements::And32, InputSampling::Random),
-        (Elements::And64, InputSampling::Random),
+        (Elements::And8, &EqProduct(UniformBits)),
+        (Elements::And16, &EqProduct(UniformBits)),
+        (Elements::And32, &EqProduct(UniformBits)),
+        (Elements::And64, &EqProduct(UniformBits)),
         // or
-        (Elements::Or8, InputSampling::Random),
-        (Elements::Or16, InputSampling::Random),
-        (Elements::Or32, InputSampling::Random),
-        (Elements::Or64, InputSampling::Random),
+        (Elements::Or8, &EqProduct(UniformBits)),
+        (Elements::Or16, &EqProduct(UniformBits)),
+        (Elements::Or32, &EqProduct(UniformBits)),
+        (Elements::Or64, &EqProduct(UniformBits)),
         // xor
-        (Elements::Xor8, InputSampling::Random),
-        (Elements::Xor16, InputSampling::Random),
-        (Elements::Xor32, InputSampling::Random),
-        (Elements::Xor64, InputSampling::Random),
+        (Elements::Xor8, &EqProduct(UniformBits)),
+        (Elements::Xor16, &EqProduct(UniformBits)),
+        (Elements::Xor32, &EqProduct(UniformBits)),
+        (Elements::Xor64, &EqProduct(UniformBits)),
         // maj
-        (Elements::Maj8, InputSampling::Random),
-        (Elements::Maj16, InputSampling::Random),
-        (Elements::Maj32, InputSampling::Random),
-        (Elements::Maj64, InputSampling::Random),
+        (Elements::Maj8, &UniformBits),
+        (Elements::Maj16, &UniformBits),
+        (Elements::Maj32, &UniformBits),
+        (Elements::Maj64, &UniformBits),
         // xor xor
-        (Elements::XorXor8, InputSampling::Random),
-        (Elements::XorXor16, InputSampling::Random),
-        (Elements::XorXor32, InputSampling::Random),
-        (Elements::XorXor64, InputSampling::Random),
+        (Elements::XorXor8, &UniformBits),
+        (Elements::XorXor16, &UniformBits),
+        (Elements::XorXor32, &UniformBits),
+        (Elements::XorXor64, &UniformBits),
         // ch
-        (Elements::Ch8, InputSampling::Random),
-        (Elements::Ch16, InputSampling::Random),
-        (Elements::Ch32, InputSampling::Random),
-        (Elements::Ch64, InputSampling::Random),
+        (Elements::Ch8, &UniformBits),
+        (Elements::Ch16, &UniformBits),
+        (Elements::Ch32, &UniformBits),
+        (Elements::Ch64, &UniformBits),
         // some
-        (Elements::Some8, InputSampling::Random),
-        (Elements::Some16, InputSampling::Random),
-        (Elements::Some32, InputSampling::Random),
-        (Elements::Some64, InputSampling::Random),
+        (Elements::Some8, &UniformBits),
+        (Elements::Some16, &UniformBits),
+        (Elements::Some32, &UniformBits),
+        (Elements::Some64, &UniformBits),
         // all
-        (Elements::All8, InputSampling::Random),
-        (Elements::All16, InputSampling::Random),
-        (Elements::All32, InputSampling::Random),
-        (Elements::All64, InputSampling::Random),
+        (Elements::All8, &UniformBits),
+        (Elements::All16, &UniformBits),
+        (Elements::All32, &UniformBits),
+        (Elements::All64, &UniformBits),
         // one
-        (Elements::One8, InputSampling::Random),
-        (Elements::One16, InputSampling::Random),
-        (Elements::One32, InputSampling::Random),
-        (Elements::One64, InputSampling::Random),
-        // eq, just sample random values. It is possible
-        // that worst case is possible when both
-        // numbers are same. This is small cost jet
-        // and we don't care as much here. Also, likely for
-        // x86_64, upto eq64 it would be one instruction.
-        // we do test eq_256 separately.
-        (Elements::Eq8, InputSampling::Random),
-        (Elements::Eq16, InputSampling::Random),
-        (Elements::Eq32, InputSampling::Random),
-        (Elements::Eq64, InputSampling::Random),
-        (Elements::Eq256, InputSampling::Custom(Arc::new(eq_256))),
+        (Elements::One8, &UniformBits),
+        (Elements::One16, &UniformBits),
+        (Elements::One32, &UniformBits),
+        (Elements::One64, &UniformBits),
+        // eq
+        (Elements::Eq8, &EqProduct(UniformBits)),
+        (Elements::Eq16, &EqProduct(UniformBits)),
+        (Elements::Eq32, &EqProduct(UniformBits)),
+        (Elements::Eq64, &EqProduct(UniformBits)),
+        (Elements::Eq256, &EqProduct(UniformBits)),
         // Arithmetic
         // add
-        (Elements::Add8, InputSampling::Random),
-        (Elements::Add16, InputSampling::Random),
-        (Elements::Add32, InputSampling::Random),
-        (Elements::Add64, InputSampling::Random),
+        (Elements::Add8, &EqProduct(UniformBits)),
+        (Elements::Add16, &EqProduct(UniformBits)),
+        (Elements::Add32, &EqProduct(UniformBits)),
+        (Elements::Add64, &EqProduct(UniformBits)),
         // full add
-        (Elements::FullAdd8, InputSampling::Random),
-        (Elements::FullAdd16, InputSampling::Random),
-        (Elements::FullAdd32, InputSampling::Random),
-        (Elements::FullAdd64, InputSampling::Random),
+        (Elements::FullAdd8, &PrefixBit(EqProduct(UniformBits))),
+        (Elements::FullAdd16, &PrefixBit(EqProduct(UniformBits))),
+        (Elements::FullAdd32, &PrefixBit(EqProduct(UniformBits))),
+        (Elements::FullAdd64, &PrefixBit(EqProduct(UniformBits))),
         // full increment
-        (Elements::FullIncrement8, InputSampling::Random),
-        (Elements::FullIncrement16, InputSampling::Random),
-        (Elements::FullIncrement32, InputSampling::Random),
-        (Elements::FullIncrement64, InputSampling::Random),
+        (Elements::FullIncrement8, &PrefixBit(UniformBits)),
+        (Elements::FullIncrement16, &PrefixBit(UniformBits)),
+        (Elements::FullIncrement32, &PrefixBit(UniformBits)),
+        (Elements::FullIncrement64, &PrefixBit(UniformBits)),
         // increment
-        (Elements::Increment8, InputSampling::Random),
-        (Elements::Increment16, InputSampling::Random),
-        (Elements::Increment32, InputSampling::Random),
-        (Elements::Increment64, InputSampling::Random),
+        (Elements::Increment8, &UniformBits),
+        (Elements::Increment16, &UniformBits),
+        (Elements::Increment32, &UniformBits),
+        (Elements::Increment64, &UniformBits),
         // subtract
-        (Elements::Subtract8, InputSampling::Random),
-        (Elements::Subtract16, InputSampling::Random),
-        (Elements::Subtract32, InputSampling::Random),
-        (Elements::Subtract64, InputSampling::Random),
+        (Elements::Subtract8, &EqProduct(UniformBits)),
+        (Elements::Subtract16, &EqProduct(UniformBits)),
+        (Elements::Subtract32, &EqProduct(UniformBits)),
+        (Elements::Subtract64, &EqProduct(UniformBits)),
         // negate
-        (Elements::Negate8, InputSampling::Random),
-        (Elements::Negate16, InputSampling::Random),
-        (Elements::Negate32, InputSampling::Random),
-        (Elements::Negate64, InputSampling::Random),
+        (Elements::Negate8, &UniformBits),
+        (Elements::Negate16, &UniformBits),
+        (Elements::Negate32, &UniformBits),
+        (Elements::Negate64, &UniformBits),
         // full decrement
-        (Elements::FullDecrement8, InputSampling::Random),
-        (Elements::FullDecrement16, InputSampling::Random),
-        (Elements::FullDecrement32, InputSampling::Random),
-        (Elements::FullDecrement64, InputSampling::Random),
+        (Elements::FullDecrement8, &PrefixBit(UniformBits)),
+        (Elements::FullDecrement16, &PrefixBit(UniformBits)),
+        (Elements::FullDecrement32, &PrefixBit(UniformBits)),
+        (Elements::FullDecrement64, &PrefixBit(UniformBits)),
         // multiply
-        (Elements::Multiply8, InputSampling::Random),
-        (Elements::Multiply16, InputSampling::Random),
-        (Elements::Multiply32, InputSampling::Random),
-        (Elements::Multiply64, InputSampling::Random),
+        (Elements::Multiply8, &EqProduct(UniformBits)),
+        (Elements::Multiply16, &EqProduct(UniformBits)),
+        (Elements::Multiply32, &EqProduct(UniformBits)),
+        (Elements::Multiply64, &EqProduct(UniformBits)),
         // full multiply
-        (Elements::FullMultiply8, InputSampling::Random),
-        (Elements::FullMultiply16, InputSampling::Random),
-        (Elements::FullMultiply32, InputSampling::Random),
-        (Elements::FullMultiply64, InputSampling::Random),
+        (Elements::FullMultiply8, &EqProduct(UniformBits)),
+        (Elements::FullMultiply16, &EqProduct(UniformBits)),
+        (Elements::FullMultiply32, &EqProduct(UniformBits)),
+        (Elements::FullMultiply64, &EqProduct(UniformBits)),
         // is zero
-        (Elements::IsZero8, InputSampling::Random),
-        (Elements::IsZero16, InputSampling::Random),
-        (Elements::IsZero32, InputSampling::Random),
-        (Elements::IsZero64, InputSampling::Random),
+        (Elements::IsZero8, &UniformBits),
+        (Elements::IsZero16, &UniformBits),
+        (Elements::IsZero32, &UniformBits),
+        (Elements::IsZero64, &UniformBits),
         // is one
-        (Elements::IsOne8, InputSampling::Random),
-        (Elements::IsOne16, InputSampling::Random),
-        (Elements::IsOne32, InputSampling::Random),
-        (Elements::IsOne64, InputSampling::Random),
+        (Elements::IsOne8, &UniformBits),
+        (Elements::IsOne16, &UniformBits),
+        (Elements::IsOne32, &UniformBits),
+        (Elements::IsOne64, &UniformBits),
         // le
-        (Elements::Le8, InputSampling::Random),
-        (Elements::Le16, InputSampling::Random),
-        (Elements::Le32, InputSampling::Random),
-        (Elements::Le64, InputSampling::Random),
+        (Elements::Le8, &EqProduct(UniformBits)),
+        (Elements::Le16, &EqProduct(UniformBits)),
+        (Elements::Le32, &EqProduct(UniformBits)),
+        (Elements::Le64, &EqProduct(UniformBits)),
         // lt
-        (Elements::Lt8, InputSampling::Random),
-        (Elements::Lt16, InputSampling::Random),
-        (Elements::Lt32, InputSampling::Random),
-        (Elements::Lt64, InputSampling::Random),
+        (Elements::Lt8, &EqProduct(UniformBits)),
+        (Elements::Lt16, &EqProduct(UniformBits)),
+        (Elements::Lt32, &EqProduct(UniformBits)),
+        (Elements::Lt64, &EqProduct(UniformBits)),
         // min
-        (Elements::Min8, InputSampling::Random),
-        (Elements::Min16, InputSampling::Random),
-        (Elements::Min32, InputSampling::Random),
-        (Elements::Min64, InputSampling::Random),
+        (Elements::Min8, &EqProduct(UniformBits)),
+        (Elements::Min16, &EqProduct(UniformBits)),
+        (Elements::Min32, &EqProduct(UniformBits)),
+        (Elements::Min64, &EqProduct(UniformBits)),
         // max
-        (Elements::Max8, InputSampling::Random),
-        (Elements::Max16, InputSampling::Random),
-        (Elements::Max32, InputSampling::Random),
-        (Elements::Max64, InputSampling::Random),
+        (Elements::Max8, &EqProduct(UniformBits)),
+        (Elements::Max16, &EqProduct(UniformBits)),
+        (Elements::Max32, &EqProduct(UniformBits)),
+        (Elements::Max64, &EqProduct(UniformBits)),
         // median
-        (Elements::Median8, InputSampling::Random),
-        (Elements::Median16, InputSampling::Random),
-        (Elements::Median32, InputSampling::Random),
-        (Elements::Median64, InputSampling::Random),
+        (Elements::Median8, &UniformBits),
+        (Elements::Median16, &UniformBits),
+        (Elements::Median32, &UniformBits),
+        (Elements::Median64, &UniformBits),
         // div mod
-        (Elements::DivMod8, InputSampling::Random),
-        (Elements::DivMod16, InputSampling::Random),
-        (Elements::DivMod32, InputSampling::Random),
-        (Elements::DivMod64, InputSampling::Random),
+        (Elements::DivMod8, &EqProduct(UniformBits)),
+        (Elements::DivMod16, &EqProduct(UniformBits)),
+        (Elements::DivMod32, &EqProduct(UniformBits)),
+        (Elements::DivMod64, &EqProduct(UniformBits)),
         // divide
-        (Elements::Divide8, InputSampling::Random),
-        (Elements::Divide16, InputSampling::Random),
-        (Elements::Divide32, InputSampling::Random),
-        (Elements::Divide64, InputSampling::Random),
+        (Elements::Divide8, &EqProduct(UniformBits)),
+        (Elements::Divide16, &EqProduct(UniformBits)),
+        (Elements::Divide32, &EqProduct(UniformBits)),
+        (Elements::Divide64, &EqProduct(UniformBits)),
         // modulo
-        (Elements::Modulo8, InputSampling::Random),
-        (Elements::Modulo16, InputSampling::Random),
-        (Elements::Modulo32, InputSampling::Random),
-        (Elements::Modulo64, InputSampling::Random),
+        (Elements::Modulo8, &EqProduct(UniformBits)),
+        (Elements::Modulo16, &EqProduct(UniformBits)),
+        (Elements::Modulo32, &EqProduct(UniformBits)),
+        (Elements::Modulo64, &EqProduct(UniformBits)),
         // divides
-        (Elements::Divides8, InputSampling::Random),
-        (Elements::Divides16, InputSampling::Random),
-        (Elements::Divides32, InputSampling::Random),
-        (Elements::Divides64, InputSampling::Random),
+        (Elements::Divides8, &EqProduct(UniformBits)),
+        (Elements::Divides16, &EqProduct(UniformBits)),
+        (Elements::Divides32, &EqProduct(UniformBits)),
+        (Elements::Divides64, &EqProduct(UniformBits)),
 
         // Hashes
-        (Elements::Sha256Iv, InputSampling::Random),
-        (Elements::Sha256Block, InputSampling::Random),
-        (Elements::Sha256Ctx8Init, InputSampling::Random),
-        (Elements::Sha256Ctx8Add1, InputSampling::Custom(Arc::new(|| ctx8_add_n(1)))),
-        (Elements::Sha256Ctx8Add2, InputSampling::Custom(Arc::new(|| ctx8_add_n(2)))),
-        (Elements::Sha256Ctx8Add4, InputSampling::Custom(Arc::new(|| ctx8_add_n(4)))),
-        (Elements::Sha256Ctx8Add8, InputSampling::Custom(Arc::new(|| ctx8_add_n(8)))),
-        (Elements::Sha256Ctx8Add16, InputSampling::Custom(Arc::new(|| ctx8_add_n(16)))),
-        (Elements::Sha256Ctx8Add32, InputSampling::Custom(Arc::new(|| ctx8_add_n(32)))),
-        (Elements::Sha256Ctx8Add64, InputSampling::Custom(Arc::new(|| ctx8_add_n(64)))),
-        (Elements::Sha256Ctx8Add128, InputSampling::Custom(Arc::new(|| ctx8_add_n(128)))),
-        (Elements::Sha256Ctx8Add256, InputSampling::Custom(Arc::new(|| ctx8_add_n(256)))),
-        (Elements::Sha256Ctx8Add512, InputSampling::Custom(Arc::new(|| ctx8_add_n(512)))),
-        (Elements::Sha256Ctx8AddBuffer511, InputSampling::Custom(Arc::new(|| ctx8_add_n(511)))),
-        (Elements::Sha256Ctx8Finalize, InputSampling::Custom(Arc::new(|| SimplicityCtx8::with_len(511).value()))),
+        (Elements::Sha256Iv, &input::Unit),
+        (Elements::Sha256Block, &UniformBits),
+        (Elements::Sha256Ctx8Init, &input::Unit),
+        (Elements::Sha256Ctx8Add1, &GenericProduct(Sha256Ctx, UniformBits)),
+        (Elements::Sha256Ctx8Add2, &GenericProduct(Sha256Ctx, UniformBits)),
+        (Elements::Sha256Ctx8Add4, &GenericProduct(Sha256Ctx, UniformBits)),
+        (Elements::Sha256Ctx8Add8, &GenericProduct(Sha256Ctx, UniformBits)),
+        (Elements::Sha256Ctx8Add16, &GenericProduct(Sha256Ctx, UniformBits)),
+        (Elements::Sha256Ctx8Add32, &GenericProduct(Sha256Ctx, UniformBits)),
+        (Elements::Sha256Ctx8Add64, &GenericProduct(Sha256Ctx, UniformBits)),
+        (Elements::Sha256Ctx8Add128, &GenericProduct(Sha256Ctx, UniformBits)),
+        (Elements::Sha256Ctx8Add256, &GenericProduct(Sha256Ctx, UniformBits)),
+        (Elements::Sha256Ctx8Add512, &GenericProduct(Sha256Ctx, UniformBits)),
+        (Elements::Sha256Ctx8AddBuffer511, &GenericProduct(Sha256Ctx, UniformBits)),
+        (Elements::Sha256Ctx8Finalize, &Sha256Ctx),
         // Jets for secp FE
-        (Elements::FeNormalize, InputSampling::Custom(Arc::new(|| SimplicityFe::sample().value()))),
-        (Elements::FeNegate, InputSampling::Custom(Arc::new(|| SimplicityFe::sample().value()))),
-        (Elements::FeAdd, InputSampling::Custom(Arc::new(fe_pair))),
-        (Elements::FeSquare, InputSampling::Custom(Arc::new(|| SimplicityFe::sample().value()))),
-        (Elements::FeMultiply, InputSampling::Custom(Arc::new(fe_pair))),
-        (Elements::FeMultiplyBeta, InputSampling::Custom(Arc::new(|| SimplicityFe::sample().value()))),
-        (Elements::FeInvert, InputSampling::Custom(Arc::new(|| SimplicityFe::sample().value()))),
-        (Elements::FeSquareRoot, InputSampling::Custom(Arc::new(|| SimplicityFe::sample().value()))), // FIXME: Make this a perfect square
-        (Elements::FeIsZero, InputSampling::Custom(Arc::new(|| SimplicityFe::zero().value()))),
-        (Elements::FeIsOdd, InputSampling::Custom(Arc::new(|| SimplicityFe::sample().value()))),
+        (Elements::FeNormalize, &input::Fe),
+        (Elements::FeNegate, &input::Fe),
+        (Elements::FeAdd, &EqProduct(input::Fe)),
+        (Elements::FeSquare, &input::Fe),
+        (Elements::FeMultiply, &EqProduct(input::Fe)),
+        (Elements::FeMultiplyBeta, &input::Fe),
+        (Elements::FeInvert, &input::Fe),
+        (Elements::FeSquareRoot, &input::Fe),
+        (Elements::FeIsZero, &input::Fe),
+        (Elements::FeIsOdd, &input::Fe),
         // Jets for secp scalars
-        (Elements::ScalarNormalize, InputSampling::Custom(Arc::new(|| SimplicityScalar::sample().value()))),
-        (Elements::ScalarNegate, InputSampling::Custom(Arc::new(|| SimplicityScalar::sample().value()))),
-        (Elements::ScalarAdd, InputSampling::Custom(Arc::new(scalar_pair))),
-        (Elements::ScalarSquare, InputSampling::Custom(Arc::new(|| SimplicityScalar::sample().value()))),
-        (Elements::ScalarMultiply, InputSampling::Custom(Arc::new(scalar_pair))),
-        (Elements::ScalarMultiplyLambda, InputSampling::Custom(Arc::new(|| SimplicityScalar::sample().value()))),
-        (Elements::ScalarInvert, InputSampling::Custom(Arc::new(|| SimplicityScalar::sample().value()))),
-        (Elements::ScalarIsZero, InputSampling::Custom(Arc::new(|| SimplicityScalar([0u8; 32]).value()))),
+        (Elements::ScalarNormalize, &input::Scalar),
+        (Elements::ScalarNegate, &input::Scalar),
+        (Elements::ScalarAdd, &EqProduct(input::Scalar)),
+        (Elements::ScalarSquare, &input::Scalar),
+        (Elements::ScalarMultiply, &EqProduct(input::Scalar)),
+        (Elements::ScalarMultiplyLambda, &input::Scalar),
+        (Elements::ScalarInvert, &input::Scalar),
+        (Elements::ScalarIsZero, &input::Scalar),
         // Jets for secp gej points
-        (Elements::GejInfinity, InputSampling::Random),
-        (Elements::GejRescale, InputSampling::Custom(Arc::new(gej_fe_pair))),
-        (Elements::GejNormalize, InputSampling::Custom(Arc::new(|| SimplicityGej::sample().value()))),
-        (Elements::GejNegate, InputSampling::Custom(Arc::new(|| SimplicityGej::sample().value()))),
-        (Elements::GeNegate, InputSampling::Custom(Arc::new(|| SimplicityGe::sample().value()))),
-        (Elements::GejDouble, InputSampling::Custom(Arc::new(|| SimplicityGej::sample().value()))),
-        (Elements::GejAdd, InputSampling::Custom(Arc::new(gej_pair))),
-        (Elements::GejGeAddEx, InputSampling::Custom(Arc::new(gej_ge_pair))),
-        (Elements::GejGeAdd, InputSampling::Custom(Arc::new(gej_ge_pair))),
-        (Elements::GejIsInfinity, InputSampling::Custom(Arc::new(|| SimplicityGej{ ge: SimplicityGe::sample(), z: SimplicityFe::zero() }.value()))),
-        (Elements::GejXEquiv, InputSampling::Custom(Arc::new(fe_gej_pair))),
-        (Elements::GejYIsOdd, InputSampling::Custom(Arc::new(|| SimplicityGej::sample().value()))),
-        (Elements::GejIsOnCurve, InputSampling::Custom(Arc::new(|| SimplicityGej::sample().value()))),
+        // FIXME we should have specific samplers for GEJ pairs and GEJ-GE pairs
+        // which relate the points in algebraic ways (being negatives, multiples
+        // of lambda away from each other)
+        (Elements::GejInfinity, &input::Unit),
+        (Elements::GejRescale, &GenericProduct(input::Gej, input::Fe)),
+        (Elements::GejNormalize, &input::Gej), 
+        (Elements::GejNegate, &input::Gej), 
+        (Elements::GeNegate, &input::Ge),
+        (Elements::GejDouble, &input::Gej), 
+        (Elements::GejAdd, &EqProduct(input::Gej)),
+        (Elements::GejGeAddEx, &GenericProduct(input::Gej, input::Ge)),
+        (Elements::GejGeAdd, &GenericProduct(input::Gej, input::Ge)),
+        (Elements::GejIsInfinity, &input::Gej), 
+        (Elements::GejXEquiv, &GenericProduct(input::Fe, input::Gej)),
+        (Elements::GejYIsOdd, &input::Gej), 
+        (Elements::GejIsOnCurve, &input::Gej), 
         // Other jets
-        (Elements::GeIsOnCurve, InputSampling::Custom(Arc::new(|| SimplicityGe::sample().value()))),
-        (Elements::Scale, InputSampling::Custom(Arc::new(scalar_gej_pair))),
-        (Elements::Generate, InputSampling::Custom(Arc::new(|| SimplicityScalar::sample().value()))),
-        (Elements::LinearCombination1, InputSampling::Custom(Arc::new(scalar_gej_scalar_pair))),
-        (Elements::LinearVerify1, InputSampling::Custom(Arc::new(linear_verify))),
-        (Elements::Decompress, InputSampling::Custom(Arc::new(|| SimplicityPoint::sample().value()))),
-        (Elements::PointVerify1, InputSampling::Custom(Arc::new(point_verify))),
+        (Elements::GeIsOnCurve, &input::Ge),
+        (Elements::Scale, &GenericProduct(input::Scalar, input::Gej)),
+        (Elements::Generate, &input::Scalar),
+        (Elements::LinearCombination1, &GenericProduct(GenericProduct(input::Scalar, input::Gej), input::Scalar)),
+        (Elements::LinearVerify1, &GenericProduct(GenericProduct(GenericProduct(input::Scalar, input::Ge), input::Scalar), input::Ge)),
+        (Elements::Decompress, &input::Point),
+        (Elements::PointVerify1, &GenericProduct(GenericProduct(GenericProduct(input::Scalar, input::Point), input::Scalar), input::Point)),
         // Signature jets
-        (Elements::CheckSigVerify, InputSampling::Custom(Arc::new(check_sig_verify))),
-        (Elements::Bip0340Verify, InputSampling::Custom(Arc::new(bip_0340))),
+        (Elements::CheckSigVerify, &input::CheckSigSignature),
+        (Elements::Bip0340Verify, &input::Bip340Signature),
 
         // Timelock parsing jets
-        (Elements::ParseLock, InputSampling::Random), // all values take same time
-        (Elements::ParseSequence, InputSampling::Custom(Arc::new(sequence))),
+        (Elements::ParseLock, &UniformBits), // all values take same time
+        (Elements::ParseSequence, &PrefixBit(UniformBits)), // top bit treated specially
     ];
     for (jet, sample) in arr {
         simplicity_bench::check_all_jets::record(jet);
+        println!("For {} we have {} distributions", jet, sample.n_distributions());
 
         let (src_ty, tgt_ty) = jet_arrow(jet);
 
@@ -565,10 +403,10 @@ fn bench(c: &mut Criterion) {
         if is_heavy_jet(jet) {
             group.measurement_time(std::time::Duration::from_secs(5));
         };
-        for i in 0..NUM_RANDOM_SAMPLES {
-            let params = JetParams::with_rand_aligns(sample.clone());
+        for dist in 0..sample.n_distributions() {
+            let params = JetParams::for_sample(dist, sample);
             // Assumption: `buffer.write` is non-negligible
-            let bench_name = format!("{}", i);
+            let bench_name = sample.distribution_name(dist);
             group.bench_with_input(bench_name, &params,|b, params| {
                 b.iter_batched(
                     || {

@@ -4,7 +4,7 @@ mod buffer;
 pub mod check_all_jets;
 mod data_structures;
 mod env;
-mod input;
+pub mod input;
 mod params;
 
 pub use crate::buffer::JetBuffer;
@@ -13,5 +13,5 @@ pub use crate::data_structures::{
     SimplicityFe, SimplicityGe, SimplicityGej, SimplicityPoint, SimplicityScalar,
 };
 pub use crate::env::EnvSampling;
-pub use crate::input::InputSampling;
+pub use crate::input::{FlatValue, InputSampling};
 pub use crate::params::JetParams;
