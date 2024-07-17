@@ -1,4 +1,3 @@
-use std::mem::size_of;
 
 use crate::input::InputSampling;
 
@@ -23,8 +22,8 @@ impl JetParams {
 
     pub fn with_rand_aligns(input: InputSampling) -> Self {
         Self {
-            src_align: rand::random::<usize>() % (8 * size_of::<usize>()), // Assuming 8*sizeof(usize) < 2^16
-            tgt_align: rand::random::<usize>() % (8 * size_of::<usize>()),
+            src_align: rand::random::<usize>() % usize::BITS as usize, // Assuming usize::BITS < 2^16
+            tgt_align: rand::random::<usize>() % usize::BITS as usize,
             input,
         }
     }
