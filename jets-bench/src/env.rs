@@ -1,54 +1,137 @@
 use elements::locktime::LockTime;
 use elements::taproot::ControlBlock;
 use elements::{BlockHash, Transaction};
-use simplicity::elements;
 use simplicity::hashes::Hash;
 use simplicity::jet::elements::{ElementsEnv, ElementsUtxo};
 use simplicity::Cmr;
+use simplicity::{bitcoin, elements};
 use std::sync::Arc;
 
-pub enum EnvSampling {
+pub struct EnvSampling {
+    /// Number of inputs in the transaction
+    n_in: usize,
+    /// Number of outputs in the transaction
+    n_out: usize,
+    /// The annex to put into the first input of the transaction, if any.
+    annex: Option<Vec<u8>>,
+    /// Type of the environment
+    ty: EnvSamplingType,
+}
+
+enum EnvSamplingType {
     /// Null Elements environment (it is not being used)
     Null,
     /// An Elements environment with issuance. The zeroth input is the issuance
     /// input, other inputs are combination of explicit and confidential inputs.
-    Issuance(usize, usize),
+    Issuance,
     /// An Elements environment with pegin. The zeroth input is the pegin input,
     /// other inputs are combination of explicit and confidential inputs.
-    Pegin(usize, usize),
+    Pegin,
     /// An Elements environment with a confidential transaction spend
     /// The zeroth input is the confidential transaction spend input, other
     /// inputs are combination of explicit and confidential inputs.
-    ConfidentialTxSpend(usize, usize),
+    ConfidentialTxSpend,
     /// An Elements environment with explicit tx spend.
     /// The zeroth input is the explicit transaction spend input, other
     /// inputs are combination of explicit and confidential inputs.
-    ExplicitTxSpend(usize, usize),
+    ExplicitTxSpend,
 }
 
 impl EnvSampling {
-    /// Obtain a random environment without any annex
-    pub fn env(&self) -> ElementsEnv<Arc<Transaction>> {
-        self.env_with_annex(None)
+    /// Private constructor
+    fn from_sampling_ty(ty: EnvSamplingType) -> Self {
+        EnvSampling {
+            n_in: 0,
+            n_out: 0,
+            annex: None,
+            ty,
+        }
     }
 
-    /// Obtains a env with annex
-    pub fn env_with_annex(&self, annex: Option<Vec<u8>>) -> ElementsEnv<Arc<Transaction>> {
-        let ((txin, spent_utxo), n_in, n_out) = match self {
-            EnvSampling::Null => return null_env(),
-            EnvSampling::Issuance(n_in, n_out) => (txin_utils::issuance(), n_in, n_out),
-            EnvSampling::Pegin(n_in, n_out) => (txin_utils::pegin(), n_in, n_out),
-            EnvSampling::ConfidentialTxSpend(n_in, n_out) => {
-                (txin_utils::confidential(), n_in, n_out)
-            }
-            EnvSampling::ExplicitTxSpend(n_in, n_out) => (txin_utils::explicit(), n_in, n_out),
+    /// Null Elements environment (it is not being used)
+    pub fn null() -> Self {
+        Self::from_sampling_ty(EnvSamplingType::Null)
+    }
+
+    /// An Elements environment with issuance. The zeroth input is the issuance
+    /// input, other inputs are combination of explicit and confidential inputs.
+    pub fn issuance() -> Self {
+        Self::from_sampling_ty(EnvSamplingType::Issuance)
+    }
+
+    /// An Elements environment with pegin. The zeroth input is the pegin input,
+    /// other inputs are combination of explicit and confidential inputs.
+    pub fn pegin() -> Self {
+        Self::from_sampling_ty(EnvSamplingType::Pegin)
+    }
+
+    /// An Elements environment with a confidential transaction spend
+    /// The zeroth input is the confidential transaction spend input, other
+    /// inputs are combination of explicit and confidential inputs.
+    pub fn confidential_tx_spend() -> Self {
+        Self::from_sampling_ty(EnvSamplingType::ConfidentialTxSpend)
+    }
+
+    /// An Elements environment with explicit tx spend.
+    /// The zeroth input is the explicit transaction spend input, other
+    /// inputs are combination of explicit and confidential inputs.
+    pub fn explicit_tx_spend() -> Self {
+        Self::from_sampling_ty(EnvSamplingType::ExplicitTxSpend)
+    }
+
+    /// A randomized Elements environment with no inputs or outputs (call
+    /// [`Self::n_inputs`] and [`Self::n_outputs`] to add inputs and outputs.
+    pub fn random(seed: usize) -> Self {
+        let mut base = match seed % 4 {
+            0 => Self::confidential_tx_spend(),
+            1 => Self::explicit_tx_spend(),
+            2 => Self::pegin(),
+            3 => Self::issuance(),
+            _ => unreachable!(),
+        };
+        if seed & 8 == 0 {
+            // The actual annex gets hashed, so its length and contents don't matter.
+            base = base.annex_data(&[0xde, 0xad, 0xbe, 0xef]);
+        }
+        base
+    }
+
+    /// Attach a number of inputs to the environment
+    pub fn n_inputs(self, n_in: usize) -> Self {
+        EnvSampling { n_in, ..self }
+    }
+
+    /// Attach a number of inputs to the environment
+    pub fn n_outputs(self, n_out: usize) -> Self {
+        EnvSampling { n_out, ..self }
+    }
+
+    /// Attach an annex to the environment
+    pub fn annex_data(self, data: &[u8]) -> Self {
+        let mut annex = Vec::with_capacity(data.len() + 1);
+        // same annex prefix in bitcoin and elements
+        annex.push(bitcoin::taproot::TAPROOT_ANNEX_PREFIX);
+        annex.extend(data.iter().copied());
+        EnvSampling {
+            annex: Some(annex),
+            ..self
+        }
+    }
+
+    /// Obtain a random environment from the sampler.
+    pub fn env(&self) -> ElementsEnv<Arc<Transaction>> {
+        let (txin, spent_utxo) = match self.ty {
+            EnvSamplingType::Null => return null_env(),
+            EnvSamplingType::Issuance => txin_utils::issuance(),
+            EnvSamplingType::Pegin => txin_utils::pegin(),
+            EnvSamplingType::ConfidentialTxSpend => txin_utils::confidential(),
+            EnvSamplingType::ExplicitTxSpend => txin_utils::explicit(),
         };
         // Add the first input
-        let n_in = n_in.checked_sub(1).expect("Atleast one input");
         let mut tx_ins = vec![txin];
         let mut utxos = vec![spent_utxo];
         // Add the remaining inputs
-        for _ in 0..n_in {
+        for _ in 0..self.n_in.checked_sub(1).expect("Atleast one input") {
             let (txin, spent_utxo) = if rand::random() {
                 txin_utils::confidential()
             } else {
@@ -58,8 +141,8 @@ impl EnvSampling {
             utxos.push(spent_utxo);
         }
         // Add the outputs
-        let mut tx_outs = Vec::with_capacity(*n_out);
-        for _ in 0..*n_out {
+        let mut tx_outs = Vec::with_capacity(self.n_out);
+        for _ in 0..self.n_out {
             let txout = if rand::random() {
                 txout_utils::confidential()
             } else {
@@ -73,7 +156,7 @@ impl EnvSampling {
             input: tx_ins,
             output: tx_outs,
         };
-        env_with_spent_utxos(tx, utxos, annex)
+        env_with_spent_utxos(tx, utxos, self.annex.clone())
     }
 }
 

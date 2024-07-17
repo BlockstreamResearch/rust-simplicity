@@ -49,35 +49,19 @@ enum ElementsBenchEnvType {
 
 impl ElementsBenchEnvType {
     fn env(&self) -> ElementsEnv<Arc<elements::Transaction>> {
-        let n_in = NUM_TX_INPUTS;
-        let n_out = NUM_TX_OUTPUTS;
         let env_sampler = match self {
-            ElementsBenchEnvType::None => EnvSampling::Null,
+            ElementsBenchEnvType::None => EnvSampling::null(),
             ElementsBenchEnvType::Random | ElementsBenchEnvType::Annex => {
                 let selector = rand::random::<usize>() % 4;
-                // Randomly select amongst the 4 environments
-                match selector {
-                    0 => EnvSampling::ConfidentialTxSpend(n_in, n_out),
-                    1 => EnvSampling::ExplicitTxSpend(n_in, n_out),
-                    2 => EnvSampling::Pegin(n_in, n_out),
-                    3 => EnvSampling::Issuance(n_in, n_out),
-                    _ => unreachable!(),
-                }
+                EnvSampling::random(selector)
             }
-            ElementsBenchEnvType::Issuance => EnvSampling::Issuance(n_in, n_out),
-            ElementsBenchEnvType::Pegin => EnvSampling::Pegin(n_in, n_out),
+            ElementsBenchEnvType::Issuance => EnvSampling::issuance(),
+            ElementsBenchEnvType::Pegin => EnvSampling::pegin(),
         };
-        if let ElementsBenchEnvType::Annex = self {
-            // Random 64 len annex. The actual annex len does not matter because it
-            // is hashed
-            let mut annex = rand::random::<[u8; 32]>();
-            // same annex prefix in bitcoin and elements
-            annex[0] = bitcoin::taproot::TAPROOT_ANNEX_PREFIX;
-            let annex = elements::sighash::Annex::new(&annex).unwrap();
-            env_sampler.env_with_annex(Some(annex.as_bytes().to_vec()))
-        } else {
-            env_sampler.env()
-        }
+        env_sampler
+            .n_inputs(NUM_TX_INPUTS)
+            .n_outputs(NUM_TX_OUTPUTS)
+            .env()
     }
 }
 
@@ -577,7 +561,7 @@ fn bench(c: &mut Criterion) {
         let (src_ty, tgt_ty) = jet_arrow(jet);
 
         let mut group = c.benchmark_group(jet.to_string());
-        let env = EnvSampling::Null.env();
+        let env = EnvSampling::null().env();
         if is_heavy_jet(jet) {
             group.measurement_time(std::time::Duration::from_secs(5));
         };
@@ -755,7 +739,7 @@ fn bench(c: &mut Criterion) {
         simplicity_bench::check_all_jets::record(jet);
 
         let (src_ty, tgt_ty) = jet_arrow(jet);
-        let env = EnvSampling::Null.env();
+        let env = EnvSampling::null().env();
 
         let mut group = c.benchmark_group(jet.to_string());
         for i in 0..NUM_RANDOM_SAMPLES {
