@@ -80,7 +80,7 @@ pub trait Jet:
     fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Self, decode::Error>;
 
     /// Obtains a C FFI compatible environment for the jet.
-    fn c_jet_env<'env>(&self, env: &'env Self::Environment) -> &'env Self::CJetEnvironment;
+    fn c_jet_env(env: &Self::Environment) -> &Self::CJetEnvironment;
 
     /// Obtain the FFI C pointer for the jet.
     fn c_jet_ptr(&self) -> &dyn Fn(&mut CFrameItem, CFrameItem, &Self::CJetEnvironment) -> bool;

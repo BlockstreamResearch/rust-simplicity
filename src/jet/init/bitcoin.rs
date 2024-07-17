@@ -421,7 +421,7 @@ impl Jet for Bitcoin {
     type Environment = BitcoinEnv;
     type CJetEnvironment = ();
 
-    fn c_jet_env<'env>(&self, _env: &'env Self::Environment) -> &'env Self::CJetEnvironment {
+    fn c_jet_env(_env: &Self::Environment) -> &Self::CJetEnvironment {
         unimplemented!("Unspecified CJetEnvironment for Bitcoin jets")
     }
 

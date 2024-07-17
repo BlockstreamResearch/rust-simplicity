@@ -15,13 +15,21 @@
 #include "sha256.h"
 #include "schnorr0.h"
 #include "schnorr6.h"
+#include "regression4.h"
+#include "typeSkipTest.h"
 #include "simplicity_alloc.h"
 #include "typeInference.h"
 #include "primitive/elements/checkSigHashAllTx1.h"
 
 _Static_assert(CHAR_BIT == 8, "Buffers passed to fmemopen presume 8 bit chars");
 
-static const double secondsPerWU = 0.5 / 1000. / 1000.;
+/* Bitcoin's (old-school) sigop limit is 80,000.  Ecdsa signature verification takes approximately 50 microseconds,
+ * meaning a block for of sigops would take 4 seconds to verify.
+ * Post-taproot, there is a block size limit of 4,000,000 WU.
+ * To verify the worst case block full of simplicity programs, in the same 4 second limit
+ * we need to limit Simplicity programs so they take no more than 1 microsecond per WU to run.
+ */
+static const double secondsPerWU = 1 / 1000. / 1000.;
 static int successes = 0;
 static int failures = 0;
 
@@ -568,6 +576,24 @@ static void regression_tests(void) {
     }
     simplicity_free(regression3);
   }
+  {
+    clock_t start, end;
+    double diff, bound;
+    start = clock();
+    test_program("regression4", regression4, sizeof_regression4, NULL, 0, SIMPLICITY_NO_ERROR, NULL, NULL, NULL, NULL);
+    end = clock();
+    diff = (double)(end - start) / CLOCKS_PER_SEC;
+    bound = (double)(sizeof_regression4) * secondsPerWU;
+    printf("cpu_time_used by regression4: %f s.  (Should be less than %f s.)\n", diff, bound);
+    if (timing_flag) {
+      if (diff <= bound) {
+        successes++;
+      } else {
+        failures++;
+        printf("regression4 took too long.\n");
+      }
+    }
+  }
 }
 
 static void iden8mebi_test(void) {
@@ -606,6 +632,22 @@ int main(int argc, char **argv) {
     if (0 == opt_result) continue;
     exit(EXIT_FAILURE);
   }
+  if (sha256_compression_is_optimized()) {
+    printf("Sha optimization enabled.\n");
+    if (timing_flag) {
+      printf("Timings are checked.\n");
+    } else {
+      printf("Timings not checked.\n");
+    }
+  } else {
+    printf("Sha optimization disabled.\n");
+    if (timing_flag) {
+      printf("Timings cannot be checked.\n");
+    } else {
+      printf("Timings not checked.\n");
+    }
+    timing_flag = 0;
+  }
   test_decodeUptoMaxInt();
   test_hashBlock();
   test_occursCheck();
@@ -625,6 +667,7 @@ int main(int argc, char **argv) {
   }
   test_program("schnorr0", schnorr0, sizeof_schnorr0, schnorr0_witness, sizeof_schnorr0_witness, SIMPLICITY_NO_ERROR, schnorr0_cmr, schnorr0_imr, schnorr0_amr, &schnorr0_cost);
   test_program("schnorr6", schnorr6, sizeof_schnorr6, schnorr6_witness, sizeof_schnorr6_witness, SIMPLICITY_ERR_EXEC_JET, schnorr6_cmr, schnorr6_imr, schnorr6_amr, &schnorr0_cost);
+  test_program("typeSkipTest", typeSkipTest, sizeof_typeSkipTest, typeSkipTest_witness, sizeof_typeSkipTest_witness, SIMPLICITY_NO_ERROR, NULL, NULL, NULL, NULL);
   test_elements();
   regression_tests();
   iden8mebi_test();
