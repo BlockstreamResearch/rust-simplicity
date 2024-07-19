@@ -615,18 +615,20 @@ fn bench(c: &mut Criterion) {
         for dist in 0..sample.n_distributions() {
             let params = JetParams::for_sample(dist, sample);
             // Assumption: `buffer.write` is non-negligible
-            let bench_name = sample.distribution_name(dist);
-            group.bench_with_input(bench_name, &params,|b, params| {
-                b.iter_batched(
-                    || {
-                        let mut buffer = JetBuffer::new(&src_ty, &tgt_ty, params);
-                        let (src, dst) = buffer.write(&src_ty, params, &mut rng);
-                        (dst, src, &env, buffer)
-                    },
-                    |(mut dst, src, env, _buffer)| jet.c_jet_ptr()(&mut dst, src, env.c_tx_env()),
-                    BatchSize::SmallInput,
-                )
-            });
+            for i in 0..5 {
+                let bench_name = format!("{}_{}", sample.distribution_name(dist), i);
+                group.bench_with_input(bench_name, &params,|b, params| {
+                    b.iter_batched(
+                        || {
+                            let mut buffer = JetBuffer::new(&src_ty, &tgt_ty, params);
+                            let (src, dst) = buffer.write(&src_ty, params, &mut rng);
+                            (dst, src, &env, buffer)
+                        },
+                        |(mut dst, src, env, _buffer)| jet.c_jet_ptr()(&mut dst, src, env.c_tx_env()),
+                        BatchSize::SmallInput,
+                    )
+                });
+            }
         }
         group.finish();
     }
