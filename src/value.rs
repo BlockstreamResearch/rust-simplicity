@@ -179,39 +179,42 @@ impl Value {
         Value::product(Value::u64(w0), Value::u64(w1))
     }
 
-    /// Encode a 32-byte number as a value
-    ///
-    /// Useful for encoding public keys and hashes
-    pub fn u256_from_slice(v: &[u8]) -> Arc<Self> {
-        assert_eq!(32, v.len(), "Expect 32-byte slice");
-
-        Value::product(
-            Value::product(
-                Value::u64(u64::from_be_bytes(v[0..8].try_into().unwrap())),
-                Value::u64(u64::from_be_bytes(v[8..16].try_into().unwrap())),
-            ),
-            Value::product(
-                Value::u64(u64::from_be_bytes(v[16..24].try_into().unwrap())),
-                Value::u64(u64::from_be_bytes(v[24..32].try_into().unwrap())),
-            ),
-        )
+    /// Create a value from 32 bytes.
+    pub fn u256(bytes: &[u8; 32]) -> Arc<Self> {
+        Value::power_of_two(bytes)
     }
 
-    /// Encode a 64-byte number as a value
-    ///
-    /// Useful for encoding signatures
-    pub fn u512_from_slice(v: &[u8]) -> Arc<Self> {
-        assert_eq!(64, v.len(), "Expect 64-byte slice");
-
-        Value::product(
-            Value::u256_from_slice(&v[0..32]),
-            Value::u256_from_slice(&v[32..64]),
-        )
+    /// Create a value from 64 bytes.
+    pub fn u512(bytes: &[u8; 64]) -> Arc<Self> {
+        Value::power_of_two(bytes)
     }
 
-    /// Encode a byte slice as a value.
+    /// Create a value from a byte slice.
+    /// Create a value from a slice containing 32 bytes.
     ///
-    /// The length of the slice must be a power of two.
+    /// ## Panics
+    ///
+    /// The slice doesn't have exactly 32 bytes.
+    pub fn u256_from_slice(bytes: &[u8]) -> Arc<Self> {
+        let bytes: &[u8; 32] = bytes.try_into().expect("Expect 32-byte slice");
+        Value::u256(bytes)
+    }
+
+    /// Create a value from a slice containing 64 bytes.
+    ///
+    /// ## Panics
+    ///
+    /// The slice doesn't have exactly 64 bytes.
+    pub fn u512_from_slice(bytes: &[u8]) -> Arc<Self> {
+        let bytes: &[u8; 64] = bytes.try_into().expect("Expect 64-byte slice");
+        Value::u512(bytes)
+    }
+
+    /// Create a value from a byte slice.
+    ///
+    /// ## Panics
+    ///
+    /// The length of the slice is not a power of two.
     pub fn power_of_two(v: &[u8]) -> Arc<Self> {
         assert!(
             v.len().is_power_of_two(),
