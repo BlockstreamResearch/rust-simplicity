@@ -40,11 +40,11 @@ pub enum Value {
     /// Unit value
     Unit,
     /// Sum value that wraps a left value
-    SumL(Arc<Value>),
+    Left(Arc<Value>),
     /// Sum value that wraps a right value
-    SumR(Arc<Value>),
+    Right(Arc<Value>),
     /// Product value that wraps a left and a right value
-    Prod(Arc<Value>, Arc<Value>),
+    Product(Arc<Value>, Arc<Value>),
 }
 
 impl<'a> DagLike for &'a Value {
@@ -57,8 +57,8 @@ impl<'a> DagLike for &'a Value {
     fn as_dag_node(&self) -> Dag<Self> {
         match self {
             Value::Unit => Dag::Nullary,
-            Value::SumL(child) | Value::SumR(child) => Dag::Unary(child),
-            Value::Prod(left, right) => Dag::Binary(left, right),
+            Value::Left(child) | Value::Right(child) => Dag::Unary(child),
+            Value::Product(left, right) => Dag::Binary(left, right),
         }
     }
 }
@@ -71,23 +71,23 @@ impl Value {
 
     /// Create a sum value that wraps a left value.
     pub fn sum_l(left: Arc<Self>) -> Arc<Self> {
-        Arc::new(Value::SumL(left))
+        Arc::new(Value::Left(left))
     }
 
     /// Create a sum value that wraps a right value.
     pub fn sum_r(right: Arc<Self>) -> Arc<Self> {
-        Arc::new(Value::SumR(right))
+        Arc::new(Value::Right(right))
     }
 
     /// Create a product value that wraps a left and a right value.
     pub fn prod(left: Arc<Self>, right: Arc<Self>) -> Arc<Self> {
-        Arc::new(Value::Prod(left, right))
+        Arc::new(Value::Product(left, right))
     }
 
     /// The length, in bits, of the value when encoded in the Bit Machine
     pub fn len(&self) -> usize {
         self.pre_order_iter::<NoSharing>()
-            .filter(|inner| matches!(inner, Value::SumL(_) | Value::SumR(_)))
+            .filter(|inner| matches!(inner, Value::Left(_) | Value::Right(_)))
             .count()
     }
 
@@ -105,7 +105,7 @@ impl Value {
     /// Access the inner value of a left sum value.
     pub fn as_left(&self) -> Option<&Self> {
         match self {
-            Value::SumL(inner) => Some(inner.as_ref()),
+            Value::Left(inner) => Some(inner.as_ref()),
             _ => None,
         }
     }
@@ -113,7 +113,7 @@ impl Value {
     /// Access the inner value of a right sum value.
     pub fn as_right(&self) -> Option<&Self> {
         match self {
-            Value::SumR(inner) => Some(inner.as_ref()),
+            Value::Right(inner) => Some(inner.as_ref()),
             _ => None,
         }
     }
@@ -121,7 +121,7 @@ impl Value {
     /// Access the inner values of a product value.
     pub fn as_product(&self) -> Option<(&Self, &Self)> {
         match self {
-            Value::Prod(left, right) => Some((left.as_ref(), right.as_ref())),
+            Value::Product(left, right) => Some((left.as_ref(), right.as_ref())),
             _ => None,
         }
     }
@@ -247,9 +247,9 @@ impl Value {
         for val in self.pre_order_iter::<NoSharing>() {
             match val {
                 Value::Unit => {}
-                Value::SumL(..) => f(false),
-                Value::SumR(..) => f(true),
-                Value::Prod(..) => {}
+                Value::Left(..) => f(false),
+                Value::Right(..) => f(true),
+                Value::Product(..) => {}
             }
         }
     }
@@ -343,22 +343,22 @@ impl fmt::Display for Value {
             match data.node {
                 Value::Unit => {
                     if data.n_children_yielded == 0
-                        && !matches!(data.parent, Some(Value::SumL(_)) | Some(Value::SumR(_)))
+                        && !matches!(data.parent, Some(Value::Left(_)) | Some(Value::Right(_)))
                     {
                         f.write_str("ε")?;
                     }
                 }
-                Value::SumL(..) => {
+                Value::Left(..) => {
                     if data.n_children_yielded == 0 {
                         f.write_str("0")?;
                     }
                 }
-                Value::SumR(..) => {
+                Value::Right(..) => {
                     if data.n_children_yielded == 0 {
                         f.write_str("1")?;
                     }
                 }
-                Value::Prod(..) => match data.n_children_yielded {
+                Value::Product(..) => match data.n_children_yielded {
                     0 => f.write_str("(")?,
                     1 => f.write_str(",")?,
                     2 => f.write_str(")")?,
