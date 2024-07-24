@@ -9,7 +9,6 @@ use crate::dag::{Dag, DagLike, NoSharing};
 use crate::types::Final;
 
 use std::collections::VecDeque;
-use std::convert::TryInto;
 use std::fmt;
 use std::hash::Hash;
 use std::sync::Arc;
@@ -187,27 +186,6 @@ impl Value {
     /// Create a value from 64 bytes.
     pub fn u512(bytes: &[u8; 64]) -> Arc<Self> {
         Value::power_of_two(bytes)
-    }
-
-    /// Create a value from a byte slice.
-    /// Create a value from a slice containing 32 bytes.
-    ///
-    /// ## Panics
-    ///
-    /// The slice doesn't have exactly 32 bytes.
-    pub fn u256_from_slice(bytes: &[u8]) -> Arc<Self> {
-        let bytes: &[u8; 32] = bytes.try_into().expect("Expect 32-byte slice");
-        Value::u256(bytes)
-    }
-
-    /// Create a value from a slice containing 64 bytes.
-    ///
-    /// ## Panics
-    ///
-    /// The slice doesn't have exactly 64 bytes.
-    pub fn u512_from_slice(bytes: &[u8]) -> Arc<Self> {
-        let bytes: &[u8; 64] = bytes.try_into().expect("Expect 64-byte slice");
-        Value::u512(bytes)
     }
 
     /// Create a value from a byte slice.
