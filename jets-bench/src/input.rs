@@ -42,16 +42,16 @@ pub fn random_value(ty: &types::Final, rng: &mut ThreadRng) -> Arc<Value> {
             },
             StackItem::LeftSum => {
                 let left = value_stack.pop().unwrap();
-                value_stack.push(Value::sum_l(left));
+                value_stack.push(Value::left(left));
             }
             StackItem::RightSum => {
                 let right = value_stack.pop().unwrap();
-                value_stack.push(Value::sum_r(right));
+                value_stack.push(Value::right(right));
             }
             StackItem::Product => {
                 let right = value_stack.pop().unwrap();
                 let left = value_stack.pop().unwrap();
-                value_stack.push(Value::prod(left, right));
+                value_stack.push(Value::product(left, right));
             }
         }
     }

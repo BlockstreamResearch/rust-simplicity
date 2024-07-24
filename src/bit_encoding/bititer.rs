@@ -252,16 +252,16 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
                 },
                 State::DoSumL => {
                     let val = result_stack.pop().unwrap();
-                    result_stack.push(Value::sum_l(val));
+                    result_stack.push(Value::left(val));
                 }
                 State::DoSumR => {
                     let val = result_stack.pop().unwrap();
-                    result_stack.push(Value::sum_r(val));
+                    result_stack.push(Value::right(val));
                 }
                 State::DoProduct => {
                     let val_r = result_stack.pop().unwrap();
                     let val_l = result_stack.pop().unwrap();
-                    result_stack.push(Value::prod(val_l, val_r));
+                    result_stack.push(Value::product(val_l, val_r));
                 }
             }
         }

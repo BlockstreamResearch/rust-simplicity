@@ -70,17 +70,17 @@ impl Value {
     }
 
     /// Create a sum value that wraps a left value.
-    pub fn sum_l(left: Arc<Self>) -> Arc<Self> {
+    pub fn left(left: Arc<Self>) -> Arc<Self> {
         Arc::new(Value::Left(left))
     }
 
     /// Create a sum value that wraps a right value.
-    pub fn sum_r(right: Arc<Self>) -> Arc<Self> {
+    pub fn right(right: Arc<Self>) -> Arc<Self> {
         Arc::new(Value::Right(right))
     }
 
     /// Create a product value that wraps a left and a right value.
-    pub fn prod(left: Arc<Self>, right: Arc<Self>) -> Arc<Self> {
+    pub fn product(left: Arc<Self>, right: Arc<Self>) -> Arc<Self> {
         Arc::new(Value::Product(left, right))
     }
 
@@ -129,8 +129,8 @@ impl Value {
     /// Encode a single bit as a value. Will panic if the input is out of range
     pub fn u1(n: u8) -> Arc<Self> {
         match n {
-            0 => Value::sum_l(Value::unit()),
-            1 => Value::sum_r(Value::unit()),
+            0 => Value::left(Value::unit()),
+            1 => Value::right(Value::unit()),
             x => panic!("{} out of range for Value::u1", x),
         }
     }
@@ -140,7 +140,7 @@ impl Value {
         let b0 = (n & 2) / 2;
         let b1 = n & 1;
         assert!(n <= 3, "{} out of range for Value::u2", n);
-        Value::prod(Value::u1(b0), Value::u1(b1))
+        Value::product(Value::u1(b0), Value::u1(b1))
     }
 
     /// Encode a four-bit number as a value. Will panic if the input is out of range
@@ -148,42 +148,42 @@ impl Value {
         let w0 = (n & 12) / 4;
         let w1 = n & 3;
         assert!(n <= 15, "{} out of range for Value::u2", n);
-        Value::prod(Value::u2(w0), Value::u2(w1))
+        Value::product(Value::u2(w0), Value::u2(w1))
     }
 
     /// Encode an eight-bit number as a value
     pub fn u8(n: u8) -> Arc<Self> {
         let w0 = n >> 4;
         let w1 = n & 0xf;
-        Value::prod(Value::u4(w0), Value::u4(w1))
+        Value::product(Value::u4(w0), Value::u4(w1))
     }
 
     /// Encode a 16-bit number as a value
     pub fn u16(n: u16) -> Arc<Self> {
         let w0 = (n >> 8) as u8;
         let w1 = (n & 0xff) as u8;
-        Value::prod(Value::u8(w0), Value::u8(w1))
+        Value::product(Value::u8(w0), Value::u8(w1))
     }
 
     /// Encode a 32-bit number as a value
     pub fn u32(n: u32) -> Arc<Self> {
         let w0 = (n >> 16) as u16;
         let w1 = (n & 0xffff) as u16;
-        Value::prod(Value::u16(w0), Value::u16(w1))
+        Value::product(Value::u16(w0), Value::u16(w1))
     }
 
     /// Encode a 64-bit number as a value
     pub fn u64(n: u64) -> Arc<Self> {
         let w0 = (n >> 32) as u32;
         let w1 = (n & 0xffff_ffff) as u32;
-        Value::prod(Value::u32(w0), Value::u32(w1))
+        Value::product(Value::u32(w0), Value::u32(w1))
     }
 
     /// Encode a 128-bit number as a value
     pub fn u128(n: u128) -> Arc<Self> {
         let w0 = (n >> 64) as u64;
         let w1 = n as u64; // Cast safety: picking last 64 bits
-        Value::prod(Value::u64(w0), Value::u64(w1))
+        Value::product(Value::u64(w0), Value::u64(w1))
     }
 
     /// Encode a 32-byte number as a value
@@ -192,12 +192,12 @@ impl Value {
     pub fn u256_from_slice(v: &[u8]) -> Arc<Self> {
         assert_eq!(32, v.len(), "Expect 32-byte slice");
 
-        Value::prod(
-            Value::prod(
+        Value::product(
+            Value::product(
                 Value::u64(u64::from_be_bytes(v[0..8].try_into().unwrap())),
                 Value::u64(u64::from_be_bytes(v[8..16].try_into().unwrap())),
             ),
-            Value::prod(
+            Value::product(
                 Value::u64(u64::from_be_bytes(v[16..24].try_into().unwrap())),
                 Value::u64(u64::from_be_bytes(v[24..32].try_into().unwrap())),
             ),
@@ -210,7 +210,7 @@ impl Value {
     pub fn u512_from_slice(v: &[u8]) -> Arc<Self> {
         assert_eq!(64, v.len(), "Expect 64-byte slice");
 
-        Value::prod(
+        Value::product(
             Value::u256_from_slice(&v[0..32]),
             Value::u256_from_slice(&v[32..64]),
         )
@@ -230,7 +230,7 @@ impl Value {
             let mut alt_values = VecDeque::with_capacity(values.len() / 2);
 
             while let (Some(left), Some(right)) = (values.pop_front(), values.pop_front()) {
-                alt_values.push_back(Value::prod(left, right));
+                alt_values.push_back(Value::product(left, right));
             }
 
             values = alt_values;
@@ -388,11 +388,14 @@ mod tests {
     fn is_of_type() {
         let value_typename = [
             (Value::unit(), TypeName(b"1")),
-            (Value::sum_l(Value::unit()), TypeName(b"+11")),
-            (Value::sum_r(Value::unit()), TypeName(b"+11")),
-            (Value::sum_l(Value::unit()), TypeName(b"+1h")),
-            (Value::sum_r(Value::unit()), TypeName(b"+h1")),
-            (Value::prod(Value::unit(), Value::unit()), TypeName(b"*11")),
+            (Value::left(Value::unit()), TypeName(b"+11")),
+            (Value::right(Value::unit()), TypeName(b"+11")),
+            (Value::left(Value::unit()), TypeName(b"+1h")),
+            (Value::right(Value::unit()), TypeName(b"+h1")),
+            (
+                Value::product(Value::unit(), Value::unit()),
+                TypeName(b"*11"),
+            ),
             (Value::u8(u8::MAX), TypeName(b"c")),
             (Value::u64(u64::MAX), TypeName(b"l")),
         ];

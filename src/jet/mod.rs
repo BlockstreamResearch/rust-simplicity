@@ -111,7 +111,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             BitMachine::test_exec(two_words, &()).expect("executing"),
-            Value::prod(
+            Value::product(
                 Value::u1(0),       // carry bit
                 Value::u32(2 + 16), // result
             ),
@@ -128,7 +128,7 @@ mod tests {
         .unwrap();
         assert_eq!(
             BitMachine::test_exec(two_words, &()).expect("executing"),
-            Value::prod(Value::u32(2), Value::u16(16)),
+            Value::product(Value::u32(2), Value::u16(16)),
         );
     }
 }
