@@ -5,7 +5,7 @@
 
 use std::{collections::BTreeMap, str::FromStr};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
 pub struct MeasurementData {
@@ -47,6 +47,16 @@ pub struct ConfidenceInterval {
     pub upper_bound: f64,
 }
 
+#[derive(Clone, PartialEq, Serialize, Debug)]
+pub struct BenchResult {
+    best_name: String,
+    best_value: f64,
+    median_name: String,
+    median_value: f64,
+    worst_name: String,
+    worst_value: f64,
+}
+
 fn main() -> Result<(), String> {
     // Simplicity root is the grand-parent directory of this file
     let mut bench_results = BTreeMap::new();
@@ -75,9 +85,11 @@ fn main() -> Result<(), String> {
     };
 
     for jet in jets_iter {
-        let mut worst_case = None;
+        let jet_name = jet.file_name().unwrap().to_str().unwrap().to_string();
+        let mut estimates = vec![];
         // Iterate over all files in jets directory
         for jet_folder in std::fs::read_dir(&jet).unwrap().map(|e| e.unwrap().path()) {
+            let dist_name = jet_folder.file_name().unwrap().to_string_lossy().to_string();
             // Parse the file
             // Filter all files that start with measurements
             let mut measurement_files = jet_folder
@@ -93,33 +105,52 @@ fn main() -> Result<(), String> {
                 })
                 .collect::<Vec<_>>();
             // We expect only one file
-            assert_eq!(measurement_files.len(), 1);
+            assert_eq!(
+                measurement_files.len(),
+                1,
+                "Found more than one measurement file for {} / {}; please delete the target/criterion directory before running the benchmarks.",
+                jet_name, dist_name,
+            );
             let file = measurement_files.pop().unwrap();
 
             let file = std::fs::File::open(file).unwrap();
             let data: MeasurementData = serde_cbor::from_reader(file).unwrap();
 
-            // Select the worst case amongst all measurements
-            match worst_case {
-                None => worst_case = Some(data.estimates.mean.point_estimate),
-                Some(ref mut worst_case) => {
-                    if *worst_case < data.estimates.mean.point_estimate {
-                        *worst_case = data.estimates.mean.point_estimate;
-                    }
-                }
-            }
-            bench_results.insert(
-                jet.file_name().unwrap().to_str().unwrap().to_string(),
-                worst_case.unwrap(),
+            println!("{} {}: {}",
+                jet_name,
+                dist_name,
+                data.estimates.mean.point_estimate,
             );
+
+            estimates.push((
+                data.estimates.mean.point_estimate,
+                dist_name,
+            ));
         }
+        estimates.sort_by_key(|(w, _name)| (*w * 1_000_000.0) as u64);
+
+        let n_ests = estimates.len();
+        bench_results.insert(
+            jet.file_name().unwrap().to_str().unwrap().to_string(),
+            BenchResult {
+                best_name: estimates[0].1.clone(),
+                best_value: estimates[0].0,
+                worst_name: estimates[n_ests - 1].1.clone(),
+                worst_value: estimates[n_ests - 1].0,
+                median_name: estimates[n_ests / 2].1.clone(),
+                median_value: estimates[n_ests / 2].0,
+            },
+        );
     }
 
     // Haskell requires debug formatted strings.
-    let bench_results: BTreeMap<_, _> = bench_results.into_iter().map(|(k, v)| {
-        let debug_str = simplicity::jet::Elements::from_str(&k).unwrap();
-        (format!("{:?}", debug_str), v)
-    }).collect();
+    let bench_results: BTreeMap<_, _> = bench_results
+        .into_iter()
+        .map(|(k, v)| {
+            let debug_str = simplicity::jet::Elements::from_str(&k).unwrap();
+            (format!("{:?}", debug_str), v)
+        })
+        .collect();
 
     // Create a file output json file with jet_bench_timestamp.json
     let timestamp = chrono::Utc::now().format("%Y-%m-%d_%H-%M-%S");

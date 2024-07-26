@@ -70,7 +70,16 @@ impl JetBuffer {
             for _ in 0..params.src_align {
                 c_writeBit(&mut src_write_frame, false);
             }
-            params.input.write_sample(&mut src_write_frame, src_ty, rng);
+            match params.input {
+                crate::params::Input::Sanket(ref sank) => {
+                    sank.write_sample(&mut src_write_frame, src_ty, rng)
+                }
+                crate::params::Input::Andrew(dist, andy) => {
+                    andy.sample(dist, src_ty.bit_width())
+                        .bit_iter()
+                        .for_each(|bit| c_writeBit(&mut src_write_frame, bit));
+                }
+            }
 
             // 2. Read dummy bits for alignment and return read frame
             let mut src_read_frame = CFrameItem::new_read(self.src_bit_width, self.src_ptr_begin);
