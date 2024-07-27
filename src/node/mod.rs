@@ -190,15 +190,15 @@ pub trait CoreConstructible: Sized {
         for data in value.post_order_iter::<NoSharing>() {
             match data.node {
                 Value::Unit => stack.push(Self::unit(inference_context)),
-                Value::SumL(..) => {
+                Value::Left(..) => {
                     let child = stack.pop().unwrap();
                     stack.push(Self::injl(&child));
                 }
-                Value::SumR(..) => {
+                Value::Right(..) => {
                     let child = stack.pop().unwrap();
                     stack.push(Self::injr(&child));
                 }
-                Value::Prod(..) => {
+                Value::Product(..) => {
                     let right = stack.pop().unwrap();
                     let left = stack.pop().unwrap();
                     stack.push(

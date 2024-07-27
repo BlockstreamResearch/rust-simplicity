@@ -347,7 +347,7 @@ pub fn decode_power_of_2<I: Iterator<Item = bool>>(
             let right = stack.pop().unwrap();
             let left = stack.pop().unwrap();
             stack.push(StackElem {
-                value: Value::prod(left.value, right.value),
+                value: Value::product(left.value, right.value),
                 width: left.width * 2,
             });
         }

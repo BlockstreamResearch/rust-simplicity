@@ -105,7 +105,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
             Policy::Key(ref key) => {
                 let sig_wit = satisfier
                     .lookup_tap_leaf_script_sig(key, &TapLeafHash::all_zeros())
-                    .map(|sig| Value::u512_from_slice(sig.sig.as_ref()));
+                    .map(|sig| Value::u512(sig.sig.as_ref()));
                 super::serialize::key(inference_context, key, sig_wit)
             }
             Policy::After(n) => {
@@ -128,7 +128,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
             Policy::Sha256(ref hash) => {
                 let preimage_wit = satisfier
                     .lookup_sha256(hash)
-                    .map(|preimage| Value::u256_from_slice(preimage.as_ref()));
+                    .map(|preimage| Value::u256(&preimage));
                 super::serialize::sha256::<Pk, _, _>(inference_context, hash, preimage_wit)
             }
             Policy::And {

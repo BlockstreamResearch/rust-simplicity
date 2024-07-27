@@ -21,8 +21,8 @@ impl<'a> fmt::Display for DisplayWord<'a> {
             f.write_str("0b")?;
             for comb in self.0.pre_order_iter::<NoSharing>() {
                 match comb {
-                    Value::SumL(..) => f.write_str("0")?,
-                    Value::SumR(..) => f.write_str("1")?,
+                    Value::Left(..) => f.write_str("0")?,
+                    Value::Right(..) => f.write_str("1")?,
                     _ => {}
                 }
             }

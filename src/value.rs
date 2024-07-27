@@ -9,42 +9,34 @@ use crate::dag::{Dag, DagLike, NoSharing};
 use crate::types::Final;
 
 use std::collections::VecDeque;
-use std::convert::TryInto;
 use std::fmt;
 use std::hash::Hash;
 use std::sync::Arc;
 
-/// Value of some type.
-///
-/// The _unit value_ is the only value of the _unit type_.
-/// This is the basis for everything we are doing.
-/// Because there is only a single unit value, there is no information contained in it.
-/// Instead, we wrap unit values in sum and product values to encode information.
-///
-/// A _sum value_ wraps another value.
-/// The _left sum value_ `L(a)` wraps a value `a` from the _left type_ `A`.
-/// The _right sum value_ `R(b)` wraps a value `b` from the _right type_ `B`.
-/// The type of the sum value is the _sum type_ `A + B` of the left type and the right type.
-///
-/// We represent the false bit as a left value that wraps a unit value.
-/// The true bit is represented as a right value that wraps a unit value.
-///
-/// A _product value_ `(a, b)` wraps two values:
-/// a value `a` from the _left type_ `A` and a value `b` from the _right type_ `B`.
-/// The type of the product value is the _product type_ `A × B` of the left type and the right type.
-///
-/// We represent bit strings (tuples of bits) as trees of nested product values
-/// that have bit values (sum values wrapping the unit value) at their leaves.
+/// A Simplicity value.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Value {
-    /// Unit value
+    /// The unit value.
+    ///
+    /// The unit value is the only value of the unit type `1`.
+    /// It must be wrapped in left and right values to encode information.
     Unit,
-    /// Sum value that wraps a left value
-    SumL(Arc<Value>),
-    /// Sum value that wraps a right value
-    SumR(Arc<Value>),
-    /// Product value that wraps a left and a right value
-    Prod(Arc<Value>, Arc<Value>),
+    /// A left value.
+    ///
+    /// A left value wraps a value of type `A` and its type is the sum `A + B` for some `B`.
+    /// A `false` bit encodes that a left value is wrapped.
+    Left(Arc<Value>),
+    /// A right value.
+    ///
+    /// A right value wraps a value of type `B` and its type is the sum `A + B` for some `A`.
+    /// A `true` bit encodes that a right value is wrapped.
+    Right(Arc<Value>),
+    /// A product value.
+    ///
+    /// A product value wraps a left value of type `A` and a right value of type `B`,
+    /// and its type is the product `A × B`.
+    /// A product value combines the information of its inner values.
+    Product(Arc<Value>, Arc<Value>),
 }
 
 impl<'a> DagLike for &'a Value {
@@ -57,8 +49,8 @@ impl<'a> DagLike for &'a Value {
     fn as_dag_node(&self) -> Dag<Self> {
         match self {
             Value::Unit => Dag::Nullary,
-            Value::SumL(child) | Value::SumR(child) => Dag::Unary(child),
-            Value::Prod(left, right) => Dag::Binary(left, right),
+            Value::Left(child) | Value::Right(child) => Dag::Unary(child),
+            Value::Product(left, right) => Dag::Binary(left, right),
         }
     }
 }
@@ -69,25 +61,25 @@ impl Value {
         Arc::new(Self::Unit)
     }
 
-    /// Create a sum value that wraps a left value.
-    pub fn sum_l(left: Arc<Self>) -> Arc<Self> {
-        Arc::new(Value::SumL(left))
+    /// Create a left value that wraps the given `inner` value.
+    pub fn left(inner: Arc<Self>) -> Arc<Self> {
+        Arc::new(Value::Left(inner))
     }
 
-    /// Create a sum value that wraps a right value.
-    pub fn sum_r(right: Arc<Self>) -> Arc<Self> {
-        Arc::new(Value::SumR(right))
+    /// Create a right value that wraps the given `inner` value.
+    pub fn right(inner: Arc<Self>) -> Arc<Self> {
+        Arc::new(Value::Right(inner))
     }
 
-    /// Create a product value that wraps a left and a right value.
-    pub fn prod(left: Arc<Self>, right: Arc<Self>) -> Arc<Self> {
-        Arc::new(Value::Prod(left, right))
+    /// Create a product value that wraps the given `left` and `right` values.
+    pub fn product(left: Arc<Self>, right: Arc<Self>) -> Arc<Self> {
+        Arc::new(Value::Product(left, right))
     }
 
     /// The length, in bits, of the value when encoded in the Bit Machine
     pub fn len(&self) -> usize {
         self.pre_order_iter::<NoSharing>()
-            .filter(|inner| matches!(inner, Value::SumL(_) | Value::SumR(_)))
+            .filter(|inner| matches!(inner, Value::Left(_) | Value::Right(_)))
             .count()
     }
 
@@ -105,7 +97,7 @@ impl Value {
     /// Access the inner value of a left sum value.
     pub fn as_left(&self) -> Option<&Self> {
         match self {
-            Value::SumL(inner) => Some(inner.as_ref()),
+            Value::Left(inner) => Some(inner.as_ref()),
             _ => None,
         }
     }
@@ -113,7 +105,7 @@ impl Value {
     /// Access the inner value of a right sum value.
     pub fn as_right(&self) -> Option<&Self> {
         match self {
-            Value::SumR(inner) => Some(inner.as_ref()),
+            Value::Right(inner) => Some(inner.as_ref()),
             _ => None,
         }
     }
@@ -121,7 +113,7 @@ impl Value {
     /// Access the inner values of a product value.
     pub fn as_product(&self) -> Option<(&Self, &Self)> {
         match self {
-            Value::Prod(left, right) => Some((left.as_ref(), right.as_ref())),
+            Value::Product(left, right) => Some((left.as_ref(), right.as_ref())),
             _ => None,
         }
     }
@@ -129,8 +121,8 @@ impl Value {
     /// Encode a single bit as a value. Will panic if the input is out of range
     pub fn u1(n: u8) -> Arc<Self> {
         match n {
-            0 => Value::sum_l(Value::unit()),
-            1 => Value::sum_r(Value::unit()),
+            0 => Value::left(Value::unit()),
+            1 => Value::right(Value::unit()),
             x => panic!("{} out of range for Value::u1", x),
         }
     }
@@ -140,7 +132,7 @@ impl Value {
         let b0 = (n & 2) / 2;
         let b1 = n & 1;
         assert!(n <= 3, "{} out of range for Value::u2", n);
-        Value::prod(Value::u1(b0), Value::u1(b1))
+        Value::product(Value::u1(b0), Value::u1(b1))
     }
 
     /// Encode a four-bit number as a value. Will panic if the input is out of range
@@ -148,77 +140,59 @@ impl Value {
         let w0 = (n & 12) / 4;
         let w1 = n & 3;
         assert!(n <= 15, "{} out of range for Value::u2", n);
-        Value::prod(Value::u2(w0), Value::u2(w1))
+        Value::product(Value::u2(w0), Value::u2(w1))
     }
 
     /// Encode an eight-bit number as a value
     pub fn u8(n: u8) -> Arc<Self> {
         let w0 = n >> 4;
         let w1 = n & 0xf;
-        Value::prod(Value::u4(w0), Value::u4(w1))
+        Value::product(Value::u4(w0), Value::u4(w1))
     }
 
     /// Encode a 16-bit number as a value
     pub fn u16(n: u16) -> Arc<Self> {
         let w0 = (n >> 8) as u8;
         let w1 = (n & 0xff) as u8;
-        Value::prod(Value::u8(w0), Value::u8(w1))
+        Value::product(Value::u8(w0), Value::u8(w1))
     }
 
     /// Encode a 32-bit number as a value
     pub fn u32(n: u32) -> Arc<Self> {
         let w0 = (n >> 16) as u16;
         let w1 = (n & 0xffff) as u16;
-        Value::prod(Value::u16(w0), Value::u16(w1))
+        Value::product(Value::u16(w0), Value::u16(w1))
     }
 
     /// Encode a 64-bit number as a value
     pub fn u64(n: u64) -> Arc<Self> {
         let w0 = (n >> 32) as u32;
         let w1 = (n & 0xffff_ffff) as u32;
-        Value::prod(Value::u32(w0), Value::u32(w1))
+        Value::product(Value::u32(w0), Value::u32(w1))
     }
 
     /// Encode a 128-bit number as a value
     pub fn u128(n: u128) -> Arc<Self> {
         let w0 = (n >> 64) as u64;
         let w1 = n as u64; // Cast safety: picking last 64 bits
-        Value::prod(Value::u64(w0), Value::u64(w1))
+        Value::product(Value::u64(w0), Value::u64(w1))
     }
 
-    /// Encode a 32-byte number as a value
-    ///
-    /// Useful for encoding public keys and hashes
-    pub fn u256_from_slice(v: &[u8]) -> Arc<Self> {
-        assert_eq!(32, v.len(), "Expect 32-byte slice");
-
-        Value::prod(
-            Value::prod(
-                Value::u64(u64::from_be_bytes(v[0..8].try_into().unwrap())),
-                Value::u64(u64::from_be_bytes(v[8..16].try_into().unwrap())),
-            ),
-            Value::prod(
-                Value::u64(u64::from_be_bytes(v[16..24].try_into().unwrap())),
-                Value::u64(u64::from_be_bytes(v[24..32].try_into().unwrap())),
-            ),
-        )
+    /// Create a value from 32 bytes.
+    pub fn u256(bytes: &[u8; 32]) -> Arc<Self> {
+        Value::power_of_two(bytes)
     }
 
-    /// Encode a 64-byte number as a value
-    ///
-    /// Useful for encoding signatures
-    pub fn u512_from_slice(v: &[u8]) -> Arc<Self> {
-        assert_eq!(64, v.len(), "Expect 64-byte slice");
-
-        Value::prod(
-            Value::u256_from_slice(&v[0..32]),
-            Value::u256_from_slice(&v[32..64]),
-        )
+    /// Create a value from 64 bytes.
+    pub fn u512(bytes: &[u8; 64]) -> Arc<Self> {
+        Value::power_of_two(bytes)
     }
 
-    /// Encode a byte slice as a value.
+    /// Create a value from a byte slice.
     ///
-    /// The length of the slice must be a power of two.
+    /// ## Panics
+    ///
+    /// The length of the slice is not a power of two.
     pub fn power_of_two(v: &[u8]) -> Arc<Self> {
         assert!(
             v.len().is_power_of_two(),
@@ -230,7 +204,7 @@ impl Value {
             let mut alt_values = VecDeque::with_capacity(values.len() / 2);
 
             while let (Some(left), Some(right)) = (values.pop_front(), values.pop_front()) {
-                alt_values.push_back(Value::prod(left, right));
+                alt_values.push_back(Value::product(left, right));
             }
 
             values = alt_values;
@@ -247,9 +221,9 @@ impl Value {
         for val in self.pre_order_iter::<NoSharing>() {
             match val {
                 Value::Unit => {}
-                Value::SumL(..) => f(false),
-                Value::SumR(..) => f(true),
-                Value::Prod(..) => {}
+                Value::Left(..) => f(false),
+                Value::Right(..) => f(true),
+                Value::Product(..) => {}
             }
         }
     }
@@ -343,22 +317,22 @@ impl fmt::Display for Value {
             match data.node {
                 Value::Unit => {
                     if data.n_children_yielded == 0
-                        && !matches!(data.parent, Some(Value::SumL(_)) | Some(Value::SumR(_)))
+                        && !matches!(data.parent, Some(Value::Left(_)) | Some(Value::Right(_)))
                     {
                         f.write_str("ε")?;
                     }
                 }
-                Value::SumL(..) => {
+                Value::Left(..) => {
                     if data.n_children_yielded == 0 {
                         f.write_str("0")?;
                     }
                 }
-                Value::SumR(..) => {
+                Value::Right(..) => {
                     if data.n_children_yielded == 0 {
                         f.write_str("1")?;
                     }
                 }
-                Value::Prod(..) => match data.n_children_yielded {
+                Value::Product(..) => match data.n_children_yielded {
                     0 => f.write_str("(")?,
                     1 => f.write_str(",")?,
                     2 => f.write_str(")")?,
@@ -388,11 +362,14 @@ mod tests {
     fn is_of_type() {
         let value_typename = [
             (Value::unit(), TypeName(b"1")),
-            (Value::sum_l(Value::unit()), TypeName(b"+11")),
-            (Value::sum_r(Value::unit()), TypeName(b"+11")),
-            (Value::sum_l(Value::unit()), TypeName(b"+1h")),
-            (Value::sum_r(Value::unit()), TypeName(b"+h1")),
-            (Value::prod(Value::unit(), Value::unit()), TypeName(b"*11")),
+            (Value::left(Value::unit()), TypeName(b"+11")),
+            (Value::right(Value::unit()), TypeName(b"+11")),
+            (Value::left(Value::unit()), TypeName(b"+1h")),
+            (Value::right(Value::unit()), TypeName(b"+h1")),
+            (
+                Value::product(Value::unit(), Value::unit()),
+                TypeName(b"*11"),
+            ),
             (Value::u8(u8::MAX), TypeName(b"c")),
             (Value::u64(u64::MAX), TypeName(b"l")),
         ];

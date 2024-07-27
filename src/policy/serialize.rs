@@ -54,7 +54,7 @@ where
     Pk: ToXOnlyPubkey,
     N: CoreConstructible + JetConstructible<Elements> + WitnessConstructible<W>,
 {
-    let key_value = Value::u256_from_slice(&key.to_x_only_pubkey().serialize());
+    let key_value = Value::u256(&key.to_x_only_pubkey().serialize());
     let const_key = N::const_word(inference_context, key_value);
     let sighash_all = N::jet(inference_context, Elements::SigAllHash);
     let pair_key_msg = N::pair(&const_key, &sighash_all).expect("consistent types");
@@ -118,7 +118,7 @@ where
     Pk: ToXOnlyPubkey,
     N: CoreConstructible + JetConstructible<Elements> + WitnessConstructible<W>,
 {
-    let hash_value = Value::u256_from_slice(Pk::to_sha256(hash).as_ref());
+    let hash_value = Value::u256(Pk::to_sha256(hash).as_ref());
     let const_hash = N::const_word(inference_context, hash_value);
     let witness256 = N::witness(inference_context, witness);
     let computed_hash = compute_sha256(&witness256);
@@ -320,7 +320,7 @@ mod tests {
 
         assert!(execute_successful(
             &commit,
-            vec![Value::u512_from_slice(signature.as_ref())],
+            vec![Value::u512(signature.as_ref())],
             &env
         ));
     }
@@ -376,10 +376,10 @@ mod tests {
         let image = sha256::Hash::hash(&preimage);
         let (commit, env) = compile(Policy::Sha256(image));
 
-        let valid_witness = vec![Value::u256_from_slice(&preimage)];
+        let valid_witness = vec![Value::u256(&preimage)];
         assert!(execute_successful(&commit, valid_witness, &env));
 
-        let invalid_witness = vec![Value::u256_from_slice(&[0; 32])];
+        let invalid_witness = vec![Value::u256(&[0; 32])];
         assert!(!execute_successful(&commit, invalid_witness, &env));
     }
 
@@ -395,22 +395,13 @@ mod tests {
             right: Arc::new(Policy::Sha256(image1)),
         });
 
-        let valid_witness = vec![
-            Value::u256_from_slice(&preimage0),
-            Value::u256_from_slice(&preimage1),
-        ];
+        let valid_witness = vec![Value::u256(&preimage0), Value::u256(&preimage1)];
         assert!(execute_successful(&commit, valid_witness, &env));
 
-        let invalid_witness = vec![
-            Value::u256_from_slice(&preimage0),
-            Value::u256_from_slice(&[0; 32]),
-        ];
+        let invalid_witness = vec![Value::u256(&preimage0), Value::u256(&[0; 32])];
         assert!(!execute_successful(&commit, invalid_witness, &env));
 
-        let invalid_witness = vec![
-            Value::u256_from_slice(&[0; 32]),
-            Value::u256_from_slice(&preimage1),
-        ];
+        let invalid_witness = vec![Value::u256(&[0; 32]), Value::u256(&preimage1)];
         assert!(!execute_successful(&commit, invalid_witness, &env));
     }
 
@@ -424,10 +415,10 @@ mod tests {
             right: Arc::new(Policy::Trivial),
         });
 
-        let valid_witness = vec![Value::u256_from_slice(&preimage0)];
+        let valid_witness = vec![Value::u256(&preimage0)];
         assert!(execute_successful(&commit, valid_witness, &env));
 
-        let invalid_witness = vec![Value::u256_from_slice(&[0; 32])];
+        let invalid_witness = vec![Value::u256(&[0; 32])];
         assert!(!execute_successful(&commit, invalid_witness, &env));
     }
 
@@ -443,30 +434,14 @@ mod tests {
             right: Arc::new(Policy::Sha256(image1)),
         });
 
-        let valid_witness = vec![
-            Value::u1(0),
-            Value::u256_from_slice(&preimage0),
-            Value::u256_from_slice(&[0; 32]),
-        ];
+        let valid_witness = vec![Value::u1(0), Value::u256(&preimage0), Value::u256(&[0; 32])];
         assert!(execute_successful(&commit, valid_witness, &env));
-        let valid_witness = vec![
-            Value::u1(1),
-            Value::u256_from_slice(&[0; 32]),
-            Value::u256_from_slice(&preimage1),
-        ];
+        let valid_witness = vec![Value::u1(1), Value::u256(&[0; 32]), Value::u256(&preimage1)];
         assert!(execute_successful(&commit, valid_witness, &env));
 
-        let invalid_witness = vec![
-            Value::u1(0),
-            Value::u256_from_slice(&[0; 32]),
-            Value::u256_from_slice(&preimage1),
-        ];
+        let invalid_witness = vec![Value::u1(0), Value::u256(&[0; 32]), Value::u256(&preimage1)];
         assert!(!execute_successful(&commit, invalid_witness, &env));
-        let invalid_witness = vec![
-            Value::u1(1),
-            Value::u256_from_slice(&preimage0),
-            Value::u256_from_slice(&[0; 32]),
-        ];
+        let invalid_witness = vec![Value::u1(1), Value::u256(&preimage0), Value::u256(&[0; 32])];
         assert!(!execute_successful(&commit, invalid_witness, &env));
     }
 
@@ -490,61 +465,61 @@ mod tests {
 
         let valid_witness = vec![
             Value::u1(1),
-            Value::u256_from_slice(&preimage0),
+            Value::u256(&preimage0),
             Value::u1(1),
-            Value::u256_from_slice(&preimage1),
+            Value::u256(&preimage1),
             Value::u1(0),
-            Value::u256_from_slice(&[0; 32]),
+            Value::u256(&[0; 32]),
         ];
         assert!(execute_successful(&commit, valid_witness, &env));
 
         let valid_witness = vec![
             Value::u1(1),
-            Value::u256_from_slice(&preimage0),
+            Value::u256(&preimage0),
             Value::u1(0),
-            Value::u256_from_slice(&[0; 32]),
+            Value::u256(&[0; 32]),
             Value::u1(1),
-            Value::u256_from_slice(&preimage2),
+            Value::u256(&preimage2),
         ];
         assert!(execute_successful(&commit, valid_witness, &env));
 
         let valid_witness = vec![
             Value::u1(0),
-            Value::u256_from_slice(&[0; 32]),
+            Value::u256(&[0; 32]),
             Value::u1(1),
-            Value::u256_from_slice(&preimage1),
+            Value::u256(&preimage1),
             Value::u1(1),
-            Value::u256_from_slice(&preimage2),
+            Value::u256(&preimage2),
         ];
         assert!(execute_successful(&commit, valid_witness, &env));
 
         let invalid_witness = vec![
             Value::u1(1),
-            Value::u256_from_slice(&preimage0),
+            Value::u256(&preimage0),
             Value::u1(1),
-            Value::u256_from_slice(&preimage1),
+            Value::u256(&preimage1),
             Value::u1(1),
-            Value::u256_from_slice(&preimage2),
+            Value::u256(&preimage2),
         ];
         assert!(!execute_successful(&commit, invalid_witness, &env));
 
         let invalid_witness = vec![
             Value::u1(1),
-            Value::u256_from_slice(&preimage1),
+            Value::u256(&preimage1),
             Value::u1(1),
-            Value::u256_from_slice(&preimage0),
+            Value::u256(&preimage0),
             Value::u1(0),
-            Value::u256_from_slice(&[0; 32]),
+            Value::u256(&[0; 32]),
         ];
         assert!(!execute_successful(&commit, invalid_witness, &env));
 
         let invalid_witness = vec![
             Value::u1(1),
-            Value::u256_from_slice(&preimage0),
+            Value::u256(&preimage0),
             Value::u1(0),
-            Value::u256_from_slice(&[0; 32]),
+            Value::u256(&[0; 32]),
             Value::u1(0),
-            Value::u256_from_slice(&[0; 32]),
+            Value::u256(&[0; 32]),
         ];
         assert!(!execute_successful(&commit, invalid_witness, &env));
     }

@@ -175,9 +175,9 @@ impl BitMachine {
         for val in val.pre_order_iter::<NoSharing>() {
             match val {
                 Value::Unit => {}
-                Value::SumL(..) => self.write_bit(false),
-                Value::SumR(..) => self.write_bit(true),
-                Value::Prod(..) => {}
+                Value::Left(..) => self.write_bit(false),
+                Value::Right(..) => self.write_bit(true),
+                Value::Product(..) => {}
             }
         }
     }

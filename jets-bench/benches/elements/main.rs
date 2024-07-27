@@ -755,30 +755,30 @@ fn bench(c: &mut Criterion) {
         let ctx8 = SimplicityCtx8::with_len(511).value();
         let genesis_pegin = genesis_pegin();
         let outpoint = elements::OutPoint::sample().value();
-        Value::prod(ctx8, Value::prod(genesis_pegin, outpoint))
+        Value::product(ctx8, Value::product(genesis_pegin, outpoint))
     }
 
     fn asset_amount_hash() -> Arc<Value> {
         let ctx8 = SimplicityCtx8::with_len(511).value();
         let asset = confidential::Asset::sample().value();
         let amount = confidential::Value::sample().value();
-        Value::prod(ctx8, Value::prod(asset, amount))
+        Value::product(ctx8, Value::product(asset, amount))
     }
 
     fn nonce_hash() -> Arc<Value> {
         let ctx8 = SimplicityCtx8::with_len(511).value();
         let nonce = confidential::Nonce::sample().value();
-        Value::prod(ctx8, nonce)
+        Value::product(ctx8, nonce)
     }
 
     fn annex_hash() -> Arc<Value> {
         let ctx8 = SimplicityCtx8::with_len(511).value();
         let annex = if rand::random() {
-            Value::sum_r(Value::u256_from_slice(&rand::random::<[u8; 32]>()))
+            Value::right(Value::u256(&rand::random::<[u8; 32]>()))
         } else {
-            Value::sum_l(Value::unit())
+            Value::left(Value::unit())
         };
-        Value::prod(ctx8, annex)
+        Value::product(ctx8, annex)
     }
     let arr: [(Elements, Arc<dyn Fn() -> Arc<Value>>); 4] = [
         (Elements::OutpointHash, Arc::new(&outpoint_hash)),

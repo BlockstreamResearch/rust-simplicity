@@ -291,15 +291,15 @@ pub fn encode_value<W: io::Write>(value: &Value, w: &mut BitWriter<W>) -> io::Re
 
     match value {
         Value::Unit => {}
-        Value::SumL(left) => {
+        Value::Left(left) => {
             w.write_bit(false)?;
             encode_value(left, w)?;
         }
-        Value::SumR(right) => {
+        Value::Right(right) => {
             w.write_bit(true)?;
             encode_value(right, w)?;
         }
-        Value::Prod(left, right) => {
+        Value::Product(left, right) => {
             encode_value(left, w)?;
             encode_value(right, w)?;
         }
