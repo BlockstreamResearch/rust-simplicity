@@ -720,7 +720,7 @@ mod tests {
             0x7d, 0xf4, 0x90, 0x0d, 0x31, 0x05, 0x36, 0xc0,
         ];
 
-        let signature = HashMap::from([(Arc::from("wit1"), Value::power_of_two(sig.as_ref()))]);
+        let signature = HashMap::from([(Arc::from("wit1"), Value::u512(sig))]);
         assert_cmr_witness::<Elements>(
             "
                 -- Witnesses
@@ -754,13 +754,13 @@ mod tests {
             ("0b11111111", Value::u8(0b11111111)),
             (
                 "0b00000001001000110100010101100111",
-                Value::power_of_two(&[0b00000001, 0b00100011, 0b01000101, 0b01100111]),
+                Value::power_of_two([0b00000001, 0b00100011, 0b01000101, 0b01100111]),
             ),
             ("0x0", Value::u4(0x0)),
             ("0xf", Value::u4(0xf)),
             ("0x00", Value::u8(0x00)),
             ("0xff", Value::u8(0xff)),
-            ("0xdeadbeef", Value::power_of_two(&[0xde, 0xad, 0xbe, 0xef])),
+            ("0xdeadbeef", Value::power_of_two([0xde, 0xad, 0xbe, 0xef])),
         ];
 
         for (human, value) in human_values {
