@@ -180,12 +180,12 @@ impl Value {
 
     /// Create a value from 32 bytes.
     pub fn u256(bytes: [u8; 32]) -> Arc<Self> {
-        Value::power_of_two(bytes)
+        Value::from_byte_array(bytes)
     }
 
     /// Create a value from 64 bytes.
     pub fn u512(bytes: [u8; 64]) -> Arc<Self> {
-        Value::power_of_two(bytes)
+        Value::from_byte_array(bytes)
     }
 
     /// Create a value from a byte array.
@@ -193,7 +193,7 @@ impl Value {
     /// ## Panics
     ///
     /// The array length is not a power of two.
-    pub fn power_of_two<const N: usize>(bytes: [u8; N]) -> Arc<Self> {
+    pub fn from_byte_array<const N: usize>(bytes: [u8; N]) -> Arc<Self> {
         assert!(N.is_power_of_two(), "Array length must be a power of two");
         let mut values: VecDeque<_> = bytes.into_iter().map(Value::u8).collect();
 
