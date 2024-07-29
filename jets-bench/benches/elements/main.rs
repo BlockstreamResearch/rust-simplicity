@@ -774,7 +774,7 @@ fn bench(c: &mut Criterion) {
     fn annex_hash() -> Arc<Value> {
         let ctx8 = SimplicityCtx8::with_len(511).value();
         let annex = if rand::random() {
-            Value::right(Value::u256(&rand::random::<[u8; 32]>()))
+            Value::right(Value::u256(rand::random::<[u8; 32]>()))
         } else {
             Value::left(Value::unit())
         };
