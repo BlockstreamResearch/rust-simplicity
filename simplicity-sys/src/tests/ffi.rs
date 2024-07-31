@@ -276,10 +276,6 @@ pub mod dag {
         pub static c_sizeof_analyses: c_size_t;
         pub static c_alignof_analyses: c_size_t;
 
-        /// Given the IMR of a jet specification, return the CMR of a jet that implements
-        /// that specification
-        pub fn mkJetCMR(imr: *const u32, weight: u64) -> CSha256Midstate;
-
         /// Compute the CMR of a jet of scribe(v) : ONE |- TWO^(2^n) that outputs a given
         /// bitstring
         pub fn computeWordCMR(value: *const CBitstring, n: c_size_t) -> CSha256Midstate;
@@ -315,16 +311,6 @@ pub mod dag {
             type_dag: *const CType,
             len: c_size_t,
         ) -> SimplicityErr;
-    }
-
-    /// Convenience wrapper around mkJetCMR that operates on u8 bytes instead of u32
-    #[allow(non_snake_case)]
-    pub fn c_mkJetCMR(midstate: hashes::sha256::Midstate, weight: u64) -> hashes::sha256::Midstate {
-        let mut imr = [0; 32];
-        for (idx, chunk) in midstate.0.chunks(4).enumerate() {
-            imr[idx] = u32::from_be_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
-        }
-        unsafe { mkJetCMR(imr.as_ptr(), weight) }.into()
     }
 }
 
