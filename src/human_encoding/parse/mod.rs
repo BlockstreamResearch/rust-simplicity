@@ -676,7 +676,7 @@ mod tests {
                 wits_are_equal := comp (pair wit1 wit2) jet_eq_32 : 1 -> 2
                 main := comp wits_are_equal jet_verify            : 1 -> 1
             ",
-            "2d170e731b6d6856e69f3c6ee04b368302f7f71b2270a26276d98ea494bbebd7",
+            "e398797db2b1c742dfa69a3925583e55e55a81a1e5150a0241a8d9e85e112475",
             &witness,
             &(),
         );
@@ -735,7 +735,7 @@ mod tests {
 
                 main := comp pr1 jt2       : 1 -> 1               -- 3f6422da
             ",
-           "70a617f32098132fe01ad5ff6748d3b94f803f4d851dd5764d99437c1b8dd7e8",
+           "e3b25e13f91fcbf95407f126b3aed5b4543399cb9c3d426fe98a10f8d33ef6c3",
             &signature,
             &dummy
         );

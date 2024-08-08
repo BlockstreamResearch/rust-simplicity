@@ -14,7 +14,7 @@ use elements::{
 };
 use simplicity_sys::c_jets::c_env::{
     c_set_rawInput, c_set_rawOutput, c_set_rawTapEnv, c_set_rawTransaction, c_set_txEnv,
-    elements_simplicity_mallocTapEnv, elements_simplicity_mallocTransaction, CElementsTxEnv,
+    simplicity_elements_mallocTapEnv, simplicity_elements_mallocTransaction, CElementsTxEnv,
     CRawBuffer, CRawInput, CRawOutput, CRawTapEnv, CRawTransaction, CTapEnv, CTransaction,
     RawInputData, RawOutputData, RawTransactionData,
 };
@@ -152,7 +152,7 @@ pub(super) fn new_tx(tx: &elements::Transaction, in_utxos: &[ElementsUtxo]) -> *
             tx.lock_time.to_consensus_u32() as c_uint,
         );
         let raw_tx = raw_tx.assume_init();
-        elements_simplicity_mallocTransaction(&raw_tx)
+        simplicity_elements_mallocTransaction(&raw_tx)
     }
 }
 
@@ -167,7 +167,7 @@ pub(super) fn new_tap_env(control_block: &ControlBlock, script_cmr: Cmr) -> *mut
             script_cmr.as_ref().as_ptr(),
         );
         let raw_tap_env = raw_tap_env.assume_init();
-        elements_simplicity_mallocTapEnv(&raw_tap_env)
+        simplicity_elements_mallocTapEnv(&raw_tap_env)
     }
 }
 

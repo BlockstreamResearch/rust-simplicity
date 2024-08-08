@@ -499,7 +499,7 @@ mod tests {
                     0x00,
                 ],
                 // CMR not checked against C code, since C won't give us any data without witnesses
-                "4c8b47fde3d714dbbbce313dd1bf9fa09fd34e1487339de3904e3af98cef6ff9",
+                "5394be33b8ba4771ede97ada5d035266026e414b4b21053afb986081e84ee3ac",
             ),
             // Same program but with each `witness` replaced by `comp iden witness`.
             (
@@ -520,7 +520,7 @@ mod tests {
                     0xdc, 0x41, 0x18, 0x08,
                 ],
                 // CMR not checked against C code, since C won't give us any data without witnesses
-                "7e9a67dbd14bd06bed9a30e765ffb25e6ac0801ed4aabdde5ea91010b43d88c5",
+                "d7803c07d1803f525a6c6ea5bff8e46e58efeda1130bb6c1b7b6ed60ebd0504b",
             )
         ];
 

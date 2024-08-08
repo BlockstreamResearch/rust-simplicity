@@ -533,9 +533,9 @@ mod tests {
         assert_program_deserializable::<Core>(
             &[0xc9, 0xc4, 0x6d, 0xb8, 0x82, 0x30, 0x10],
             &[0xde, 0xad, 0xbe, 0xef],
-            "2d170e731b6d6856e69f3c6ee04b368302f7f71b2270a26276d98ea494bbebd7",
-            "9bdb88f9a9ef64d5ec507af96e5b88ae3a8b09c042cb3c3563f982cafc572bae",
-            "71cdfd26a3f4dd865e2e92b526fc2083260c964c52dd9773aa52771f253b73e1",
+            "e398797db2b1c742dfa69a3925583e55e55a81a1e5150a0241a8d9e85e112475",
+            "78280372ee1d0e0aaf8b343030f3bbdb2f954b22f0c4f77f6f04dd8ec506fca6",
+            "ef660061d9d3bd87d208fb7ab82ed095141440fd00cc2b3fa7ddeb360769ab6b",
         );
     }
 
@@ -678,8 +678,8 @@ mod tests {
                 0x58, 0xe2, 0xbd, 0xe2, 0xcf, 0xa6, 0x45, 0xa8, 0x95, 0xc1, 0xb4, 0x5d, 0x68, 0xea, 0x24, 0xc0, 
             ],
             "e2a6e4a223c0da97ebbf5f401e2d622535c3ed538e70f344318e9e5e4c2e02af",
-            "dc52a75e2137c0e2c63c0e49e3a226441234f2bb99236eaeee6d87e5a45a71c7",
-            "b6b12e9cd674927fea216e24b81df0daf03aa7b15cc8f9110ce506232be08671",
+            "5cd9d4af96740d2f27ffd94649304923a20939ae42b02828fa7982457fac3c22",
+            "6f9dba991638478e2eec6388e51024410fd442264e8b212344aef802d8ff858b",
         );
     }
 
@@ -726,9 +726,9 @@ mod tests {
         assert_program_deserializable::<crate::jet::Elements>(
             &schnorr0,
             &schnorr0_wit,
-            "70a617f32098132fe01ad5ff6748d3b94f803f4d851dd5764d99437c1b8dd7e8",
-            "f9ab63b6ea2a9cc1df9cc1e1bc96c945b655ec843eb6967d4429a1a0c8519633",
-            "fd9423e5ca51d3efea27596b65a61792497a68351ee43f235e6edfc344cf4951",
+            "e3b25e13f91fcbf95407f126b3aed5b4543399cb9c3d426fe98a10f8d33ef6c3",
+            "9049bcda62ffe6b7146b91af7a4522adbb93f0cd50dd390d12b9fe12ae836c8c",
+            "6b18b11f6367528afbe1abaf41553ce68bb417da2dcdd2832964399148548ac7",
         );
     }
 }

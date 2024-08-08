@@ -192,8 +192,8 @@ extern "C" {
         genesisHash: *const c_uchar,
         ix: c_uint,
     );
-    pub fn elements_simplicity_mallocTapEnv(rawEnv: *const CRawTapEnv) -> *mut CTapEnv;
-    pub fn elements_simplicity_mallocTransaction(
+    pub fn simplicity_elements_mallocTapEnv(rawEnv: *const CRawTapEnv) -> *mut CTapEnv;
+    pub fn simplicity_elements_mallocTransaction(
         rawTx: *const CRawTransaction,
     ) -> *mut CTransaction;
     pub fn c_free_transaction(tx: *mut CTransaction);
