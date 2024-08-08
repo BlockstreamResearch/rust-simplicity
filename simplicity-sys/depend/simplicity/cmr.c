@@ -26,14 +26,14 @@ bool simplicity_computeCmr( simplicity_err* error, unsigned char* cmr
 
   bitstream stream = initializeBitstream(program, program_len);
   dag_node* dag = NULL;
-  int32_t dag_len = decodeMallocDag(&dag, NULL, &stream);
+  int_fast32_t dag_len = simplicity_decodeMallocDag(&dag, NULL, &stream);
   if (dag_len <= 0) {
     simplicity_assert(dag_len < 0);
-    *error = dag_len;
+    *error = (simplicity_err)dag_len;
   } else {
     simplicity_assert(NULL != dag);
-    simplicity_assert((size_t)dag_len <= DAG_LEN_MAX);
-    *error = closeBitstream(&stream);
+    simplicity_assert((uint_fast32_t)dag_len <= DAG_LEN_MAX);
+    *error = simplicity_closeBitstream(&stream);
     sha256_fromMidstate(cmr, dag[dag_len-1].cmr.s);
   }
 

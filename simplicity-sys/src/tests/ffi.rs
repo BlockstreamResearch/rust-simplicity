@@ -135,10 +135,14 @@ pub mod bitstream {
         pub static c_sizeof_bitstream: c_size_t;
         pub static c_alignof_bitstream: c_size_t;
 
-        pub fn closeBitstream(stream: *mut CBitstream) -> i32;
-        pub fn readNBits(n: c_int, stream: *mut CBitstream) -> i32;
-        pub fn decodeUptoMaxInt(stream: *mut CBitstream) -> i32;
-        pub fn readBitstring(result: *mut CBitstring, n: c_size_t, stream: *mut CBitstream) -> i32;
+        pub fn simplicity_closeBitstream(stream: *mut CBitstream) -> i32;
+        pub fn simplicity_readNBits(n: c_int, stream: *mut CBitstream) -> i32;
+        pub fn simplicity_decodeUptoMaxInt(stream: *mut CBitstream) -> i32;
+        pub fn simplicity_readBitstring(
+            result: *mut CBitstring,
+            n: c_size_t,
+            stream: *mut CBitstream,
+        ) -> i32;
     }
 }
 
@@ -278,14 +282,14 @@ pub mod dag {
 
         /// Compute the CMR of a jet of scribe(v) : ONE |- TWO^(2^n) that outputs a given
         /// bitstring
-        pub fn computeWordCMR(value: *const CBitstring, n: c_size_t) -> CSha256Midstate;
+        pub fn simplicity_computeWordCMR(value: *const CBitstring, n: c_size_t) -> CSha256Midstate;
 
         /// Given a well-formed dag\[i + 1\], set the `cmr` field of every node in `dag`
-        pub fn computeCommitmentMerkleRoot(dag: *mut CDagNode, i: c_size_t);
+        pub fn simplicity_computeCommitmentMerkleRoot(dag: *mut CDagNode, i: c_size_t);
 
         /// Given a well-typed dag representing a Simplicity expression, compute
         /// the annotated Merkle roots of all subexpressions.
-        pub fn computeAnnotatedMerkleRoot(
+        pub fn simplicity_computeAnnotatedMerkleRoot(
             analyses: *mut CAnalyses,
             dag: *const CDagNode,
             ty: *const CType,
@@ -294,10 +298,10 @@ pub mod dag {
 
         /// Verifies that the 'dag' is in canonical order, meaning that nodes
         /// under the left branches have lower indices than nodes under
-        pub fn verifyCanonicalOrder(dag: *mut CDagNode, len: c_size_t) -> SimplicityErr;
+        pub fn simplicity_verifyCanonicalOrder(dag: *mut CDagNode, len: c_size_t) -> SimplicityErr;
 
         /// Fills in the 'WITNESS' nodes of a 'dag' with the data from 'witness'
-        pub fn fillWitnessData(
+        pub fn simplicity_fillWitnessData(
             dag: *mut CDagNode,
             type_dag: *mut CType,
             len: c_size_t,
@@ -305,7 +309,7 @@ pub mod dag {
         ) -> SimplicityErr;
 
         /// Computes the identity Merkle roots of every subexpression in a well-typed 'dag' with witnesses    .
-        pub fn verifyNoDuplicateIdentityRoots(
+        pub fn simplicity_verifyNoDuplicateIdentityRoots(
             imr: *mut CSha256Midstate,
             dag: *const CDagNode,
             type_dag: *const CType,
@@ -319,7 +323,7 @@ pub mod deserialize {
     use crate::tests::ffi::dag::{CCombinatorCounters, CDagNode};
 
     extern "C" {
-        pub fn decodeMallocDag(
+        pub fn simplicity_decodeMallocDag(
             dag: *mut *mut CDagNode,
             combinator_counters: *mut CCombinatorCounters,
             stream: *mut CBitstream,
@@ -343,7 +347,7 @@ pub mod eval {
 
     extern "C" {
         /// Run the Bit Machine on the well-typed Simplicity expression 'dag\[len\]'.
-        pub fn evalTCOExpression(
+        pub fn simplicity_evalTCOExpression(
             anti_dos_checks: c_uchar,
             output: *mut UWORD,
             input: *const UWORD,
@@ -358,7 +362,7 @@ pub mod eval {
         /// compute the memory and CPU requirements for evaluation.
         ///
         /// Refer to C documentation for preconditions.
-        pub fn analyseBounds(
+        pub fn simplicity_analyseBounds(
             cell_bound: *mut ubounded,
             UWORD_bound: *mut ubounded,
             frame_bound: *mut ubounded,
@@ -373,21 +377,21 @@ pub mod eval {
 
     /// Run the Bit Machine on the well-typed Simplicity program 'dag\[len\]'.
     ///
-    /// Defined insine in eval.h; since it is a 1-liner we just copy it into Rust.
+    /// Defined inline in eval.h; since it is a 1-liner we just copy it into Rust.
     ///
     /// # Safety
     ///
     /// This function directly wraps `evalTCOExpression`; see the documentation for
     /// that function in the C source code for preconditions.
     #[allow(non_snake_case)]
-    pub unsafe fn evalTCOProgram(
+    pub unsafe fn simplicity_evalTCOProgram(
         dag: *const CDagNode,
         type_dag: *mut CType,
         len: c_size_t,
         budget: *const ubounded,
         env: *const CElementsTxEnv,
     ) -> SimplicityErr {
-        evalTCOExpression(
+        simplicity_evalTCOExpression(
             CHECK_ALL,
             ptr::null_mut(),
             ptr::null(),
@@ -442,7 +446,7 @@ pub mod ty {
         pub static c_alignof_type: c_size_t;
 
         /// Given a well-formed 'type_dag', compute the bitSizes, skips, and type Merkle roots of all subexpressions.
-        pub fn computeTypeAnalyses(type_dag: *mut CType, len: c_size_t);
+        pub fn simplicity_computeTypeAnalyses(type_dag: *mut CType, len: c_size_t);
     }
 }
 
@@ -456,7 +460,7 @@ pub mod type_inference {
         /// If the Simplicity DAG, 'dag', has a principal type (including constraints
         /// due to sharing of subexpressions), then allocate a well-formed type DAG
         /// containing all the types needed for all the subexpressions of 'dag'.
-        pub fn mallocTypeInference(
+        pub fn simplicity_mallocTypeInference(
             type_dag: *mut *mut CType,
             dag: *mut CDagNode,
             len: c_size_t,

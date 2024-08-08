@@ -6,14 +6,14 @@ use std::ptr;
 
 use crate::ffi::{c_size_t, sha256::CSha256Midstate, ubounded, UBOUNDED_MAX};
 use crate::tests::ffi::{
-    bitstream::{closeBitstream, CBitstream},
+    bitstream::{simplicity_closeBitstream, CBitstream},
     dag::{
-        computeAnnotatedMerkleRoot, fillWitnessData, verifyNoDuplicateIdentityRoots, CAnalyses,
-        CCombinatorCounters,
+        simplicity_computeAnnotatedMerkleRoot, simplicity_fillWitnessData,
+        simplicity_verifyNoDuplicateIdentityRoots, CAnalyses, CCombinatorCounters,
     },
-    deserialize::decodeMallocDag,
-    eval::{analyseBounds, evalTCOProgram},
-    type_inference::mallocTypeInference,
+    deserialize::simplicity_decodeMallocDag,
+    eval::{simplicity_analyseBounds, simplicity_evalTCOProgram},
+    type_inference::simplicity_mallocTypeInference,
     SimplicityErr,
 };
 
@@ -129,11 +129,14 @@ pub fn run_program(
     unsafe {
         // 1. Parse DAG.
         let mut dag = ptr::null_mut();
-        let len = SimplicityErr::from_i32(decodeMallocDag(&mut dag, &mut census, &mut prog_stream))?
-            as usize;
+        let len = SimplicityErr::from_i32(simplicity_decodeMallocDag(
+            &mut dag,
+            &mut census,
+            &mut prog_stream,
+        ))? as usize;
         assert!(!dag.is_null());
         let _d1 = FreeOnDrop(dag as *mut u8);
-        SimplicityErr::from_i32(closeBitstream(&mut prog_stream))?;
+        SimplicityErr::from_i32(simplicity_closeBitstream(&mut prog_stream))?;
         if test_up_to <= TestUpTo::DecodeProgram {
             return Ok(result);
         }
@@ -143,7 +146,7 @@ pub fn run_program(
 
         // 3. Do type inference.
         let mut type_dag = ptr::null_mut();
-        mallocTypeInference(&mut type_dag, dag, len, &census).into_result()?;
+        simplicity_mallocTypeInference(&mut type_dag, dag, len, &census).into_result()?;
         assert!(!type_dag.is_null());
         let _d2 = FreeOnDrop(type_dag as *mut u8);
         if test_up_to <= TestUpTo::TypeInference {
@@ -151,22 +154,24 @@ pub fn run_program(
         }
 
         // 4. Fill witness data, now that we know the types
-        fillWitnessData(dag, type_dag, len as c_size_t, &mut wit_stream).into_result()?;
-        SimplicityErr::from_i32(closeBitstream(&mut wit_stream))?;
+        simplicity_fillWitnessData(dag, type_dag, len as c_size_t, &mut wit_stream)
+            .into_result()?;
+        SimplicityErr::from_i32(simplicity_closeBitstream(&mut wit_stream))?;
         if test_up_to <= TestUpTo::FillWitnessData {
             return Ok(result);
         }
 
         // 5. Check AMR
         let mut analyses = vec![CAnalyses::default(); len];
-        computeAnnotatedMerkleRoot(analyses.as_mut_ptr(), dag, type_dag, len);
+        simplicity_computeAnnotatedMerkleRoot(analyses.as_mut_ptr(), dag, type_dag, len);
         result.amr = analyses[len - 1].annotated_merkle_root;
         if test_up_to <= TestUpTo::ComputeAmr {
             return Ok(result);
         }
 
         // 6. Check IMR
-        verifyNoDuplicateIdentityRoots(&mut result.imr, dag, type_dag, len).into_result()?;
+        simplicity_verifyNoDuplicateIdentityRoots(&mut result.imr, dag, type_dag, len)
+            .into_result()?;
         if test_up_to <= TestUpTo::ComputeImr {
             return Ok(result);
         }
@@ -177,7 +182,7 @@ pub fn run_program(
         let mut frame_bound: ubounded = 0;
         let mut cost_bound: ubounded = 0;
         // 7a. Analysis when cost is unbounded
-        analyseBounds(
+        simplicity_analyseBounds(
             &mut cell_bound,
             &mut word_bound,
             &mut frame_bound,
@@ -194,7 +199,7 @@ pub fn run_program(
             return Ok(result);
         }
         // 7b. analysis with strict bounds
-        analyseBounds(
+        simplicity_analyseBounds(
             &mut cell_bound,
             &mut word_bound,
             &mut frame_bound,
@@ -211,7 +216,7 @@ pub fn run_program(
         }
         // 7c. analysis with strict cell bounds
         if 0 < cell_bound {
-            let res = analyseBounds(
+            let res = simplicity_analyseBounds(
                 &mut cell_bound,
                 &mut word_bound,
                 &mut frame_bound,
@@ -231,7 +236,7 @@ pub fn run_program(
         }
         // 7d. analysis with strict cost bounds
         if 0 < cost_bound {
-            let res = analyseBounds(
+            let res = simplicity_analyseBounds(
                 &mut cell_bound,
                 &mut word_bound,
                 &mut frame_bound,
@@ -261,7 +266,8 @@ pub fn run_program(
         }
 
         // 9. Run the program
-        result.eval_result = evalTCOProgram(dag, type_dag, len, ptr::null(), ptr::null());
+        result.eval_result =
+            simplicity_evalTCOProgram(dag, type_dag, len, ptr::null(), ptr::null());
     }
 
     Ok(result)

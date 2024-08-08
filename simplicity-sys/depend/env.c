@@ -64,5 +64,5 @@ void c_set_txEnv(txEnv *result, const transaction *tx, const tapEnv *taproot, co
 {
     sha256_midstate genesis;
     sha256_toMidstate(genesis.s, genesisHash);
-    *result = build_txEnv(tx, taproot, &genesis, ix);
+    *result = simplicity_build_txEnv(tx, taproot, &genesis, ix);
 }
