@@ -245,7 +245,6 @@ impl BitMachine {
 
         let mut ip = program;
         let mut call_stack = vec![];
-        let mut iterations = 0u64;
 
         let output_width = ip.arrow().target.bit_width();
         if output_width > 0 {
@@ -253,11 +252,6 @@ impl BitMachine {
         }
 
         'main_loop: loop {
-            iterations += 1;
-            if iterations % 1_000_000_000 == 0 {
-                println!("({:5} M) exec {:?}", iterations / 1_000_000, ip);
-            }
-
             match ip.inner() {
                 node::Inner::Unit => {}
                 node::Inner::Iden => {
