@@ -9,6 +9,7 @@
 //! `Iterator<Item=bool>`.
 //!
 
+use crate::types::Final;
 use crate::{decode, types};
 use crate::{Cmr, FailEntropy, Value};
 use std::sync::Arc;
@@ -221,11 +222,11 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
     }
 
     /// Decode a value from bits, based on the given type.
-    pub fn read_value(&mut self, ty: &types::Final) -> Result<Arc<Value>, EarlyEndOfStreamError> {
+    pub fn read_value(&mut self, ty: &Final) -> Result<Value, EarlyEndOfStreamError> {
         enum State<'a> {
-            ProcessType(&'a types::Final),
-            DoSumL,
-            DoSumR,
+            ProcessType(&'a Final),
+            DoSumL(Arc<Final>),
+            DoSumR(Arc<Final>),
             DoProduct,
         }
 
@@ -237,10 +238,10 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
                     types::CompleteBound::Unit => result_stack.push(Value::unit()),
                     types::CompleteBound::Sum(ref l, ref r) => {
                         if self.read_bit()? {
-                            stack.push(State::DoSumR);
+                            stack.push(State::DoSumR(Arc::clone(l)));
                             stack.push(State::ProcessType(r));
                         } else {
-                            stack.push(State::DoSumL);
+                            stack.push(State::DoSumL(Arc::clone(r)));
                             stack.push(State::ProcessType(l));
                         }
                     }
@@ -250,13 +251,13 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
                         stack.push(State::ProcessType(l));
                     }
                 },
-                State::DoSumL => {
+                State::DoSumL(r) => {
                     let val = result_stack.pop().unwrap();
-                    result_stack.push(Value::left(val));
+                    result_stack.push(Value::left(val, r));
                 }
-                State::DoSumR => {
+                State::DoSumR(l) => {
                     let val = result_stack.pop().unwrap();
-                    result_stack.push(Value::right(val));
+                    result_stack.push(Value::right(l, val));
                 }
                 State::DoProduct => {
                     let val_r = result_stack.pop().unwrap();
@@ -265,7 +266,7 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
                 }
             }
         }
-        assert_eq!(result_stack.len(), 1);
+        debug_assert_eq!(result_stack.len(), 1);
         Ok(result_stack.pop().unwrap())
     }
 
@@ -302,6 +303,57 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
         } else {
             Ok(())
         }
+    }
+}
+
+/// Functionality for Boolean iterators to collect their bits or bytes.
+pub trait BitCollector: Sized {
+    /// Collect the bits of the iterator into a byte vector and a bit length.
+    fn collect_bits(self) -> (Vec<u8>, usize);
+
+    /// Try to collect the bits of the iterator into a clean byte vector.
+    ///
+    /// This fails if the number of bits is not divisible by 8.
+    fn try_collect_bytes(self) -> Result<Vec<u8>, &'static str> {
+        let (bytes, bit_length) = self.collect_bits();
+        if bit_length % 8 == 0 {
+            Ok(bytes)
+        } else {
+            Err("Number of collected bits is not divisible by 8")
+        }
+    }
+}
+
+impl<I: Iterator<Item = bool>> BitCollector for I {
+    fn collect_bits(self) -> (Vec<u8>, usize) {
+        let mut bytes = vec![];
+        let mut unfinished_byte = Vec::with_capacity(8);
+
+        for bit in self {
+            unfinished_byte.push(bit);
+
+            if unfinished_byte.len() == 8 {
+                bytes.push(
+                    unfinished_byte
+                        .iter()
+                        .fold(0, |acc, &b| acc * 2 + u8::from(b)),
+                );
+                unfinished_byte.clear();
+            }
+        }
+
+        let bit_length = bytes.len() * 8 + unfinished_byte.len();
+
+        if !unfinished_byte.is_empty() {
+            unfinished_byte.resize(8, false);
+            bytes.push(
+                unfinished_byte
+                    .iter()
+                    .fold(0, |acc, &b| acc * 2 + u8::from(b)),
+            );
+        }
+
+        (bytes, bit_length)
     }
 }
 

@@ -44,7 +44,7 @@ pub enum Inner<C, J, X, W> {
     /// Application jet
     Jet(J),
     /// Constant word
-    Word(Arc<Value>),
+    Word(Value),
 }
 
 impl<C, J: Clone, X, W> Inner<C, J, X, W> {
@@ -144,7 +144,7 @@ impl<C, J: Clone, X, W> Inner<C, J, X, W> {
             Inner::Witness(w) => Inner::Witness(w),
             Inner::Fail(entropy) => Inner::Fail(*entropy),
             Inner::Jet(j) => Inner::Jet(j.clone()),
-            Inner::Word(w) => Inner::Word(Arc::clone(w)),
+            Inner::Word(w) => Inner::Word(w.shallow_clone()),
         }
     }
 
@@ -171,7 +171,7 @@ impl<C, J: Clone, X, W> Inner<C, J, X, W> {
             Inner::Witness(w) => Inner::Witness(w),
             Inner::Fail(entropy) => Inner::Fail(entropy),
             Inner::Jet(j) => Inner::Jet(j),
-            Inner::Word(ref w) => Inner::Word(Arc::clone(w)),
+            Inner::Word(ref w) => Inner::Word(w.shallow_clone()),
         }
     }
 

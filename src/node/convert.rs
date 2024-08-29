@@ -154,26 +154,24 @@ pub trait Converter<N: Marker, M: Marker> {
 /// If it encounters a disconnect node, it simply returns an error.
 // FIXME we should do type checking, but this would require a method to check
 // type compatibility between a Value and a type::Final.
-pub struct SimpleFinalizer<W: Iterator<Item = Arc<Value>>> {
+pub struct SimpleFinalizer<W: Iterator<Item = Value>> {
     iter: W,
 }
 
-impl<W: Iterator<Item = Arc<Value>>> SimpleFinalizer<W> {
+impl<W: Iterator<Item = Value>> SimpleFinalizer<W> {
     pub fn new(iter: W) -> Self {
         SimpleFinalizer { iter }
     }
 }
 
-impl<W: Iterator<Item = Arc<Value>>, J: Jet> Converter<Commit<J>, Redeem<J>>
-    for SimpleFinalizer<W>
-{
+impl<W: Iterator<Item = Value>, J: Jet> Converter<Commit<J>, Redeem<J>> for SimpleFinalizer<W> {
     type Error = crate::Error;
 
     fn convert_witness(
         &mut self,
         _: &PostOrderIterItem<&CommitNode<J>>,
         _: &NoWitness,
-    ) -> Result<Arc<Value>, Self::Error> {
+    ) -> Result<Value, Self::Error> {
         self.iter.next().ok_or(crate::Error::NoMoreWitnesses)
     }
 
@@ -189,12 +187,12 @@ impl<W: Iterator<Item = Arc<Value>>, J: Jet> Converter<Commit<J>, Redeem<J>>
     fn convert_data(
         &mut self,
         data: &PostOrderIterItem<&CommitNode<J>>,
-        inner: Inner<&Arc<RedeemNode<J>>, J, &Arc<RedeemNode<J>>, &Arc<Value>>,
+        inner: Inner<&Arc<RedeemNode<J>>, J, &Arc<RedeemNode<J>>, &Value>,
     ) -> Result<Arc<RedeemData<J>>, Self::Error> {
         let converted_data = inner
             .map(|node| node.cached_data())
             .map_disconnect(|node| node.cached_data())
-            .map_witness(Arc::clone);
+            .map_witness(Value::shallow_clone);
         Ok(Arc::new(RedeemData::new(
             data.node.arrow().shallow_clone(),
             converted_data,

@@ -13,5 +13,5 @@ mod bitwriter;
 pub mod decode;
 pub mod encode;
 
-pub use bititer::{u2, BitIter, CloseError, EarlyEndOfStreamError};
+pub use bititer::{u2, BitCollector, BitIter, CloseError, EarlyEndOfStreamError};
 pub use bitwriter::{write_to_vec, BitWriter};

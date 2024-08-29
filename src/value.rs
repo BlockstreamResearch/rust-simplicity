@@ -14,8 +14,15 @@ use std::hash::Hash;
 use std::sync::Arc;
 
 /// A Simplicity value.
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct Value {
+    inner: ValueInner,
+    ty: Arc<Final>,
+}
+
+/// The inner structure of a Simplicity value.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Value {
+enum ValueInner {
     /// The unit value.
     ///
     /// The unit value is the only value of the unit type `1`.
@@ -47,145 +54,194 @@ impl<'a> DagLike for &'a Value {
     }
 
     fn as_dag_node(&self) -> Dag<Self> {
-        match self {
-            Value::Unit => Dag::Nullary,
-            Value::Left(child) | Value::Right(child) => Dag::Unary(child),
-            Value::Product(left, right) => Dag::Binary(left, right),
+        match &self.inner {
+            ValueInner::Unit => Dag::Nullary,
+            ValueInner::Left(child) | ValueInner::Right(child) => Dag::Unary(child),
+            ValueInner::Product(left, right) => Dag::Binary(left, right),
         }
     }
 }
 
 impl Value {
+    /// Make a cheap copy of the value.
+    pub fn shallow_clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            ty: Arc::clone(&self.ty),
+        }
+    }
+
+    /// Access the type of the value.
+    pub fn ty(&self) -> &Final {
+        &self.ty
+    }
+
     /// Create the unit value.
-    pub fn unit() -> Arc<Self> {
-        Arc::new(Self::Unit)
+    pub fn unit() -> Self {
+        Self {
+            inner: ValueInner::Unit,
+            ty: Final::unit(),
+        }
     }
 
     /// Create a left value that wraps the given `inner` value.
-    pub fn left(inner: Arc<Self>) -> Arc<Self> {
-        Arc::new(Value::Left(inner))
+    pub fn left(inner: Self, right: Arc<Final>) -> Self {
+        Self {
+            ty: Final::sum(Arc::clone(&inner.ty), right),
+            inner: ValueInner::Left(Arc::new(inner)),
+        }
     }
 
     /// Create a right value that wraps the given `inner` value.
-    pub fn right(inner: Arc<Self>) -> Arc<Self> {
-        Arc::new(Value::Right(inner))
+    pub fn right(left: Arc<Final>, inner: Self) -> Self {
+        Self {
+            ty: Final::sum(left, Arc::clone(&inner.ty)),
+            inner: ValueInner::Right(Arc::new(inner)),
+        }
     }
 
     /// Create a product value that wraps the given `left` and `right` values.
-    pub fn product(left: Arc<Self>, right: Arc<Self>) -> Arc<Self> {
-        Arc::new(Value::Product(left, right))
+    pub fn product(left: Self, right: Self) -> Self {
+        Self {
+            ty: Final::product(Arc::clone(&left.ty), Arc::clone(&right.ty)),
+            inner: ValueInner::Product(Arc::new(left), Arc::new(right)),
+        }
     }
 
-    /// The length, in bits, of the value when encoded in the Bit Machine
-    pub fn len(&self) -> usize {
-        self.pre_order_iter::<NoSharing>()
-            .filter(|inner| matches!(inner, Value::Left(_) | Value::Right(_)))
-            .count()
+    /// Create a none value.
+    pub fn none(right: Arc<Final>) -> Self {
+        Self {
+            ty: Final::sum(Final::unit(), right),
+            inner: ValueInner::Left(Arc::new(Value::unit())),
+        }
+    }
+
+    /// Create a some value.
+    pub fn some(inner: Self) -> Self {
+        Self {
+            ty: Final::sum(Final::unit(), Arc::clone(&inner.ty)),
+            inner: ValueInner::Right(Arc::new(inner)),
+        }
+    }
+
+    /// Return the bit length of the value in compact encoding.
+    pub fn compact_len(&self) -> usize {
+        self.iter_compact().count()
+    }
+
+    /// Return the bit length of the value in padded encoding.
+    pub fn padded_len(&self) -> usize {
+        self.iter_padded().count()
     }
 
     /// Check if the value is a nested product of units.
     /// In this case, the value contains no information.
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
+        self.pre_order_iter::<NoSharing>()
+            .all(|value| matches!(&value.inner, ValueInner::Unit | ValueInner::Product(..)))
     }
 
     /// Check if the value is a unit.
     pub fn is_unit(&self) -> bool {
-        matches!(self, Value::Unit)
+        matches!(&self.inner, ValueInner::Unit)
     }
 
     /// Access the inner value of a left sum value.
     pub fn as_left(&self) -> Option<&Self> {
-        match self {
-            Value::Left(inner) => Some(inner.as_ref()),
+        match &self.inner {
+            ValueInner::Left(inner) => Some(inner.as_ref()),
             _ => None,
         }
     }
 
     /// Access the inner value of a right sum value.
     pub fn as_right(&self) -> Option<&Self> {
-        match self {
-            Value::Right(inner) => Some(inner.as_ref()),
+        match &self.inner {
+            ValueInner::Right(inner) => Some(inner.as_ref()),
             _ => None,
         }
     }
 
     /// Access the inner values of a product value.
     pub fn as_product(&self) -> Option<(&Self, &Self)> {
-        match self {
-            Value::Product(left, right) => Some((left.as_ref(), right.as_ref())),
+        match &self.inner {
+            ValueInner::Product(left, right) => Some((left.as_ref(), right.as_ref())),
             _ => None,
         }
     }
 
-    /// Encode a single bit as a value. Will panic if the input is out of range
-    pub fn u1(n: u8) -> Arc<Self> {
-        match n {
-            0 => Value::left(Value::unit()),
-            1 => Value::right(Value::unit()),
+    /// Create a 1-bit integer.
+    ///
+    /// ## Panics
+    ///
+    /// The value is out of range.
+    pub fn u1(value: u8) -> Self {
+        match value {
+            0 => Self::left(Self::unit(), Final::unit()),
+            1 => Self::right(Final::unit(), Self::unit()),
             x => panic!("{} out of range for Value::u1", x),
         }
     }
 
-    /// Encode a two-bit number as a value. Will panic if the input is out of range
-    pub fn u2(n: u8) -> Arc<Self> {
-        let b0 = (n & 2) / 2;
-        let b1 = n & 1;
-        assert!(n <= 3, "{} out of range for Value::u2", n);
-        Value::product(Value::u1(b0), Value::u1(b1))
+    /// Create a 2-bit integer.
+    ///
+    /// ## Panics
+    ///
+    /// The value is out of range.
+    pub fn u2(value: u8) -> Self {
+        let b0 = (value & 2) / 2;
+        let b1 = value & 1;
+        assert!(value <= 3, "{} out of range for Value::u2", value);
+        Self::product(Self::u1(b0), Self::u1(b1))
     }
 
-    /// Encode a four-bit number as a value. Will panic if the input is out of range
-    pub fn u4(n: u8) -> Arc<Self> {
-        let w0 = (n & 12) / 4;
-        let w1 = n & 3;
-        assert!(n <= 15, "{} out of range for Value::u2", n);
-        Value::product(Value::u2(w0), Value::u2(w1))
+    /// Create a 4-bit integer.
+    ///
+    /// ## Panics
+    ///
+    /// The value is ouf of range.
+    pub fn u4(value: u8) -> Self {
+        let w0 = (value & 12) / 4;
+        let w1 = value & 3;
+        assert!(value <= 15, "{} out of range for Value::u2", value);
+        Self::product(Self::u2(w0), Self::u2(w1))
     }
 
-    /// Encode an eight-bit number as a value
-    pub fn u8(n: u8) -> Arc<Self> {
-        let w0 = n >> 4;
-        let w1 = n & 0xf;
-        Value::product(Value::u4(w0), Value::u4(w1))
+    /// Create an 8-bit integer.
+    pub fn u8(value: u8) -> Self {
+        let w0 = value >> 4;
+        let w1 = value & 0xf;
+        Self::product(Self::u4(w0), Self::u4(w1))
     }
 
-    /// Encode a 16-bit number as a value
-    pub fn u16(n: u16) -> Arc<Self> {
-        let w0 = (n >> 8) as u8;
-        let w1 = (n & 0xff) as u8;
-        Value::product(Value::u8(w0), Value::u8(w1))
+    /// Create a 16-bit integer.
+    pub fn u16(bytes: u16) -> Self {
+        Self::from_byte_array(bytes.to_be_bytes())
     }
 
-    /// Encode a 32-bit number as a value
-    pub fn u32(n: u32) -> Arc<Self> {
-        let w0 = (n >> 16) as u16;
-        let w1 = (n & 0xffff) as u16;
-        Value::product(Value::u16(w0), Value::u16(w1))
+    /// Create a 32-bit integer.
+    pub fn u32(bytes: u32) -> Self {
+        Self::from_byte_array(bytes.to_be_bytes())
     }
 
-    /// Encode a 64-bit number as a value
-    pub fn u64(n: u64) -> Arc<Self> {
-        let w0 = (n >> 32) as u32;
-        let w1 = (n & 0xffff_ffff) as u32;
-        Value::product(Value::u32(w0), Value::u32(w1))
+    /// Create a 64-bit integer.
+    pub fn u64(bytes: u64) -> Self {
+        Self::from_byte_array(bytes.to_be_bytes())
     }
 
-    /// Encode a 128-bit number as a value
-    pub fn u128(n: u128) -> Arc<Self> {
-        let w0 = (n >> 64) as u64;
-        let w1 = n as u64; // Cast safety: picking last 64 bits
-        Value::product(Value::u64(w0), Value::u64(w1))
+    /// Create a 128-bit integer.
+    pub fn u128(bytes: u128) -> Self {
+        Self::from_byte_array(bytes.to_be_bytes())
     }
 
-    /// Create a value from 32 bytes.
-    pub fn u256(bytes: [u8; 32]) -> Arc<Self> {
-        Value::from_byte_array(bytes)
+    /// Create a 256-bit integer.
+    pub fn u256(bytes: [u8; 32]) -> Self {
+        Self::from_byte_array(bytes)
     }
 
-    /// Create a value from 64 bytes.
-    pub fn u512(bytes: [u8; 64]) -> Arc<Self> {
-        Value::from_byte_array(bytes)
+    /// Create a 512-bit integer.
+    pub fn u512(bytes: [u8; 64]) -> Self {
+        Self::from_byte_array(bytes)
     }
 
     /// Create a value from a byte array.
@@ -193,7 +249,7 @@ impl Value {
     /// ## Panics
     ///
     /// The array length is not a power of two.
-    pub fn from_byte_array<const N: usize>(bytes: [u8; N]) -> Arc<Self> {
+    pub fn from_byte_array<const N: usize>(bytes: [u8; N]) -> Self {
         assert!(N.is_power_of_two(), "Array length must be a power of two");
         let mut values: VecDeque<_> = bytes.into_iter().map(Value::u8).collect();
 
@@ -210,95 +266,28 @@ impl Value {
         values.into_iter().next().unwrap()
     }
 
-    /// Execute function `f` on each bit of the encoding of the value.
-    pub fn do_each_bit<F>(&self, mut f: F)
-    where
-        F: FnMut(bool),
-    {
-        for val in self.pre_order_iter::<NoSharing>() {
-            match val {
-                Value::Unit => {}
-                Value::Left(..) => f(false),
-                Value::Right(..) => f(true),
-                Value::Product(..) => {}
-            }
-        }
+    /// Return an iterator over the compact bit encoding of the value.
+    ///
+    /// This encoding is used for writing witness data and for computing IMRs.
+    pub fn iter_compact(&self) -> impl Iterator<Item = bool> + '_ {
+        self.pre_order_iter::<NoSharing>()
+            .filter_map(|value| match &value.inner {
+                ValueInner::Left(..) => Some(false),
+                ValueInner::Right(..) => Some(true),
+                _ => None,
+            })
     }
 
-    /// Encode value as big-endian byte string.
-    /// Fails if underlying bit string has length not divisible by 8
-    pub fn try_to_bytes(&self) -> Result<Vec<u8>, &'static str> {
-        let (bytes, bit_length) = self.to_bytes_len();
-
-        if bit_length % 8 == 0 {
-            Ok(bytes)
-        } else {
-            Err("Length of bit string that encodes this value is not divisible by 8!")
-        }
-    }
-
-    /// Encode value as big-endian byte string.
-    /// Trailing zeroes are added as padding if underlying bit string has length not divisible by 8.
-    /// The length of said bit string is returned as second argument
-    pub fn to_bytes_len(&self) -> (Vec<u8>, usize) {
-        let mut bytes = vec![];
-        let mut unfinished_byte = Vec::with_capacity(8);
-        let update_bytes = |bit: bool| {
-            unfinished_byte.push(bit);
-
-            if unfinished_byte.len() == 8 {
-                bytes.push(
-                    unfinished_byte
-                        .iter()
-                        .fold(0, |acc, &b| acc * 2 + u8::from(b)),
-                );
-                unfinished_byte.clear();
-            }
-        };
-
-        self.do_each_bit(update_bytes);
-        let bit_length = bytes.len() * 8 + unfinished_byte.len();
-
-        if !unfinished_byte.is_empty() {
-            unfinished_byte.resize(8, false);
-            bytes.push(
-                unfinished_byte
-                    .iter()
-                    .fold(0, |acc, &b| acc * 2 + u8::from(b)),
-            );
-        }
-
-        (bytes, bit_length)
+    /// Return an iterator over the padded bit encoding of the value.
+    ///
+    /// This encoding is used to represent the value in the Bit Machine.
+    pub fn iter_padded(&self) -> impl Iterator<Item = bool> + '_ {
+        PaddedBitsIter::new(self)
     }
 
     /// Check if the value is of the given type.
     pub fn is_of_type(&self, ty: &Final) -> bool {
-        let mut stack = vec![(self, ty)];
-
-        while let Some((value, ty)) = stack.pop() {
-            if ty.is_unit() {
-                if !value.is_unit() {
-                    return false;
-                }
-            } else if let Some((ty_l, ty_r)) = ty.as_sum() {
-                if let Some(value_l) = value.as_left() {
-                    stack.push((value_l, ty_l));
-                } else if let Some(value_r) = value.as_right() {
-                    stack.push((value_r, ty_r));
-                } else {
-                    return false;
-                }
-            } else if let Some((ty_l, ty_r)) = ty.as_product() {
-                if let Some((value_l, value_r)) = value.as_product() {
-                    stack.push((value_r, ty_r));
-                    stack.push((value_l, ty_l));
-                } else {
-                    return false;
-                }
-            }
-        }
-
-        true
+        self.ty.as_ref() == ty
     }
 }
 
@@ -311,25 +300,28 @@ impl fmt::Debug for Value {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for data in self.verbose_pre_order_iter::<NoSharing>(None) {
-            match data.node {
-                Value::Unit => {
+            match &data.node.inner {
+                ValueInner::Unit => {
                     if data.n_children_yielded == 0
-                        && !matches!(data.parent, Some(Value::Left(_)) | Some(Value::Right(_)))
+                        && !matches!(
+                            data.parent.map(|value| &value.inner),
+                            Some(ValueInner::Left(_)) | Some(ValueInner::Right(_))
+                        )
                     {
                         f.write_str("ε")?;
                     }
                 }
-                Value::Left(..) => {
+                ValueInner::Left(..) => {
                     if data.n_children_yielded == 0 {
                         f.write_str("0")?;
                     }
                 }
-                Value::Right(..) => {
+                ValueInner::Right(..) => {
                     if data.n_children_yielded == 0 {
                         f.write_str("1")?;
                     }
                 }
-                Value::Product(..) => match data.n_children_yielded {
+                ValueInner::Product(..) => match data.n_children_yielded {
                     0 => f.write_str("(")?,
                     1 => f.write_str(",")?,
                     2 => f.write_str(")")?,
@@ -338,6 +330,61 @@ impl fmt::Display for Value {
             }
         }
         Ok(())
+    }
+}
+
+/// An iterator over the bits of the padded encoding of a [`Value`].
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+struct PaddedBitsIter<'a> {
+    stack: Vec<&'a Value>,
+    next_padding: Option<usize>,
+}
+
+impl<'a> PaddedBitsIter<'a> {
+    /// Create an iterator over the bits of the padded encoding of the `value`.
+    pub fn new(value: &'a Value) -> Self {
+        Self {
+            stack: vec![value],
+            next_padding: None,
+        }
+    }
+}
+
+impl<'a> Iterator for PaddedBitsIter<'a> {
+    type Item = bool;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.next_padding {
+            Some(0) => {
+                self.next_padding = None;
+            }
+            Some(n) => {
+                self.next_padding = Some(n - 1);
+                return Some(false);
+            }
+            None => {}
+        }
+
+        while let Some(value) = self.stack.pop() {
+            if value.is_unit() {
+                // NOP
+            } else if let Some(l_value) = value.as_left() {
+                let (l_ty, r_ty) = value.ty.as_sum().unwrap();
+                self.stack.push(l_value);
+                self.next_padding = Some(l_ty.pad_left(r_ty));
+                return Some(false);
+            } else if let Some(r_value) = value.as_right() {
+                let (l_ty, r_ty) = value.ty.as_sum().unwrap();
+                self.stack.push(r_value);
+                self.next_padding = Some(l_ty.pad_right(r_ty));
+                return Some(true);
+            } else if let Some((l_value, r_value)) = value.as_product() {
+                self.stack.push(r_value);
+                self.stack.push(l_value);
+            }
+        }
+
+        None
     }
 }
 
@@ -359,10 +406,16 @@ mod tests {
     fn is_of_type() {
         let value_typename = [
             (Value::unit(), TypeName(b"1")),
-            (Value::left(Value::unit()), TypeName(b"+11")),
-            (Value::right(Value::unit()), TypeName(b"+11")),
-            (Value::left(Value::unit()), TypeName(b"+1h")),
-            (Value::right(Value::unit()), TypeName(b"+h1")),
+            (Value::left(Value::unit(), Final::unit()), TypeName(b"+11")),
+            (Value::right(Final::unit(), Value::unit()), TypeName(b"+11")),
+            (
+                Value::left(Value::unit(), Final::two_two_n(8)),
+                TypeName(b"+1h"),
+            ),
+            (
+                Value::right(Final::two_two_n(8), Value::unit()),
+                TypeName(b"+h1"),
+            ),
             (
                 Value::product(Value::unit(), Value::unit()),
                 TypeName(b"*11"),

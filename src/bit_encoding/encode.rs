@@ -259,8 +259,8 @@ fn encode_node<W: io::Write, N: node::Marker>(
             node::Inner::Word(val) => {
                 w.write_bit(true)?; // jet or word
                 w.write_bit(false)?; // word
-                assert_eq!(val.len().count_ones(), 1);
-                let depth = val.len().trailing_zeros();
+                assert_eq!(val.compact_len().count_ones(), 1);
+                let depth = val.compact_len().trailing_zeros();
                 encode_natural(1 + depth as usize, w)?;
                 encode_value(val, w)?;
             }
@@ -289,20 +289,15 @@ where
 pub fn encode_value<W: io::Write>(value: &Value, w: &mut BitWriter<W>) -> io::Result<usize> {
     let n_start = w.n_total_written();
 
-    match value {
-        Value::Unit => {}
-        Value::Left(left) => {
-            w.write_bit(false)?;
-            encode_value(left, w)?;
-        }
-        Value::Right(right) => {
-            w.write_bit(true)?;
-            encode_value(right, w)?;
-        }
-        Value::Product(left, right) => {
-            encode_value(left, w)?;
-            encode_value(right, w)?;
-        }
+    if let Some(left) = value.as_left() {
+        w.write_bit(false)?;
+        encode_value(left, w)?;
+    } else if let Some(right) = value.as_right() {
+        w.write_bit(true)?;
+        encode_value(right, w)?;
+    } else if let Some((left, right)) = value.as_product() {
+        encode_value(left, w)?;
+        encode_value(right, w)?;
     }
 
     Ok(w.n_total_written() - n_start)

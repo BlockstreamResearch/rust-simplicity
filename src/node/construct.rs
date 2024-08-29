@@ -256,7 +256,7 @@ impl<J> CoreConstructible for ConstructData<J> {
         }
     }
 
-    fn const_word(inference_context: &types::Context, word: Arc<Value>) -> Self {
+    fn const_word(inference_context: &types::Context, word: Value) -> Self {
         ConstructData {
             arrow: Arrow::const_word(inference_context, word),
             phantom: PhantomData,
@@ -390,7 +390,7 @@ mod tests {
 
         assert_eq!(
             unit.cmr(),
-            Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::Unit).cmr()
+            Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::unit()).cmr()
         );
         assert_eq!(
             bit0.cmr(),

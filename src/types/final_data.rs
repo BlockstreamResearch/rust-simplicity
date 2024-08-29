@@ -148,6 +148,17 @@ impl<'a> DagLike for &'a Final {
     }
 }
 
+macro_rules! construct_final_two_two_n {
+    ($name: ident, $n: expr, $text: expr) => {
+        #[doc = "Create the type of"]
+        #[doc = $text]
+        #[doc = "words.\n\nThe type is precomputed and fast to access."]
+        pub fn $name() -> Arc<Self> {
+            super::precomputed::nth_power_of_2($n)
+        }
+    };
+}
+
 impl Final {
     /// Create the unit type.
     pub fn unit() -> Arc<Self> {
@@ -164,6 +175,17 @@ impl Final {
     pub fn two_two_n(n: usize) -> Arc<Self> {
         super::precomputed::nth_power_of_2(n)
     }
+
+    construct_final_two_two_n!(u1, 0, "1-bit");
+    construct_final_two_two_n!(u2, 1, "2-bit");
+    construct_final_two_two_n!(u4, 2, "4-bit");
+    construct_final_two_two_n!(u8, 3, "8-bit");
+    construct_final_two_two_n!(u16, 4, "16-bit");
+    construct_final_two_two_n!(u32, 5, "32-bit");
+    construct_final_two_two_n!(u64, 6, "64-bit");
+    construct_final_two_two_n!(u128, 7, "128-bit");
+    construct_final_two_two_n!(u256, 8, "256-bit");
+    construct_final_two_two_n!(u512, 9, "512-bit");
 
     /// Create the sum of the given `left` and `right` types.
     pub fn sum(left: Arc<Self>, right: Arc<Self>) -> Arc<Self> {
@@ -223,6 +245,16 @@ impl Final {
             CompleteBound::Product(left, right) => Some((left.as_ref(), right.as_ref())),
             _ => None,
         }
+    }
+
+    /// Compute the padding of left values of the sum type `Self + Other`.
+    pub fn pad_left(&self, other: &Self) -> usize {
+        cmp::max(self.bit_width, other.bit_width) - self.bit_width
+    }
+
+    /// Compute the padding of right values of the sum type `Self + Other`.
+    pub fn pad_right(&self, other: &Self) -> usize {
+        cmp::max(self.bit_width, other.bit_width) - other.bit_width
     }
 }
 

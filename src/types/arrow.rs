@@ -310,11 +310,11 @@ impl CoreConstructible for Arrow {
         }
     }
 
-    fn const_word(inference_context: &Context, word: Arc<Value>) -> Self {
-        let len = word.len();
+    fn const_word(inference_context: &Context, word: Value) -> Self {
+        let len = word.compact_len();
         assert!(len > 0, "Words must not be the empty bitstring");
         assert!(len.is_power_of_two());
-        let depth = word.len().trailing_zeros();
+        let depth = len.trailing_zeros();
         Arrow {
             source: Type::unit(inference_context),
             target: Type::two_two_n(inference_context, depth as usize),

@@ -8,12 +8,11 @@
 
 mod frame;
 
+use std::error;
 use std::fmt;
 use std::sync::Arc;
-use std::{cmp, error};
 
 use crate::analysis;
-use crate::dag::{DagLike, NoSharing};
 use crate::jet::{Jet, JetFailed};
 use crate::node::{self, RedeemNode};
 use crate::types::Final;
@@ -53,7 +52,7 @@ impl BitMachine {
     pub fn test_exec<J: Jet>(
         program: Arc<crate::node::ConstructNode<J>>,
         env: &J::Environment,
-    ) -> Result<Arc<Value>, ExecutionError> {
+    ) -> Result<Value, ExecutionError> {
         use crate::node::SimpleFinalizer;
 
         let prog = program
@@ -172,13 +171,8 @@ impl BitMachine {
 
     /// Write a value to the current write frame
     fn write_value(&mut self, val: &Value) {
-        for val in val.pre_order_iter::<NoSharing>() {
-            match val {
-                Value::Unit => {}
-                Value::Left(..) => self.write_bit(false),
-                Value::Right(..) => self.write_bit(true),
-                Value::Product(..) => {}
-            }
+        for bit in val.iter_padded() {
+            self.write_bit(bit);
         }
     }
 
@@ -203,7 +197,7 @@ impl BitMachine {
         }
         // Unit value doesn't need extra frame
         if !input.is_empty() {
-            self.new_frame(input.len());
+            self.new_frame(input.padded_len());
             self.write_value(input);
             self.move_frame();
         }
@@ -217,7 +211,7 @@ impl BitMachine {
         &mut self,
         program: &RedeemNode<J>,
         env: &J::Environment,
-    ) -> Result<Arc<Value>, ExecutionError> {
+    ) -> Result<Value, ExecutionError> {
         enum CallStack<'a, J: Jet> {
             Goto(&'a RedeemNode<J>),
             MoveFrame,
@@ -245,7 +239,6 @@ impl BitMachine {
 
         let mut ip = program;
         let mut call_stack = vec![];
-        let mut iterations = 0u64;
 
         let output_width = ip.arrow().target.bit_width();
         if output_width > 0 {
@@ -253,11 +246,6 @@ impl BitMachine {
         }
 
         'main_loop: loop {
-            iterations += 1;
-            if iterations % 1_000_000_000 == 0 {
-                println!("({:5} M) exec {:?}", iterations / 1_000_000, ip);
-            }
-
             match ip.inner() {
                 node::Inner::Unit => {}
                 node::Inner::Iden => {
@@ -265,17 +253,15 @@ impl BitMachine {
                     self.copy(size_a);
                 }
                 node::Inner::InjL(left) => {
-                    let (b, _c) = ip.arrow().target.as_sum().unwrap();
-                    let padl_b_c = ip.arrow().target.bit_width() - b.bit_width() - 1;
+                    let (b, c) = ip.arrow().target.as_sum().unwrap();
                     self.write_bit(false);
-                    self.skip(padl_b_c);
+                    self.skip(b.pad_left(c));
                     call_stack.push(CallStack::Goto(left));
                 }
                 node::Inner::InjR(left) => {
-                    let (_b, c) = ip.arrow().target.as_sum().unwrap();
-                    let padr_b_c = ip.arrow().target.bit_width() - c.bit_width() - 1;
+                    let (b, c) = ip.arrow().target.as_sum().unwrap();
                     self.write_bit(true);
-                    self.skip(padr_b_c);
+                    self.skip(b.pad_right(c));
                     call_stack.push(CallStack::Goto(left));
                 }
                 node::Inner::Pair(left, right) => {
@@ -323,22 +309,18 @@ impl BitMachine {
 
                     let (sum_a_b, _c) = ip.arrow().source.as_product().unwrap();
                     let (a, b) = sum_a_b.as_sum().unwrap();
-                    let size_a = a.bit_width();
-                    let size_b = b.bit_width();
 
                     match (ip.inner(), choice_bit) {
                         (node::Inner::Case(_, right), true)
                         | (node::Inner::AssertR(_, right), true) => {
-                            let padr_a_b = cmp::max(size_a, size_b) - size_b;
-                            self.fwd(1 + padr_a_b);
-                            call_stack.push(CallStack::Back(1 + padr_a_b));
+                            self.fwd(1 + a.pad_right(b));
+                            call_stack.push(CallStack::Back(1 + a.pad_right(b)));
                             call_stack.push(CallStack::Goto(right));
                         }
                         (node::Inner::Case(left, _), false)
                         | (node::Inner::AssertL(left, _), false) => {
-                            let padl_a_b = cmp::max(size_a, size_b) - size_a;
-                            self.fwd(1 + padl_a_b);
-                            call_stack.push(CallStack::Back(1 + padl_a_b));
+                            self.fwd(1 + a.pad_left(b));
+                            call_stack.push(CallStack::Back(1 + a.pad_left(b)));
                             call_stack.push(CallStack::Goto(left));
                         }
                         (node::Inner::AssertL(_, r_cmr), true) => {
@@ -546,7 +528,7 @@ mod tests {
         cmr_str: &str,
         amr_str: &str,
         imr_str: &str,
-    ) -> Result<Arc<Value>, ExecutionError> {
+    ) -> Result<Value, ExecutionError> {
         let prog_hex = prog_bytes.as_hex();
 
         let prog = BitIter::from(prog_bytes);
