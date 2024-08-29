@@ -13,7 +13,6 @@ use std::fmt;
 use std::sync::Arc;
 
 use crate::analysis;
-use crate::dag::{DagLike, NoSharing};
 use crate::jet::{Jet, JetFailed};
 use crate::node::{self, RedeemNode};
 use crate::types::Final;
@@ -53,7 +52,7 @@ impl BitMachine {
     pub fn test_exec<J: Jet>(
         program: Arc<crate::node::ConstructNode<J>>,
         env: &J::Environment,
-    ) -> Result<Arc<Value>, ExecutionError> {
+    ) -> Result<Value, ExecutionError> {
         use crate::node::SimpleFinalizer;
 
         let prog = program
@@ -172,13 +171,8 @@ impl BitMachine {
 
     /// Write a value to the current write frame
     fn write_value(&mut self, val: &Value) {
-        for val in val.pre_order_iter::<NoSharing>() {
-            match val {
-                Value::Unit => {}
-                Value::Left(..) => self.write_bit(false),
-                Value::Right(..) => self.write_bit(true),
-                Value::Product(..) => {}
-            }
+        for bit in val.iter_padded() {
+            self.write_bit(bit);
         }
     }
 
@@ -203,7 +197,7 @@ impl BitMachine {
         }
         // Unit value doesn't need extra frame
         if !input.is_empty() {
-            self.new_frame(input.len());
+            self.new_frame(input.padded_len());
             self.write_value(input);
             self.move_frame();
         }
@@ -217,7 +211,7 @@ impl BitMachine {
         &mut self,
         program: &RedeemNode<J>,
         env: &J::Environment,
-    ) -> Result<Arc<Value>, ExecutionError> {
+    ) -> Result<Value, ExecutionError> {
         enum CallStack<'a, J: Jet> {
             Goto(&'a RedeemNode<J>),
             MoveFrame,
@@ -534,7 +528,7 @@ mod tests {
         cmr_str: &str,
         amr_str: &str,
         imr_str: &str,
-    ) -> Result<Arc<Value>, ExecutionError> {
+    ) -> Result<Value, ExecutionError> {
         let prog_hex = prog_bytes.as_hex();
 
         let prog = BitIter::from(prog_bytes);

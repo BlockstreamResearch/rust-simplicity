@@ -317,7 +317,7 @@ impl NodeBounds {
         NodeBounds {
             extra_cells: 0,
             extra_frames: 0,
-            cost: Cost::OVERHEAD + Cost::of_type(value.len()),
+            cost: Cost::OVERHEAD + Cost::of_type(value.padded_len()),
         }
     }
 

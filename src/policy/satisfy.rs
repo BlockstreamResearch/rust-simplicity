@@ -193,7 +193,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                         // this manually.
                         threshold_failed = true;
                     }
-                    witness_bits[idx] = Some(Arc::clone(&b1));
+                    witness_bits[idx] = Some(b1.shallow_clone());
                 }
                 for &(idx, _) in &sorted_costs[k..] {
                     nodes[idx] = nodes[idx].pruned();
@@ -230,6 +230,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bit_encoding::BitCollector;
     use crate::dag::{DagLike, NoSharing};
     use crate::jet::elements::ElementsEnv;
     use crate::node::{CoreConstructible, JetConstructible, SimpleFinalizer, WitnessConstructible};
@@ -329,7 +330,7 @@ mod tests {
         assert!(mac.exec(&program, env).is_err());
     }
 
-    fn to_witness(program: &RedeemNode<Elements>) -> Vec<&Arc<Value>> {
+    fn to_witness(program: &RedeemNode<Elements>) -> Vec<&Value> {
         program
             .post_order_iter::<NoSharing>()
             .into_witnesses()
@@ -379,7 +380,10 @@ mod tests {
 
         let sighash = env.c_tx_env().sighash_all();
         let message = secp256k1_zkp::Message::from(sighash);
-        let signature_bytes = witness[0].try_to_bytes().expect("to bytes");
+        let signature_bytes = witness[0]
+            .iter_padded()
+            .try_collect_bytes()
+            .expect("to bytes");
         let signature =
             secp256k1_zkp::schnorr::Signature::from_slice(&signature_bytes).expect("to signature");
         assert!(signature.verify(&message, xonly).is_ok());
@@ -399,7 +403,10 @@ mod tests {
         let witness = to_witness(&program);
         assert_eq!(1, witness.len());
 
-        let witness_bytes = witness[0].try_to_bytes().expect("to bytes");
+        let witness_bytes = witness[0]
+            .iter_padded()
+            .try_collect_bytes()
+            .expect("to bytes");
         let witness_preimage = Preimage32::try_from(witness_bytes.as_slice()).expect("to array");
         let preimage = *satisfier.preimages.get(&image).unwrap();
         assert_eq!(preimage, witness_preimage);
@@ -475,7 +482,10 @@ mod tests {
         assert_eq!(2, witness.len());
 
         for i in 0..2 {
-            let preimage_bytes = witness[i].try_to_bytes().expect("to bytes");
+            let preimage_bytes = witness[i]
+                .iter_padded()
+                .try_collect_bytes()
+                .expect("to bytes");
             let witness_preimage =
                 Preimage32::try_from(preimage_bytes.as_slice()).expect("to array");
             assert_eq!(preimages[i], &witness_preimage);
@@ -516,7 +526,10 @@ mod tests {
             assert_eq!(2, witness.len());
 
             assert_eq!(Value::u1(bit as u8), *witness[0]);
-            let preimage_bytes = witness[1].try_to_bytes().expect("to bytes");
+            let preimage_bytes = witness[1]
+                .iter_padded()
+                .try_collect_bytes()
+                .expect("to bytes");
             let witness_preimage =
                 Preimage32::try_from(preimage_bytes.as_slice()).expect("to array");
             assert_eq!(preimages[bit as usize], &witness_preimage);
@@ -580,7 +593,10 @@ mod tests {
                 assert_eq!(*witness[witidx], Value::u1(bit.into()));
                 witidx += 1;
                 if bit {
-                    let preimage_bytes = witness[witidx].try_to_bytes().expect("to bytes");
+                    let preimage_bytes = witness[witidx]
+                        .iter_padded()
+                        .try_collect_bytes()
+                        .expect("to bytes");
                     let witness_preimage =
                         Preimage32::try_from(preimage_bytes.as_slice()).expect("to array");
                     assert_eq!(preimages[bit_n], &witness_preimage);
@@ -633,7 +649,7 @@ mod tests {
         let env = ElementsEnv::dummy();
         let mut satisfier = get_satisfier(&env);
 
-        let mut assert_branch = |witness0: Arc<Value>, witness1: Arc<Value>| {
+        let mut assert_branch = |witness0: Value, witness1: Value| {
             let asm_program = serialize::verify_bexp(
                 &Arc::<WitnessNode<Elements>>::pair(
                     &Arc::<WitnessNode<Elements>>::witness(&ctx, Some(witness0.clone())),

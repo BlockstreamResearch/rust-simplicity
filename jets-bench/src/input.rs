@@ -10,11 +10,11 @@ use simplicity::jet::Elements;
 use simplicity::types::{self, CompleteBound};
 use simplicity::Value;
 
-pub fn random_value(ty: &types::Final, rng: &mut ThreadRng) -> Arc<Value> {
+pub fn random_value(ty: &types::Final, rng: &mut ThreadRng) -> Value {
     enum StackItem<'a> {
         Type(&'a types::Final),
-        LeftSum,
-        RightSum,
+        LeftSum(Arc<types::Final>),
+        RightSum(Arc<types::Final>),
         Product,
     }
 
@@ -27,10 +27,10 @@ pub fn random_value(ty: &types::Final, rng: &mut ThreadRng) -> Arc<Value> {
                 CompleteBound::Unit => value_stack.push(Value::unit()),
                 CompleteBound::Sum(left, right) => {
                     if rng.gen() {
-                        call_stack.push(StackItem::LeftSum);
+                        call_stack.push(StackItem::LeftSum(Arc::clone(right)));
                         call_stack.push(StackItem::Type(left));
                     } else {
-                        call_stack.push(StackItem::RightSum);
+                        call_stack.push(StackItem::RightSum(Arc::clone(left)));
                         call_stack.push(StackItem::Type(right));
                     }
                 }
@@ -40,13 +40,13 @@ pub fn random_value(ty: &types::Final, rng: &mut ThreadRng) -> Arc<Value> {
                     call_stack.push(StackItem::Type(left));
                 }
             },
-            StackItem::LeftSum => {
+            StackItem::LeftSum(right) => {
                 let left = value_stack.pop().unwrap();
-                value_stack.push(Value::left(left));
+                value_stack.push(Value::left(left, right));
             }
-            StackItem::RightSum => {
+            StackItem::RightSum(left) => {
                 let right = value_stack.pop().unwrap();
-                value_stack.push(Value::right(right));
+                value_stack.push(Value::right(left, right));
             }
             StackItem::Product => {
                 let right = value_stack.pop().unwrap();
@@ -411,10 +411,10 @@ pub enum InputSampling {
     Random,
     /// A given, fixed bit string (whose length is multiple of 8)
     /// Worst-case inputs
-    Fixed(Arc<Value>),
+    Fixed(Value),
     /// Custom sampling method, read first src type bits from input
     /// Useful for cases where we want to sample inputs according to some distributions
-    Custom(Arc<dyn Fn() -> Arc<Value>>),
+    Custom(Arc<dyn Fn() -> Value>),
 }
 
 impl InputSampling {
@@ -424,19 +424,25 @@ impl InputSampling {
         src_ty: &types::Final,
         rng: &mut ThreadRng,
     ) {
-        let write_bit = |bit: bool| unsafe { c_writeBit(src_frame, bit) };
+        let mut write_bit = |bit: bool| unsafe { c_writeBit(src_frame, bit) };
 
         match self {
             InputSampling::Random => {
                 let value = random_value(src_ty, rng);
-                value.do_each_bit(write_bit);
+                for bit in value.iter_padded() {
+                    write_bit(bit);
+                }
             }
-            InputSampling::Fixed(v) => {
-                v.do_each_bit(write_bit);
+            InputSampling::Fixed(value) => {
+                for bit in value.iter_padded() {
+                    write_bit(bit);
+                }
             }
             InputSampling::Custom(gen_bytes) => {
                 let value = gen_bytes();
-                value.do_each_bit(write_bit);
+                for bit in value.iter_padded() {
+                    write_bit(bit);
+                }
             }
         }
     }

@@ -31,7 +31,7 @@ pub struct Witness<J> {
 
 impl<J: Jet> Marker for Witness<J> {
     type CachedData = WitnessData<J>;
-    type Witness = Option<Arc<Value>>;
+    type Witness = Option<Value>;
     type Disconnect = Option<Arc<WitnessNode<J>>>;
     type SharingId = WitnessId;
     type Jet = J;
@@ -59,7 +59,7 @@ impl<J: Jet> WitnessNode<J> {
                 .as_ref()
                 .map(Arc::clone)
                 .map_disconnect(Option::<Arc<_>>::clone)
-                .map_witness(Option::<Arc<Value>>::clone),
+                .map_witness(Option::<Value>::clone),
         })
     }
 
@@ -84,9 +84,9 @@ impl<J: Jet> WitnessNode<J> {
             fn convert_witness(
                 &mut self,
                 _: &PostOrderIterItem<&WitnessNode<J>>,
-                wit: &Option<Arc<Value>>,
-            ) -> Result<Option<Arc<Value>>, Self::Error> {
-                Ok(Option::<Arc<Value>>::clone(wit))
+                wit: &Option<Value>,
+            ) -> Result<Option<Value>, Self::Error> {
+                Ok(Option::<Value>::clone(wit))
             }
 
             fn prune_case(
@@ -123,16 +123,11 @@ impl<J: Jet> WitnessNode<J> {
             fn convert_data(
                 &mut self,
                 data: &PostOrderIterItem<&WitnessNode<J>>,
-                inner: Inner<
-                    &Arc<WitnessNode<J>>,
-                    J,
-                    &Option<Arc<WitnessNode<J>>>,
-                    &Option<Arc<Value>>,
-                >,
+                inner: Inner<&Arc<WitnessNode<J>>, J, &Option<Arc<WitnessNode<J>>>, &Option<Value>>,
             ) -> Result<WitnessData<J>, Self::Error> {
                 let converted_inner = inner
                     .map(|node| node.cached_data())
-                    .map_witness(Option::<Arc<Value>>::clone);
+                    .map_witness(Option::<Value>::clone);
                 // This next line does the actual retyping.
                 let mut retyped =
                     WitnessData::from_inner(&self.inference_context, converted_inner)?;
@@ -164,10 +159,10 @@ impl<J: Jet> WitnessNode<J> {
             fn convert_witness(
                 &mut self,
                 _: &PostOrderIterItem<&WitnessNode<J>>,
-                wit: &Option<Arc<Value>>,
-            ) -> Result<Arc<Value>, Self::Error> {
+                wit: &Option<Value>,
+            ) -> Result<Value, Self::Error> {
                 if let Some(ref wit) = wit {
-                    Ok(Arc::clone(wit))
+                    Ok(wit.shallow_clone())
                 } else {
                     Err(Error::IncompleteFinalization)
                 }
@@ -189,12 +184,12 @@ impl<J: Jet> WitnessNode<J> {
             fn convert_data(
                 &mut self,
                 data: &PostOrderIterItem<&WitnessNode<J>>,
-                inner: Inner<&Arc<RedeemNode<J>>, J, &Arc<RedeemNode<J>>, &Arc<Value>>,
+                inner: Inner<&Arc<RedeemNode<J>>, J, &Arc<RedeemNode<J>>, &Value>,
             ) -> Result<Arc<RedeemData<J>>, Self::Error> {
                 let converted_data = inner
                     .map(|node| node.cached_data())
                     .map_disconnect(|node| node.cached_data())
-                    .map_witness(Arc::clone);
+                    .map_witness(Value::shallow_clone);
                 Ok(Arc::new(RedeemData::new(
                     data.node.arrow().finalize()?,
                     converted_data,
@@ -338,7 +333,7 @@ impl<J> CoreConstructible for WitnessData<J> {
         }
     }
 
-    fn const_word(inference_context: &types::Context, word: Arc<Value>) -> Self {
+    fn const_word(inference_context: &types::Context, word: Value) -> Self {
         WitnessData {
             arrow: Arrow::const_word(inference_context, word),
             must_prune: false,
@@ -362,8 +357,8 @@ impl<J: Jet> DisconnectConstructible<Option<Arc<WitnessNode<J>>>> for WitnessDat
     }
 }
 
-impl<J> WitnessConstructible<Option<Arc<Value>>> for WitnessData<J> {
-    fn witness(inference_context: &types::Context, witness: Option<Arc<Value>>) -> Self {
+impl<J> WitnessConstructible<Option<Value>> for WitnessData<J> {
+    fn witness(inference_context: &types::Context, witness: Option<Value>) -> Self {
         WitnessData {
             arrow: Arrow::witness(inference_context, NoWitness),
             must_prune: witness.is_none(),

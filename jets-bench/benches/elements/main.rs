@@ -7,6 +7,7 @@ use simplicity::elements;
 use simplicity::jet::elements::ElementsEnv;
 use simplicity::jet::{Elements, Jet};
 use simplicity::types;
+use simplicity::types::Final;
 use simplicity::Value;
 use simplicity_bench::input::{
     self, EqProduct, GenericProduct, InputSample, PrefixBit, Sha256Ctx, UniformBits,
@@ -751,36 +752,36 @@ fn bench(c: &mut Criterion) {
     }
 
     // Input to outpoint hash jet
-    fn outpoint_hash() -> Arc<Value> {
+    fn outpoint_hash() -> Value {
         let ctx8 = SimplicityCtx8::with_len(511).value();
         let genesis_pegin = genesis_pegin();
         let outpoint = elements::OutPoint::sample().value();
         Value::product(ctx8, Value::product(genesis_pegin, outpoint))
     }
 
-    fn asset_amount_hash() -> Arc<Value> {
+    fn asset_amount_hash() -> Value {
         let ctx8 = SimplicityCtx8::with_len(511).value();
         let asset = confidential::Asset::sample().value();
         let amount = confidential::Value::sample().value();
         Value::product(ctx8, Value::product(asset, amount))
     }
 
-    fn nonce_hash() -> Arc<Value> {
+    fn nonce_hash() -> Value {
         let ctx8 = SimplicityCtx8::with_len(511).value();
         let nonce = confidential::Nonce::sample().value();
         Value::product(ctx8, nonce)
     }
 
-    fn annex_hash() -> Arc<Value> {
+    fn annex_hash() -> Value {
         let ctx8 = SimplicityCtx8::with_len(511).value();
         let annex = if rand::random() {
-            Value::right(Value::u256(rand::random::<[u8; 32]>()))
+            Value::some(Value::u256(rand::random::<[u8; 32]>()))
         } else {
-            Value::left(Value::unit())
+            Value::none(Final::u256())
         };
         Value::product(ctx8, annex)
     }
-    let arr: [(Elements, Arc<dyn Fn() -> Arc<Value>>); 4] = [
+    let arr: [(Elements, Arc<dyn Fn() -> Value>); 4] = [
         (Elements::OutpointHash, Arc::new(&outpoint_hash)),
         (Elements::AssetAmountHash, Arc::new(&asset_amount_hash)),
         (Elements::NonceHash, Arc::new(nonce_hash)),
@@ -814,7 +815,7 @@ fn bench(c: &mut Criterion) {
     }
 
     // Operations that use tx input or output index.
-    fn index_value(bound: u32) -> Arc<Value> {
+    fn index_value(bound: u32) -> Value {
         let v = rand::random::<u32>() % bound;
         Value::u32(v)
     }

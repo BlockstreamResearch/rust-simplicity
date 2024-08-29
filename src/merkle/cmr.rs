@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: CC0-1.0
 
-use std::sync::Arc;
-
 use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
 use crate::node::{
@@ -103,13 +101,12 @@ impl Cmr {
     /// This is equal to the IMR of the equivalent scribe, converted to a CMR in
     /// the usual way for jets.
     pub fn const_word(v: &Value) -> Self {
-        assert_eq!(v.len().count_ones(), 1);
-        let w = 1 + v.len().trailing_zeros() as usize;
+        assert_eq!(v.compact_len().count_ones(), 1);
+        let w = 1 + v.compact_len().trailing_zeros() as usize;
 
         let mut cmr_stack = Vec::with_capacity(33);
         // 1. Compute the CMR for the `scribe` corresponding to this word jet
-        let mut bit_idx = 0;
-        v.do_each_bit(|bit| {
+        for (bit_idx, bit) in v.iter_compact().enumerate() {
             cmr_stack.push(Cmr::BITS[usize::from(bit)]);
             let mut j = bit_idx;
             while j & 1 == 1 {
@@ -118,9 +115,7 @@ impl Cmr {
                 cmr_stack.push(Cmr::PAIR_IV.update(left_cmr, right_cmr));
                 j >>= 1;
             }
-
-            bit_idx += 1;
-        });
+        }
         assert_eq!(cmr_stack.len(), 1);
 
         let imr_iv = Self::CONST_WORD_IV;
@@ -128,7 +123,8 @@ impl Cmr {
         // 2. Add TMRs to get the pass-two IMR
         let imr_pass2 = imr_pass1.update(Tmr::unit().into(), Tmr::POWERS_OF_TWO[w - 1].into());
         // 3. Convert to a jet CMR
-        Cmr(bip340_iv(b"Simplicity-Draft\x1fJet")).update_with_weight(v.len() as u64, imr_pass2)
+        Cmr(bip340_iv(b"Simplicity-Draft\x1fJet"))
+            .update_with_weight(v.compact_len() as u64, imr_pass2)
     }
 
     #[rustfmt::skip]
@@ -349,7 +345,7 @@ impl CoreConstructible for ConstructibleCmr {
         }
     }
 
-    fn const_word(inference_context: &types::Context, word: Arc<Value>) -> Self {
+    fn const_word(inference_context: &types::Context, word: Value) -> Self {
         ConstructibleCmr {
             cmr: Cmr::const_word(&word),
             inference_context: inference_context.shallow_clone(),
@@ -422,7 +418,7 @@ mod tests {
     #[test]
     fn fixed_const_word_cmr() {
         // Checked against C implementation
-        let bit0 = Value::left(Value::unit());
+        let bit0 = Value::u1(0);
         #[rustfmt::skip]
         assert_eq!(
             Cmr::const_word(&bit0),

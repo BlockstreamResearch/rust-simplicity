@@ -129,7 +129,7 @@ enum DecodeNode<J: Jet> {
     Fail(FailEntropy),
     Hidden(Cmr),
     Jet(J),
-    Word(Arc<Value>),
+    Word(Value),
 }
 
 impl<'d, J: Jet> DagLike for (usize, &'d [DecodeNode<J>]) {
@@ -243,7 +243,9 @@ pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
                 Hidden(cmr)
             }
             DecodeNode::Jet(j) => Node(ArcNode::jet(&inference_context, j)),
-            DecodeNode::Word(ref w) => Node(ArcNode::const_word(&inference_context, Arc::clone(w))),
+            DecodeNode::Word(ref w) => {
+                Node(ArcNode::const_word(&inference_context, w.shallow_clone()))
+            }
         };
         converted.push(new);
     }
@@ -326,9 +328,9 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
 pub fn decode_power_of_2<I: Iterator<Item = bool>>(
     iter: &mut I,
     exp: usize,
-) -> Result<Arc<Value>, Error> {
+) -> Result<Value, Error> {
     struct StackElem {
-        value: Arc<Value>,
+        value: Value,
         width: usize,
     }
 

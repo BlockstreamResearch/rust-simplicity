@@ -27,7 +27,7 @@ pub struct Redeem<J> {
 
 impl<J: Jet> Marker for Redeem<J> {
     type CachedData = Arc<RedeemData<J>>;
-    type Witness = Arc<Value>;
+    type Witness = Value;
     type Disconnect = Arc<RedeemNode<J>>;
     type SharingId = Imr;
     type Jet = J;
@@ -66,7 +66,7 @@ impl<J> std::hash::Hash for RedeemData<J> {
 }
 
 impl<J: Jet> RedeemData<J> {
-    pub fn new(arrow: FinalArrow, inner: Inner<&Arc<Self>, J, &Arc<Self>, Arc<Value>>) -> Self {
+    pub fn new(arrow: FinalArrow, inner: Inner<&Arc<Self>, J, &Arc<Self>, Value>) -> Self {
         let (amr, first_pass_imr, bounds) = match inner {
             Inner::Iden => (
                 Amr::iden(&arrow),
@@ -190,7 +190,7 @@ impl<J: Jet> RedeemNode<J> {
             fn convert_witness(
                 &mut self,
                 _: &PostOrderIterItem<&RedeemNode<J>>,
-                _: &Arc<Value>,
+                _: &Value,
             ) -> Result<NoWitness, Self::Error> {
                 Ok(NoWitness)
             }
@@ -234,8 +234,8 @@ impl<J: Jet> RedeemNode<J> {
             fn convert_witness(
                 &mut self,
                 _: &PostOrderIterItem<&Node<Redeem<J>>>,
-                witness: &Arc<Value>,
-            ) -> Result<Option<Arc<Value>>, Self::Error> {
+                witness: &Value,
+            ) -> Result<Option<Value>, Self::Error> {
                 Ok(Some(witness.clone()))
             }
 
@@ -255,7 +255,7 @@ impl<J: Jet> RedeemNode<J> {
                     &Arc<Node<Witness<J>>>,
                     J,
                     &Option<Arc<WitnessNode<J>>>,
-                    &Option<Arc<Value>>,
+                    &Option<Value>,
                 >,
             ) -> Result<WitnessData<J>, Self::Error> {
                 let inner = inner
@@ -296,7 +296,7 @@ impl<J: Jet> RedeemNode<J> {
                 &mut self,
                 data: &PostOrderIterItem<&ConstructNode<J>>,
                 _: &NoWitness,
-            ) -> Result<Arc<Value>, Self::Error> {
+            ) -> Result<Value, Self::Error> {
                 let arrow = data.node.data.arrow();
                 let target_ty = arrow.target.finalize()?;
                 self.bits.read_value(&target_ty).map_err(Error::from)
@@ -318,13 +318,13 @@ impl<J: Jet> RedeemNode<J> {
             fn convert_data(
                 &mut self,
                 data: &PostOrderIterItem<&ConstructNode<J>>,
-                inner: Inner<&Arc<RedeemNode<J>>, J, &Arc<RedeemNode<J>>, &Arc<Value>>,
+                inner: Inner<&Arc<RedeemNode<J>>, J, &Arc<RedeemNode<J>>, &Value>,
             ) -> Result<Arc<RedeemData<J>>, Self::Error> {
                 let arrow = data.node.data.arrow().finalize()?;
                 let converted_data = inner
                     .map(|node| node.cached_data())
                     .map_disconnect(|node| node.cached_data())
-                    .map_witness(Arc::clone);
+                    .map_witness(Value::shallow_clone);
                 Ok(Arc::new(RedeemData::new(arrow, converted_data)))
             }
         }
@@ -379,8 +379,7 @@ impl<J: Jet> RedeemNode<J> {
         let sharing_iter = self.post_order_iter::<MaxSharing<Redeem<J>>>();
         let program_bits = encode::encode_program(self, prog)?;
         prog.flush_all()?;
-        let witness_bits =
-            encode::encode_witness(sharing_iter.into_witnesses().map(Arc::as_ref), witness)?;
+        let witness_bits = encode::encode_witness(sharing_iter.into_witnesses(), witness)?;
         witness.flush_all()?;
         Ok(program_bits + witness_bits)
     }

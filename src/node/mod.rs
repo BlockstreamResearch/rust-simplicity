@@ -148,7 +148,7 @@ pub trait Constructible<J, X, W>:
             Inner::Pair(left, right) => Self::pair(left, right),
             Inner::Disconnect(left, right) => Self::disconnect(left, right),
             Inner::Fail(entropy) => Ok(Self::fail(inference_context, entropy)),
-            Inner::Word(ref w) => Ok(Self::const_word(inference_context, Arc::clone(w))),
+            Inner::Word(ref w) => Ok(Self::const_word(inference_context, w.shallow_clone())),
             Inner::Jet(j) => Ok(Self::jet(inference_context, j)),
             Inner::Witness(w) => Ok(Self::witness(inference_context, w)),
         }
@@ -177,7 +177,7 @@ pub trait CoreConstructible: Sized {
     fn assertr(left: Cmr, right: &Self) -> Result<Self, types::Error>;
     fn pair(left: &Self, right: &Self) -> Result<Self, types::Error>;
     fn fail(inference_context: &types::Context, entropy: FailEntropy) -> Self;
-    fn const_word(inference_context: &types::Context, word: Arc<Value>) -> Self;
+    fn const_word(inference_context: &types::Context, word: Value) -> Self;
 
     /// Accessor for the type inference context used to create the object.
     fn inference_context(&self) -> &types::Context;
@@ -188,23 +188,18 @@ pub trait CoreConstructible: Sized {
     fn scribe(inference_context: &types::Context, value: &Value) -> Self {
         let mut stack = vec![];
         for data in value.post_order_iter::<NoSharing>() {
-            match data.node {
-                Value::Unit => stack.push(Self::unit(inference_context)),
-                Value::Left(..) => {
-                    let child = stack.pop().unwrap();
-                    stack.push(Self::injl(&child));
-                }
-                Value::Right(..) => {
-                    let child = stack.pop().unwrap();
-                    stack.push(Self::injr(&child));
-                }
-                Value::Product(..) => {
-                    let right = stack.pop().unwrap();
-                    let left = stack.pop().unwrap();
-                    stack.push(
-                        Self::pair(&left, &right).expect("source of scribe has no constraints"),
-                    );
-                }
+            if data.node.is_unit() {
+                stack.push(Self::unit(inference_context));
+            } else if data.node.as_left().is_some() {
+                let child = stack.pop().unwrap();
+                stack.push(Self::injl(&child));
+            } else if data.node.as_right().is_some() {
+                let child = stack.pop().unwrap();
+                stack.push(Self::injr(&child));
+            } else if data.node.as_product().is_some() {
+                let right = stack.pop().unwrap();
+                let left = stack.pop().unwrap();
+                stack.push(Self::pair(&left, &right).expect("source of scribe has no constraints"));
             }
         }
         assert_eq!(stack.len(), 1);
@@ -479,10 +474,10 @@ where
         })
     }
 
-    fn const_word(inference_context: &types::Context, value: Arc<Value>) -> Self {
+    fn const_word(inference_context: &types::Context, value: Value) -> Self {
         Arc::new(Node {
             cmr: Cmr::const_word(&value),
-            data: N::CachedData::const_word(inference_context, Arc::clone(&value)),
+            data: N::CachedData::const_word(inference_context, value.shallow_clone()),
             inner: Inner::Word(value),
         })
     }

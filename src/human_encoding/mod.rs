@@ -213,7 +213,7 @@ impl<J: Jet> Forest<J> {
     /// Succeeds if the forest contains a "main" root and returns `None` otherwise.
     pub fn to_witness_node(
         &self,
-        witness: &HashMap<Arc<str>, Arc<Value>>,
+        witness: &HashMap<Arc<str>, Value>,
     ) -> Option<Arc<WitnessNode<J>>> {
         let main = self.roots.get("main")?;
         Some(main.to_witness_node(witness, self.roots()))
@@ -230,7 +230,7 @@ mod tests {
 
     fn assert_finalize_ok<J: Jet>(
         s: &str,
-        witness: &HashMap<Arc<str>, Arc<Value>>,
+        witness: &HashMap<Arc<str>, Value>,
         env: &J::Environment,
     ) {
         let program = Forest::<J>::parse(s)
@@ -245,7 +245,7 @@ mod tests {
 
     fn assert_finalize_err<J: Jet>(
         s: &str,
-        witness: &HashMap<Arc<str>, Arc<Value>>,
+        witness: &HashMap<Arc<str>, Value>,
         env: &J::Environment,
         err_msg: &'static str,
     ) {

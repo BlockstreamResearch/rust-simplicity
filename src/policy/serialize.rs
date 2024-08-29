@@ -281,7 +281,7 @@ mod tests {
 
     fn execute_successful(
         commit: &CommitNode<Elements>,
-        witness: Vec<Arc<Value>>,
+        witness: Vec<Value>,
         env: &ElementsEnv<Arc<elements::Transaction>>,
     ) -> bool {
         let finalized = commit

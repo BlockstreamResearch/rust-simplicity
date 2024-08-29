@@ -110,11 +110,11 @@ impl<J: Jet> NamedCommitNode<J> {
 
     pub fn to_witness_node(
         &self,
-        witness: &HashMap<Arc<str>, Arc<Value>>,
+        witness: &HashMap<Arc<str>, Value>,
         disconnect: &HashMap<Arc<str>, Arc<NamedCommitNode<J>>>,
     ) -> Arc<WitnessNode<J>> {
         struct Populator<'a, J: Jet> {
-            witness_map: &'a HashMap<Arc<str>, Arc<Value>>,
+            witness_map: &'a HashMap<Arc<str>, Value>,
             disconnect_map: &'a HashMap<Arc<str>, Arc<NamedCommitNode<J>>>,
             inference_context: types::Context,
             phantom: PhantomData<J>,
@@ -127,7 +127,7 @@ impl<J: Jet> NamedCommitNode<J> {
                 &mut self,
                 data: &PostOrderIterItem<&Node<Named<Commit<J>>>>,
                 _: &NoWitness,
-            ) -> Result<Option<Arc<Value>>, Self::Error> {
+            ) -> Result<Option<Value>, Self::Error> {
                 let name = &data.node.cached_data().name;
                 // We keep the witness nodes without data unpopulated.
                 // Some nodes are pruned later so they don't need to be populated.
@@ -175,7 +175,7 @@ impl<J: Jet> NamedCommitNode<J> {
                     &Arc<Node<Witness<J>>>,
                     J,
                     &Option<Arc<WitnessNode<J>>>,
-                    &Option<Arc<Value>>,
+                    &Option<Value>,
                 >,
             ) -> Result<WitnessData<J>, Self::Error> {
                 let inner = inner

@@ -580,7 +580,7 @@ mod tests {
     fn assert_cmr_witness<J: Jet>(
         s: &str,
         cmr: &str,
-        witness: &HashMap<Arc<str>, Arc<Value>>,
+        witness: &HashMap<Arc<str>, Value>,
         env: &J::Environment,
     ) {
         match parse::<J>(s) {
@@ -619,7 +619,7 @@ mod tests {
         }
     }
 
-    fn assert_const<J: Jet>(s: &str, value: Arc<Value>) {
+    fn assert_const<J: Jet>(s: &str, value: Value) {
         match parse::<J>(s) {
             Ok(forest) => {
                 assert_eq!(forest.len(), 1);

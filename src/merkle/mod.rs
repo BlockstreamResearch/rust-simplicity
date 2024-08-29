@@ -10,6 +10,7 @@ pub mod cmr;
 pub mod imr;
 pub mod tmr;
 
+use crate::bit_encoding::BitCollector;
 use crate::Value;
 use hashes::{sha256, Hash, HashEngine};
 use std::fmt;
@@ -43,7 +44,7 @@ impl AsRef<[u8]> for FailEntropy {
 /// Helper function to compute the "compact value", i.e. the sha256 hash
 /// of the bits of a given value, which is used in some IMRs and AMRs.
 fn compact_value(value: &Value) -> [u8; 32] {
-    let (mut bytes, bit_length) = value.to_bytes_len();
+    let (mut bytes, bit_length) = value.iter_compact().collect_bits();
 
     // TODO: Automate hashing once `hashes` supports bit-wise hashing
     // 1.1 Append single '1' bit
