@@ -305,6 +305,58 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
     }
 }
 
+#[allow(dead_code)]
+/// Functionality for Boolean iterators to collect their bits or bytes.
+pub trait BitCollector: Sized {
+    /// Collect the bits of the iterator into a byte vector and a bit length.
+    fn collect_bits(self) -> (Vec<u8>, usize);
+
+    /// Try to collect the bits of the iterator into a clean byte vector.
+    ///
+    /// This fails if the number of bits is not divisible by 8.
+    fn try_collect_bytes(self) -> Result<Vec<u8>, &'static str> {
+        let (bytes, bit_length) = self.collect_bits();
+        if bit_length % 8 == 0 {
+            Ok(bytes)
+        } else {
+            Err("Number of collected bits is not divisible by 8")
+        }
+    }
+}
+
+impl<I: Iterator<Item = bool>> BitCollector for I {
+    fn collect_bits(self) -> (Vec<u8>, usize) {
+        let mut bytes = vec![];
+        let mut unfinished_byte = Vec::with_capacity(8);
+
+        for bit in self {
+            unfinished_byte.push(bit);
+
+            if unfinished_byte.len() == 8 {
+                bytes.push(
+                    unfinished_byte
+                        .iter()
+                        .fold(0, |acc, &b| acc * 2 + u8::from(b)),
+                );
+                unfinished_byte.clear();
+            }
+        }
+
+        let bit_length = bytes.len() * 8 + unfinished_byte.len();
+
+        if !unfinished_byte.is_empty() {
+            unfinished_byte.resize(8, false);
+            bytes.push(
+                unfinished_byte
+                    .iter()
+                    .fold(0, |acc, &b| acc * 2 + u8::from(b)),
+            );
+        }
+
+        (bytes, bit_length)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
