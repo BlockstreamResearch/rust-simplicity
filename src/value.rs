@@ -170,72 +170,76 @@ impl Value {
         }
     }
 
-    /// Encode a single bit as a value. Will panic if the input is out of range
-    pub fn u1(n: u8) -> Self {
-        match n {
+    /// Create a 1-bit integer.
+    ///
+    /// ## Panics
+    ///
+    /// The value is out of range.
+    pub fn u1(value: u8) -> Self {
+        match value {
             0 => Self::left(Self::unit(), Final::unit()),
             1 => Self::right(Final::unit(), Self::unit()),
             x => panic!("{} out of range for Value::u1", x),
         }
     }
 
-    /// Encode a two-bit number as a value. Will panic if the input is out of range
-    pub fn u2(n: u8) -> Self {
-        let b0 = (n & 2) / 2;
-        let b1 = n & 1;
-        assert!(n <= 3, "{} out of range for Value::u2", n);
+    /// Create a 2-bit integer.
+    ///
+    /// ## Panics
+    ///
+    /// The value is out of range.
+    pub fn u2(value: u8) -> Self {
+        let b0 = (value & 2) / 2;
+        let b1 = value & 1;
+        assert!(value <= 3, "{} out of range for Value::u2", value);
         Self::product(Self::u1(b0), Self::u1(b1))
     }
 
-    /// Encode a four-bit number as a value. Will panic if the input is out of range
-    pub fn u4(n: u8) -> Self {
-        let w0 = (n & 12) / 4;
-        let w1 = n & 3;
-        assert!(n <= 15, "{} out of range for Value::u2", n);
+    /// Create a 4-bit integer.
+    ///
+    /// ## Panics
+    ///
+    /// The value is ouf of range.
+    pub fn u4(value: u8) -> Self {
+        let w0 = (value & 12) / 4;
+        let w1 = value & 3;
+        assert!(value <= 15, "{} out of range for Value::u2", value);
         Self::product(Self::u2(w0), Self::u2(w1))
     }
 
-    /// Encode an eight-bit number as a value
-    pub fn u8(n: u8) -> Self {
-        let w0 = n >> 4;
-        let w1 = n & 0xf;
+    /// Create an 8-bit integer.
+    pub fn u8(value: u8) -> Self {
+        let w0 = value >> 4;
+        let w1 = value & 0xf;
         Self::product(Self::u4(w0), Self::u4(w1))
     }
 
-    /// Encode a 16-bit number as a value
-    pub fn u16(n: u16) -> Self {
-        let w0 = (n >> 8) as u8;
-        let w1 = (n & 0xff) as u8;
-        Self::product(Self::u8(w0), Self::u8(w1))
+    /// Create a 16-bit integer.
+    pub fn u16(bytes: u16) -> Self {
+        Self::from_byte_array(bytes.to_be_bytes())
     }
 
-    /// Encode a 32-bit number as a value
-    pub fn u32(n: u32) -> Self {
-        let w0 = (n >> 16) as u16;
-        let w1 = (n & 0xffff) as u16;
-        Self::product(Self::u16(w0), Self::u16(w1))
+    /// Create a 32-bit integer.
+    pub fn u32(bytes: u32) -> Self {
+        Self::from_byte_array(bytes.to_be_bytes())
     }
 
-    /// Encode a 64-bit number as a value
-    pub fn u64(n: u64) -> Self {
-        let w0 = (n >> 32) as u32;
-        let w1 = (n & 0xffff_ffff) as u32;
-        Self::product(Self::u32(w0), Self::u32(w1))
+    /// Create a 64-bit integer.
+    pub fn u64(bytes: u64) -> Self {
+        Self::from_byte_array(bytes.to_be_bytes())
     }
 
-    /// Encode a 128-bit number as a value
-    pub fn u128(n: u128) -> Self {
-        let w0 = (n >> 64) as u64;
-        let w1 = n as u64; // Cast safety: picking last 64 bits
-        Self::product(Self::u64(w0), Self::u64(w1))
+    /// Create a 128-bit integer.
+    pub fn u128(bytes: u128) -> Self {
+        Self::from_byte_array(bytes.to_be_bytes())
     }
 
-    /// Create a value from 32 bytes.
+    /// Create a 256-bit integer.
     pub fn u256(bytes: [u8; 32]) -> Self {
         Self::from_byte_array(bytes)
     }
 
-    /// Create a value from 64 bytes.
+    /// Create a 512-bit integer.
     pub fn u512(bytes: [u8; 64]) -> Self {
         Self::from_byte_array(bytes)
     }
