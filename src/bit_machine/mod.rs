@@ -8,9 +8,9 @@
 
 mod frame;
 
+use std::error;
 use std::fmt;
 use std::sync::Arc;
-use std::{cmp, error};
 
 use crate::analysis;
 use crate::dag::{DagLike, NoSharing};
@@ -259,17 +259,15 @@ impl BitMachine {
                     self.copy(size_a);
                 }
                 node::Inner::InjL(left) => {
-                    let (b, _c) = ip.arrow().target.as_sum().unwrap();
-                    let padl_b_c = ip.arrow().target.bit_width() - b.bit_width() - 1;
+                    let (b, c) = ip.arrow().target.as_sum().unwrap();
                     self.write_bit(false);
-                    self.skip(padl_b_c);
+                    self.skip(b.pad_left(c));
                     call_stack.push(CallStack::Goto(left));
                 }
                 node::Inner::InjR(left) => {
-                    let (_b, c) = ip.arrow().target.as_sum().unwrap();
-                    let padr_b_c = ip.arrow().target.bit_width() - c.bit_width() - 1;
+                    let (b, c) = ip.arrow().target.as_sum().unwrap();
                     self.write_bit(true);
-                    self.skip(padr_b_c);
+                    self.skip(b.pad_right(c));
                     call_stack.push(CallStack::Goto(left));
                 }
                 node::Inner::Pair(left, right) => {
@@ -317,22 +315,18 @@ impl BitMachine {
 
                     let (sum_a_b, _c) = ip.arrow().source.as_product().unwrap();
                     let (a, b) = sum_a_b.as_sum().unwrap();
-                    let size_a = a.bit_width();
-                    let size_b = b.bit_width();
 
                     match (ip.inner(), choice_bit) {
                         (node::Inner::Case(_, right), true)
                         | (node::Inner::AssertR(_, right), true) => {
-                            let padr_a_b = cmp::max(size_a, size_b) - size_b;
-                            self.fwd(1 + padr_a_b);
-                            call_stack.push(CallStack::Back(1 + padr_a_b));
+                            self.fwd(1 + a.pad_right(b));
+                            call_stack.push(CallStack::Back(1 + a.pad_right(b)));
                             call_stack.push(CallStack::Goto(right));
                         }
                         (node::Inner::Case(left, _), false)
                         | (node::Inner::AssertL(left, _), false) => {
-                            let padl_a_b = cmp::max(size_a, size_b) - size_a;
-                            self.fwd(1 + padl_a_b);
-                            call_stack.push(CallStack::Back(1 + padl_a_b));
+                            self.fwd(1 + a.pad_left(b));
+                            call_stack.push(CallStack::Back(1 + a.pad_left(b)));
                             call_stack.push(CallStack::Goto(left));
                         }
                         (node::Inner::AssertL(_, r_cmr), true) => {

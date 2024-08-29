@@ -224,6 +224,16 @@ impl Final {
             _ => None,
         }
     }
+
+    /// Compute the padding of left values of the sum type `Self + Other`.
+    pub fn pad_left(&self, other: &Self) -> usize {
+        cmp::max(self.bit_width, other.bit_width) - self.bit_width
+    }
+
+    /// Compute the padding of right values of the sum type `Self + Other`.
+    pub fn pad_right(&self, other: &Self) -> usize {
+        cmp::max(self.bit_width, other.bit_width) - other.bit_width
+    }
 }
 
 #[cfg(test)]
