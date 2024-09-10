@@ -41,7 +41,9 @@ mod value;
 
 pub use bit_encoding::decode;
 pub use bit_encoding::encode;
-pub use bit_encoding::{u2, BitIter, CloseError as BitIterCloseError, EarlyEndOfStreamError};
+pub use bit_encoding::{
+    u2, BitCollector, BitIter, CloseError as BitIterCloseError, EarlyEndOfStreamError,
+};
 pub use bit_encoding::{write_to_vec, BitWriter};
 
 #[cfg(feature = "elements")]
