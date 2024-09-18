@@ -1032,6 +1032,7 @@ static simplicity_err decodePrimitive(jetName* result, bitstream* stream) {
       switch (code) {
        case 1: *result = PARSE_LOCK; return SIMPLICITY_NO_ERROR;
        case 2: *result = PARSE_SEQUENCE; return SIMPLICITY_NO_ERROR;
+       case 3: *result = TAPDATA_INIT; return SIMPLICITY_NO_ERROR;
       }
       break;
     }
@@ -1079,6 +1080,7 @@ static simplicity_err decodePrimitive(jetName* result, bitstream* stream) {
        case 32: *result = ANNEX_HASH; return SIMPLICITY_NO_ERROR;
        case 33: *result = BUILD_TAPLEAF_SIMPLICITY; return SIMPLICITY_NO_ERROR;
        case 34: *result = BUILD_TAPBRANCH; return SIMPLICITY_NO_ERROR;
+       case 35: *result = BUILD_TAPTWEAK; return SIMPLICITY_NO_ERROR;
       }
       break;
      case 2: /* Timelock jets chapter */

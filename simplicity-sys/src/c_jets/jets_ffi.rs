@@ -40,6 +40,8 @@ extern "C" {
     pub fn build_tapbranch(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_build_tapleaf_simplicity"]
     pub fn build_tapleaf_simplicity(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
+    #[link_name = "c_build_taptweak"]
+    pub fn build_taptweak(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_calculate_asset"]
     pub fn calculate_asset(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_calculate_confidential_token"]
@@ -894,6 +896,8 @@ extern "C" {
     pub fn swu(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
     #[link_name = "c_tap_env_hash"]
     pub fn tap_env_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
+    #[link_name = "c_tapdata_init"]
+    pub fn tapdata_init(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
     #[link_name = "c_tapleaf_hash"]
     pub fn tapleaf_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "c_tapleaf_version"]

@@ -370,6 +370,7 @@ pub enum Core {
     Subtract64,
     Subtract8,
     Swu,
+    TapdataInit,
     Verify,
     Xor1,
     Xor16,
@@ -385,7 +386,7 @@ pub enum Core {
 
 impl Core {
     /// Array of all Core jets.
-    pub const ALL: [Self; 367] = [
+    pub const ALL: [Self; 368] = [
         Self::Add16,
         Self::Add32,
         Self::Add64,
@@ -742,6 +743,7 @@ impl Core {
         Self::Subtract64,
         Self::Subtract8,
         Self::Swu,
+        Self::TapdataInit,
         Self::Verify,
         Self::Xor1,
         Self::Xor16,
@@ -2547,6 +2549,11 @@ impl Jet for Core {
                 0x73, 0x36, 0xc2, 0xf2, 0xa6, 0xb8, 0xc1, 0xe2, 0x9d, 0x7e, 0xbb, 0xa3, 0xaf, 0x2f,
                 0xd3, 0xa8, 0x80, 0x9b,
             ],
+            Core::TapdataInit => [
+                0x1c, 0x17, 0xe3, 0xec, 0x88, 0x88, 0x48, 0xf9, 0xcc, 0x86, 0xfe, 0xd1, 0xa9, 0x07,
+                0x14, 0xf0, 0x5c, 0x73, 0x95, 0xa2, 0x27, 0x64, 0xf8, 0xad, 0x61, 0x97, 0x29, 0xee,
+                0x52, 0xa6, 0xdb, 0x05,
+            ],
             Core::Verify => [
                 0x22, 0xc0, 0xe3, 0x62, 0x34, 0x19, 0x0a, 0xf6, 0xc8, 0x16, 0x1e, 0x41, 0xf9, 0xe0,
                 0x00, 0x13, 0xb2, 0x43, 0xc8, 0x96, 0x77, 0x69, 0x1a, 0x62, 0xe7, 0x98, 0x72, 0xfa,
@@ -2965,6 +2972,7 @@ impl Jet for Core {
             Core::Subtract64 => b"*ll",
             Core::Subtract8 => b"****22*22**22*22***22*22**22*22",
             Core::Swu => b"h",
+            Core::TapdataInit => b"1",
             Core::Verify => b"2",
             Core::Xor1 => b"*22",
             Core::Xor16 => b"i",
@@ -3339,6 +3347,7 @@ impl Jet for Core {
             Core::Subtract64 => b"*2l",
             Core::Subtract8 => b"*2***22*22**22*22",
             Core::Swu => b"*hh",
+            Core::TapdataInit => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
             Core::Verify => b"1",
             Core::Xor1 => b"2",
             Core::Xor16 => b"****22*22**22*22***22*22**22*22",
@@ -3724,6 +3733,7 @@ impl Jet for Core {
             Core::Bip0340Verify => (396, 9),
             Core::ParseLock => (102, 7),
             Core::ParseSequence => (412, 9),
+            Core::TapdataInit => (413, 9),
         };
 
         w.write_bits_be(n, len)
@@ -5995,7 +6005,7 @@ impl Jet for Core {
                                     1 => {
                                         0 => {
                                             0 => {Core::ParseSequence},
-                                            1 => {}
+                                            1 => {Core::TapdataInit}
                                         },
                                         1 => {}
                                     }
@@ -6368,6 +6378,7 @@ impl Jet for Core {
             Core::Subtract64 => &simplicity_sys::c_jets::jets_wrapper::subtract_64,
             Core::Subtract8 => &simplicity_sys::c_jets::jets_wrapper::subtract_8,
             Core::Swu => &simplicity_sys::c_jets::jets_wrapper::swu,
+            Core::TapdataInit => &simplicity_sys::c_jets::jets_wrapper::tapdata_init,
             Core::Verify => &simplicity_sys::c_jets::jets_wrapper::verify,
             Core::Xor1 => &simplicity_sys::c_jets::jets_wrapper::xor_1,
             Core::Xor16 => &simplicity_sys::c_jets::jets_wrapper::xor_16,
@@ -6740,6 +6751,7 @@ impl Jet for Core {
             Core::Subtract64 => Cost::from_milliweight(115),
             Core::Subtract8 => Cost::from_milliweight(109),
             Core::Swu => Cost::from_milliweight(32120),
+            Core::TapdataInit => Cost::from_milliweight(1178),
             Core::Verify => Cost::from_milliweight(57),
             Core::Xor1 => Cost::from_milliweight(67),
             Core::Xor16 => Cost::from_milliweight(83),
@@ -7114,6 +7126,7 @@ impl fmt::Display for Core {
             Core::Subtract64 => f.write_str("subtract_64"),
             Core::Subtract8 => f.write_str("subtract_8"),
             Core::Swu => f.write_str("swu"),
+            Core::TapdataInit => f.write_str("tapdata_init"),
             Core::Verify => f.write_str("verify"),
             Core::Xor1 => f.write_str("xor_1"),
             Core::Xor16 => f.write_str("xor_16"),
@@ -7490,6 +7503,7 @@ impl str::FromStr for Core {
             "subtract_64" => Ok(Core::Subtract64),
             "subtract_8" => Ok(Core::Subtract8),
             "swu" => Ok(Core::Swu),
+            "tapdata_init" => Ok(Core::TapdataInit),
             "verify" => Ok(Core::Verify),
             "xor_1" => Ok(Core::Xor1),
             "xor_16" => Ok(Core::Xor16),

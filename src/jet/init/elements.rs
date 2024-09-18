@@ -34,6 +34,7 @@ pub enum Elements {
     Bip0340Verify,
     BuildTapbranch,
     BuildTapleafSimplicity,
+    BuildTaptweak,
     CalculateAsset,
     CalculateConfidentialToken,
     CalculateExplicitToken,
@@ -461,6 +462,7 @@ pub enum Elements {
     Subtract8,
     Swu,
     TapEnvHash,
+    TapdataInit,
     TapleafHash,
     TapleafVersion,
     Tappath,
@@ -489,7 +491,7 @@ pub enum Elements {
 
 impl Elements {
     /// Array of all Elements jets.
-    pub const ALL: [Self; 469] = [
+    pub const ALL: [Self; 471] = [
         Self::Add16,
         Self::Add32,
         Self::Add64,
@@ -508,6 +510,7 @@ impl Elements {
         Self::Bip0340Verify,
         Self::BuildTapbranch,
         Self::BuildTapleafSimplicity,
+        Self::BuildTaptweak,
         Self::CalculateAsset,
         Self::CalculateConfidentialToken,
         Self::CalculateExplicitToken,
@@ -935,6 +938,7 @@ impl Elements {
         Self::Subtract8,
         Self::Swu,
         Self::TapEnvHash,
+        Self::TapdataInit,
         Self::TapleafHash,
         Self::TapleafVersion,
         Self::Tappath,
@@ -1062,6 +1066,11 @@ impl Jet for Elements {
                 0x2b, 0x90, 0xae, 0x75, 0xbb, 0x76, 0xde, 0x68, 0xde, 0x10, 0xd1, 0xe0, 0xae, 0xea,
                 0x64, 0x07, 0x1a, 0x06, 0xf1, 0x3a, 0x97, 0x76, 0xef, 0xa6, 0xec, 0x8e, 0xe3, 0xe3,
                 0xbc, 0x86, 0x28, 0x9a,
+            ],
+            Elements::BuildTaptweak => [
+                0xa3, 0x23, 0x47, 0x71, 0xe7, 0xac, 0xeb, 0xbf, 0x70, 0x05, 0xeb, 0x3f, 0xab, 0x4c,
+                0xb2, 0x7a, 0x8a, 0xc2, 0x53, 0xaa, 0x08, 0x91, 0x8e, 0x75, 0x1e, 0xc7, 0x4c, 0x2e,
+                0xf2, 0xa4, 0x35, 0x4f,
             ],
             Elements::CalculateAsset => [
                 0xe9, 0x71, 0x89, 0x6b, 0x77, 0xff, 0xfb, 0xe0, 0xe1, 0x03, 0x65, 0x47, 0xcd, 0xc6,
@@ -3198,6 +3207,11 @@ impl Jet for Elements {
                 0xe6, 0x88, 0xb7, 0x33, 0x82, 0xce, 0x0c, 0x37, 0xc7, 0x96, 0x28, 0xb7, 0x39, 0x4c,
                 0xa6, 0x1e, 0xe7, 0xf5,
             ],
+            Elements::TapdataInit => [
+                0x1c, 0x17, 0xe3, 0xec, 0x88, 0x88, 0x48, 0xf9, 0xcc, 0x86, 0xfe, 0xd1, 0xa9, 0x07,
+                0x14, 0xf0, 0x5c, 0x73, 0x95, 0xa2, 0x27, 0x64, 0xf8, 0xad, 0x61, 0x97, 0x29, 0xee,
+                0x52, 0xa6, 0xdb, 0x05,
+            ],
             Elements::TapleafHash => [
                 0x59, 0xfd, 0x29, 0x96, 0xcc, 0x5e, 0x2b, 0x5e, 0x19, 0x70, 0x74, 0x67, 0x26, 0x76,
                 0x45, 0xe8, 0x18, 0x65, 0xd1, 0x47, 0x4a, 0x0b, 0x28, 0xc2, 0xcf, 0xf4, 0xed, 0xf1,
@@ -3343,6 +3357,7 @@ impl Jet for Elements {
             Elements::Bip0340Verify => b"**hh*hh",
             Elements::BuildTapbranch => b"*hh",
             Elements::BuildTapleafSimplicity => b"h",
+            Elements::BuildTaptweak => b"*hh",
             Elements::CalculateAsset => b"h",
             Elements::CalculateConfidentialToken => b"h",
             Elements::CalculateExplicitToken => b"h",
@@ -3770,6 +3785,7 @@ impl Jet for Elements {
             Elements::Subtract8 => b"****22*22**22*22***22*22**22*22",
             Elements::Swu => b"h",
             Elements::TapEnvHash => b"1",
+            Elements::TapdataInit => b"1",
             Elements::TapleafHash => b"1",
             Elements::TapleafVersion => b"1",
             Elements::Tappath => b"***22*22**22*22",
@@ -3819,6 +3835,7 @@ impl Jet for Elements {
             Elements::Bip0340Verify => b"1",
             Elements::BuildTapbranch => b"h",
             Elements::BuildTapleafSimplicity => b"h",
+            Elements::BuildTaptweak => b"h",
             Elements::CalculateAsset => b"h",
             Elements::CalculateConfidentialToken => b"h",
             Elements::CalculateExplicitToken => b"h",
@@ -4246,6 +4263,7 @@ impl Jet for Elements {
             Elements::Subtract8 => b"*2***22*22**22*22",
             Elements::Swu => b"*hh",
             Elements::TapEnvHash => b"h",
+            Elements::TapdataInit => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
             Elements::TapleafHash => b"h",
             Elements::TapleafVersion => b"***22*22**22*22",
             Elements::Tappath => b"+1h",
@@ -4644,6 +4662,7 @@ impl Jet for Elements {
             Elements::Bip0340Verify => (396, 10),
             Elements::ParseLock => (102, 8),
             Elements::ParseSequence => (412, 10),
+            Elements::TapdataInit => (413, 10),
             Elements::SigAllHash => (4, 3),
             Elements::TxHash => (20, 5),
             Elements::TapEnvHash => (21, 5),
@@ -4678,6 +4697,7 @@ impl Jet for Elements {
             Elements::AnnexHash => (11808, 14),
             Elements::BuildTapleafSimplicity => (11809, 14),
             Elements::BuildTapbranch => (11810, 14),
+            Elements::BuildTaptweak => (11811, 14),
             Elements::CheckLockHeight => (24, 5),
             Elements::CheckLockTime => (100, 7),
             Elements::CheckLockDistance => (101, 7),
@@ -7018,7 +7038,7 @@ impl Jet for Elements {
                                         1 => {
                                             0 => {
                                                 0 => {Elements::ParseSequence},
-                                                1 => {}
+                                                1 => {Elements::TapdataInit}
                                             },
                                             1 => {}
                                         }
@@ -7134,7 +7154,7 @@ impl Jet for Elements {
                                                             },
                                                             1 => {
                                                                 0 => {Elements::BuildTapbranch},
-                                                                1 => {}
+                                                                1 => {Elements::BuildTaptweak}
                                                             }
                                                         },
                                                         1 => {}
@@ -7427,6 +7447,7 @@ impl Jet for Elements {
             Elements::Bip0340Verify => &simplicity_sys::c_jets::jets_wrapper::bip_0340_verify,
             Elements::BuildTapbranch => &simplicity_sys::c_jets::jets_wrapper::build_tapbranch,
             Elements::BuildTapleafSimplicity => &simplicity_sys::c_jets::jets_wrapper::build_tapleaf_simplicity,
+            Elements::BuildTaptweak => &simplicity_sys::c_jets::jets_wrapper::build_taptweak,
             Elements::CalculateAsset => &simplicity_sys::c_jets::jets_wrapper::calculate_asset,
             Elements::CalculateConfidentialToken => &simplicity_sys::c_jets::jets_wrapper::calculate_confidential_token,
             Elements::CalculateExplicitToken => &simplicity_sys::c_jets::jets_wrapper::calculate_explicit_token,
@@ -7854,6 +7875,7 @@ impl Jet for Elements {
             Elements::Subtract8 => &simplicity_sys::c_jets::jets_wrapper::subtract_8,
             Elements::Swu => &simplicity_sys::c_jets::jets_wrapper::swu,
             Elements::TapEnvHash => &simplicity_sys::c_jets::jets_wrapper::tap_env_hash,
+            Elements::TapdataInit => &simplicity_sys::c_jets::jets_wrapper::tapdata_init,
             Elements::TapleafHash => &simplicity_sys::c_jets::jets_wrapper::tapleaf_hash,
             Elements::TapleafVersion => &simplicity_sys::c_jets::jets_wrapper::tapleaf_version,
             Elements::Tappath => &simplicity_sys::c_jets::jets_wrapper::tappath,
@@ -7901,6 +7923,7 @@ impl Jet for Elements {
             Elements::Bip0340Verify => Cost::from_milliweight(49087),
             Elements::BuildTapbranch => Cost::from_milliweight(2563),
             Elements::BuildTapleafSimplicity => Cost::from_milliweight(1843),
+            Elements::BuildTaptweak => Cost::from_milliweight(92813),
             Elements::CalculateAsset => Cost::from_milliweight(807),
             Elements::CalculateConfidentialToken => Cost::from_milliweight(707),
             Elements::CalculateExplicitToken => Cost::from_milliweight(771),
@@ -8328,6 +8351,7 @@ impl Jet for Elements {
             Elements::Subtract8 => Cost::from_milliweight(109),
             Elements::Swu => Cost::from_milliweight(32120),
             Elements::TapEnvHash => Cost::from_milliweight(162),
+            Elements::TapdataInit => Cost::from_milliweight(1178),
             Elements::TapleafHash => Cost::from_milliweight(136),
             Elements::TapleafVersion => Cost::from_milliweight(105),
             Elements::Tappath => Cost::from_milliweight(83),
@@ -8377,6 +8401,7 @@ impl fmt::Display for Elements {
             Elements::Bip0340Verify => f.write_str("bip_0340_verify"),
             Elements::BuildTapbranch => f.write_str("build_tapbranch"),
             Elements::BuildTapleafSimplicity => f.write_str("build_tapleaf_simplicity"),
+            Elements::BuildTaptweak => f.write_str("build_taptweak"),
             Elements::CalculateAsset => f.write_str("calculate_asset"),
             Elements::CalculateConfidentialToken => f.write_str("calculate_confidential_token"),
             Elements::CalculateExplicitToken => f.write_str("calculate_explicit_token"),
@@ -8804,6 +8829,7 @@ impl fmt::Display for Elements {
             Elements::Subtract8 => f.write_str("subtract_8"),
             Elements::Swu => f.write_str("swu"),
             Elements::TapEnvHash => f.write_str("tap_env_hash"),
+            Elements::TapdataInit => f.write_str("tapdata_init"),
             Elements::TapleafHash => f.write_str("tapleaf_hash"),
             Elements::TapleafVersion => f.write_str("tapleaf_version"),
             Elements::Tappath => f.write_str("tappath"),
@@ -8855,6 +8881,7 @@ impl str::FromStr for Elements {
             "bip_0340_verify" => Ok(Elements::Bip0340Verify),
             "build_tapbranch" => Ok(Elements::BuildTapbranch),
             "build_tapleaf_simplicity" => Ok(Elements::BuildTapleafSimplicity),
+            "build_taptweak" => Ok(Elements::BuildTaptweak),
             "calculate_asset" => Ok(Elements::CalculateAsset),
             "calculate_confidential_token" => Ok(Elements::CalculateConfidentialToken),
             "calculate_explicit_token" => Ok(Elements::CalculateExplicitToken),
@@ -9282,6 +9309,7 @@ impl str::FromStr for Elements {
             "subtract_8" => Ok(Elements::Subtract8),
             "swu" => Ok(Elements::Swu),
             "tap_env_hash" => Ok(Elements::TapEnvHash),
+            "tapdata_init" => Ok(Elements::TapdataInit),
             "tapleaf_hash" => Ok(Elements::TapleafHash),
             "tapleaf_version" => Ok(Elements::TapleafVersion),
             "tappath" => Ok(Elements::Tappath),
