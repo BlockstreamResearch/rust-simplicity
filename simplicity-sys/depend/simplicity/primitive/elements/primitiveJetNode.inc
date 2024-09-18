@@ -143,6 +143,14 @@
 , .targetIx = ty_w256
 , .cost = 1843 /* milli weight units */
 }
+,[BUILD_TAPTWEAK] =
+{ .tag = JET
+, .jet = simplicity_build_taptweak
+, .cmr = {{0xa3234771u, 0xe7acebbfu, 0x7005eb3fu, 0xab4cb27au, 0x8ac253aau, 0x08918e75u, 0x1ec74c2eu, 0xf2a4354fu}}
+, .sourceIx = ty_w512
+, .targetIx = ty_w256
+, .cost = 92813 /* milli weight units */
+}
 ,[CALCULATE_ASSET] =
 { .tag = JET
 , .jet = simplicity_calculate_asset
@@ -3558,6 +3566,14 @@
 , .sourceIx = ty_u
 , .targetIx = ty_w256
 , .cost = 162 /* milli weight units */
+}
+,[TAPDATA_INIT] =
+{ .tag = JET
+, .jet = simplicity_tapdata_init
+, .cmr = {{0x1c17e3ecu, 0x888848f9u, 0xcc86fed1u, 0xa90714f0u, 0x5c7395a2u, 0x2764f8adu, 0x619729eeu, 0x52a6db05u}}
+, .sourceIx = ty_u
+, .targetIx = ty_ppmw256pmw128pmw64pmw32pmw16mw8pw64w256
+, .cost = 1178 /* milli weight units */
 }
 ,[TAPLEAF_HASH] =
 { .tag = JET

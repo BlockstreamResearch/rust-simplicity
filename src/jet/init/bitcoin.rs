@@ -393,6 +393,7 @@ pub enum Bitcoin {
     Subtract64,
     Subtract8,
     Swu,
+    TapdataInit,
     TapleafVersion,
     Tappath,
     TotalInputValue,
@@ -418,7 +419,7 @@ pub enum Bitcoin {
 
 impl Bitcoin {
     /// Array of all Bitcoin jets.
-    pub const ALL: [Self; 399] = [
+    pub const ALL: [Self; 400] = [
         Self::Add16,
         Self::Add32,
         Self::Add64,
@@ -797,6 +798,7 @@ impl Bitcoin {
         Self::Subtract64,
         Self::Subtract8,
         Self::Swu,
+        Self::TapdataInit,
         Self::TapleafVersion,
         Self::Tappath,
         Self::TotalInputValue,
@@ -1214,6 +1216,7 @@ impl Jet for Bitcoin {
             Bitcoin::Subtract64 => b"*ll",
             Bitcoin::Subtract8 => b"****22*22**22*22***22*22**22*22",
             Bitcoin::Swu => b"h",
+            Bitcoin::TapdataInit => b"1",
             Bitcoin::TapleafVersion => b"1",
             Bitcoin::Tappath => b"***22*22**22*22",
             Bitcoin::TotalInputValue => b"1",
@@ -1620,6 +1623,7 @@ impl Jet for Bitcoin {
             Bitcoin::Subtract64 => b"*2l",
             Bitcoin::Subtract8 => b"*2***22*22**22*22",
             Bitcoin::Swu => b"*hh",
+            Bitcoin::TapdataInit => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
             Bitcoin::TapleafVersion => b"***22*22**22*22",
             Bitcoin::Tappath => b"+1h",
             Bitcoin::TotalInputValue => b"l",
@@ -2015,6 +2019,7 @@ impl Jet for Bitcoin {
             Bitcoin::Bip0340Verify => (396, 10),
             Bitcoin::ParseLock => (102, 8),
             Bitcoin::ParseSequence => (412, 10),
+            Bitcoin::TapdataInit => (413, 10),
             Bitcoin::CheckLockHeight => (24, 5),
             Bitcoin::CheckLockTime => (100, 7),
             Bitcoin::CheckLockDistance => (101, 7),
@@ -4319,7 +4324,7 @@ impl Jet for Bitcoin {
                                         1 => {
                                             0 => {
                                                 0 => {Bitcoin::ParseSequence},
-                                                1 => {}
+                                                1 => {Bitcoin::TapdataInit}
                                             },
                                             1 => {}
                                         }
@@ -4861,6 +4866,7 @@ impl fmt::Display for Bitcoin {
             Bitcoin::Subtract64 => f.write_str("subtract_64"),
             Bitcoin::Subtract8 => f.write_str("subtract_8"),
             Bitcoin::Swu => f.write_str("swu"),
+            Bitcoin::TapdataInit => f.write_str("tapdata_init"),
             Bitcoin::TapleafVersion => f.write_str("tapleaf_version"),
             Bitcoin::Tappath => f.write_str("tappath"),
             Bitcoin::TotalInputValue => f.write_str("total_input_value"),
@@ -5269,6 +5275,7 @@ impl str::FromStr for Bitcoin {
             "subtract_64" => Ok(Bitcoin::Subtract64),
             "subtract_8" => Ok(Bitcoin::Subtract8),
             "swu" => Ok(Bitcoin::Swu),
+            "tapdata_init" => Ok(Bitcoin::TapdataInit),
             "tapleaf_version" => Ok(Bitcoin::TapleafVersion),
             "tappath" => Ok(Bitcoin::Tappath),
             "total_input_value" => Ok(Bitcoin::TotalInputValue),

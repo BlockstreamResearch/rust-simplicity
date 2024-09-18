@@ -75,6 +75,10 @@ pub fn build_tapleaf_simplicity(dst: &mut CFrameItem, src: CFrameItem, env: &CEl
     unsafe { elements_ffi::build_tapleaf_simplicity(dst, &src, env) }
 }
 
+pub fn build_taptweak(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+    unsafe { elements_ffi::build_taptweak(dst, &src, env) }
+}
+
 pub fn calculate_asset(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
     unsafe { elements_ffi::calculate_asset(dst, &src, env) }
 }
@@ -1781,6 +1785,10 @@ pub fn swu<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
 
 pub fn tap_env_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
     unsafe { elements_ffi::tap_env_hash(dst, &src, env) }
+}
+
+pub fn tapdata_init<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
+    unsafe { elements_ffi::tapdata_init(dst, &src, std::ptr::null()) }
 }
 
 pub fn tapleaf_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
