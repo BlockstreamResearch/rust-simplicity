@@ -11,7 +11,8 @@ edition = "2021"
 rust-version = "1.63.0"
 
 [features]
-default = ["bitcoin", "elements"]
+default = ["elements"]
+elements = ["dep:elements", "bitcoin"]
 test-utils = ["simplicity-sys/test-utils"]
 serde = ["dep:serde", "bitcoin/serde", "elements/serde"]
 

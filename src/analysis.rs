@@ -5,10 +5,40 @@ use crate::Value;
 use std::{cmp, fmt};
 
 #[cfg(feature = "elements")]
+use elements::encode::Encodable;
+#[cfg(feature = "elements")]
 use std::{convert::TryFrom, io};
 
-#[cfg(feature = "elements")]
-use elements::encode::Encodable;
+/// Copy of [`bitcoin::Weight`] that uses [`u32`] instead of [`u64`].
+///
+/// This struct is useful for conversions between [`bitcoin::Weight`]
+/// (which uses [`u64`]) and [`Cost`] (which uses [`u32`]).
+#[cfg(feature = "bitcoin")]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct U32Weight(u32);
+
+#[cfg(feature = "bitcoin")]
+impl std::ops::Sub for U32Weight {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self(self.0.saturating_sub(rhs.0))
+    }
+}
+
+#[cfg(feature = "bitcoin")]
+impl From<bitcoin::Weight> for U32Weight {
+    fn from(value: bitcoin::Weight) -> Self {
+        Self(u32::try_from(value.to_wu()).unwrap_or(u32::MAX))
+    }
+}
+
+#[cfg(feature = "bitcoin")]
+impl From<U32Weight> for bitcoin::Weight {
+    fn from(value: U32Weight) -> Self {
+        bitcoin::Weight::from_wu(u64::from(value.0))
+    }
+}
 
 /// CPU cost of a Simplicity expression.
 ///
@@ -78,21 +108,8 @@ impl Cost {
     ///
     /// This means the cost is within the maximum budget
     /// that any program inside a Taproot transaction can have.
-    pub fn is_consensus_valid(&self) -> bool {
-        self <= &Self::CONSENSUS_MAX
-    }
-
-    /// Return whether the cost is less or equal the given weight.
-    pub fn less_equal_weight(&self, weight: u32) -> bool {
-        self.0 <= weight.saturating_mul(1000)
-    }
-
-    /// Return the minimum budget required to cover the cost.
-    fn required_budget(&self) -> u32 {
-        // Saturating addition to avoid panic at numeric bounds
-        // This results in a slightly different rounding for cost values close to u32::MAX.
-        // These values are strictly larger than CONSENSUS_MAX and are of no significance.
-        self.0.saturating_add(999) / 1000
+    pub fn is_consensus_valid(self) -> bool {
+        self <= Self::CONSENSUS_MAX
     }
 
     /// Return the budget of the given script witness of a transaction output.
@@ -100,14 +117,15 @@ impl Cost {
     /// The script witness is passed as `&Vec<Vec<u8>>` in order to use
     /// the consensus encoding implemented for this type.
     #[cfg(feature = "elements")]
-    fn get_budget(script_witness: &Vec<Vec<u8>>) -> u32 {
+    fn get_budget(script_witness: &Vec<Vec<u8>>) -> U32Weight {
         let mut sink = io::sink();
         let witness_stack_serialized_len = script_witness
             .consensus_encode(&mut sink)
             .expect("writing to sink never fails");
         let budget = u32::try_from(witness_stack_serialized_len)
-            .expect("Serialized witness stack must be shorter than 2^32 elements");
-        budget.saturating_add(50)
+            .expect("Serialized witness stack must be shorter than 2^32 elements")
+            .saturating_add(50);
+        U32Weight(budget)
     }
 
     /// Return whether the cost is within the budget of
@@ -116,9 +134,9 @@ impl Cost {
     /// The script witness is passed as `&Vec<Vec<u8>>` in order to use
     /// the consensus encoding implemented for this type.
     #[cfg(feature = "elements")]
-    pub fn is_budget_valid(&self, script_witness: &Vec<Vec<u8>>) -> bool {
+    pub fn is_budget_valid(self, script_witness: &Vec<Vec<u8>>) -> bool {
         let budget = Self::get_budget(script_witness);
-        self.less_equal_weight(budget)
+        self.0 <= budget.0.saturating_mul(1000)
     }
 
     /// Return the annex bytes that are required as padding
@@ -127,25 +145,23 @@ impl Cost {
     /// The first annex byte is 0x50, as defined in BIP 341.
     /// The following padding bytes are 0x00.
     #[cfg(feature = "elements")]
-    pub fn get_padding(&self, script_witness: &Vec<Vec<u8>>) -> Option<Vec<u8>> {
-        let required_budget = self.required_budget();
-        let current_budget = Self::get_budget(script_witness);
-        if required_budget <= current_budget {
+    pub fn get_padding(self, script_witness: &Vec<Vec<u8>>) -> Option<Vec<u8>> {
+        let weight = U32Weight::from(self);
+        let budget = Self::get_budget(script_witness);
+        if weight <= budget {
             return None;
         }
 
-        let required_budget = required_budget - current_budget;
         // Two bytes are automatically added to the encoded witness stack by adding the annex:
         //
         // 1. The encoded annex starts with the annex byte length
         // 2. The first annex byte is always 0x50
         //
         // The remaining padding is done by adding (zero) bytes to the annex.
-        //
-        // Cast safety: assuming 32-bit machine or higher
-        let remaining_padding_len = required_budget.saturating_sub(2) as usize;
+        let required_padding = weight - budget - U32Weight(2);
+        let padding_len = required_padding.0 as usize; // cast safety: 32-bit machine or higher
         let annex_bytes: Vec<u8> = std::iter::once(0x50)
-            .chain(std::iter::repeat(0x00).take(remaining_padding_len))
+            .chain(std::iter::repeat(0x00).take(padding_len))
             .collect();
 
         Some(annex_bytes)
@@ -163,6 +179,37 @@ impl std::ops::Add for Cost {
 
     fn add(self, rhs: Self) -> Self::Output {
         Cost(self.0.saturating_add(rhs.0))
+    }
+}
+
+#[cfg(feature = "bitcoin")]
+impl From<U32Weight> for Cost {
+    fn from(value: U32Weight) -> Self {
+        Self(value.0.saturating_mul(1000))
+    }
+}
+
+#[cfg(feature = "bitcoin")]
+impl From<Cost> for U32Weight {
+    fn from(value: Cost) -> Self {
+        // Saturating addition to avoid panic at numeric bounds
+        // This results in a slightly different rounding for cost values close to u32::MAX.
+        // These values are strictly larger than CONSENSUS_MAX and are of no significance.
+        Self(value.0.saturating_add(999) / 1000)
+    }
+}
+
+#[cfg(feature = "bitcoin")]
+impl From<bitcoin::Weight> for Cost {
+    fn from(value: bitcoin::Weight) -> Self {
+        Self(U32Weight::from(value).0.saturating_mul(1000))
+    }
+}
+
+#[cfg(feature = "bitcoin")]
+impl From<Cost> for bitcoin::Weight {
+    fn from(value: Cost) -> Self {
+        bitcoin::Weight::from_wu(u64::from(U32Weight::from(value).0))
     }
 }
 
@@ -347,7 +394,8 @@ mod tests {
     }
 
     #[test]
-    fn test_required_budget() {
+    #[cfg(feature = "bitcoin")]
+    fn cost_to_weight() {
         let test_vectors = vec![
             (Cost::NEVER_EXECUTED, 0),
             (Cost::from_milliweight(1), 1),
@@ -359,9 +407,10 @@ mod tests {
             (Cost::CONSENSUS_MAX, 4_000_050),
         ];
 
-        for (cost, expected_budget) in test_vectors {
-            let budget = cost.required_budget();
-            assert_eq!(budget, expected_budget);
+        for (cost, expected_weight) in test_vectors {
+            let converted_cost = U32Weight::from(cost);
+            let expected_weight = U32Weight(expected_weight);
+            assert_eq!(converted_cost, expected_weight);
         }
     }
 
