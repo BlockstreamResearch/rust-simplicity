@@ -6,6 +6,7 @@ use rand::rngs::ThreadRng;
 use rand::{Rng, RngCore};
 use simplicity::ffi::c_jets::frame_ffi::c_writeBit;
 use simplicity::ffi::CFrameItem;
+use simplicity::hashes::Hash;
 use simplicity::jet::Elements;
 use simplicity::types::{self, CompleteBound};
 use simplicity::Value;
@@ -352,7 +353,11 @@ impl FlatValue {
 
             // We can assert this because in our sampling code jets should never
             // fail. In the benchmarking code they might.
-            assert!(jet.c_jet_ptr()(&mut dst_write_frame, src_read_frame, Elements::c_jet_env(&env)));
+            assert!(jet.c_jet_ptr()(
+                &mut dst_write_frame,
+                src_read_frame,
+                Elements::c_jet_env(&env)
+            ));
             // The write frame winds up as an array of usizes with all bytes in
             // reverse order. (The bytes of the usizes are in reverse order due
             // to endianness, but also the usizes themselves are in reverse
@@ -378,7 +383,7 @@ impl FlatValue {
                 ret.inner[..dest_bits / 8].reverse();
             } else {
                 ret.inner[..(dest_bits + 7) / 8].reverse();
-                ret.len_bits  += 8 - dest_bits % 8; // correct for "correction" by left_shift
+                ret.len_bits += 8 - dest_bits % 8; // correct for "correction" by left_shift
                 ret.left_shift(8 - dest_bits % 8);
             }
         }
@@ -1043,7 +1048,6 @@ impl InputSample for Ge {
                 let x2 = x.call_jet(Elements::FeSquare, 256);
                 let x3 = FlatValue::product(&[x.clone(), x2]).call_jet(Elements::FeMultiply, 256);
 
-
                 let mut seven = FlatValue::zero_n_bits(256);
                 seven.inner[31] = 7;
                 let x3_7 = FlatValue::product(&[x3, seven]).call_jet(Elements::FeAdd, 256);
@@ -1062,10 +1066,7 @@ impl InputSample for Ge {
             // Valid fes but off-curve point, OR invalid fes in some way.
             // Either way we just sample fes and don't try to make them fit the curve.
             let dist = dist - 1;
-            FlatValue::product(&[
-                Fe.sample(dist, 256),
-                Fe.sample(dist, 256),
-            ])
+            FlatValue::product(&[Fe.sample(dist, 256), Fe.sample(dist, 256)])
         }
     }
 }
@@ -1297,7 +1298,7 @@ impl InputSample for CheckSigSignature {
 
             let msg = [0xab; 64];
             let hashed_msg = tagged_hash(b"Simplicity-Draft\x1fSignature", msg);
-            let hashed_msg = bitcoin::secp256k1::Message::from(hashed_msg);
+            let hashed_msg = bitcoin::secp256k1::Message::from_digest(hashed_msg.to_byte_array());
             let sig = secp_ctx.sign_schnorr(&hashed_msg, &keypair);
 
             let mut ret = FlatValue::zero_n_bits(1024);
@@ -1350,15 +1351,18 @@ mod tests {
 
     #[test]
     fn sample_ge_buffer() {
-        use simplicity::jet::Jet;
         use crate::{EnvSampling, JetBuffer, JetParams};
+        use simplicity::jet::Jet;
 
         let env = EnvSampling::null().env();
         let jet = Elements::PointVerify1;
 
         let src_ty = jet.source_ty().to_final();
         let tgt_ty = jet.target_ty().to_final();
-        let params = JetParams::for_sample(0, &GenericProduct(GenericProduct(GenericProduct(Scalar, Point), Scalar), Point));
+        let params = JetParams::for_sample(
+            0,
+            &GenericProduct(GenericProduct(GenericProduct(Scalar, Point), Scalar), Point),
+        );
         let mut buffer = JetBuffer::new(&src_ty, &tgt_ty, &params);
 
         let (src, mut dst) = buffer.write(&src_ty, &params, &mut rand::thread_rng());

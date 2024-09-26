@@ -1,6 +1,6 @@
 [package]
 name = "simplicity-sys"
-version = "0.2.0"
+version = "0.3.0"
 license = "CC0-1.0"
 homepage = "https://github.com/BlockstreamResearch/rust-simplicity/"
 repository = "https://github.com/BlockstreamResearch/rust-simplicity/"
@@ -13,7 +13,7 @@ rust-version = "1.63.0"
 cc = "1.0.83"
 
 [dependencies]
-hashes = { package = "bitcoin_hashes", version = "0.13" }
+hashes = { package = "bitcoin_hashes", version = "0.14" }
 
 [features]
 test-utils = []
