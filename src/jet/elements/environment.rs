@@ -36,7 +36,7 @@ impl From<elements::TxOut> for ElementsUtxo {
 /// # Note
 /// The order of `utxos` must be same as of the order of inputs in the
 /// transaction.
-#[allow(dead_code)]
+#[derive(Debug)]
 pub struct ElementsEnv<T: Deref<Target = elements::Transaction>> {
     /// The CTxEnv struct
     c_tx_env: CElementsTxEnv,
