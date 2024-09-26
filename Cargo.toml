@@ -8,12 +8,12 @@ repository = "https://github.com/BlockstreamResearch/rust-simplicity/"
 documentation = "https://docs.rs/simplicity-lang/"
 description = "General purpose library for processing Simplicity programs"
 edition = "2021"
-rust-version = "1.58.0"
+rust-version = "1.63.0"
 
 [features]
 default = ["bitcoin", "elements"]
 test-utils = ["simplicity-sys/test-utils"]
-serde = ["actual-serde", "bitcoin/serde", "elements/serde"]
+serde = ["dep:serde", "bitcoin/serde", "elements/serde"]
 
 [lib]
 name = "simplicity"
@@ -28,9 +28,7 @@ hashes = { package = "bitcoin_hashes", version = "0.13" }
 hex = { package = "hex-conservative", version = "0.1.1" }
 santiago = "1.3"
 simplicity-sys = { version = "0.2.0", path = "./simplicity-sys" }
-actual-serde = { package = "serde", version = "1.0.103", features = [
-    "derive",
-], optional = true }
+serde = { version = "1.0.103", features = ["derive"], optional = true }
 
 [target.wasm32-unknown-unknown.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
