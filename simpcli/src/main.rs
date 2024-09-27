@@ -101,20 +101,20 @@ fn main() -> Result<(), String> {
             Err(e) => {
                 eprintln!("Error: {}.", e);
                 eprintln!();
-                return invalid_usage(&process_name);
+                return invalid_usage(process_name);
             }
         },
-        None => return invalid_usage(&process_name),
+        None => return invalid_usage(process_name),
     };
 
     if let Command::Help = command {
-        usage(&process_name);
+        usage(process_name);
         return Ok(());
     }
 
     let first_arg = match args.next() {
         Some(s) => s,
-        None => return invalid_usage(&process_name),
+        None => return invalid_usage(process_name),
     };
     let _expression = if command.takes_optional_exprname() {
         args.next().unwrap_or("main".to_owned())
@@ -122,7 +122,7 @@ fn main() -> Result<(), String> {
         String::new()
     };
     if args.next().is_some() {
-        invalid_usage(&process_name)?;
+        invalid_usage(process_name)?;
     }
 
     // Execute command

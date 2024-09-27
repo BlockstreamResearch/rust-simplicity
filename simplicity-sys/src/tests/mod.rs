@@ -374,7 +374,7 @@ mod test_data {
 pub use test_data::*;
 
 #[cfg(all(test, feature = "test-utils"))]
-mod tests {
+mod test_code {
     use super::*;
 
     #[test]
