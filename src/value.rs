@@ -8,6 +8,7 @@
 use crate::dag::{Dag, DagLike, NoSharing};
 use crate::types::Final;
 
+use crate::{types, EarlyEndOfStreamError};
 use std::collections::VecDeque;
 use std::fmt;
 use std::hash::Hash;
@@ -385,6 +386,138 @@ impl<'a> Iterator for PaddedBitsIter<'a> {
         }
 
         None
+    }
+}
+
+trait Padding {
+    fn read_left_padding<I: Iterator<Item = bool>>(
+        bits: &mut I,
+        ty_l: &Final,
+        ty_r: &Final,
+    ) -> Result<(), EarlyEndOfStreamError>;
+
+    fn read_right_padding<I: Iterator<Item = bool>>(
+        bits: &mut I,
+        ty_l: &Final,
+        ty_r: &Final,
+    ) -> Result<(), EarlyEndOfStreamError>;
+}
+
+enum CompactEncoding {}
+enum PaddedEncoding {}
+
+impl Padding for CompactEncoding {
+    fn read_left_padding<I: Iterator<Item = bool>>(
+        _: &mut I,
+        _: &Final,
+        _: &Final,
+    ) -> Result<(), EarlyEndOfStreamError> {
+        // no padding
+        Ok(())
+    }
+
+    fn read_right_padding<I: Iterator<Item = bool>>(
+        _: &mut I,
+        _: &Final,
+        _: &Final,
+    ) -> Result<(), EarlyEndOfStreamError> {
+        // no padding
+        Ok(())
+    }
+}
+
+impl Padding for PaddedEncoding {
+    fn read_left_padding<I: Iterator<Item = bool>>(
+        bits: &mut I,
+        ty_l: &Final,
+        ty_r: &Final,
+    ) -> Result<(), EarlyEndOfStreamError> {
+        for _ in 0..ty_l.pad_left(ty_r) {
+            let _padding = bits.next().ok_or(EarlyEndOfStreamError)?;
+        }
+        Ok(())
+    }
+
+    fn read_right_padding<I: Iterator<Item = bool>>(
+        bits: &mut I,
+        ty_l: &Final,
+        ty_r: &Final,
+    ) -> Result<(), EarlyEndOfStreamError> {
+        for _ in 0..ty_l.pad_left(ty_r) {
+            let _padding = bits.next().ok_or(EarlyEndOfStreamError)?;
+        }
+        Ok(())
+    }
+}
+
+impl Value {
+    fn from_bits<I: Iterator<Item = bool>, P: Padding>(
+        bits: &mut I,
+        ty: &Final,
+    ) -> Result<Self, EarlyEndOfStreamError> {
+        enum State<'a> {
+            ProcessType(&'a Final),
+            DoSumL(Arc<Final>),
+            DoSumR(Arc<Final>),
+            DoProduct,
+        }
+
+        let mut stack = vec![State::ProcessType(ty)];
+        let mut result_stack = vec![];
+        while let Some(state) = stack.pop() {
+            match state {
+                State::ProcessType(ty) => match ty.bound() {
+                    types::CompleteBound::Unit => result_stack.push(Value::unit()),
+                    types::CompleteBound::Sum(ref l, ref r) => {
+                        if !bits.next().ok_or(EarlyEndOfStreamError)? {
+                            P::read_left_padding(bits, l, r)?;
+                            stack.push(State::DoSumL(Arc::clone(r)));
+                            stack.push(State::ProcessType(l));
+                        } else {
+                            P::read_right_padding(bits, l, r)?;
+                            stack.push(State::DoSumR(Arc::clone(l)));
+                            stack.push(State::ProcessType(r));
+                        }
+                    }
+                    types::CompleteBound::Product(ref l, ref r) => {
+                        stack.push(State::DoProduct);
+                        stack.push(State::ProcessType(r));
+                        stack.push(State::ProcessType(l));
+                    }
+                },
+                State::DoSumL(r) => {
+                    let val = result_stack.pop().unwrap();
+                    result_stack.push(Value::left(val, r));
+                }
+                State::DoSumR(l) => {
+                    let val = result_stack.pop().unwrap();
+                    result_stack.push(Value::right(l, val));
+                }
+                State::DoProduct => {
+                    let val_r = result_stack.pop().unwrap();
+                    let val_l = result_stack.pop().unwrap();
+                    result_stack.push(Value::product(val_l, val_r));
+                }
+            }
+        }
+        debug_assert_eq!(result_stack.len(), 1);
+        Ok(result_stack.pop().unwrap())
+    }
+
+    /// Decode a value of the given type from its compact bit encoding.
+    pub fn from_compact_bits<I: Iterator<Item = bool>>(
+        bits: &mut I,
+        ty: &Final,
+    ) -> Result<Self, EarlyEndOfStreamError> {
+        Self::from_bits::<_, CompactEncoding>(bits, ty)
+    }
+
+    /// Decode a value of the given type from its padded bit encoding.
+    pub fn from_padded_bits<I: Iterator<Item = bool>>(
+        bits: &mut I,
+        ty: &Final,
+    ) -> Result<Self, EarlyEndOfStreamError> {
+        Self::from_bits::<_, PaddedEncoding>(bits, ty)
     }
 }
 

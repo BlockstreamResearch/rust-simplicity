@@ -358,10 +358,11 @@ impl BitMachine {
         if output_width > 0 {
             let out_frame = self.write.last_mut().unwrap();
             out_frame.reset_cursor();
-            let value = out_frame
-                .as_bit_iter(&self.data)
-                .read_value(&program.arrow().target)
-                .expect("Decode value of output frame");
+            let value = Value::from_padded_bits(
+                &mut out_frame.as_bit_iter(&self.data),
+                &program.arrow().target,
+            )
+            .expect("Decode value of output frame");
 
             Ok(value)
         } else {
