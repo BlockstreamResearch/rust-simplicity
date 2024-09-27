@@ -9,12 +9,12 @@
     clippy::map_clone
 )]
 
-#[cfg(feature = "serde")]
-pub extern crate actual_serde as serde;
 #[cfg(feature = "bitcoin")]
 pub extern crate bitcoin;
 #[cfg(feature = "elements")]
 pub extern crate elements;
+#[cfg(feature = "serde")]
+pub extern crate serde;
 
 /// Re-export of byteorder crate
 pub extern crate byteorder;

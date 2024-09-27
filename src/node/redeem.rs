@@ -299,7 +299,7 @@ impl<J: Jet> RedeemNode<J> {
             ) -> Result<Value, Self::Error> {
                 let arrow = data.node.data.arrow();
                 let target_ty = arrow.target.finalize()?;
-                self.bits.read_value(&target_ty).map_err(Error::from)
+                Value::from_compact_bits(self.bits, &target_ty).map_err(Error::from)
             }
 
             fn convert_disconnect(

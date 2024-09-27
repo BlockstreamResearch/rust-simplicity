@@ -63,7 +63,7 @@ pub fn var_len_buf_from_slice(v: &[u8], mut n: usize) -> Result<Value, Error> {
     while n > 0 {
         let ty = Final::two_two_n(n);
         let v = if v.len() >= (1 << (n + 1)) {
-            let val = iter.read_value(&ty)?;
+            let val = Value::from_compact_bits(&mut iter, &ty)?;
             Value::some(val)
         } else {
             Value::none(ty)

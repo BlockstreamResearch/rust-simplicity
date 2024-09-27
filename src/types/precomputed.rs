@@ -24,7 +24,7 @@ use std::sync::Arc;
 const N_POWERS: usize = Tmr::POWERS_OF_TWO.len();
 
 thread_local! {
-    static POWERS_OF_TWO: RefCell<Option<[Arc<Final>; N_POWERS]>> = RefCell::new(None);
+    static POWERS_OF_TWO: RefCell<Option<[Arc<Final>; N_POWERS]>> = const { RefCell::new(None) };
 }
 
 fn initialize(write: &mut Option<[Arc<Final>; N_POWERS]>) {

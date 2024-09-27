@@ -9,10 +9,8 @@
 //! `Iterator<Item=bool>`.
 //!
 
-use crate::types::Final;
-use crate::{decode, types};
-use crate::{Cmr, FailEntropy, Value};
-use std::sync::Arc;
+use crate::decode;
+use crate::{Cmr, FailEntropy};
 use std::{error, fmt};
 
 /// Attempted to read from a bit iterator, but there was no more data
@@ -219,55 +217,6 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
             *byte = self.read_u8()?;
         }
         Ok(FailEntropy::from_byte_array(ret))
-    }
-
-    /// Decode a value from bits, based on the given type.
-    pub fn read_value(&mut self, ty: &Final) -> Result<Value, EarlyEndOfStreamError> {
-        enum State<'a> {
-            ProcessType(&'a Final),
-            DoSumL(Arc<Final>),
-            DoSumR(Arc<Final>),
-            DoProduct,
-        }
-
-        let mut stack = vec![State::ProcessType(ty)];
-        let mut result_stack = vec![];
-        while let Some(state) = stack.pop() {
-            match state {
-                State::ProcessType(ty) => match ty.bound() {
-                    types::CompleteBound::Unit => result_stack.push(Value::unit()),
-                    types::CompleteBound::Sum(ref l, ref r) => {
-                        if self.read_bit()? {
-                            stack.push(State::DoSumR(Arc::clone(l)));
-                            stack.push(State::ProcessType(r));
-                        } else {
-                            stack.push(State::DoSumL(Arc::clone(r)));
-                            stack.push(State::ProcessType(l));
-                        }
-                    }
-                    types::CompleteBound::Product(ref l, ref r) => {
-                        stack.push(State::DoProduct);
-                        stack.push(State::ProcessType(r));
-                        stack.push(State::ProcessType(l));
-                    }
-                },
-                State::DoSumL(r) => {
-                    let val = result_stack.pop().unwrap();
-                    result_stack.push(Value::left(val, r));
-                }
-                State::DoSumR(l) => {
-                    let val = result_stack.pop().unwrap();
-                    result_stack.push(Value::right(l, val));
-                }
-                State::DoProduct => {
-                    let val_r = result_stack.pop().unwrap();
-                    let val_l = result_stack.pop().unwrap();
-                    result_stack.push(Value::product(val_l, val_r));
-                }
-            }
-        }
-        debug_assert_eq!(result_stack.len(), 1);
-        Ok(result_stack.pop().unwrap())
     }
 
     /// Decode a natural number from bits.
