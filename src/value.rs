@@ -443,7 +443,7 @@ impl Padding for PaddedEncoding {
         ty_l: &Final,
         ty_r: &Final,
     ) -> Result<(), EarlyEndOfStreamError> {
-        for _ in 0..ty_l.pad_left(ty_r) {
+        for _ in 0..ty_l.pad_right(ty_r) {
             let _padding = bits.next().ok_or(EarlyEndOfStreamError)?;
         }
         Ok(())
