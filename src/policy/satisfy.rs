@@ -296,7 +296,7 @@ mod tests {
             let xonly = keypair.x_only_public_key().0;
 
             let sighash = env.c_tx_env().sighash_all();
-            let msg = secp256k1_zkp::Message::from(sighash);
+            let msg = secp256k1_zkp::Message::from_digest(sighash.to_byte_array());
             let sig = elements::SchnorrSig {
                 sig: keypair.sign_schnorr(msg),
                 hash_ty: elements::SchnorrSighashType::All,
@@ -379,7 +379,7 @@ mod tests {
         assert_eq!(1, witness.len());
 
         let sighash = env.c_tx_env().sighash_all();
-        let message = secp256k1_zkp::Message::from(sighash);
+        let message = secp256k1_zkp::Message::from_digest(sighash.to_byte_array());
         let signature_bytes = witness[0]
             .iter_padded()
             .try_collect_bytes()

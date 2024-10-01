@@ -314,7 +314,7 @@ mod tests {
         let sighash = env.c_tx_env().sighash_all();
         let secp = secp256k1_zkp::Secp256k1::new();
         let keypair = secp256k1_zkp::Keypair::new(&secp, &mut secp256k1_zkp::rand::rngs::OsRng);
-        let message = secp256k1_zkp::Message::from(sighash);
+        let message = secp256k1_zkp::Message::from_digest(sighash.to_byte_array());
         let signature = keypair.sign_schnorr(message);
 
         let (xonly, _) = keypair.x_only_public_key();
