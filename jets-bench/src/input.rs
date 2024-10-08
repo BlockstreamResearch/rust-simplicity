@@ -1297,7 +1297,7 @@ impl InputSample for CheckSigSignature {
             let xpk = bitcoin::key::XOnlyPublicKey::from_keypair(&keypair);
 
             let msg = [0xab; 64];
-            let hashed_msg = tagged_hash(b"Simplicity-Draft\x1fSignature", msg);
+            let hashed_msg = tagged_hash(b"Simplicity\x1fSignature", msg);
             let hashed_msg = bitcoin::secp256k1::Message::from_digest(hashed_msg.to_byte_array());
             let sig = secp_ctx.sign_schnorr(&hashed_msg, &keypair);
 

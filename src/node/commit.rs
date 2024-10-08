@@ -456,7 +456,7 @@ mod tests {
         assert_program_deserializable::<Core>(
             "main := witness",
             &[0x38],
-            "bf12681a76fc7c00c63e583c25cc97237337d6aca30d3f4a664075445385c648",
+            "a0fc8debd6796917c86b77aded82e6c61649889ae8f2ed65b57b41aa9d90e375",
         );
 
         #[rustfmt::skip]
@@ -499,7 +499,7 @@ mod tests {
                     0x00,
                 ],
                 // CMR not checked against C code, since C won't give us any data without witnesses
-                "5394be33b8ba4771ede97ada5d035266026e414b4b21053afb986081e84ee3ac",
+                "e9339a0d715c721bff752aedc02710cdf3399f3f8d86e64456e85a1bc06ecb7c",
             ),
             // Same program but with each `witness` replaced by `comp iden witness`.
             (
@@ -520,7 +520,7 @@ mod tests {
                     0xdc, 0x41, 0x18, 0x08,
                 ],
                 // CMR not checked against C code, since C won't give us any data without witnesses
-                "d7803c07d1803f525a6c6ea5bff8e46e58efeda1130bb6c1b7b6ed60ebd0504b",
+                "d03bf350f406aef3af0d48e6533b3325ff86f18a36e0e73895a5cd6d6692b860",
             )
         ];
 

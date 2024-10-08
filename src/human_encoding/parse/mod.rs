@@ -659,7 +659,7 @@ mod tests {
         let empty = HashMap::new();
         assert_cmr_witness::<Core>(
             "main := unit",
-            "62274a89833ece8ba5ff57b28118c0063d3d4a85dd25aae06f87617604402715",
+            "c40a10263f7436b4160acbef1c36fba4be4d95df181a968afeab5eac247adff7",
             &empty,
             &(),
         );
@@ -676,7 +676,7 @@ mod tests {
                 wits_are_equal := comp (pair wit1 wit2) jet_eq_32 : 1 -> 2
                 main := comp wits_are_equal jet_verify            : 1 -> 1
             ",
-            "e398797db2b1c742dfa69a3925583e55e55a81a1e5150a0241a8d9e85e112475",
+            "d7969920eff9a1ed0359aaa8545b239c69969e22c304c645a7b49bcc976a40a8",
             &witness,
             &(),
         );
@@ -706,7 +706,7 @@ mod tests {
         let dummy = ElementsEnv::dummy();
         assert_cmr_witness::<Elements>(
             "main := unit",
-            "62274a89833ece8ba5ff57b28118c0063d3d4a85dd25aae06f87617604402715",
+            "c40a10263f7436b4160acbef1c36fba4be4d95df181a968afeab5eac247adff7",
             &empty,
             &dummy,
         );
@@ -735,7 +735,7 @@ mod tests {
 
                 main := comp pr1 jt2       : 1 -> 1               -- 3f6422da
             ",
-           "e3b25e13f91fcbf95407f126b3aed5b4543399cb9c3d426fe98a10f8d33ef6c3",
+           "8a9e97676b24be7797d9ee0bf32dd76bcd78028e973025f785eae8dc91c8a0da",
             &signature,
             &dummy
         );

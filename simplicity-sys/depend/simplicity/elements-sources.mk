@@ -26,7 +26,7 @@ ELEMENTS_SIMPLICITY_LIB_SOURCES_INT += %reldir%/typeInference.c
 
 ELEMENTS_SIMPLICITY_LIB_SOURCES_INT += %reldir%/primitive/elements/env.c
 ELEMENTS_SIMPLICITY_LIB_SOURCES_INT += %reldir%/primitive/elements/exec.c
-ELEMENTS_SIMPLICITY_LIB_SOURCES_INT += %reldir%/primitive/elements/jets.c
+ELEMENTS_SIMPLICITY_LIB_SOURCES_INT += %reldir%/primitive/elements/elementsJets.c
 ELEMENTS_SIMPLICITY_LIB_SOURCES_INT += %reldir%/primitive/elements/ops.c
 ELEMENTS_SIMPLICITY_LIB_SOURCES_INT += %reldir%/primitive/elements/primitive.c
 
@@ -41,7 +41,6 @@ ELEMENTS_SIMPLICITY_LIB_HEADERS_INT += %reldir%/frame.h
 ELEMENTS_SIMPLICITY_LIB_HEADERS_INT += %reldir%/jets.h
 ELEMENTS_SIMPLICITY_LIB_HEADERS_INT += %reldir%/limitations.h
 ELEMENTS_SIMPLICITY_LIB_HEADERS_INT += %reldir%/precomputed.h
-ELEMENTS_SIMPLICITY_LIB_HEADERS_INT += %reldir%/prefix.h
 ELEMENTS_SIMPLICITY_LIB_HEADERS_INT += %reldir%/primitive.h
 ELEMENTS_SIMPLICITY_LIB_HEADERS_INT += %reldir%/rsort.h
 ELEMENTS_SIMPLICITY_LIB_HEADERS_INT += %reldir%/sha256.h
@@ -89,7 +88,7 @@ ELEMENTS_SIMPLICITY_LIB_HEADERS_INT += %reldir%/secp256k1/secp256k1.h
 ELEMENTS_SIMPLICITY_LIB_HEADERS_INT += %reldir%/secp256k1/secp256k1_impl.h
 ELEMENTS_SIMPLICITY_LIB_HEADERS_INT += %reldir%/secp256k1/util.h
 
-ELEMENTS_SIMPLICITY_LIB_HEADERS_INT += %reldir%/primitive/elements/jets.h
+ELEMENTS_SIMPLICITY_LIB_HEADERS_INT += %reldir%/primitive/elements/elementsJets.h
 ELEMENTS_SIMPLICITY_LIB_HEADERS_INT += %reldir%/primitive/elements/ops.h
 ELEMENTS_SIMPLICITY_LIB_HEADERS_INT += %reldir%/primitive/elements/primitive.h
 ELEMENTS_SIMPLICITY_LIB_HEADERS_INT += %reldir%/primitive/elements/primitiveEnumJet.inc
