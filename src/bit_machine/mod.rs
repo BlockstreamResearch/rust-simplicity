@@ -550,19 +550,19 @@ mod tests {
             prog_hex,
         );
         assert_eq!(
-            prog.imr().to_string(),
-            imr_str,
-            "IMR mismatch (got {} expected {}) for program {}",
-            prog.imr(),
-            imr_str,
-            prog_hex,
-        );
-        assert_eq!(
             prog.amr().to_string(),
             amr_str,
             "AMR mismatch (got {} expected {}) for program {}",
             prog.amr(),
             amr_str,
+            prog_hex,
+        );
+        assert_eq!(
+            prog.imr().to_string(),
+            imr_str,
+            "IMR mismatch (got {} expected {}) for program {}",
+            prog.imr(),
+            imr_str,
             prog_hex,
         );
 
@@ -591,9 +591,9 @@ mod tests {
         let res = run_program_elements(
             &[0xcf, 0xe1, 0x8f, 0xb4, 0x40, 0x28, 0x87, 0x04, 0x00],
             &[],
-            "615034594b26f261f89485f71b705ebf2e5b27233130d9c41c49c214dcbf0a7f",
-            "3e2c6ae87f6578e52d51510b476fd2e1dd400ce4f4f6e8a9174574434dc93d7d",
-            "ffc4aa8b46fd3c25f765f7ad1f44474bd936f9edeb4a90e8b198215c3b743f17",
+            "0075f5368af7b453c2f7318493df12567bc6d733cf1ebb69a08ce93e1e529956",
+            "0ac9baaee94e416c6598a271dfc18d6014f751ac300cfe69eb758c20f26c624b",
+            "61f2cf59bfec55bb6e44cbae71c3ba225f1059f9a5679c0b42a7177daff52b5a",
         );
         assert_eq!(res.unwrap(), Value::unit());
     }

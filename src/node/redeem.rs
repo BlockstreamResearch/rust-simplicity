@@ -532,9 +532,9 @@ mod tests {
         assert_program_deserializable::<Core>(
             &[0xc9, 0xc4, 0x6d, 0xb8, 0x82, 0x30, 0x10],
             &[0xde, 0xad, 0xbe, 0xef],
-            "e398797db2b1c742dfa69a3925583e55e55a81a1e5150a0241a8d9e85e112475",
-            "78280372ee1d0e0aaf8b343030f3bbdb2f954b22f0c4f77f6f04dd8ec506fca6",
-            "ef660061d9d3bd87d208fb7ab82ed095141440fd00cc2b3fa7ddeb360769ab6b",
+            "d7969920eff9a1ed0359aaa8545b239c69969e22c304c645a7b49bcc976a40a8",
+            "f7acbb077e7661a08384818bc8e3a275ed42ad446252575a35a35f71689fef78",
+            "3ce4a6390b4e4bda6330acda4800e66e5d2cae0f5a2888564c706f2b910146b8",
         );
     }
 
@@ -579,9 +579,9 @@ mod tests {
         assert_program_deserializable::<Core>(
             &[0xc1, 0x00, 0x00, 0x01, 0x00],
             &[],
-            "c2c86be0081a9c75af49098f359c7efdfa7ccbd0459adb11bcf676b80c8644b1",
-            "e053520f0c3219d1cabd705b4523ccd05c8d703a70f6f3994a20774a42b5ccfc",
-            "7b0ad0514279280d5c2ac1da729222936b8768d9f465c6c6ade3b0ed7dc97263",
+            "8a54101335ca2cf7e933d74cdb15f99becc4e540799ba5e2d19c00c9d7219e71",
+            "74e868bd640c250bc45522085158a9723fc7e277bb16a8d582c4012ebbb1f6f1",
+            "39b8f72bd1539de87d26673890603d6548cfc8b68571d996bdf9b1d8b557bd35",
         );
     }
 
@@ -600,9 +600,9 @@ mod tests {
                 0xef, 0x56, 0xdf, 0x77, 0x86, 0x01, 0x80,
             ],
             &[],
-            "c7194362a5480900dd44f9f647a49b8adcb92a25fb293c920e6bbcf6977cf63d",
-            "eaf95c23d967563132b65e43578fe08dae2a29ac66775ddd37af3ac7de28678b",
-            "d2927a9a54ddea8359ee00aa27e0aa1e354cc6924b090c759e2ed686712700a0",
+            "abdd773fc7a503908739b4a63198416fdd470948830cb5a6516b98fe0a3bfa85",
+            "1362ee53ae75218ed51dc4bd46cdbfa585f934ac6c6c3ff787e27dce91ccd80b",
+            "251c6778129e0f12da3f2388ab30184e815e9d9456b5931e54802a6715d9ca42",
         );
 
 
@@ -618,9 +618,9 @@ mod tests {
                 0xea, 0xdb, 0xee, 0xf4, 0x86, 0x01, 0x80,
             ],
             &[],
-            "8e471ac519e0b16a2b7dda7e8d68165f260cae4823861ddc494b7c73a615b212",
-            "ea1ee417816a57b80739520c7319c33a39a5f4ce7b59856e69f768d5d8f174a6",
-            "f262f83f1c9341390e015e4c5126f3954e17a1f275af73da2948eaf4797fda48",
+            "f6c678dfb180b94567a9d524e05fbc893f6905e0e3db931ff01dc2701e783d4c",
+            "212d4fa3dbe2b33db1e11bb6f4cc973be5de0896a3775387a06056483b8feb0f",
+            "7a583edcc733b6bba66998110be403ac61fab2d93fc09ba3c84ab2509b538043",
         );
     }
 
@@ -635,9 +635,9 @@ mod tests {
         assert_program_deserializable::<Core>(
             &[0xc5, 0x02, 0x06, 0x24, 0x10],
             &[],
-            "a453360c0825cc2d3c4c907d67b174273b0e0386c7e5ecdb28394a8f37fd68b9",
-            "d5b05a5da87ee490312279496e12e17bc987c98219d8961bc3a7c3ec95a7ce1e",
-            "3579ae2a05bbe689f16bd3ff29d840ae8aa8bbad70f6de27b7473746637abeb6",
+            "afe8f5f8bd3f64bfa51d2f29ffa22523604d9654c0d9862dbf2dc67ba097cbb2",
+            "15239708cb7b448cedc6a0b6401dce86ed74084056dd95831928860dd0c3ca67",
+            "9cdacb48b16e108ccbd6bcbce459a64056df285c2dc6e02dca6d13c4b1530fb0",
         );
     }
 
@@ -676,9 +676,9 @@ mod tests {
                 0xdb, 0x86, 0x8d, 0x45, 0xa0, 0xbc, 0x1d, 0x19, 0x01, 0x30, 0x2b, 0xc8, 0x7a, 0x87, 0x1c, 0xf1,
                 0x58, 0xe2, 0xbd, 0xe2, 0xcf, 0xa6, 0x45, 0xa8, 0x95, 0xc1, 0xb4, 0x5d, 0x68, 0xea, 0x24, 0xc0, 
             ],
-            "e2a6e4a223c0da97ebbf5f401e2d622535c3ed538e70f344318e9e5e4c2e02af",
-            "5cd9d4af96740d2f27ffd94649304923a20939ae42b02828fa7982457fac3c22",
-            "6f9dba991638478e2eec6388e51024410fd442264e8b212344aef802d8ff858b",
+            "f3cd4537d7ebb201732203195b30b549b8dc0c2c6257b3a0d53bedb08ea02874",
+            "107fa80454ed0f2d95d7c18d307912b1497505b98de47198fee23b5018efa544",
+            "d52021c638ba742a90bead9b3055efd66091fb50bb131aa8b10eb7c13ef464d1",
         );
     }
 
@@ -698,9 +698,9 @@ mod tests {
         assert_program_deserializable::<crate::jet::Elements>(
             &[0xc9, 0x09, 0x20, 0x74, 0x90, 0x40],
             &[],
-            "a8c9cc7a83518d0886afe1078d88eabca8353509e8c2e3b5c72cf559c713c9f5",
-            "97f77a7e7d7f3b2b1ac790bf54b39d47d6db8dcab7ed3c0a48df12f2c940af58",
-            "ed8152948589d65e0dea6d84f90eb752f63df818041f46bdc8f959f33299cbd3",
+            "b689bdee289c8dd4e2e283358d187813363d441776cf826dafc27cc8a81ec441",
+            "3c68660a1afde7982ce4aa9d499ad382bc32f5f9ad894a5e915f76e66303a25b",
+            "85313720ee43ae0ee03f88b05e6d9e4494308c6897bdeb3e93b94559c3317484",
         );
     }
 
@@ -725,9 +725,9 @@ mod tests {
         assert_program_deserializable::<crate::jet::Elements>(
             &schnorr0,
             &schnorr0_wit,
-            "e3b25e13f91fcbf95407f126b3aed5b4543399cb9c3d426fe98a10f8d33ef6c3",
-            "9049bcda62ffe6b7146b91af7a4522adbb93f0cd50dd390d12b9fe12ae836c8c",
-            "6b18b11f6367528afbe1abaf41553ce68bb417da2dcdd2832964399148548ac7",
+            "8a9e97676b24be7797d9ee0bf32dd76bcd78028e973025f785eae8dc91c8a0da",
+            "ec97c8774cb6bfb381fdbbcc8d964380fb3a3b45779322624490d6231ae777a4",
+            "ad7c38b16b9129646dc89b52cff144de94a80e383c4983b53de65e3575abcf38",
         );
     }
 }

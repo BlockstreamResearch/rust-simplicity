@@ -15,7 +15,7 @@ fn main() {
         "sha256.c",
         "primitive/elements/env.c",
         "primitive/elements/ops.c",
-        "primitive/elements/jets.c",
+        "primitive/elements/elementsJets.c",
     ]
     .into_iter()
     .map(|x| simplicity_path.join(x))

@@ -328,7 +328,7 @@ mod tests {
             s,
             &wit2_is_missing,
             &(),
-            "Execution reached a pruned branch: bf12681a76fc7c00c63e583c25cc97237337d6aca30d3f4a664075445385c648"
+            "Execution reached a pruned branch: a0fc8debd6796917c86b77aded82e6c61649889ae8f2ed65b57b41aa9d90e375"
         );
 
         let wit2_is_present = HashMap::from([

@@ -2,9 +2,8 @@
  */
 #include "primitive.h"
 
-#include "jets.h"
+#include "elementsJets.h"
 #include "../../limitations.h"
-#include "../../prefix.h"
 #include "../../primitive.h"
 #include "../../simplicity_alloc.h"
 #include "../../simplicity_assert.h"
