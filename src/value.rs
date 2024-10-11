@@ -8,7 +8,7 @@
 use crate::dag::{Dag, DagLike, NoSharing};
 use crate::types::Final;
 
-use crate::{types, EarlyEndOfStreamError};
+use crate::{types, BitCollector, EarlyEndOfStreamError};
 use std::collections::VecDeque;
 use std::fmt;
 use std::hash::Hash;
@@ -518,6 +518,151 @@ impl Value {
         ty: &Final,
     ) -> Result<Self, EarlyEndOfStreamError> {
         Self::from_bits::<_, PaddedEncoding>(bits, ty)
+    }
+}
+
+/// A Simplicity word. A value of type `TWO^(2^n)` for some `0 ≤ n < 32`.
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct Word {
+    /// Value of type `TWO^(2^n)`.
+    value: Value,
+    /// 0 ≤ n < 32.
+    n: u32,
+}
+
+macro_rules! construct_word_fallible {
+    ($name: ident, $n: expr, $text: expr) => {
+        #[doc = "Create"]
+        #[doc = $text]
+        #[doc = "word.\n\n"]
+        #[doc = "## Panics\n"]
+        #[doc = "The value is ouf of range."]
+        pub fn $name(bit: u8) -> Self {
+            Self {
+                value: Value::$name(bit),
+                n: $n,
+            }
+        }
+    };
+}
+
+macro_rules! construct_word {
+    ($name: ident, $ty: ty, $n: expr, $text: expr) => {
+        #[doc = "Create"]
+        #[doc = $text]
+        #[doc = "word."]
+        pub fn $name(bit: $ty) -> Self {
+            Self {
+                value: Value::$name(bit),
+                n: $n,
+            }
+        }
+    };
+}
+
+impl Word {
+    /// Concatenate two words into a larger word.
+    ///
+    /// Both words have to have the same length, which is 2^n bits.
+    /// The resulting word will be 2^(n + 1) bits long.
+    ///
+    /// Returns `None` if the words differ in length.
+    ///
+    /// Returns `None` if the words are already 2^31 bits long
+    /// _(the resulting word would be longer than 2^31 bits, which is not supported)_.
+    pub fn product(self, right: Self) -> Option<Self> {
+        if self.n == right.n && self.n < 30 {
+            Some(Self {
+                value: Value::product(self.value, right.value),
+                n: self.n + 1,
+            })
+        } else {
+            None
+        }
+    }
+
+    construct_word_fallible!(u1, 0, "a 1-bit");
+    construct_word_fallible!(u2, 1, "a 2-bit");
+    construct_word_fallible!(u4, 2, "a 4-bit");
+    construct_word!(u8, u8, 3, "an 8-bit");
+    construct_word!(u16, u16, 4, "a 16-bit");
+    construct_word!(u32, u32, 5, "a 32-bit");
+    construct_word!(u64, u64, 6, "a 64-bit");
+    construct_word!(u128, u128, 7, "a 128-bit");
+    construct_word!(u256, [u8; 32], 8, "a 256-bit");
+    construct_word!(u512, [u8; 64], 9, "a 512-bit");
+
+    /// Make a cheap copy of the word.
+    pub fn shallow_clone(&self) -> Self {
+        Self {
+            value: self.value.shallow_clone(),
+            n: self.n,
+        }
+    }
+
+    /// Access the value of the word.
+    pub fn as_value(&self) -> &Value {
+        &self.value
+    }
+
+    /// The word is of type `TWO^(2^n)`. Return `n`.
+    pub fn n(&self) -> u32 {
+        self.n
+    }
+
+    /// Return the bit length of the word.
+    ///
+    /// The word is of type `TWO^(2^n)`. Return `2^n`.
+    pub fn len(&self) -> usize {
+        2usize.pow(self.n)
+    }
+
+    /// Return an iterator over the bit encoding of the word.
+    ///
+    /// Words have no padding, so their compact encoding is the same as the padded encoding.
+    /// The universal encoding can be used in all situations.
+    pub fn iter(&self) -> impl Iterator<Item = bool> + '_ {
+        self.value.iter_compact()
+    }
+
+    /// Decode a word of type `TWO^(2^n)` from bits.
+    ///
+    /// ## Panics
+    ///
+    /// n is greater than 31.
+    pub fn from_bits<I: Iterator<Item = bool>>(
+        bits: &mut I,
+        n: u32,
+    ) -> Result<Self, EarlyEndOfStreamError> {
+        assert!(n < 32, "TWO^(2^{n}) is not supported as a word type");
+        let ty = Final::two_two_n(n as usize); // cast safety: 32-bit machine or higher
+        let value = Value::from_compact_bits(bits, &ty)?;
+        Ok(Self { value, n })
+    }
+}
+
+impl fmt::Debug for Word {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
+}
+
+impl fmt::Display for Word {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use hex::DisplayHex;
+
+        if let Ok(hex) = self.iter().try_collect_bytes() {
+            write!(f, "0x{}", hex.as_hex())
+        } else {
+            f.write_str("0b")?;
+            for bit in self.iter() {
+                match bit {
+                    false => f.write_str("0")?,
+                    true => f.write_str("1")?,
+                }
+            }
+            Ok(())
+        }
     }
 }
 
