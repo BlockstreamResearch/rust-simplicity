@@ -5,6 +5,7 @@ use crate::jet::Jet;
 use crate::types::{self, arrow::Arrow};
 use crate::{Cmr, Error, FailEntropy, Value};
 
+use crate::value::Word;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -333,7 +334,7 @@ impl<J> CoreConstructible for WitnessData<J> {
         }
     }
 
-    fn const_word(inference_context: &types::Context, word: Value) -> Self {
+    fn const_word(inference_context: &types::Context, word: Word) -> Self {
         WitnessData {
             arrow: Arrow::const_word(inference_context, word),
             must_prune: false,

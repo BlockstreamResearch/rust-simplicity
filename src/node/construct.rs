@@ -4,8 +4,9 @@ use crate::dag::{InternalSharing, PostOrderIterItem};
 use crate::encode;
 use crate::jet::Jet;
 use crate::types::{self, arrow::Arrow};
-use crate::{BitIter, BitWriter, Cmr, FailEntropy, Value};
+use crate::{BitIter, BitWriter, Cmr, FailEntropy};
 
+use crate::value::Word;
 use std::io;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -256,7 +257,7 @@ impl<J> CoreConstructible for ConstructData<J> {
         }
     }
 
-    fn const_word(inference_context: &types::Context, word: Value) -> Self {
+    fn const_word(inference_context: &types::Context, word: Word) -> Self {
         ConstructData {
             arrow: Arrow::const_word(inference_context, word),
             phantom: PhantomData,
@@ -303,6 +304,7 @@ impl<J: Jet> JetConstructible<J> for ConstructData<J> {
 mod tests {
     use super::*;
     use crate::jet::Core;
+    use crate::Value;
 
     #[test]
     fn occurs_check_error() {

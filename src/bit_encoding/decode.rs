@@ -13,7 +13,8 @@ use crate::node::{
     WitnessConstructible,
 };
 use crate::types;
-use crate::{BitIter, FailEntropy, Value};
+use crate::value::Word;
+use crate::{BitIter, FailEntropy};
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::{error, fmt};
@@ -129,7 +130,7 @@ enum DecodeNode<J: Jet> {
     Fail(FailEntropy),
     Hidden(Cmr),
     Jet(J),
-    Word(Value),
+    Word(Word),
 }
 
 impl<'d, J: Jet> DagLike for (usize, &'d [DecodeNode<J>]) {
@@ -265,8 +266,8 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
         if bits.read_bit()? {
             J::decode(bits).map(|jet| DecodeNode::Jet(jet))
         } else {
-            let depth = bits.read_natural(Some(32))?;
-            let word = decode_power_of_2(bits, 1 << (depth - 1))?;
+            let n = bits.read_natural(Some(32))? as u32; // cast safety: decoded number is at most the number 32
+            let word = Word::from_bits(bits, n - 1)?;
             Ok(DecodeNode::Word(word))
         }
     } else {
@@ -318,43 +319,6 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
             }
         }
     }
-}
-
-/// Decode a value from bits, of the form 2^exp
-///
-/// # Panics
-///
-/// Panics if `exp` itself is not a power of 2
-pub fn decode_power_of_2<I: Iterator<Item = bool>>(
-    iter: &mut I,
-    exp: usize,
-) -> Result<Value, Error> {
-    struct StackElem {
-        value: Value,
-        width: usize,
-    }
-
-    assert_eq!(exp.count_ones(), 1, "exp must be a power of 2");
-
-    let mut stack = Vec::with_capacity(32);
-    for _ in 0..exp {
-        // Read next bit
-        let bit = Value::u1(u8::from(iter.next().ok_or(Error::EndOfStream)?));
-        stack.push(StackElem {
-            value: bit,
-            width: 1,
-        });
-
-        while stack.len() >= 2 && stack[stack.len() - 1].width == stack[stack.len() - 2].width {
-            let right = stack.pop().unwrap();
-            let left = stack.pop().unwrap();
-            stack.push(StackElem {
-                value: Value::product(left.value, right.value),
-                width: left.width * 2,
-            });
-        }
-    }
-    Ok(stack.pop().unwrap().value)
 }
 
 /// Decode a natural number from bits.

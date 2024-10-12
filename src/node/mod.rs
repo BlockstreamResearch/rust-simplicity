@@ -79,6 +79,7 @@ mod inner;
 mod redeem;
 mod witness;
 
+use crate::value::Word;
 pub use commit::{Commit, CommitData, CommitNode};
 pub use construct::{Construct, ConstructData, ConstructNode};
 pub use convert::{Converter, Hide, SimpleFinalizer};
@@ -177,7 +178,7 @@ pub trait CoreConstructible: Sized {
     fn assertr(left: Cmr, right: &Self) -> Result<Self, types::Error>;
     fn pair(left: &Self, right: &Self) -> Result<Self, types::Error>;
     fn fail(inference_context: &types::Context, entropy: FailEntropy) -> Self;
-    fn const_word(inference_context: &types::Context, word: Value) -> Self;
+    fn const_word(inference_context: &types::Context, word: Word) -> Self;
 
     /// Accessor for the type inference context used to create the object.
     fn inference_context(&self) -> &types::Context;
@@ -474,11 +475,11 @@ where
         })
     }
 
-    fn const_word(inference_context: &types::Context, value: Value) -> Self {
+    fn const_word(inference_context: &types::Context, word: Word) -> Self {
         Arc::new(Node {
-            cmr: Cmr::const_word(&value),
-            data: N::CachedData::const_word(inference_context, value.shallow_clone()),
-            inner: Inner::Word(value),
+            cmr: Cmr::const_word(&word),
+            data: N::CachedData::const_word(inference_context, word.shallow_clone()),
+            inner: Inner::Word(word),
         })
     }
 

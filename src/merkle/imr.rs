@@ -3,6 +3,7 @@
 use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
 use crate::types::arrow::FinalArrow;
+use crate::value::Word;
 use crate::{Cmr, Tmr, Value};
 use hashes::sha256::Midstate;
 
@@ -125,8 +126,8 @@ impl FirstPassImr {
     ///
     /// This is equal to the IMR of the equivalent scribe, converted to a CMR in
     /// the usual way for jets.
-    pub fn const_word(v: &Value) -> Self {
-        Cmr::const_word(v).into()
+    pub fn const_word(word: &Word) -> Self {
+        Cmr::const_word(word).into()
     }
 
     #[rustfmt::skip]

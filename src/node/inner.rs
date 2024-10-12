@@ -2,8 +2,9 @@
 
 use super::{Disconnectable, FailEntropy};
 use crate::dag::Dag;
-use crate::{Cmr, Value};
+use crate::Cmr;
 
+use crate::value::Word;
 use std::fmt;
 use std::sync::Arc;
 
@@ -44,7 +45,7 @@ pub enum Inner<C, J, X, W> {
     /// Application jet
     Jet(J),
     /// Constant word
-    Word(Value),
+    Word(Word),
 }
 
 impl<C, J: Clone, X, W> Inner<C, J, X, W> {

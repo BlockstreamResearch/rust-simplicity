@@ -334,7 +334,7 @@ impl BitMachine {
                 }
                 node::Inner::Witness(value) => self.write_value(value),
                 node::Inner::Jet(jet) => self.exec_jet(*jet, env)?,
-                node::Inner::Word(value) => self.write_value(value),
+                node::Inner::Word(value) => self.write_value(value.as_value()),
                 node::Inner::Fail(entropy) => {
                     return Err(ExecutionError::ReachedFailNode(*entropy))
                 }
