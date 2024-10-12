@@ -394,7 +394,6 @@ mod tests {
     use crate::jet::Core;
     use crate::node::{ConstructNode, CoreConstructible};
 
-    use crate::Value;
     use std::str::FromStr;
     use std::sync::Arc;
 
@@ -481,10 +480,23 @@ mod tests {
 
     #[test]
     fn const_bits() {
+        /// The scribe expression, as defined in the Simplicity tech report.
+        fn scribe(bit: u8) -> Arc<ConstructNode<Core>> {
+            match bit {
+                0 => Arc::<ConstructNode<Core>>::injl(&Arc::<ConstructNode<Core>>::unit(
+                    &types::Context::new(),
+                )),
+                1 => Arc::<ConstructNode<Core>>::injr(&Arc::<ConstructNode<Core>>::unit(
+                    &types::Context::new(),
+                )),
+                _ => panic!("Unexpected bit {bit}"),
+            }
+        }
+
         fn check_bit(target: Cmr, index: u8) {
             // Uncomment this if the IVs ever change
             /*
-            let target = Arc::<ConstructNode<Core>>::scribe(&types::Context::new(), &Value::u1(index)).cmr();
+            let target = scribe(index).cmr();
             println!("    Cmr(Midstate([");
             print!("       "); for ch in &target.0[0..8] { print!(" 0x{:02x},", ch); }; println!();
             print!("       "); for ch in &target.0[8..16] { print!(" 0x{:02x},", ch); }; println!();
@@ -494,7 +506,7 @@ mod tests {
             */
             assert_eq!(
                 target,
-                Arc::<ConstructNode<Core>>::scribe(&types::Context::new(), &Value::u1(index)).cmr(),
+                scribe(index).cmr(),
                 "mismatch on CMR for bit {index}",
             );
         }

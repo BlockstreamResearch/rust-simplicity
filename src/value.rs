@@ -290,6 +290,16 @@ impl Value {
     pub fn is_of_type(&self, ty: &Final) -> bool {
         self.ty.as_ref() == ty
     }
+
+    /// Try to convert the value into a word.
+    ///
+    /// The value is cheaply cloned.
+    pub fn to_word(&self) -> Option<Word> {
+        self.ty.as_word().map(|n| Word {
+            value: self.shallow_clone(),
+            n,
+        })
+    }
 }
 
 impl fmt::Debug for Value {
