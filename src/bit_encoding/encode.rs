@@ -286,18 +286,9 @@ where
 /// Encode a value to bits.
 pub fn encode_value<W: io::Write>(value: &Value, w: &mut BitWriter<W>) -> io::Result<usize> {
     let n_start = w.n_total_written();
-
-    if let Some(left) = value.as_left() {
-        w.write_bit(false)?;
-        encode_value(left, w)?;
-    } else if let Some(right) = value.as_right() {
-        w.write_bit(true)?;
-        encode_value(right, w)?;
-    } else if let Some((left, right)) = value.as_product() {
-        encode_value(left, w)?;
-        encode_value(right, w)?;
+    for bit in value.iter_compact() {
+        w.write_bit(bit)?;
     }
-
     Ok(w.n_total_written() - n_start)
 }
 
