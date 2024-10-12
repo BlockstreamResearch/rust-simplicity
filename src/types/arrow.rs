@@ -14,12 +14,13 @@
 use std::fmt;
 use std::sync::Arc;
 
+use crate::jet::Jet;
 use crate::node::{
     CoreConstructible, DisconnectConstructible, JetConstructible, NoDisconnect,
     WitnessConstructible,
 };
 use crate::types::{Context, Error, Final, Type};
-use crate::{jet::Jet, Value};
+use crate::value::Word;
 
 use super::variable::new_name;
 
@@ -310,14 +311,10 @@ impl CoreConstructible for Arrow {
         }
     }
 
-    fn const_word(inference_context: &Context, word: Value) -> Self {
-        let len = word.compact_len();
-        assert!(len > 0, "Words must not be the empty bitstring");
-        assert!(len.is_power_of_two());
-        let depth = len.trailing_zeros();
+    fn const_word(inference_context: &Context, word: Word) -> Self {
         Arrow {
             source: Type::unit(inference_context),
-            target: Type::two_two_n(inference_context, depth as usize),
+            target: Type::two_two_n(inference_context, word.n() as usize), // cast safety: 32-bit machine or higher
             inference_context: inference_context.shallow_clone(),
         }
     }

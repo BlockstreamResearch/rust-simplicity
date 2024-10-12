@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: CC0-1.0
 
 use crate::jet::Jet;
-use crate::Value;
 use std::{cmp, fmt};
 
+use crate::value::Word;
 #[cfg(feature = "elements")]
 use elements::encode::Encodable;
 #[cfg(feature = "elements")]
@@ -360,11 +360,11 @@ impl NodeBounds {
     }
 
     /// Node bounds for an arbitrary constant word node
-    pub fn const_word(value: &Value) -> NodeBounds {
+    pub fn const_word(word: &Word) -> NodeBounds {
         NodeBounds {
             extra_cells: 0,
             extra_frames: 0,
-            cost: Cost::OVERHEAD + Cost::of_type(value.padded_len()),
+            cost: Cost::OVERHEAD + Cost::of_type(word.len()),
         }
     }
 

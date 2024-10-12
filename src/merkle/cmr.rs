@@ -6,7 +6,8 @@ use crate::node::{
     CoreConstructible, DisconnectConstructible, JetConstructible, WitnessConstructible,
 };
 use crate::types::{self, Error};
-use crate::{FailEntropy, Tmr, Value};
+use crate::value::Word;
+use crate::{FailEntropy, Tmr};
 use hashes::sha256::Midstate;
 
 use super::bip340_iv;
@@ -100,13 +101,12 @@ impl Cmr {
     ///
     /// This is equal to the IMR of the equivalent scribe, converted to a CMR in
     /// the usual way for jets.
-    pub fn const_word(v: &Value) -> Self {
-        assert_eq!(v.compact_len().count_ones(), 1);
-        let w = 1 + v.compact_len().trailing_zeros() as usize;
+    pub fn const_word(word: &Word) -> Self {
+        let w = 1 + word.n() as usize;
 
         let mut cmr_stack = Vec::with_capacity(33);
         // 1. Compute the CMR for the `scribe` corresponding to this word jet
-        for (bit_idx, bit) in v.iter_compact().enumerate() {
+        for (bit_idx, bit) in word.iter().enumerate() {
             cmr_stack.push(Cmr::BITS[usize::from(bit)]);
             let mut j = bit_idx;
             while j & 1 == 1 {
@@ -123,7 +123,7 @@ impl Cmr {
         // 2. Add TMRs to get the pass-two IMR
         let imr_pass2 = imr_pass1.update(Tmr::unit().into(), Tmr::POWERS_OF_TWO[w - 1].into());
         // 3. Convert to a jet CMR
-        Cmr(bip340_iv(b"Simplicity\x1fJet")).update_with_weight(v.compact_len() as u64, imr_pass2)
+        Cmr(bip340_iv(b"Simplicity\x1fJet")).update_with_weight(word.len() as u64, imr_pass2)
     }
 
     #[rustfmt::skip]
@@ -344,7 +344,7 @@ impl CoreConstructible for ConstructibleCmr {
         }
     }
 
-    fn const_word(inference_context: &types::Context, word: Value) -> Self {
+    fn const_word(inference_context: &types::Context, word: Word) -> Self {
         ConstructibleCmr {
             cmr: Cmr::const_word(&word),
             inference_context: inference_context.shallow_clone(),
@@ -417,7 +417,7 @@ mod tests {
     #[test]
     fn fixed_const_word_cmr() {
         // Checked against C implementation
-        let bit0 = Value::u1(0);
+        let bit0 = Word::u1(0);
         #[rustfmt::skip]
         assert_eq!(
             Cmr::const_word(&bit0),
@@ -480,10 +480,23 @@ mod tests {
 
     #[test]
     fn const_bits() {
+        /// The scribe expression, as defined in the Simplicity tech report.
+        fn scribe(bit: u8) -> Arc<ConstructNode<Core>> {
+            match bit {
+                0 => Arc::<ConstructNode<Core>>::injl(&Arc::<ConstructNode<Core>>::unit(
+                    &types::Context::new(),
+                )),
+                1 => Arc::<ConstructNode<Core>>::injr(&Arc::<ConstructNode<Core>>::unit(
+                    &types::Context::new(),
+                )),
+                _ => panic!("Unexpected bit {bit}"),
+            }
+        }
+
         fn check_bit(target: Cmr, index: u8) {
             // Uncomment this if the IVs ever change
             /*
-            let target = Arc::<ConstructNode<Core>>::scribe(&types::Context::new(), &Value::u1(index)).cmr();
+            let target = scribe(index).cmr();
             println!("    Cmr(Midstate([");
             print!("       "); for ch in &target.0[0..8] { print!(" 0x{:02x},", ch); }; println!();
             print!("       "); for ch in &target.0[8..16] { print!(" 0x{:02x},", ch); }; println!();
@@ -493,7 +506,7 @@ mod tests {
             */
             assert_eq!(
                 target,
-                Arc::<ConstructNode<Core>>::scribe(&types::Context::new(), &Value::u1(index)).cmr(),
+                scribe(index).cmr(),
                 "mismatch on CMR for bit {index}",
             );
         }

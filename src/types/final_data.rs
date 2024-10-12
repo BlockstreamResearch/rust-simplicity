@@ -247,6 +247,17 @@ impl Final {
         }
     }
 
+    /// If the type is of the form `TWO^(2^n)`, then return `n`.
+    ///
+    /// ## Post condition
+    ///
+    /// 0 ≤ n < 32.
+    pub fn as_word(&self) -> Option<u32> {
+        (0..32u32).find(|&n| {
+            self.tmr == Tmr::POWERS_OF_TWO[n as usize] // cast safety: 32-bit machine or higher
+        })
+    }
+
     /// Compute the padding of left values of the sum type `Self + Other`.
     pub fn pad_left(&self, other: &Self) -> usize {
         cmp::max(self.bit_width, other.bit_width) - self.bit_width

@@ -7,7 +7,8 @@ use std::sync::Arc;
 
 use crate::human_encoding::{Error, ErrorSet, Position, WitnessOrHole};
 use crate::jet::Jet;
-use crate::{node, types, Value};
+use crate::value::Word;
+use crate::{node, types};
 use crate::{BitIter, Cmr, FailEntropy};
 use santiago::grammar::{Associativity, Grammar};
 use santiago::lexer::{Lexeme, LexerRules};
@@ -644,12 +645,11 @@ fn grammar<J: Jet + 'static>() -> Grammar<Ast<J>> {
                     Error::BadWordLength { bit_length },
                 ));
             }
-            let ty = types::Final::two_two_n(bit_length.trailing_zeros() as usize);
             // unwrap ok here since literally every sequence of bits is a valid
             // value for the given type
-            let value = Value::from_compact_bits(&mut iter, &ty).unwrap();
+            let word = Word::from_bits(&mut iter, bit_length.trailing_zeros()).unwrap();
             Ast::Expression(Expression {
-                inner: ExprInner::Inline(node::Inner::Word(value)),
+                inner: ExprInner::Inline(node::Inner::Word(word)),
                 position,
             })
         };

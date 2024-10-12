@@ -6,11 +6,12 @@ use crate::jet::{Elements, Jet};
 use crate::merkle::cmr::ConstructibleCmr;
 use crate::node::{CoreConstructible, JetConstructible, WitnessConstructible};
 use crate::types;
+use crate::FailEntropy;
 use crate::{Cmr, ConstructNode, ToXOnlyPubkey};
-use crate::{FailEntropy, Value};
 
 use hashes::Hash;
 
+use crate::value::Word;
 use std::convert::TryFrom;
 use std::sync::Arc;
 
@@ -56,7 +57,7 @@ where
     Pk: ToXOnlyPubkey,
     N: CoreConstructible + JetConstructible<Elements> + WitnessConstructible<W>,
 {
-    let key_value = Value::u256(key.to_x_only_pubkey().serialize());
+    let key_value = Word::u256(key.to_x_only_pubkey().serialize());
     let const_key = N::const_word(inference_context, key_value);
     let sighash_all = N::jet(inference_context, Elements::SigAllHash);
     let pair_key_msg = N::pair(&const_key, &sighash_all).expect("consistent types");
@@ -71,7 +72,7 @@ pub fn after<N>(inference_context: &types::Context, n: u32) -> N
 where
     N: CoreConstructible + JetConstructible<Elements>,
 {
-    let n_value = Value::u32(n);
+    let n_value = Word::u32(n);
     let const_n = N::const_word(inference_context, n_value);
     let check_lock_height = N::jet(inference_context, Elements::CheckLockHeight);
 
@@ -82,7 +83,7 @@ pub fn older<N>(inference_context: &types::Context, n: u16) -> N
 where
     N: CoreConstructible + JetConstructible<Elements>,
 {
-    let n_value = Value::u16(n);
+    let n_value = Word::u16(n);
     let const_n = N::const_word(inference_context, n_value);
     let check_lock_distance = N::jet(inference_context, Elements::CheckLockDistance);
 
@@ -120,7 +121,7 @@ where
     Pk: ToXOnlyPubkey,
     N: CoreConstructible + JetConstructible<Elements> + WitnessConstructible<W>,
 {
-    let hash_value = Value::u256(Pk::to_sha256(hash).to_byte_array());
+    let hash_value = Word::u256(Pk::to_sha256(hash).to_byte_array());
     let const_hash = N::const_word(inference_context, hash_value);
     let witness256 = N::witness(inference_context, witness);
     let computed_hash = compute_sha256(&witness256);
@@ -174,11 +175,11 @@ where
     let selector = selector(child.inference_context(), witness_bit);
 
     // 1 → 2^32
-    let const_one = N::const_word(child.inference_context(), Value::u32(1));
+    let const_one = N::const_word(child.inference_context(), Word::u32(1));
     // 1 → 2^32
     let child_one = N::comp(child, &const_one).expect("consistent types");
     // 1 → 2^32
-    let const_zero = N::const_word(child.inference_context(), Value::u32(0));
+    let const_zero = N::const_word(child.inference_context(), Word::u32(0));
 
     // 1 × 1 → 2^32
     let drop_left = N::drop_(&const_zero);
@@ -226,7 +227,7 @@ where
     N: CoreConstructible + JetConstructible<Elements>,
 {
     // 1 → 2^32
-    let const_k = N::const_word(sum.inference_context(), Value::u32(k));
+    let const_k = N::const_word(sum.inference_context(), Word::u32(k));
     // 1 → 2^32 × 2^32
     let pair_k_sum = N::pair(&const_k, sum).expect("consistent types");
     // 2^32 × 2^32 → 2

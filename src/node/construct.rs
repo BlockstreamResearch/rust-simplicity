@@ -4,8 +4,9 @@ use crate::dag::{InternalSharing, PostOrderIterItem};
 use crate::encode;
 use crate::jet::Jet;
 use crate::types::{self, arrow::Arrow};
-use crate::{BitIter, BitWriter, Cmr, FailEntropy, Value};
+use crate::{BitIter, BitWriter, Cmr, FailEntropy};
 
+use crate::value::Word;
 use std::io;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -256,7 +257,7 @@ impl<J> CoreConstructible for ConstructData<J> {
         }
     }
 
-    fn const_word(inference_context: &types::Context, word: Value) -> Self {
+    fn const_word(inference_context: &types::Context, word: Word) -> Self {
         ConstructData {
             arrow: Arrow::const_word(inference_context, word),
             phantom: PhantomData,
@@ -303,6 +304,8 @@ impl<J: Jet> JetConstructible<J> for ConstructData<J> {
 mod tests {
     use super::*;
     use crate::jet::Core;
+    use crate::types::Final;
+    use crate::Value;
 
     #[test]
     fn occurs_check_error() {
@@ -384,9 +387,8 @@ mod tests {
         // about CMRs, for which type inference is irrelevant.
         let ctx = types::Context::new();
         let unit = Arc::<ConstructNode<Core>>::unit(&ctx);
-        let bit0 = Arc::<ConstructNode<Core>>::injl(&unit);
-        let bit1 = Arc::<ConstructNode<Core>>::injr(&unit);
-        let bits01 = Arc::<ConstructNode<Core>>::pair(&bit0, &bit1).unwrap();
+        let bit0 = Arc::<ConstructNode<Core>>::const_word(&ctx, Word::u1(0));
+        let bit1 = Arc::<ConstructNode<Core>>::const_word(&ctx, Word::u1(1));
 
         assert_eq!(
             unit.cmr(),
@@ -401,8 +403,25 @@ mod tests {
             Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::u1(1)).cmr()
         );
         assert_eq!(
-            bits01.cmr(),
+            Arc::<ConstructNode<Core>>::const_word(&ctx, Word::u2(1)).cmr(),
             Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::u2(1)).cmr()
+        );
+        assert_eq!(
+            Arc::<ConstructNode<Core>>::injl(&bit0).cmr(),
+            Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::left(Value::u1(0), Final::unit()))
+                .cmr()
+        );
+        assert_eq!(
+            Arc::<ConstructNode<Core>>::injr(&bit1).cmr(),
+            Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::right(Final::unit(), Value::u1(1)))
+                .cmr()
+        );
+        assert_eq!(
+            Arc::<ConstructNode<Core>>::pair(&unit, &unit)
+                .unwrap()
+                .cmr(),
+            Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::product(Value::unit(), Value::unit()))
+                .cmr()
         );
     }
 }

@@ -63,7 +63,7 @@
 //!    completeness.
 //!
 
-use crate::dag::{DagLike, MaxSharing, NoSharing, SharingTracker};
+use crate::dag::{DagLike, MaxSharing, SharingTracker};
 use crate::jet::Jet;
 use crate::{types, Cmr, FailEntropy, Value};
 
@@ -79,6 +79,7 @@ mod inner;
 mod redeem;
 mod witness;
 
+use crate::value::Word;
 pub use commit::{Commit, CommitData, CommitNode};
 pub use construct::{Construct, ConstructData, ConstructNode};
 pub use convert::{Converter, Hide, SimpleFinalizer};
@@ -177,33 +178,66 @@ pub trait CoreConstructible: Sized {
     fn assertr(left: Cmr, right: &Self) -> Result<Self, types::Error>;
     fn pair(left: &Self, right: &Self) -> Result<Self, types::Error>;
     fn fail(inference_context: &types::Context, entropy: FailEntropy) -> Self;
-    fn const_word(inference_context: &types::Context, word: Value) -> Self;
+    fn const_word(inference_context: &types::Context, word: Word) -> Self;
 
     /// Accessor for the type inference context used to create the object.
     fn inference_context(&self) -> &types::Context;
 
-    /// Create a DAG that takes any input and returns `value` as constant output.
+    /// Create an expression that produces the given `value`.
     ///
-    /// _Overall type: A → B where value: B_
-    fn scribe(inference_context: &types::Context, value: &Value) -> Self {
-        let mut stack = vec![];
-        for data in value.post_order_iter::<NoSharing>() {
-            if data.node.is_unit() {
-                stack.push(Self::unit(inference_context));
-            } else if data.node.as_left().is_some() {
-                let child = stack.pop().unwrap();
-                stack.push(Self::injl(&child));
-            } else if data.node.as_right().is_some() {
-                let child = stack.pop().unwrap();
-                stack.push(Self::injr(&child));
-            } else if data.node.as_product().is_some() {
-                let right = stack.pop().unwrap();
-                let left = stack.pop().unwrap();
-                stack.push(Self::pair(&left, &right).expect("source of scribe has no constraints"));
+    /// The expression is minimized by using as many word jets as possible.
+    fn scribe(ctx: &types::Context, value: &Value) -> Self {
+        #[derive(Debug, Clone)]
+        enum Task<'a> {
+            Process(&'a Value),
+            MakeLeft,
+            MakeRight,
+            MakeProduct,
+        }
+
+        let mut input = vec![Task::Process(value)];
+        let mut output = vec![];
+        while let Some(top) = input.pop() {
+            match top {
+                Task::Process(value) => {
+                    if value.is_unit() {
+                        output.push(Self::unit(ctx));
+                    } else if let Some(word) = value.to_word() {
+                        output.push(Self::const_word(ctx, word));
+                    } else if let Some(left) = value.as_left() {
+                        input.push(Task::MakeLeft);
+                        input.push(Task::Process(left));
+                    } else if let Some(right) = value.as_right() {
+                        input.push(Task::MakeRight);
+                        input.push(Task::Process(right));
+                    } else if let Some((left, right)) = value.as_product() {
+                        input.push(Task::MakeProduct);
+                        input.push(Task::Process(right));
+                        input.push(Task::Process(left));
+                    }
+                }
+                Task::MakeLeft => {
+                    let inner = output.pop().unwrap();
+                    output.push(Self::injl(&inner));
+                }
+                Task::MakeRight => {
+                    let inner = output.pop().unwrap();
+                    output.push(Self::injr(&inner));
+                }
+                Task::MakeProduct => {
+                    let right = output.pop().unwrap();
+                    let left = output.pop().unwrap();
+                    // simfony::PairBuilder would remove this `.expect()` call
+                    output.push(
+                        Self::pair(&left, &right).expect(
+                            "`pair` should always succeed because input type is unrestricted",
+                        ),
+                    );
+                }
             }
         }
-        assert_eq!(stack.len(), 1);
-        stack.pop().unwrap()
+        debug_assert_eq!(output.len(), 1);
+        output.pop().unwrap()
     }
 
     /// Create a DAG that takes any input and returns bit `0` as constant output.
@@ -474,11 +508,11 @@ where
         })
     }
 
-    fn const_word(inference_context: &types::Context, value: Value) -> Self {
+    fn const_word(inference_context: &types::Context, word: Word) -> Self {
         Arc::new(Node {
-            cmr: Cmr::const_word(&value),
-            data: N::CachedData::const_word(inference_context, value.shallow_clone()),
-            inner: Inner::Word(value),
+            cmr: Cmr::const_word(&word),
+            data: N::CachedData::const_word(inference_context, word.shallow_clone()),
+            inner: Inner::Word(word),
         })
     }
 
