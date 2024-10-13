@@ -62,7 +62,7 @@ pub use crate::merkle::{
     FailEntropy,
 };
 pub use crate::node::{CommitNode, ConstructNode, RedeemNode, WitnessNode};
-pub use crate::value::Value;
+pub use crate::value::{Value, Word};
 pub use simplicity_sys as ffi;
 use std::fmt;
 
