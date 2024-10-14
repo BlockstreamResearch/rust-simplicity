@@ -623,6 +623,7 @@ impl Word {
     /// Return the bit length of the word.
     ///
     /// The word is of type `TWO^(2^n)`. Return `2^n`.
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         2usize.pow(self.n)
     }
