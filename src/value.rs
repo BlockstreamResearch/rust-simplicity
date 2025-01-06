@@ -6,7 +6,7 @@
 //! i.e., inputs, intermediate results and outputs.
 
 use crate::dag::{Dag, DagLike, NoSharing};
-use crate::types::Final;
+use crate::types::{CompleteBound, Final};
 
 use crate::{types, BitCollector, EarlyEndOfStreamError};
 use std::collections::VecDeque;
@@ -299,6 +299,76 @@ impl Value {
             value: self.shallow_clone(),
             n,
         })
+    }
+
+    /// Prune the value down to the given type.
+    ///
+    /// The pruned type must be _smaller than or equal to_ the current type of the value.
+    /// Otherwise, this method returns `None`.
+    ///
+    /// ## Smallness
+    ///
+    /// - `T` ≤ `T` for all types `T`
+    /// - `1` ≤ `T` for all types `T`
+    /// - `A1 + B1` ≤ `A2 + B2` if `A1` ≤ `A2` and `B1` ≤ `B2`
+    /// - `A1 × B1` ≤ `A2 × B2` if `A1` ≤ `A2` and `B1` ≤ `B2`
+    ///
+    /// ## Pruning
+    ///
+    /// - `prune( v: T, 1 )` = `(): 1`
+    /// - `prune( L(l): A1 + B1, A2 + B2 )` = `prune(l: A1, A2) : A2 + B2`
+    /// - `prune( R(r): A1 + B1, A2 + B2 )` = `prune(r: B1, B2) : A2 + B2`
+    /// - `prune( (l, r): A1 × B1, A2 × B2 )` = `( prune(l: A1, A2), prune(r: B1, B2): A2 × B2`
+    pub fn prune(&self, pruned_ty: &Final) -> Option<Self> {
+        enum Task<'a> {
+            Prune(&'a Value, &'a Final),
+            MakeLeft(Arc<Final>),
+            MakeRight(Arc<Final>),
+            MakeProduct,
+        }
+
+        let mut stack = vec![Task::Prune(self, pruned_ty)];
+        let mut output = vec![];
+
+        while let Some(task) = stack.pop() {
+            match task {
+                Task::Prune(value, pruned_ty) => match pruned_ty.bound() {
+                    CompleteBound::Unit => output.push(Value::unit()),
+                    CompleteBound::Sum(l_ty, r_ty) => {
+                        if let Some(l_value) = value.as_left() {
+                            stack.push(Task::MakeLeft(Arc::clone(r_ty)));
+                            stack.push(Task::Prune(l_value, l_ty));
+                        } else {
+                            let r_value = value.as_right()?;
+                            stack.push(Task::MakeRight(Arc::clone(l_ty)));
+                            stack.push(Task::Prune(r_value, r_ty));
+                        }
+                    }
+                    CompleteBound::Product(l_ty, r_ty) => {
+                        let (l_value, r_value) = value.as_product()?;
+                        stack.push(Task::MakeProduct);
+                        stack.push(Task::Prune(r_value, r_ty));
+                        stack.push(Task::Prune(l_value, l_ty));
+                    }
+                },
+                Task::MakeLeft(r_ty) => {
+                    let l_value = output.pop().unwrap();
+                    output.push(Value::left(l_value, r_ty));
+                }
+                Task::MakeRight(l_ty) => {
+                    let r_value = output.pop().unwrap();
+                    output.push(Value::right(l_ty, r_value));
+                }
+                Task::MakeProduct => {
+                    let r_value = output.pop().unwrap();
+                    let l_value = output.pop().unwrap();
+                    output.push(Value::product(l_value, r_value));
+                }
+            }
+        }
+
+        debug_assert_eq!(output.len(), 1);
+        output.pop()
     }
 }
 
@@ -716,6 +786,57 @@ mod tests {
         for (value, typename) in value_typename {
             let ty = typename.to_final();
             assert!(value.is_of_type(ty.as_ref()));
+        }
+    }
+
+    #[test]
+    fn prune() {
+        let test_vectors = [
+            (Value::unit(), Value::unit()),
+            (Value::u64(42), Value::unit()),
+            (
+                Value::left(Value::u64(42), Final::u64()),
+                Value::left(Value::u64(42), Final::unit()),
+            ),
+            (
+                Value::right(Final::u64(), Value::u64(1337)),
+                Value::right(Final::unit(), Value::u64(1337)),
+            ),
+            (
+                Value::product(Value::u64(42), Value::u64(1337)),
+                Value::product(Value::u64(42), Value::unit()),
+            ),
+            (
+                Value::product(Value::u64(42), Value::u64(1337)),
+                Value::product(Value::unit(), Value::u64(1337)),
+            ),
+        ];
+
+        for (value, expected_pruned_value) in test_vectors {
+            assert_eq!(
+                value.prune(expected_pruned_value.ty()),
+                Some(expected_pruned_value)
+            );
+        }
+
+        let bad_test_vectors = [
+            (Value::unit(), Final::u1()),
+            (
+                Value::product(Value::unit(), Value::unit()),
+                Final::sum(Final::unit(), Final::unit()),
+            ),
+            (
+                Value::left(Value::unit(), Final::unit()),
+                Final::product(Final::unit(), Final::unit()),
+            ),
+            (
+                Value::right(Final::unit(), Value::unit()),
+                Final::product(Final::unit(), Final::unit()),
+            ),
+        ];
+
+        for (value, pruned_ty) in bad_test_vectors {
+            assert_eq!(value.prune(&pruned_ty), None);
         }
     }
 }
