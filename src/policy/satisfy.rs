@@ -5,13 +5,14 @@ use crate::jet::Elements;
 use crate::node::{RedeemNode, WitnessNode};
 use crate::policy::ToXOnlyPubkey;
 use crate::types;
-use crate::{Cmr, Error, Policy, Value};
-use elements::bitcoin;
+use crate::{Cmr, Policy, Value};
 
+use elements::bitcoin;
 use elements::locktime::Height;
 use elements::taproot::TapLeafHash;
 use hashes::Hash;
 
+use crate::jet::elements::ElementsEnv;
 use std::convert::TryFrom;
 use std::sync::Arc;
 
@@ -34,25 +35,28 @@ pub trait Satisfier<Pk: ToXOnlyPubkey> {
         None
     }
 
-    /// Assert that a relative locktime is satisfied.
+    /// Assert that a relative lock time is satisfied.
     fn check_older(&self, _: elements::Sequence) -> bool {
         false
     }
 
-    /// Assert that an absolute locktime is satisfied.
+    /// Assert that an absolute lock time is satisfied.
     fn check_after(&self, _: elements::LockTime) -> bool {
         false
     }
 
-    /// Given a CMR, look up a matching satisfied Simplicity program.
+    /// Given a CMR, look up a matching assembly program.
     ///
-    /// It is the **responsibility of the satisfier** to make sure that given **program is satisfied**.
-    /// That is, each witness note is populated with a value of the correct type
-    /// and the program successfully runs on the Bit Machine.
+    /// ## Successful execution
     ///
-    /// If the satisfier provides an unsatisfied program,
-    /// then this may **corrupt** the computation of an **overall satisfaction**.
-    /// That is, the resulting "satisfaction" fails to satisfy the program.
+    /// It is the **responsibility of the implementor** to ensure that the returned assembly
+    /// program has sufficient witness data to successfully run on the Bit Machine.
+    ///
+    /// The execution of a program depends on the transaction environment,
+    /// so implementations should compute witness data based on that.
+    ///
+    /// If the assembly program fails to run for the current transaction environment,
+    /// then implementations should return `None`.
     fn lookup_asm_program(&self, _: Cmr) -> Option<Arc<WitnessNode<Elements>>> {
         None
     }
@@ -91,139 +95,217 @@ impl<Pk: ToXOnlyPubkey> Satisfier<Pk> for elements::LockTime {
     }
 }
 
+#[derive(Debug)]
+pub enum SatisfierError {
+    /// A satisfying witness for the policy could not be produced.
+    Unsatisfiable,
+    /// An assembly program was missing.
+    ///
+    /// The satisfier needs to know all assembly programs, **even those that are not executed**!
+    MissingAssembly(Cmr),
+    /// An assembly program failed to run on the Bit Machine.
+    ///
+    /// This can happen when the [`Satisfier::lookup_asm_program`] method is incorrectly implemented.
+    AssemblyFailed(crate::bit_machine::ExecutionError),
+}
+
+#[derive(Clone, Debug)]
+struct SatResult {
+    serialization: Arc<WitnessNode<Elements>>,
+    is_satisfied: bool,
+}
+
 impl<Pk: ToXOnlyPubkey> Policy<Pk> {
     fn satisfy_internal<S: Satisfier<Pk>>(
         &self,
         inference_context: &types::Context,
         satisfier: &S,
-    ) -> Result<Arc<WitnessNode<Elements>>, Error> {
+    ) -> Result<SatResult, SatisfierError> {
         let node = match *self {
-            Policy::Unsatisfiable(entropy) => {
-                super::serialize::unsatisfiable(inference_context, entropy)
-            }
-            Policy::Trivial => super::serialize::trivial(inference_context),
+            Policy::Unsatisfiable(entropy) => SatResult {
+                serialization: super::serialize::unsatisfiable(inference_context, entropy),
+                is_satisfied: false,
+            },
+            Policy::Trivial => SatResult {
+                serialization: super::serialize::trivial(inference_context),
+                is_satisfied: true,
+            },
             Policy::Key(ref key) => {
-                let sig_wit = satisfier
+                let signature = satisfier
                     .lookup_tap_leaf_script_sig(key, &TapLeafHash::all_zeros())
                     .map(|sig| sig.sig.serialize())
                     .map(Value::u512);
-                super::serialize::key(inference_context, key, sig_wit)
+                SatResult {
+                    is_satisfied: signature.is_some(),
+                    serialization: super::serialize::key(inference_context, key, signature),
+                }
             }
             Policy::After(n) => {
-                let node = super::serialize::after::<Arc<_>>(inference_context, n);
                 let height = Height::from_consensus(n).expect("timelock is valid");
-                if satisfier.check_after(elements::LockTime::Blocks(height)) {
-                    node
-                } else {
-                    node.pruned()
+                SatResult {
+                    serialization: super::serialize::after::<Arc<_>>(inference_context, n),
+                    is_satisfied: satisfier.check_after(elements::LockTime::Blocks(height)),
                 }
             }
-            Policy::Older(n) => {
-                let node = super::serialize::older::<Arc<_>>(inference_context, n);
-                if satisfier.check_older(elements::Sequence((n).into())) {
-                    node
-                } else {
-                    node.pruned()
-                }
-            }
+            Policy::Older(n) => SatResult {
+                serialization: super::serialize::older::<Arc<_>>(inference_context, n),
+                is_satisfied: satisfier.check_older(elements::Sequence(n.into())),
+            },
             Policy::Sha256(ref hash) => {
-                let preimage_wit = satisfier.lookup_sha256(hash).map(Value::u256);
-                super::serialize::sha256::<Pk, _, _>(inference_context, hash, preimage_wit)
+                let preimage = satisfier.lookup_sha256(hash).map(Value::u256);
+                SatResult {
+                    is_satisfied: preimage.is_some(),
+                    serialization: super::serialize::sha256::<Pk, _, _>(
+                        inference_context,
+                        hash,
+                        preimage,
+                    ),
+                }
             }
             Policy::And {
                 ref left,
                 ref right,
             } => {
-                let left = left.satisfy_internal(inference_context, satisfier)?;
-                let right = right.satisfy_internal(inference_context, satisfier)?;
-                super::serialize::and(&left, &right)
+                let SatResult {
+                    serialization: left,
+                    is_satisfied: left_ok,
+                } = left.satisfy_internal(inference_context, satisfier)?;
+                let SatResult {
+                    serialization: right,
+                    is_satisfied: right_ok,
+                } = right.satisfy_internal(inference_context, satisfier)?;
+                SatResult {
+                    serialization: super::serialize::and(&left, &right),
+                    is_satisfied: left_ok && right_ok,
+                }
             }
             Policy::Or {
                 ref left,
                 ref right,
             } => {
-                let left = left.satisfy_internal(inference_context, satisfier)?;
-                let right = right.satisfy_internal(inference_context, satisfier)?;
-
-                let take_right = match (left.must_prune(), right.must_prune()) {
+                let SatResult {
+                    serialization: left,
+                    is_satisfied: left_ok,
+                } = left.satisfy_internal(inference_context, satisfier)?;
+                let SatResult {
+                    serialization: right,
+                    is_satisfied: right_ok,
+                } = right.satisfy_internal(inference_context, satisfier)?;
+                let take_right = match (left_ok, right_ok) {
                     (false, false) => {
-                        let left_cost = left.finalize_unpruned()?.bounds().cost;
-                        let right_cost = right.finalize_unpruned()?.bounds().cost;
-                        left_cost > right_cost
+                        let left_cost = left
+                            .finalize_unpruned()
+                            .expect("serialization should be sound")
+                            .bounds()
+                            .cost;
+                        let right_cost = right
+                            .finalize_unpruned()
+                            .expect("serialization should be sound")
+                            .bounds()
+                            .cost;
+                        right_cost < left_cost
                     }
-                    (false, true) => false,
-                    (true, false) => true,
-                    // If both children are must_prune the choice doesn't matter,
-                    // the case node itself will be marked must_prune.
+                    (false, true) => true,
+                    (true, false) => false,
+                    // If both children are unsatisfiable, then the choice doesn't matter.
+                    // The entire expression will be pruned out.
                     (true, true) => false,
                 };
 
-                if take_right {
-                    super::serialize::or(&left.pruned(), &right, Some(Value::u1(1)))
+                let serialization = if take_right {
+                    super::serialize::or(&left, &right, Some(Value::u1(1)))
                 } else {
-                    super::serialize::or(&left, &right.pruned(), Some(Value::u1(0)))
+                    super::serialize::or(&left, &right, Some(Value::u1(0)))
+                };
+                SatResult {
+                    serialization,
+                    is_satisfied: left_ok || right_ok,
                 }
-                .prune_and_retype()
             }
             Policy::Threshold(k, ref subs) => {
-                let nodes: Result<Vec<Arc<WitnessNode<_>>>, Error> = subs
+                let node_results: Vec<SatResult> = subs
                     .iter()
                     .map(|sub| sub.satisfy_internal(inference_context, satisfier))
+                    .collect::<Result<_, SatisfierError>>()?;
+                let costs: Vec<Cost> = node_results
+                    .iter()
+                    .map(|result| match result.is_satisfied {
+                        true => result
+                            .serialization
+                            .finalize_unpruned()
+                            .map(|redeem| redeem.bounds().cost)
+                            .unwrap_or(Cost::CONSENSUS_MAX),
+                        false => Cost::CONSENSUS_MAX,
+                    })
                     .collect();
-                let mut nodes = nodes?;
-                let mut costs = vec![Cost::CONSENSUS_MAX; subs.len()];
-                // 0 means skip, 1 means don't skip
-                let mut witness_bits = vec![Some(Value::u1(0)); subs.len()];
+                let selected_node_indices = {
+                    let mut indices: Vec<usize> = (0..costs.len()).collect();
+                    indices.sort_by_key(|&i| costs[i]);
+                    indices.truncate(k);
+                    indices
+                };
+                let all_selected_ok = selected_node_indices
+                    .iter()
+                    .all(|&i| node_results[i].is_satisfied);
+                let witness_bits: Vec<Option<Value>> = (0..node_results.len())
+                    .map(|i| Some(Value::u1(u8::from(selected_node_indices.contains(&i)))))
+                    .collect();
 
-                for (cost, node) in costs.iter_mut().zip(nodes.iter()) {
-                    if !node.must_prune() {
-                        *cost = node.finalize_unpruned()?.bounds().cost;
-                    }
+                let k = u32::try_from(k).expect("k should be less than 2^32");
+                let nodes: Vec<_> = node_results
+                    .into_iter()
+                    .map(|result| result.serialization)
+                    .collect();
+                SatResult {
+                    serialization: super::serialize::threshold(k, &nodes, &witness_bits),
+                    is_satisfied: all_selected_ok,
                 }
-
-                // Sort by witness cost and mark everything except the cheapest k as to-prune
-                let mut sorted_costs: Vec<_> = costs.iter().copied().enumerate().collect();
-                sorted_costs.sort_by_key(|pair| pair.1);
-                let b1 = Value::u1(1);
-                let mut threshold_failed = false;
-                for &(idx, _) in &sorted_costs[..k] {
-                    if nodes[idx].must_prune() {
-                        // Unlike in the `or` case, where two pruned branches will automatically
-                        // cause the `or` itself to be pruned, with thresholds we have to track
-                        // this manually.
-                        threshold_failed = true;
-                    }
-                    witness_bits[idx] = Some(b1.shallow_clone());
-                }
-                for &(idx, _) in &sorted_costs[k..] {
-                    nodes[idx] = nodes[idx].pruned();
-                }
-
-                let k = u32::try_from(k).expect("k less than 2^32");
-                if threshold_failed {
-                    super::serialize::threshold(k, &nodes, &witness_bits).pruned()
-                } else {
-                    super::serialize::threshold(k, &nodes, &witness_bits)
-                }
-                .prune_and_retype()
             }
-            Policy::Assembly(cmr) => satisfier
-                .lookup_asm_program(cmr)
-                .ok_or(Error::IncompleteFinalization)?,
+            // FIXME: Allow assembly fragments to be missing if they are not needed
+            // Because the CMR of the satisfied program must match the CMR of the program commitment,
+            // the satisfier needs to produce a Simplicity expression with the given `cmr`.
+            // This is the case even if the assembly program is not executed in the final program!
+            // Because we cannot construct hidden nodes, the satisfier needs to know the assembly
+            // program, even if this program is not needed in the final execution.
+            //
+            // This feels like a huge footgun, especially when the unnecessary assembly program
+            // is lost but the UTXO remains spendable via other spending paths.
+            //
+            // By reintroducing hidden nodes, the satisfier could insert a placeholder for an
+            // un-executed assembly program.
+            Policy::Assembly(cmr) => match satisfier.lookup_asm_program(cmr) {
+                Some(serialization) => SatResult {
+                    serialization,
+                    is_satisfied: true,
+                },
+                _ => return Err(SatisfierError::MissingAssembly(cmr)),
+            },
         };
         Ok(node)
     }
 
+    /// Return the policy program with satisfying witness data.
+    ///
+    /// The program is run on the Bit Machine for pruning,
+    /// so the transaction environment needs to be provided.
     pub fn satisfy<S: Satisfier<Pk>>(
         &self,
         satisfier: &S,
-    ) -> Result<Arc<RedeemNode<Elements>>, Error> {
-        let witnode = self.satisfy_internal(&types::Context::new(), satisfier)?;
-        if witnode.must_prune() {
-            Err(Error::IncompleteFinalization)
-        } else {
-            WitnessNode::finalize_unpruned(&witnode.prune_and_retype())
-        }
+        env: &ElementsEnv<Arc<elements::Transaction>>,
+    ) -> Result<Arc<RedeemNode<Elements>>, SatisfierError> {
+        let SatResult {
+            serialization: witness_program,
+            is_satisfied,
+        } = self.satisfy_internal(&types::Context::new(), satisfier)?;
+        if !is_satisfied {
+            return Err(SatisfierError::Unsatisfiable);
+        };
+        let unpruned_program = witness_program
+            .finalize_unpruned()
+            .expect("serialization should be sound");
+        unpruned_program
+            .prune(env)
+            .map_err(SatisfierError::AssemblyFailed)
     }
 }
 
@@ -343,7 +425,7 @@ mod tests {
         let satisfier = get_satisfier(&env);
         let policy = Policy::Unsatisfiable(FailEntropy::ZERO);
 
-        assert!(policy.satisfy(&satisfier).is_err());
+        assert!(policy.satisfy(&satisfier, &env).is_err());
 
         let commit = policy.commit().expect("no asm");
         let program = commit
@@ -359,7 +441,7 @@ mod tests {
         let satisfier = get_satisfier(&env);
         let policy = Policy::Trivial;
 
-        let program = policy.satisfy(&satisfier).expect("satisfiable");
+        let program = policy.satisfy(&satisfier, &env).expect("satisfiable");
         let witness = to_witness(&program);
         assert!(witness.is_empty());
 
@@ -374,7 +456,7 @@ mod tests {
         let xonly = it.next().unwrap();
         let policy = Policy::Key(*xonly);
 
-        let program = policy.satisfy(&satisfier).expect("satisfiable");
+        let program = policy.satisfy(&satisfier, &env).expect("satisfiable");
         let witness = to_witness(&program);
         assert_eq!(1, witness.len());
 
@@ -399,7 +481,7 @@ mod tests {
         let image = *it.next().unwrap();
         let policy = Policy::Sha256(image);
 
-        let program = policy.satisfy(&satisfier).expect("satisfiable");
+        let program = policy.satisfy(&satisfier, &env).expect("satisfiable");
         let witness = to_witness(&program);
         assert_eq!(1, witness.len());
 
@@ -422,19 +504,19 @@ mod tests {
         let satisfier = get_satisfier(&env);
 
         let policy0 = Policy::After(41);
-        let program = policy0.satisfy(&satisfier).expect("satisfiable");
+        let program = policy0.satisfy(&satisfier, &env).expect("satisfiable");
         let witness = to_witness(&program);
         assert!(witness.is_empty());
         execute_successful(program, &env);
 
         let policy1 = Policy::After(42);
-        let program = policy1.satisfy(&satisfier).expect("satisfiable");
+        let program = policy1.satisfy(&satisfier, &env).expect("satisfiable");
         let witness = to_witness(&program);
         assert!(witness.is_empty());
         execute_successful(program, &env);
 
         let policy2 = Policy::After(43);
-        assert!(policy2.satisfy(&satisfier).is_err(), "unsatisfiable");
+        assert!(policy2.satisfy(&satisfier, &env).is_err(), "unsatisfiable");
     }
 
     #[test]
@@ -446,19 +528,19 @@ mod tests {
         let satisfier = get_satisfier(&env);
 
         let policy0 = Policy::Older(41);
-        let program = policy0.satisfy(&satisfier).expect("satisfiable");
+        let program = policy0.satisfy(&satisfier, &env).expect("satisfiable");
         let witness = to_witness(&program);
         assert!(witness.is_empty());
         execute_successful(program, &env);
 
         let policy1 = Policy::Older(42);
-        let program = policy1.satisfy(&satisfier).expect("satisfiable");
+        let program = policy1.satisfy(&satisfier, &env).expect("satisfiable");
         let witness = to_witness(&program);
         assert!(witness.is_empty());
         execute_successful(program, &env);
 
         let policy2 = Policy::Older(43);
-        assert!(policy2.satisfy(&satisfier).is_err(), "unsatisfiable");
+        assert!(policy2.satisfy(&satisfier, &env).is_err(), "unsatisfiable");
     }
 
     #[test]
@@ -477,7 +559,7 @@ mod tests {
             left: Arc::new(Policy::Sha256(images[0])),
             right: Arc::new(Policy::Sha256(images[1])),
         };
-        let program = policy0.satisfy(&satisfier).expect("satisfiable");
+        let program = policy0.satisfy(&satisfier, &env).expect("satisfiable");
         let witness = to_witness(&program);
         assert_eq!(2, witness.len());
 
@@ -499,7 +581,7 @@ mod tests {
             left: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([0; 32]))),
             right: Arc::new(Policy::Sha256(images[1])),
         };
-        assert!(policy1.satisfy(&satisfier).is_err());
+        assert!(policy1.satisfy(&satisfier, &env).is_err());
 
         // Policy 2
 
@@ -507,7 +589,7 @@ mod tests {
             left: Arc::new(Policy::Sha256(images[0])),
             right: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([0; 32]))),
         };
-        assert!(policy2.satisfy(&satisfier).is_err());
+        assert!(policy2.satisfy(&satisfier, &env).is_err());
     }
 
     #[test]
@@ -515,13 +597,10 @@ mod tests {
         let env = ElementsEnv::dummy();
         let satisfier = get_satisfier(&env);
         let images: Vec<_> = satisfier.preimages.keys().copied().collect();
-        let preimages: Vec<_> = images
-            .iter()
-            .map(|x| satisfier.preimages.get(x).unwrap())
-            .collect();
+        let preimages: Vec<_> = images.iter().map(|x| satisfier.preimages[x]).collect();
 
         let assert_branch = |policy: &Policy<XOnlyPublicKey>, bit: bool| {
-            let program = policy.satisfy(&satisfier).expect("satisfiable");
+            let program = policy.satisfy(&satisfier, &env).expect("satisfiable");
             let witness = to_witness(&program);
             assert_eq!(2, witness.len());
 
@@ -532,7 +611,7 @@ mod tests {
                 .expect("to bytes");
             let witness_preimage =
                 Preimage32::try_from(preimage_bytes.as_slice()).expect("to array");
-            assert_eq!(preimages[bit as usize], &witness_preimage);
+            assert_eq!(preimages[bit as usize], witness_preimage);
 
             execute_successful(program, &env);
         };
@@ -567,7 +646,7 @@ mod tests {
             left: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([0; 32]))),
             right: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([1; 32]))),
         };
-        assert!(policy3.satisfy(&satisfier).is_err());
+        assert!(policy3.satisfy(&satisfier, &env).is_err());
     }
 
     #[test]
@@ -581,7 +660,7 @@ mod tests {
             .collect();
 
         let assert_branches = |policy: &Policy<XOnlyPublicKey>, bits: &[bool]| {
-            let program = policy.satisfy(&satisfier).expect("satisfiable");
+            let program = policy.satisfy(&satisfier, &env).expect("satisfiable");
             let witness = to_witness(&program);
             assert_eq!(
                 witness.len(),
@@ -636,7 +715,7 @@ mod tests {
                     match bit0 as u8 + bit1 as u8 + bit2 as u8 {
                         3 => assert_branches(&policy, &[bit0, bit1, false]),
                         2 => assert_branches(&policy, &[bit0, bit1, bit2]),
-                        _ => assert!(policy.satisfy(&satisfier).is_err()),
+                        _ => assert!(policy.satisfy(&satisfier, &env).is_err()),
                     }
                 }
             }
@@ -662,17 +741,19 @@ mod tests {
             satisfier.assembly.insert(cmr, asm_program);
 
             let policy = Policy::Assembly(cmr);
-            let program = policy.satisfy(&satisfier).expect("satisfiable");
-            let witness = to_witness(&program);
-
-            assert_eq!(2, witness.len());
-            assert_eq!(&witness0, witness[0]);
-            assert_eq!(&witness1, witness[1]);
+            let result = policy.satisfy(&satisfier, &env);
 
             if witness0 == witness1 {
+                let program = result.expect("policy should be satisfiable");
+                let witness = to_witness(&program);
+
+                assert_eq!(2, witness.len());
+                assert_eq!(&witness0, witness[0]);
+                assert_eq!(&witness1, witness[1]);
+
                 execute_successful(program, &env);
             } else {
-                execute_unsuccessful(program, &env);
+                assert!(matches!(result, Err(SatisfierError::AssemblyFailed(..))));
             }
         };
 
