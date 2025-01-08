@@ -8,7 +8,7 @@
 use crate::dag::{Dag, DagLike, NoSharing};
 use crate::types::{CompleteBound, Final};
 
-use crate::{types, BitCollector, EarlyEndOfStreamError};
+use crate::{BitCollector, EarlyEndOfStreamError};
 use std::collections::VecDeque;
 use std::fmt;
 use std::hash::Hash;
@@ -291,6 +291,55 @@ impl Value {
         self.ty.as_ref() == ty
     }
 
+    /// Get the zero value for the given type.
+    ///
+    /// The zero value serializes to a string of zeroes.
+    ///
+    /// ## Construction
+    ///
+    /// - `zero( 1 )` = `()`
+    /// - `zero( A + B )` = `zero(A)`
+    /// - `zero( A × B )` = `zero(A) × zero(B)`
+    pub fn zero(ty: &Final) -> Self {
+        enum Task<'a> {
+            ZeroValue(&'a Final),
+            MakeLeft(Arc<Final>),
+            MakeProduct,
+        }
+
+        let mut output = vec![];
+        let mut stack = vec![Task::ZeroValue(ty)];
+
+        while let Some(task) = stack.pop() {
+            match task {
+                Task::ZeroValue(ty) => match ty.bound() {
+                    CompleteBound::Unit => output.push(Value::unit()),
+                    CompleteBound::Sum(l_ty, r_ty) => {
+                        stack.push(Task::MakeLeft(Arc::clone(r_ty)));
+                        stack.push(Task::ZeroValue(l_ty));
+                    }
+                    CompleteBound::Product(l_ty, r_ty) => {
+                        stack.push(Task::MakeProduct);
+                        stack.push(Task::ZeroValue(r_ty));
+                        stack.push(Task::ZeroValue(l_ty));
+                    }
+                },
+                Task::MakeLeft(r_ty) => {
+                    let l_value = output.pop().unwrap();
+                    output.push(Value::left(l_value, r_ty));
+                }
+                Task::MakeProduct => {
+                    let r_value = output.pop().unwrap();
+                    let l_value = output.pop().unwrap();
+                    output.push(Value::product(l_value, r_value));
+                }
+            }
+        }
+
+        debug_assert_eq!(output.len(), 1);
+        output.pop().unwrap()
+    }
+
     /// Try to convert the value into a word.
     ///
     /// The value is cheaply cloned.
@@ -547,8 +596,8 @@ impl Value {
         while let Some(state) = stack.pop() {
             match state {
                 State::ProcessType(ty) => match ty.bound() {
-                    types::CompleteBound::Unit => result_stack.push(Value::unit()),
-                    types::CompleteBound::Sum(ref l, ref r) => {
+                    CompleteBound::Unit => result_stack.push(Value::unit()),
+                    CompleteBound::Sum(ref l, ref r) => {
                         if !bits.next().ok_or(EarlyEndOfStreamError)? {
                             P::read_left_padding(bits, l, r)?;
                             stack.push(State::DoSumL(Arc::clone(r)));
@@ -559,7 +608,7 @@ impl Value {
                             stack.push(State::ProcessType(r));
                         }
                     }
-                    types::CompleteBound::Product(ref l, ref r) => {
+                    CompleteBound::Product(ref l, ref r) => {
                         stack.push(State::DoProduct);
                         stack.push(State::ProcessType(r));
                         stack.push(State::ProcessType(l));
@@ -837,6 +886,31 @@ mod tests {
 
         for (value, pruned_ty) in bad_test_vectors {
             assert_eq!(value.prune(&pruned_ty), None);
+        }
+    }
+
+    #[test]
+    fn zero_value() {
+        let test_vectors = [
+            (Final::unit(), Value::unit()),
+            (Final::u8(), Value::u8(0)),
+            (Final::u64(), Value::u64(0)),
+            (
+                Final::product(Final::u16(), Final::u32()),
+                Value::product(Value::u16(0), Value::u32(0)),
+            ),
+            (
+                Final::sum(Final::unit(), Final::u64()),
+                Value::left(Value::unit(), Final::u64()),
+            ),
+            (
+                Final::product(Final::unit(), Final::unit()),
+                Value::product(Value::unit(), Value::unit()),
+            ),
+        ];
+
+        for (ty, expected_default_value) in test_vectors {
+            assert_eq!(Value::zero(&ty), expected_default_value);
         }
     }
 }
