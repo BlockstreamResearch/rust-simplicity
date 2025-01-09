@@ -88,8 +88,6 @@ pub enum Error {
     Execution(bit_machine::ExecutionError),
     /// Witness iterator ended early
     NoMoreWitnesses,
-    /// Finalization failed; did not have enough witness data to satisfy program.
-    IncompleteFinalization,
     /// Tried to parse a jet but the name wasn't recognized
     InvalidJetName(String),
     /// Policy error
@@ -109,7 +107,6 @@ impl fmt::Display for Error {
             }
             Error::Type(ref e) => fmt::Display::fmt(e, f),
             Error::Execution(ref e) => fmt::Display::fmt(e, f),
-            Error::IncompleteFinalization => f.write_str("unable to satisfy program"),
             Error::InvalidJetName(s) => write!(f, "unknown jet `{}`", s),
             Error::NoMoreWitnesses => f.write_str("no more witness data available"),
             #[cfg(feature = "elements")]
@@ -127,7 +124,6 @@ impl std::error::Error for Error {
             Error::Type(ref e) => Some(e),
             Error::Execution(ref e) => Some(e),
             Error::NoMoreWitnesses => None,
-            Error::IncompleteFinalization => None,
             Error::InvalidJetName(..) => None,
             #[cfg(feature = "elements")]
             Error::Policy(ref e) => Some(e),
