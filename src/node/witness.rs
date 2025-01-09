@@ -10,9 +10,8 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use super::{
-    Constructible, Converter, CoreConstructible, DisconnectConstructible, Hide, Inner,
-    JetConstructible, Marker, NoWitness, Node, Redeem, RedeemData, RedeemNode,
-    WitnessConstructible,
+    Converter, CoreConstructible, DisconnectConstructible, Inner, JetConstructible, Marker,
+    NoWitness, Node, Redeem, RedeemData, RedeemNode, WitnessConstructible,
 };
 
 /// ID used to share [`WitnessNode`]s.
@@ -45,110 +44,9 @@ impl<J: Jet> Marker for Witness<J> {
 pub type WitnessNode<J> = Node<Witness<J>>;
 
 impl<J: Jet> WitnessNode<J> {
-    /// Creates a copy of the node (and its entire DAG with the prune bit set)
-    #[must_use]
-    pub fn pruned(&self) -> Arc<Self> {
-        let new_data = WitnessData {
-            must_prune: true,
-            ..self.data.clone()
-        };
-        Arc::new(WitnessNode {
-            data: new_data,
-            cmr: self.cmr,
-            inner: self
-                .inner
-                .as_ref()
-                .map(Arc::clone)
-                .map_disconnect(Option::<Arc<_>>::clone)
-                .map_witness(Option::<Value>::clone),
-        })
-    }
-
     /// Accessor for the node's arrow
     pub fn arrow(&self) -> &Arrow {
         &self.data.arrow
-    }
-
-    /// Whether the "must prune" bit is set on this node
-    pub fn must_prune(&self) -> bool {
-        self.data.must_prune
-    }
-
-    pub fn prune_and_retype(&self) -> Arc<Self> {
-        struct Retyper<J> {
-            inference_context: types::Context,
-            phantom: PhantomData<J>,
-        }
-
-        impl<J: Jet> Converter<Witness<J>, Witness<J>> for Retyper<J> {
-            type Error = types::Error;
-            fn convert_witness(
-                &mut self,
-                _: &PostOrderIterItem<&WitnessNode<J>>,
-                wit: &Option<Value>,
-            ) -> Result<Option<Value>, Self::Error> {
-                Ok(Option::<Value>::clone(wit))
-            }
-
-            fn prune_case(
-                &mut self,
-                _: &PostOrderIterItem<&WitnessNode<J>>,
-                left: &Arc<WitnessNode<J>>,
-                right: &Arc<WitnessNode<J>>,
-            ) -> Result<Hide, Self::Error> {
-                // If either child is marked as pruned, we hide it, which will cause this
-                // case node to become an assertl or assertr, potentially reducing the size
-                // of types since there will be fewer constraints to unify.
-                //
-                // If both children are marked pruned, this function will only hide the left
-                // one. This doesn't matter; in this case the node itself will be marked as
-                // pruned and eventually get dropped.
-                if left.cached_data().must_prune {
-                    Ok(Hide::Left)
-                } else if right.cached_data().must_prune {
-                    Ok(Hide::Right)
-                } else {
-                    Ok(Hide::Neither)
-                }
-            }
-
-            fn convert_disconnect(
-                &mut self,
-                _: &PostOrderIterItem<&WitnessNode<J>>,
-                maybe_converted: Option<&Arc<WitnessNode<J>>>,
-                _: &Option<Arc<WitnessNode<J>>>,
-            ) -> Result<Option<Arc<WitnessNode<J>>>, Self::Error> {
-                Ok(maybe_converted.map(Arc::clone))
-            }
-
-            fn convert_data(
-                &mut self,
-                data: &PostOrderIterItem<&WitnessNode<J>>,
-                inner: Inner<&Arc<WitnessNode<J>>, J, &Option<Arc<WitnessNode<J>>>, &Option<Value>>,
-            ) -> Result<WitnessData<J>, Self::Error> {
-                let converted_inner = inner
-                    .map(|node| node.cached_data())
-                    .map_witness(Option::<Value>::clone);
-                // This next line does the actual retyping.
-                let mut retyped =
-                    WitnessData::from_inner(&self.inference_context, converted_inner)?;
-                // Sometimes we set the prune bit on nodes without setting that
-                // of their children; in this case the prune bit inferred from
-                // `converted_inner` will be incorrect.
-                if data.node.data.must_prune {
-                    retyped.must_prune = true;
-                }
-                Ok(retyped)
-            }
-        }
-
-        // FIXME after running the `ReTyper` we should run a `WitnessShrinker` which
-        // shrinks the witness data in case the ReTyper shrank its types.
-        self.convert::<InternalSharing, _, _>(&mut Retyper {
-            inference_context: types::Context::new(),
-            phantom: PhantomData,
-        })
-        .expect("type inference won't fail if it succeeded before")
     }
 
     /// Finalize the witness program as an unpruned redeem program.
@@ -250,7 +148,6 @@ impl<J: Jet> WitnessNode<J> {
 #[derive(Clone, Debug)]
 pub struct WitnessData<J> {
     arrow: Arrow,
-    must_prune: bool,
     /// This isn't really necessary, but it helps type inference if every
     /// struct has a \<J\> parameter, since it forces the choice of jets to
     /// be consistent without the user needing to specify it too many times.
@@ -261,7 +158,6 @@ impl<J> CoreConstructible for WitnessData<J> {
     fn iden(inference_context: &types::Context) -> Self {
         WitnessData {
             arrow: Arrow::iden(inference_context),
-            must_prune: false,
             phantom: PhantomData,
         }
     }
@@ -269,7 +165,6 @@ impl<J> CoreConstructible for WitnessData<J> {
     fn unit(inference_context: &types::Context) -> Self {
         WitnessData {
             arrow: Arrow::unit(inference_context),
-            must_prune: false,
             phantom: PhantomData,
         }
     }
@@ -277,7 +172,6 @@ impl<J> CoreConstructible for WitnessData<J> {
     fn injl(child: &Self) -> Self {
         WitnessData {
             arrow: Arrow::injl(&child.arrow),
-            must_prune: child.must_prune,
             phantom: PhantomData,
         }
     }
@@ -285,7 +179,6 @@ impl<J> CoreConstructible for WitnessData<J> {
     fn injr(child: &Self) -> Self {
         WitnessData {
             arrow: Arrow::injr(&child.arrow),
-            must_prune: child.must_prune,
             phantom: PhantomData,
         }
     }
@@ -293,7 +186,6 @@ impl<J> CoreConstructible for WitnessData<J> {
     fn take(child: &Self) -> Self {
         WitnessData {
             arrow: Arrow::take(&child.arrow),
-            must_prune: child.must_prune,
             phantom: PhantomData,
         }
     }
@@ -301,7 +193,6 @@ impl<J> CoreConstructible for WitnessData<J> {
     fn drop_(child: &Self) -> Self {
         WitnessData {
             arrow: Arrow::drop_(&child.arrow),
-            must_prune: child.must_prune,
             phantom: PhantomData,
         }
     }
@@ -309,7 +200,6 @@ impl<J> CoreConstructible for WitnessData<J> {
     fn comp(left: &Self, right: &Self) -> Result<Self, types::Error> {
         Ok(WitnessData {
             arrow: Arrow::comp(&left.arrow, &right.arrow)?,
-            must_prune: left.must_prune || right.must_prune,
             phantom: PhantomData,
         })
     }
@@ -320,7 +210,6 @@ impl<J> CoreConstructible for WitnessData<J> {
         // pruned is the case node itself pruned.
         Ok(WitnessData {
             arrow: Arrow::case(&left.arrow, &right.arrow)?,
-            must_prune: left.must_prune && right.must_prune,
             phantom: PhantomData,
         })
     }
@@ -328,7 +217,6 @@ impl<J> CoreConstructible for WitnessData<J> {
     fn assertl(left: &Self, right: Cmr) -> Result<Self, types::Error> {
         Ok(WitnessData {
             arrow: Arrow::assertl(&left.arrow, right)?,
-            must_prune: left.must_prune,
             phantom: PhantomData,
         })
     }
@@ -336,7 +224,6 @@ impl<J> CoreConstructible for WitnessData<J> {
     fn assertr(left: Cmr, right: &Self) -> Result<Self, types::Error> {
         Ok(WitnessData {
             arrow: Arrow::assertr(left, &right.arrow)?,
-            must_prune: right.must_prune,
             phantom: PhantomData,
         })
     }
@@ -344,7 +231,6 @@ impl<J> CoreConstructible for WitnessData<J> {
     fn pair(left: &Self, right: &Self) -> Result<Self, types::Error> {
         Ok(WitnessData {
             arrow: Arrow::pair(&left.arrow, &right.arrow)?,
-            must_prune: left.must_prune || right.must_prune,
             phantom: PhantomData,
         })
     }
@@ -353,7 +239,6 @@ impl<J> CoreConstructible for WitnessData<J> {
         // Fail nodes always get pruned.
         WitnessData {
             arrow: Arrow::fail(inference_context, entropy),
-            must_prune: true,
             phantom: PhantomData,
         }
     }
@@ -361,7 +246,6 @@ impl<J> CoreConstructible for WitnessData<J> {
     fn const_word(inference_context: &types::Context, word: Word) -> Self {
         WitnessData {
             arrow: Arrow::const_word(inference_context, word),
-            must_prune: false,
             phantom: PhantomData,
         }
     }
@@ -376,17 +260,15 @@ impl<J: Jet> DisconnectConstructible<Option<Arc<WitnessNode<J>>>> for WitnessDat
         let right = right.as_ref();
         Ok(WitnessData {
             arrow: Arrow::disconnect(&left.arrow, &right.map(|n| n.arrow()))?,
-            must_prune: left.must_prune || right.map(|n| n.must_prune()).unwrap_or(false),
             phantom: PhantomData,
         })
     }
 }
 
 impl<J> WitnessConstructible<Option<Value>> for WitnessData<J> {
-    fn witness(inference_context: &types::Context, witness: Option<Value>) -> Self {
+    fn witness(inference_context: &types::Context, _witness: Option<Value>) -> Self {
         WitnessData {
             arrow: Arrow::witness(inference_context, NoWitness),
-            must_prune: witness.is_none(),
             phantom: PhantomData,
         }
     }
@@ -396,7 +278,6 @@ impl<J: Jet> JetConstructible<J> for WitnessData<J> {
     fn jet(inference_context: &types::Context, jet: J) -> Self {
         WitnessData {
             arrow: Arrow::jet(inference_context, jet),
-            must_prune: false,
             phantom: PhantomData,
         }
     }
