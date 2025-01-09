@@ -8,14 +8,15 @@
 
 mod frame;
 
+use std::collections::HashSet;
 use std::error;
 use std::fmt;
 use std::sync::Arc;
 
-use crate::analysis;
 use crate::jet::{Jet, JetFailed};
 use crate::node::{self, RedeemNode};
 use crate::types::Final;
+use crate::{analysis, Imr};
 use crate::{Cmr, FailEntropy, Value};
 use frame::Frame;
 
@@ -204,13 +205,44 @@ impl BitMachine {
         Ok(())
     }
 
-    /// Execute the given program on the Bit Machine, using the given environment.
+    /// Execute the given `program` on the Bit Machine, using the given environment.
     ///
-    /// Make sure the Bit Machine has enough space by constructing it via [`Self::for_program()`].
-    pub fn exec<J: Jet + std::fmt::Debug>(
+    ///  ## Precondition
+    ///
+    /// The Bit Machine is constructed via [`Self::for_program()`] to ensure enough space.
+    pub fn exec<J: Jet>(
         &mut self,
         program: &RedeemNode<J>,
         env: &J::Environment,
+    ) -> Result<Value, ExecutionError> {
+        self.exec_with_tracker(program, env, &mut NoTracker)
+    }
+
+    /// Execute the given `program` on the Bit Machine and track executed case branches.
+    ///
+    /// If the program runs successfully, then two sets of IMRs are returned:
+    ///
+    /// 1) The IMRs of case nodes whose _left_ branch was executed.
+    /// 2) The IMRs of case nodes whose _right_ branch was executed.
+    ///
+    /// ## Precondition
+    ///
+    /// The Bit Machine is constructed via [`Self::for_program()`] to ensure enough space.
+    pub(crate) fn exec_prune<J: Jet>(
+        &mut self,
+        program: &RedeemNode<J>,
+        env: &J::Environment,
+    ) -> Result<SetTracker, ExecutionError> {
+        let mut tracker = SetTracker::default();
+        self.exec_with_tracker(program, env, &mut tracker)?;
+        Ok(tracker)
+    }
+
+    fn exec_with_tracker<J: Jet, T: CaseTracker>(
+        &mut self,
+        program: &RedeemNode<J>,
+        env: &J::Environment,
+        tracker: &mut T,
     ) -> Result<Value, ExecutionError> {
         enum CallStack<'a, J: Jet> {
             Goto(&'a RedeemNode<J>),
@@ -316,12 +348,14 @@ impl BitMachine {
                             self.fwd(1 + a.pad_right(b));
                             call_stack.push(CallStack::Back(1 + a.pad_right(b)));
                             call_stack.push(CallStack::Goto(right));
+                            tracker.track_right(ip.imr());
                         }
                         (node::Inner::Case(left, _), false)
                         | (node::Inner::AssertL(left, _), false) => {
                             self.fwd(1 + a.pad_left(b));
                             call_stack.push(CallStack::Back(1 + a.pad_left(b)));
                             call_stack.push(CallStack::Goto(left));
+                            tracker.track_left(ip.imr());
                         }
                         (node::Inner::AssertL(_, r_cmr), true) => {
                             return Err(ExecutionError::ReachedPrunedBranch(*r_cmr))
@@ -470,6 +504,60 @@ impl BitMachine {
             Ok(())
         }
     }
+}
+
+/// A type that keeps track of which case branches were executed
+/// during the execution of the Bit Machine.
+///
+/// The trait is implemented for [`SetTracker`], which does the actual tracking,
+/// and it is implemented for [`NoTracker`], which is a dummy tracker that is
+/// optimized out by the compiler.
+///
+/// The trait enables us to turn tracking on or off depending on a generic parameter.
+trait CaseTracker {
+    /// Track the execution of the left branch of the case node with the given `imr`.
+    fn track_left(&mut self, imr: Imr);
+
+    /// Track the execution of the right branch of the case node with the given `imr`.
+    fn track_right(&mut self, imr: Imr);
+}
+
+/// Tracker of executed left and right branches for each case node.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct SetTracker {
+    left: HashSet<Imr>,
+    right: HashSet<Imr>,
+}
+
+impl SetTracker {
+    /// Access the set of IMRs of case nodes whose left branch was executed.
+    pub fn left(&self) -> &HashSet<Imr> {
+        &self.left
+    }
+
+    /// Access the set of IMRs of case nodes whose right branch was executed.
+    pub fn right(&self) -> &HashSet<Imr> {
+        &self.right
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+struct NoTracker;
+
+impl CaseTracker for SetTracker {
+    fn track_left(&mut self, imr: Imr) {
+        self.left.insert(imr);
+    }
+
+    fn track_right(&mut self, imr: Imr) {
+        self.right.insert(imr);
+    }
+}
+
+impl CaseTracker for NoTracker {
+    fn track_left(&mut self, _: Imr) {}
+
+    fn track_right(&mut self, _: Imr) {}
 }
 
 /// Errors related to simplicity Execution
