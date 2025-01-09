@@ -562,12 +562,13 @@ impl<J: Jet> RedeemNode<J> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    use hex::DisplayHex;
-    use std::fmt;
-
+    use crate::human_encoding::Forest;
     use crate::jet::Core;
     use crate::node::SimpleFinalizer;
+    use crate::types::Final;
+    use hex::DisplayHex;
+    use std::collections::HashMap;
+    use std::fmt;
 
     fn assert_program_deserializable<J: Jet>(
         prog_bytes: &[u8],
@@ -890,6 +891,168 @@ mod tests {
             "8a9e97676b24be7797d9ee0bf32dd76bcd78028e973025f785eae8dc91c8a0da",
             "ec97c8774cb6bfb381fdbbcc8d964380fb3a3b45779322624490d6231ae777a4",
             "ad7c38b16b9129646dc89b52cff144de94a80e383c4983b53de65e3575abcf38",
+        );
+    }
+
+    #[cfg(feature = "elements")]
+    fn assert_correct_pruning<J: Jet>(
+        unpruned_prog: &str,
+        unpruned_wit: &HashMap<Arc<str>, Value>,
+        expected_pruned_prog: &str,
+        expected_pruned_wit: &HashMap<Arc<str>, Value>,
+        env: &J::Environment,
+    ) {
+        let unpruned_program = Forest::<J>::parse(unpruned_prog)
+            .expect("unpruned program should parse")
+            .to_witness_node(unpruned_wit)
+            .expect("unpruned program should have main")
+            .finalize_unpruned()
+            .expect("unpruned program should finalize");
+        let expected_unpruned_program = Forest::<J>::parse(expected_pruned_prog)
+            .expect("expected pruned program should parse")
+            .to_witness_node(expected_pruned_wit)
+            .expect("expected pruned program should have main")
+            .finalize_unpruned()
+            .expect("expected pruned program should finalize");
+
+        let mut mac = BitMachine::for_program(&unpruned_program);
+        let unpruned_output = mac
+            .exec(&unpruned_program, env)
+            .expect("unpruned program should run without failure");
+
+        let pruned_program = unpruned_program
+            .prune(env)
+            .expect("pruning should not fail if execution succeeded");
+        assert_eq!(
+            pruned_program.imr(),
+            expected_unpruned_program.imr(),
+            "pruning result differs from expected result"
+        );
+
+        let mut mac = BitMachine::for_program(&pruned_program);
+        let pruned_output = mac
+            .exec(&pruned_program, env)
+            .expect("pruned program should run without failure");
+        assert_eq!(
+            unpruned_output, pruned_output,
+            "pruned program should return same output as unpruned program"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "elements")]
+    fn prune() {
+        let env = crate::jet::elements::ElementsEnv::dummy();
+
+        /*
+         * 1) Prune a product type / value
+         */
+        let unpruned_prog = r#"wit1 := witness : 1 -> 2
+wit2 := witness : 1 -> 2^64 * 2^64
+input := pair wit1 wit2 : 1 -> 2 * (2^64 * 2^64)
+process := case (drop take jet_is_zero_64) (drop drop jet_is_zero_64) : 2 * (2^64 * 2^64) -> 2
+main := comp input comp process jet_verify : 1 -> 1"#;
+
+        // 1.1) Prune right
+        let unpruned_wit = HashMap::from([
+            (Arc::from("wit1"), Value::u1(0)),
+            (
+                Arc::from("wit2"),
+                Value::product(Value::u64(0), Value::u64(0)),
+            ),
+        ]);
+        let pruned_prog = r#"wit1 := witness : 1 -> 2
+wit2 := witness : 1 -> 2^64 * 1 -- right component was pruned
+input := pair wit1 wit2 : 1 -> 2 * (2^64 * 1)
+process := assertl (drop take jet_is_zero_64) #{drop drop jet_is_zero_64} : 2 * (2^64 * 1) -> 2 -- case became assertl
+main := comp input comp process jet_verify : 1 -> 1"#;
+        let pruned_wit = HashMap::from([
+            (Arc::from("wit1"), Value::u1(0)),
+            (
+                Arc::from("wit2"),
+                Value::product(Value::u64(0), Value::unit()),
+            ),
+        ]);
+        assert_correct_pruning::<crate::jet::Elements>(
+            unpruned_prog,
+            &unpruned_wit,
+            pruned_prog,
+            &pruned_wit,
+            &env,
+        );
+
+        // 1.2) Prune left
+        let unpruned_wit = HashMap::from([
+            (Arc::from("wit1"), Value::u1(1)),
+            (
+                Arc::from("wit2"),
+                Value::product(Value::u64(0), Value::u64(0)),
+            ),
+        ]);
+        let pruned_prog = r#"wit1 := witness : 1 -> 2
+wit2 := witness : 1 -> 1 * 2^64 -- left component was pruned
+input := pair wit1 wit2 : 1 -> 2 * (1 * 2^64)
+process := assertr #{drop take jet_is_zero_64} (drop drop jet_is_zero_64) : 2 * (1 * 2^64) -> 2 -- case became assertr
+main := comp input comp process jet_verify : 1 -> 1"#;
+        let pruned_wit = HashMap::from([
+            (Arc::from("wit1"), Value::u1(1)),
+            (
+                Arc::from("wit2"),
+                Value::product(Value::unit(), Value::u64(0)),
+            ),
+        ]);
+        assert_correct_pruning::<crate::jet::Elements>(
+            unpruned_prog,
+            &unpruned_wit,
+            pruned_prog,
+            &pruned_wit,
+            &env,
+        );
+
+        /*
+         * 1) Prune a sum type / value
+         */
+        let prune_sum = r#"wit1 := witness : 1 -> 2^64 + 2^64
+input := pair wit1 unit : 1 -> (2^64 + 2^64) * 1
+process := case (take jet_is_zero_64) (take jet_is_zero_64) : (2^64 + 2^64) * 1 -> 2
+main := comp input comp process jet_verify : 1 -> 1"#;
+
+        // 1.1) Prune right
+        let unpruned_wit =
+            HashMap::from([(Arc::from("wit1"), Value::left(Value::u64(0), Final::u64()))]);
+        let pruned_prog = r#"wit1 := witness : 1 -> 2^64 + 1 -- right sub type became unit
+input := pair wit1 unit : 1 -> (2^64 + 1) * 1
+process := assertl (take jet_is_zero_64) #{take jet_is_zero_64} : (2^64 + 1) * 1 -> 2 -- case became assertl
+main := comp input comp process jet_verify : 1 -> 1"#;
+        let pruned_wit =
+            HashMap::from([(Arc::from("wit1"), Value::left(Value::u64(0), Final::unit()))]);
+        assert_correct_pruning::<crate::jet::Elements>(
+            prune_sum,
+            &unpruned_wit,
+            pruned_prog,
+            &pruned_wit,
+            &env,
+        );
+
+        // 1.2) Prune left
+        let unpruned_wit = HashMap::from([(
+            Arc::from("wit1"),
+            Value::right(Final::unit(), Value::u64(0)),
+        )]);
+        let pruned_prog = r#"wit1 := witness : 1 -> 1 + 2^64 -- left sub type became unit
+input := pair wit1 unit : 1 -> (1 + 2^64) * 1
+process := assertr #{take jet_is_zero_64} (take jet_is_zero_64) : (1 + 2^64) * 1 -> 2 -- case became assertr
+main := comp input comp process jet_verify : 1 -> 1"#;
+        let pruned_wit = HashMap::from([(
+            Arc::from("wit1"),
+            Value::right(Final::unit(), Value::u64(0)),
+        )]);
+        assert_correct_pruning::<crate::jet::Elements>(
+            prune_sum,
+            &unpruned_wit,
+            pruned_prog,
+            &pruned_wit,
+            &env,
         );
     }
 }
