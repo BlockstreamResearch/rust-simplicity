@@ -77,13 +77,15 @@ pub fn leaf_version() -> elements::taproot::LeafVersion {
 #[derive(Debug)]
 pub enum Error {
     /// Decoder error
-    Decode(crate::decode::Error),
+    Decode(decode::Error),
     /// A disconnect node was populated at commitment time
     DisconnectCommitTime,
     /// A disconnect node was *not* populated at redeem time
     DisconnectRedeemTime,
     /// Type-checking error
-    Type(crate::types::Error),
+    Type(types::Error),
+    // Execution error
+    Execution(bit_machine::ExecutionError),
     /// Witness iterator ended early
     NoMoreWitnesses,
     /// Finalization failed; did not have enough witness data to satisfy program.
@@ -106,6 +108,7 @@ impl fmt::Display for Error {
                 f.write_str("disconnect node had one child (redeem time); must have two")
             }
             Error::Type(ref e) => fmt::Display::fmt(e, f),
+            Error::Execution(ref e) => fmt::Display::fmt(e, f),
             Error::IncompleteFinalization => f.write_str("unable to satisfy program"),
             Error::InvalidJetName(s) => write!(f, "unknown jet `{}`", s),
             Error::NoMoreWitnesses => f.write_str("no more witness data available"),
@@ -122,6 +125,7 @@ impl std::error::Error for Error {
             Error::DisconnectCommitTime => None,
             Error::DisconnectRedeemTime => None,
             Error::Type(ref e) => Some(e),
+            Error::Execution(ref e) => Some(e),
             Error::NoMoreWitnesses => None,
             Error::IncompleteFinalization => None,
             Error::InvalidJetName(..) => None,
