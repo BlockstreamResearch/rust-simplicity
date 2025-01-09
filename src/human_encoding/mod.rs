@@ -236,7 +236,7 @@ mod tests {
             .expect("Failed to parse human encoding")
             .to_witness_node(witness)
             .expect("Forest is missing expected root")
-            .finalize()
+            .finalize_pruned(env)
             .expect("Failed to finalize");
         let mut mac = BitMachine::for_program(&program);
         mac.exec(&program, env).expect("Failed to run program");
@@ -252,7 +252,7 @@ mod tests {
             .expect("Failed to parse human encoding")
             .to_witness_node(witness)
             .expect("Forest is missing expected root")
-            .finalize()
+            .finalize_pruned(env)
         {
             Ok(program) => program,
             Err(error) => {
@@ -268,7 +268,7 @@ mod tests {
     }
 
     #[test]
-    fn filled_witness() {
+    fn executed_witness_with_value() {
         let s = "
             a := witness
             b := witness
@@ -293,7 +293,7 @@ mod tests {
     }
 
     #[test]
-    fn unfilled_witness() {
+    fn executed_witness_without_value() {
         let witness = HashMap::from([(Arc::from("wit1"), Value::u32(1337))]);
         assert_finalize_err::<Core>(
             "
@@ -305,40 +305,34 @@ mod tests {
             ",
             &witness,
             &(),
-            "unable to satisfy program",
+            "Jet failed during execution",
         );
     }
 
     #[test]
-    fn unfilled_witness_pruned() {
+    fn pruned_witness_without_value() {
         let s = "
-            wit1 := witness
-            wit2 := witness
-            main := comp (pair wit1 unit) case unit wit2
+            wit1 := witness : 1 -> 2
+            wit2 := witness : 1 -> 2^64
+            input := pair wit1 unit : 1 -> 2 * 1
+            process := case (drop injr unit) (drop comp wit2 jet_all_64) : 2 * 1 -> 2
+            main := comp input comp process jet_verify : 1 -> 1
         ";
         let wit2_is_pruned = HashMap::from([(Arc::from("wit1"), Value::u1(0))]);
         assert_finalize_ok::<Core>(s, &wit2_is_pruned, &());
 
         let wit2_is_missing = HashMap::from([(Arc::from("wit1"), Value::u1(1))]);
-        // FIXME The finalization should fail
-        // This doesn't happen because we don't run the program,
-        // so we cannot always determine which nodes must be pruned
-        assert_finalize_err::<Core>(
-            s,
-            &wit2_is_missing,
-            &(),
-            "Execution reached a pruned branch: a0fc8debd6796917c86b77aded82e6c61649889ae8f2ed65b57b41aa9d90e375"
-        );
+        assert_finalize_err::<Core>(s, &wit2_is_missing, &(), "Jet failed during execution");
 
         let wit2_is_present = HashMap::from([
             (Arc::from("wit1"), Value::u1(1)),
-            (Arc::from("wit2"), Value::unit()),
+            (Arc::from("wit2"), Value::u64(u64::MAX)),
         ]);
         assert_finalize_ok::<Core>(s, &wit2_is_present, &());
     }
 
     #[test]
-    fn filled_hole() {
+    fn executed_hole_with_value() {
         let empty = HashMap::new();
         assert_finalize_ok::<Core>(
             "
@@ -352,7 +346,7 @@ mod tests {
     }
 
     #[test]
-    fn unfilled_hole() {
+    fn executed_hole_without_value() {
         let empty = HashMap::new();
         assert_finalize_err::<Core>(
             "
@@ -361,21 +355,21 @@ mod tests {
             ",
             &empty,
             &(),
-            "unable to satisfy program",
+            "disconnect node had one child (redeem time); must have two",
         );
     }
 
     #[test]
     fn witness_name_override() {
         let s = "
-            wit1 := witness
-            wit2 := wit1
-            main := comp wit2 iden
+            wit1 := witness : 1 -> 2
+            wit2 := wit1 : 1 -> 2
+            main := comp wit2 jet_verify : 1 -> 1
         ";
-        let wit1_populated = HashMap::from([(Arc::from("wit1"), Value::unit())]);
-        assert_finalize_err::<Core>(s, &wit1_populated, &(), "unable to satisfy program");
+        let wit1_populated = HashMap::from([(Arc::from("wit1"), Value::u1(1))]);
+        assert_finalize_err::<Core>(s, &wit1_populated, &(), "Jet failed during execution");
 
-        let wit2_populated = HashMap::from([(Arc::from("wit2"), Value::unit())]);
+        let wit2_populated = HashMap::from([(Arc::from("wit2"), Value::u1(1))]);
         assert_finalize_ok::<Core>(s, &wit2_populated, &());
     }
 }

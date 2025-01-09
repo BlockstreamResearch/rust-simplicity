@@ -10,10 +10,10 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use super::{
-    Constructible, CoreConstructible, DisconnectConstructible, JetConstructible,
+    Constructible, Converter, CoreConstructible, DisconnectConstructible, Hide, Inner,
+    JetConstructible, Marker, NoWitness, Node, Redeem, RedeemData, RedeemNode,
     WitnessConstructible,
 };
-use super::{Converter, Hide, Inner, Marker, NoWitness, Node, Redeem, RedeemData, RedeemNode};
 
 /// ID used to share [`WitnessNode`]s.
 ///
@@ -151,21 +151,49 @@ impl<J: Jet> WitnessNode<J> {
         .expect("type inference won't fail if it succeeded before")
     }
 
-    pub fn finalize(&self) -> Result<Arc<RedeemNode<J>>, Error> {
-        // 0. Setup some structure for the WitnessNode->RedeemNode conversion
+    /// Finalize the witness program as an unpruned redeem program.
+    ///
+    /// Witness nodes must be populated with sufficient data,
+    /// to ensure that the resulting redeem program successfully runs on the Bit Machine.
+    /// Furthermore, **all** disconnected branches must be populated,
+    /// even those that are not executed.
+    ///
+    /// The resulting redeem program is **not pruned**.
+    ///
+    /// ## See
+    ///
+    /// [`RedeemNode::prune`]
+    pub fn finalize_unpruned(&self) -> Result<Arc<RedeemNode<J>>, Error> {
         struct Finalizer<J>(PhantomData<J>);
 
         impl<J: Jet> Converter<Witness<J>, Redeem<J>> for Finalizer<J> {
             type Error = Error;
+
             fn convert_witness(
                 &mut self,
-                _: &PostOrderIterItem<&WitnessNode<J>>,
+                data: &PostOrderIterItem<&WitnessNode<J>>,
                 wit: &Option<Value>,
             ) -> Result<Value, Self::Error> {
                 if let Some(ref wit) = wit {
                     Ok(wit.shallow_clone())
                 } else {
-                    Err(Error::IncompleteFinalization)
+                    // We insert a zero value into unpopulated witness nodes,
+                    // assuming that this node will later be pruned out of the program.
+                    //
+                    // Pruning requires running a program on the Bit Machine,
+                    // which in turn requires a program with fully populated witness nodes.
+                    // It would be horrible UX to force the caller to provide witness data
+                    // even for unexecuted branches, so we insert zero values here.
+                    //
+                    // If this node is executed after all, then the caller can fix the witness
+                    // data based on the returned execution error.
+                    //
+                    // Zero values may "accidentally" satisfy a program even if the caller
+                    // didn't provide any witness data. However, this is only the case for the
+                    // most trivial programs. The only place where we must be careful is our
+                    // unit tests, which tend to include these kinds of trivial programs.
+                    let ty = data.node.arrow().target.finalize()?;
+                    Ok(Value::zero(&ty))
                 }
             }
 
@@ -198,28 +226,24 @@ impl<J: Jet> WitnessNode<J> {
             }
         }
 
-        // 1. First, prune everything that we can
-        let pruned_self = self.prune_and_retype();
-        // 2. Then, set the root arrow to 1->1
-        let ctx = pruned_self.inference_context();
-        let unit_ty = types::Type::unit(ctx);
-        ctx.unify(
-            &pruned_self.arrow().source,
-            &unit_ty,
-            "setting root source to unit",
-        )?;
-        ctx.unify(
-            &pruned_self.arrow().target,
-            &unit_ty,
-            "setting root target to unit",
-        )?;
+        self.convert::<InternalSharing, _, _>(&mut Finalizer(PhantomData))
+    }
 
-        // 3. Then attempt to convert the whole program to a RedeemNode.
-        //    Despite all of the above this can still fail due to the
-        //    occurs check, which checks for infinitely-sized types.
-        pruned_self.convert::<InternalSharing, _, _>(&mut Finalizer(PhantomData))
-
-        // FIXME Finally we should prune the program using the bit machine
+    /// Finalize the witness program as a pruned redeem program.
+    ///
+    /// Witness nodes must be populated with sufficient data,
+    /// to ensure that the resulting redeem program successfully runs on the Bit Machine.
+    /// Furthermore, **all** disconnected branches must be populated,
+    /// even those that are not executed.
+    ///
+    /// The resulting redeem program is **pruned** based on the given transaction environment.
+    ///
+    /// ## See
+    ///
+    /// [`RedeemNode::prune`]
+    pub fn finalize_pruned(&self, env: &J::Environment) -> Result<Arc<RedeemNode<J>>, Error> {
+        let unpruned = self.finalize_unpruned()?;
+        unpruned.prune(env).map_err(Error::Execution)
     }
 }
 

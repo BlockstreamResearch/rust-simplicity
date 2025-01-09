@@ -147,8 +147,8 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
 
                 let take_right = match (left.must_prune(), right.must_prune()) {
                     (false, false) => {
-                        let left_cost = left.finalize()?.bounds().cost;
-                        let right_cost = right.finalize()?.bounds().cost;
+                        let left_cost = left.finalize_unpruned()?.bounds().cost;
+                        let right_cost = right.finalize_unpruned()?.bounds().cost;
                         left_cost > right_cost
                     }
                     (false, true) => false,
@@ -177,7 +177,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
 
                 for (cost, node) in costs.iter_mut().zip(nodes.iter()) {
                     if !node.must_prune() {
-                        *cost = node.finalize()?.bounds().cost;
+                        *cost = node.finalize_unpruned()?.bounds().cost;
                     }
                 }
 
@@ -222,7 +222,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
         if witnode.must_prune() {
             Err(Error::IncompleteFinalization)
         } else {
-            WitnessNode::finalize(&witnode.prune_and_retype())
+            WitnessNode::finalize_unpruned(&witnode.prune_and_retype())
         }
     }
 }
