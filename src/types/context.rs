@@ -245,6 +245,19 @@ pub struct BoundRef {
     index: usize,
 }
 
+// SAFETY: The pointer inside `BoundRef` is always (eventually) constructed from Arc::as_ptr
+// from the slab of a type-inference context.
+//
+// Arc will prevent the pointer from ever changing, except to be deallocated when the last
+// Arc goes away. But this occurs only when the context itself goes away, which in turn
+// happens only when every type bound referring to the context goes away.
+//
+// If this were untrue, our use of `BoundRef` would lead to dereferences of a dangling
+// pointer, and `Send`/`Sync` would be the least of our concerns!
+unsafe impl Send for BoundRef {}
+// SAFETY: see comment on `Send`
+unsafe impl Sync for BoundRef {}
+
 impl BoundRef {
     pub fn assert_matches_context(&self, ctx: &Context) {
         assert_eq!(
