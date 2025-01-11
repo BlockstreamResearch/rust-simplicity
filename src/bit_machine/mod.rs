@@ -221,7 +221,7 @@ impl BitMachine {
         }
 
         // Not used, but useful for debugging, so keep it around
-        impl<'a, J: Jet> fmt::Debug for CallStack<'a, J> {
+        impl<J: Jet> fmt::Debug for CallStack<'_, J> {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 match self {
                     CallStack::Goto(ins) => write!(f, "goto {}", ins.inner()),

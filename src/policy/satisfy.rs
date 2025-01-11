@@ -250,7 +250,7 @@ mod tests {
         pub index: usize,
     }
 
-    impl<'a, Pk: ToXOnlyPubkey> Satisfier<Pk> for PolicySatisfier<'a, Pk> {
+    impl<Pk: ToXOnlyPubkey> Satisfier<Pk> for PolicySatisfier<'_, Pk> {
         fn lookup_tap_leaf_script_sig(
             &self,
             pk: &Pk,

@@ -282,7 +282,7 @@ impl super::PointerLike for BoundRef {
     }
 }
 
-impl<'ctx> DagLike for (&'ctx Context, BoundRef) {
+impl DagLike for (&'_ Context, BoundRef) {
     type Node = BoundRef;
     fn data(&self) -> &BoundRef {
         &self.1
@@ -318,7 +318,7 @@ struct LockedContext<'ctx> {
     slab: MutexGuard<'ctx, Vec<Bound>>,
 }
 
-impl<'ctx> LockedContext<'ctx> {
+impl LockedContext<'_> {
     fn alloc_bound(&mut self, bound: Bound) -> BoundRef {
         self.slab.push(bound);
         let index = self.slab.len() - 1;

@@ -369,7 +369,7 @@ impl<D: DagLike> DagLike for SwapChildren<D> {
     }
 }
 
-impl<'a, N: node::Marker> DagLike for &'a Node<N> {
+impl<N: node::Marker> DagLike for &'_ Node<N> {
     type Node = Node<N>;
 
     fn data(&self) -> &Node<N> {

@@ -133,7 +133,7 @@ enum DecodeNode<J: Jet> {
     Word(Word),
 }
 
-impl<'d, J: Jet> DagLike for (usize, &'d [DecodeNode<J>]) {
+impl<J: Jet> DagLike for (usize, &'_ [DecodeNode<J>]) {
     type Node = DecodeNode<J>;
 
     fn data(&self) -> &DecodeNode<J> {

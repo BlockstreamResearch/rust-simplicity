@@ -75,7 +75,7 @@ impl WitnessOrHole {
     }
 }
 
-impl<'a> From<&'a NoWitness> for WitnessOrHole {
+impl From<&'_ NoWitness> for WitnessOrHole {
     fn from(_: &NoWitness) -> Self {
         WitnessOrHole::Witness
     }
