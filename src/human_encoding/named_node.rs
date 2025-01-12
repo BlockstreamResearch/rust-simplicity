@@ -120,7 +120,7 @@ impl<J: Jet> NamedCommitNode<J> {
             phantom: PhantomData<J>,
         }
 
-        impl<'a, J: Jet> Converter<Named<Commit<J>>, Witness<J>> for Populator<'a, J> {
+        impl<J: Jet> Converter<Named<Commit<J>>, Witness<J>> for Populator<'_, J> {
             type Error = ();
 
             fn convert_witness(

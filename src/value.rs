@@ -47,7 +47,7 @@ enum ValueInner {
     Product(Arc<Value>, Arc<Value>),
 }
 
-impl<'a> DagLike for &'a Value {
+impl DagLike for &'_ Value {
     type Node = Value;
 
     fn data(&self) -> &Value {
@@ -361,7 +361,7 @@ impl<'a> PaddedBitsIter<'a> {
     }
 }
 
-impl<'a> Iterator for PaddedBitsIter<'a> {
+impl Iterator for PaddedBitsIter<'_> {
     type Item = bool;
 
     fn next(&mut self) -> Option<Self::Item> {

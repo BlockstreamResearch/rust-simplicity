@@ -134,7 +134,7 @@ impl fmt::Display for Final {
     }
 }
 
-impl<'a> DagLike for &'a Final {
+impl DagLike for &'_ Final {
     type Node = Final;
     fn data(&self) -> &Final {
         self

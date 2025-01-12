@@ -288,8 +288,8 @@ impl<J: Jet> RedeemNode<J> {
             phantom: PhantomData<J>,
         }
 
-        impl<'bits, J: Jet, I: Iterator<Item = u8>> Converter<Construct<J>, Redeem<J>>
-            for DecodeFinalizer<'bits, J, I>
+        impl<J: Jet, I: Iterator<Item = u8>> Converter<Construct<J>, Redeem<J>>
+            for DecodeFinalizer<'_, J, I>
         {
             type Error = Error;
             fn convert_witness(

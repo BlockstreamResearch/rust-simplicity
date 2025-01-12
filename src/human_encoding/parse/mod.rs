@@ -136,7 +136,7 @@ struct ResolvedExpression<J: Jet> {
     in_degree: AtomicUsize,
 }
 
-impl<'a, J: Jet> DagLike for &'a ResolvedExpression<J> {
+impl<J: Jet> DagLike for &'_ ResolvedExpression<J> {
     type Node = ResolvedExpression<J>;
     fn data(&self) -> &ResolvedExpression<J> {
         self

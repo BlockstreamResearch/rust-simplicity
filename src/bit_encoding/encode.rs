@@ -35,7 +35,7 @@ impl<'n, N: node::Marker> Disconnectable<EncodeNode<'n, N>> for EncodeNode<'n, N
     }
 }
 
-impl<'n, N: node::Marker> DagLike for EncodeNode<'n, N> {
+impl<N: node::Marker> DagLike for EncodeNode<'_, N> {
     type Node = Self;
     fn data(&self) -> &Self {
         self
@@ -125,7 +125,7 @@ impl<N: node::Marker> Default for EncodeSharing<N> {
     }
 }
 
-impl<'n, N: node::Marker> SharingTracker<EncodeNode<'n, N>> for EncodeSharing<N> {
+impl<N: node::Marker> SharingTracker<EncodeNode<'_, N>> for EncodeSharing<N> {
     fn record(&mut self, d: &EncodeNode<N>, index: usize) -> Option<usize> {
         let id = match d {
             EncodeNode::Node(n) => EncodeId::Node(n.sharing_id()?),
