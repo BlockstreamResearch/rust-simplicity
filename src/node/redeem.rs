@@ -1,15 +1,16 @@
 // SPDX-License-Identifier: CC0-1.0
 
 use crate::analysis::NodeBounds;
+use crate::bit_machine::{ExecutionError, SetTracker};
 use crate::dag::{DagLike, InternalSharing, MaxSharing, PostOrderIterItem};
 use crate::jet::Jet;
 use crate::types::{self, arrow::FinalArrow};
-use crate::{encode, WitnessNode};
+use crate::{encode, BitMachine, WitnessNode};
 use crate::{Amr, BitIter, BitWriter, Cmr, Error, FirstPassImr, Imr, Value};
 
 use super::{
-    Commit, CommitData, CommitNode, Construct, ConstructNode, Constructible, Converter, Inner,
-    Marker, NoDisconnect, NoWitness, Node, Witness, WitnessData,
+    Commit, CommitData, CommitNode, Construct, ConstructNode, Constructible, Converter, Hide,
+    Inner, Marker, NoDisconnect, NoWitness, Node, Witness, WitnessData,
 };
 
 use std::collections::HashSet;
@@ -273,6 +274,167 @@ impl<J: Jet> RedeemNode<J> {
         .unwrap()
     }
 
+    /// Prune the redeem program for the given transaction environment.
+    ///
+    /// Pruning works as follows:
+    /// 1) Run the redeem program on the Bit Machine.
+    /// 2) Mark all (un)used case branches using the IMR of the case node.
+    /// 3) Rebuild the program and omit unused branches.
+    ///
+    /// The pruning result depends on the witness data (which is already part of the redeem program)
+    /// and on the transaction environment. These two inputs determine which case branches are
+    /// used and which are not. Pruning must be done for each transaction environment separately,
+    /// starting from the same original, unpruned program. Pruning is a lossy process, so pruning
+    /// an already pruned program is not sound.
+    ///
+    /// Pruning fails if the original, unpruned program fails to run on the Bit Machine (step 1).
+    /// In this case, the witness data needs to be revised.
+    /// The other pruning steps (2 & 3) never fail.
+    pub fn prune(&self, env: &J::Environment) -> Result<Arc<RedeemNode<J>>, ExecutionError> {
+        struct Pruner<J> {
+            inference_context: types::Context,
+            tracker: SetTracker,
+            phantom: PhantomData<J>,
+        }
+
+        impl<J: Jet> Converter<Redeem<J>, Witness<J>> for Pruner<J> {
+            type Error = std::convert::Infallible;
+
+            fn convert_witness(
+                &mut self,
+                _: &PostOrderIterItem<&RedeemNode<J>>,
+                witness: &Value,
+            ) -> Result<Option<Value>, Self::Error> {
+                // The pruned type is not finalized at this point,
+                // so we cannot prune the witness value.
+                Ok(Some(witness.shallow_clone()))
+            }
+
+            fn convert_disconnect(
+                &mut self,
+                _: &PostOrderIterItem<&RedeemNode<J>>,
+                right: Option<&Arc<WitnessNode<J>>>,
+                _: &Arc<RedeemNode<J>>,
+            ) -> Result<Option<Arc<WitnessNode<J>>>, Self::Error> {
+                debug_assert!(
+                    right.is_some(),
+                    "disconnected branch should exist in unpruned redeem program"
+                );
+                Ok(right.map(Arc::clone))
+            }
+
+            fn prune_case(
+                &mut self,
+                data: &PostOrderIterItem<&RedeemNode<J>>,
+                _left: &Arc<WitnessNode<J>>,
+                _right: &Arc<WitnessNode<J>>,
+            ) -> Result<Hide, Self::Error> {
+                // The IMR of the pruned program may change,
+                // but the Converter trait gives us access to the unpruned node (`data`).
+                // The Bit Machine tracked (un)used case branches based on the unpruned IMR.
+                match (
+                    self.tracker.left().contains(&data.node.imr()),
+                    self.tracker.right().contains(&data.node.imr()),
+                ) {
+                    (true, true) => Ok(Hide::Neither),
+                    (false, true) => Ok(Hide::Left),
+                    (true, false) => Ok(Hide::Right),
+                    (false, false) => Ok(Hide::Neither), // case nodes that were never executed will be pruned out by their ancestors
+                }
+            }
+
+            fn convert_data(
+                &mut self,
+                _: &PostOrderIterItem<&RedeemNode<J>>,
+                inner: Inner<&Arc<WitnessNode<J>>, J, &Option<Arc<WitnessNode<J>>>, &Option<Value>>,
+            ) -> Result<WitnessData<J>, Self::Error> {
+                let converted_inner = inner
+                    .map(|node| node.cached_data())
+                    .map_witness(Option::<Value>::clone);
+                let retyped = WitnessData::from_inner(&self.inference_context, converted_inner)
+                    .expect("pruned types should check out if unpruned types check out");
+                Ok(retyped)
+            }
+        }
+
+        struct Finalizer<J>(PhantomData<J>);
+
+        impl<J: Jet> Converter<Witness<J>, Redeem<J>> for Finalizer<J> {
+            type Error = std::convert::Infallible;
+
+            fn convert_witness(
+                &mut self,
+                data: &PostOrderIterItem<&WitnessNode<J>>,
+                witness: &Option<Value>,
+            ) -> Result<Value, Self::Error> {
+                let pruned_target_ty = data
+                    .node
+                    .arrow()
+                    .target
+                    .finalize()
+                    .expect("pruned types should check out if unpruned types check out");
+                let pruned_witness = witness
+                    .as_ref()
+                    .expect("witness node that originally stems from redeem program should be populated")
+                    .prune(&pruned_target_ty)
+                    .expect("pruned type should be shrunken version of unpruned type");
+                Ok(pruned_witness)
+            }
+
+            fn convert_disconnect(
+                &mut self,
+                _: &PostOrderIterItem<&WitnessNode<J>>,
+                right: Option<&Arc<RedeemNode<J>>>,
+                _: &Option<Arc<WitnessNode<J>>>,
+            ) -> Result<Arc<RedeemNode<J>>, Self::Error> {
+                Ok(right
+                    .map(Arc::clone)
+                    .expect("disconnect node that originally stems from redeem program should have all branches"))
+            }
+
+            fn convert_data(
+                &mut self,
+                data: &PostOrderIterItem<&WitnessNode<J>>,
+                inner: Inner<&Arc<RedeemNode<J>>, J, &Arc<RedeemNode<J>>, &Value>,
+            ) -> Result<Arc<RedeemData<J>>, Self::Error> {
+                // Finalize target types of witness nodes in advance so we can prune their values.
+                let final_arrow = data
+                    .node
+                    .arrow()
+                    .finalize()
+                    .expect("pruned types should check out if unpruned types check out");
+                let converted_inner = inner
+                    .map(|node| node.cached_data())
+                    .map_disconnect(|node| node.cached_data())
+                    .map_witness(Value::shallow_clone);
+                Ok(Arc::new(RedeemData::new(final_arrow, converted_inner)))
+            }
+        }
+
+        // 1) Run the Bit Machine and mark (un)used branches.
+        // This is the only fallible step in the pruning process.
+        let mut mac = BitMachine::for_program(self);
+        let tracker = mac.exec_prune(self, env)?;
+
+        // 2) Prune out unused case branches.
+        // Because the types of the pruned program may change,
+        // we construct a temporary witness program with unfinalized types.
+        let pruned_witness_program = self
+            .convert::<InternalSharing, _, _>(&mut Pruner {
+                inference_context: types::Context::new(),
+                tracker,
+                phantom: PhantomData,
+            })
+            .expect("pruning unused branches is infallible");
+
+        // 3) Finalize the types of the witness program.
+        // We obtain the pruned redeem program.
+        // Once the pruned type is finalized, we can proceed to prune witness values.
+        Ok(pruned_witness_program
+            .convert::<InternalSharing, _, _>(&mut Finalizer(PhantomData))
+            .expect("finalization is infallible"))
+    }
+
     /// Decode a Simplicity program from bits, including the witness data.
     pub fn decode<I1, I2>(
         mut program: BitIter<I1>,
@@ -400,12 +562,13 @@ impl<J: Jet> RedeemNode<J> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    use hex::DisplayHex;
-    use std::fmt;
-
+    use crate::human_encoding::Forest;
     use crate::jet::Core;
     use crate::node::SimpleFinalizer;
+    use crate::types::Final;
+    use hex::DisplayHex;
+    use std::collections::HashMap;
+    use std::fmt;
 
     fn assert_program_deserializable<J: Jet>(
         prog_bytes: &[u8],
@@ -728,6 +891,168 @@ mod tests {
             "8a9e97676b24be7797d9ee0bf32dd76bcd78028e973025f785eae8dc91c8a0da",
             "ec97c8774cb6bfb381fdbbcc8d964380fb3a3b45779322624490d6231ae777a4",
             "ad7c38b16b9129646dc89b52cff144de94a80e383c4983b53de65e3575abcf38",
+        );
+    }
+
+    #[cfg(feature = "elements")]
+    fn assert_correct_pruning<J: Jet>(
+        unpruned_prog: &str,
+        unpruned_wit: &HashMap<Arc<str>, Value>,
+        expected_pruned_prog: &str,
+        expected_pruned_wit: &HashMap<Arc<str>, Value>,
+        env: &J::Environment,
+    ) {
+        let unpruned_program = Forest::<J>::parse(unpruned_prog)
+            .expect("unpruned program should parse")
+            .to_witness_node(unpruned_wit)
+            .expect("unpruned program should have main")
+            .finalize_unpruned()
+            .expect("unpruned program should finalize");
+        let expected_unpruned_program = Forest::<J>::parse(expected_pruned_prog)
+            .expect("expected pruned program should parse")
+            .to_witness_node(expected_pruned_wit)
+            .expect("expected pruned program should have main")
+            .finalize_unpruned()
+            .expect("expected pruned program should finalize");
+
+        let mut mac = BitMachine::for_program(&unpruned_program);
+        let unpruned_output = mac
+            .exec(&unpruned_program, env)
+            .expect("unpruned program should run without failure");
+
+        let pruned_program = unpruned_program
+            .prune(env)
+            .expect("pruning should not fail if execution succeeded");
+        assert_eq!(
+            pruned_program.imr(),
+            expected_unpruned_program.imr(),
+            "pruning result differs from expected result"
+        );
+
+        let mut mac = BitMachine::for_program(&pruned_program);
+        let pruned_output = mac
+            .exec(&pruned_program, env)
+            .expect("pruned program should run without failure");
+        assert_eq!(
+            unpruned_output, pruned_output,
+            "pruned program should return same output as unpruned program"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "elements")]
+    fn prune() {
+        let env = crate::jet::elements::ElementsEnv::dummy();
+
+        /*
+         * 1) Prune a product type / value
+         */
+        let unpruned_prog = r#"wit1 := witness : 1 -> 2
+wit2 := witness : 1 -> 2^64 * 2^64
+input := pair wit1 wit2 : 1 -> 2 * (2^64 * 2^64)
+process := case (drop take jet_is_zero_64) (drop drop jet_is_zero_64) : 2 * (2^64 * 2^64) -> 2
+main := comp input comp process jet_verify : 1 -> 1"#;
+
+        // 1.1) Prune right
+        let unpruned_wit = HashMap::from([
+            (Arc::from("wit1"), Value::u1(0)),
+            (
+                Arc::from("wit2"),
+                Value::product(Value::u64(0), Value::u64(0)),
+            ),
+        ]);
+        let pruned_prog = r#"wit1 := witness : 1 -> 2
+wit2 := witness : 1 -> 2^64 * 1 -- right component was pruned
+input := pair wit1 wit2 : 1 -> 2 * (2^64 * 1)
+process := assertl (drop take jet_is_zero_64) #{drop drop jet_is_zero_64} : 2 * (2^64 * 1) -> 2 -- case became assertl
+main := comp input comp process jet_verify : 1 -> 1"#;
+        let pruned_wit = HashMap::from([
+            (Arc::from("wit1"), Value::u1(0)),
+            (
+                Arc::from("wit2"),
+                Value::product(Value::u64(0), Value::unit()),
+            ),
+        ]);
+        assert_correct_pruning::<crate::jet::Elements>(
+            unpruned_prog,
+            &unpruned_wit,
+            pruned_prog,
+            &pruned_wit,
+            &env,
+        );
+
+        // 1.2) Prune left
+        let unpruned_wit = HashMap::from([
+            (Arc::from("wit1"), Value::u1(1)),
+            (
+                Arc::from("wit2"),
+                Value::product(Value::u64(0), Value::u64(0)),
+            ),
+        ]);
+        let pruned_prog = r#"wit1 := witness : 1 -> 2
+wit2 := witness : 1 -> 1 * 2^64 -- left component was pruned
+input := pair wit1 wit2 : 1 -> 2 * (1 * 2^64)
+process := assertr #{drop take jet_is_zero_64} (drop drop jet_is_zero_64) : 2 * (1 * 2^64) -> 2 -- case became assertr
+main := comp input comp process jet_verify : 1 -> 1"#;
+        let pruned_wit = HashMap::from([
+            (Arc::from("wit1"), Value::u1(1)),
+            (
+                Arc::from("wit2"),
+                Value::product(Value::unit(), Value::u64(0)),
+            ),
+        ]);
+        assert_correct_pruning::<crate::jet::Elements>(
+            unpruned_prog,
+            &unpruned_wit,
+            pruned_prog,
+            &pruned_wit,
+            &env,
+        );
+
+        /*
+         * 1) Prune a sum type / value
+         */
+        let prune_sum = r#"wit1 := witness : 1 -> 2^64 + 2^64
+input := pair wit1 unit : 1 -> (2^64 + 2^64) * 1
+process := case (take jet_is_zero_64) (take jet_is_zero_64) : (2^64 + 2^64) * 1 -> 2
+main := comp input comp process jet_verify : 1 -> 1"#;
+
+        // 1.1) Prune right
+        let unpruned_wit =
+            HashMap::from([(Arc::from("wit1"), Value::left(Value::u64(0), Final::u64()))]);
+        let pruned_prog = r#"wit1 := witness : 1 -> 2^64 + 1 -- right sub type became unit
+input := pair wit1 unit : 1 -> (2^64 + 1) * 1
+process := assertl (take jet_is_zero_64) #{take jet_is_zero_64} : (2^64 + 1) * 1 -> 2 -- case became assertl
+main := comp input comp process jet_verify : 1 -> 1"#;
+        let pruned_wit =
+            HashMap::from([(Arc::from("wit1"), Value::left(Value::u64(0), Final::unit()))]);
+        assert_correct_pruning::<crate::jet::Elements>(
+            prune_sum,
+            &unpruned_wit,
+            pruned_prog,
+            &pruned_wit,
+            &env,
+        );
+
+        // 1.2) Prune left
+        let unpruned_wit = HashMap::from([(
+            Arc::from("wit1"),
+            Value::right(Final::unit(), Value::u64(0)),
+        )]);
+        let pruned_prog = r#"wit1 := witness : 1 -> 1 + 2^64 -- left sub type became unit
+input := pair wit1 unit : 1 -> (1 + 2^64) * 1
+process := assertr #{take jet_is_zero_64} (take jet_is_zero_64) : (1 + 2^64) * 1 -> 2 -- case became assertr
+main := comp input comp process jet_verify : 1 -> 1"#;
+        let pruned_wit = HashMap::from([(
+            Arc::from("wit1"),
+            Value::right(Final::unit(), Value::u64(0)),
+        )]);
+        assert_correct_pruning::<crate::jet::Elements>(
+            prune_sum,
+            &unpruned_wit,
+            pruned_prog,
+            &pruned_wit,
+            &env,
         );
     }
 }

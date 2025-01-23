@@ -592,7 +592,7 @@ mod tests {
 
                 let program = main
                     .to_witness_node(witness, &forest)
-                    .finalize()
+                    .finalize_unpruned()
                     .expect("finalize");
 
                 let mut mac = BitMachine::for_program(&program);

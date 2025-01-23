@@ -181,7 +181,7 @@ impl<W: Iterator<Item = Value>, J: Jet> Converter<Commit<J>, Redeem<J>> for Simp
         _: Option<&Arc<RedeemNode<J>>>,
         _: &NoDisconnect,
     ) -> Result<Arc<RedeemNode<J>>, Self::Error> {
-        Err(crate::Error::IncompleteFinalization)
+        Err(crate::Error::DisconnectRedeemTime)
     }
 
     fn convert_data(

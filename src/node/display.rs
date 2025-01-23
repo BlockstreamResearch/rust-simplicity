@@ -148,7 +148,7 @@ mod tests {
             .unwrap()
             .to_witness_node(&empty_witness)
             .unwrap()
-            .finalize()
+            .finalize_unpruned()
             .unwrap()
     }
 
