@@ -74,6 +74,10 @@ pub unsafe extern "C" fn rust_calloc(num: usize, size: usize) -> *mut u8 {
 /// Bytes must have been allocated using [`rust_malloc`] or [`rust_calloc`].
 #[no_mangle]
 pub unsafe extern "C" fn rust_free(ptr_bytes: *mut u8) {
+    if ptr_bytes.is_null() {
+        return;
+    }
+
     // Move MIN_ALIGN many bytes back in memory
     // and read the number of allocated bytes
     let ptr_prefix = ptr_bytes.sub(MIN_ALIGN);
