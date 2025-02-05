@@ -59,7 +59,7 @@ pub use crate::merkle::{
     cmr::Cmr,
     imr::{FirstPassImr, Imr},
     tmr::Tmr,
-    FailEntropy,
+    FailEntropy, HasCmr,
 };
 pub use crate::node::{CommitNode, ConstructNode, RedeemNode, WitnessNode};
 pub use crate::value::{Value, Word};

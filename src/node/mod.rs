@@ -65,7 +65,7 @@
 
 use crate::dag::{DagLike, MaxSharing, SharingTracker};
 use crate::jet::Jet;
-use crate::{types, Cmr, FailEntropy, Value};
+use crate::{types, Cmr, FailEntropy, HasCmr, Value};
 
 use std::sync::Arc;
 use std::{fmt, hash};
@@ -404,6 +404,18 @@ where
             |node, f| fmt::Display::fmt(&node.inner, f),
             |_, _| Ok(()),
         )
+    }
+}
+
+impl<N: Marker> HasCmr for Node<N> {
+    fn cmr(&self) -> Cmr {
+        self.cmr
+    }
+}
+
+impl<N: Marker> HasCmr for Arc<Node<N>> {
+    fn cmr(&self) -> Cmr {
+        self.cmr
     }
 }
 
