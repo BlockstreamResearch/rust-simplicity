@@ -2,7 +2,7 @@
 
 use crate::analysis::Cost;
 use crate::jet::Elements;
-use crate::node::{RedeemNode, WitnessNode};
+use crate::node::{Hiding, RedeemNode, WitnessNode};
 use crate::policy::ToXOnlyPubkey;
 use crate::types;
 use crate::{Cmr, Policy, Value};
@@ -99,10 +99,6 @@ impl<Pk: ToXOnlyPubkey> Satisfier<Pk> for elements::LockTime {
 pub enum SatisfierError {
     /// A satisfying witness for the policy could not be produced.
     Unsatisfiable,
-    /// An assembly program was missing.
-    ///
-    /// The satisfier needs to know all assembly programs, **even those that are not executed**!
-    MissingAssembly(Cmr),
     /// An assembly program failed to run on the Bit Machine.
     ///
     /// This can happen when the [`Satisfier::lookup_asm_program`] method is incorrectly implemented.
@@ -111,7 +107,7 @@ pub enum SatisfierError {
 
 #[derive(Clone, Debug)]
 struct SatResult {
-    serialization: Arc<WitnessNode<Elements>>,
+    serialization: Hiding<Arc<WitnessNode<Elements>>>,
     is_satisfied: bool,
 }
 
@@ -143,12 +139,12 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
             Policy::After(n) => {
                 let height = Height::from_consensus(n).expect("timelock is valid");
                 SatResult {
-                    serialization: super::serialize::after::<Arc<_>>(inference_context, n),
+                    serialization: super::serialize::after(inference_context, n),
                     is_satisfied: satisfier.check_after(elements::LockTime::Blocks(height)),
                 }
             }
             Policy::Older(n) => SatResult {
-                serialization: super::serialize::older::<Arc<_>>(inference_context, n),
+                serialization: super::serialize::older(inference_context, n),
                 is_satisfied: satisfier.check_older(elements::Sequence(n.into())),
             },
             Policy::Sha256(ref hash) => {
@@ -194,11 +190,15 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                 let take_right = match (left_ok, right_ok) {
                     (false, false) => {
                         let left_cost = left
+                            .as_node()
+                            .expect("node exists if satisfiable")
                             .finalize_unpruned()
                             .expect("serialization should be sound")
                             .bounds()
                             .cost;
                         let right_cost = right
+                            .as_node()
+                            .expect("node exists if satisfiable")
                             .finalize_unpruned()
                             .expect("serialization should be sound")
                             .bounds()
@@ -232,6 +232,8 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                     .map(|result| match result.is_satisfied {
                         true => result
                             .serialization
+                            .as_node()
+                            .expect("node exists if satisfiable")
                             .finalize_unpruned()
                             .map(|redeem| redeem.bounds().cost)
                             .unwrap_or(Cost::CONSENSUS_MAX),
@@ -261,24 +263,15 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                     is_satisfied: all_selected_ok,
                 }
             }
-            // FIXME: Allow assembly fragments to be missing if they are not needed
-            // Because the CMR of the satisfied program must match the CMR of the program commitment,
-            // the satisfier needs to produce a Simplicity expression with the given `cmr`.
-            // This is the case even if the assembly program is not executed in the final program!
-            // Because we cannot construct hidden nodes, the satisfier needs to know the assembly
-            // program, even if this program is not needed in the final execution.
-            //
-            // This feels like a huge footgun, especially when the unnecessary assembly program
-            // is lost but the UTXO remains spendable via other spending paths.
-            //
-            // By reintroducing hidden nodes, the satisfier could insert a placeholder for an
-            // un-executed assembly program.
             Policy::Assembly(cmr) => match satisfier.lookup_asm_program(cmr) {
-                Some(serialization) => SatResult {
-                    serialization,
+                Some(program) => SatResult {
+                    serialization: Hiding::from(program),
                     is_satisfied: true,
                 },
-                _ => return Err(SatisfierError::MissingAssembly(cmr)),
+                None => SatResult {
+                    serialization: Hiding::hidden(cmr, inference_context.shallow_clone()),
+                    is_satisfied: false,
+                },
             },
         };
         Ok(node)
@@ -297,15 +290,14 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
             serialization: witness_program,
             is_satisfied,
         } = self.satisfy_internal(&types::Context::new(), satisfier)?;
-        if !is_satisfied {
-            return Err(SatisfierError::Unsatisfiable);
-        };
-        let unpruned_program = witness_program
-            .finalize_unpruned()
-            .expect("serialization should be sound");
-        unpruned_program
-            .prune(env)
-            .map_err(SatisfierError::AssemblyFailed)
+        match (witness_program.get_node(), is_satisfied) {
+            (Some(program), true) => program
+                .finalize_unpruned()
+                .expect("serialization should be sound")
+                .prune(env)
+                .map_err(SatisfierError::AssemblyFailed), // execution fails iff assembly fragment fails
+            _ => Err(SatisfierError::Unsatisfiable),
+        }
     }
 }
 
