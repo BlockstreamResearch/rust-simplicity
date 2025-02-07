@@ -5,12 +5,12 @@ use crate::bit_machine::{ExecutionError, SetTracker};
 use crate::dag::{DagLike, InternalSharing, MaxSharing, PostOrderIterItem};
 use crate::jet::Jet;
 use crate::types::{self, arrow::FinalArrow};
-use crate::{encode, BitMachine, WitnessNode};
+use crate::{encode, BitMachine};
 use crate::{Amr, BitIter, BitWriter, Cmr, Error, FirstPassImr, Imr, Value};
 
 use super::{
-    Commit, CommitData, CommitNode, Construct, ConstructNode, Constructible, Converter, Hide,
-    Inner, Marker, NoDisconnect, NoWitness, Node, Witness, WitnessData,
+    Commit, CommitData, CommitNode, Construct, ConstructData, ConstructNode, Constructible,
+    Converter, Hide, Inner, Marker, NoDisconnect, NoWitness, Node,
 };
 
 use std::collections::HashSet;
@@ -221,15 +221,15 @@ impl<J: Jet> RedeemNode<J> {
         self.convert::<MaxSharing<Redeem<J>>, _, _>(&mut Unfinalizer(PhantomData))
     }
 
-    /// Convert a [`RedeemNode`] back into a [`WitnessNode`]
+    /// Convert a [`RedeemNode`] back into a [`ConstructNode`]
     /// by loosening the finalized types, witness data and disconnected branches.
-    pub fn to_witness_node(&self) -> Arc<WitnessNode<J>> {
-        struct ToWitness<J> {
+    pub fn to_construct_node(&self) -> Arc<ConstructNode<J>> {
+        struct ToConstruct<J> {
             inference_context: types::Context,
             phantom: PhantomData<J>,
         }
 
-        impl<J: Jet> Converter<Redeem<J>, Witness<J>> for ToWitness<J> {
+        impl<J: Jet> Converter<Redeem<J>, Construct<J>> for ToConstruct<J> {
             type Error = ();
 
             fn convert_witness(
@@ -243,9 +243,9 @@ impl<J: Jet> RedeemNode<J> {
             fn convert_disconnect(
                 &mut self,
                 _: &PostOrderIterItem<&Node<Redeem<J>>>,
-                right: Option<&Arc<Node<Witness<J>>>>,
+                right: Option<&Arc<Node<Construct<J>>>>,
                 _: &Arc<RedeemNode<J>>,
-            ) -> Result<Option<Arc<Node<Witness<J>>>>, Self::Error> {
+            ) -> Result<Option<Arc<Node<Construct<J>>>>, Self::Error> {
                 Ok(right.cloned())
             }
 
@@ -253,21 +253,21 @@ impl<J: Jet> RedeemNode<J> {
                 &mut self,
                 _: &PostOrderIterItem<&Node<Redeem<J>>>,
                 inner: Inner<
-                    &Arc<Node<Witness<J>>>,
+                    &Arc<Node<Construct<J>>>,
                     J,
-                    &Option<Arc<WitnessNode<J>>>,
+                    &Option<Arc<ConstructNode<J>>>,
                     &Option<Value>,
                 >,
-            ) -> Result<WitnessData<J>, Self::Error> {
+            ) -> Result<ConstructData<J>, Self::Error> {
                 let inner = inner
                     .map(|node| node.cached_data())
                     .map_witness(|maybe_value| maybe_value.clone());
-                Ok(WitnessData::from_inner(&self.inference_context, inner)
+                Ok(ConstructData::from_inner(&self.inference_context, inner)
                     .expect("types were already finalized"))
             }
         }
 
-        self.convert::<InternalSharing, _, _>(&mut ToWitness {
+        self.convert::<InternalSharing, _, _>(&mut ToConstruct {
             inference_context: types::Context::new(),
             phantom: PhantomData,
         })
@@ -297,7 +297,7 @@ impl<J: Jet> RedeemNode<J> {
             phantom: PhantomData<J>,
         }
 
-        impl<J: Jet> Converter<Redeem<J>, Witness<J>> for Pruner<J> {
+        impl<J: Jet> Converter<Redeem<J>, Construct<J>> for Pruner<J> {
             type Error = std::convert::Infallible;
 
             fn convert_witness(
@@ -313,9 +313,9 @@ impl<J: Jet> RedeemNode<J> {
             fn convert_disconnect(
                 &mut self,
                 _: &PostOrderIterItem<&RedeemNode<J>>,
-                right: Option<&Arc<WitnessNode<J>>>,
+                right: Option<&Arc<ConstructNode<J>>>,
                 _: &Arc<RedeemNode<J>>,
-            ) -> Result<Option<Arc<WitnessNode<J>>>, Self::Error> {
+            ) -> Result<Option<Arc<ConstructNode<J>>>, Self::Error> {
                 debug_assert!(
                     right.is_some(),
                     "disconnected branch should exist in unpruned redeem program"
@@ -326,8 +326,8 @@ impl<J: Jet> RedeemNode<J> {
             fn prune_case(
                 &mut self,
                 data: &PostOrderIterItem<&RedeemNode<J>>,
-                _left: &Arc<WitnessNode<J>>,
-                _right: &Arc<WitnessNode<J>>,
+                _left: &Arc<ConstructNode<J>>,
+                _right: &Arc<ConstructNode<J>>,
             ) -> Result<Hide, Self::Error> {
                 // The IMR of the pruned program may change,
                 // but the Converter trait gives us access to the unpruned node (`data`).
@@ -346,12 +346,17 @@ impl<J: Jet> RedeemNode<J> {
             fn convert_data(
                 &mut self,
                 _: &PostOrderIterItem<&RedeemNode<J>>,
-                inner: Inner<&Arc<WitnessNode<J>>, J, &Option<Arc<WitnessNode<J>>>, &Option<Value>>,
-            ) -> Result<WitnessData<J>, Self::Error> {
+                inner: Inner<
+                    &Arc<ConstructNode<J>>,
+                    J,
+                    &Option<Arc<ConstructNode<J>>>,
+                    &Option<Value>,
+                >,
+            ) -> Result<ConstructData<J>, Self::Error> {
                 let converted_inner = inner
                     .map(|node| node.cached_data())
                     .map_witness(Option::<Value>::clone);
-                let retyped = WitnessData::from_inner(&self.inference_context, converted_inner)
+                let retyped = ConstructData::from_inner(&self.inference_context, converted_inner)
                     .expect("pruned types should check out if unpruned types check out");
                 Ok(retyped)
             }
@@ -359,12 +364,12 @@ impl<J: Jet> RedeemNode<J> {
 
         struct Finalizer<J>(PhantomData<J>);
 
-        impl<J: Jet> Converter<Witness<J>, Redeem<J>> for Finalizer<J> {
+        impl<J: Jet> Converter<Construct<J>, Redeem<J>> for Finalizer<J> {
             type Error = std::convert::Infallible;
 
             fn convert_witness(
                 &mut self,
-                data: &PostOrderIterItem<&WitnessNode<J>>,
+                data: &PostOrderIterItem<&ConstructNode<J>>,
                 witness: &Option<Value>,
             ) -> Result<Value, Self::Error> {
                 let pruned_target_ty = data
@@ -383,9 +388,9 @@ impl<J: Jet> RedeemNode<J> {
 
             fn convert_disconnect(
                 &mut self,
-                _: &PostOrderIterItem<&WitnessNode<J>>,
+                _: &PostOrderIterItem<&ConstructNode<J>>,
                 right: Option<&Arc<RedeemNode<J>>>,
-                _: &Option<Arc<WitnessNode<J>>>,
+                _: &Option<Arc<ConstructNode<J>>>,
             ) -> Result<Arc<RedeemNode<J>>, Self::Error> {
                 Ok(right
                     .map(Arc::clone)
@@ -394,7 +399,7 @@ impl<J: Jet> RedeemNode<J> {
 
             fn convert_data(
                 &mut self,
-                data: &PostOrderIterItem<&WitnessNode<J>>,
+                data: &PostOrderIterItem<&ConstructNode<J>>,
                 inner: Inner<&Arc<RedeemNode<J>>, J, &Arc<RedeemNode<J>>, &Value>,
             ) -> Result<Arc<RedeemData<J>>, Self::Error> {
                 // Finalize target types of witness nodes in advance so we can prune their values.
@@ -457,7 +462,7 @@ impl<J: Jet> RedeemNode<J> {
             fn convert_witness(
                 &mut self,
                 data: &PostOrderIterItem<&ConstructNode<J>>,
-                _: &NoWitness,
+                _: &Option<Value>,
             ) -> Result<Value, Self::Error> {
                 let arrow = data.node.data.arrow();
                 let target_ty = arrow.target.finalize()?;

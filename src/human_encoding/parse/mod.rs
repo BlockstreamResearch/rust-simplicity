@@ -591,7 +591,7 @@ mod tests {
                 assert_eq!(main.cmr().to_string(), cmr);
 
                 let program = main
-                    .to_witness_node(witness, &forest)
+                    .to_construct_node(witness, &forest)
                     .finalize_unpruned()
                     .expect("finalize");
 

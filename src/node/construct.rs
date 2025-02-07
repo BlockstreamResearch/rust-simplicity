@@ -1,18 +1,17 @@
 // SPDX-License-Identifier: CC0-1.0
 
 use crate::dag::{InternalSharing, PostOrderIterItem};
-use crate::encode;
 use crate::jet::Jet;
 use crate::types::{self, arrow::Arrow};
-use crate::{BitIter, BitWriter, Cmr, FailEntropy};
+use crate::{encode, BitIter, BitWriter, Cmr, FailEntropy, RedeemNode, Value, Word};
 
-use crate::value::Word;
 use std::io;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
 use super::{
     Commit, CommitData, CommitNode, Converter, Inner, Marker, NoDisconnect, NoWitness, Node,
+    Redeem, RedeemData,
 };
 use super::{CoreConstructible, DisconnectConstructible, JetConstructible, WitnessConstructible};
 
@@ -33,7 +32,7 @@ pub struct Construct<J> {
 
 impl<J: Jet> Marker for Construct<J> {
     type CachedData = ConstructData<J>;
-    type Witness = NoWitness;
+    type Witness = Option<Value>;
     type Disconnect = Option<Arc<ConstructNode<J>>>;
     type SharingId = ConstructId;
     type Jet = J;
@@ -90,7 +89,7 @@ impl<J: Jet> ConstructNode<J> {
             fn convert_witness(
                 &mut self,
                 _: &PostOrderIterItem<&ConstructNode<J>>,
-                _: &NoWitness,
+                _: &Option<Value>,
             ) -> Result<NoWitness, Self::Error> {
                 Ok(NoWitness)
             }
@@ -117,6 +116,104 @@ impl<J: Jet> ConstructNode<J> {
         }
 
         self.convert::<InternalSharing, _, _>(&mut FinalizeTypes(PhantomData))
+    }
+
+    /// Finalize the witness program as an unpruned redeem program.
+    ///
+    /// Witness nodes must be populated with sufficient data,
+    /// to ensure that the resulting redeem program successfully runs on the Bit Machine.
+    /// Furthermore, **all** disconnected branches must be populated,
+    /// even those that are not executed.
+    ///
+    /// The resulting redeem program is **not pruned**.
+    ///
+    /// ## See
+    ///
+    /// [`RedeemNode::prune`]
+    pub fn finalize_unpruned(&self) -> Result<Arc<RedeemNode<J>>, crate::Error> {
+        struct Finalizer<J>(PhantomData<J>);
+
+        impl<J: Jet> Converter<Construct<J>, Redeem<J>> for Finalizer<J> {
+            type Error = crate::Error;
+
+            fn convert_witness(
+                &mut self,
+                data: &PostOrderIterItem<&ConstructNode<J>>,
+                wit: &Option<Value>,
+            ) -> Result<Value, Self::Error> {
+                if let Some(ref wit) = wit {
+                    Ok(wit.shallow_clone())
+                } else {
+                    // We insert a zero value into unpopulated witness nodes,
+                    // assuming that this node will later be pruned out of the program.
+                    //
+                    // Pruning requires running a program on the Bit Machine,
+                    // which in turn requires a program with fully populated witness nodes.
+                    // It would be horrible UX to force the caller to provide witness data
+                    // even for unexecuted branches, so we insert zero values here.
+                    //
+                    // If this node is executed after all, then the caller can fix the witness
+                    // data based on the returned execution error.
+                    //
+                    // Zero values may "accidentally" satisfy a program even if the caller
+                    // didn't provide any witness data. However, this is only the case for the
+                    // most trivial programs. The only place where we must be careful is our
+                    // unit tests, which tend to include these kinds of trivial programs.
+                    let ty = data.node.arrow().target.finalize()?;
+                    Ok(Value::zero(&ty))
+                }
+            }
+
+            fn convert_disconnect(
+                &mut self,
+                _: &PostOrderIterItem<&ConstructNode<J>>,
+                maybe_converted: Option<&Arc<RedeemNode<J>>>,
+                _: &Option<Arc<ConstructNode<J>>>,
+            ) -> Result<Arc<RedeemNode<J>>, Self::Error> {
+                if let Some(child) = maybe_converted {
+                    Ok(Arc::clone(child))
+                } else {
+                    Err(crate::Error::DisconnectRedeemTime)
+                }
+            }
+
+            fn convert_data(
+                &mut self,
+                data: &PostOrderIterItem<&ConstructNode<J>>,
+                inner: Inner<&Arc<RedeemNode<J>>, J, &Arc<RedeemNode<J>>, &Value>,
+            ) -> Result<Arc<RedeemData<J>>, Self::Error> {
+                let converted_data = inner
+                    .map(|node| node.cached_data())
+                    .map_disconnect(|node| node.cached_data())
+                    .map_witness(Value::shallow_clone);
+                Ok(Arc::new(RedeemData::new(
+                    data.node.arrow().finalize()?,
+                    converted_data,
+                )))
+            }
+        }
+
+        self.convert::<InternalSharing, _, _>(&mut Finalizer(PhantomData))
+    }
+
+    /// Finalize the witness program as a pruned redeem program.
+    ///
+    /// Witness nodes must be populated with sufficient data,
+    /// to ensure that the resulting redeem program successfully runs on the Bit Machine.
+    /// Furthermore, **all** disconnected branches must be populated,
+    /// even those that are not executed.
+    ///
+    /// The resulting redeem program is **pruned** based on the given transaction environment.
+    ///
+    /// ## See
+    ///
+    /// [`RedeemNode::prune`]
+    pub fn finalize_pruned(
+        &self,
+        env: &J::Environment,
+    ) -> Result<Arc<RedeemNode<J>>, crate::Error> {
+        let unpruned = self.finalize_unpruned()?;
+        unpruned.prune(env).map_err(crate::Error::Execution)
     }
 
     /// Decode a Simplicity expression from bits, without witness data.
@@ -278,10 +375,10 @@ impl<J: Jet> DisconnectConstructible<Option<Arc<ConstructNode<J>>>> for Construc
     }
 }
 
-impl<J> WitnessConstructible<NoWitness> for ConstructData<J> {
-    fn witness(inference_context: &types::Context, witness: NoWitness) -> Self {
+impl<J> WitnessConstructible<Option<Value>> for ConstructData<J> {
+    fn witness(inference_context: &types::Context, _witness: Option<Value>) -> Self {
         ConstructData {
-            arrow: Arrow::witness(inference_context, witness),
+            arrow: Arrow::witness(inference_context, NoWitness),
             phantom: PhantomData,
         }
     }
@@ -340,7 +437,7 @@ mod tests {
     fn occurs_check_3() {
         let ctx = types::Context::new();
         // A similar example that caused a slightly different deadlock in the past.
-        let wit = Arc::<ConstructNode<Core>>::witness(&ctx, NoWitness);
+        let wit = Arc::<ConstructNode<Core>>::witness(&ctx, None);
         let drop = Arc::<ConstructNode<Core>>::drop_(&wit);
 
         let comp1 = Arc::<ConstructNode<Core>>::comp(&drop, &drop).unwrap();

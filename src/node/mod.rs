@@ -78,7 +78,6 @@ mod display;
 mod hiding;
 mod inner;
 mod redeem;
-mod witness;
 
 use crate::value::Word;
 pub use commit::{Commit, CommitData, CommitNode};
@@ -89,7 +88,6 @@ use display::DisplayExpr;
 pub use hiding::Hiding;
 pub use inner::Inner;
 pub use redeem::{Redeem, RedeemData, RedeemNode};
-pub use witness::{Witness, WitnessData, WitnessNode};
 
 // This trait should only be implemented on empty types, so we can demand
 // every trait bound under the sun. Doing so will make #[derive]s easier

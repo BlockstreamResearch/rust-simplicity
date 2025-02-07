@@ -3,7 +3,7 @@
 use crate::dag::{DagLike, MaxSharing, NoSharing, PostOrderIterItem};
 use crate::jet::Jet;
 use crate::types::arrow::{Arrow, FinalArrow};
-use crate::{encode, types};
+use crate::{encode, types, Value};
 use crate::{Amr, BitIter, BitWriter, Cmr, Error, FirstPassImr, Imr};
 
 use super::{
@@ -213,8 +213,8 @@ impl<J: Jet> CommitNode<J> {
                 &mut self,
                 _: &PostOrderIterItem<&CommitNode<J>>,
                 _: &NoWitness,
-            ) -> Result<NoWitness, Self::Error> {
-                Ok(NoWitness)
+            ) -> Result<Option<Value>, Self::Error> {
+                Ok(None)
             }
 
             fn convert_disconnect(
@@ -229,7 +229,12 @@ impl<J: Jet> CommitNode<J> {
             fn convert_data(
                 &mut self,
                 _: &PostOrderIterItem<&CommitNode<J>>,
-                inner: Inner<&Arc<ConstructNode<J>>, J, &Option<Arc<ConstructNode<J>>>, &NoWitness>,
+                inner: Inner<
+                    &Arc<ConstructNode<J>>,
+                    J,
+                    &Option<Arc<ConstructNode<J>>>,
+                    &Option<Value>,
+                >,
             ) -> Result<ConstructData<J>, Self::Error> {
                 let inner = inner
                     .map(|node| node.arrow())

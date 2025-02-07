@@ -440,7 +440,7 @@ mod tests {
     use super::*;
 
     use crate::jet::Core;
-    use crate::node::{ConstructNode, CoreConstructible, WitnessNode};
+    use crate::node::{ConstructNode, CoreConstructible};
 
     #[test]
     fn inference_failure() {
@@ -464,9 +464,9 @@ mod tests {
     #[test]
     fn memory_leak() {
         let ctx = Context::new();
-        let iden = Arc::<WitnessNode<Core>>::iden(&ctx);
-        let drop = Arc::<WitnessNode<Core>>::drop_(&iden);
-        let case = Arc::<WitnessNode<Core>>::case(&iden, &drop).unwrap();
+        let iden = Arc::<ConstructNode<Core>>::iden(&ctx);
+        let drop = Arc::<ConstructNode<Core>>::drop_(&iden);
+        let case = Arc::<ConstructNode<Core>>::case(&iden, &drop).unwrap();
 
         let _ = format!("{:?}", case.arrow().source);
     }
