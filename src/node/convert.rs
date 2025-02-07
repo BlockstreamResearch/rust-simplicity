@@ -152,6 +152,10 @@ pub trait Converter<N: Marker, M: Marker> {
 /// Does not do any type-checking and may attach an invalid witness to a combinator.
 ///
 /// If it encounters a disconnect node, it simply returns an error.
+///
+/// **This finalizer should not be used in production.
+/// It introduces default values ([`Value::zero`]) to handle missing witness data,
+/// which might trigger unexpected spending paths.**
 // FIXME we should do type checking, but this would require a method to check
 // type compatibility between a Value and a type::Final.
 pub struct SimpleFinalizer<W: Iterator<Item = Value>> {
@@ -169,10 +173,13 @@ impl<W: Iterator<Item = Value>, J: Jet> Converter<Commit<J>, Redeem<J>> for Simp
 
     fn convert_witness(
         &mut self,
-        _: &PostOrderIterItem<&CommitNode<J>>,
+        data: &PostOrderIterItem<&CommitNode<J>>,
         _: &NoWitness,
     ) -> Result<Value, Self::Error> {
-        self.iter.next().ok_or(crate::Error::NoMoreWitnesses)
+        Ok(self
+            .iter
+            .next()
+            .unwrap_or_else(|| Value::zero(&data.node.arrow().target)))
     }
 
     fn convert_disconnect(
