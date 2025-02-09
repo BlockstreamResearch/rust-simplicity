@@ -98,14 +98,10 @@ impl<J: Jet> ConstructNode<J> {
             fn convert_disconnect(
                 &mut self,
                 _: &PostOrderIterItem<&ConstructNode<J>>,
-                maybe_converted: Option<&Arc<CommitNode<J>>>,
+                _: Option<&Arc<CommitNode<J>>>,
                 _: &Option<Arc<ConstructNode<J>>>,
             ) -> Result<NoDisconnect, Self::Error> {
-                if maybe_converted.is_some() {
-                    Err(crate::Error::DisconnectCommitTime)
-                } else {
-                    Ok(NoDisconnect)
-                }
+                Ok(NoDisconnect)
             }
 
             fn convert_data(

@@ -2,7 +2,7 @@
 
 use crate::analysis::Cost;
 use crate::jet::Elements;
-use crate::node::{RedeemNode, WitnessNode};
+use crate::node::{Hiding, RedeemNode, WitnessNode};
 use crate::policy::ToXOnlyPubkey;
 use crate::types;
 use crate::{Cmr, Policy, Value};
@@ -99,20 +99,19 @@ impl<Pk: ToXOnlyPubkey> Satisfier<Pk> for elements::LockTime {
 pub enum SatisfierError {
     /// A satisfying witness for the policy could not be produced.
     Unsatisfiable,
-    /// An assembly program was missing.
-    ///
-    /// The satisfier needs to know all assembly programs, **even those that are not executed**!
-    MissingAssembly(Cmr),
     /// An assembly program failed to run on the Bit Machine.
     ///
     /// This can happen when the [`Satisfier::lookup_asm_program`] method is incorrectly implemented.
     AssemblyFailed(crate::bit_machine::ExecutionError),
 }
 
-#[derive(Clone, Debug)]
-struct SatResult {
-    serialization: Arc<WitnessNode<Elements>>,
-    is_satisfied: bool,
+type SatResult = Hiding<Arc<WitnessNode<Elements>>>;
+
+fn ok_if(condition: bool, expr: SatResult) -> SatResult {
+    match condition {
+        true => expr,
+        false => expr.hide(),
+    }
 }
 
 impl<Pk: ToXOnlyPubkey> Policy<Pk> {
@@ -121,78 +120,55 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
         inference_context: &types::Context,
         satisfier: &S,
     ) -> Result<SatResult, SatisfierError> {
-        let node = match *self {
-            Policy::Unsatisfiable(entropy) => SatResult {
-                serialization: super::serialize::unsatisfiable(inference_context, entropy),
-                is_satisfied: false,
-            },
-            Policy::Trivial => SatResult {
-                serialization: super::serialize::trivial(inference_context),
-                is_satisfied: true,
-            },
+        let node: SatResult = match *self {
+            Policy::Unsatisfiable(entropy) => {
+                super::serialize::unsatisfiable::<SatResult>(inference_context, entropy).hide()
+            }
+            Policy::Trivial => super::serialize::trivial(inference_context),
             Policy::Key(ref key) => {
                 let signature = satisfier
                     .lookup_tap_leaf_script_sig(key, &TapLeafHash::all_zeros())
                     .map(|sig| sig.sig.serialize())
                     .map(Value::u512);
-                SatResult {
-                    is_satisfied: signature.is_some(),
-                    serialization: super::serialize::key(inference_context, key, signature),
-                }
+                ok_if(
+                    signature.is_some(),
+                    super::serialize::key(inference_context, key, signature),
+                )
             }
             Policy::After(n) => {
                 let height = Height::from_consensus(n).expect("timelock is valid");
-                SatResult {
-                    serialization: super::serialize::after::<Arc<_>>(inference_context, n),
-                    is_satisfied: satisfier.check_after(elements::LockTime::Blocks(height)),
-                }
+                ok_if(
+                    satisfier.check_after(elements::LockTime::Blocks(height)),
+                    super::serialize::after(inference_context, n),
+                )
             }
-            Policy::Older(n) => SatResult {
-                serialization: super::serialize::older::<Arc<_>>(inference_context, n),
-                is_satisfied: satisfier.check_older(elements::Sequence(n.into())),
-            },
+            Policy::Older(n) => ok_if(
+                satisfier.check_older(elements::Sequence(n.into())),
+                super::serialize::older(inference_context, n),
+            ),
             Policy::Sha256(ref hash) => {
                 let preimage = satisfier.lookup_sha256(hash).map(Value::u256);
-                SatResult {
-                    is_satisfied: preimage.is_some(),
-                    serialization: super::serialize::sha256::<Pk, _, _>(
-                        inference_context,
-                        hash,
-                        preimage,
-                    ),
-                }
+                ok_if(
+                    preimage.is_some(),
+                    super::serialize::sha256::<Pk, _, _>(inference_context, hash, preimage),
+                )
             }
             Policy::And {
                 ref left,
                 ref right,
             } => {
-                let SatResult {
-                    serialization: left,
-                    is_satisfied: left_ok,
-                } = left.satisfy_internal(inference_context, satisfier)?;
-                let SatResult {
-                    serialization: right,
-                    is_satisfied: right_ok,
-                } = right.satisfy_internal(inference_context, satisfier)?;
-                SatResult {
-                    serialization: super::serialize::and(&left, &right),
-                    is_satisfied: left_ok && right_ok,
-                }
+                let left_res = left.satisfy_internal(inference_context, satisfier)?;
+                let right_res = right.satisfy_internal(inference_context, satisfier)?;
+                super::serialize::and(&left_res, &right_res)
             }
             Policy::Or {
                 ref left,
                 ref right,
             } => {
-                let SatResult {
-                    serialization: left,
-                    is_satisfied: left_ok,
-                } = left.satisfy_internal(inference_context, satisfier)?;
-                let SatResult {
-                    serialization: right,
-                    is_satisfied: right_ok,
-                } = right.satisfy_internal(inference_context, satisfier)?;
-                let take_right = match (left_ok, right_ok) {
-                    (false, false) => {
+                let left_res = left.satisfy_internal(inference_context, satisfier)?;
+                let right_res = right.satisfy_internal(inference_context, satisfier)?;
+                let take_right = match (left_res.as_node(), right_res.as_node()) {
+                    (Some(left), Some(right)) => {
                         let left_cost = left
                             .finalize_unpruned()
                             .expect("serialization should be sound")
@@ -205,37 +181,36 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                             .cost;
                         right_cost < left_cost
                     }
-                    (false, true) => true,
-                    (true, false) => false,
+                    (None, Some(..)) => true,
+                    (Some(..), None) => false,
                     // If both children are unsatisfiable, then the choice doesn't matter.
                     // The entire expression will be pruned out.
-                    (true, true) => false,
+                    (None, None) => false,
                 };
 
-                let serialization = if take_right {
-                    super::serialize::or(&left, &right, Some(Value::u1(1)))
+                let ret = if take_right {
+                    super::serialize::or(&left_res, &right_res, Some(Value::u1(1)))
                 } else {
-                    super::serialize::or(&left, &right, Some(Value::u1(0)))
+                    super::serialize::or(&left_res, &right_res, Some(Value::u1(0)))
                 };
-                SatResult {
-                    serialization,
-                    is_satisfied: left_ok || right_ok,
-                }
+                ok_if(
+                    left_res.as_node().is_some() || right_res.as_node().is_some(),
+                    ret,
+                )
             }
             Policy::Threshold(k, ref subs) => {
-                let node_results: Vec<SatResult> = subs
+                let subs_res: Vec<SatResult> = subs
                     .iter()
                     .map(|sub| sub.satisfy_internal(inference_context, satisfier))
                     .collect::<Result<_, SatisfierError>>()?;
-                let costs: Vec<Cost> = node_results
+                let costs: Vec<Cost> = subs_res
                     .iter()
-                    .map(|result| match result.is_satisfied {
-                        true => result
-                            .serialization
+                    .map(|result| match result.as_node() {
+                        Some(node) => node
                             .finalize_unpruned()
                             .map(|redeem| redeem.bounds().cost)
                             .unwrap_or(Cost::CONSENSUS_MAX),
-                        false => Cost::CONSENSUS_MAX,
+                        None => Cost::CONSENSUS_MAX,
                     })
                     .collect();
                 let selected_node_indices = {
@@ -246,39 +221,19 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                 };
                 let all_selected_ok = selected_node_indices
                     .iter()
-                    .all(|&i| node_results[i].is_satisfied);
-                let witness_bits: Vec<Option<Value>> = (0..node_results.len())
+                    .all(|&i| subs_res[i].as_node().is_some());
+                let witness_bits: Vec<Option<Value>> = (0..subs_res.len())
                     .map(|i| Some(Value::u1(u8::from(selected_node_indices.contains(&i)))))
                     .collect();
-
                 let k = u32::try_from(k).expect("k should be less than 2^32");
-                let nodes: Vec<_> = node_results
-                    .into_iter()
-                    .map(|result| result.serialization)
-                    .collect();
-                SatResult {
-                    serialization: super::serialize::threshold(k, &nodes, &witness_bits),
-                    is_satisfied: all_selected_ok,
-                }
+                ok_if(
+                    all_selected_ok,
+                    super::serialize::threshold(k, &subs_res, &witness_bits),
+                )
             }
-            // FIXME: Allow assembly fragments to be missing if they are not needed
-            // Because the CMR of the satisfied program must match the CMR of the program commitment,
-            // the satisfier needs to produce a Simplicity expression with the given `cmr`.
-            // This is the case even if the assembly program is not executed in the final program!
-            // Because we cannot construct hidden nodes, the satisfier needs to know the assembly
-            // program, even if this program is not needed in the final execution.
-            //
-            // This feels like a huge footgun, especially when the unnecessary assembly program
-            // is lost but the UTXO remains spendable via other spending paths.
-            //
-            // By reintroducing hidden nodes, the satisfier could insert a placeholder for an
-            // un-executed assembly program.
             Policy::Assembly(cmr) => match satisfier.lookup_asm_program(cmr) {
-                Some(serialization) => SatResult {
-                    serialization,
-                    is_satisfied: true,
-                },
-                _ => return Err(SatisfierError::MissingAssembly(cmr)),
+                Some(program) => Hiding::from(program),
+                None => Hiding::hidden(cmr, inference_context.shallow_clone()),
             },
         };
         Ok(node)
@@ -293,19 +248,15 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
         satisfier: &S,
         env: &ElementsEnv<Arc<elements::Transaction>>,
     ) -> Result<Arc<RedeemNode<Elements>>, SatisfierError> {
-        let SatResult {
-            serialization: witness_program,
-            is_satisfied,
-        } = self.satisfy_internal(&types::Context::new(), satisfier)?;
-        if !is_satisfied {
-            return Err(SatisfierError::Unsatisfiable);
-        };
-        let unpruned_program = witness_program
-            .finalize_unpruned()
-            .expect("serialization should be sound");
-        unpruned_program
-            .prune(env)
-            .map_err(SatisfierError::AssemblyFailed)
+        let result = self.satisfy_internal(&types::Context::new(), satisfier)?;
+        match result.get_node() {
+            Some(program) => program
+                .finalize_unpruned()
+                .expect("serialization should be sound")
+                .prune(env)
+                .map_err(SatisfierError::AssemblyFailed), // execution fails iff assembly fragment fails
+            None => Err(SatisfierError::Unsatisfiable),
+        }
     }
 }
 

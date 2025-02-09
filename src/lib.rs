@@ -59,9 +59,9 @@ pub use crate::merkle::{
     cmr::Cmr,
     imr::{FirstPassImr, Imr},
     tmr::Tmr,
-    FailEntropy,
+    FailEntropy, HasCmr,
 };
-pub use crate::node::{CommitNode, ConstructNode, RedeemNode, WitnessNode};
+pub use crate::node::{CommitNode, ConstructNode, Hiding, RedeemNode, WitnessNode};
 pub use crate::value::{Value, Word};
 pub use simplicity_sys as ffi;
 use std::fmt;
@@ -78,8 +78,6 @@ pub fn leaf_version() -> elements::taproot::LeafVersion {
 pub enum Error {
     /// Decoder error
     Decode(decode::Error),
-    /// A disconnect node was populated at commitment time
-    DisconnectCommitTime,
     /// A disconnect node was *not* populated at redeem time
     DisconnectRedeemTime,
     /// Type-checking error
@@ -99,9 +97,6 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Error::Decode(ref e) => fmt::Display::fmt(e, f),
-            Error::DisconnectCommitTime => {
-                f.write_str("disconnect node had two children (commit time); must have one")
-            }
             Error::DisconnectRedeemTime => {
                 f.write_str("disconnect node had one child (redeem time); must have two")
             }
@@ -119,7 +114,6 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match *self {
             Error::Decode(ref e) => Some(e),
-            Error::DisconnectCommitTime => None,
             Error::DisconnectRedeemTime => None,
             Error::Type(ref e) => Some(e),
             Error::Execution(ref e) => Some(e),

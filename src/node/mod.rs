@@ -65,7 +65,7 @@
 
 use crate::dag::{DagLike, MaxSharing, SharingTracker};
 use crate::jet::Jet;
-use crate::{types, Cmr, FailEntropy, Value};
+use crate::{types, Cmr, FailEntropy, HasCmr, Value};
 
 use std::sync::Arc;
 use std::{fmt, hash};
@@ -75,6 +75,7 @@ mod construct;
 mod convert;
 mod disconnect;
 mod display;
+mod hiding;
 mod inner;
 mod redeem;
 mod witness;
@@ -85,6 +86,7 @@ pub use construct::{Construct, ConstructData, ConstructNode};
 pub use convert::{Converter, Hide, SimpleFinalizer};
 pub use disconnect::{Disconnectable, NoDisconnect};
 use display::DisplayExpr;
+pub use hiding::Hiding;
 pub use inner::Inner;
 pub use redeem::{Redeem, RedeemData, RedeemNode};
 pub use witness::{Witness, WitnessData, WitnessNode};
@@ -404,6 +406,18 @@ where
             |node, f| fmt::Display::fmt(&node.inner, f),
             |_, _| Ok(()),
         )
+    }
+}
+
+impl<N: Marker> HasCmr for Node<N> {
+    fn cmr(&self) -> Cmr {
+        self.cmr
+    }
+}
+
+impl<N: Marker> HasCmr for Arc<Node<N>> {
+    fn cmr(&self) -> Cmr {
+        self.cmr
     }
 }
 

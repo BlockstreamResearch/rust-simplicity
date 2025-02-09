@@ -15,6 +15,12 @@ use crate::Value;
 use hashes::{sha256, Hash, HashEngine};
 use std::fmt;
 
+/// Trait for types that have a Commitment Merkle Root.
+pub trait HasCmr {
+    /// Access the Commitment Merkle Root.
+    fn cmr(&self) -> cmr::Cmr;
+}
+
 /// 512-bit opaque blob of data used to seed `Fail` nodes
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct FailEntropy([u8; 64]);
