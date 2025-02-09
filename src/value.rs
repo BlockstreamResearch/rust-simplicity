@@ -802,6 +802,20 @@ mod tests {
     use crate::jet::type_name::TypeName;
 
     #[test]
+    fn value_len() {
+        let v = Value::u4(6);
+        let s_v = Value::some(v.shallow_clone());
+        let n_v = Value::none(Final::two_two_n(2));
+
+        assert_eq!(v.compact_len(), 4);
+        assert_eq!(v.padded_len(), 4);
+        assert_eq!(s_v.compact_len(), 5);
+        assert_eq!(s_v.padded_len(), 5);
+        assert_eq!(n_v.compact_len(), 1);
+        assert_eq!(n_v.padded_len(), 5);
+    }
+
+    #[test]
     fn value_display() {
         // Only test a couple values becasue we probably want to change this
         // at some point and will have to redo this test.
