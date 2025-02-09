@@ -141,25 +141,25 @@ impl Value {
     }
 
     /// Access the inner value of a left sum value.
-    pub fn as_left(&self) -> Option<&Self> {
+    pub fn to_left(&self) -> Option<Self> {
         match &self.inner {
-            ValueInner::Left(inner) => Some(inner.as_ref()),
+            ValueInner::Left(inner) => Some(inner.shallow_clone()),
             _ => None,
         }
     }
 
     /// Access the inner value of a right sum value.
-    pub fn as_right(&self) -> Option<&Self> {
+    pub fn to_right(&self) -> Option<Self> {
         match &self.inner {
-            ValueInner::Right(inner) => Some(inner.as_ref()),
+            ValueInner::Right(inner) => Some(inner.shallow_clone()),
             _ => None,
         }
     }
 
     /// Access the inner values of a product value.
-    pub fn as_product(&self) -> Option<(&Self, &Self)> {
+    pub fn to_product(&self) -> Option<(Self, Self)> {
         match &self.inner {
-            ValueInner::Product(left, right) => Some((left.as_ref(), right.as_ref())),
+            ValueInner::Product(left, right) => Some((left.shallow_clone(), right.shallow_clone())),
             _ => None,
         }
     }
@@ -276,7 +276,7 @@ impl Value {
     ///
     /// This encoding is used to represent the value in the Bit Machine.
     pub fn iter_padded(&self) -> impl Iterator<Item = bool> + '_ {
-        PaddedBitsIter::new(self)
+        PaddedBitsIter::new(self.shallow_clone())
     }
 
     /// Check if the value is of the given type.
@@ -362,14 +362,14 @@ impl Value {
     /// - `prune( R(r): A1 + B1, A2 + B2 )` = `prune(r: B1, B2) : A2 + B2`
     /// - `prune( (l, r): A1 × B1, A2 × B2 )` = `( prune(l: A1, A2), prune(r: B1, B2): A2 × B2`
     pub fn prune(&self, pruned_ty: &Final) -> Option<Self> {
-        enum Task<'a> {
-            Prune(&'a Value, &'a Final),
+        enum Task<'ty> {
+            Prune(Value, &'ty Final),
             MakeLeft(Arc<Final>),
             MakeRight(Arc<Final>),
             MakeProduct,
         }
 
-        let mut stack = vec![Task::Prune(self, pruned_ty)];
+        let mut stack = vec![Task::Prune(self.shallow_clone(), pruned_ty)];
         let mut output = vec![];
 
         while let Some(task) = stack.pop() {
@@ -377,17 +377,17 @@ impl Value {
                 Task::Prune(value, pruned_ty) => match pruned_ty.bound() {
                     CompleteBound::Unit => output.push(Value::unit()),
                     CompleteBound::Sum(l_ty, r_ty) => {
-                        if let Some(l_value) = value.as_left() {
+                        if let Some(l_value) = value.to_left() {
                             stack.push(Task::MakeLeft(Arc::clone(r_ty)));
                             stack.push(Task::Prune(l_value, l_ty));
                         } else {
-                            let r_value = value.as_right()?;
+                            let r_value = value.to_right()?;
                             stack.push(Task::MakeRight(Arc::clone(l_ty)));
                             stack.push(Task::Prune(r_value, r_ty));
                         }
                     }
                     CompleteBound::Product(l_ty, r_ty) => {
-                        let (l_value, r_value) = value.as_product()?;
+                        let (l_value, r_value) = value.to_product()?;
                         stack.push(Task::MakeProduct);
                         stack.push(Task::Prune(r_value, r_ty));
                         stack.push(Task::Prune(l_value, l_ty));
@@ -458,14 +458,14 @@ impl fmt::Display for Value {
 
 /// An iterator over the bits of the padded encoding of a [`Value`].
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-struct PaddedBitsIter<'a> {
-    stack: Vec<&'a Value>,
+struct PaddedBitsIter {
+    stack: Vec<Value>,
     next_padding: Option<usize>,
 }
 
-impl<'a> PaddedBitsIter<'a> {
+impl PaddedBitsIter {
     /// Create an iterator over the bits of the padded encoding of the `value`.
-    pub fn new(value: &'a Value) -> Self {
+    pub fn new(value: Value) -> Self {
         Self {
             stack: vec![value],
             next_padding: None,
@@ -473,7 +473,7 @@ impl<'a> PaddedBitsIter<'a> {
     }
 }
 
-impl Iterator for PaddedBitsIter<'_> {
+impl Iterator for PaddedBitsIter {
     type Item = bool;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -491,17 +491,17 @@ impl Iterator for PaddedBitsIter<'_> {
         while let Some(value) = self.stack.pop() {
             if value.is_unit() {
                 // NOP
-            } else if let Some(l_value) = value.as_left() {
+            } else if let Some(l_value) = value.to_left() {
                 let (l_ty, r_ty) = value.ty.as_sum().unwrap();
                 self.stack.push(l_value);
                 self.next_padding = Some(l_ty.pad_left(r_ty));
                 return Some(false);
-            } else if let Some(r_value) = value.as_right() {
+            } else if let Some(r_value) = value.to_right() {
                 let (l_ty, r_ty) = value.ty.as_sum().unwrap();
                 self.stack.push(r_value);
                 self.next_padding = Some(l_ty.pad_right(r_ty));
                 return Some(true);
-            } else if let Some((l_value, r_value)) = value.as_product() {
+            } else if let Some((l_value, r_value)) = value.to_product() {
                 self.stack.push(r_value);
                 self.stack.push(l_value);
             }

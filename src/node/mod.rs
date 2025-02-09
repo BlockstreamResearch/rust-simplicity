@@ -190,14 +190,14 @@ pub trait CoreConstructible: Sized {
     /// The expression is minimized by using as many word jets as possible.
     fn scribe(ctx: &types::Context, value: &Value) -> Self {
         #[derive(Debug, Clone)]
-        enum Task<'a> {
-            Process(&'a Value),
+        enum Task {
+            Process(Value),
             MakeLeft,
             MakeRight,
             MakeProduct,
         }
 
-        let mut input = vec![Task::Process(value)];
+        let mut input = vec![Task::Process(value.shallow_clone())];
         let mut output = vec![];
         while let Some(top) = input.pop() {
             match top {
@@ -206,13 +206,13 @@ pub trait CoreConstructible: Sized {
                         output.push(Self::unit(ctx));
                     } else if let Some(word) = value.to_word() {
                         output.push(Self::const_word(ctx, word));
-                    } else if let Some(left) = value.as_left() {
+                    } else if let Some(left) = value.to_left() {
                         input.push(Task::MakeLeft);
                         input.push(Task::Process(left));
-                    } else if let Some(right) = value.as_right() {
+                    } else if let Some(right) = value.to_right() {
                         input.push(Task::MakeRight);
                         input.push(Task::Process(right));
-                    } else if let Some((left, right)) = value.as_product() {
+                    } else if let Some((left, right)) = value.to_product() {
                         input.push(Task::MakeProduct);
                         input.push(Task::Process(right));
                         input.push(Task::Process(left));
