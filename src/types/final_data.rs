@@ -232,17 +232,17 @@ impl Final {
     }
 
     /// Access the inner types of a sum type.
-    pub fn as_sum(&self) -> Option<(&Self, &Self)> {
+    pub fn as_sum(&self) -> Option<(&Arc<Self>, &Arc<Self>)> {
         match &self.bound {
-            CompleteBound::Sum(left, right) => Some((left.as_ref(), right.as_ref())),
+            CompleteBound::Sum(left, right) => Some((left, right)),
             _ => None,
         }
     }
 
     /// Access the inner types of a product type.
-    pub fn as_product(&self) -> Option<(&Self, &Self)> {
+    pub fn as_product(&self) -> Option<(&Arc<Self>, &Arc<Self>)> {
         match &self.bound {
-            CompleteBound::Product(left, right) => Some((left.as_ref(), right.as_ref())),
+            CompleteBound::Product(left, right) => Some((left, right)),
             _ => None,
         }
     }
