@@ -111,18 +111,12 @@ impl Value {
 
     /// Create a none value.
     pub fn none(right: Arc<Final>) -> Self {
-        Self {
-            ty: Final::sum(Final::unit(), right),
-            inner: ValueInner::Left(Arc::new(Value::unit())),
-        }
+        Self::left(Value::unit(), right)
     }
 
     /// Create a some value.
     pub fn some(inner: Self) -> Self {
-        Self {
-            ty: Final::sum(Final::unit(), Arc::clone(&inner.ty)),
-            inner: ValueInner::Right(Arc::new(inner)),
-        }
+        Self::right(Final::unit(), inner)
     }
 
     /// Return the bit length of the value in compact encoding.
@@ -132,19 +126,18 @@ impl Value {
 
     /// Return the bit length of the value in padded encoding.
     pub fn padded_len(&self) -> usize {
-        self.iter_padded().count()
+        self.ty.bit_width()
     }
 
     /// Check if the value is a nested product of units.
     /// In this case, the value contains no information.
     pub fn is_empty(&self) -> bool {
-        self.pre_order_iter::<NoSharing>()
-            .all(|value| matches!(&value.inner, ValueInner::Unit | ValueInner::Product(..)))
+        self.ty.bit_width() == 0
     }
 
     /// Check if the value is a unit.
     pub fn is_unit(&self) -> bool {
-        matches!(&self.inner, ValueInner::Unit)
+        self.ty.is_unit()
     }
 
     /// Access the inner value of a left sum value.
