@@ -121,7 +121,7 @@ impl Cmr {
         let imr_iv = Self::CONST_WORD_IV;
         let imr_pass1 = imr_iv.update_1(cmr_stack[0]);
         // 2. Add TMRs to get the pass-two IMR
-        let imr_pass2 = imr_pass1.update(Tmr::unit().into(), Tmr::POWERS_OF_TWO[w - 1].into());
+        let imr_pass2 = imr_pass1.update(Tmr::unit().into(), Tmr::TWO_TWO_N[w - 1].into());
         // 3. Convert to a jet CMR
         Cmr(bip340_iv(b"Simplicity\x1fJet")).update_with_weight(word.len() as u64, imr_pass2)
     }

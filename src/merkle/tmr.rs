@@ -41,7 +41,7 @@ impl Tmr {
 
     /// The TMRs of the types TWO^(2^n) for small values of n
     #[rustfmt::skip]
-    pub const POWERS_OF_TWO: [Tmr; 32] = [
+    pub const TWO_TWO_N: [Tmr; 32] = [
         Tmr(Midstate([
             0x88, 0x5a, 0x22, 0xde, 0x3e, 0xdb, 0x3f, 0x40,
             0xdb, 0x06, 0x09, 0xc2, 0x40, 0x23, 0x30, 0x3f,
@@ -305,14 +305,14 @@ mod tests {
             assert_eq!(target, expected_tmrs[i], "mismatch on TMR for TWO^(2^{i})");
         }
 
-        let n = Tmr::POWERS_OF_TWO.len();
+        let n = Tmr::TWO_TWO_N.len();
         let tmrs = types::Type::powers_of_two(&types::Context::new(), n)
             .iter()
             .filter_map(types::Type::tmr)
             .collect::<Vec<Tmr>>();
         debug_assert_eq!(tmrs.len(), n);
         for i in 0..n {
-            check_pow(Tmr::POWERS_OF_TWO[i], i, &tmrs);
+            check_pow(Tmr::TWO_TWO_N[i], i, &tmrs);
         }
     }
 }

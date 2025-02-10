@@ -83,11 +83,11 @@ impl fmt::Display for Final {
                 }
                 continue;
             } else {
-                if data.node.tmr == Tmr::POWERS_OF_TWO[0] {
+                if data.node.tmr == Tmr::TWO_TWO_N[0] {
                     f.write_str("2")?;
                     skipping = Some(data.node.tmr);
                 }
-                for (n, tmr) in Tmr::POWERS_OF_TWO.iter().enumerate().skip(1) {
+                for (n, tmr) in Tmr::TWO_TWO_N.iter().enumerate().skip(1) {
                     if data.node.tmr == *tmr {
                         write!(f, "2^{}", 1 << n)?;
                         skipping = Some(data.node.tmr);
@@ -254,7 +254,7 @@ impl Final {
     /// 0 ≤ n < 32.
     pub fn as_word(&self) -> Option<u32> {
         (0..32u32).find(|&n| {
-            self.tmr == Tmr::POWERS_OF_TWO[n as usize] // cast safety: 32-bit machine or higher
+            self.tmr == Tmr::TWO_TWO_N[n as usize] // cast safety: 32-bit machine or higher
         })
     }
 

@@ -21,10 +21,10 @@ use std::convert::TryInto;
 use std::sync::Arc;
 
 // Directly use the size of the precomputed TMR table to make sure they're in sync.
-const N_POWERS: usize = Tmr::POWERS_OF_TWO.len();
+const N_POWERS: usize = Tmr::TWO_TWO_N.len();
 
 thread_local! {
-    static POWERS_OF_TWO: RefCell<Option<[Arc<Final>; N_POWERS]>> = const { RefCell::new(None) };
+    static TWO_TWO_N: RefCell<Option<[Arc<Final>; N_POWERS]>> = const { RefCell::new(None) };
 }
 
 fn initialize(write: &mut Option<[Arc<Final>; N_POWERS]>) {
@@ -49,9 +49,9 @@ fn initialize(write: &mut Option<[Arc<Final>; N_POWERS]>) {
 ///
 /// # Panics
 ///
-/// Panics if you request a number `n` greater than or equal to [`Tmr::POWERS_OF_TWO`].
+/// Panics if you request a number `n` greater than or equal to [`Tmr::TWO_TWO_N`].
 pub fn nth_power_of_2(n: usize) -> Arc<Final> {
-    POWERS_OF_TWO.with(|arr| {
+    TWO_TWO_N.with(|arr| {
         if arr.borrow().is_none() {
             initialize(&mut arr.borrow_mut());
         }

@@ -961,21 +961,20 @@ impl Value {
         let mut result_stack = vec![];
         'stack_loop: while let Some(state) = stack.pop() {
             match state {
-                State::ProcessType(ty) if ty.tmr() == Tmr::POWERS_OF_TWO[0] => {
+                State::ProcessType(ty) if ty.tmr() == Tmr::TWO_TWO_N[0] => {
                     result_stack.push(Value::u1(bits.read_bit()?.into()));
                 }
-                State::ProcessType(ty) if ty.tmr() == Tmr::POWERS_OF_TWO[1] => {
+                State::ProcessType(ty) if ty.tmr() == Tmr::TWO_TWO_N[1] => {
                     result_stack.push(Value::u2(bits.read_u2()?.into()));
                 }
-                State::ProcessType(ty) if ty.tmr() == Tmr::POWERS_OF_TWO[2] => {
+                State::ProcessType(ty) if ty.tmr() == Tmr::TWO_TWO_N[2] => {
                     let u4 = (u8::from(bits.read_u2()?) << 2) + u8::from(bits.read_u2()?);
                     result_stack.push(Value::u4(u4));
                 }
                 State::ProcessType(ty) => {
-                    // The POWERS_OF_TWO array is somewhat misnamed; the ith index contains
-                    // the TMR of TWO^(2^n). So e.g. the 0th index is 2 (a bit), the 1st is
-                    // u2, then u4, and the 3rd is u8.
-                    for (logn, tmr) in Tmr::POWERS_OF_TWO.iter().skip(3).enumerate() {
+                    // The TWO_TWO_N array is indexed by number of bits. By skipping the
+                    // first three entries we index it by number of bytes.
+                    for (logn, tmr) in Tmr::TWO_TWO_N.iter().skip(3).enumerate() {
                         if ty.tmr() == *tmr {
                             let mut blob = Vec::with_capacity(1 << logn);
                             for _ in 0..blob.capacity() {
