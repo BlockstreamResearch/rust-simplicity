@@ -817,7 +817,8 @@ impl Iterator for CompactBitsIter<'_> {
 }
 
 impl Value {
-    fn from_bits<I: Iterator<Item = u8>>(
+    /// Decode a value of the given type from its compact bit encoding.
+    pub fn from_compact_bits<I: Iterator<Item = u8>>(
         bits: &mut BitIter<I>,
         ty: &Final,
     ) -> Result<Self, EarlyEndOfStreamError> {
@@ -870,14 +871,6 @@ impl Value {
         }
         debug_assert_eq!(result_stack.len(), 1);
         Ok(result_stack.pop().unwrap())
-    }
-
-    /// Decode a value of the given type from its compact bit encoding.
-    pub fn from_compact_bits<I: Iterator<Item = u8>>(
-        bits: &mut BitIter<I>,
-        ty: &Final,
-    ) -> Result<Self, EarlyEndOfStreamError> {
-        Self::from_bits(bits, ty)
     }
 
     /// Decode a value of the given type from its padded bit encoding.
