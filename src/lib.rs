@@ -65,7 +65,7 @@ pub use crate::merkle::{
     tmr::Tmr,
     FailEntropy, HasCmr,
 };
-pub use crate::node::{CommitNode, ConstructNode, Hiding, RedeemNode, WitnessNode};
+pub use crate::node::{CommitNode, ConstructNode, Hiding, RedeemNode};
 pub use crate::value::{Value, Word};
 pub use simplicity_sys as ffi;
 use std::fmt;
@@ -88,8 +88,6 @@ pub enum Error {
     Type(types::Error),
     // Execution error
     Execution(bit_machine::ExecutionError),
-    /// Witness iterator ended early
-    NoMoreWitnesses,
     /// Tried to parse a jet but the name wasn't recognized
     InvalidJetName(String),
     /// Policy error
@@ -107,7 +105,6 @@ impl fmt::Display for Error {
             Error::Type(ref e) => fmt::Display::fmt(e, f),
             Error::Execution(ref e) => fmt::Display::fmt(e, f),
             Error::InvalidJetName(s) => write!(f, "unknown jet `{}`", s),
-            Error::NoMoreWitnesses => f.write_str("no more witness data available"),
             #[cfg(feature = "elements")]
             Error::Policy(ref e) => fmt::Display::fmt(e, f),
         }
@@ -121,7 +118,6 @@ impl std::error::Error for Error {
             Error::DisconnectRedeemTime => None,
             Error::Type(ref e) => Some(e),
             Error::Execution(ref e) => Some(e),
-            Error::NoMoreWitnesses => None,
             Error::InvalidJetName(..) => None,
             #[cfg(feature = "elements")]
             Error::Policy(ref e) => Some(e),

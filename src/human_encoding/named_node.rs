@@ -6,13 +6,12 @@ use crate::dag::{InternalSharing, MaxSharing, PostOrderIterItem};
 use crate::human_encoding::{Error, ErrorSet, Position, WitnessOrHole};
 use crate::jet::Jet;
 use crate::node::{
-    self, Commit, CommitData, CommitNode, Converter, Inner, NoDisconnect, NoWitness, Node, Witness,
-    WitnessData,
+    self, Commit, CommitData, CommitNode, Construct, ConstructData, Constructible as _, Converter,
+    CoreConstructible as _, Inner, NoDisconnect, NoWitness, Node,
 };
-use crate::node::{Construct, ConstructData, Constructible as _, CoreConstructible as _};
 use crate::types;
 use crate::types::arrow::{Arrow, FinalArrow};
-use crate::{encode, Value, WitnessNode};
+use crate::{encode, ConstructNode, Value};
 use crate::{BitWriter, Cmr, Imr};
 
 use std::collections::HashMap;
@@ -108,11 +107,11 @@ impl<J: Jet> NamedCommitNode<J> {
             .unwrap()
     }
 
-    pub fn to_witness_node(
+    pub fn to_construct_node(
         &self,
         witness: &HashMap<Arc<str>, Value>,
         disconnect: &HashMap<Arc<str>, Arc<NamedCommitNode<J>>>,
-    ) -> Arc<WitnessNode<J>> {
+    ) -> Arc<ConstructNode<J>> {
         struct Populator<'a, J: Jet> {
             witness_map: &'a HashMap<Arc<str>, Value>,
             disconnect_map: &'a HashMap<Arc<str>, Arc<NamedCommitNode<J>>>,
@@ -120,7 +119,7 @@ impl<J: Jet> NamedCommitNode<J> {
             phantom: PhantomData<J>,
         }
 
-        impl<J: Jet> Converter<Named<Commit<J>>, Witness<J>> for Populator<'_, J> {
+        impl<J: Jet> Converter<Named<Commit<J>>, Construct<J>> for Populator<'_, J> {
             type Error = ();
 
             fn convert_witness(
@@ -140,9 +139,9 @@ impl<J: Jet> NamedCommitNode<J> {
             fn convert_disconnect(
                 &mut self,
                 data: &PostOrderIterItem<&Node<Named<Commit<J>>>>,
-                maybe_converted: Option<&Arc<Node<Witness<J>>>>,
+                maybe_converted: Option<&Arc<Node<Construct<J>>>>,
                 _: &Arc<str>,
-            ) -> Result<Option<Arc<Node<Witness<J>>>>, Self::Error> {
+            ) -> Result<Option<Arc<Node<Construct<J>>>>, Self::Error> {
                 if let Some(converted) = maybe_converted {
                     Ok(Some(converted.clone()))
                 } else {
@@ -172,16 +171,16 @@ impl<J: Jet> NamedCommitNode<J> {
                 &mut self,
                 _: &PostOrderIterItem<&Node<Named<Commit<J>>>>,
                 inner: Inner<
-                    &Arc<Node<Witness<J>>>,
+                    &Arc<Node<Construct<J>>>,
                     J,
-                    &Option<Arc<WitnessNode<J>>>,
+                    &Option<Arc<ConstructNode<J>>>,
                     &Option<Value>,
                 >,
-            ) -> Result<WitnessData<J>, Self::Error> {
+            ) -> Result<ConstructData<J>, Self::Error> {
                 let inner = inner
                     .map(|node| node.cached_data())
                     .map_witness(|maybe_value| maybe_value.clone());
-                Ok(WitnessData::from_inner(&self.inference_context, inner)
+                Ok(ConstructData::from_inner(&self.inference_context, inner)
                     .expect("types are already finalized"))
             }
         }
@@ -260,7 +259,7 @@ impl<J: Jet> NamedConstructNode<J> {
                 .as_ref()
                 .map(|data| &data.cached_data().internal)
                 .map_disconnect(|_| &None)
-                .map_witness(|_| NoWitness),
+                .map_witness(|_| None),
         )?;
         let named_data = NamedConstructData {
             internal: construct_data,

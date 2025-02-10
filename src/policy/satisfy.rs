@@ -2,7 +2,7 @@
 
 use crate::analysis::Cost;
 use crate::jet::Elements;
-use crate::node::{Hiding, RedeemNode, WitnessNode};
+use crate::node::{ConstructNode, Hiding, RedeemNode};
 use crate::policy::ToXOnlyPubkey;
 use crate::types;
 use crate::{Cmr, Policy, Value};
@@ -57,7 +57,7 @@ pub trait Satisfier<Pk: ToXOnlyPubkey> {
     ///
     /// If the assembly program fails to run for the current transaction environment,
     /// then implementations should return `None`.
-    fn lookup_asm_program(&self, _: Cmr) -> Option<Arc<WitnessNode<Elements>>> {
+    fn lookup_asm_program(&self, _: Cmr) -> Option<Arc<ConstructNode<Elements>>> {
         None
     }
 }
@@ -105,7 +105,7 @@ pub enum SatisfierError {
     AssemblyFailed(crate::bit_machine::ExecutionError),
 }
 
-type SatResult = Hiding<Arc<WitnessNode<Elements>>>;
+type SatResult = Hiding<Arc<ConstructNode<Elements>>>;
 
 fn ok_if(condition: bool, expr: SatResult) -> SatResult {
     match condition {
@@ -278,7 +278,7 @@ mod tests {
     pub struct PolicySatisfier<'a, Pk: SimplicityKey> {
         pub preimages: HashMap<Pk::Sha256, Preimage32>,
         pub signatures: HashMap<Pk, elements::SchnorrSig>,
-        pub assembly: HashMap<Cmr, Arc<WitnessNode<Elements>>>,
+        pub assembly: HashMap<Cmr, Arc<ConstructNode<Elements>>>,
         pub tx: &'a elements::Transaction,
         pub index: usize,
     }
@@ -305,7 +305,7 @@ mod tests {
             <elements::LockTime as Satisfier<Pk>>::check_after(&self.tx.lock_time, locktime)
         }
 
-        fn lookup_asm_program(&self, cmr: Cmr) -> Option<Arc<WitnessNode<Elements>>> {
+        fn lookup_asm_program(&self, cmr: Cmr) -> Option<Arc<ConstructNode<Elements>>> {
             self.assembly.get(&cmr).cloned()
         }
     }
@@ -681,12 +681,12 @@ mod tests {
 
         let mut assert_branch = |witness0: Value, witness1: Value| {
             let asm_program = serialize::verify_bexp(
-                &Arc::<WitnessNode<Elements>>::pair(
-                    &Arc::<WitnessNode<Elements>>::witness(&ctx, Some(witness0.clone())),
-                    &Arc::<WitnessNode<Elements>>::witness(&ctx, Some(witness1.clone())),
+                &Arc::<ConstructNode<Elements>>::pair(
+                    &Arc::<ConstructNode<Elements>>::witness(&ctx, Some(witness0.clone())),
+                    &Arc::<ConstructNode<Elements>>::witness(&ctx, Some(witness1.clone())),
                 )
                 .expect("sound types"),
-                &Arc::<WitnessNode<Elements>>::jet(&ctx, Elements::Eq8),
+                &Arc::<ConstructNode<Elements>>::jet(&ctx, Elements::Eq8),
             );
             let cmr = asm_program.cmr();
             satisfier.assembly.insert(cmr, asm_program);

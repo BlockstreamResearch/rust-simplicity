@@ -13,11 +13,9 @@ use std::sync::Arc;
 use std::{fmt, iter, mem};
 
 use crate::jet::Elements;
-use crate::node::{
-    ConstructNode, CoreConstructible, JetConstructible, NoWitness, WitnessConstructible,
-};
+use crate::node::{ConstructNode, CoreConstructible, JetConstructible, WitnessConstructible};
 use crate::policy::serialize::{self, AssemblyConstructible};
-use crate::types;
+use crate::{types, Value};
 use crate::{Cmr, CommitNode, FailEntropy};
 use crate::{SimplicityKey, ToXOnlyPubkey, Translator};
 
@@ -63,7 +61,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
     where
         N: CoreConstructible
             + JetConstructible<Elements>
-            + WitnessConstructible<NoWitness>
+            + WitnessConstructible<Option<Value>>
             + AssemblyConstructible,
     {
         match *self {
@@ -73,12 +71,10 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
             Policy::Trivial => Some(serialize::trivial(inference_context)),
             Policy::After(n) => Some(serialize::after(inference_context, n)),
             Policy::Older(n) => Some(serialize::older(inference_context, n)),
-            Policy::Key(ref key) => Some(serialize::key(inference_context, key, NoWitness)),
-            Policy::Sha256(ref hash) => Some(serialize::sha256::<Pk, _, _>(
-                inference_context,
-                hash,
-                NoWitness,
-            )),
+            Policy::Key(ref key) => Some(serialize::key(inference_context, key, None)),
+            Policy::Sha256(ref hash) => {
+                Some(serialize::sha256::<Pk, _, _>(inference_context, hash, None))
+            }
             Policy::And {
                 ref left,
                 ref right,
@@ -93,7 +89,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
             } => {
                 let left = left.serialize_no_witness(inference_context)?;
                 let right = right.serialize_no_witness(inference_context)?;
-                Some(serialize::or(&left, &right, NoWitness))
+                Some(serialize::or(&left, &right, None))
             }
             Policy::Threshold(k, ref subs) => {
                 let k = u32::try_from(k).expect("can have k at most 2^32 in a threshold");
@@ -101,9 +97,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                     .iter()
                     .map(|sub| sub.serialize_no_witness(inference_context))
                     .collect::<Option<Vec<N>>>()?;
-                let wits = iter::repeat(NoWitness)
-                    .take(subs.len())
-                    .collect::<Vec<NoWitness>>();
+                let wits = iter::repeat(None).take(subs.len()).collect::<Vec<_>>();
                 Some(serialize::threshold(k, &subs, &wits))
             }
             Policy::Assembly(cmr) => N::assembly(inference_context, cmr),

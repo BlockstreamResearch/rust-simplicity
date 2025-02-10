@@ -9,7 +9,7 @@ use crate::dag::{Dag, DagLike, InternalSharing};
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::node::{
-    ConstructNode, CoreConstructible, DisconnectConstructible, JetConstructible, NoWitness,
+    ConstructNode, CoreConstructible, DisconnectConstructible, JetConstructible,
     WitnessConstructible,
 };
 use crate::types;
@@ -235,7 +235,7 @@ pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
                 converted[i].get()?,
                 &Some(Arc::clone(converted[j].get()?)),
             )?),
-            DecodeNode::Witness => Node(ArcNode::witness(&inference_context, NoWitness)),
+            DecodeNode::Witness => Node(ArcNode::witness(&inference_context, None)),
             DecodeNode::Fail(entropy) => Node(ArcNode::fail(&inference_context, entropy)),
             DecodeNode::Hidden(cmr) => {
                 if !hidden_set.insert(cmr) {

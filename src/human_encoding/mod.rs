@@ -13,7 +13,7 @@ mod parse;
 use crate::dag::{DagLike, MaxSharing};
 use crate::jet::Jet;
 use crate::node::{self, CommitNode, NoWitness};
-use crate::{Cmr, Imr, Value, WitnessNode};
+use crate::{Cmr, ConstructNode, Imr, Value};
 
 use std::collections::HashMap;
 use std::str;
@@ -213,9 +213,9 @@ impl<J: Jet> Forest<J> {
     pub fn to_witness_node(
         &self,
         witness: &HashMap<Arc<str>, Value>,
-    ) -> Option<Arc<WitnessNode<J>>> {
+    ) -> Option<Arc<ConstructNode<J>>> {
         let main = self.roots.get("main")?;
-        Some(main.to_witness_node(witness, self.roots()))
+        Some(main.to_construct_node(witness, self.roots()))
     }
 }
 
