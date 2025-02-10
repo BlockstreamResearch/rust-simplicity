@@ -36,6 +36,10 @@ pub struct Final {
     bound: CompleteBound,
     /// Width of the type, in bits, in the bit machine
     bit_width: usize,
+    /// Whether the type's bit representation has any padding. If this is true,
+    /// then its "compact" witness-encoded bit-width may be lower than its "padded"
+    /// bit-machine bit-width.
+    has_padding: bool,
     /// TMR of the type
     tmr: Tmr,
 }
@@ -83,11 +87,11 @@ impl fmt::Display for Final {
                 }
                 continue;
             } else {
-                if data.node.tmr == Tmr::POWERS_OF_TWO[0] {
+                if data.node.tmr == Tmr::TWO_TWO_N[0] {
                     f.write_str("2")?;
                     skipping = Some(data.node.tmr);
                 }
-                for (n, tmr) in Tmr::POWERS_OF_TWO.iter().enumerate().skip(1) {
+                for (n, tmr) in Tmr::TWO_TWO_N.iter().enumerate().skip(1) {
                     if data.node.tmr == *tmr {
                         write!(f, "2^{}", 1 << n)?;
                         skipping = Some(data.node.tmr);
@@ -165,6 +169,7 @@ impl Final {
         Arc::new(Final {
             bound: CompleteBound::Unit,
             bit_width: 0,
+            has_padding: false,
             tmr: Tmr::unit(),
         })
     }
@@ -192,6 +197,7 @@ impl Final {
         Arc::new(Final {
             tmr: Tmr::sum(left.tmr, right.tmr),
             bit_width: 1 + cmp::max(left.bit_width, right.bit_width),
+            has_padding: left.has_padding || right.has_padding || left.bit_width != right.bit_width,
             bound: CompleteBound::Sum(left, right),
         })
     }
@@ -201,6 +207,7 @@ impl Final {
         Arc::new(Final {
             tmr: Tmr::product(left.tmr, right.tmr),
             bit_width: left.bit_width + right.bit_width,
+            has_padding: left.has_padding || right.has_padding,
             bound: CompleteBound::Product(left, right),
         })
     }
@@ -213,6 +220,14 @@ impl Final {
     /// Accessor for the Bit Machine bit-width of the type
     pub fn bit_width(&self) -> usize {
         self.bit_width
+    }
+
+    /// Whether the type's bit representation has any padding.
+    ///
+    /// If this is true, then its "compact" witness-encoded bit-width may be lower
+    /// than its "padded" bit-machine bit-width.
+    pub fn has_padding(&self) -> bool {
+        self.has_padding
     }
 
     /// Check if the type is a nested product of units.
@@ -254,7 +269,7 @@ impl Final {
     /// 0 ≤ n < 32.
     pub fn as_word(&self) -> Option<u32> {
         (0..32u32).find(|&n| {
-            self.tmr == Tmr::POWERS_OF_TWO[n as usize] // cast safety: 32-bit machine or higher
+            self.tmr == Tmr::TWO_TWO_N[n as usize] // cast safety: 32-bit machine or higher
         })
     }
 

@@ -9,7 +9,7 @@ use crate::dag::{Dag, DagLike};
 use crate::types::{CompleteBound, Final};
 use crate::BitIter;
 
-use crate::{BitCollector, EarlyEndOfStreamError, Tmr};
+use crate::{BitCollector, EarlyEndOfStreamError};
 use core::{cmp, fmt, iter};
 use std::collections::VecDeque;
 use std::hash::Hash;
@@ -37,12 +37,12 @@ pub struct Value {
     ty: Arc<Final>,
 }
 
-/// Private structure used for iterating over a value in pre-order
+/// Reference to a value, or to a sub-value of a value.
 #[derive(Debug, Clone)]
-struct ValueRef<'v> {
-    inner: &'v [u8],
+pub struct ValueRef<'v> {
+    inner: &'v Arc<[u8]>,
     bit_offset: usize,
-    ty: &'v Final,
+    ty: &'v Arc<Final>,
 }
 
 // Because two equal values may have different bit offsets, we must manually
@@ -103,7 +103,7 @@ impl DagLike for ValueRef<'_> {
 
 impl ValueRef<'_> {
     /// Check if the value is a unit.
-    fn is_unit(&self) -> bool {
+    pub fn is_unit(&self) -> bool {
         self.ty.is_unit()
     }
 
@@ -178,6 +178,23 @@ impl ValueRef<'_> {
         } else {
             None
         }
+    }
+
+    /// Convert the reference back to a value.
+    pub fn to_value(&self) -> Value {
+        Value {
+            inner: Arc::clone(self.inner),
+            bit_offset: self.bit_offset,
+            ty: Arc::clone(self.ty),
+        }
+    }
+
+    /// Try to convert the value into a word.
+    pub fn to_word(&self) -> Option<Word> {
+        self.ty.as_word().map(|n| Word {
+            value: self.to_value(),
+            n,
+        })
     }
 }
 
@@ -418,84 +435,28 @@ impl Value {
         self.ty.is_unit()
     }
 
-    /// Helper function to convert the value to a reference
-    fn as_value(&self) -> ValueRef {
+    /// A reference to this value, which can be recursed over.
+    pub fn as_ref(&self) -> ValueRef {
         ValueRef {
-            inner: self.inner.as_ref(),
+            inner: &self.inner,
             bit_offset: self.bit_offset,
-            ty: self.ty.as_ref(),
+            ty: &self.ty,
         }
-    }
-
-    /// Helper function to read the first bit of a value
-    ///
-    /// If the first bit is not available (e.g. if the value has zero size)
-    /// then returns None.
-    fn first_bit(&self) -> Option<bool> {
-        let mask = if self.bit_offset % 8 == 0 {
-            0x80
-        } else {
-            1 << (7 - self.bit_offset % 8)
-        };
-        let res = self
-            .inner
-            .get(self.bit_offset / 8)
-            .map(|x| x & mask == mask);
-        res
     }
 
     /// Access the inner value of a left sum value.
-    pub fn to_left(&self) -> Option<Self> {
-        if self.first_bit() == Some(false) {
-            if let Some((lty, _)) = self.ty.as_sum() {
-                Some(Self {
-                    inner: Arc::clone(&self.inner),
-                    bit_offset: self.bit_offset + self.ty.bit_width() - lty.bit_width(),
-                    ty: Arc::clone(lty),
-                })
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+    pub fn as_left(&self) -> Option<ValueRef> {
+        self.as_ref().as_left()
     }
 
     /// Access the inner value of a right sum value.
-    pub fn to_right(&self) -> Option<Self> {
-        if self.first_bit() == Some(true) {
-            if let Some((_, rty)) = self.ty.as_sum() {
-                Some(Self {
-                    inner: Arc::clone(&self.inner),
-                    bit_offset: self.bit_offset + self.ty.bit_width() - rty.bit_width(),
-                    ty: Arc::clone(rty),
-                })
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+    pub fn as_right(&self) -> Option<ValueRef> {
+        self.as_ref().as_right()
     }
 
     /// Access the inner values of a product value.
-    pub fn to_product(&self) -> Option<(Self, Self)> {
-        if let Some((lty, rty)) = self.ty.as_product() {
-            Some((
-                Self {
-                    inner: Arc::clone(&self.inner),
-                    bit_offset: self.bit_offset,
-                    ty: Arc::clone(lty),
-                },
-                Self {
-                    inner: Arc::clone(&self.inner),
-                    bit_offset: self.bit_offset + lty.bit_width(),
-                    ty: Arc::clone(rty),
-                },
-            ))
-        } else {
-            None
-        }
+    pub fn as_product(&self) -> Option<(ValueRef, ValueRef)> {
+        self.as_ref().as_product()
     }
 
     /// Create a 1-bit integer.
@@ -641,7 +602,7 @@ impl Value {
     ///
     /// This encoding is used for writing witness data and for computing IMRs.
     pub fn iter_compact(&self) -> CompactBitsIter {
-        CompactBitsIter::new(self.as_value())
+        CompactBitsIter::new(self.as_ref())
     }
 
     /// Return an iterator over the padded bit encoding of the value.
@@ -668,43 +629,11 @@ impl Value {
     /// - `zero( A + B )` = `zero(A)`
     /// - `zero( A × B )` = `zero(A) × zero(B)`
     pub fn zero(ty: &Final) -> Self {
-        enum Task<'a> {
-            ZeroValue(&'a Final),
-            MakeLeft(Arc<Final>),
-            MakeProduct,
+        Self {
+            inner: Arc::from(vec![0; (ty.bit_width() + 7) / 8]),
+            bit_offset: 0,
+            ty: Arc::new(ty.clone()),
         }
-
-        let mut output = vec![];
-        let mut stack = vec![Task::ZeroValue(ty)];
-
-        while let Some(task) = stack.pop() {
-            match task {
-                Task::ZeroValue(ty) => match ty.bound() {
-                    CompleteBound::Unit => output.push(Value::unit()),
-                    CompleteBound::Sum(l_ty, r_ty) => {
-                        stack.push(Task::MakeLeft(Arc::clone(r_ty)));
-                        stack.push(Task::ZeroValue(l_ty));
-                    }
-                    CompleteBound::Product(l_ty, r_ty) => {
-                        stack.push(Task::MakeProduct);
-                        stack.push(Task::ZeroValue(r_ty));
-                        stack.push(Task::ZeroValue(l_ty));
-                    }
-                },
-                Task::MakeLeft(r_ty) => {
-                    let l_value = output.pop().unwrap();
-                    output.push(Value::left(l_value, r_ty));
-                }
-                Task::MakeProduct => {
-                    let r_value = output.pop().unwrap();
-                    let l_value = output.pop().unwrap();
-                    output.push(Value::product(l_value, r_value));
-                }
-            }
-        }
-
-        debug_assert_eq!(output.len(), 1);
-        output.pop().unwrap()
     }
 
     /// Try to convert the value into a word.
@@ -736,32 +665,35 @@ impl Value {
     /// - `prune( R(r): A1 + B1, A2 + B2 )` = `prune(r: B1, B2) : A2 + B2`
     /// - `prune( (l, r): A1 × B1, A2 × B2 )` = `( prune(l: A1, A2), prune(r: B1, B2): A2 × B2`
     pub fn prune(&self, pruned_ty: &Final) -> Option<Self> {
-        enum Task<'ty> {
-            Prune(Value, &'ty Final),
+        enum Task<'v, 'ty> {
+            Prune(ValueRef<'v>, &'ty Final),
             MakeLeft(Arc<Final>),
             MakeRight(Arc<Final>),
             MakeProduct,
         }
 
-        let mut stack = vec![Task::Prune(self.shallow_clone(), pruned_ty)];
+        let mut stack = vec![Task::Prune(self.as_ref(), pruned_ty)];
         let mut output = vec![];
 
         while let Some(task) = stack.pop() {
             match task {
+                Task::Prune(value, pruned_ty) if value.ty.as_ref() == pruned_ty => {
+                    output.push(value.to_value())
+                }
                 Task::Prune(value, pruned_ty) => match pruned_ty.bound() {
                     CompleteBound::Unit => output.push(Value::unit()),
                     CompleteBound::Sum(l_ty, r_ty) => {
-                        if let Some(l_value) = value.to_left() {
+                        if let Some(l_value) = value.as_left() {
                             stack.push(Task::MakeLeft(Arc::clone(r_ty)));
                             stack.push(Task::Prune(l_value, l_ty));
                         } else {
-                            let r_value = value.to_right()?;
+                            let r_value = value.as_right()?;
                             stack.push(Task::MakeRight(Arc::clone(l_ty)));
                             stack.push(Task::Prune(r_value, r_ty));
                         }
                     }
                     CompleteBound::Product(l_ty, r_ty) => {
-                        let (l_value, r_value) = value.to_product()?;
+                        let (l_value, r_value) = value.as_product()?;
                         stack.push(Task::MakeProduct);
                         stack.push(Task::Prune(r_value, r_ty));
                         stack.push(Task::Prune(l_value, l_ty));
@@ -813,7 +745,7 @@ impl fmt::Display for Value {
         // Next node to visit, and a boolean indicating whether we should
         // display units explicitly (turned off for sums, since a sum of
         // a unit is displayed simply as 0 or 1.
-        stack.push(S::Disp(self.as_value()));
+        stack.push(S::Disp(self.as_ref()));
 
         while let Some(next) = stack.pop() {
             let value = match next {
@@ -884,69 +816,9 @@ impl Iterator for CompactBitsIter<'_> {
     }
 }
 
-trait Padding {
-    fn read_left_padding<I: Iterator<Item = bool>>(
-        bits: &mut I,
-        ty_l: &Final,
-        ty_r: &Final,
-    ) -> Result<(), EarlyEndOfStreamError>;
-
-    fn read_right_padding<I: Iterator<Item = bool>>(
-        bits: &mut I,
-        ty_l: &Final,
-        ty_r: &Final,
-    ) -> Result<(), EarlyEndOfStreamError>;
-}
-
-enum CompactEncoding {}
-enum PaddedEncoding {}
-
-impl Padding for CompactEncoding {
-    fn read_left_padding<I: Iterator<Item = bool>>(
-        _: &mut I,
-        _: &Final,
-        _: &Final,
-    ) -> Result<(), EarlyEndOfStreamError> {
-        // no padding
-        Ok(())
-    }
-
-    fn read_right_padding<I: Iterator<Item = bool>>(
-        _: &mut I,
-        _: &Final,
-        _: &Final,
-    ) -> Result<(), EarlyEndOfStreamError> {
-        // no padding
-        Ok(())
-    }
-}
-
-impl Padding for PaddedEncoding {
-    fn read_left_padding<I: Iterator<Item = bool>>(
-        bits: &mut I,
-        ty_l: &Final,
-        ty_r: &Final,
-    ) -> Result<(), EarlyEndOfStreamError> {
-        for _ in 0..ty_l.pad_left(ty_r) {
-            let _padding = bits.next().ok_or(EarlyEndOfStreamError)?;
-        }
-        Ok(())
-    }
-
-    fn read_right_padding<I: Iterator<Item = bool>>(
-        bits: &mut I,
-        ty_l: &Final,
-        ty_r: &Final,
-    ) -> Result<(), EarlyEndOfStreamError> {
-        for _ in 0..ty_l.pad_right(ty_r) {
-            let _padding = bits.next().ok_or(EarlyEndOfStreamError)?;
-        }
-        Ok(())
-    }
-}
-
 impl Value {
-    fn from_bits<I: Iterator<Item = u8>, P: Padding>(
+    /// Decode a value of the given type from its compact bit encoding.
+    pub fn from_compact_bits<I: Iterator<Item = u8>>(
         bits: &mut BitIter<I>,
         ty: &Final,
     ) -> Result<Self, EarlyEndOfStreamError> {
@@ -959,56 +831,28 @@ impl Value {
 
         let mut stack = vec![State::ProcessType(ty)];
         let mut result_stack = vec![];
-        'stack_loop: while let Some(state) = stack.pop() {
+        while let Some(state) = stack.pop() {
             match state {
-                State::ProcessType(ty) if ty.tmr() == Tmr::POWERS_OF_TWO[0] => {
-                    result_stack.push(Value::u1(bits.read_bit()?.into()));
-                }
-                State::ProcessType(ty) if ty.tmr() == Tmr::POWERS_OF_TWO[1] => {
-                    result_stack.push(Value::u2(bits.read_u2()?.into()));
-                }
-                State::ProcessType(ty) if ty.tmr() == Tmr::POWERS_OF_TWO[2] => {
-                    let u4 = (u8::from(bits.read_u2()?) << 2) + u8::from(bits.read_u2()?);
-                    result_stack.push(Value::u4(u4));
-                }
-                State::ProcessType(ty) => {
-                    // The POWERS_OF_TWO array is somewhat misnamed; the ith index contains
-                    // the TMR of TWO^(2^n). So e.g. the 0th index is 2 (a bit), the 1st is
-                    // u2, then u4, and the 3rd is u8.
-                    for (logn, tmr) in Tmr::POWERS_OF_TWO.iter().skip(3).enumerate() {
-                        if ty.tmr() == *tmr {
-                            let mut blob = Vec::with_capacity(1 << logn);
-                            for _ in 0..blob.capacity() {
-                                blob.push(bits.read_u8()?);
-                            }
-                            result_stack.push(Value {
-                                inner: blob.into(),
-                                bit_offset: 0,
-                                ty: Final::two_two_n(logn + 3),
-                            });
-                            continue 'stack_loop;
-                        }
-                    }
-
-                    match ty.bound() {
-                        CompleteBound::Unit => result_stack.push(Value::unit()),
-                        CompleteBound::Sum(ref l, ref r) => {
-                            if !bits.next().ok_or(EarlyEndOfStreamError)? {
-                                P::read_left_padding(bits, l, r)?;
-                                stack.push(State::DoSumL(Arc::clone(r)));
-                                stack.push(State::ProcessType(l));
-                            } else {
-                                P::read_right_padding(bits, l, r)?;
-                                stack.push(State::DoSumR(Arc::clone(l)));
-                                stack.push(State::ProcessType(r));
-                            }
-                        }
-                        CompleteBound::Product(ref l, ref r) => {
-                            stack.push(State::DoProduct);
-                            stack.push(State::ProcessType(r));
+                State::ProcessType(ty) if ty.has_padding() => match ty.bound() {
+                    CompleteBound::Unit => result_stack.push(Value::unit()),
+                    CompleteBound::Sum(ref l, ref r) => {
+                        if !bits.next().ok_or(EarlyEndOfStreamError)? {
+                            stack.push(State::DoSumL(Arc::clone(r)));
                             stack.push(State::ProcessType(l));
+                        } else {
+                            stack.push(State::DoSumR(Arc::clone(l)));
+                            stack.push(State::ProcessType(r));
                         }
                     }
+                    CompleteBound::Product(ref l, ref r) => {
+                        stack.push(State::DoProduct);
+                        stack.push(State::ProcessType(r));
+                        stack.push(State::ProcessType(l));
+                    }
+                },
+                State::ProcessType(ty) => {
+                    // no padding no problem
+                    result_stack.push(Value::from_padded_bits(bits, ty)?);
                 }
                 State::DoSumL(r) => {
                     let val = result_stack.pop().unwrap();
@@ -1029,20 +873,28 @@ impl Value {
         Ok(result_stack.pop().unwrap())
     }
 
-    /// Decode a value of the given type from its compact bit encoding.
-    pub fn from_compact_bits<I: Iterator<Item = u8>>(
-        bits: &mut BitIter<I>,
-        ty: &Final,
-    ) -> Result<Self, EarlyEndOfStreamError> {
-        Self::from_bits::<_, CompactEncoding>(bits, ty)
-    }
-
     /// Decode a value of the given type from its padded bit encoding.
     pub fn from_padded_bits<I: Iterator<Item = u8>>(
         bits: &mut BitIter<I>,
         ty: &Final,
     ) -> Result<Self, EarlyEndOfStreamError> {
-        Self::from_bits::<_, PaddedEncoding>(bits, ty)
+        let mut blob = Vec::with_capacity((ty.bit_width() + 7) / 8);
+        for _ in 0..ty.bit_width() / 8 {
+            blob.push(bits.read_u8()?);
+        }
+        let mut last = 0u8;
+        for i in 0..ty.bit_width() % 8 {
+            if bits.read_bit()? {
+                last |= 1 << (7 - i);
+            }
+        }
+        blob.push(last);
+
+        Ok(Value {
+            inner: blob.into(),
+            bit_offset: 0,
+            ty: Arc::new(ty.clone()),
+        })
     }
 }
 
@@ -1401,6 +1253,28 @@ mod benches {
         });
     }
 
+    #[bench]
+    fn bench_value_create_512_256(bh: &mut Bencher) {
+        bh.iter(|| {
+            // This is a common "slow" pattern in my Elements fuzzer; it is a deeply
+            // nested product of 2^512 x 2^256, which is not a "primitive numeric
+            // type" and therefore cannot be quickly decoded from compact bits by
+            // simply matching to pre-computed types.
+            //
+            // However, this type is a giant product of bits. Its compact encoding
+            // is therefore equal to its padded encoding and we should be able to
+            // quickly decode it.
+            let mut s512_256 = Value::product(
+                Value::from_byte_array([0x12; 64]),
+                Value::from_byte_array([0x23; 32]),
+            );
+            for _ in 0..5 {
+                s512_256 = Value::product(s512_256.shallow_clone(), s512_256.shallow_clone());
+            }
+            black_box(s512_256);
+        });
+    }
+
     // Create values from padded bits
     fn padded_bits(v: &Value) -> (Vec<u8>, &Final) {
         let (bits, _) = v.iter_padded().collect_bits();
@@ -1453,6 +1327,25 @@ mod benches {
             kilo = Value::product(kilo.shallow_clone(), kilo.shallow_clone());
         }
         let (bits, ty) = padded_bits(&kilo);
+        bh.iter(|| {
+            black_box(Value::from_padded_bits(
+                &mut BitIter::new(bits.iter().copied()),
+                ty,
+            ))
+        })
+    }
+
+    #[bench]
+    fn bench_value_create_512_256_padded(bh: &mut Bencher) {
+        // See comment in bench_value_create_512_256 about this value
+        let mut s512_256 = Value::product(
+            Value::from_byte_array([0x12; 64]),
+            Value::from_byte_array([0x23; 32]),
+        );
+        for _ in 0..5 {
+            s512_256 = Value::product(s512_256.shallow_clone(), s512_256.shallow_clone());
+        }
+        let (bits, ty) = padded_bits(&s512_256);
         bh.iter(|| {
             black_box(Value::from_padded_bits(
                 &mut BitIter::new(bits.iter().copied()),
@@ -1521,6 +1414,25 @@ mod benches {
         })
     }
 
+    #[bench]
+    fn bench_value_create_512_256_compact(bh: &mut Bencher) {
+        // See comment in bench_value_create_512_256 about this value
+        let mut s512_256 = Value::product(
+            Value::from_byte_array([0x12; 64]),
+            Value::from_byte_array([0x23; 32]),
+        );
+        for _ in 0..5 {
+            s512_256 = Value::product(s512_256.shallow_clone(), s512_256.shallow_clone());
+        }
+        let (bits, ty) = compact_bits(&s512_256);
+        bh.iter(|| {
+            black_box(Value::from_compact_bits(
+                &mut BitIter::new(bits.iter().copied()),
+                ty,
+            ))
+        })
+    }
+
     // Display values
     #[bench]
     fn bench_value_display_u64(bh: &mut Bencher) {
@@ -1551,4 +1463,19 @@ mod benches {
         }
         bh.iter(|| black_box(format!("{}", kilo)))
     }
+
+    #[bench]
+    fn bench_value_display_512_256(bh: &mut Bencher) {
+        // See comment in bench_value_create_512_256 about this value
+        let mut s512_256 = Value::product(
+            Value::from_byte_array([0x12; 64]),
+            Value::from_byte_array([0x23; 32]),
+        );
+        for _ in 0..5 {
+            s512_256 = Value::product(s512_256.shallow_clone(), s512_256.shallow_clone());
+        }
+        bh.iter(|| black_box(format!("{}", s512_256)))
+    }
+
+    // Display values
 }
