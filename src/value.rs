@@ -854,6 +854,22 @@ mod tests {
     }
 
     #[test]
+    fn prune_regression_1() {
+        // Found this when fuzzing Elements; unsure how to reduce it further.
+        let nontrivial_sum = Value::product(
+            Value::right(Final::two_two_n(4), Value::u16(0)),
+            Value::u8(0),
+        );
+        // Formatting should succeed and have no effect.
+        let _ = format!("{nontrivial_sum}");
+        // Pruning should succeed and have no effect.
+        assert_eq!(
+            nontrivial_sum.prune(nontrivial_sum.ty()),
+            Some(nontrivial_sum)
+        );
+    }
+
+    #[test]
     fn prune() {
         let test_vectors = [
             (Value::unit(), Value::unit()),
