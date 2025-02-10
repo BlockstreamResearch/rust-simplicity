@@ -946,8 +946,8 @@ impl Padding for PaddedEncoding {
 }
 
 impl Value {
-    fn from_bits<I: Iterator<Item = bool>, P: Padding>(
-        bits: &mut I,
+    fn from_bits<I: Iterator<Item = u8>, P: Padding>(
+        bits: &mut BitIter<I>,
         ty: &Final,
     ) -> Result<Self, EarlyEndOfStreamError> {
         enum State<'a> {
@@ -1000,16 +1000,16 @@ impl Value {
     }
 
     /// Decode a value of the given type from its compact bit encoding.
-    pub fn from_compact_bits<I: Iterator<Item = bool>>(
-        bits: &mut I,
+    pub fn from_compact_bits<I: Iterator<Item = u8>>(
+        bits: &mut BitIter<I>,
         ty: &Final,
     ) -> Result<Self, EarlyEndOfStreamError> {
         Self::from_bits::<_, CompactEncoding>(bits, ty)
     }
 
     /// Decode a value of the given type from its padded bit encoding.
-    pub fn from_padded_bits<I: Iterator<Item = bool>>(
-        bits: &mut I,
+    pub fn from_padded_bits<I: Iterator<Item = u8>>(
+        bits: &mut BitIter<I>,
         ty: &Final,
     ) -> Result<Self, EarlyEndOfStreamError> {
         Self::from_bits::<_, PaddedEncoding>(bits, ty)
@@ -1126,8 +1126,8 @@ impl Word {
     /// ## Panics
     ///
     /// n is greater than 31.
-    pub fn from_bits<I: Iterator<Item = bool>>(
-        bits: &mut I,
+    pub fn from_bits<I: Iterator<Item = u8>>(
+        bits: &mut BitIter<I>,
         n: u32,
     ) -> Result<Self, EarlyEndOfStreamError> {
         assert!(n < 32, "TWO^(2^{n}) is not supported as a word type");
