@@ -860,7 +860,6 @@ trait Padding {
 }
 
 enum CompactEncoding {}
-enum PaddedEncoding {}
 
 impl Padding for CompactEncoding {
     fn read_left_padding<I: Iterator<Item = bool>>(
@@ -878,30 +877,6 @@ impl Padding for CompactEncoding {
         _: &Final,
     ) -> Result<(), EarlyEndOfStreamError> {
         // no padding
-        Ok(())
-    }
-}
-
-impl Padding for PaddedEncoding {
-    fn read_left_padding<I: Iterator<Item = bool>>(
-        bits: &mut I,
-        ty_l: &Final,
-        ty_r: &Final,
-    ) -> Result<(), EarlyEndOfStreamError> {
-        for _ in 0..ty_l.pad_left(ty_r) {
-            let _padding = bits.next().ok_or(EarlyEndOfStreamError)?;
-        }
-        Ok(())
-    }
-
-    fn read_right_padding<I: Iterator<Item = bool>>(
-        bits: &mut I,
-        ty_l: &Final,
-        ty_r: &Final,
-    ) -> Result<(), EarlyEndOfStreamError> {
-        for _ in 0..ty_l.pad_right(ty_r) {
-            let _padding = bits.next().ok_or(EarlyEndOfStreamError)?;
-        }
         Ok(())
     }
 }
@@ -1002,7 +977,23 @@ impl Value {
         bits: &mut BitIter<I>,
         ty: &Final,
     ) -> Result<Self, EarlyEndOfStreamError> {
-        Self::from_bits::<_, PaddedEncoding>(bits, ty)
+        let mut blob = Vec::with_capacity((ty.bit_width() + 7) / 8);
+        for _ in 0..ty.bit_width() / 8 {
+            blob.push(bits.read_u8()?);
+        }
+        let mut last = 0u8;
+        for i in 0..ty.bit_width() % 8 {
+            if bits.read_bit()? {
+                last |= 1 << (7 - i);
+            }
+        }
+        blob.push(last);
+
+        Ok(Value {
+            inner: blob.into(),
+            bit_offset: 0,
+            ty: Arc::new(ty.clone()),
+        })
     }
 }
 
