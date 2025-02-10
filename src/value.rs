@@ -799,6 +799,7 @@ impl fmt::Display for Word {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bit_encoding::{BitCollector as _, BitIter};
     use crate::jet::type_name::TypeName;
 
     #[test]
@@ -926,6 +927,24 @@ mod tests {
         for (ty, expected_default_value) in test_vectors {
             assert_eq!(Value::zero(&ty), expected_default_value);
         }
+    }
+
+    #[test]
+    fn compact_round_trip() {
+        let v = Value::u64(0xff00_00ff_ff00_00ff);
+        let (bits, _) = v.iter_compact().collect_bits();
+        let mut iter = BitIter::new(bits.into_iter());
+        let new_v = Value::from_compact_bits(&mut iter, &v.ty).unwrap();
+        assert_eq!(v, new_v);
+    }
+
+    #[test]
+    fn padded_round_trip() {
+        let v = Value::u64(0xff00_00ff_ff00_00ff);
+        let (bits, _) = v.iter_padded().collect_bits();
+        let mut iter = BitIter::new(bits.into_iter());
+        let new_v = Value::from_padded_bits(&mut iter, &v.ty).unwrap();
+        assert_eq!(v, new_v);
     }
 }
 
