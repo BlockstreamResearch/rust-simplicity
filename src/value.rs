@@ -9,7 +9,7 @@ use crate::dag::{Dag, DagLike};
 use crate::types::{CompleteBound, Final};
 use crate::BitIter;
 
-use crate::{BitCollector, EarlyEndOfStreamError};
+use crate::{BitCollector, EarlyEndOfStreamError, Tmr};
 use core::{cmp, fmt, iter};
 use std::collections::VecDeque;
 use std::hash::Hash;
@@ -959,27 +959,57 @@ impl Value {
 
         let mut stack = vec![State::ProcessType(ty)];
         let mut result_stack = vec![];
-        while let Some(state) = stack.pop() {
+        'stack_loop: while let Some(state) = stack.pop() {
             match state {
-                State::ProcessType(ty) => match ty.bound() {
-                    CompleteBound::Unit => result_stack.push(Value::unit()),
-                    CompleteBound::Sum(ref l, ref r) => {
-                        if !bits.next().ok_or(EarlyEndOfStreamError)? {
-                            P::read_left_padding(bits, l, r)?;
-                            stack.push(State::DoSumL(Arc::clone(r)));
-                            stack.push(State::ProcessType(l));
-                        } else {
-                            P::read_right_padding(bits, l, r)?;
-                            stack.push(State::DoSumR(Arc::clone(l)));
-                            stack.push(State::ProcessType(r));
+                State::ProcessType(ty) if ty.tmr() == Tmr::POWERS_OF_TWO[0] => {
+                    result_stack.push(Value::u1(bits.read_bit()?.into()));
+                }
+                State::ProcessType(ty) if ty.tmr() == Tmr::POWERS_OF_TWO[1] => {
+                    result_stack.push(Value::u2(bits.read_u2()?.into()));
+                }
+                State::ProcessType(ty) if ty.tmr() == Tmr::POWERS_OF_TWO[2] => {
+                    let u4 = (u8::from(bits.read_u2()?) << 2) + u8::from(bits.read_u2()?);
+                    result_stack.push(Value::u4(u4));
+                }
+                State::ProcessType(ty) => {
+                    // The POWERS_OF_TWO array is somewhat misnamed; the ith index contains
+                    // the TMR of TWO^(2^n). So e.g. the 0th index is 2 (a bit), the 1st is
+                    // u2, then u4, and the 3rd is u8.
+                    for (logn, tmr) in Tmr::POWERS_OF_TWO.iter().skip(3).enumerate() {
+                        if ty.tmr() == *tmr {
+                            let mut blob = Vec::with_capacity(1 << logn);
+                            for _ in 0..blob.capacity() {
+                                blob.push(bits.read_u8()?);
+                            }
+                            result_stack.push(Value {
+                                inner: blob.into(),
+                                bit_offset: 0,
+                                ty: Final::two_two_n(logn + 3),
+                            });
+                            continue 'stack_loop;
                         }
                     }
-                    CompleteBound::Product(ref l, ref r) => {
-                        stack.push(State::DoProduct);
-                        stack.push(State::ProcessType(r));
-                        stack.push(State::ProcessType(l));
+
+                    match ty.bound() {
+                        CompleteBound::Unit => result_stack.push(Value::unit()),
+                        CompleteBound::Sum(ref l, ref r) => {
+                            if !bits.next().ok_or(EarlyEndOfStreamError)? {
+                                P::read_left_padding(bits, l, r)?;
+                                stack.push(State::DoSumL(Arc::clone(r)));
+                                stack.push(State::ProcessType(l));
+                            } else {
+                                P::read_right_padding(bits, l, r)?;
+                                stack.push(State::DoSumR(Arc::clone(l)));
+                                stack.push(State::ProcessType(r));
+                            }
+                        }
+                        CompleteBound::Product(ref l, ref r) => {
+                            stack.push(State::DoProduct);
+                            stack.push(State::ProcessType(r));
+                            stack.push(State::ProcessType(l));
+                        }
                     }
-                },
+                }
                 State::DoSumL(r) => {
                     let val = result_stack.pop().unwrap();
                     result_stack.push(Value::left(val, r));

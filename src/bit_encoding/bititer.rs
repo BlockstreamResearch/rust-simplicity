@@ -69,6 +69,17 @@ pub enum u2 {
     _3,
 }
 
+impl From<u2> for u8 {
+    fn from(s: u2) -> u8 {
+        match s {
+            u2::_0 => 0,
+            u2::_1 => 1,
+            u2::_2 => 2,
+            u2::_3 => 3,
+        }
+    }
+}
+
 /// Bitwise iterator formed from a wrapped bytewise iterator. Bytes are
 /// interpreted big-endian, i.e. MSB is returned first
 #[derive(Debug)]
