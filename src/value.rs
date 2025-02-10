@@ -37,6 +37,14 @@ pub struct Value {
     ty: Arc<Final>,
 }
 
+/// Private structure used for iterating over a value in pre-order
+#[derive(Debug, Clone)]
+struct ValueRef<'v> {
+    inner: &'v [u8],
+    bit_offset: usize,
+    ty: &'v Final,
+}
+
 // Because two equal values may have different bit offsets, we must manually
 // implement the comparison traits. We do so by first comparing types, which
 // is constant overhead (this just compares TMRs). If those match, we know
@@ -72,23 +80,103 @@ impl core::hash::Hash for Value {
     }
 }
 
-impl DagLike for Value {
-    type Node = Value;
+impl DagLike for ValueRef<'_> {
+    type Node = Self;
 
-    fn data(&self) -> &Value {
+    fn data(&self) -> &Self {
         self
     }
 
     fn as_dag_node(&self) -> Dag<Self> {
-        if let Some((left, right)) = self.to_product() {
+        if let Some((left, right)) = self.as_product() {
             Dag::Binary(left, right)
-        } else if let Some(left) = self.to_left() {
+        } else if let Some(left) = self.as_left() {
             Dag::Unary(left)
-        } else if let Some(right) = self.to_right() {
+        } else if let Some(right) = self.as_right() {
             Dag::Unary(right)
         } else {
             assert!(self.ty.is_unit());
             Dag::Nullary
+        }
+    }
+}
+
+impl ValueRef<'_> {
+    /// Check if the value is a unit.
+    fn is_unit(&self) -> bool {
+        self.ty.is_unit()
+    }
+
+    /// Helper function to read the first bit of a value
+    ///
+    /// If the first bit is not available (e.g. if the value has zero size)
+    /// then returns None.
+    fn first_bit(&self) -> Option<bool> {
+        let mask = if self.bit_offset % 8 == 0 {
+            0x80
+        } else {
+            1 << (7 - self.bit_offset % 8)
+        };
+        let res = self
+            .inner
+            .get(self.bit_offset / 8)
+            .map(|x| x & mask == mask);
+        res
+    }
+
+    /// Access the inner value of a left sum value.
+    pub fn as_left(&self) -> Option<Self> {
+        if self.first_bit() == Some(false) {
+            if let Some((lty, rty)) = self.ty.as_sum() {
+                let sum_width = 1 + cmp::max(lty.bit_width(), rty.bit_width());
+                Some(Self {
+                    inner: self.inner,
+                    bit_offset: self.bit_offset + sum_width - lty.bit_width(),
+                    ty: lty,
+                })
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Access the inner value of a right sum value.
+    pub fn as_right(&self) -> Option<Self> {
+        if self.first_bit() == Some(true) {
+            if let Some((lty, rty)) = self.ty.as_sum() {
+                let sum_width = 1 + cmp::max(lty.bit_width(), rty.bit_width());
+                Some(Self {
+                    inner: self.inner,
+                    bit_offset: self.bit_offset + sum_width - rty.bit_width(),
+                    ty: rty,
+                })
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }
+
+    /// Access the inner values of a product value.
+    pub fn as_product(&self) -> Option<(Self, Self)> {
+        if let Some((lty, rty)) = self.ty.as_product() {
+            Some((
+                Self {
+                    inner: self.inner,
+                    bit_offset: self.bit_offset,
+                    ty: lty,
+                },
+                Self {
+                    inner: self.inner,
+                    bit_offset: self.bit_offset + lty.bit_width(),
+                    ty: rty,
+                },
+            ))
+        } else {
+            None
         }
     }
 }
@@ -330,6 +418,15 @@ impl Value {
         self.ty.is_unit()
     }
 
+    /// Helper function to convert the value to a reference
+    fn as_value(&self) -> ValueRef {
+        ValueRef {
+            inner: self.inner.as_ref(),
+            bit_offset: self.bit_offset,
+            ty: self.ty.as_ref(),
+        }
+    }
+
     /// Helper function to read the first bit of a value
     ///
     /// If the first bit is not available (e.g. if the value has zero size)
@@ -544,7 +641,7 @@ impl Value {
     ///
     /// This encoding is used for writing witness data and for computing IMRs.
     pub fn iter_compact(&self) -> CompactBitsIter {
-        CompactBitsIter::new(self.shallow_clone())
+        CompactBitsIter::new(self.as_value())
     }
 
     /// Return an iterator over the padded bit encoding of the value.
@@ -707,9 +804,8 @@ impl fmt::Display for Value {
         // This is a copy of the logic inside `CompactBitsIter` except
         // that we handle products more explicitly.
         enum S<'v> {
-            Disp(Value),
-            DispRef(&'v Value),
-            DispUnlessUnit(Value),
+            Disp(ValueRef<'v>),
+            DispUnlessUnit(ValueRef<'v>),
             DispCh(char),
         }
 
@@ -717,12 +813,11 @@ impl fmt::Display for Value {
         // Next node to visit, and a boolean indicating whether we should
         // display units explicitly (turned off for sums, since a sum of
         // a unit is displayed simply as 0 or 1.
-        stack.push(S::DispRef(self));
+        stack.push(S::Disp(self.as_value()));
 
         while let Some(next) = stack.pop() {
             let value = match next {
                 S::Disp(ref value) | S::DispUnlessUnit(ref value) => value,
-                S::DispRef(value) => value,
                 S::DispCh(ch) => {
                     write!(f, "{}", ch)?;
                     continue;
@@ -733,18 +828,20 @@ impl fmt::Display for Value {
                 if !matches!(next, S::DispUnlessUnit(..)) {
                     f.write_str("ε")?;
                 }
-            } else if let Some(l_value) = value.to_left() {
+            } else if let Some(l_value) = value.as_left() {
                 f.write_str("0")?;
                 stack.push(S::DispUnlessUnit(l_value));
-            } else if let Some(r_value) = value.to_right() {
+            } else if let Some(r_value) = value.as_right() {
                 f.write_str("1")?;
                 stack.push(S::DispUnlessUnit(r_value));
-            } else if let Some((l_value, r_value)) = value.to_product() {
+            } else if let Some((l_value, r_value)) = value.as_product() {
                 stack.push(S::DispCh(')'));
                 stack.push(S::Disp(r_value));
                 stack.push(S::DispCh(','));
                 stack.push(S::Disp(l_value));
                 stack.push(S::DispCh('('));
+            } else {
+                unreachable!()
             }
         }
         Ok(())
@@ -752,32 +849,32 @@ impl fmt::Display for Value {
 }
 
 /// An iterator over the bits of the compact encoding of a [`Value`].
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct CompactBitsIter {
-    stack: Vec<Value>,
+#[derive(Debug, Clone)]
+pub struct CompactBitsIter<'v> {
+    stack: Vec<ValueRef<'v>>,
 }
 
-impl CompactBitsIter {
+impl<'v> CompactBitsIter<'v> {
     /// Create an iterator over the bits of the compact encoding of the `value`.
-    pub fn new(value: Value) -> Self {
+    fn new(value: ValueRef<'v>) -> Self {
         Self { stack: vec![value] }
     }
 }
 
-impl Iterator for CompactBitsIter {
+impl Iterator for CompactBitsIter<'_> {
     type Item = bool;
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(value) = self.stack.pop() {
             if value.is_unit() {
                 // NOP
-            } else if let Some(l_value) = value.to_left() {
+            } else if let Some(l_value) = value.as_left() {
                 self.stack.push(l_value);
                 return Some(false);
-            } else if let Some(r_value) = value.to_right() {
+            } else if let Some(r_value) = value.as_right() {
                 self.stack.push(r_value);
                 return Some(true);
-            } else if let Some((l_value, r_value)) = value.to_product() {
+            } else if let Some((l_value, r_value)) = value.as_product() {
                 self.stack.push(r_value);
                 self.stack.push(l_value);
             }
