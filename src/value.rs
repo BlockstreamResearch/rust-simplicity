@@ -677,6 +677,9 @@ impl Value {
 
         while let Some(task) = stack.pop() {
             match task {
+                Task::Prune(value, pruned_ty) if value.ty.as_ref() == pruned_ty => {
+                    output.push(value.to_value())
+                }
                 Task::Prune(value, pruned_ty) => match pruned_ty.bound() {
                     CompleteBound::Unit => output.push(Value::unit()),
                     CompleteBound::Sum(l_ty, r_ty) => {
