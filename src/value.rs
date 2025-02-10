@@ -914,3 +914,196 @@ mod tests {
         }
     }
 }
+
+#[cfg(bench)]
+mod benches {
+    use super::*;
+
+    use crate::bit_encoding::{BitCollector as _, BitIter};
+
+    use test::{black_box, Bencher};
+
+    // Create values directly
+    #[bench]
+    fn bench_value_create_u64(bh: &mut Bencher) {
+        bh.iter(|| black_box(Value::u64(0xff00_00ff_ff00_00ff)))
+    }
+
+    #[bench]
+    fn bench_value_create_u2048(bh: &mut Bencher) {
+        bh.iter(|| black_box(Value::from_byte_array([0xcd; 2048])));
+    }
+
+    #[bench]
+    fn bench_value_create_deep_some(bh: &mut Bencher) {
+        bh.iter(|| {
+            let mut kilo = Value::from_byte_array([0xab; 1024]);
+            for _ in 0..1000 {
+                kilo = Value::some(kilo.shallow_clone());
+            }
+            black_box(kilo)
+        });
+    }
+
+    #[bench]
+    fn bench_value_create_64k(bh: &mut Bencher) {
+        bh.iter(|| {
+            let mut kilo = Value::from_byte_array([0xab; 1024]);
+            for _ in 0..5 {
+                kilo = Value::product(kilo.shallow_clone(), kilo.shallow_clone());
+            }
+            black_box(kilo)
+        });
+    }
+
+    // Create values from padded bits
+    fn padded_bits(v: &Value) -> (Vec<u8>, &Final) {
+        let (bits, _) = v.iter_padded().collect_bits();
+        (bits, v.ty.as_ref())
+    }
+
+    #[bench]
+    fn bench_value_create_u64_padded(bh: &mut Bencher) {
+        let v = Value::u64(0xff00_00ff_ff00_00ff);
+        let (bits, ty) = padded_bits(&v);
+        bh.iter(|| {
+            black_box(Value::from_padded_bits(
+                &mut BitIter::new(bits.iter().copied()),
+                ty,
+            ))
+        })
+    }
+
+    #[bench]
+    fn bench_value_create_u2048_padded(bh: &mut Bencher) {
+        let v = Value::from_byte_array([0xcd; 2048]);
+        let (bits, ty) = padded_bits(&v);
+        bh.iter(|| {
+            black_box(Value::from_padded_bits(
+                &mut BitIter::new(bits.iter().copied()),
+                ty,
+            ))
+        })
+    }
+
+    #[bench]
+    fn bench_value_create_deep_some_padded(bh: &mut Bencher) {
+        let mut kilo = Value::from_byte_array([0xab; 1024]);
+        for _ in 0..1000 {
+            kilo = Value::some(kilo.shallow_clone());
+        }
+        let (bits, ty) = padded_bits(&kilo);
+        bh.iter(|| {
+            black_box(Value::from_padded_bits(
+                &mut BitIter::new(bits.iter().copied()),
+                ty,
+            ))
+        })
+    }
+
+    #[bench]
+    fn bench_value_create_64k_padded(bh: &mut Bencher) {
+        let mut kilo = Value::from_byte_array([0xab; 1024]);
+        for _ in 0..5 {
+            kilo = Value::product(kilo.shallow_clone(), kilo.shallow_clone());
+        }
+        let (bits, ty) = padded_bits(&kilo);
+        bh.iter(|| {
+            black_box(Value::from_padded_bits(
+                &mut BitIter::new(bits.iter().copied()),
+                ty,
+            ))
+        })
+    }
+
+    // Create values from compact bits
+    fn compact_bits(v: &Value) -> (Vec<u8>, &Final) {
+        let (bits, _) = v.iter_compact().collect_bits();
+        (bits, v.ty.as_ref())
+    }
+
+    #[bench]
+    fn bench_value_create_u64_compact(bh: &mut Bencher) {
+        let v = Value::u64(0xff00_00ff_ff00_00ff);
+        let (bits, ty) = compact_bits(&v);
+        bh.iter(|| {
+            black_box(Value::from_compact_bits(
+                &mut BitIter::new(bits.iter().copied()),
+                ty,
+            ))
+        })
+    }
+
+    #[bench]
+    fn bench_value_create_u2048_compact(bh: &mut Bencher) {
+        let v = Value::from_byte_array([0xcd; 2048]);
+        let (bits, ty) = compact_bits(&v);
+        bh.iter(|| {
+            black_box(Value::from_compact_bits(
+                &mut BitIter::new(bits.iter().copied()),
+                ty,
+            ))
+        })
+    }
+
+    #[bench]
+    fn bench_value_create_deep_some_compact(bh: &mut Bencher) {
+        let mut kilo = Value::from_byte_array([0xab; 1024]);
+        for _ in 0..1000 {
+            kilo = Value::some(kilo.shallow_clone());
+        }
+        let (bits, ty) = compact_bits(&kilo);
+        bh.iter(|| {
+            black_box(Value::from_compact_bits(
+                &mut BitIter::new(bits.iter().copied()),
+                ty,
+            ))
+        })
+    }
+
+    #[bench]
+    fn bench_value_create_64k_compact(bh: &mut Bencher) {
+        let mut kilo = Value::from_byte_array([0xab; 1024]);
+        for _ in 0..5 {
+            kilo = Value::product(kilo.shallow_clone(), kilo.shallow_clone());
+        }
+        let (bits, ty) = compact_bits(&kilo);
+        bh.iter(|| {
+            black_box(Value::from_compact_bits(
+                &mut BitIter::new(bits.iter().copied()),
+                ty,
+            ))
+        })
+    }
+
+    // Display values
+    #[bench]
+    fn bench_value_display_u64(bh: &mut Bencher) {
+        let v = Value::u64(0xff00_00ff_ff00_00ff);
+        bh.iter(|| black_box(format!("{}", v)))
+    }
+
+    #[bench]
+    fn bench_value_display_u2024(bh: &mut Bencher) {
+        let v = Value::from_byte_array([0xcd; 2048]);
+        bh.iter(|| black_box(format!("{}", v)))
+    }
+
+    #[bench]
+    fn bench_value_display_deep_some(bh: &mut Bencher) {
+        let mut kilo = Value::from_byte_array([0xab; 1024]);
+        for _ in 0..1000 {
+            kilo = Value::some(kilo.shallow_clone());
+        }
+        bh.iter(|| black_box(format!("{}", kilo)))
+    }
+
+    #[bench]
+    fn bench_value_display_64k(bh: &mut Bencher) {
+        let mut kilo = Value::from_byte_array([0xab; 1024]);
+        for _ in 0..5 {
+            kilo = Value::product(kilo.shallow_clone(), kilo.shallow_clone());
+        }
+        bh.iter(|| black_box(format!("{}", kilo)))
+    }
+}

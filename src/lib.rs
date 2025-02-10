@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 
+#![cfg_attr(bench, feature(test))]
 #![allow(
     // we use `bool` to represent bits and frequentely assert_eq against them
     clippy::bool_assert_comparison,
@@ -22,6 +23,9 @@ pub extern crate byteorder;
 pub extern crate hashes;
 /// Re-export of hex crate
 pub extern crate hex;
+
+#[cfg(bench)]
+extern crate test;
 
 #[macro_use]
 mod macros;
