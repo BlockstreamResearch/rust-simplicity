@@ -5,49 +5,74 @@
 //! Simplicity processes data in terms of [`Value`]s,
 //! i.e., inputs, intermediate results and outputs.
 
-use crate::dag::{Dag, DagLike, NoSharing};
+use crate::dag::{Dag, DagLike};
 use crate::types::{CompleteBound, Final};
+use crate::BitIter;
 
 use crate::{BitCollector, EarlyEndOfStreamError};
+use core::{cmp, fmt, iter};
 use std::collections::VecDeque;
-use std::fmt;
 use std::hash::Hash;
 use std::sync::Arc;
 
 /// A Simplicity value.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Clone)]
 pub struct Value {
-    inner: ValueInner,
+    /// The underlying data, in "padded" bit-encoded form, with the leftmost
+    /// bits encoded in the most-significant bits. So e.g. right(unit) is 0x80.
+    ///
+    /// We use the padded form, even though it is space-inefficient (sometimes
+    /// significantly so), for a couple reasons: first, this is the representation
+    /// used by the bit machine, so we want encoding/decoding to be as fast as
+    /// possible. Secondly, when destructuring a value (which we need to do during
+    /// scribing and pruning, at least) it is quite difficult to destructure a
+    /// compact-encoded product, since we would need to determine the compact
+    /// bitlengths of the children, and these quantities are not readily available.
+    inner: Arc<[u8]>,
+    /// An offset, in bits, at which the actual data starts. This is useful
+    /// because it allows constructing sub-values of a value without needing
+    /// to construct a new `inner` with all the bits offset.
+    bit_offset: usize,
+    /// The Simplicity type of the value.
     ty: Arc<Final>,
 }
 
-/// The inner structure of a Simplicity value.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-enum ValueInner {
-    /// The unit value.
-    ///
-    /// The unit value is the only value of the unit type `1`.
-    /// It must be wrapped in left and right values to encode information.
-    Unit,
-    /// A left value.
-    ///
-    /// A left value wraps a value of type `A` and its type is the sum `A + B` for some `B`.
-    /// A `false` bit encodes that a left value is wrapped.
-    Left(Arc<Value>),
-    /// A right value.
-    ///
-    /// A right value wraps a value of type `B` and its type is the sum `A + B` for some `A`.
-    /// A `true` bit encodes that a right value is wrapped.
-    Right(Arc<Value>),
-    /// A product value.
-    ///
-    /// A product value wraps a left value of type `A` and a right value of type `B`,
-    /// and its type is the product `A × B`.
-    /// A product value combines the information of its inner values.
-    Product(Arc<Value>, Arc<Value>),
+// Because two equal values may have different bit offsets, we must manually
+// implement the comparison traits. We do so by first comparing types, which
+// is constant overhead (this just compares TMRs). If those match, we know
+// the lengths and structures match, so we then compare the underlying byte
+// iterators.
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        self.ty == other.ty && self.raw_byte_iter().eq(other.raw_byte_iter())
+    }
+}
+impl Eq for Value {}
+
+impl PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for Value {
+    fn cmp(&self, other: &Self) -> core::cmp::Ordering {
+        self.ty
+            .cmp(&other.ty)
+            .then_with(|| self.raw_byte_iter().cmp(other.raw_byte_iter()))
+    }
 }
 
-impl DagLike for &'_ Value {
+impl core::hash::Hash for Value {
+    fn hash<H: core::hash::Hasher>(&self, h: &mut H) {
+        b"Simplicity\x1fValue".hash(h);
+        self.ty.hash(h);
+        for val in self.raw_byte_iter() {
+            val.hash(h);
+        }
+    }
+}
+
+impl DagLike for Value {
     type Node = Value;
 
     fn data(&self) -> &Value {
@@ -55,11 +80,147 @@ impl DagLike for &'_ Value {
     }
 
     fn as_dag_node(&self) -> Dag<Self> {
-        match &self.inner {
-            ValueInner::Unit => Dag::Nullary,
-            ValueInner::Left(child) | ValueInner::Right(child) => Dag::Unary(child),
-            ValueInner::Product(left, right) => Dag::Binary(left, right),
+        if let Some((left, right)) = self.to_product() {
+            Dag::Binary(left, right)
+        } else if let Some(left) = self.to_left() {
+            Dag::Unary(left)
+        } else if let Some(right) = self.to_right() {
+            Dag::Unary(right)
+        } else {
+            assert!(self.ty.is_unit());
+            Dag::Nullary
         }
+    }
+}
+
+pub struct RawByteIter<'v> {
+    value: &'v Value,
+    yielded_bytes: usize,
+}
+
+impl Iterator for RawByteIter<'_> {
+    type Item = u8;
+    fn next(&mut self) -> Option<Self::Item> {
+        if 8 * self.yielded_bytes >= self.value.ty.bit_width() {
+            None
+        } else if self.value.bit_offset % 8 == 0 {
+            self.yielded_bytes += 1;
+
+            Some(self.value.inner[self.value.bit_offset / 8 + self.yielded_bytes - 1])
+        } else {
+            self.yielded_bytes += 1;
+
+            let ret1 = self.value.inner[self.value.bit_offset / 8 + self.yielded_bytes - 1];
+            let ret2 = self
+                .value
+                .inner
+                .get(self.value.bit_offset / 8 + self.yielded_bytes)
+                .copied()
+                .unwrap_or(0);
+            let bit_offset = self.value.bit_offset % 8;
+            Some((ret1 << bit_offset) | (ret2 >> (8 - bit_offset)))
+        }
+    }
+}
+
+pub struct PreOrderIter<'v> {
+    inner: iter::Take<BitIter<RawByteIter<'v>>>,
+}
+
+impl Iterator for PreOrderIter<'_> {
+    type Item = bool;
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
+}
+
+/// Helper function to right-shift a value by one bit.
+///
+/// This is used for putting a value into a sum type. It takes the value's
+/// bit encoding and current bit offset, and returns a new bit-encoding with
+/// a new bit inserted upfront and a new bit offset.
+fn right_shift_1(inner: &Arc<[u8]>, bit_offset: usize, new_bit: bool) -> (Arc<[u8]>, usize) {
+    // If the current bit offset is nonzero this is super easy: we just
+    // lower the bit offset and call that a fix.
+    if bit_offset > 0 {
+        if new_bit {
+            let new_bit_offset = bit_offset - 1;
+            let mut bx: Box<[u8]> = inner.as_ref().into();
+            bx[new_bit_offset / 8] |= 1 << (7 - new_bit_offset % 8);
+            (bx.into(), new_bit_offset)
+        } else {
+            // ...and if we are inserting a 0 we don't even need to allocate a new [u8]
+            (Arc::clone(inner), bit_offset - 1)
+        }
+    } else {
+        // If the current bit offset is 0, we just shift everything right by 8
+        // and then do pretty-much the same thing as above. This sometimes will
+        // waste 7 bits, but it avoids needing to iterate through all of `inner`.
+        let mut new = Vec::with_capacity(inner.len() + 1);
+        new.push(u8::from(new_bit));
+        new.extend(inner.iter().copied());
+        (new.into(), 7)
+    }
+}
+
+/// Helper function to copy `nbits` bits from `src`, starting at bit-offset `src_offset`,
+/// into `dst`, starting at bit-offset `dst_offset`.
+///
+/// Thanks ChatGPT for suggesting we extract this function.
+fn copy_bits(src: &[u8], src_offset: usize, dst: &mut [u8], dst_offset: usize, nbits: usize) {
+    // For each bit i in 0..nbits, extract the bit from `src`
+    // and insert it into `dst`.
+    for i in 0..nbits {
+        let bit = (src[(src_offset + i) / 8] >> (7 - (src_offset + i) % 8)) & 1;
+        dst[(dst_offset + i) / 8] |= bit << (7 - (dst_offset + i) % 8);
+    }
+}
+
+/// Helper function to take the product of two values (i.e. their concatenation).
+///
+/// If either `left_inner` or `right_inner` is not provided, it is assumed to be
+/// padding and will be stored as all zeros.
+///
+/// Returns the new bit data and the offset (NOT the length) of the data.
+fn product(
+    left: Option<(&Arc<[u8]>, usize)>,
+    left_bit_length: usize,
+    right: Option<(&Arc<[u8]>, usize)>,
+    right_bit_length: usize,
+) -> (Arc<[u8]>, usize) {
+    if left_bit_length == 0 {
+        if let Some((right, right_bit_offset)) = right {
+            (Arc::clone(right), right_bit_offset)
+        } else if right_bit_length == 0 {
+            (Arc::new([]), 0)
+        } else {
+            (Arc::from(vec![0; (right_bit_length + 7) / 8]), 0)
+        }
+    } else if right_bit_length == 0 {
+        if let Some((lt, left_bit_offset)) = left {
+            (Arc::clone(lt), left_bit_offset)
+        } else {
+            (Arc::from(vec![0; (left_bit_length + 7) / 8]), 0)
+        }
+    } else {
+        // Both left and right have nonzero lengths. This is the only "real" case
+        // in which we have to do something beyond cloning Arcs or allocating
+        // zeroed vectors. In this case we left-shift both as much as possible.
+        let mut bx = Box::<[u8]>::from(vec![0; (left_bit_length + right_bit_length + 7) / 8]);
+        if let Some((left, left_bit_offset)) = left {
+            copy_bits(left, left_bit_offset, &mut bx, 0, left_bit_length);
+        }
+        if let Some((right, right_bit_offset)) = right {
+            copy_bits(
+                right,
+                right_bit_offset,
+                &mut bx,
+                left_bit_length,
+                right_bit_length,
+            );
+        }
+
+        (bx.into(), 0)
     }
 }
 
@@ -67,7 +228,8 @@ impl Value {
     /// Make a cheap copy of the value.
     pub fn shallow_clone(&self) -> Self {
         Self {
-            inner: self.inner.clone(),
+            inner: Arc::clone(&self.inner),
+            bit_offset: self.bit_offset,
             ty: Arc::clone(&self.ty),
         }
     }
@@ -80,32 +242,60 @@ impl Value {
     /// Create the unit value.
     pub fn unit() -> Self {
         Self {
-            inner: ValueInner::Unit,
+            inner: Arc::new([]),
+            bit_offset: 0,
             ty: Final::unit(),
         }
     }
 
     /// Create a left value that wraps the given `inner` value.
     pub fn left(inner: Self, right: Arc<Final>) -> Self {
+        let total_width = cmp::max(inner.ty.bit_width(), right.bit_width());
+
+        let (concat, concat_offset) = product(
+            Some((&inner.inner, inner.bit_offset)),
+            inner.ty.bit_width(),
+            None,
+            total_width - inner.ty.bit_width(),
+        );
+        let (new_inner, new_bit_offset) = right_shift_1(&concat, concat_offset, false);
         Self {
+            inner: new_inner,
+            bit_offset: new_bit_offset,
             ty: Final::sum(Arc::clone(&inner.ty), right),
-            inner: ValueInner::Left(Arc::new(inner)),
         }
     }
 
     /// Create a right value that wraps the given `inner` value.
     pub fn right(left: Arc<Final>, inner: Self) -> Self {
+        let total_width = cmp::max(left.bit_width(), inner.ty.bit_width());
+
+        let (concat, concat_offset) = product(
+            None,
+            total_width - inner.ty.bit_width(),
+            Some((&inner.inner, inner.bit_offset)),
+            inner.ty.bit_width(),
+        );
+        let (new_inner, new_bit_offset) = right_shift_1(&concat, concat_offset, true);
         Self {
+            inner: new_inner,
+            bit_offset: new_bit_offset,
             ty: Final::sum(left, Arc::clone(&inner.ty)),
-            inner: ValueInner::Right(Arc::new(inner)),
         }
     }
 
     /// Create a product value that wraps the given `left` and `right` values.
     pub fn product(left: Self, right: Self) -> Self {
+        let (new_inner, new_bit_offset) = product(
+            Some((&left.inner, left.bit_offset)),
+            left.ty.bit_width(),
+            Some((&right.inner, right.bit_offset)),
+            right.ty.bit_width(),
+        );
         Self {
+            inner: new_inner,
+            bit_offset: new_bit_offset,
             ty: Final::product(Arc::clone(&left.ty), Arc::clone(&right.ty)),
-            inner: ValueInner::Product(Arc::new(left), Arc::new(right)),
         }
     }
 
@@ -140,27 +330,74 @@ impl Value {
         self.ty.is_unit()
     }
 
+    /// Helper function to read the first bit of a value
+    ///
+    /// If the first bit is not available (e.g. if the value has zero size)
+    /// then returns None.
+    fn first_bit(&self) -> Option<bool> {
+        let mask = if self.bit_offset % 8 == 0 {
+            0x80
+        } else {
+            1 << (7 - self.bit_offset % 8)
+        };
+        let res = self
+            .inner
+            .get(self.bit_offset / 8)
+            .map(|x| x & mask == mask);
+        res
+    }
+
     /// Access the inner value of a left sum value.
     pub fn to_left(&self) -> Option<Self> {
-        match &self.inner {
-            ValueInner::Left(inner) => Some(inner.shallow_clone()),
-            _ => None,
+        if self.first_bit() == Some(false) {
+            if let Some((lty, _)) = self.ty.as_sum() {
+                Some(Self {
+                    inner: Arc::clone(&self.inner),
+                    bit_offset: self.bit_offset + self.ty.bit_width() - lty.bit_width(),
+                    ty: Arc::clone(lty),
+                })
+            } else {
+                None
+            }
+        } else {
+            None
         }
     }
 
     /// Access the inner value of a right sum value.
     pub fn to_right(&self) -> Option<Self> {
-        match &self.inner {
-            ValueInner::Right(inner) => Some(inner.shallow_clone()),
-            _ => None,
+        if self.first_bit() == Some(true) {
+            if let Some((_, rty)) = self.ty.as_sum() {
+                Some(Self {
+                    inner: Arc::clone(&self.inner),
+                    bit_offset: self.bit_offset + self.ty.bit_width() - rty.bit_width(),
+                    ty: Arc::clone(rty),
+                })
+            } else {
+                None
+            }
+        } else {
+            None
         }
     }
 
     /// Access the inner values of a product value.
     pub fn to_product(&self) -> Option<(Self, Self)> {
-        match &self.inner {
-            ValueInner::Product(left, right) => Some((left.shallow_clone(), right.shallow_clone())),
-            _ => None,
+        if let Some((lty, rty)) = self.ty.as_product() {
+            Some((
+                Self {
+                    inner: Arc::clone(&self.inner),
+                    bit_offset: self.bit_offset,
+                    ty: Arc::clone(lty),
+                },
+                Self {
+                    inner: Arc::clone(&self.inner),
+                    bit_offset: self.bit_offset + lty.bit_width(),
+                    ty: Arc::clone(rty),
+                },
+            ))
+        } else {
+            None
         }
     }
 
@@ -170,10 +407,11 @@ impl Value {
     ///
     /// The value is out of range.
     pub fn u1(value: u8) -> Self {
-        match value {
-            0 => Self::left(Self::unit(), Final::unit()),
-            1 => Self::right(Final::unit(), Self::unit()),
-            x => panic!("{} out of range for Value::u1", x),
+        assert!(value <= 1, "{} out of range for Value::u1", value);
+        Self {
+            inner: Arc::new([value]),
+            bit_offset: 7,
+            ty: Final::two_two_n(0),
         }
     }
 
@@ -183,10 +421,12 @@ impl Value {
     ///
     /// The value is out of range.
     pub fn u2(value: u8) -> Self {
-        let b0 = (value & 2) / 2;
-        let b1 = value & 1;
         assert!(value <= 3, "{} out of range for Value::u2", value);
-        Self::product(Self::u1(b0), Self::u1(b1))
+        Self {
+            inner: Arc::new([value]),
+            bit_offset: 6,
+            ty: Final::two_two_n(1),
+        }
     }
 
     /// Create a 4-bit integer.
@@ -195,47 +435,75 @@ impl Value {
     ///
     /// The value is ouf of range.
     pub fn u4(value: u8) -> Self {
-        let w0 = (value & 12) / 4;
-        let w1 = value & 3;
         assert!(value <= 15, "{} out of range for Value::u2", value);
-        Self::product(Self::u2(w0), Self::u2(w1))
+        Self {
+            inner: Arc::new([value]),
+            bit_offset: 4,
+            ty: Final::two_two_n(2),
+        }
     }
 
     /// Create an 8-bit integer.
     pub fn u8(value: u8) -> Self {
-        let w0 = value >> 4;
-        let w1 = value & 0xf;
-        Self::product(Self::u4(w0), Self::u4(w1))
+        Self {
+            inner: Arc::new([value]),
+            bit_offset: 0,
+            ty: Final::two_two_n(3),
+        }
     }
 
     /// Create a 16-bit integer.
     pub fn u16(bytes: u16) -> Self {
-        Self::from_byte_array(bytes.to_be_bytes())
+        Self {
+            inner: Arc::new(bytes.to_be_bytes()),
+            bit_offset: 0,
+            ty: Final::two_two_n(4),
+        }
     }
 
     /// Create a 32-bit integer.
     pub fn u32(bytes: u32) -> Self {
-        Self::from_byte_array(bytes.to_be_bytes())
+        Self {
+            inner: Arc::new(bytes.to_be_bytes()),
+            bit_offset: 0,
+            ty: Final::two_two_n(5),
+        }
     }
 
     /// Create a 64-bit integer.
     pub fn u64(bytes: u64) -> Self {
-        Self::from_byte_array(bytes.to_be_bytes())
+        Self {
+            inner: Arc::new(bytes.to_be_bytes()),
+            bit_offset: 0,
+            ty: Final::two_two_n(6),
+        }
     }
 
     /// Create a 128-bit integer.
     pub fn u128(bytes: u128) -> Self {
-        Self::from_byte_array(bytes.to_be_bytes())
+        Self {
+            inner: Arc::new(bytes.to_be_bytes()),
+            bit_offset: 0,
+            ty: Final::two_two_n(7),
+        }
     }
 
     /// Create a 256-bit integer.
     pub fn u256(bytes: [u8; 32]) -> Self {
-        Self::from_byte_array(bytes)
+        Self {
+            inner: Arc::new(bytes),
+            bit_offset: 0,
+            ty: Final::two_two_n(8),
+        }
     }
 
     /// Create a 512-bit integer.
     pub fn u512(bytes: [u8; 64]) -> Self {
-        Self::from_byte_array(bytes)
+        Self {
+            inner: Arc::new(bytes),
+            bit_offset: 0,
+            ty: Final::two_two_n(9),
+        }
     }
 
     /// Create a value from a byte array.
@@ -260,23 +528,32 @@ impl Value {
         values.into_iter().next().unwrap()
     }
 
+    /// Yields an iterator over the "raw bytes" of the value.
+    ///
+    /// The returned bytes match the padded bit-encoding of the value. You
+    /// may wish to call [`Self::iter_padded`] instead to obtain the bits,
+    /// but this method is more efficient in some contexts.
+    pub fn raw_byte_iter(&self) -> RawByteIter {
+        RawByteIter {
+            value: self,
+            yielded_bytes: 0,
+        }
+    }
+
     /// Return an iterator over the compact bit encoding of the value.
     ///
     /// This encoding is used for writing witness data and for computing IMRs.
-    pub fn iter_compact(&self) -> impl Iterator<Item = bool> + '_ {
-        self.pre_order_iter::<NoSharing>()
-            .filter_map(|value| match &value.inner {
-                ValueInner::Left(..) => Some(false),
-                ValueInner::Right(..) => Some(true),
-                _ => None,
-            })
+    pub fn iter_compact(&self) -> CompactBitsIter {
+        CompactBitsIter::new(self.shallow_clone())
     }
 
     /// Return an iterator over the padded bit encoding of the value.
     ///
     /// This encoding is used to represent the value in the Bit Machine.
-    pub fn iter_padded(&self) -> impl Iterator<Item = bool> + '_ {
-        PaddedBitsIter::new(self.shallow_clone())
+    pub fn iter_padded(&self) -> PreOrderIter {
+        PreOrderIter {
+            inner: BitIter::new(self.raw_byte_iter()).take(self.ty.bit_width()),
+        }
     }
 
     /// Check if the value is of the given type.
@@ -416,90 +693,89 @@ impl Value {
 
 impl fmt::Debug for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(self, f)
+        f.debug_struct("Value")
+            .field("value", &format_args!("{}", self))
+            .field("ty", &self.ty)
+            .field("raw_value", &self.inner)
+            .field("raw_bit_offset", &self.bit_offset)
+            .finish()
     }
 }
 
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for data in self.verbose_pre_order_iter::<NoSharing>(None) {
-            match &data.node.inner {
-                ValueInner::Unit => {
-                    if data.n_children_yielded == 0
-                        && !matches!(
-                            data.parent.map(|value| &value.inner),
-                            Some(ValueInner::Left(_)) | Some(ValueInner::Right(_))
-                        )
-                    {
-                        f.write_str("ε")?;
-                    }
+        // This is a copy of the logic inside `CompactBitsIter` except
+        // that we handle products more explicitly.
+        enum S<'v> {
+            Disp(Value),
+            DispRef(&'v Value),
+            DispUnlessUnit(Value),
+            DispCh(char),
+        }
+
+        let mut stack = Vec::with_capacity(1024);
+        // Next node to visit, and a boolean indicating whether we should
+        // display units explicitly (turned off for sums, since a sum of
+        // a unit is displayed simply as 0 or 1.
+        stack.push(S::DispRef(self));
+
+        while let Some(next) = stack.pop() {
+            let value = match next {
+                S::Disp(ref value) | S::DispUnlessUnit(ref value) => value,
+                S::DispRef(value) => value,
+                S::DispCh(ch) => {
+                    write!(f, "{}", ch)?;
+                    continue;
                 }
-                ValueInner::Left(..) => {
-                    if data.n_children_yielded == 0 {
-                        f.write_str("0")?;
-                    }
+            };
+
+            if value.is_unit() {
+                if !matches!(next, S::DispUnlessUnit(..)) {
+                    f.write_str("ε")?;
                 }
-                ValueInner::Right(..) => {
-                    if data.n_children_yielded == 0 {
-                        f.write_str("1")?;
-                    }
-                }
-                ValueInner::Product(..) => match data.n_children_yielded {
-                    0 => f.write_str("(")?,
-                    1 => f.write_str(",")?,
-                    2 => f.write_str(")")?,
-                    _ => unreachable!(),
-                },
+            } else if let Some(l_value) = value.to_left() {
+                f.write_str("0")?;
+                stack.push(S::DispUnlessUnit(l_value));
+            } else if let Some(r_value) = value.to_right() {
+                f.write_str("1")?;
+                stack.push(S::DispUnlessUnit(r_value));
+            } else if let Some((l_value, r_value)) = value.to_product() {
+                stack.push(S::DispCh(')'));
+                stack.push(S::Disp(r_value));
+                stack.push(S::DispCh(','));
+                stack.push(S::Disp(l_value));
+                stack.push(S::DispCh('('));
             }
         }
         Ok(())
     }
 }
 
-/// An iterator over the bits of the padded encoding of a [`Value`].
+/// An iterator over the bits of the compact encoding of a [`Value`].
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
-struct PaddedBitsIter {
+pub struct CompactBitsIter {
     stack: Vec<Value>,
-    next_padding: Option<usize>,
 }
 
-impl PaddedBitsIter {
-    /// Create an iterator over the bits of the padded encoding of the `value`.
+impl CompactBitsIter {
+    /// Create an iterator over the bits of the compact encoding of the `value`.
     pub fn new(value: Value) -> Self {
-        Self {
-            stack: vec![value],
-            next_padding: None,
-        }
+        Self { stack: vec![value] }
     }
 }
 
-impl Iterator for PaddedBitsIter {
+impl Iterator for CompactBitsIter {
     type Item = bool;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.next_padding {
-            Some(0) => {
-                self.next_padding = None;
-            }
-            Some(n) => {
-                self.next_padding = Some(n - 1);
-                return Some(false);
-            }
-            None => {}
-        }
-
         while let Some(value) = self.stack.pop() {
             if value.is_unit() {
                 // NOP
             } else if let Some(l_value) = value.to_left() {
-                let (l_ty, r_ty) = value.ty.as_sum().unwrap();
                 self.stack.push(l_value);
-                self.next_padding = Some(l_ty.pad_left(r_ty));
                 return Some(false);
             } else if let Some(r_value) = value.to_right() {
-                let (l_ty, r_ty) = value.ty.as_sum().unwrap();
                 self.stack.push(r_value);
-                self.next_padding = Some(l_ty.pad_right(r_ty));
                 return Some(true);
             } else if let Some((l_value, r_value)) = value.to_product() {
                 self.stack.push(r_value);
@@ -644,7 +920,7 @@ impl Value {
 }
 
 /// A Simplicity word. A value of type `TWO^(2^n)` for some `0 ≤ n < 32`.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct Word {
     /// Value of type `TWO^(2^n)`.
     value: Value,
