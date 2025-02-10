@@ -845,44 +845,8 @@ impl Iterator for CompactBitsIter<'_> {
     }
 }
 
-trait Padding {
-    fn read_left_padding<I: Iterator<Item = bool>>(
-        bits: &mut I,
-        ty_l: &Final,
-        ty_r: &Final,
-    ) -> Result<(), EarlyEndOfStreamError>;
-
-    fn read_right_padding<I: Iterator<Item = bool>>(
-        bits: &mut I,
-        ty_l: &Final,
-        ty_r: &Final,
-    ) -> Result<(), EarlyEndOfStreamError>;
-}
-
-enum CompactEncoding {}
-
-impl Padding for CompactEncoding {
-    fn read_left_padding<I: Iterator<Item = bool>>(
-        _: &mut I,
-        _: &Final,
-        _: &Final,
-    ) -> Result<(), EarlyEndOfStreamError> {
-        // no padding
-        Ok(())
-    }
-
-    fn read_right_padding<I: Iterator<Item = bool>>(
-        _: &mut I,
-        _: &Final,
-        _: &Final,
-    ) -> Result<(), EarlyEndOfStreamError> {
-        // no padding
-        Ok(())
-    }
-}
-
 impl Value {
-    fn from_bits<I: Iterator<Item = u8>, P: Padding>(
+    fn from_bits<I: Iterator<Item = u8>>(
         bits: &mut BitIter<I>,
         ty: &Final,
     ) -> Result<Self, EarlyEndOfStreamError> {
@@ -929,11 +893,9 @@ impl Value {
                         CompleteBound::Unit => result_stack.push(Value::unit()),
                         CompleteBound::Sum(ref l, ref r) => {
                             if !bits.next().ok_or(EarlyEndOfStreamError)? {
-                                P::read_left_padding(bits, l, r)?;
                                 stack.push(State::DoSumL(Arc::clone(r)));
                                 stack.push(State::ProcessType(l));
                             } else {
-                                P::read_right_padding(bits, l, r)?;
                                 stack.push(State::DoSumR(Arc::clone(l)));
                                 stack.push(State::ProcessType(r));
                             }
@@ -969,7 +931,7 @@ impl Value {
         bits: &mut BitIter<I>,
         ty: &Final,
     ) -> Result<Self, EarlyEndOfStreamError> {
-        Self::from_bits::<_, CompactEncoding>(bits, ty)
+        Self::from_bits(bits, ty)
     }
 
     /// Decode a value of the given type from its padded bit encoding.
