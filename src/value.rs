@@ -629,43 +629,11 @@ impl Value {
     /// - `zero( A + B )` = `zero(A)`
     /// - `zero( A × B )` = `zero(A) × zero(B)`
     pub fn zero(ty: &Final) -> Self {
-        enum Task<'a> {
-            ZeroValue(&'a Final),
-            MakeLeft(Arc<Final>),
-            MakeProduct,
+        Self {
+            inner: Arc::from(vec![0; (ty.bit_width() + 7) / 8]),
+            bit_offset: 0,
+            ty: Arc::new(ty.clone()),
         }
-
-        let mut output = vec![];
-        let mut stack = vec![Task::ZeroValue(ty)];
-
-        while let Some(task) = stack.pop() {
-            match task {
-                Task::ZeroValue(ty) => match ty.bound() {
-                    CompleteBound::Unit => output.push(Value::unit()),
-                    CompleteBound::Sum(l_ty, r_ty) => {
-                        stack.push(Task::MakeLeft(Arc::clone(r_ty)));
-                        stack.push(Task::ZeroValue(l_ty));
-                    }
-                    CompleteBound::Product(l_ty, r_ty) => {
-                        stack.push(Task::MakeProduct);
-                        stack.push(Task::ZeroValue(r_ty));
-                        stack.push(Task::ZeroValue(l_ty));
-                    }
-                },
-                Task::MakeLeft(r_ty) => {
-                    let l_value = output.pop().unwrap();
-                    output.push(Value::left(l_value, r_ty));
-                }
-                Task::MakeProduct => {
-                    let r_value = output.pop().unwrap();
-                    let l_value = output.pop().unwrap();
-                    output.push(Value::product(l_value, r_value));
-                }
-            }
-        }
-
-        debug_assert_eq!(output.len(), 1);
-        output.pop().unwrap()
     }
 
     /// Try to convert the value into a word.
