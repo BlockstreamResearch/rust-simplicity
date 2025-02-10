@@ -37,12 +37,12 @@ pub struct Value {
     ty: Arc<Final>,
 }
 
-/// Private structure used for iterating over a value in pre-order
+/// Reference to a value, or to a sub-value of a value.
 #[derive(Debug, Clone)]
-struct ValueRef<'v> {
-    inner: &'v [u8],
+pub struct ValueRef<'v> {
+    inner: &'v Arc<[u8]>,
     bit_offset: usize,
-    ty: &'v Final,
+    ty: &'v Arc<Final>,
 }
 
 // Because two equal values may have different bit offsets, we must manually
@@ -103,7 +103,7 @@ impl DagLike for ValueRef<'_> {
 
 impl ValueRef<'_> {
     /// Check if the value is a unit.
-    fn is_unit(&self) -> bool {
+    pub fn is_unit(&self) -> bool {
         self.ty.is_unit()
     }
 
@@ -178,6 +178,23 @@ impl ValueRef<'_> {
         } else {
             None
         }
+    }
+
+    /// Convert the reference back to a value.
+    pub fn to_value(&self) -> Value {
+        Value {
+            inner: Arc::clone(self.inner),
+            bit_offset: self.bit_offset,
+            ty: Arc::clone(self.ty),
+        }
+    }
+
+    /// Try to convert the value into a word.
+    pub fn to_word(&self) -> Option<Word> {
+        self.ty.as_word().map(|n| Word {
+            value: self.to_value(),
+            n,
+        })
     }
 }
 
@@ -418,84 +435,28 @@ impl Value {
         self.ty.is_unit()
     }
 
-    /// Helper function to convert the value to a reference
-    fn as_ref(&self) -> ValueRef {
+    /// A reference to this value, which can be recursed over.
+    pub fn as_ref(&self) -> ValueRef {
         ValueRef {
-            inner: self.inner.as_ref(),
+            inner: &self.inner,
             bit_offset: self.bit_offset,
-            ty: self.ty.as_ref(),
+            ty: &self.ty,
         }
-    }
-
-    /// Helper function to read the first bit of a value
-    ///
-    /// If the first bit is not available (e.g. if the value has zero size)
-    /// then returns None.
-    fn first_bit(&self) -> Option<bool> {
-        let mask = if self.bit_offset % 8 == 0 {
-            0x80
-        } else {
-            1 << (7 - self.bit_offset % 8)
-        };
-        let res = self
-            .inner
-            .get(self.bit_offset / 8)
-            .map(|x| x & mask == mask);
-        res
     }
 
     /// Access the inner value of a left sum value.
-    pub fn to_left(&self) -> Option<Self> {
-        if self.first_bit() == Some(false) {
-            if let Some((lty, _)) = self.ty.as_sum() {
-                Some(Self {
-                    inner: Arc::clone(&self.inner),
-                    bit_offset: self.bit_offset + self.ty.bit_width() - lty.bit_width(),
-                    ty: Arc::clone(lty),
-                })
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+    pub fn as_left(&self) -> Option<ValueRef> {
+        self.as_ref().as_left()
     }
 
     /// Access the inner value of a right sum value.
-    pub fn to_right(&self) -> Option<Self> {
-        if self.first_bit() == Some(true) {
-            if let Some((_, rty)) = self.ty.as_sum() {
-                Some(Self {
-                    inner: Arc::clone(&self.inner),
-                    bit_offset: self.bit_offset + self.ty.bit_width() - rty.bit_width(),
-                    ty: Arc::clone(rty),
-                })
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+    pub fn as_right(&self) -> Option<ValueRef> {
+        self.as_ref().as_right()
     }
 
     /// Access the inner values of a product value.
-    pub fn to_product(&self) -> Option<(Self, Self)> {
-        if let Some((lty, rty)) = self.ty.as_product() {
-            Some((
-                Self {
-                    inner: Arc::clone(&self.inner),
-                    bit_offset: self.bit_offset,
-                    ty: Arc::clone(lty),
-                },
-                Self {
-                    inner: Arc::clone(&self.inner),
-                    bit_offset: self.bit_offset + lty.bit_width(),
-                    ty: Arc::clone(rty),
-                },
-            ))
-        } else {
-            None
-        }
+    pub fn as_product(&self) -> Option<(ValueRef, ValueRef)> {
+        self.as_ref().as_product()
     }
 
     /// Create a 1-bit integer.
@@ -736,14 +697,14 @@ impl Value {
     /// - `prune( R(r): A1 + B1, A2 + B2 )` = `prune(r: B1, B2) : A2 + B2`
     /// - `prune( (l, r): A1 × B1, A2 × B2 )` = `( prune(l: A1, A2), prune(r: B1, B2): A2 × B2`
     pub fn prune(&self, pruned_ty: &Final) -> Option<Self> {
-        enum Task<'ty> {
-            Prune(Value, &'ty Final),
+        enum Task<'v, 'ty> {
+            Prune(ValueRef<'v>, &'ty Final),
             MakeLeft(Arc<Final>),
             MakeRight(Arc<Final>),
             MakeProduct,
         }
 
-        let mut stack = vec![Task::Prune(self.shallow_clone(), pruned_ty)];
+        let mut stack = vec![Task::Prune(self.as_ref(), pruned_ty)];
         let mut output = vec![];
 
         while let Some(task) = stack.pop() {
@@ -751,17 +712,17 @@ impl Value {
                 Task::Prune(value, pruned_ty) => match pruned_ty.bound() {
                     CompleteBound::Unit => output.push(Value::unit()),
                     CompleteBound::Sum(l_ty, r_ty) => {
-                        if let Some(l_value) = value.to_left() {
+                        if let Some(l_value) = value.as_left() {
                             stack.push(Task::MakeLeft(Arc::clone(r_ty)));
                             stack.push(Task::Prune(l_value, l_ty));
                         } else {
-                            let r_value = value.to_right()?;
+                            let r_value = value.as_right()?;
                             stack.push(Task::MakeRight(Arc::clone(l_ty)));
                             stack.push(Task::Prune(r_value, r_ty));
                         }
                     }
                     CompleteBound::Product(l_ty, r_ty) => {
-                        let (l_value, r_value) = value.to_product()?;
+                        let (l_value, r_value) = value.as_product()?;
                         stack.push(Task::MakeProduct);
                         stack.push(Task::Prune(r_value, r_ty));
                         stack.push(Task::Prune(l_value, l_ty));
