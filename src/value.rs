@@ -419,7 +419,7 @@ impl Value {
     }
 
     /// Helper function to convert the value to a reference
-    fn as_value(&self) -> ValueRef {
+    fn as_ref(&self) -> ValueRef {
         ValueRef {
             inner: self.inner.as_ref(),
             bit_offset: self.bit_offset,
@@ -641,7 +641,7 @@ impl Value {
     ///
     /// This encoding is used for writing witness data and for computing IMRs.
     pub fn iter_compact(&self) -> CompactBitsIter {
-        CompactBitsIter::new(self.as_value())
+        CompactBitsIter::new(self.as_ref())
     }
 
     /// Return an iterator over the padded bit encoding of the value.
@@ -813,7 +813,7 @@ impl fmt::Display for Value {
         // Next node to visit, and a boolean indicating whether we should
         // display units explicitly (turned off for sums, since a sum of
         // a unit is displayed simply as 0 or 1.
-        stack.push(S::Disp(self.as_value()));
+        stack.push(S::Disp(self.as_ref()));
 
         while let Some(next) = stack.pop() {
             let value = match next {
