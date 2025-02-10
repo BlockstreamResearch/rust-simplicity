@@ -1400,6 +1400,28 @@ mod benches {
         });
     }
 
+    #[bench]
+    fn bench_value_create_512_256(bh: &mut Bencher) {
+        bh.iter(|| {
+            // This is a common "slow" pattern in my Elements fuzzer; it is a deeply
+            // nested product of 2^512 x 2^256, which is not a "primitive numeric
+            // type" and therefore cannot be quickly decoded from compact bits by
+            // simply matching to pre-computed types.
+            //
+            // However, this type is a giant product of bits. Its compact encoding
+            // is therefore equal to its padded encoding and we should be able to
+            // quickly decode it.
+            let mut s512_256 = Value::product(
+                Value::from_byte_array([0x12; 64]),
+                Value::from_byte_array([0x23; 32]),
+            );
+            for _ in 0..5 {
+                s512_256 = Value::product(s512_256.shallow_clone(), s512_256.shallow_clone());
+            }
+            black_box(s512_256);
+        });
+    }
+
     // Create values from padded bits
     fn padded_bits(v: &Value) -> (Vec<u8>, &Final) {
         let (bits, _) = v.iter_padded().collect_bits();
@@ -1452,6 +1474,25 @@ mod benches {
             kilo = Value::product(kilo.shallow_clone(), kilo.shallow_clone());
         }
         let (bits, ty) = padded_bits(&kilo);
+        bh.iter(|| {
+            black_box(Value::from_padded_bits(
+                &mut BitIter::new(bits.iter().copied()),
+                ty,
+            ))
+        })
+    }
+
+    #[bench]
+    fn bench_value_create_512_256_padded(bh: &mut Bencher) {
+        // See comment in bench_value_create_512_256 about this value
+        let mut s512_256 = Value::product(
+            Value::from_byte_array([0x12; 64]),
+            Value::from_byte_array([0x23; 32]),
+        );
+        for _ in 0..5 {
+            s512_256 = Value::product(s512_256.shallow_clone(), s512_256.shallow_clone());
+        }
+        let (bits, ty) = padded_bits(&s512_256);
         bh.iter(|| {
             black_box(Value::from_padded_bits(
                 &mut BitIter::new(bits.iter().copied()),
@@ -1520,6 +1561,25 @@ mod benches {
         })
     }
 
+    #[bench]
+    fn bench_value_create_512_256_compact(bh: &mut Bencher) {
+        // See comment in bench_value_create_512_256 about this value
+        let mut s512_256 = Value::product(
+            Value::from_byte_array([0x12; 64]),
+            Value::from_byte_array([0x23; 32]),
+        );
+        for _ in 0..5 {
+            s512_256 = Value::product(s512_256.shallow_clone(), s512_256.shallow_clone());
+        }
+        let (bits, ty) = compact_bits(&s512_256);
+        bh.iter(|| {
+            black_box(Value::from_compact_bits(
+                &mut BitIter::new(bits.iter().copied()),
+                ty,
+            ))
+        })
+    }
+
     // Display values
     #[bench]
     fn bench_value_display_u64(bh: &mut Bencher) {
@@ -1550,4 +1610,19 @@ mod benches {
         }
         bh.iter(|| black_box(format!("{}", kilo)))
     }
+
+    #[bench]
+    fn bench_value_display_512_256(bh: &mut Bencher) {
+        // See comment in bench_value_create_512_256 about this value
+        let mut s512_256 = Value::product(
+            Value::from_byte_array([0x12; 64]),
+            Value::from_byte_array([0x23; 32]),
+        );
+        for _ in 0..5 {
+            s512_256 = Value::product(s512_256.shallow_clone(), s512_256.shallow_clone());
+        }
+        bh.iter(|| black_box(format!("{}", s512_256)))
+    }
+
+    // Display values
 }
