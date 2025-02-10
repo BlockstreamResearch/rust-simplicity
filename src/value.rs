@@ -9,7 +9,7 @@ use crate::dag::{Dag, DagLike};
 use crate::types::{CompleteBound, Final};
 use crate::BitIter;
 
-use crate::{BitCollector, EarlyEndOfStreamError, Tmr};
+use crate::{BitCollector, EarlyEndOfStreamError};
 use core::{cmp, fmt, iter};
 use std::collections::VecDeque;
 use std::hash::Hash;
@@ -859,53 +859,28 @@ impl Value {
 
         let mut stack = vec![State::ProcessType(ty)];
         let mut result_stack = vec![];
-        'stack_loop: while let Some(state) = stack.pop() {
+        while let Some(state) = stack.pop() {
             match state {
-                State::ProcessType(ty) if ty.tmr() == Tmr::TWO_TWO_N[0] => {
-                    result_stack.push(Value::u1(bits.read_bit()?.into()));
-                }
-                State::ProcessType(ty) if ty.tmr() == Tmr::TWO_TWO_N[1] => {
-                    result_stack.push(Value::u2(bits.read_u2()?.into()));
-                }
-                State::ProcessType(ty) if ty.tmr() == Tmr::TWO_TWO_N[2] => {
-                    let u4 = (u8::from(bits.read_u2()?) << 2) + u8::from(bits.read_u2()?);
-                    result_stack.push(Value::u4(u4));
-                }
-                State::ProcessType(ty) => {
-                    // The TWO_TWO_N array is indexed by number of bits. By skipping the
-                    // first three entries we index it by number of bytes.
-                    for (logn, tmr) in Tmr::TWO_TWO_N.iter().skip(3).enumerate() {
-                        if ty.tmr() == *tmr {
-                            let mut blob = Vec::with_capacity(1 << logn);
-                            for _ in 0..blob.capacity() {
-                                blob.push(bits.read_u8()?);
-                            }
-                            result_stack.push(Value {
-                                inner: blob.into(),
-                                bit_offset: 0,
-                                ty: Final::two_two_n(logn + 3),
-                            });
-                            continue 'stack_loop;
-                        }
-                    }
-
-                    match ty.bound() {
-                        CompleteBound::Unit => result_stack.push(Value::unit()),
-                        CompleteBound::Sum(ref l, ref r) => {
-                            if !bits.next().ok_or(EarlyEndOfStreamError)? {
-                                stack.push(State::DoSumL(Arc::clone(r)));
-                                stack.push(State::ProcessType(l));
-                            } else {
-                                stack.push(State::DoSumR(Arc::clone(l)));
-                                stack.push(State::ProcessType(r));
-                            }
-                        }
-                        CompleteBound::Product(ref l, ref r) => {
-                            stack.push(State::DoProduct);
-                            stack.push(State::ProcessType(r));
+                State::ProcessType(ty) if ty.has_padding() => match ty.bound() {
+                    CompleteBound::Unit => result_stack.push(Value::unit()),
+                    CompleteBound::Sum(ref l, ref r) => {
+                        if !bits.next().ok_or(EarlyEndOfStreamError)? {
+                            stack.push(State::DoSumL(Arc::clone(r)));
                             stack.push(State::ProcessType(l));
+                        } else {
+                            stack.push(State::DoSumR(Arc::clone(l)));
+                            stack.push(State::ProcessType(r));
                         }
                     }
+                    CompleteBound::Product(ref l, ref r) => {
+                        stack.push(State::DoProduct);
+                        stack.push(State::ProcessType(r));
+                        stack.push(State::ProcessType(l));
+                    }
+                },
+                State::ProcessType(ty) => {
+                    // no padding no problem
+                    result_stack.push(Value::from_padded_bits(bits, ty)?);
                 }
                 State::DoSumL(r) => {
                     let val = result_stack.pop().unwrap();
