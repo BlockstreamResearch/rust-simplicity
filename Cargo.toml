@@ -44,3 +44,6 @@ members = ["simpcli", "simplicity-sys", "fuzz"]
 # Should be manually/separately tested since it has a massive dep tree
 # and not follow MSRV
 exclude = ["jets-bench"]
+
+[lints.rust]
+unexpected_cfgs = { level = "deny", check-cfg = ['cfg(bench)'] }
