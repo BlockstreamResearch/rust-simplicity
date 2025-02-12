@@ -9,7 +9,7 @@ use crate::tests::ffi::{
     bitstream::{simplicity_closeBitstream, CBitstream},
     dag::{
         simplicity_computeAnnotatedMerkleRoot, simplicity_fillWitnessData,
-        simplicity_verifyNoDuplicateIdentityRoots, CAnalyses, CCombinatorCounters,
+        simplicity_verifyNoDuplicateIdentityHashes, CAnalyses, CCombinatorCounters,
     },
     deserialize::simplicity_decodeMallocDag,
     eval::{simplicity_analyseBounds, simplicity_evalTCOProgram},
@@ -170,7 +170,7 @@ pub fn run_program(
         }
 
         // 6. Check IMR
-        simplicity_verifyNoDuplicateIdentityRoots(&mut result.imr, dag, type_dag, len)
+        simplicity_verifyNoDuplicateIdentityHashes(&mut result.imr, dag, type_dag, len)
             .into_result()?;
         if test_up_to <= TestUpTo::ComputeImr {
             return Ok(result);
@@ -304,7 +304,7 @@ mod test_data {
             TestData {
                 cmr: parse_root(&ffi::schnorr0_cmr),
                 amr: parse_root(&ffi::schnorr0_amr),
-                imr: parse_root(&ffi::schnorr0_imr),
+                imr: parse_root(&ffi::schnorr0_ihr),
                 prog: slice::from_raw_parts(ffi::schnorr0.as_ptr(), ffi::sizeof_schnorr0).into(),
                 witness: slice::from_raw_parts(
                     ffi::schnorr0_witness.as_ptr(),
@@ -321,7 +321,7 @@ mod test_data {
             TestData {
                 cmr: parse_root(&ffi::schnorr6_cmr),
                 amr: parse_root(&ffi::schnorr6_amr),
-                imr: parse_root(&ffi::schnorr6_imr),
+                imr: parse_root(&ffi::schnorr6_ihr),
                 prog: slice::from_raw_parts(ffi::schnorr6.as_ptr(), ffi::sizeof_schnorr6).into(),
                 witness: slice::from_raw_parts(
                     ffi::schnorr6_witness.as_ptr(),
@@ -338,7 +338,7 @@ mod test_data {
             TestData {
                 cmr: parse_root(&ffi::ctx8Pruned_cmr),
                 amr: parse_root(&ffi::ctx8Pruned_amr),
-                imr: parse_root(&ffi::ctx8Pruned_imr),
+                imr: parse_root(&ffi::ctx8Pruned_ihr),
                 prog: slice::from_raw_parts(ffi::ctx8Pruned.as_ptr(), ffi::sizeof_ctx8Pruned)
                     .into(),
                 witness: slice::from_raw_parts(
@@ -356,7 +356,7 @@ mod test_data {
             TestData {
                 cmr: parse_root(&ffi::ctx8Unpruned_cmr),
                 amr: parse_root(&ffi::ctx8Unpruned_amr),
-                imr: parse_root(&ffi::ctx8Unpruned_imr),
+                imr: parse_root(&ffi::ctx8Unpruned_ihr),
                 prog: slice::from_raw_parts(ffi::ctx8Unpruned.as_ptr(), ffi::sizeof_ctx8Unpruned)
                     .into(),
                 witness: slice::from_raw_parts(
@@ -390,7 +390,7 @@ mod test_code {
                 &ffi::ctx8Pruned_witness,
                 &ffi::ctx8Pruned_amr,
                 &ffi::ctx8Pruned_cmr,
-                &ffi::ctx8Pruned_imr,
+                &ffi::ctx8Pruned_ihr,
                 ffi::ctx8Pruned_cost,
             );
         }
@@ -410,7 +410,7 @@ mod test_code {
                 SimplicityErr::AntiDoS,
                 &ffi::ctx8Unpruned_amr,
                 &ffi::ctx8Unpruned_cmr,
-                &ffi::ctx8Unpruned_imr,
+                &ffi::ctx8Unpruned_ihr,
                 ffi::ctx8Unpruned_cost,
             );
         }
@@ -426,7 +426,7 @@ mod test_code {
                 &ffi::schnorr0_witness,
                 &ffi::schnorr0_amr,
                 &ffi::schnorr0_cmr,
-                &ffi::schnorr0_imr,
+                &ffi::schnorr0_ihr,
                 ffi::schnorr0_cost,
             );
         }
@@ -443,7 +443,7 @@ mod test_code {
                 SimplicityErr::ExecJet,
                 &ffi::schnorr6_amr,
                 &ffi::schnorr6_cmr,
-                &ffi::schnorr6_imr,
+                &ffi::schnorr6_ihr,
                 ffi::schnorr6_cost,
             );
         }
