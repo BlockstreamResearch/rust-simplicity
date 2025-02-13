@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: CC0-1.0
 
-//! # Simplicity Execution
+//! Simplicity Execution
 //!
 //! Implementation of the Bit Machine, without TCO, as TCO precludes some
 //! frame management optimizations which can be used to great benefit.
 //!
 
 mod frame;
+mod limits;
 
 use std::collections::HashSet;
 use std::error;
@@ -19,6 +20,8 @@ use crate::types::Final;
 use crate::{analysis, Imr};
 use crate::{Cmr, FailEntropy, Value};
 use frame::Frame;
+
+pub use self::limits::LimitError;
 
 /// An execution context for a Simplicity program
 pub struct BitMachine {
@@ -37,16 +40,17 @@ pub struct BitMachine {
 
 impl BitMachine {
     /// Construct a Bit Machine with enough space to execute the given program.
-    pub fn for_program<J: Jet>(program: &RedeemNode<J>) -> Self {
+    pub fn for_program<J: Jet>(program: &RedeemNode<J>) -> Result<Self, LimitError> {
+        LimitError::check_program(program)?;
         let io_width = program.arrow().source.bit_width() + program.arrow().target.bit_width();
 
-        Self {
+        Ok(Self {
             data: vec![0; (io_width + program.bounds().extra_cells + 7) / 8],
             next_frame_start: 0,
             read: Vec::with_capacity(program.bounds().extra_frames + analysis::IO_EXTRA_FRAMES),
             write: Vec::with_capacity(program.bounds().extra_frames + analysis::IO_EXTRA_FRAMES),
             source_ty: program.arrow().source.clone(),
-        }
+        })
     }
 
     #[cfg(test)]
@@ -61,7 +65,7 @@ impl BitMachine {
             .expect("finalizing types")
             .finalize(&mut SimpleFinalizer::new(None.into_iter()))
             .expect("finalizing");
-        let mut mac = BitMachine::for_program(&prog);
+        let mut mac = BitMachine::for_program(&prog).expect("program has reasonable bounds");
         mac.exec(&prog, env)
     }
 
@@ -569,6 +573,8 @@ pub enum ExecutionError {
     ReachedFailNode(FailEntropy),
     /// Reached a pruned branch
     ReachedPrunedBranch(Cmr),
+    /// Exceeded some program limit
+    LimitExceeded(LimitError),
     /// Jet failed during execution
     JetFailed(JetFailed),
 }
@@ -585,12 +591,29 @@ impl fmt::Display for ExecutionError {
             ExecutionError::ReachedPrunedBranch(hash) => {
                 write!(f, "Execution reached a pruned branch: {}", hash)
             }
-            ExecutionError::JetFailed(jet_failed) => fmt::Display::fmt(jet_failed, f),
+            ExecutionError::LimitExceeded(e) => e.fmt(f),
+            ExecutionError::JetFailed(jet_failed) => jet_failed.fmt(f),
         }
     }
 }
 
-impl error::Error for ExecutionError {}
+impl error::Error for ExecutionError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        match self {
+            Self::InputWrongType(..)
+            | Self::ReachedFailNode(..)
+            | Self::ReachedPrunedBranch(..) => None,
+            Self::LimitExceeded(ref e) => Some(e),
+            Self::JetFailed(ref e) => Some(e),
+        }
+    }
+}
+
+impl From<LimitError> for ExecutionError {
+    fn from(e: LimitError) -> Self {
+        ExecutionError::LimitExceeded(e)
+    }
+}
 
 impl From<JetFailed> for ExecutionError {
     fn from(jet_failed: JetFailed) -> Self {
@@ -656,7 +679,9 @@ mod tests {
 
         // Try to run it on the bit machine and return the result
         let env = ElementsEnv::dummy();
-        BitMachine::for_program(&prog).exec(&prog, &env)
+        BitMachine::for_program(&prog)
+            .expect("program has reasonable bounds")
+            .exec(&prog, &env)
     }
 
     #[test]

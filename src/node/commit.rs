@@ -544,7 +544,8 @@ mod tests {
             assert_eq!(counter, 0..98);
 
             // Execute the program to confirm that it worked
-            let mut mac = BitMachine::for_program(&diff1_final);
+            let mut mac =
+                BitMachine::for_program(&diff1_final).expect("program has reasonable bounds");
             mac.exec(&diff1_final, &()).unwrap();
         }
     }

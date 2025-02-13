@@ -418,7 +418,7 @@ impl<J: Jet> RedeemNode<J> {
 
         // 1) Run the Bit Machine and mark (un)used branches.
         // This is the only fallible step in the pruning process.
-        let mut mac = BitMachine::for_program(self);
+        let mut mac = BitMachine::for_program(self)?;
         let tracker = mac.exec_prune(self, env)?;
 
         // 2) Prune out unused case branches.
@@ -920,7 +920,8 @@ mod tests {
             .finalize_unpruned()
             .expect("expected pruned program should finalize");
 
-        let mut mac = BitMachine::for_program(&unpruned_program);
+        let mut mac = BitMachine::for_program(&unpruned_program)
+            .expect("unpruned program has reasonable bounds");
         let unpruned_output = mac
             .exec(&unpruned_program, env)
             .expect("unpruned program should run without failure");
@@ -934,7 +935,8 @@ mod tests {
             "pruning result differs from expected result"
         );
 
-        let mut mac = BitMachine::for_program(&pruned_program);
+        let mut mac =
+            BitMachine::for_program(&pruned_program).expect("pruned program has reasonable bounds");
         let pruned_output = mac
             .exec(&pruned_program, env)
             .expect("pruned program should run without failure");
