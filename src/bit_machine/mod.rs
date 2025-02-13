@@ -535,7 +535,6 @@ impl From<JetFailed> for ExecutionError {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(feature = "elements")]
     use super::*;
 
     #[cfg(feature = "elements")]
@@ -621,5 +620,21 @@ mod tests {
             "ffc4aa8b46fd3c25f765f7ad1f44474bd936f9edeb4a90e8b198215c3b743f17",
         );
         assert_eq!(res.unwrap(), Value::unit());
+    }
+
+    #[test]
+    fn crash_regression2() {
+        use crate::node::{CoreConstructible as _, JetConstructible as _};
+
+        type Node = Arc<crate::ConstructNode<crate::jet::Core>>;
+
+        let mut bomb = Node::jet(
+            &crate::types::Context::new(),
+            crate::jet::Core::Ch8, // arbitrary jet with nonzero output size
+        );
+        for _ in 0..100 {
+            bomb = Node::pair(&bomb, &bomb).unwrap();
+        }
+        let _ = bomb.finalize_types();
     }
 }
