@@ -595,7 +595,8 @@ mod tests {
                     .finalize_unpruned()
                     .expect("finalize");
 
-                let mut mac = BitMachine::for_program(&program);
+                let mut mac =
+                    BitMachine::for_program(&program).expect("program has reasonable bounds");
                 mac.exec(&program, env).expect("execute");
             }
             Err(errs) => {
