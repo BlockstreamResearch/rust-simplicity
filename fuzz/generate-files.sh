@@ -26,6 +26,9 @@ simplicity-lang = { path = "..", features = ["test-utils"] }
 
 [dev-dependencies]
 base64 = "0.22.1"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(fuzzing)'] }
 EOF
 
 for targetFile in $(listTargetFiles); do
@@ -85,7 +88,7 @@ $(for name in $(listTargetNames); do echo "$name,"; done)
           components: "llvm-tools-preview"
 
       - name: Install Dependencies
-        run: cargo update && cargo update -p cc --precise 1.0.83 && cargo install cargo-fuzz
+        run: cargo update && cargo update -p cc --precise 1.0.83 && cargo install --force cargo-fuzz
 
       - name: Run Fuzz Target
         run: ./fuzz/fuzz.sh "\${{ matrix.fuzz_target }}"
