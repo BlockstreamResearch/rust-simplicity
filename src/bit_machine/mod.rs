@@ -494,12 +494,16 @@ impl BitMachine {
         let output_width = jet.target_ty().to_bit_width();
         // Input buffer is implicitly referenced by input read frame!
         // Same goes for output buffer
-        let (input_read_frame, _input_buffer) = unsafe { get_input_frame(self, input_width) };
+        let (input_read_frame, input_buffer) = unsafe { get_input_frame(self, input_width) };
         let (mut output_write_frame, output_buffer) = unsafe { get_output_frame(output_width) };
 
         let jet_fn = jet.c_jet_ptr();
         let c_env = J::c_jet_env(env);
         let success = jet_fn(&mut output_write_frame, input_read_frame, c_env);
+
+        if cfg!(feature = "trace") {
+            println!("{:?} {:?} -> {:?}", jet, input_buffer, output_buffer);
+        }
 
         if !success {
             Err(JetFailed)
