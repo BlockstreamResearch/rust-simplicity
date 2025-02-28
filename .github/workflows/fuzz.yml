@@ -43,7 +43,7 @@ parse_human,
           components: "llvm-tools-preview"
 
       - name: Install Dependencies
-        run: cargo update && cargo update -p cc --precise 1.0.83 && cargo install cargo-fuzz
+        run: cargo update && cargo update -p cc --precise 1.0.83 && cargo install --force cargo-fuzz
 
       - name: Run Fuzz Target
         run: ./fuzz/fuzz.sh "${{ matrix.fuzz_target }}"

@@ -19,13 +19,13 @@ pub type c_int = i32;
 pub type c_uint = u32;
 pub type c_size_t = usize;
 pub type c_uint_fast8_t = u8;
-#[cfg(target_arch = "wasm32")]
+#[cfg(any(target_arch = "wasm32", target_arch = "aarch64"))]
 pub type c_uint_fast16_t = u16;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(any(target_arch = "wasm32", target_arch = "aarch64")))]
 pub type c_uint_fast16_t = usize;
-#[cfg(target_arch = "wasm32")]
+#[cfg(any(target_arch = "wasm32", target_arch = "aarch64"))]
 pub type c_uint_fast32_t = u32;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(any(target_arch = "wasm32", target_arch = "aarch64")))]
 pub type c_uint_fast32_t = usize;
 #[cfg(target_arch = "wasm32")]
 pub type c_uint_fast64_t = u64;

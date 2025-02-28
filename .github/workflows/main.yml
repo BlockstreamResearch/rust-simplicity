@@ -101,3 +101,19 @@ jobs:
           components: clippy
       - name: Running cargo clippy
         run: cargo clippy --all-targets -- --deny warnings
+
+  test-other-platforms:
+    name: Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest]
+    steps:
+      - name: Checkout Crate
+        uses: actions/checkout@v4
+      - name: Checkout Toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Set dependencies
+        run: cp Cargo-recent.lock Cargo.lock
+      - name: Run unit tests
+        run: cargo test --locked --workspace --all-features
