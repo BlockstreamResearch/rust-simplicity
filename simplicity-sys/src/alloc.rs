@@ -28,7 +28,7 @@ type AllocatorFn = unsafe fn(Layout) -> *mut u8;
 /// # Safety
 ///
 /// - `allocator` must be [`alloc::alloc`] or [`alloc::alloc_zeroed`].
-/// - Allocated bytes must be freed using [`rust_free`].
+/// - Allocated bytes must be freed using [`rust_0_3_free`].
 unsafe fn allocate(size_bytes: usize, allocator: AllocatorFn) -> *mut u8 {
     assert!(mem::align_of::<usize>() <= MIN_ALIGN);
     assert!(mem::align_of::<&usize>() <= MIN_ALIGN);
@@ -73,9 +73,9 @@ unsafe fn allocate(size_bytes: usize, allocator: AllocatorFn) -> *mut u8 {
 ///
 /// # Safety
 ///
-/// Allocated bytes must be freed using [`rust_free`].
+/// Allocated bytes must be freed using [`rust_0_3_free`].
 #[no_mangle]
-pub unsafe extern "C" fn rust_malloc(size_bytes: usize) -> *mut u8 {
+pub unsafe extern "C" fn rust_0_3_malloc(size_bytes: usize) -> *mut u8 {
     // SAFETY: Allocator is `alloc::alloc`.
     allocate(size_bytes, alloc::alloc)
 }
@@ -84,9 +84,9 @@ pub unsafe extern "C" fn rust_malloc(size_bytes: usize) -> *mut u8 {
 ///
 /// # Safety
 ///
-/// Allocated bytes must be freed using [`rust_free`].
+/// Allocated bytes must be freed using [`rust_0_3_free`].
 #[no_mangle]
-pub unsafe extern "C" fn rust_calloc(num: usize, size: usize) -> *mut u8 {
+pub unsafe extern "C" fn rust_0_3_calloc(num: usize, size: usize) -> *mut u8 {
     let size_bytes = num * size;
     // SAFETY: Allocator is `alloc_alloc_zeroed`.
     allocate(size_bytes, alloc::alloc_zeroed)
@@ -96,15 +96,15 @@ pub unsafe extern "C" fn rust_calloc(num: usize, size: usize) -> *mut u8 {
 ///
 /// # Safety
 ///
-/// - `ptr_bytes` must have been allocated using [`rust_malloc`] or [`rust_calloc`].
+/// - `ptr_bytes` must have been allocated using [`rust_0_3_malloc`] or [`rust_0_3_calloc`].
 /// - If `ptr_bytes` is a `NULL` pointer, then this function is a NO-OP.
 #[no_mangle]
-pub unsafe extern "C" fn rust_free(ptr_bytes: *mut u8) {
+pub unsafe extern "C" fn rust_0_3_free(ptr_bytes: *mut u8) {
     if ptr_bytes.is_null() {
         return;
     }
 
-    // We got a pointer to an allocation from `rust_malloc` or `rust_calloc`,
+    // We got a pointer to an allocation from `rust_0_3_malloc` or `rust_0_3_calloc`,
     // so the memory looks as follows.
     // There is a prefix of `MIN_ALIGN` bytes in front of the pointer we got.
     // This prefix holds the total number of allocated bytes.
