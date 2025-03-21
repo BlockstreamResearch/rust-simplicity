@@ -9,6 +9,9 @@ publish = false
 [package.metadata]
 cargo-fuzz = true
 
+[lib]
+path = "fuzz_lib/lib.rs"
+
 [dependencies]
 libfuzzer-sys = "0.4"
 simplicity-lang = { path = "..", features = ["test-utils"] }
@@ -18,6 +21,13 @@ base64 = "0.22.1"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(fuzzing)'] }
+
+[[bin]]
+name = "construct_type"
+path = "fuzz_targets/construct_type.rs"
+test = false
+doc = false
+bench = false
 
 [[bin]]
 name = "c_rust_merkle"

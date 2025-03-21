@@ -20,6 +20,9 @@ publish = false
 [package.metadata]
 cargo-fuzz = true
 
+[lib]
+path = "fuzz_lib/lib.rs"
+
 [dependencies]
 libfuzzer-sys = "0.4"
 simplicity-lang = { path = "..", features = ["test-utils"] }
