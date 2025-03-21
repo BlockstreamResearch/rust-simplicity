@@ -798,7 +798,7 @@ impl Iterator for CompactBitsIter<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(value) = self.stack.pop() {
-            if value.is_unit() {
+            if value.ty.bit_width() == 0 {
                 // NOP
             } else if let Some(l_value) = value.as_left() {
                 self.stack.push(l_value);
