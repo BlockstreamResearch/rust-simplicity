@@ -878,7 +878,10 @@ impl Value {
         bits: &mut BitIter<I>,
         ty: &Final,
     ) -> Result<Self, EarlyEndOfStreamError> {
-        let mut blob = Vec::with_capacity(ty.bit_width().div_ceil(8));
+        const MAX_INITIAL_ALLOC: usize = 32 * 1024 * 1024; // 4 megabytes
+
+        let cap = cmp::min(MAX_INITIAL_ALLOC, ty.bit_width().div_ceil(8));
+        let mut blob = Vec::with_capacity(cap);
         for _ in 0..ty.bit_width() / 8 {
             blob.push(bits.read_u8()?);
         }
