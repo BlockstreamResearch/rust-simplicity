@@ -299,19 +299,19 @@ fn product(
         } else if right_bit_length == 0 {
             (Arc::new([]), 0)
         } else {
-            (Arc::from(vec![0; (right_bit_length + 7) / 8]), 0)
+            (Arc::from(vec![0; right_bit_length.div_ceil(8)]), 0)
         }
     } else if right_bit_length == 0 {
         if let Some((lt, left_bit_offset)) = left {
             (Arc::clone(lt), left_bit_offset)
         } else {
-            (Arc::from(vec![0; (left_bit_length + 7) / 8]), 0)
+            (Arc::from(vec![0; left_bit_length.div_ceil(8)]), 0)
         }
     } else {
         // Both left and right have nonzero lengths. This is the only "real" case
         // in which we have to do something beyond cloning Arcs or allocating
         // zeroed vectors. In this case we left-shift both as much as possible.
-        let mut bx = Box::<[u8]>::from(vec![0; (left_bit_length + right_bit_length + 7) / 8]);
+        let mut bx = Box::<[u8]>::from(vec![0; (left_bit_length + right_bit_length).div_ceil(8)]);
         if let Some((left, left_bit_offset)) = left {
             copy_bits(left, left_bit_offset, &mut bx, 0, left_bit_length);
         }
@@ -630,7 +630,7 @@ impl Value {
     /// - `zero( A × B )` = `zero(A) × zero(B)`
     pub fn zero(ty: &Final) -> Self {
         Self {
-            inner: Arc::from(vec![0; (ty.bit_width() + 7) / 8]),
+            inner: Arc::from(vec![0; ty.bit_width().div_ceil(8)]),
             bit_offset: 0,
             ty: Arc::new(ty.clone()),
         }
@@ -878,7 +878,7 @@ impl Value {
         bits: &mut BitIter<I>,
         ty: &Final,
     ) -> Result<Self, EarlyEndOfStreamError> {
-        let mut blob = Vec::with_capacity((ty.bit_width() + 7) / 8);
+        let mut blob = Vec::with_capacity(ty.bit_width().div_ceil(8));
         for _ in 0..ty.bit_width() / 8 {
             blob.push(bits.read_u8()?);
         }

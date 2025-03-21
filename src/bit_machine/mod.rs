@@ -45,7 +45,7 @@ impl BitMachine {
         let io_width = program.arrow().source.bit_width() + program.arrow().target.bit_width();
 
         Ok(Self {
-            data: vec![0; (io_width + program.bounds().extra_cells + 7) / 8],
+            data: vec![0; (io_width + program.bounds().extra_cells).div_ceil(8)],
             next_frame_start: 0,
             read: Vec::with_capacity(program.bounds().extra_frames + analysis::IO_EXTRA_FRAMES),
             write: Vec::with_capacity(program.bounds().extra_frames + analysis::IO_EXTRA_FRAMES),
