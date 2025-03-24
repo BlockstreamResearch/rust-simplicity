@@ -358,10 +358,10 @@ impl Value {
         let total_width = cmp::max(inner.ty.bit_width(), right.bit_width());
 
         let (concat, concat_offset) = product(
-            Some((&inner.inner, inner.bit_offset)),
-            inner.ty.bit_width(),
             None,
             total_width - inner.ty.bit_width(),
+            Some((&inner.inner, inner.bit_offset)),
+            inner.ty.bit_width(),
         );
         let (new_inner, new_bit_offset) = right_shift_1(&concat, concat_offset, false);
         Self {
