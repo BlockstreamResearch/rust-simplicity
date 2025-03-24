@@ -310,7 +310,7 @@ pub mod dag {
 
         /// Computes the identity Merkle roots of every subexpression in a well-typed 'dag' with witnesses    .
         pub fn simplicity_verifyNoDuplicateIdentityHashes(
-            imr: *mut CSha256Midstate,
+            ihr: *mut CSha256Midstate,
             dag: *const CDagNode,
             type_dag: *const CType,
             len: c_size_t,

@@ -50,7 +50,7 @@ fn do_test(data: &[u8]) {
             */
             assert_eq!(&Midstate::from(c_data.cmr)[..], rust_data.cmr().as_ref(),);
             assert_eq!(&Midstate::from(c_data.amr)[..], rust_data.amr().as_ref(),);
-            assert_eq!(&Midstate::from(c_data.imr)[..], rust_data.imr().as_ref(),);
+            assert_eq!(&Midstate::from(c_data.ihr)[..], rust_data.imr().as_ref(),);
         }
     }
 }
