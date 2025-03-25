@@ -600,7 +600,7 @@ impl Value {
 
     /// Return an iterator over the compact bit encoding of the value.
     ///
-    /// This encoding is used for writing witness data and for computing IMRs.
+    /// This encoding is used for writing witness data and for computing IHRs.
     pub fn iter_compact(&self) -> CompactBitsIter {
         CompactBitsIter::new(self.as_ref())
     }

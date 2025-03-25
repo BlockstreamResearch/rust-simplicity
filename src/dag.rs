@@ -40,7 +40,7 @@ impl<T> Dag<T> {
 /// This object works by recording and looking up nodes in a DAG as they are
 /// being iterated over. If the tracker says that an element has been seen
 /// before, it will not be yielded again; so for example, a tracker which
-/// records nodes by their IMR will implement full sharing, while a tracker
+/// records nodes by their IHR will implement full sharing, while a tracker
 /// which claims to have never seen any node before will implement no
 /// sharing at all.
 pub trait SharingTracker<D: DagLike> {

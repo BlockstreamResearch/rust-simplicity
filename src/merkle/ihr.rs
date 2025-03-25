@@ -12,12 +12,12 @@ use super::{bip340_iv, compact_value, FailEntropy};
 /// Identity Merkle root (first pass)
 ///
 /// A Merkle root that commits to a node's combinator, its witness data (if present),
-/// and recursively its children. Used as input to the [`Imr`] type which is probably
+/// and recursively its children. Used as input to the [`Ihr`] type which is probably
 /// actually what you want.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct FirstPassImr(Midstate);
+pub struct FirstPassIhr(Midstate);
 
-impl_midstate_wrapper!(FirstPassImr);
+impl_midstate_wrapper!(FirstPassIhr);
 
 /// Identity Merkle root
 ///
@@ -26,29 +26,29 @@ impl_midstate_wrapper!(FirstPassImr);
 ///
 /// Uniquely identifies a program's structure in terms of combinators at redemption time.
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Imr(Midstate);
+pub struct Ihr(Midstate);
 
-impl_midstate_wrapper!(Imr);
+impl_midstate_wrapper!(Ihr);
 
-impl From<Cmr> for FirstPassImr {
+impl From<Cmr> for FirstPassIhr {
     fn from(cmr: Cmr) -> Self {
-        FirstPassImr::from_byte_array(cmr.to_byte_array())
+        FirstPassIhr::from_byte_array(cmr.to_byte_array())
     }
 }
 
-impl From<Cmr> for Imr {
+impl From<Cmr> for Ihr {
     fn from(cmr: Cmr) -> Self {
-        Imr::from_byte_array(cmr.to_byte_array())
+        Ihr::from_byte_array(cmr.to_byte_array())
     }
 }
 
-impl From<Tmr> for Imr {
+impl From<Tmr> for Ihr {
     fn from(tmr: Tmr) -> Self {
-        Imr::from_byte_array(tmr.to_byte_array())
+        Ihr::from_byte_array(tmr.to_byte_array())
     }
 }
 
-impl FirstPassImr {
+impl FirstPassIhr {
     /// Produce a CMR for an iden combinator
     pub const fn iden() -> Self {
         Self::IDEN_IV
@@ -60,42 +60,42 @@ impl FirstPassImr {
     }
 
     /// Produce a CMR for an injl combinator
-    pub fn injl(child: FirstPassImr) -> Self {
+    pub fn injl(child: FirstPassIhr) -> Self {
         Self::INJL_IV.update_1(child)
     }
 
     /// Produce a CMR for an injr combinator
-    pub fn injr(child: FirstPassImr) -> Self {
+    pub fn injr(child: FirstPassIhr) -> Self {
         Self::INJR_IV.update_1(child)
     }
 
     /// Produce a CMR for a take combinator
-    pub fn take(child: FirstPassImr) -> Self {
+    pub fn take(child: FirstPassIhr) -> Self {
         Self::TAKE_IV.update_1(child)
     }
 
     /// Produce a CMR for a drop combinator
-    pub fn drop(child: FirstPassImr) -> Self {
+    pub fn drop(child: FirstPassIhr) -> Self {
         Self::DROP_IV.update_1(child)
     }
 
     /// Produce a CMR for a comp combinator
-    pub fn comp(left: FirstPassImr, right: FirstPassImr) -> Self {
+    pub fn comp(left: FirstPassIhr, right: FirstPassIhr) -> Self {
         Self::COMP_IV.update(left, right)
     }
 
     /// Produce a CMR for a case combinator
-    pub fn case(left: FirstPassImr, right: FirstPassImr) -> Self {
+    pub fn case(left: FirstPassIhr, right: FirstPassIhr) -> Self {
         Self::CASE_IV.update(left, right)
     }
 
     /// Produce a CMR for a pair combinator
-    pub fn pair(left: FirstPassImr, right: FirstPassImr) -> Self {
+    pub fn pair(left: FirstPassIhr, right: FirstPassIhr) -> Self {
         Self::PAIR_IV.update(left, right)
     }
 
     /// Produce a CMR for a disconnect combinator
-    pub fn disconnect(left: FirstPassImr, right: FirstPassImr) -> Self {
+    pub fn disconnect(left: FirstPassIhr, right: FirstPassIhr) -> Self {
         Self::DISCONNECT_IV.update(left, right)
     }
 
@@ -109,10 +109,10 @@ impl FirstPassImr {
         let mut engine = sha256::HashEngine::from_midstate(Self::WITNESS_IV.0, 0);
         engine.input(&value_hash[..]);
         engine.input(ty.target.tmr().as_ref());
-        FirstPassImr(engine.midstate())
+        FirstPassIhr(engine.midstate())
     }
 
-    /// Produce an IMR for a fail combinator
+    /// Produce an IHR for a fail combinator
     pub fn fail(entropy: FailEntropy) -> Self {
         Self::FAIL_IV.update_fail_entropy(entropy)
     }
@@ -124,14 +124,14 @@ impl FirstPassImr {
 
     /// Compute the CMR of a constant word jet
     ///
-    /// This is equal to the IMR of the equivalent scribe, converted to a CMR in
+    /// This is equal to the IHR of the equivalent scribe, converted to a CMR in
     /// the usual way for jets.
     pub fn const_word(word: &Word) -> Self {
         Cmr::const_word(word).into()
     }
 
     #[rustfmt::skip]
-    const IDEN_IV: FirstPassImr = FirstPassImr(Midstate([
+    const IDEN_IV: FirstPassIhr = FirstPassIhr(Midstate([
         0x54, 0x1a, 0x1a, 0x69, 0xbd, 0x4b, 0xcb, 0xda,
         0x7f, 0x34, 0x31, 0x0e, 0x30, 0x78, 0xf7, 0x26,
         0x44, 0x31, 0x22, 0xfb, 0xcc, 0x1c, 0xb5, 0x36,
@@ -139,7 +139,7 @@ impl FirstPassImr {
     ]));
 
     #[rustfmt::skip]
-    const UNIT_IV: FirstPassImr = FirstPassImr(Midstate([
+    const UNIT_IV: FirstPassIhr = FirstPassIhr(Midstate([
         0xc4, 0x0a, 0x10, 0x26, 0x3f, 0x74, 0x36, 0xb4,
         0x16, 0x0a, 0xcb, 0xef, 0x1c, 0x36, 0xfb, 0xa4,
         0xbe, 0x4d, 0x95, 0xdf, 0x18, 0x1a, 0x96, 0x8a,
@@ -147,7 +147,7 @@ impl FirstPassImr {
     ]));
 
     #[rustfmt::skip]
-    const INJL_IV: FirstPassImr = FirstPassImr(Midstate([
+    const INJL_IV: FirstPassIhr = FirstPassIhr(Midstate([
         0x54, 0xe9, 0x1d, 0x18, 0xd8, 0xf8, 0x1f, 0x6d,
         0x29, 0x86, 0xbb, 0x58, 0x47, 0x9a, 0x54, 0xeb,
         0x63, 0x0e, 0x95, 0x23, 0xb6, 0x9e, 0xe8, 0x53,
@@ -155,7 +155,7 @@ impl FirstPassImr {
     ]));
 
     #[rustfmt::skip]
-    const INJR_IV: FirstPassImr = FirstPassImr(Midstate([
+    const INJR_IV: FirstPassIhr = FirstPassIhr(Midstate([
         0xd7, 0x0f, 0xfd, 0xce, 0x97, 0x77, 0x7b, 0x4d,
         0xfe, 0x31, 0xfd, 0x9f, 0xf5, 0xd0, 0x17, 0xa6,
         0x30, 0x5d, 0x7e, 0xc6, 0x0d, 0xf3, 0xb1, 0xbf,
@@ -163,7 +163,7 @@ impl FirstPassImr {
     ]));
 
     #[rustfmt::skip]
-    const TAKE_IV: FirstPassImr = FirstPassImr(Midstate([
+    const TAKE_IV: FirstPassIhr = FirstPassIhr(Midstate([
         0x50, 0x5f, 0xc0, 0x81, 0xb5, 0xba, 0x2a, 0xcd,
         0x09, 0x50, 0x67, 0xc3, 0xdf, 0xb8, 0xea, 0x12,
         0x6f, 0xa1, 0x5d, 0x55, 0xcb, 0x21, 0x1e, 0x6a,
@@ -171,7 +171,7 @@ impl FirstPassImr {
     ]));
 
     #[rustfmt::skip]
-    const DROP_IV: FirstPassImr = FirstPassImr(Midstate([
+    const DROP_IV: FirstPassIhr = FirstPassIhr(Midstate([
         0x8a, 0x30, 0x8d, 0x38, 0xa1, 0x13, 0xa2, 0x60,
         0xb4, 0xc7, 0x14, 0x5a, 0xbd, 0xc5, 0x22, 0x4d,
         0xeb, 0x70, 0x13, 0x79, 0x59, 0x0e, 0x0c, 0x8c,
@@ -179,7 +179,7 @@ impl FirstPassImr {
     ]));
 
     #[rustfmt::skip]
-    const COMP_IV: FirstPassImr = FirstPassImr(Midstate([
+    const COMP_IV: FirstPassIhr = FirstPassIhr(Midstate([
         0x57, 0xec, 0x23, 0xa2, 0xa4, 0x77, 0x8e, 0x01,
         0x58, 0xa6, 0x21, 0x7a, 0xea, 0x3e, 0xf7, 0x42,
         0x8b, 0xa0, 0x90, 0x92, 0x73, 0xb9, 0x73, 0xfa,
@@ -187,7 +187,7 @@ impl FirstPassImr {
     ]));
 
     #[rustfmt::skip]
-    const CASE_IV: FirstPassImr = FirstPassImr(Midstate([
+    const CASE_IV: FirstPassIhr = FirstPassIhr(Midstate([
         0x29, 0x5e, 0x2a, 0x6d, 0xc8, 0xc5, 0xce, 0x59,
         0xe4, 0xed, 0xcf, 0xe9, 0xb4, 0xd8, 0xf7, 0x64,
         0x13, 0x3a, 0xa5, 0x51, 0x4b, 0xd3, 0xee, 0x8b,
@@ -195,7 +195,7 @@ impl FirstPassImr {
     ]));
 
     #[rustfmt::skip]
-    const PAIR_IV: FirstPassImr = FirstPassImr(Midstate([
+    const PAIR_IV: FirstPassIhr = FirstPassIhr(Midstate([
         0x7d, 0x5e, 0x6d, 0xac, 0x15, 0xb1, 0x42, 0x8a,
         0x0d, 0x26, 0x0c, 0x94, 0x29, 0xdb, 0xe8, 0x89,
         0x65, 0x93, 0xf3, 0x1f, 0x70, 0x86, 0x27, 0xee,
@@ -203,7 +203,7 @@ impl FirstPassImr {
     ]));
 
     #[rustfmt::skip]
-    const DISCONNECT_IV: FirstPassImr = FirstPassImr(Midstate([
+    const DISCONNECT_IV: FirstPassIhr = FirstPassIhr(Midstate([
         0x4e, 0xb7, 0x99, 0x5f, 0xb5, 0xdd, 0xe5, 0xd0,
         0x85, 0xf4, 0x70, 0x85, 0xcd, 0x95, 0x3d, 0x16,
         0x84, 0x54, 0x11, 0xed, 0xc6, 0x89, 0xe2, 0x7a,
@@ -211,7 +211,7 @@ impl FirstPassImr {
     ]));
 
     #[rustfmt::skip]
-    const WITNESS_IV: FirstPassImr = FirstPassImr(Midstate([
+    const WITNESS_IV: FirstPassIhr = FirstPassIhr(Midstate([
         0xcb, 0x37, 0xff, 0x70, 0x01, 0xc6, 0x2d, 0x94,
         0x42, 0x4f, 0x98, 0x7f, 0x30, 0x23, 0xb3, 0x5e,
         0x30, 0xd2, 0x17, 0x23, 0x96, 0x27, 0x6f, 0x89,
@@ -219,7 +219,7 @@ impl FirstPassImr {
     ]));
 
     #[rustfmt::skip]
-    const FAIL_IV: FirstPassImr = FirstPassImr(Midstate([
+    const FAIL_IV: FirstPassIhr = FirstPassIhr(Midstate([
         0x22, 0x83, 0xc1, 0x81, 0x9e, 0x69, 0x2f, 0x96,
         0x85, 0xfe, 0x95, 0x40, 0x76, 0xc5, 0x16, 0x7c,
         0x03, 0xbd, 0xe7, 0xcc, 0xda, 0xab, 0x00, 0x5e,
@@ -227,12 +227,12 @@ impl FirstPassImr {
     ]));
 }
 
-impl Imr {
-    /// Do the second pass of the IMR computation. This must be called on the result
+impl Ihr {
+    /// Do the second pass of the IHR computation. This must be called on the result
     /// of first pass.
-    pub fn compute_pass2(first_pass: FirstPassImr, ty: &FinalArrow) -> Imr {
-        let iv = Imr(bip340_iv(b"Simplicity\x1fIdentity"));
-        iv.update_1(Imr(first_pass.0))
+    pub fn compute_pass2(first_pass: FirstPassIhr, ty: &FinalArrow) -> Ihr {
+        let iv = Ihr(bip340_iv(b"Simplicity\x1fIdentity"));
+        iv.update_1(Ihr(first_pass.0))
             .update(ty.source.tmr().into(), ty.target.tmr().into())
     }
 }
@@ -244,16 +244,16 @@ mod tests {
     #[test]
     #[rustfmt::skip] // wants to split up the check_iv lines below
     fn ivs() {
-        fn check_iv(target: FirstPassImr, s: &'static str) {
+        fn check_iv(target: FirstPassIhr, s: &'static str) {
             let name = s
                 .trim_start_matches("Simplicity\x1f")
                 .trim_start_matches("Commitment\x1f")
                 .trim_start_matches("Identity\x1f");
             // Uncomment this if the IVs ever change
             /*
-            let target = FirstPassImr(bip340_iv(s.as_bytes()));
+            let target = FirstPassIhr(bip340_iv(s.as_bytes()));
             println!("    #[rustfmt::skip]");
-            println!("    const {}_IV: FirstPassImr = FirstPassImr(Midstate([", name.to_ascii_uppercase());
+            println!("    const {}_IV: FirstPassIhr = FirstPassIhr(Midstate([", name.to_ascii_uppercase());
             print!("       "); for ch in &target.0[0..8] { print!(" 0x{:02x},", ch); }; println!();
             print!("       "); for ch in &target.0[8..16] { print!(" 0x{:02x},", ch); }; println!();
             print!("       "); for ch in &target.0[16..24] { print!(" 0x{:02x},", ch); }; println!();
@@ -261,21 +261,21 @@ mod tests {
             println!("    ]));");
             println!();
             */
-            assert_eq!(target, FirstPassImr(bip340_iv(s.as_bytes())), "mismatch on IV for {}", name);
+            assert_eq!(target, FirstPassIhr(bip340_iv(s.as_bytes())), "mismatch on IV for {}", name);
         }
 
         // Note that these are the same as those for CMRs **except** for disconnect and witness.
-        check_iv(FirstPassImr::IDEN_IV, "Simplicity\x1fCommitment\x1fiden");
-        check_iv(FirstPassImr::UNIT_IV, "Simplicity\x1fCommitment\x1funit");
-        check_iv(FirstPassImr::INJL_IV, "Simplicity\x1fCommitment\x1finjl");
-        check_iv(FirstPassImr::INJR_IV, "Simplicity\x1fCommitment\x1finjr");
-        check_iv(FirstPassImr::TAKE_IV, "Simplicity\x1fCommitment\x1ftake");
-        check_iv(FirstPassImr::DROP_IV, "Simplicity\x1fCommitment\x1fdrop");
-        check_iv(FirstPassImr::COMP_IV, "Simplicity\x1fCommitment\x1fcomp");
-        check_iv(FirstPassImr::CASE_IV, "Simplicity\x1fCommitment\x1fcase");
-        check_iv(FirstPassImr::PAIR_IV, "Simplicity\x1fCommitment\x1fpair");
-        check_iv(FirstPassImr::DISCONNECT_IV, "Simplicity\x1fIdentity\x1fdisconnect");
-        check_iv(FirstPassImr::WITNESS_IV, "Simplicity\x1fIdentity\x1fwitness");
-        check_iv(FirstPassImr::FAIL_IV, "Simplicity\x1fCommitment\x1ffail");
+        check_iv(FirstPassIhr::IDEN_IV, "Simplicity\x1fCommitment\x1fiden");
+        check_iv(FirstPassIhr::UNIT_IV, "Simplicity\x1fCommitment\x1funit");
+        check_iv(FirstPassIhr::INJL_IV, "Simplicity\x1fCommitment\x1finjl");
+        check_iv(FirstPassIhr::INJR_IV, "Simplicity\x1fCommitment\x1finjr");
+        check_iv(FirstPassIhr::TAKE_IV, "Simplicity\x1fCommitment\x1ftake");
+        check_iv(FirstPassIhr::DROP_IV, "Simplicity\x1fCommitment\x1fdrop");
+        check_iv(FirstPassIhr::COMP_IV, "Simplicity\x1fCommitment\x1fcomp");
+        check_iv(FirstPassIhr::CASE_IV, "Simplicity\x1fCommitment\x1fcase");
+        check_iv(FirstPassIhr::PAIR_IV, "Simplicity\x1fCommitment\x1fpair");
+        check_iv(FirstPassIhr::DISCONNECT_IV, "Simplicity\x1fIdentity\x1fdisconnect");
+        check_iv(FirstPassIhr::WITNESS_IV, "Simplicity\x1fIdentity\x1fwitness");
+        check_iv(FirstPassIhr::FAIL_IV, "Simplicity\x1fCommitment\x1ffail");
     }
 }

@@ -17,7 +17,7 @@ use std::sync::Arc;
 use crate::jet::{Jet, JetFailed};
 use crate::node::{self, RedeemNode};
 use crate::types::Final;
-use crate::{analysis, Imr};
+use crate::{analysis, Ihr};
 use crate::{Cmr, FailEntropy, Value};
 use frame::Frame;
 
@@ -224,10 +224,10 @@ impl BitMachine {
 
     /// Execute the given `program` on the Bit Machine and track executed case branches.
     ///
-    /// If the program runs successfully, then two sets of IMRs are returned:
+    /// If the program runs successfully, then two sets of IHRs are returned:
     ///
-    /// 1) The IMRs of case nodes whose _left_ branch was executed.
-    /// 2) The IMRs of case nodes whose _right_ branch was executed.
+    /// 1) The IHRs of case nodes whose _left_ branch was executed.
+    /// 2) The IHRs of case nodes whose _right_ branch was executed.
     ///
     /// ## Precondition
     ///
@@ -352,14 +352,14 @@ impl BitMachine {
                             self.fwd(1 + a.pad_right(b));
                             call_stack.push(CallStack::Back(1 + a.pad_right(b)));
                             call_stack.push(CallStack::Goto(right));
-                            tracker.track_right(ip.imr());
+                            tracker.track_right(ip.ihr());
                         }
                         (node::Inner::Case(left, _), false)
                         | (node::Inner::AssertL(left, _), false) => {
                             self.fwd(1 + a.pad_left(b));
                             call_stack.push(CallStack::Back(1 + a.pad_left(b)));
                             call_stack.push(CallStack::Goto(left));
-                            tracker.track_left(ip.imr());
+                            tracker.track_left(ip.ihr());
                         }
                         (node::Inner::AssertL(_, r_cmr), true) => {
                             return Err(ExecutionError::ReachedPrunedBranch(*r_cmr))
@@ -519,28 +519,28 @@ impl BitMachine {
 ///
 /// The trait enables us to turn tracking on or off depending on a generic parameter.
 trait CaseTracker {
-    /// Track the execution of the left branch of the case node with the given `imr`.
-    fn track_left(&mut self, imr: Imr);
+    /// Track the execution of the left branch of the case node with the given `ihr`.
+    fn track_left(&mut self, ihr: Ihr);
 
-    /// Track the execution of the right branch of the case node with the given `imr`.
-    fn track_right(&mut self, imr: Imr);
+    /// Track the execution of the right branch of the case node with the given `ihr`.
+    fn track_right(&mut self, ihr: Ihr);
 }
 
 /// Tracker of executed left and right branches for each case node.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct SetTracker {
-    left: HashSet<Imr>,
-    right: HashSet<Imr>,
+    left: HashSet<Ihr>,
+    right: HashSet<Ihr>,
 }
 
 impl SetTracker {
-    /// Access the set of IMRs of case nodes whose left branch was executed.
-    pub fn left(&self) -> &HashSet<Imr> {
+    /// Access the set of IHRs of case nodes whose left branch was executed.
+    pub fn left(&self) -> &HashSet<Ihr> {
         &self.left
     }
 
-    /// Access the set of IMRs of case nodes whose right branch was executed.
-    pub fn right(&self) -> &HashSet<Imr> {
+    /// Access the set of IHRs of case nodes whose right branch was executed.
+    pub fn right(&self) -> &HashSet<Ihr> {
         &self.right
     }
 }
@@ -549,19 +549,19 @@ impl SetTracker {
 struct NoTracker;
 
 impl CaseTracker for SetTracker {
-    fn track_left(&mut self, imr: Imr) {
-        self.left.insert(imr);
+    fn track_left(&mut self, ihr: Ihr) {
+        self.left.insert(ihr);
     }
 
-    fn track_right(&mut self, imr: Imr) {
-        self.right.insert(imr);
+    fn track_right(&mut self, ihr: Ihr) {
+        self.right.insert(ihr);
     }
 }
 
 impl CaseTracker for NoTracker {
-    fn track_left(&mut self, _: Imr) {}
+    fn track_left(&mut self, _: Ihr) {}
 
-    fn track_right(&mut self, _: Imr) {}
+    fn track_right(&mut self, _: Ihr) {}
 }
 
 /// Errors related to simplicity Execution
@@ -638,7 +638,7 @@ mod tests {
         witness_bytes: &[u8],
         cmr_str: &str,
         amr_str: &str,
-        imr_str: &str,
+        ihr_str: &str,
     ) -> Result<Value, ExecutionError> {
         let prog_hex = prog_bytes.as_hex();
 
@@ -668,11 +668,11 @@ mod tests {
             prog_hex,
         );
         assert_eq!(
-            prog.imr().to_string(),
-            imr_str,
-            "IMR mismatch (got {} expected {}) for program {}",
-            prog.imr(),
-            imr_str,
+            prog.ihr().to_string(),
+            ihr_str,
+            "IHR mismatch (got {} expected {}) for program {}",
+            prog.ihr(),
+            ihr_str,
             prog_hex,
         );
 

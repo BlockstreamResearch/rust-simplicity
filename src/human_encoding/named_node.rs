@@ -12,7 +12,7 @@ use crate::node::{
 use crate::types;
 use crate::types::arrow::{Arrow, FinalArrow};
 use crate::{encode, ConstructNode, Value};
-use crate::{BitWriter, Cmr, Imr};
+use crate::{BitWriter, Cmr, Ihr};
 
 use std::collections::HashMap;
 use std::io;
@@ -62,8 +62,8 @@ impl<J: Jet> NamedCommitNode<J> {
     }
 
     /// Accessor for the node's name
-    pub fn imr(&self) -> Option<Imr> {
-        self.cached_data().internal.imr()
+    pub fn ihr(&self) -> Option<Ihr> {
+        self.cached_data().internal.ihr()
     }
 
     /// Accessor for the node's type arrow
