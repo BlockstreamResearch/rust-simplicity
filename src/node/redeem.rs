@@ -6,7 +6,7 @@ use crate::dag::{DagLike, InternalSharing, MaxSharing, PostOrderIterItem};
 use crate::jet::Jet;
 use crate::types::{self, arrow::FinalArrow};
 use crate::{encode, BitMachine};
-use crate::{Amr, BitIter, BitWriter, Cmr, Error, FirstPassIhr, Ihr, Value};
+use crate::{Amr, BitIter, BitWriter, Cmr, Error, Imr, Ihr, Value};
 
 use super::{
     Commit, CommitData, CommitNode, Construct, ConstructData, ConstructNode, Constructible,
@@ -43,7 +43,7 @@ pub type RedeemNode<J> = Node<Redeem<J>>;
 #[derive(Clone, Debug)]
 pub struct RedeemData<J> {
     amr: Amr,
-    first_pass_ihr: FirstPassIhr,
+    imr: Imr,
     ihr: Ihr,
     arrow: FinalArrow,
     bounds: NodeBounds,
@@ -68,61 +68,61 @@ impl<J> std::hash::Hash for RedeemData<J> {
 
 impl<J: Jet> RedeemData<J> {
     pub fn new(arrow: FinalArrow, inner: Inner<&Arc<Self>, J, &Arc<Self>, Value>) -> Self {
-        let (amr, first_pass_ihr, bounds) = match inner {
+        let (amr, imr, bounds) = match inner {
             Inner::Iden => (
                 Amr::iden(&arrow),
-                FirstPassIhr::iden(),
+                Imr::iden(),
                 NodeBounds::iden(arrow.source.bit_width()),
             ),
-            Inner::Unit => (Amr::unit(&arrow), FirstPassIhr::unit(), NodeBounds::unit()),
+            Inner::Unit => (Amr::unit(&arrow), Imr::unit(), NodeBounds::unit()),
             Inner::InjL(child) => (
                 Amr::injl(&arrow, child.amr),
-                FirstPassIhr::injl(child.first_pass_ihr),
+                Imr::injl(child.imr),
                 NodeBounds::injl(child.bounds),
             ),
             Inner::InjR(child) => (
                 Amr::injr(&arrow, child.amr),
-                FirstPassIhr::injr(child.first_pass_ihr),
+                Imr::injr(child.imr),
                 NodeBounds::injr(child.bounds),
             ),
             Inner::Take(child) => (
                 Amr::take(&arrow, child.amr),
-                FirstPassIhr::take(child.first_pass_ihr),
+                Imr::take(child.imr),
                 NodeBounds::take(child.bounds),
             ),
             Inner::Drop(child) => (
                 Amr::drop(&arrow, child.amr),
-                FirstPassIhr::drop(child.first_pass_ihr),
+                Imr::drop(child.imr),
                 NodeBounds::drop(child.bounds),
             ),
             Inner::Comp(left, right) => (
                 Amr::comp(&arrow, &left.arrow, left.amr, right.amr),
-                FirstPassIhr::comp(left.first_pass_ihr, right.first_pass_ihr),
+                Imr::comp(left.imr, right.imr),
                 NodeBounds::comp(left.bounds, right.bounds, left.arrow.target.bit_width()),
             ),
             Inner::Case(left, right) => (
                 Amr::case(&arrow, left.amr, right.amr),
-                FirstPassIhr::case(left.first_pass_ihr, right.first_pass_ihr),
+                Imr::case(left.imr, right.imr),
                 NodeBounds::case(left.bounds, right.bounds),
             ),
             Inner::AssertL(left, r_cmr) => (
                 Amr::assertl(&arrow, left.amr, r_cmr.into()),
-                FirstPassIhr::case(left.first_pass_ihr, r_cmr.into()),
+                Imr::case(left.imr, r_cmr.into()),
                 NodeBounds::assertl(left.bounds),
             ),
             Inner::AssertR(l_cmr, right) => (
                 Amr::assertr(&arrow, l_cmr.into(), right.amr),
-                FirstPassIhr::case(l_cmr.into(), right.first_pass_ihr),
+                Imr::case(l_cmr.into(), right.imr),
                 NodeBounds::assertr(right.bounds),
             ),
             Inner::Pair(left, right) => (
                 Amr::pair(&arrow, &left.arrow, &right.arrow, left.amr, right.amr),
-                FirstPassIhr::pair(left.first_pass_ihr, right.first_pass_ihr),
+                Imr::pair(left.imr, right.imr),
                 NodeBounds::pair(left.bounds, right.bounds),
             ),
             Inner::Disconnect(left, right) => (
                 Amr::disconnect(&arrow, &right.arrow, left.amr, right.amr),
-                FirstPassIhr::disconnect(left.first_pass_ihr, right.first_pass_ihr),
+                Imr::disconnect(left.imr, right.imr),
                 NodeBounds::disconnect(
                     left.bounds,
                     right.bounds,
@@ -133,26 +133,26 @@ impl<J: Jet> RedeemData<J> {
             ),
             Inner::Witness(ref value) => (
                 Amr::witness(&arrow, value),
-                FirstPassIhr::witness(&arrow, value),
+                Imr::witness(&arrow, value),
                 NodeBounds::witness(arrow.target.bit_width()),
             ),
             Inner::Fail(entropy) => (
                 Amr::fail(entropy),
-                FirstPassIhr::fail(entropy),
+                Imr::fail(entropy),
                 NodeBounds::fail(),
             ),
-            Inner::Jet(jet) => (Amr::jet(jet), FirstPassIhr::jet(jet), NodeBounds::jet(jet)),
+            Inner::Jet(jet) => (Amr::jet(jet), Imr::jet(jet), NodeBounds::jet(jet)),
             Inner::Word(ref val) => (
                 Amr::const_word(val),
-                FirstPassIhr::const_word(val),
+                Imr::const_word(val),
                 NodeBounds::const_word(val),
             ),
         };
 
         RedeemData {
             amr,
-            first_pass_ihr,
-            ihr: Ihr::compute_pass2(first_pass_ihr, &arrow),
+            imr,
+            ihr: Ihr::from_imr(imr, &arrow),
             arrow,
             bounds,
             phantom: PhantomData,

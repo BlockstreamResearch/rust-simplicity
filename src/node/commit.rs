@@ -4,7 +4,7 @@ use crate::dag::{DagLike, MaxSharing, NoSharing, PostOrderIterItem};
 use crate::jet::Jet;
 use crate::types::arrow::{Arrow, FinalArrow};
 use crate::{encode, types, Value};
-use crate::{Amr, BitIter, BitWriter, Cmr, Error, FirstPassIhr, Ihr};
+use crate::{Amr, BitIter, BitWriter, Cmr, Error, Imr, Ihr};
 
 use super::{
     Construct, ConstructData, ConstructNode, Constructible, Converter, Inner, Marker, NoDisconnect,
@@ -39,8 +39,9 @@ impl<J: Jet> Marker for Commit<J> {
 pub struct CommitData<J> {
     /// The source and target types of the node
     arrow: FinalArrow,
-    /// The first-pass IHR of the node if it exists.
-    first_pass_ihr: Option<FirstPassIhr>,
+    /// The IMR of the node if it exists. This is distinct from its IHR; it is
+    /// used during computation of the IHR.
+    imr: Option<Imr>,
     /// The AMR of the node if it exists, meaning, if it is not (an ancestor of)
     /// a witness or disconnect node.
     amr: Option<Amr>,
@@ -102,39 +103,39 @@ impl<J: Jet> CommitData<J> {
     }
 
     /// Helper function to compute a cached first-pass IHR
-    fn first_pass_ihr(
+    fn imr(
         inner: Inner<&Arc<Self>, J, &NoDisconnect, &NoWitness>,
-    ) -> Option<FirstPassIhr> {
+    ) -> Option<Imr> {
         match inner {
-            Inner::Iden => Some(FirstPassIhr::iden()),
-            Inner::Unit => Some(FirstPassIhr::unit()),
-            Inner::InjL(child) => child.first_pass_ihr.map(FirstPassIhr::injl),
-            Inner::InjR(child) => child.first_pass_ihr.map(FirstPassIhr::injr),
-            Inner::Take(child) => child.first_pass_ihr.map(FirstPassIhr::take),
-            Inner::Drop(child) => child.first_pass_ihr.map(FirstPassIhr::drop),
+            Inner::Iden => Some(Imr::iden()),
+            Inner::Unit => Some(Imr::unit()),
+            Inner::InjL(child) => child.imr.map(Imr::injl),
+            Inner::InjR(child) => child.imr.map(Imr::injr),
+            Inner::Take(child) => child.imr.map(Imr::take),
+            Inner::Drop(child) => child.imr.map(Imr::drop),
             Inner::Comp(left, right) => left
-                .first_pass_ihr
-                .zip(right.first_pass_ihr)
-                .map(|(a, b)| FirstPassIhr::comp(a, b)),
+                .imr
+                .zip(right.imr)
+                .map(|(a, b)| Imr::comp(a, b)),
             Inner::Case(left, right) => left
-                .first_pass_ihr
-                .zip(right.first_pass_ihr)
-                .map(|(a, b)| FirstPassIhr::case(a, b)),
+                .imr
+                .zip(right.imr)
+                .map(|(a, b)| Imr::case(a, b)),
             Inner::AssertL(left, r_cmr) => left
-                .first_pass_ihr
-                .map(|l_ihr| FirstPassIhr::case(l_ihr, r_cmr.into())),
+                .imr
+                .map(|l_ihr| Imr::case(l_ihr, r_cmr.into())),
             Inner::AssertR(l_cmr, right) => right
-                .first_pass_ihr
-                .map(|r_ihr| FirstPassIhr::case(l_cmr.into(), r_ihr)),
+                .imr
+                .map(|r_ihr| Imr::case(l_cmr.into(), r_ihr)),
             Inner::Pair(left, right) => left
-                .first_pass_ihr
-                .zip(right.first_pass_ihr)
-                .map(|(a, b)| FirstPassIhr::pair(a, b)),
+                .imr
+                .zip(right.imr)
+                .map(|(a, b)| Imr::pair(a, b)),
             Inner::Disconnect(..) => None,
             Inner::Witness(..) => None,
-            Inner::Fail(entropy) => Some(FirstPassIhr::fail(entropy)),
-            Inner::Jet(jet) => Some(FirstPassIhr::jet(jet)),
-            Inner::Word(ref val) => Some(FirstPassIhr::const_word(val)),
+            Inner::Fail(entropy) => Some(Imr::fail(entropy)),
+            Inner::Jet(jet) => Some(Imr::jet(jet)),
+            Inner::Word(ref val) => Some(Imr::const_word(val)),
         }
     }
 
@@ -143,12 +144,12 @@ impl<J: Jet> CommitData<J> {
         inner: Inner<&Arc<Self>, J, &NoDisconnect, &NoWitness>,
     ) -> Result<Self, types::Error> {
         let final_arrow = arrow.finalize()?;
-        let first_pass_ihr = Self::first_pass_ihr(inner.clone());
+        let imr = Self::imr(inner.clone());
         let amr = Self::incomplete_amr(inner, &final_arrow);
         Ok(CommitData {
-            first_pass_ihr,
+            imr,
             amr,
-            ihr: first_pass_ihr.map(|ihr| Ihr::compute_pass2(ihr, &final_arrow)),
+            ihr: imr.map(|ihr| Ihr::from_imr(ihr, &final_arrow)),
             arrow: final_arrow,
             phantom: PhantomData,
         })
@@ -158,12 +159,12 @@ impl<J: Jet> CommitData<J> {
         arrow: FinalArrow,
         inner: Inner<&Arc<Self>, J, &NoDisconnect, &NoWitness>,
     ) -> Self {
-        let first_pass_ihr = Self::first_pass_ihr(inner.clone());
+        let imr = Self::imr(inner.clone());
         let amr = Self::incomplete_amr(inner, &arrow);
         CommitData {
-            first_pass_ihr,
+            imr,
             amr,
-            ihr: first_pass_ihr.map(|ihr| Ihr::compute_pass2(ihr, &arrow)),
+            ihr: imr.map(|ihr| Ihr::from_imr(ihr, &arrow)),
             arrow,
             phantom: PhantomData,
         }

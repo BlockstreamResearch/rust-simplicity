@@ -61,7 +61,7 @@ pub use crate::encode::{encode_natural, encode_value, encode_witness};
 pub use crate::merkle::{
     amr::Amr,
     cmr::Cmr,
-    ihr::{FirstPassIhr, Ihr},
+    ihr::{Imr, Ihr},
     tmr::Tmr,
     FailEntropy, HasCmr,
 };
