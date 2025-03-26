@@ -6,7 +6,7 @@ use crate::dag::{DagLike, InternalSharing, MaxSharing, PostOrderIterItem};
 use crate::jet::Jet;
 use crate::types::{self, arrow::FinalArrow};
 use crate::{encode, BitMachine};
-use crate::{Amr, BitIter, BitWriter, Cmr, Error, Imr, Ihr, Value};
+use crate::{Amr, BitIter, BitWriter, Cmr, Error, Ihr, Imr, Value};
 
 use super::{
     Commit, CommitData, CommitNode, Construct, ConstructData, ConstructNode, Constructible,
@@ -136,11 +136,7 @@ impl<J: Jet> RedeemData<J> {
                 Imr::witness(&arrow, value),
                 NodeBounds::witness(arrow.target.bit_width()),
             ),
-            Inner::Fail(entropy) => (
-                Amr::fail(entropy),
-                Imr::fail(entropy),
-                NodeBounds::fail(),
-            ),
+            Inner::Fail(entropy) => (Amr::fail(entropy), Imr::fail(entropy), NodeBounds::fail()),
             Inner::Jet(jet) => (Amr::jet(jet), Imr::jet(jet), NodeBounds::jet(jet)),
             Inner::Word(ref val) => (
                 Amr::const_word(val),

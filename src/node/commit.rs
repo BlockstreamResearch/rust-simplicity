@@ -4,7 +4,7 @@ use crate::dag::{DagLike, MaxSharing, NoSharing, PostOrderIterItem};
 use crate::jet::Jet;
 use crate::types::arrow::{Arrow, FinalArrow};
 use crate::{encode, types, Value};
-use crate::{Amr, BitIter, BitWriter, Cmr, Error, Imr, Ihr};
+use crate::{Amr, BitIter, BitWriter, Cmr, Error, Ihr, Imr};
 
 use super::{
     Construct, ConstructData, ConstructNode, Constructible, Converter, Inner, Marker, NoDisconnect,
@@ -103,9 +103,7 @@ impl<J: Jet> CommitData<J> {
     }
 
     /// Helper function to compute a cached first-pass IHR
-    fn imr(
-        inner: Inner<&Arc<Self>, J, &NoDisconnect, &NoWitness>,
-    ) -> Option<Imr> {
+    fn imr(inner: Inner<&Arc<Self>, J, &NoDisconnect, &NoWitness>) -> Option<Imr> {
         match inner {
             Inner::Iden => Some(Imr::iden()),
             Inner::Unit => Some(Imr::unit()),
@@ -113,24 +111,11 @@ impl<J: Jet> CommitData<J> {
             Inner::InjR(child) => child.imr.map(Imr::injr),
             Inner::Take(child) => child.imr.map(Imr::take),
             Inner::Drop(child) => child.imr.map(Imr::drop),
-            Inner::Comp(left, right) => left
-                .imr
-                .zip(right.imr)
-                .map(|(a, b)| Imr::comp(a, b)),
-            Inner::Case(left, right) => left
-                .imr
-                .zip(right.imr)
-                .map(|(a, b)| Imr::case(a, b)),
-            Inner::AssertL(left, r_cmr) => left
-                .imr
-                .map(|l_ihr| Imr::case(l_ihr, r_cmr.into())),
-            Inner::AssertR(l_cmr, right) => right
-                .imr
-                .map(|r_ihr| Imr::case(l_cmr.into(), r_ihr)),
-            Inner::Pair(left, right) => left
-                .imr
-                .zip(right.imr)
-                .map(|(a, b)| Imr::pair(a, b)),
+            Inner::Comp(left, right) => left.imr.zip(right.imr).map(|(a, b)| Imr::comp(a, b)),
+            Inner::Case(left, right) => left.imr.zip(right.imr).map(|(a, b)| Imr::case(a, b)),
+            Inner::AssertL(left, r_cmr) => left.imr.map(|l_ihr| Imr::case(l_ihr, r_cmr.into())),
+            Inner::AssertR(l_cmr, right) => right.imr.map(|r_ihr| Imr::case(l_cmr.into(), r_ihr)),
+            Inner::Pair(left, right) => left.imr.zip(right.imr).map(|(a, b)| Imr::pair(a, b)),
             Inner::Disconnect(..) => None,
             Inner::Witness(..) => None,
             Inner::Fail(entropy) => Some(Imr::fail(entropy)),
