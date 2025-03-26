@@ -239,7 +239,7 @@ mod tests {
             .expect("Forest is missing expected root")
             .finalize()
             .expect("Failed to finalize");
-        let mut mac = BitMachine::for_program(&program);
+        let mut mac = BitMachine::for_program(&program).expect("program has reasonable bounds");
         mac.exec(&program, env).expect("Failed to run program");
     }
 
@@ -261,7 +261,7 @@ mod tests {
                 return;
             }
         };
-        let mut mac = BitMachine::for_program(&program);
+        let mut mac = BitMachine::for_program(&program).expect("program has reasonable bounds");
         match mac.exec(&program, env) {
             Ok(_) => panic!("Execution is expected to fail"),
             Err(error) => assert_eq!(&error.to_string(), err_msg),

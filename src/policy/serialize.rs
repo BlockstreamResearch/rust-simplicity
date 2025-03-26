@@ -287,7 +287,10 @@ mod tests {
         let finalized = commit
             .finalize(&mut SimpleFinalizer::new(witness.into_iter()))
             .expect("finalize");
-        let mut mac = BitMachine::for_program(&finalized);
+        let mut mac = match BitMachine::for_program(&finalized) {
+            Ok(mac) => mac,
+            Err(_) => return false,
+        };
 
         match mac.exec(&finalized, env) {
             Ok(output) => output == Value::unit(),
