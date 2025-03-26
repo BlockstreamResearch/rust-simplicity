@@ -374,7 +374,6 @@ impl Value {
     /// Create a right value that wraps the given `inner` value.
     pub fn right(left: Arc<Final>, inner: Self) -> Self {
         let total_width = cmp::max(left.bit_width(), inner.ty.bit_width());
-
         let (concat, concat_offset) = product(
             None,
             total_width - inner.ty.bit_width(),

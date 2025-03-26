@@ -30,6 +30,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "construct_value"
+path = "fuzz_targets/construct_value.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "c_rust_merkle"
 path = "fuzz_targets/c_rust_merkle.rs"
 test = false
