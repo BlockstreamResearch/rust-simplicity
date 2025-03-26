@@ -318,7 +318,7 @@ mod tests {
         program: Arc<RedeemNode<Elements>>,
         env: &ElementsEnv<Arc<elements::Transaction>>,
     ) {
-        let mut mac = BitMachine::for_program(&program);
+        let mut mac = BitMachine::for_program(&program).unwrap();
         assert!(mac.exec(&program, env).is_ok());
     }
 
@@ -326,7 +326,7 @@ mod tests {
         program: Arc<RedeemNode<Elements>>,
         env: &ElementsEnv<Arc<elements::Transaction>>,
     ) {
-        let mut mac = BitMachine::for_program(&program);
+        let mut mac = BitMachine::for_program(&program).unwrap();
         assert!(mac.exec(&program, env).is_err());
     }
 

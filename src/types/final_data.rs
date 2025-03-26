@@ -189,18 +189,23 @@ impl Final {
 
     /// Create the sum of the given `left` and `right` types.
     pub fn sum(left: Arc<Self>, right: Arc<Self>) -> Arc<Self> {
+        // Use saturating_add for bitwidths. If the user has overflowed usize, even on a 32-bit
+        // system this means that they have a 4-gigabit type and their program should be rejected
+        // by a sanity check somewhere. However, if we panic here, the user cannot finalize their
+        // program and cannot even tell that this resource limit has been hit before panicking.
         Arc::new(Final {
             tmr: Tmr::sum(left.tmr, right.tmr),
-            bit_width: 1 + cmp::max(left.bit_width, right.bit_width),
+            bit_width: cmp::max(left.bit_width, right.bit_width).saturating_add(1),
             bound: CompleteBound::Sum(left, right),
         })
     }
 
     /// Create the product of the given `left` and `right` types.
     pub fn product(left: Arc<Self>, right: Arc<Self>) -> Arc<Self> {
+        // See comment in `sum` about use of saturating add.
         Arc::new(Final {
             tmr: Tmr::product(left.tmr, right.tmr),
-            bit_width: left.bit_width + right.bit_width,
+            bit_width: left.bit_width.saturating_add(right.bit_width),
             bound: CompleteBound::Product(left, right),
         })
     }
