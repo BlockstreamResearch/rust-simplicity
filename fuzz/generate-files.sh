@@ -25,7 +25,10 @@ path = "fuzz_lib/lib.rs"
 
 [dependencies]
 libfuzzer-sys = "0.4"
-simplicity-lang = { path = "..", features = ["test-utils"] }
+# We shouldn't need an explicit version on the next line, but Andrew's tools
+# choke on it otherwise. See https://github.com/nix-community/crate2nix/issues/373
+simplicity-lang = { path = "..", features = ["test-utils"], version = "0.3.0" }
+old_simplicity = { package = "simplicity-lang", version = "0.3.0", default-features = false }
 
 [dev-dependencies]
 base64 = "0.22.1"

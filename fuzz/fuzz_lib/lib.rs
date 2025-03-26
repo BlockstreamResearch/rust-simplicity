@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: CC0-1.0
 
+use old_simplicity::types::Final as OldFinalTy;
+use old_simplicity::Value as OldValue;
+
 use simplicity::types::Final as FinalTy;
 use simplicity::{BitIter, Value};
 use std::sync::Arc;
@@ -182,6 +185,120 @@ impl<'f> Extractor<'f> {
                         return None;
                     }
                     result_stack.push(Value::right(ty, child));
+                }
+            }
+        }
+        assert_eq!(result_stack.len(), 1);
+        result_stack.pop()
+    }
+
+    /// Attempt to yield a type from the fuzzer.
+    pub fn extract_old_final_type(&mut self) -> Option<Arc<OldFinalTy>> {
+        // We can costruct extremely large types by duplicating Arcs; there
+        // is no need to have an exponential blowup in the number of tasks.
+        const MAX_N_TASKS: usize = 300;
+
+        enum StackElem {
+            NeedType,
+            Binary { is_sum: bool, dupe: bool },
+        }
+
+        let mut task_stack = vec![StackElem::NeedType];
+        let mut result_stack = vec![];
+
+        while let Some(task) = task_stack.pop() {
+            match task {
+                StackElem::NeedType => {
+                    if self.extract_bit()? {
+                        result_stack.push(OldFinalTy::unit());
+                    } else {
+                        let is_sum = self.extract_bit()?;
+                        let dupe = task_stack.len() >= MAX_N_TASKS || self.extract_bit()?;
+                        task_stack.push(StackElem::Binary { is_sum, dupe });
+                        if !dupe {
+                            task_stack.push(StackElem::NeedType)
+                        }
+                        task_stack.push(StackElem::NeedType);
+                    }
+                }
+                StackElem::Binary { is_sum, dupe } => {
+                    let right = result_stack.pop().unwrap();
+                    let left = if dupe {
+                        Arc::clone(&right)
+                    } else {
+                        result_stack.pop().unwrap()
+                    };
+                    if is_sum {
+                        result_stack.push(OldFinalTy::sum(left, right));
+                    } else {
+                        result_stack.push(OldFinalTy::product(left, right));
+                    }
+                }
+            }
+        }
+        assert_eq!(result_stack.len(), 1);
+        result_stack.pop()
+    }
+
+    /// Attempt to yield a value from the fuzzer by constructing a type and then
+
+    /// Attempt to yield a value from the fuzzer by constructing it directly.
+    pub fn extract_old_value_direct(&mut self) -> Option<OldValue> {
+        const MAX_N_TASKS: usize = 300;
+        const MAX_TY_WIDTH: usize = 10240;
+
+        enum StackElem {
+            NeedValue,
+            Left,
+            Right,
+            Product,
+        }
+
+        let mut task_stack = vec![StackElem::NeedValue];
+        let mut result_stack = vec![];
+
+        while let Some(task) = task_stack.pop() {
+            match task {
+                StackElem::NeedValue => match (self.extract_bit()?, self.extract_bit()?) {
+                    (false, false) => result_stack.push(OldValue::unit()),
+                    (false, true) => {
+                        if task_stack.len() <= MAX_N_TASKS {
+                            task_stack.push(StackElem::Product);
+                            task_stack.push(StackElem::NeedValue);
+                            task_stack.push(StackElem::NeedValue);
+                        } else {
+                            task_stack.push(StackElem::NeedValue);
+                        }
+                    }
+                    (true, false) => {
+                        task_stack.push(StackElem::Left);
+                        task_stack.push(StackElem::NeedValue);
+                    }
+                    (true, true) => {
+                        task_stack.push(StackElem::Right);
+                        task_stack.push(StackElem::NeedValue);
+                    }
+                },
+                StackElem::Product => {
+                    let right = result_stack.pop().unwrap();
+                    let left = result_stack.pop().unwrap();
+                    result_stack.push(OldValue::product(left, right));
+                }
+                StackElem::Left => {
+                    let child = result_stack.pop().unwrap();
+                    let ty = self.extract_old_final_type()?;
+                    if ty.bit_width() > MAX_TY_WIDTH {
+                        return None;
+                    }
+                    result_stack.push(OldValue::left(child, ty));
+                }
+                StackElem::Right => {
+                    let child = result_stack.pop().unwrap();
+                    let ty = self.extract_old_final_type()?;
+                    if ty.bit_width() > MAX_TY_WIDTH {
+                        return None;
+                    }
+                    result_stack.push(OldValue::right(ty, child));
                 }
             }
         }
