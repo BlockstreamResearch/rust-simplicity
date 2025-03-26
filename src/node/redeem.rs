@@ -6,7 +6,7 @@ use crate::dag::{DagLike, InternalSharing, MaxSharing, PostOrderIterItem};
 use crate::jet::Jet;
 use crate::types::{self, arrow::FinalArrow};
 use crate::{encode, BitMachine};
-use crate::{Amr, BitIter, BitWriter, Cmr, Error, FirstPassImr, Imr, Value};
+use crate::{Amr, BitIter, BitWriter, Cmr, Error, FirstPassIhr, Ihr, Value};
 
 use super::{
     Commit, CommitData, CommitNode, Construct, ConstructData, ConstructNode, Constructible,
@@ -30,11 +30,11 @@ impl<J: Jet> Marker for Redeem<J> {
     type CachedData = Arc<RedeemData<J>>;
     type Witness = Value;
     type Disconnect = Arc<RedeemNode<J>>;
-    type SharingId = Imr;
+    type SharingId = Ihr;
     type Jet = J;
 
-    fn compute_sharing_id(_: Cmr, cached_data: &Arc<RedeemData<J>>) -> Option<Imr> {
-        Some(cached_data.imr)
+    fn compute_sharing_id(_: Cmr, cached_data: &Arc<RedeemData<J>>) -> Option<Ihr> {
+        Some(cached_data.ihr)
     }
 }
 
@@ -43,8 +43,8 @@ pub type RedeemNode<J> = Node<Redeem<J>>;
 #[derive(Clone, Debug)]
 pub struct RedeemData<J> {
     amr: Amr,
-    first_pass_imr: FirstPassImr,
-    imr: Imr,
+    first_pass_ihr: FirstPassIhr,
+    ihr: Ihr,
     arrow: FinalArrow,
     bounds: NodeBounds,
     /// This isn't really necessary, but it helps type inference if every
@@ -55,74 +55,74 @@ pub struct RedeemData<J> {
 
 impl<J> PartialEq for RedeemData<J> {
     fn eq(&self, other: &Self) -> bool {
-        self.imr == other.imr
+        self.ihr == other.ihr
     }
 }
 impl<J> Eq for RedeemData<J> {}
 
 impl<J> std::hash::Hash for RedeemData<J> {
     fn hash<H: std::hash::Hasher>(&self, hasher: &mut H) {
-        self.imr.hash(hasher)
+        self.ihr.hash(hasher)
     }
 }
 
 impl<J: Jet> RedeemData<J> {
     pub fn new(arrow: FinalArrow, inner: Inner<&Arc<Self>, J, &Arc<Self>, Value>) -> Self {
-        let (amr, first_pass_imr, bounds) = match inner {
+        let (amr, first_pass_ihr, bounds) = match inner {
             Inner::Iden => (
                 Amr::iden(&arrow),
-                FirstPassImr::iden(),
+                FirstPassIhr::iden(),
                 NodeBounds::iden(arrow.source.bit_width()),
             ),
-            Inner::Unit => (Amr::unit(&arrow), FirstPassImr::unit(), NodeBounds::unit()),
+            Inner::Unit => (Amr::unit(&arrow), FirstPassIhr::unit(), NodeBounds::unit()),
             Inner::InjL(child) => (
                 Amr::injl(&arrow, child.amr),
-                FirstPassImr::injl(child.first_pass_imr),
+                FirstPassIhr::injl(child.first_pass_ihr),
                 NodeBounds::injl(child.bounds),
             ),
             Inner::InjR(child) => (
                 Amr::injr(&arrow, child.amr),
-                FirstPassImr::injr(child.first_pass_imr),
+                FirstPassIhr::injr(child.first_pass_ihr),
                 NodeBounds::injr(child.bounds),
             ),
             Inner::Take(child) => (
                 Amr::take(&arrow, child.amr),
-                FirstPassImr::take(child.first_pass_imr),
+                FirstPassIhr::take(child.first_pass_ihr),
                 NodeBounds::take(child.bounds),
             ),
             Inner::Drop(child) => (
                 Amr::drop(&arrow, child.amr),
-                FirstPassImr::drop(child.first_pass_imr),
+                FirstPassIhr::drop(child.first_pass_ihr),
                 NodeBounds::drop(child.bounds),
             ),
             Inner::Comp(left, right) => (
                 Amr::comp(&arrow, &left.arrow, left.amr, right.amr),
-                FirstPassImr::comp(left.first_pass_imr, right.first_pass_imr),
+                FirstPassIhr::comp(left.first_pass_ihr, right.first_pass_ihr),
                 NodeBounds::comp(left.bounds, right.bounds, left.arrow.target.bit_width()),
             ),
             Inner::Case(left, right) => (
                 Amr::case(&arrow, left.amr, right.amr),
-                FirstPassImr::case(left.first_pass_imr, right.first_pass_imr),
+                FirstPassIhr::case(left.first_pass_ihr, right.first_pass_ihr),
                 NodeBounds::case(left.bounds, right.bounds),
             ),
             Inner::AssertL(left, r_cmr) => (
                 Amr::assertl(&arrow, left.amr, r_cmr.into()),
-                FirstPassImr::case(left.first_pass_imr, r_cmr.into()),
+                FirstPassIhr::case(left.first_pass_ihr, r_cmr.into()),
                 NodeBounds::assertl(left.bounds),
             ),
             Inner::AssertR(l_cmr, right) => (
                 Amr::assertr(&arrow, l_cmr.into(), right.amr),
-                FirstPassImr::case(l_cmr.into(), right.first_pass_imr),
+                FirstPassIhr::case(l_cmr.into(), right.first_pass_ihr),
                 NodeBounds::assertr(right.bounds),
             ),
             Inner::Pair(left, right) => (
                 Amr::pair(&arrow, &left.arrow, &right.arrow, left.amr, right.amr),
-                FirstPassImr::pair(left.first_pass_imr, right.first_pass_imr),
+                FirstPassIhr::pair(left.first_pass_ihr, right.first_pass_ihr),
                 NodeBounds::pair(left.bounds, right.bounds),
             ),
             Inner::Disconnect(left, right) => (
                 Amr::disconnect(&arrow, &right.arrow, left.amr, right.amr),
-                FirstPassImr::disconnect(left.first_pass_imr, right.first_pass_imr),
+                FirstPassIhr::disconnect(left.first_pass_ihr, right.first_pass_ihr),
                 NodeBounds::disconnect(
                     left.bounds,
                     right.bounds,
@@ -133,26 +133,26 @@ impl<J: Jet> RedeemData<J> {
             ),
             Inner::Witness(ref value) => (
                 Amr::witness(&arrow, value),
-                FirstPassImr::witness(&arrow, value),
+                FirstPassIhr::witness(&arrow, value),
                 NodeBounds::witness(arrow.target.bit_width()),
             ),
             Inner::Fail(entropy) => (
                 Amr::fail(entropy),
-                FirstPassImr::fail(entropy),
+                FirstPassIhr::fail(entropy),
                 NodeBounds::fail(),
             ),
-            Inner::Jet(jet) => (Amr::jet(jet), FirstPassImr::jet(jet), NodeBounds::jet(jet)),
+            Inner::Jet(jet) => (Amr::jet(jet), FirstPassIhr::jet(jet), NodeBounds::jet(jet)),
             Inner::Word(ref val) => (
                 Amr::const_word(val),
-                FirstPassImr::const_word(val),
+                FirstPassIhr::const_word(val),
                 NodeBounds::const_word(val),
             ),
         };
 
         RedeemData {
             amr,
-            first_pass_imr,
-            imr: Imr::compute_pass2(first_pass_imr, &arrow),
+            first_pass_ihr,
+            ihr: Ihr::compute_pass2(first_pass_ihr, &arrow),
             arrow,
             bounds,
             phantom: PhantomData,
@@ -166,9 +166,9 @@ impl<J: Jet> RedeemNode<J> {
         self.data.amr
     }
 
-    /// Accessor for the node's IMR
-    pub fn imr(&self) -> Imr {
-        self.data.imr
+    /// Accessor for the node's IHR
+    pub fn ihr(&self) -> Ihr {
+        self.data.ihr
     }
 
     /// Accessor for the node's type arrow
@@ -278,7 +278,7 @@ impl<J: Jet> RedeemNode<J> {
     ///
     /// Pruning works as follows:
     /// 1) Run the redeem program on the Bit Machine.
-    /// 2) Mark all (un)used case branches using the IMR of the case node.
+    /// 2) Mark all (un)used case branches using the IHR of the case node.
     /// 3) Rebuild the program and omit unused branches.
     ///
     /// The pruning result depends on the witness data (which is already part of the redeem program)
@@ -329,12 +329,12 @@ impl<J: Jet> RedeemNode<J> {
                 _left: &Arc<ConstructNode<J>>,
                 _right: &Arc<ConstructNode<J>>,
             ) -> Result<Hide, Self::Error> {
-                // The IMR of the pruned program may change,
+                // The IHR of the pruned program may change,
                 // but the Converter trait gives us access to the unpruned node (`data`).
-                // The Bit Machine tracked (un)used case branches based on the unpruned IMR.
+                // The Bit Machine tracked (un)used case branches based on the unpruned IHR.
                 match (
-                    self.tracker.left().contains(&data.node.imr()),
-                    self.tracker.right().contains(&data.node.imr()),
+                    self.tracker.left().contains(&data.node.ihr()),
+                    self.tracker.right().contains(&data.node.ihr()),
                 ) {
                     (true, true) => Ok(Hide::Neither),
                     (false, true) => Ok(Hide::Left),
@@ -521,9 +521,9 @@ impl<J: Jet> RedeemNode<J> {
         // 4. Check sharing
         // This loop is equivalent to using `program.is_shared_as::<MaxSharing>()`
         // but is faster since it only runs a single iterator.
-        let mut imrs: HashSet<Imr> = HashSet::new();
+        let mut ihrs: HashSet<Ihr> = HashSet::new();
         for data in program.as_ref().post_order_iter::<InternalSharing>() {
-            if !imrs.insert(data.node.imr()) {
+            if !ihrs.insert(data.node.ihr()) {
                 return Err(Error::Decode(crate::decode::Error::SharingNotMaximal));
             }
         }
@@ -580,7 +580,7 @@ mod tests {
         witness_bytes: &[u8],
         cmr_str: &str,
         amr_str: &str,
-        imr_str: &str,
+        ihr_str: &str,
     ) -> Arc<RedeemNode<J>> {
         let prog_hex = prog_bytes.as_hex();
         let witness_hex = witness_bytes.as_hex();
@@ -610,11 +610,11 @@ mod tests {
             prog_hex,
         );
         assert_eq!(
-            prog.imr().to_string(),
-            imr_str,
-            "IMR mismatch (got {} expected {}) for program {}",
-            prog.imr(),
-            imr_str,
+            prog.ihr().to_string(),
+            ihr_str,
+            "IHR mismatch (got {} expected {}) for program {}",
+            prog.ihr(),
+            ihr_str,
             prog_hex,
         );
 
@@ -930,8 +930,8 @@ mod tests {
             .prune(env)
             .expect("pruning should not fail if execution succeeded");
         assert_eq!(
-            pruned_program.imr(),
-            expected_unpruned_program.imr(),
+            pruned_program.ihr(),
+            expected_unpruned_program.ihr(),
             "pruning result differs from expected result"
         );
 

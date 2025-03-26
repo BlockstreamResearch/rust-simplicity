@@ -433,7 +433,7 @@ dependencies = [
 
 [[package]]
 name = "simplicity-lang"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bitcoin",
  "bitcoin_hashes",
@@ -449,7 +449,7 @@ dependencies = [
 
 [[package]]
 name = "simplicity-sys"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "bitcoin_hashes",
  "cc",

@@ -99,7 +99,7 @@ impl Cmr {
 
     /// Compute the CMR of a constant word jet
     ///
-    /// This is equal to the IMR of the equivalent scribe, converted to a CMR in
+    /// This is equal to the IHR of the equivalent scribe, converted to a CMR in
     /// the usual way for jets.
     pub fn const_word(word: &Word) -> Self {
         let w = 1 + word.n() as usize;
@@ -118,12 +118,12 @@ impl Cmr {
         }
         assert_eq!(cmr_stack.len(), 1);
 
-        let imr_iv = Self::CONST_WORD_IV;
-        let imr_pass1 = imr_iv.update_1(cmr_stack[0]);
-        // 2. Add TMRs to get the pass-two IMR
-        let imr_pass2 = imr_pass1.update(Tmr::unit().into(), Tmr::TWO_TWO_N[w - 1].into());
+        let ihr_iv = Self::CONST_WORD_IV;
+        let ihr_pass1 = ihr_iv.update_1(cmr_stack[0]);
+        // 2. Add TMRs to get the pass-two IHR
+        let ihr_pass2 = ihr_pass1.update(Tmr::unit().into(), Tmr::TWO_TWO_N[w - 1].into());
         // 3. Convert to a jet CMR
-        Cmr(bip340_iv(b"Simplicity\x1fJet")).update_with_weight(word.len() as u64, imr_pass2)
+        Cmr(bip340_iv(b"Simplicity\x1fJet")).update_with_weight(word.len() as u64, ihr_pass2)
     }
 
     #[rustfmt::skip]

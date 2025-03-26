@@ -13,7 +13,7 @@ mod parse;
 use crate::dag::{DagLike, MaxSharing};
 use crate::jet::Jet;
 use crate::node::{self, CommitNode, NoWitness};
-use crate::{Cmr, ConstructNode, Imr, Value};
+use crate::{Cmr, ConstructNode, Ihr, Value};
 
 use std::collections::HashMap;
 use std::str;
@@ -109,7 +109,7 @@ impl<J: Jet> Forest<J> {
     pub fn string_serialize(&self) -> String {
         struct Print {
             cmr: Cmr,
-            imr: Option<Imr>,
+            ihr: Option<Ihr>,
             expr_str: String,  // The X = Y part
             arrow_str: String, // The :: A -> B part
         }
@@ -124,10 +124,10 @@ impl<J: Jet> Forest<J> {
                     ret += "\n";
                 }
                 ret += &format!("-- CMR: {}\n", line.cmr);
-                if let Some(imr) = line.imr {
-                    ret += &format!("-- IMR: {}\n", imr);
+                if let Some(ihr) = line.ihr {
+                    ret += &format!("-- IHR: {}\n", ihr);
                 } else {
-                    ret += "-- IMR: [undetermined]\n";
+                    ret += "-- IHR: [undetermined]\n";
                 }
                 ret += &format!(
                     "{0:1$} {2:3$}\n",
@@ -173,7 +173,7 @@ impl<J: Jet> Forest<J> {
 
                 let print = Print {
                     cmr: node.cmr(),
-                    imr: node.imr(),
+                    ihr: node.ihr(),
                     expr_str,
                     arrow_str,
                 };

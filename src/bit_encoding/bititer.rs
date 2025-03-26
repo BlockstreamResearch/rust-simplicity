@@ -156,7 +156,7 @@ impl<'a> BitIter<std::iter::Copied<std::slice::Iter<'a, u8>>> {
         assert!(start <= end);
         assert!(end <= sl.len() * 8);
 
-        let actual_sl = &sl[start / 8..(end + 7) / 8];
+        let actual_sl = &sl[start / 8..end.div_ceil(8)];
         let mut iter = actual_sl.iter().copied();
 
         let read_bits = start % 8;

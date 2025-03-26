@@ -166,7 +166,7 @@ impl Amr {
 
     /// Compute the CMR of a constant word jet
     ///
-    /// This is equal to the IMR of the equivalent scribe, converted to a CMR in
+    /// This is equal to the IHR of the equivalent scribe, converted to a CMR in
     /// the usual way for jets.
     pub fn const_word(word: &Word) -> Self {
         Cmr::const_word(word).into()

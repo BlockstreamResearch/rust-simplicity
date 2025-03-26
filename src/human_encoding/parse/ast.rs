@@ -359,7 +359,7 @@ impl<J: Jet> Ast<J> {
         let s = &lexemes[0].raw[2..];
         if &lexemes[0].raw[..2] == "0x" {
             let bit_length = s.len() * 4;
-            let mut data = Vec::with_capacity((s.len() + 1) / 2);
+            let mut data = Vec::with_capacity(s.len().div_ceil(2));
             for idx in 0..s.len() / 2 {
                 data.push(u8::from_str_radix(&s[2 * idx..2 * idx + 2], 16).unwrap());
             }
@@ -376,7 +376,7 @@ impl<J: Jet> Ast<J> {
             assert_eq!(&lexemes[0].raw[..2], "0b");
 
             let bit_length = s.len();
-            let mut data = Vec::with_capacity((s.len() + 7) / 8);
+            let mut data = Vec::with_capacity(s.len().div_ceil(8));
             let mut x = 0;
             for (n, ch) in s.chars().enumerate() {
                 match ch {

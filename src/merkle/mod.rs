@@ -7,7 +7,7 @@
 
 pub mod amr;
 pub mod cmr;
-pub mod imr;
+pub mod ihr;
 pub mod tmr;
 
 use crate::bit_encoding::BitCollector;
@@ -48,7 +48,7 @@ impl AsRef<[u8]> for FailEntropy {
 }
 
 /// Helper function to compute the "compact value", i.e. the sha256 hash
-/// of the bits of a given value, which is used in some IMRs and AMRs.
+/// of the bits of a given value, which is used in some IHRs and AMRs.
 fn compact_value(value: &Value) -> [u8; 32] {
     let (mut bytes, bit_length) = value.iter_compact().collect_bits();
 

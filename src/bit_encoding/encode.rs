@@ -109,7 +109,7 @@ impl<N: node::Marker> hash::Hash for EncodeId<N> {
     }
 }
 
-/// Shares nodes based on IMR, *except* for Hidden nodes, which are identified
+/// Shares nodes based on IHR, *except* for Hidden nodes, which are identified
 /// solely by the hash they contain
 #[derive(Clone)]
 pub struct EncodeSharing<N: node::Marker> {

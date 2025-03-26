@@ -13,6 +13,10 @@ DEPEND_PATH=$(readlink -f "$1")
 LIBSIM_PATH=$(readlink -f "$2")
 VENDORED_SIM_DIR="$DEPEND_PATH/simplicity"
 
+DEFAULT_VERSION_CODE=$(grep "^version" "$DEPEND_PATH/../Cargo.toml" | sed 's/\./_/g' | sed 's/.*"\(.*\)".*/\1/' | cut -d_ -f1-2)
+
+: "${SIMPLICITY_ALLOC_VERSION_CODE:=$DEFAULT_VERSION_CODE}"
+
 ## 1. Sanity check environment.
 if ! command -v git > /dev/null; then
     echo "Missing 'git' executable in evironment."
@@ -68,5 +72,11 @@ git ls-files | rsync -av --files-from=- . "$VENDORED_SIM_DIR"
 popd
 
 ## 3. Patch copied files.
-patch "$VENDORED_SIM_DIR/simplicity_alloc.h" "$DEPEND_PATH/simplicity_alloc.h.patch"
+find "$DEPEND_PATH/.." -name "*.rs" -type f -exec sed -i "s/rust_[0-9_]*_free/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_free/" {} \;
+find "$DEPEND_PATH/.." -name "*.rs" -type f -exec sed -i "s/rust_[0-9_]*_malloc/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_malloc/" {} \;
+find "$DEPEND_PATH/.." -name "*.rs" -type f -exec sed -i "s/rust_[0-9_]*_calloc/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_calloc/" {} \;
+
+sed "s/rust_/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_/" \
+    < "$DEPEND_PATH/simplicity_alloc.h.patch" \
+    | patch "$VENDORED_SIM_DIR/simplicity_alloc.h"
 

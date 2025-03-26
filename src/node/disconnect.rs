@@ -5,7 +5,7 @@
 //! This module defines the [`Disconnectable`] trait, which is applied to the
 //! right child of `disconnect` Simplicity nodes, allowing them to represent
 //! "disconnected expressions" which may or may not be present, and which
-//! contribute to a node's IMR but not CMR.
+//! contribute to a node's IHR but not CMR.
 
 use crate::dag::Dag;
 
