@@ -419,7 +419,7 @@ name = "simpcli"
 version = "0.3.0"
 dependencies = [
  "base64 0.21.7",
- "simplicity-lang",
+ "simplicity-lang 0.4.0",
 ]
 
 [[package]]
@@ -428,7 +428,23 @@ version = "0.0.1"
 dependencies = [
  "base64 0.22.1",
  "libfuzzer-sys",
- "simplicity-lang",
+ "simplicity-lang 0.3.1",
+ "simplicity-lang 0.4.0",
+]
+
+[[package]]
+name = "simplicity-lang"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d75c8fb4a18e63fbce4cf16026c36a6c38066e4f4a09ce5e81be817d0e36d8f8"
+dependencies = [
+ "bitcoin_hashes",
+ "byteorder",
+ "getrandom",
+ "hex-conservative 0.1.2",
+ "miniscript",
+ "santiago",
+ "simplicity-sys 0.3.0",
 ]
 
 [[package]]
@@ -444,7 +460,17 @@ dependencies = [
  "miniscript",
  "santiago",
  "serde",
- "simplicity-sys",
+ "simplicity-sys 0.4.0",
+]
+
+[[package]]
+name = "simplicity-sys"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4cd2cc5d458a8032d328ea85e824f54f61664ab84c3d42b3b7f8804fb9b81572"
+dependencies = [
+ "bitcoin_hashes",
+ "cc",
 ]
 
 [[package]]

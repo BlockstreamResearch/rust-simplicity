@@ -9,15 +9,35 @@ publish = false
 [package.metadata]
 cargo-fuzz = true
 
+[lib]
+path = "fuzz_lib/lib.rs"
+
 [dependencies]
 libfuzzer-sys = "0.4"
-simplicity-lang = { path = "..", features = ["test-utils"] }
+# We shouldn't need an explicit version on the next line, but Andrew's tools
+# choke on it otherwise. See https://github.com/nix-community/crate2nix/issues/373
+simplicity-lang = { path = "..", features = ["test-utils"], version = "0.4.0" }
+old_simplicity = { package = "simplicity-lang", version = "0.3.1", default-features = false }
 
 [dev-dependencies]
 base64 = "0.22.1"
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(fuzzing)'] }
+
+[[bin]]
+name = "construct_type"
+path = "fuzz_targets/construct_type.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "construct_value"
+path = "fuzz_targets/construct_value.rs"
+test = false
+doc = false
+bench = false
 
 [[bin]]
 name = "c_rust_merkle"
@@ -43,6 +63,13 @@ bench = false
 [[bin]]
 name = "parse_human"
 path = "fuzz_targets/parse_human.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "regression_value"
+path = "fuzz_targets/regression_value.rs"
 test = false
 doc = false
 bench = false

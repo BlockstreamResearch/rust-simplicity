@@ -374,7 +374,6 @@ impl Value {
     /// Create a right value that wraps the given `inner` value.
     pub fn right(left: Arc<Final>, inner: Self) -> Self {
         let total_width = cmp::max(left.bit_width(), inner.ty.bit_width());
-
         let (concat, concat_offset) = product(
             None,
             total_width - inner.ty.bit_width(),
@@ -798,7 +797,7 @@ impl Iterator for CompactBitsIter<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(value) = self.stack.pop() {
-            if value.is_unit() {
+            if value.ty.bit_width() == 0 {
                 // NOP
             } else if let Some(l_value) = value.as_left() {
                 self.stack.push(l_value);
@@ -878,7 +877,10 @@ impl Value {
         bits: &mut BitIter<I>,
         ty: &Final,
     ) -> Result<Self, EarlyEndOfStreamError> {
-        let mut blob = Vec::with_capacity(ty.bit_width().div_ceil(8));
+        const MAX_INITIAL_ALLOC: usize = 32 * 1024 * 1024; // 4 megabytes
+
+        let cap = cmp::min(MAX_INITIAL_ALLOC, ty.bit_width().div_ceil(8));
+        let mut blob = Vec::with_capacity(cap);
         for _ in 0..ty.bit_width() / 8 {
             blob.push(bits.read_u8()?);
         }

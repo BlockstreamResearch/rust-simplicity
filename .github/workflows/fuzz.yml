@@ -17,10 +17,13 @@ jobs:
       fail-fast: false
       matrix:
         fuzz_target: [
+construct_type,
+construct_value,
 c_rust_merkle,
 decode_natural,
 decode_program,
 parse_human,
+regression_value,
         ]
     steps:
       - name: Checkout Crate
