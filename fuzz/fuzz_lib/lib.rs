@@ -241,8 +241,7 @@ impl<'f> Extractor<'f> {
     }
 
     /// Attempt to yield a value from the fuzzer by constructing a type and then
-
-    /// Attempt to yield a value from the fuzzer by constructing it directly.
+    /// attempt to yield a value from the fuzzer by constructing it directly.
     pub fn extract_old_value_direct(&mut self) -> Option<OldValue> {
         const MAX_N_TASKS: usize = 300;
         const MAX_TY_WIDTH: usize = 10240;
