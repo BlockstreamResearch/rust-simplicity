@@ -107,7 +107,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest]
+        os: [macos-latest, windows-latest]
     steps:
       - name: Checkout Crate
         uses: actions/checkout@v4
@@ -116,4 +116,6 @@ jobs:
       - name: Set dependencies
         run: cp Cargo-recent.lock Cargo.lock
       - name: Run unit tests
-        run: cargo test --locked --workspace --all-features
+        run: |
+          cargo test --locked --manifest-path simplicity-sys/Cargo.toml
+          cargo test --locked --workspace --all-features
