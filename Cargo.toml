@@ -15,7 +15,6 @@ default = ["elements"]
 elements = ["dep:elements", "bitcoin"]
 test-utils = ["simplicity-sys/test-utils"]
 serde = ["dep:serde", "bitcoin/serde", "elements/serde"]
-trace = []
 
 [lib]
 name = "simplicity"
