@@ -7,6 +7,10 @@ use simplicity::types::Final as FinalTy;
 use simplicity::{BitIter, Value};
 use std::sync::Arc;
 
+mod program;
+
+pub use program::ProgramControl;
+
 /// A wrapper around a buffer which has utilities for extracting various
 /// Simplicity types.
 #[derive(Clone)]
@@ -16,6 +20,7 @@ pub struct Extractor<'f> {
     bit_len: usize,
 }
 
+// More impls in the other modules.
 impl<'f> Extractor<'f> {
     /// Wrap the buffer in an extractor.
     pub fn new(data: &'f [u8]) -> Self {
@@ -35,6 +40,13 @@ impl<'f> Extractor<'f> {
             self.data = &self.data[1..];
             Some(ret)
         }
+    }
+
+    /// Attempt to yield a u16 from the fuzzer.
+    ///
+    /// Internally, extracts in big-endian.
+    pub fn extract_u16(&mut self) -> Option<u16> {
+        Some((u16::from(self.extract_u8()?) << 8) + u16::from(self.extract_u8()?))
     }
 
     /// Attempt to yield a single bit from the fuzzer.

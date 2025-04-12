@@ -68,6 +68,13 @@ doc = false
 bench = false
 
 [[bin]]
+name = "regression_286"
+path = "fuzz_targets/regression_286.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
 name = "regression_value"
 path = "fuzz_targets/regression_value.rs"
 test = false
