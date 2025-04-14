@@ -93,15 +93,6 @@ impl<T> UbData<T> {
     }
 }
 
-impl<T: PointerLike> UbData<T> {
-    fn shallow_clone(&self) -> Self {
-        match self {
-            UbData::Root(x) => UbData::Root(x.shallow_clone()),
-            UbData::EqualTo(eq) => UbData::EqualTo(eq.shallow_clone()),
-        }
-    }
-}
-
 impl<T> UbElement<T> {
     /// Turns an existing piece of data into a singleton union-bound set.
     pub fn new(data: T) -> Self {
@@ -148,7 +139,7 @@ impl<T: PointerLike> UbElement<T> {
                 }
             };
 
-            let mut parent_inner_lock = parent.inner.lock().unwrap();
+            let parent_inner_lock = parent.inner.lock().unwrap();
             // If the parent has a parent, remove the intermediate link. (This is
             // the "halving" variant of union-bound.)
             match parent_inner_lock.data {
@@ -156,13 +147,11 @@ impl<T: PointerLike> UbElement<T> {
                 UbData::Root(..) => return parent.shallow_clone(),
                 UbData::EqualTo(ref grandparent) => {
                     let grandparent = grandparent.shallow_clone();
-                    // Okay to lock both grandparent and parent at once because the
-                    // algorithm guarantees there are no cycles.
-                    let gp_inner_lock = grandparent.inner.lock().unwrap();
-                    parent_inner_lock.data = gp_inner_lock.data.shallow_clone();
-                    drop(gp_inner_lock);
-                    drop(parent_inner_lock);
-                    x = grandparent.shallow_clone();
+                    // The previous `x_inner_lock` was dropped above, so this will not deadlock.
+                    let mut x_inner_lock = x.inner.lock().unwrap();
+                    x_inner_lock.data = UbData::EqualTo(grandparent.shallow_clone());
+                    drop(x_inner_lock);
+                    x = grandparent;
                 }
             }
         }

@@ -368,12 +368,17 @@ impl Type {
 }
 
 const MAX_DISPLAY_DEPTH: usize = 64;
+const MAX_DISPLAY_LENGTH: usize = 10000;
 
 impl fmt::Debug for Type {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for data in (&self.ctx, self.inner.bound.root())
             .verbose_pre_order_iter::<NoSharing>(Some(MAX_DISPLAY_DEPTH))
         {
+            if data.index > MAX_DISPLAY_LENGTH {
+                write!(f, "... [truncated type after {} nodes]", MAX_DISPLAY_LENGTH)?;
+                return Ok(());
+            }
             if data.depth == MAX_DISPLAY_DEPTH {
                 if data.n_children_yielded == 0 {
                     f.write_str("...")?;
@@ -407,6 +412,10 @@ impl fmt::Display for Type {
         for data in (&self.ctx, self.inner.bound.root())
             .verbose_pre_order_iter::<NoSharing>(Some(MAX_DISPLAY_DEPTH))
         {
+            if data.index > MAX_DISPLAY_LENGTH {
+                write!(f, "... [truncated type after {} nodes]", MAX_DISPLAY_LENGTH)?;
+                return Ok(());
+            }
             if data.depth == MAX_DISPLAY_DEPTH {
                 if data.n_children_yielded == 0 {
                     f.write_str("...")?;

@@ -517,4 +517,74 @@ mod tests {
                 .cmr()
         );
     }
+
+    #[test]
+    fn regression_286_1() {
+        // This is the smallest pure Simplicity program I was able to find that exhibits the bad
+        // behavior seen in https://github.com/BlockstreamResearch/rust-simplicity/issues/286
+        let ctx = types::Context::new();
+        let cmr = Cmr::from_byte_array([0xde; 32]);
+
+        let u0 = Arc::<ConstructNode<Core>>::unit(&ctx);
+        let i1 = Arc::<ConstructNode<Core>>::injl(&u0);
+        let i2 = Arc::<ConstructNode<Core>>::injr(&i1);
+        let i3 = Arc::<ConstructNode<Core>>::injr(&i2);
+        let i4 = Arc::<ConstructNode<Core>>::injl(&i3);
+        let u5 = Arc::<ConstructNode<Core>>::unit(&ctx);
+        let i6 = Arc::<ConstructNode<Core>>::injl(&u5);
+        let i7 = Arc::<ConstructNode<Core>>::injr(&i6);
+        let p8 = Arc::<ConstructNode<Core>>::pair(&i4, &i7).unwrap();
+        let u9 = Arc::<ConstructNode<Core>>::unit(&ctx);
+        let a10 = Arc::<ConstructNode<Core>>::assertr(cmr, &u9).unwrap();
+        let u11 = Arc::<ConstructNode<Core>>::unit(&ctx);
+        let a12 = Arc::<ConstructNode<Core>>::assertr(cmr, &u11).unwrap();
+        let a13 = Arc::<ConstructNode<Core>>::assertl(&a12, cmr).unwrap();
+        let c14 = Arc::<ConstructNode<Core>>::case(&a10, &a13).unwrap();
+        let c15 = Arc::<ConstructNode<Core>>::comp(&p8, &c14).unwrap();
+
+        let finalized: Arc<CommitNode<_>> = c15.finalize_types().unwrap();
+        let prog = finalized.encode_to_vec();
+        // In #286 we are encoding correctly...
+        assert_eq!(
+            hex::DisplayHex::as_hex(&prog).to_string(),
+            "dc920a28812b6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f243090e00b10e00680",
+        );
+
+        let prog = BitIter::from(prog);
+        let decode = CommitNode::<Core>::decode(prog).unwrap();
+
+        // ...but then during decoding we read the program incorrectly and this assertion fails.
+        assert_eq!(finalized, decode);
+    }
+
+    #[test]
+    fn regression_286_2() {
+        use crate::types::Error as TypeError;
+        use crate::Error;
+
+        // This one is smaller because it starts with a witness node which has a large type.
+        // This is a bit easier to grok but can't be serialized as a complete/valid program
+        // without providing the witness data, which limits its ability to share with the
+        // other libraries.
+        //
+        // It also exhibits the bug earlier than the other one -- it *should* just fail to
+        // typecheck and not be constructible. So we can't get an encoding of it.
+        let ctx = types::Context::new();
+
+        let w0 = Arc::<ConstructNode<Core>>::witness(&ctx, None);
+        let i1 = Arc::<ConstructNode<Core>>::iden(&ctx);
+        let d2 = Arc::<ConstructNode<Core>>::drop_(&i1);
+        let i3 = Arc::<ConstructNode<Core>>::iden(&ctx);
+        let i4 = Arc::<ConstructNode<Core>>::iden(&ctx);
+        let t5 = Arc::<ConstructNode<Core>>::take(&i4);
+        let ca6 = Arc::<ConstructNode<Core>>::case(&i3, &t5).unwrap();
+        let ca7 = Arc::<ConstructNode<Core>>::case(&d2, &ca6).unwrap();
+        let c8 = Arc::<ConstructNode<Core>>::comp(&w0, &ca7).unwrap();
+        let u9 = Arc::<ConstructNode<Core>>::unit(&ctx);
+        let c10 = Arc::<ConstructNode<Core>>::comp(&c8, &u9).unwrap();
+
+        // In #286 we incorrectly succeed finalizing the types, and then encode a bad program.
+        let err = c10.finalize_types().unwrap_err();
+        assert!(matches!(err, Error::Type(TypeError::OccursCheck { .. })));
+    }
 }
