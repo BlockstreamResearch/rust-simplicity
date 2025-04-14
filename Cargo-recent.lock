@@ -419,7 +419,7 @@ name = "simpcli"
 version = "0.3.0"
 dependencies = [
  "base64 0.21.7",
- "simplicity-lang 0.4.0",
+ "simplicity-lang 0.5.0",
 ]
 
 [[package]]
@@ -429,7 +429,7 @@ dependencies = [
  "base64 0.22.1",
  "libfuzzer-sys",
  "simplicity-lang 0.3.1",
- "simplicity-lang 0.4.0",
+ "simplicity-lang 0.5.0",
 ]
 
 [[package]]
@@ -449,7 +449,7 @@ dependencies = [
 
 [[package]]
 name = "simplicity-lang"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "bitcoin",
  "bitcoin_hashes",
@@ -460,7 +460,7 @@ dependencies = [
  "miniscript",
  "santiago",
  "serde",
- "simplicity-sys 0.4.0",
+ "simplicity-sys 0.5.0",
 ]
 
 [[package]]
@@ -475,7 +475,7 @@ dependencies = [
 
 [[package]]
 name = "simplicity-sys"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "bitcoin_hashes",
  "cc",
