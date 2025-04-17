@@ -119,3 +119,16 @@ jobs:
         run: |
           cargo test --locked --manifest-path simplicity-sys/Cargo.toml
           cargo test --locked --workspace --all-features
+
+  docs:
+    name: Docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Crate
+        uses: actions/checkout@v4
+      - name: Checkout Toolchain
+        uses: dtolnay/rust-toolchain@nightly
+      - name: Check that documentation builds without errors
+        env:
+          RUSTDOCFLAGS: "--cfg docsrs -D warnings -D rustdoc::broken-intra-doc-links"
+        run: cargo doc -j1 --all-features
