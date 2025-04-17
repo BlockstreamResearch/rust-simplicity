@@ -20,6 +20,7 @@ use crate::types::Final;
 use crate::{analysis, Ihr};
 use crate::{Cmr, FailEntropy, Value};
 use frame::Frame;
+use simplicity_sys::ffi::UWORD;
 
 pub use self::limits::LimitError;
 
@@ -242,7 +243,12 @@ impl BitMachine {
         Ok(tracker)
     }
 
-    fn exec_with_tracker<J: Jet, T: CaseTracker>(
+    /// Execute the given `program` on the Bit Machine, using the given environment and tracker.
+    ///
+    ///  ## Precondition
+    ///
+    /// The Bit Machine is constructed via [`Self::for_program()`] to ensure enough space.
+    pub fn exec_with_tracker<J: Jet, T: ExecTracker<J>>(
         &mut self,
         program: &RedeemNode<J>,
         env: &J::Environment,
@@ -371,7 +377,7 @@ impl BitMachine {
                     }
                 }
                 node::Inner::Witness(value) => self.write_value(value),
-                node::Inner::Jet(jet) => self.exec_jet(*jet, env)?,
+                node::Inner::Jet(jet) => self.exec_jet(*jet, env, tracker)?,
                 node::Inner::Word(value) => self.write_value(value.as_value()),
                 node::Inner::Fail(entropy) => {
                     return Err(ExecutionError::ReachedFailNode(*entropy))
@@ -408,7 +414,12 @@ impl BitMachine {
         }
     }
 
-    fn exec_jet<J: Jet>(&mut self, jet: J, env: &J::Environment) -> Result<(), JetFailed> {
+    fn exec_jet<J: Jet, T: ExecTracker<J>>(
+        &mut self,
+        jet: J,
+        env: &J::Environment,
+        tracker: &mut T,
+    ) -> Result<(), JetFailed> {
         use crate::ffi::c_jets::frame_ffi::{c_readBit, c_writeBit, CFrameItem};
         use crate::ffi::c_jets::uword_width;
         use crate::ffi::ffi::UWORD;
@@ -494,12 +505,14 @@ impl BitMachine {
         let output_width = jet.target_ty().to_bit_width();
         // Input buffer is implicitly referenced by input read frame!
         // Same goes for output buffer
-        let (input_read_frame, _input_buffer) = unsafe { get_input_frame(self, input_width) };
+        let (input_read_frame, input_buffer) = unsafe { get_input_frame(self, input_width) };
         let (mut output_write_frame, output_buffer) = unsafe { get_output_frame(output_width) };
 
         let jet_fn = jet.c_jet_ptr();
         let c_env = J::c_jet_env(env);
         let success = jet_fn(&mut output_write_frame, input_read_frame, c_env);
+
+        tracker.track_jet_call(&jet, &input_buffer, &output_buffer, success);
 
         if !success {
             Err(JetFailed)
@@ -510,25 +523,33 @@ impl BitMachine {
     }
 }
 
-/// A type that keeps track of which case branches were executed
-/// during the execution of the Bit Machine.
+/// A type that keeps track of Bit Machine execution.
 ///
-/// The trait is implemented for [`SetTracker`], which does the actual tracking,
+/// The trait is implemented for [`SetTracker`], that tracks which case branches were executed,
 /// and it is implemented for [`NoTracker`], which is a dummy tracker that is
 /// optimized out by the compiler.
 ///
 /// The trait enables us to turn tracking on or off depending on a generic parameter.
-trait CaseTracker {
+pub trait ExecTracker<J: Jet> {
     /// Track the execution of the left branch of the case node with the given `ihr`.
     fn track_left(&mut self, ihr: Ihr);
 
     /// Track the execution of the right branch of the case node with the given `ihr`.
     fn track_right(&mut self, ihr: Ihr);
+
+    /// Track the execution of a `jet` call with the given `input_buffer`, `output_buffer`, and call result `success`.
+    fn track_jet_call(
+        &mut self,
+        jet: &J,
+        input_buffer: &[UWORD],
+        output_buffer: &[UWORD],
+        success: bool,
+    );
 }
 
 /// Tracker of executed left and right branches for each case node.
 #[derive(Clone, Debug, Default)]
-pub(crate) struct SetTracker {
+pub struct SetTracker {
     left: HashSet<Ihr>,
     right: HashSet<Ihr>,
 }
@@ -545,10 +566,11 @@ impl SetTracker {
     }
 }
 
+/// Tracker that does not do anything (noop).
 #[derive(Copy, Clone, Debug)]
-struct NoTracker;
+pub struct NoTracker;
 
-impl CaseTracker for SetTracker {
+impl<J: Jet> ExecTracker<J> for SetTracker {
     fn track_left(&mut self, ihr: Ihr) {
         self.left.insert(ihr);
     }
@@ -556,12 +578,16 @@ impl CaseTracker for SetTracker {
     fn track_right(&mut self, ihr: Ihr) {
         self.right.insert(ihr);
     }
+
+    fn track_jet_call(&mut self, _: &J, _: &[UWORD], _: &[UWORD], _: bool) {}
 }
 
-impl CaseTracker for NoTracker {
+impl<J: Jet> ExecTracker<J> for NoTracker {
     fn track_left(&mut self, _: Ihr) {}
 
     fn track_right(&mut self, _: Ihr) {}
+
+    fn track_jet_call(&mut self, _: &J, _: &[UWORD], _: &[UWORD], _: bool) {}
 }
 
 /// Errors related to simplicity Execution
