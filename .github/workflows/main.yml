@@ -3,6 +3,17 @@ on: [push, pull_request]
 name: Continuous integration
 
 jobs:
+  Prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      nightly_version: ${{ steps.read_toolchain.outputs.nightly_version }}
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v4
+      - name: "Read nightly version"
+        id: read_toolchain
+        run: echo "nightly_version=$(cat nightly-version)" >> $GITHUB_OUTPUT
+
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
@@ -46,6 +57,7 @@ jobs:
 
   test:
     name: Tests
+    needs: Prepare
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -53,7 +65,7 @@ jobs:
         rust:
           - stable
           - beta
-          - nightly
+          - ${{ needs.Prepare.outputs.nightly_version }}
           - 1.78.0
     steps:
       - name: Checkout Crate
@@ -122,12 +134,15 @@ jobs:
 
   docs:
     name: Docs
+    needs: Prepare
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Crate
         uses: actions/checkout@v4
       - name: Checkout Toolchain
-        uses: dtolnay/rust-toolchain@nightly
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ needs.Prepare.outputs.nightly_version }}
       - name: Check that documentation builds without errors
         env:
           RUSTDOCFLAGS: "--cfg docsrs -D warnings -D rustdoc::broken-intra-doc-links"
