@@ -347,10 +347,23 @@ impl BitMachine {
                     call_stack.push(CallStack::Goto(left));
                 }
                 node::Inner::Case(..) | node::Inner::AssertL(..) | node::Inner::AssertR(..) => {
-                    let choice_bit = self.read[self.read.len() - 1].peek_bit(&self.data);
+                    let in_frame = &self.read[self.read.len() - 1];
+                    let choice_bit: bool = in_frame.peek_bit(&self.data);
 
                     let (sum_a_b, _c) = ip.arrow().source.as_product().unwrap();
                     let (a, b) = sum_a_b.as_sum().unwrap();
+
+                    if tracker.is_track_debug_enabled() {
+                        if let node::Inner::AssertL(_, cmr) = ip.inner() {
+                            let mut bits = in_frame.as_bit_iter(&self.data);
+                            // Skips 1 + max(a.bit_width, b.bit_width) - a.bit_width
+                            bits.nth(a.pad_left(b))
+                                .expect("AssertL: unexpected end of frame");
+                            let value = Value::from_padded_bits(&mut bits, _c)
+                                .expect("AssertL: decode `C` value");
+                            tracker.track_dbg_call(cmr, value);
+                        }
+                    }
 
                     match (ip.inner(), choice_bit) {
                         (node::Inner::Case(_, right), true)
@@ -545,6 +558,12 @@ pub trait ExecTracker<J: Jet> {
         output_buffer: &[UWORD],
         success: bool,
     );
+
+    /// Track the potential execution of a `dbg!` call with the given `cmr` and `value`.
+    fn track_dbg_call(&mut self, cmr: &Cmr, value: Value);
+
+    /// Check if tracking debug calls is enabled.
+    fn is_track_debug_enabled(&self) -> bool;
 }
 
 /// Tracker of executed left and right branches for each case node.
@@ -580,6 +599,12 @@ impl<J: Jet> ExecTracker<J> for SetTracker {
     }
 
     fn track_jet_call(&mut self, _: &J, _: &[UWORD], _: &[UWORD], _: bool) {}
+
+    fn track_dbg_call(&mut self, _: &Cmr, _: Value) {}
+
+    fn is_track_debug_enabled(&self) -> bool {
+        false
+    }
 }
 
 impl<J: Jet> ExecTracker<J> for NoTracker {
@@ -588,6 +613,13 @@ impl<J: Jet> ExecTracker<J> for NoTracker {
     fn track_right(&mut self, _: Ihr) {}
 
     fn track_jet_call(&mut self, _: &J, _: &[UWORD], _: &[UWORD], _: bool) {}
+
+    fn track_dbg_call(&mut self, _: &Cmr, _: Value) {}
+
+    fn is_track_debug_enabled(&self) -> bool {
+        // Set flag to test frame decoding in unit tests
+        cfg!(test)
+    }
 }
 
 /// Errors related to simplicity Execution
