@@ -16,6 +16,7 @@ use crate::tests::ffi::{
     type_inference::simplicity_mallocTypeInference,
     SimplicityErr,
 };
+use crate::CElementsTxEnv;
 
 /// The result of parsing, typechecking, and running a Simplicity program
 /// through the C FFI
@@ -72,7 +73,8 @@ pub fn run_test(
     target_ihr: &[u32; 8],
     cost_bound: ubounded,
 ) {
-    let result = run_program(program, witness, TestUpTo::Everything).expect("running program");
+    let result =
+        run_program(program, witness, TestUpTo::Everything, None, None).expect("running program");
     assert_eq!(result.amr, CSha256Midstate { s: *target_amr });
     assert_eq!(result.cmr, CSha256Midstate { s: *target_cmr });
     assert_eq!(result.ihr, CSha256Midstate { s: *target_ihr });
@@ -90,7 +92,8 @@ pub fn run_test_fail(
     target_ihr: &[u32; 8],
     cost_bound: ubounded,
 ) {
-    let result = run_program(program, witness, TestUpTo::Everything).expect("running program");
+    let result =
+        run_program(program, witness, TestUpTo::Everything, None, None).expect("running program");
     assert_eq!(result.amr, CSha256Midstate { s: *target_amr });
     assert_eq!(result.cmr, CSha256Midstate { s: *target_cmr });
     assert_eq!(result.ihr, CSha256Midstate { s: *target_ihr });
@@ -110,10 +113,13 @@ impl Drop for FreeOnDrop {
 /// Run a program and return data about it
 ///
 /// This is mostly a direct port of `run_program` in C `tests.c`.
+/// WARNING: empty environment could lead to a crash (depending on which jets are used).
 pub fn run_program(
     program: &[u8],
     witness: &[u8],
     test_up_to: TestUpTo,
+    budget: Option<u32>,
+    env: Option<&CElementsTxEnv>,
 ) -> Result<TestOutput, SimplicityErr> {
     let mut result = TestOutput {
         amr: CSha256Midstate::default(),
@@ -266,8 +272,9 @@ pub fn run_program(
         }
 
         // 9. Run the program
-        result.eval_result =
-            simplicity_evalTCOProgram(dag, type_dag, len, ptr::null(), ptr::null());
+        let budget_ptr = budget.map(|b| b as *const _).unwrap_or(ptr::null());
+        let env_ptr = env.map(|e| e as *const _).unwrap_or(ptr::null());
+        result.eval_result = simplicity_evalTCOProgram(dag, type_dag, len, budget_ptr, env_ptr);
     }
 
     Ok(result)
