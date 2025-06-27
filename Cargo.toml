@@ -58,3 +58,10 @@ match_bool = "allow" # Adds extra indentation and LOC.
 match_same_arms = "allow" # Collapses things that are conceptually unrelated to each other.
 must_use_candidate = "allow" # Useful for audit but many false positives.
 similar_names = "allow" # Too many (subjectively) false positives.
+# Cast-related lints
+cast_lossless = "warn"
+cast_possible_truncation = "allow" # All casts should include a code comment (except test code).
+cast_possible_wrap = "allow" # Same as above re code comment.
+cast_precision_loss = "warn"
+cast_ptr_alignment = "warn"
+cast_sign_loss = "allow" # All casts should include a code comment (except in test code).
