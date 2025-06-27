@@ -27,7 +27,7 @@ fn do_test(data: &[u8]) {
     };
 
     let (program, witness) = data.split_at(prog_len);
-    let c_result = run_program(program, witness, TestUpTo::CheckOneOne);
+    let c_result = run_program(program, witness, TestUpTo::CheckOneOne, None, None);
 
     let prog_iter = BitIter::from(program);
     let wit_iter = BitIter::from(witness);
