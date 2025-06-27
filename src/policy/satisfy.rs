@@ -312,7 +312,7 @@ mod tests {
 
     fn get_satisfier(
         env: &ElementsEnv<Arc<elements::Transaction>>,
-    ) -> PolicySatisfier<XOnlyPublicKey> {
+    ) -> PolicySatisfier<'_, XOnlyPublicKey> {
         let mut preimages = HashMap::new();
 
         for i in 0..3 {

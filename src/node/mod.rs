@@ -703,7 +703,7 @@ impl<N: Marker> Node<N> {
     ///
     /// The linear string has no sharing and may be **exponentially larger**
     /// than the originally shared expression!
-    pub fn display_expr(&self) -> DisplayExpr<N> {
+    pub fn display_expr(&self) -> DisplayExpr<'_, N> {
         DisplayExpr::from(self)
     }
 }
