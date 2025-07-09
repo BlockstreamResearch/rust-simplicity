@@ -3,12 +3,13 @@
 #include <stdalign.h>
 #include <string.h>
 #include "primitive.h"
-#include "../../deserialize.h"
-#include "../../eval.h"
-#include "../../limitations.h"
-#include "../../simplicity_alloc.h"
-#include "../../simplicity_assert.h"
-#include "../../typeInference.h"
+#include "txEnv.h"
+#include "../deserialize.h"
+#include "../eval.h"
+#include "../limitations.h"
+#include "../simplicity_alloc.h"
+#include "../simplicity_assert.h"
+#include "../typeInference.h"
 
 /* Deserialize a Simplicity 'program' with its 'witness' data and execute it in the environment of the 'ix'th input of 'tx' with `taproot`.
  *
@@ -17,6 +18,12 @@
  * Otherwise, 'true' is returned indicating that the result was successfully computed and returned in the '*error' value.
  *
  * If deserialization, analysis, or execution fails, then '*error' is set to some simplicity_err.
+ * In particular, if the cost analysis exceeds the budget, or exceeds BUDGET_MAX, then '*error' is set to 'SIMPLICITY_ERR_EXEC_BUDGET'.
+ * On the other hand, if the cost analysis is less than or equal to minCost, then '*error' is set to 'SIMPLICITY_ERR_OVERWEIGHT'.
+ *
+ * Note that minCost and budget parameters are in WU, while the cost analysis will be performed in milliWU.
+ * Thus the minCost and budget specify a half open interval (minCost, budget] of acceptable cost values in milliWU.
+ * Setting minCost to 0 effectively disables the minCost check as every Simplicity program has a non-zero cost analysis.
  *
  * If 'amr != NULL' and the annotated Merkle root of the decoded expression doesn't match 'amr' then '*error' is set to 'SIMPLICITY_ERR_AMR'.
  *
@@ -30,25 +37,26 @@
  *               NULL != tx;
  *               NULL != taproot;
  *               unsigned char genesisBlockHash[32]
- *               0 <= budget;
+ *               0 <= minCost <= budget;
  *               NULL != amr implies unsigned char amr[32]
  *               unsigned char program[program_len]
  *               unsigned char witness[witness_len]
  */
-extern bool rustsimplicity_0_4_elements_execSimplicity( simplicity_err* error, unsigned char* ihr
-                                              , const transaction* tx, uint_fast32_t ix, const tapEnv* taproot
+extern bool rustsimplicity_0_5_elements_execSimplicity( simplicity_err* error, unsigned char* ihr
+                                              , const elementsTransaction* tx, uint_fast32_t ix, const elementsTapEnv* taproot
                                               , const unsigned char* genesisBlockHash
-                                              , int64_t budget
+                                              , int64_t minCost, int64_t budget
                                               , const unsigned char* amr
                                               , const unsigned char* program, size_t program_len
                                               , const unsigned char* witness, size_t witness_len) {
-  rustsimplicity_0_4_assert(NULL != error);
-  rustsimplicity_0_4_assert(NULL != tx);
-  rustsimplicity_0_4_assert(NULL != taproot);
-  rustsimplicity_0_4_assert(NULL != genesisBlockHash);
-  rustsimplicity_0_4_assert(0 <= budget);
-  rustsimplicity_0_4_assert(NULL != program || 0 == program_len);
-  rustsimplicity_0_4_assert(NULL != witness || 0 == witness_len);
+  rustsimplicity_0_5_assert(NULL != error);
+  rustsimplicity_0_5_assert(NULL != tx);
+  rustsimplicity_0_5_assert(NULL != taproot);
+  rustsimplicity_0_5_assert(NULL != genesisBlockHash);
+  rustsimplicity_0_5_assert(0 <= minCost);
+  rustsimplicity_0_5_assert(minCost <= budget);
+  rustsimplicity_0_5_assert(NULL != program || 0 == program_len);
+  rustsimplicity_0_5_assert(NULL != witness || 0 == witness_len);
 
   combinator_counters census;
   dag_node* dag = NULL;
@@ -60,15 +68,15 @@ extern bool rustsimplicity_0_4_elements_execSimplicity( simplicity_err* error, u
 
   {
     bitstream stream = initializeBitstream(program, program_len);
-    dag_len = rustsimplicity_0_4_decodeMallocDag(&dag, &census, &stream);
+    dag_len = rustsimplicity_0_5_decodeMallocDag(&dag, rustsimplicity_0_5_elements_decodeJet, &census, &stream);
     if (dag_len <= 0) {
-      rustsimplicity_0_4_assert(dag_len < 0);
+      rustsimplicity_0_5_assert(dag_len < 0);
       *error = (simplicity_err)dag_len;
       return IS_PERMANENT(*error);
     }
-    rustsimplicity_0_4_assert(NULL != dag);
-    rustsimplicity_0_4_assert((uint_fast32_t)dag_len <= DAG_LEN_MAX);
-    *error = rustsimplicity_0_4_closeBitstream(&stream);
+    rustsimplicity_0_5_assert(NULL != dag);
+    rustsimplicity_0_5_assert((uint_fast32_t)dag_len <= DAG_LEN_MAX);
+    *error = rustsimplicity_0_5_closeBitstream(&stream);
   }
 
   if (IS_OK(*error)) {
@@ -79,34 +87,34 @@ extern bool rustsimplicity_0_4_elements_execSimplicity( simplicity_err* error, u
 
   if (IS_OK(*error)) {
     type* type_dag = NULL;
-    *error = rustsimplicity_0_4_mallocTypeInference(&type_dag, dag, (uint_fast32_t)dag_len, &census);
+    *error = rustsimplicity_0_5_mallocTypeInference(&type_dag, rustsimplicity_0_5_elements_mallocBoundVars, dag, (uint_fast32_t)dag_len, &census);
     if (IS_OK(*error)) {
-      rustsimplicity_0_4_assert(NULL != type_dag);
+      rustsimplicity_0_5_assert(NULL != type_dag);
       if (0 != dag[dag_len-1].sourceType || 0 != dag[dag_len-1].targetType) {
         *error = SIMPLICITY_ERR_TYPE_INFERENCE_NOT_PROGRAM;
       }
     }
     if (IS_OK(*error)) {
       bitstream witness_stream = initializeBitstream(witness, witness_len);
-      *error = rustsimplicity_0_4_fillWitnessData(dag, type_dag, (uint_fast32_t)dag_len, &witness_stream);
+      *error = rustsimplicity_0_5_fillWitnessData(dag, type_dag, (uint_fast32_t)dag_len, &witness_stream);
       if (IS_OK(*error)) {
-        *error = rustsimplicity_0_4_closeBitstream(&witness_stream);
+        *error = rustsimplicity_0_5_closeBitstream(&witness_stream);
         if (SIMPLICITY_ERR_BITSTREAM_TRAILING_BYTES == *error) *error = SIMPLICITY_ERR_WITNESS_TRAILING_BYTES;
         if (SIMPLICITY_ERR_BITSTREAM_ILLEGAL_PADDING == *error) *error = SIMPLICITY_ERR_WITNESS_ILLEGAL_PADDING;
       }
     }
     if (IS_OK(*error)) {
       sha256_midstate ihr_buf;
-      *error = rustsimplicity_0_4_verifyNoDuplicateIdentityHashes(&ihr_buf, dag, type_dag, (uint_fast32_t)dag_len);
+      *error = rustsimplicity_0_5_verifyNoDuplicateIdentityHashes(&ihr_buf, dag, type_dag, (uint_fast32_t)dag_len);
       if (IS_OK(*error) && ihr) sha256_fromMidstate(ihr, ihr_buf.s);
     }
     if (IS_OK(*error) && amr) {
       static_assert(DAG_LEN_MAX <= SIZE_MAX / sizeof(analyses), "analysis array too large.");
       static_assert(1 <= DAG_LEN_MAX, "DAG_LEN_MAX is zero.");
       static_assert(DAG_LEN_MAX - 1 <= UINT32_MAX, "analysis array index does nto fit in uint32_t.");
-      analyses *analysis = rustsimplicity_0_4_malloc((size_t)dag_len * sizeof(analyses));
+      analyses *analysis = rustsimplicity_0_5_malloc((size_t)dag_len * sizeof(analyses));
       if (analysis) {
-        rustsimplicity_0_4_computeAnnotatedMerkleRoot(analysis, dag, type_dag, (uint_fast32_t)dag_len);
+        rustsimplicity_0_5_computeAnnotatedMerkleRoot(analysis, dag, type_dag, (uint_fast32_t)dag_len);
         if (0 != memcmp(amr_hash.s, analysis[dag_len-1].annotatedMerkleRoot.s, sizeof(uint32_t[8]))) {
           *error = SIMPLICITY_ERR_AMR;
         }
@@ -114,16 +122,19 @@ extern bool rustsimplicity_0_4_elements_execSimplicity( simplicity_err* error, u
         /* malloc failed which counts as a transient error. */
         *error = SIMPLICITY_ERR_MALLOC;
       }
-      rustsimplicity_0_4_free(analysis);
+      rustsimplicity_0_5_free(analysis);
     }
     if (IS_OK(*error)) {
-      txEnv env = rustsimplicity_0_4_build_txEnv(tx, taproot, &genesis_hash, ix);
+      txEnv env = rustsimplicity_0_5_elements_build_txEnv(tx, taproot, &genesis_hash, ix);
       static_assert(BUDGET_MAX <= UBOUNDED_MAX, "BUDGET_MAX doesn't fit in ubounded.");
-      *error = evalTCOProgram(dag, type_dag, (size_t)dag_len, &(ubounded){budget <= BUDGET_MAX ? (ubounded)budget : BUDGET_MAX}, &env);
+      *error = evalTCOProgram( dag, type_dag, (size_t)dag_len
+                             , minCost <= BUDGET_MAX ? (ubounded)minCost : BUDGET_MAX
+                             , &(ubounded){budget <= BUDGET_MAX ? (ubounded)budget : BUDGET_MAX}
+                             , &env);
     }
-    rustsimplicity_0_4_free(type_dag);
+    rustsimplicity_0_5_free(type_dag);
   }
 
-  rustsimplicity_0_4_free(dag);
+  rustsimplicity_0_5_free(dag);
   return IS_PERMANENT(*error);
 }

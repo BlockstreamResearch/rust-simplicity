@@ -1,12 +1,9 @@
-/* This module implements the 'primitive.h' interface for the Elements application of Simplicity.
- */
 #include "primitive.h"
 
 #include "elementsJets.h"
-#include "../../limitations.h"
-#include "../../primitive.h"
-#include "../../simplicity_alloc.h"
-#include "../../simplicity_assert.h"
+#include "../limitations.h"
+#include "../simplicity_alloc.h"
+#include "../simplicity_assert.h"
 
 /* An enumeration of all the types we need to construct to specify the input and output types of all jets created by 'decodeJet'. */
 enum TypeNamesForJets {
@@ -32,14 +29,14 @@ enum TypeNamesForJets {
  *                      '(*bound_var)[i]' is bound to 'A' and '(*bound_var)[j]' is bound to 'B'
  *                   and, '*word256_ix < *extra_var_start' and '(*bound_var)[*word256_ix]' is bound the type 'TWO^256'
  */
-size_t rustsimplicity_0_4_mallocBoundVars(unification_var** bound_var, size_t* word256_ix, size_t* extra_var_start, size_t extra_var_len) {
+size_t rustsimplicity_0_5_elements_mallocBoundVars(unification_var** bound_var, size_t* word256_ix, size_t* extra_var_start, size_t extra_var_len) {
   static_assert(1 <= NumberOfTypeNames, "Missing TypeNamesForJets.");
   static_assert(NumberOfTypeNames <= NUMBER_OF_TYPENAMES_MAX, "Too many TypeNamesForJets.");
   static_assert(DAG_LEN_MAX <= (SIZE_MAX - NumberOfTypeNames) / 6, "NumberOfTypeNames + 6*DAG_LEN_MAX doesn't fit in size_t");
   static_assert(NumberOfTypeNames + 6*DAG_LEN_MAX <= SIZE_MAX/sizeof(unification_var) , "bound_var array too large");
   static_assert(NumberOfTypeNames + 6*DAG_LEN_MAX - 1 <= UINT32_MAX, "bound_var array index doesn't fit in uint32_t");
-  rustsimplicity_0_4_assert(extra_var_len <= 6*DAG_LEN_MAX);
-  *bound_var = rustsimplicity_0_4_malloc((NumberOfTypeNames + extra_var_len) * sizeof(unification_var));
+  rustsimplicity_0_5_assert(extra_var_len <= 6*DAG_LEN_MAX);
+  *bound_var = rustsimplicity_0_5_malloc((NumberOfTypeNames + extra_var_len) * sizeof(unification_var));
   if (!(*bound_var)) return 0;
 #include "primitiveInitTy.inc"
   *word256_ix = ty_w256;
@@ -71,7 +68,7 @@ static simplicity_err decodePrimitive(jetName* result, bitstream* stream) {
   if (bit < 0) return (simplicity_err)bit;
   if (!bit) {
     /* Core jets */
-#include "../../decodeCoreJets.inc"
+#include "../decodeCoreJets.inc"
     return SIMPLICITY_ERR_DATA_OUT_OF_RANGE;
   } else {
     /* Elements jets */
@@ -94,12 +91,12 @@ static dag_node jetNode(jetName name) {
  * Returns 'SIMPLICITY_ERR_DATA_OUT_OF_RANGE' if the stream's prefix doesn't match any valid code for a jet.
  * Returns 'SIMPLICITY_ERR_BITSTRING_EOF' if not enough bits are available in the 'stream'.
  * In the above error cases, 'dag' may be modified.
- * Returns 'SIMPLICITY_NO_ERR' if successful.
+ * Returns 'SIMPLICITY_NO_ERROR' if successful.
  *
  * Precondition: NULL != node
  *               NULL != stream
  */
-simplicity_err rustsimplicity_0_4_decodeJet(dag_node* node, bitstream* stream) {
+simplicity_err rustsimplicity_0_5_elements_decodeJet(dag_node* node, bitstream* stream) {
   jetName name;
   simplicity_err error = decodePrimitive(&name, stream);
   if (!IS_OK(error)) return error;

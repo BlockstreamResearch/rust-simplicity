@@ -16,12 +16,12 @@
 #endif
 
 /* Currently Simplicity's assert is the same a C's assert. */
-#define rustsimplicity_0_4_assert assert
+#define rustsimplicity_0_5_assert assert
 
-/* rustsimplicity_0_4_debug_assert is for assertions to be removed in PRODUCTION mode.
+/* rustsimplicity_0_5_debug_assert is for assertions to be removed in PRODUCTION mode.
  * We use an if statement instead of conditional compilation to ensure the condition is type checked, even in PRODUCTION mode.
  */
-#define rustsimplicity_0_4_debug_assert(cond) do { if (!PRODUCTION_FLAG) { assert(cond); } } while(0)
+#define rustsimplicity_0_5_debug_assert(cond) do { if (!PRODUCTION_FLAG) { assert(cond); } } while(0)
 
 /* Defines an UNREACHABLE macro that, if you manage to get into NDEBUG mode, calls '__builtin_unreachable' if it exists. */
 #if (defined NDEBUG) && (defined __hasbuiltin)

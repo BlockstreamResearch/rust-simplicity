@@ -36,7 +36,7 @@ static inline bitstream initializeBitstream(const unsigned char* arr, size_t len
  *
  * Precondition: NULL != stream
  */
-simplicity_err rustsimplicity_0_4_closeBitstream(bitstream* stream);
+simplicity_err rustsimplicity_0_5_closeBitstream(bitstream* stream);
 
 /* Fetches up to 31 bits from 'stream' as the 'n' least significant bits of return value.
  * The 'n' bits are set from the MSB to the LSB.
@@ -45,7 +45,7 @@ simplicity_err rustsimplicity_0_4_closeBitstream(bitstream* stream);
  * Precondition: 0 <= n < 32
  *               NULL != stream
  */
-int32_t rustsimplicity_0_4_readNBits(int n, bitstream* stream);
+int32_t rustsimplicity_0_5_readNBits(int n, bitstream* stream);
 
 /* Returns one bit from 'stream', 0 or 1.
  * Returns 'SIMPLICITY_ERR_BITSTREAM_EOF' if no bits are available.
@@ -53,7 +53,7 @@ int32_t rustsimplicity_0_4_readNBits(int n, bitstream* stream);
  * Precondition: NULL != stream
  */
 static inline int32_t read1Bit(bitstream* stream) {
-  return rustsimplicity_0_4_readNBits(1, stream);
+  return rustsimplicity_0_5_readNBits(1, stream);
 }
 
 /* Decode an encoded number between 1 and 2^31 - 1 inclusive.
@@ -64,7 +64,7 @@ static inline int32_t read1Bit(bitstream* stream) {
  *
  * Precondition: NULL != stream
  */
-int32_t rustsimplicity_0_4_decodeUptoMaxInt(bitstream* stream);
+int32_t rustsimplicity_0_5_decodeUptoMaxInt(bitstream* stream);
 
 /* Fills a 'bitstring' containing 'n' bits from 'stream'.
  * Returns 'SIMPLICITY_ERR_BITSTREAM_EOF' if not enough bits are available.
@@ -76,5 +76,5 @@ int32_t rustsimplicity_0_4_decodeUptoMaxInt(bitstream* stream);
  *               n <= 2^31
  *               NULL != stream
  */
-simplicity_err rustsimplicity_0_4_readBitstring(bitstring* result, size_t n, bitstream* stream);
+simplicity_err rustsimplicity_0_5_readBitstring(bitstring* result, size_t n, bitstream* stream);
 #endif

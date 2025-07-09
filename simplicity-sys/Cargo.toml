@@ -1,6 +1,6 @@
 [package]
 name = "simplicity-sys"
-version = "0.4.0"
+version = "0.5.0"
 license = "CC0-1.0"
 homepage = "https://github.com/BlockstreamResearch/rust-simplicity/"
 repository = "https://github.com/BlockstreamResearch/rust-simplicity/"
@@ -9,7 +9,7 @@ description = "FFI bindings to libsimplicity"
 edition = "2021"
 rust-version = "1.78.0"
 build = "build.rs"
-links = "rustsimplicity_0_4"
+links = "rustsimplicity_0_5"
 
 [build-dependencies]
 cc = "1.0.83"

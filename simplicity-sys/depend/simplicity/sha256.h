@@ -75,7 +75,7 @@ static inline void WriteLE32(unsigned char* ptr, uint_fast32_t x) {
   ptr[0] = 0xff & x;
 }
 
-/* Coverts a given 'midstate' value to a 'hash' value as 32 bytes stored in an unsigned char array.
+/* Converts a given 'midstate' value to a 'hash' value as 32 bytes stored in an unsigned char array.
  *
  * Precondition: unsigned char hash[32];
  *               uint32_t midstate[8]
@@ -91,7 +91,7 @@ static inline void sha256_fromMidstate(unsigned char* hash, const uint32_t* mids
   WriteBE32(hash + 7*4, midstate[7]);
 }
 
-/* Coverts a given 'hash' value as 32 bytes stored in an unsigned char array to a 'midstate' value.
+/* Converts a given 'hash' value as 32 bytes stored in an unsigned char array to a 'midstate' value.
  *
  * Precondition: uint32_t midstate[8];
  *               unsigned char hash[32]
@@ -127,20 +127,20 @@ static inline void sha256_iv(uint32_t* iv) {
  * Precondition: uint32_t midstate[8];
  *               uint32_t block[16]
  */
-extern void (*rustsimplicity_0_4_sha256_compression)(uint32_t* midstate, const uint32_t* block);
+extern void (*rustsimplicity_0_5_sha256_compression)(uint32_t* midstate, const uint32_t* block);
 
 /* For information purposes only.
- * Returns true if the sha256_compression implemenation has been optimized for the CPU.
+ * Returns true if the sha256_compression implementation has been optimized for the CPU.
  * Otherwise returns false.
  */
-bool rustsimplicity_0_4_sha256_compression_is_optimized(void);
+bool rustsimplicity_0_5_sha256_compression_is_optimized(void);
 
 /* Compute the SHA-256 hash, 'h', of the bitstring represented by 's'.
  *
  * Precondition: uint32_t h[8];
  *               '*s' is a valid bitstring;
  */
-void rustsimplicity_0_4_sha256_bitstring(uint32_t* h, const bitstring* s);
+void rustsimplicity_0_5_sha256_bitstring(uint32_t* h, const bitstring* s);
 
 /* Given a 256-bit 's' and a 512-bit 'chunk', then 's' becomes the value of the SHA-256 compression function ("added" to the original 's' value).
  *
@@ -148,7 +148,7 @@ void rustsimplicity_0_4_sha256_bitstring(uint32_t* h, const bitstring* s);
  *               unsigned char chunk[64]
  */
 static void sha256_compression_uchar(uint32_t* s, const unsigned char* chunk) {
-  rustsimplicity_0_4_sha256_compression(s, (const uint32_t[16])
+  rustsimplicity_0_5_sha256_compression(s, (const uint32_t[16])
     { ReadBE32(chunk + 4*0)
     , ReadBE32(chunk + 4*1)
     , ReadBE32(chunk + 4*2)
@@ -188,7 +188,7 @@ typedef struct sha256_context {
 
 /* SHA-256 is limited to strictly less than 2^64 bits or 2^56 bytes of data.
  * This limit cannot be reached in practice under proper use of the SHA-256 interface.
- * However some jets in simplicity load and store this context and it is easy to syntesize contexts with absurdly large counter values.
+ * However some jets in simplicity load and store this context and it is easy to synthesize contexts with absurdly large counter values.
  */
 static const uint_fast64_t sha256_max_counter = 0x2000000000000000;
 

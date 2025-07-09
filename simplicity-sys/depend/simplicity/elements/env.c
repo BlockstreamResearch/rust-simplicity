@@ -3,12 +3,12 @@
 #include <stdalign.h>
 #include <stddef.h>
 #include <string.h>
-#include "primitive.h"
+#include "txEnv.h"
 #include "ops.h"
-#include "../../rsort.h"
-#include "../../sha256.h"
-#include "../../simplicity_assert.h"
-#include "../../simplicity_alloc.h"
+#include "../rsort.h"
+#include "../sha256.h"
+#include "../simplicity_assert.h"
+#include "../simplicity_alloc.h"
 
 #define PADDING(alignType, allocated) ((alignof(alignType) - (allocated) % alignof(alignType)) % alignof(alignType))
 
@@ -17,13 +17,13 @@
  * Precondition: NULL != result;
  *               NULL != scriptPubKey;
  */
-static void hashBuffer(sha256_midstate* result, const rawBuffer* buffer) {
+static void hashBuffer(sha256_midstate* result, const rawElementsBuffer* buffer) {
   sha256_context ctx = sha256_init(result->s);
   sha256_uchars(&ctx, buffer->buf, buffer->len);
   sha256_finalize(&ctx);
 }
 
-/* Initialize a 'confidential' asset or 'confidential' nonce from an unsigned char array from a 'rawTransaction'.
+/* Initialize a 'confidential' asset or 'confidential' nonce from an unsigned char array from a 'rawElementsTransaction'.
  *
  * Precondition: NULL != conf;
  *               unsigned char rawConf[33] or rawConf == NULL;
@@ -40,7 +40,7 @@ static void copyRawConfidential(confidential* conf, const unsigned char* rawConf
   }
 }
 
-/* Initialize a 'confAmount' from an unsigned char array from a 'rawTransaction'.
+/* Initialize a 'confAmount' from an unsigned char array from a 'rawElementsTransaction'.
  *
  * Precondition: NULL != amt;
  *               unsigned char rawAmt[rawAmt[0] == 0x01 ? 9 : 33] or rawAmt == NULL
@@ -60,12 +60,12 @@ static void copyRawAmt(confAmount* amt, const unsigned char* rawAmt) {
   }
 }
 
-/* Initialize a 'sigInput' from a 'rawInput', copying or hashing the data as needed.
+/* Initialize a 'sigInput' from a 'rawElementsInput', copying or hashing the data as needed.
  *
  * Precondition: NULL != result;
  *               NULL != input;
  */
-static void copyInput(sigInput* result, const rawInput* input) {
+static void copyInput(sigInput* result, const rawElementsInput* input) {
   *result = (sigInput){ .prevOutpoint = { .ix = input->prevIx }
                       , .sequence = input->sequence
                       , .isPegin = !!input->pegin
@@ -79,8 +79,8 @@ static void copyInput(sigInput* result, const rawInput* input) {
   copyRawConfidential(&result->txo.asset, input->txo.asset);
   copyRawAmt(&result->txo.amt, input->txo.value);
   hashBuffer(&result->scriptSigHash, &input->scriptSig);
-  hashBuffer(&result->issuance.assetRangeProofHash, &(rawBuffer){0});
-  hashBuffer(&result->issuance.tokenRangeProofHash, &(rawBuffer){0});
+  hashBuffer(&result->issuance.assetRangeProofHash, &(rawElementsBuffer){0});
+  hashBuffer(&result->issuance.tokenRangeProofHash, &(rawElementsBuffer){0});
   if (input->issuance.amount || input->issuance.inflationKeys) {
     sha256_toMidstate(result->issuance.blindingNonce.s, input->issuance.blindingNonce);
     copyRawAmt(&result->issuance.assetAmt, input->issuance.amount);
@@ -90,7 +90,7 @@ static void copyInput(sigInput* result, const rawInput* input) {
         0 == result->issuance.blindingNonce.s[4] && 0 == result->issuance.blindingNonce.s[5] &&
         0 == result->issuance.blindingNonce.s[6] && 0 == result->issuance.blindingNonce.s[7]) {
       sha256_toMidstate(result->issuance.contractHash.s, input->issuance.assetEntropy);
-      result->issuance.entropy = rustsimplicity_0_4_generateIssuanceEntropy(&result->prevOutpoint, &result->issuance.contractHash);
+      result->issuance.entropy = rustsimplicity_0_5_generateIssuanceEntropy(&result->prevOutpoint, &result->issuance.contractHash);
       copyRawAmt(&result->issuance.tokenAmt, input->issuance.inflationKeys);
       if (is_confidential(result->issuance.tokenAmt.prefix)) hashBuffer(&result->issuance.tokenRangeProofHash, &input->issuance.inflationKeysRangePrf);
       result->issuance.type = NEW_ISSUANCE;
@@ -98,19 +98,19 @@ static void copyInput(sigInput* result, const rawInput* input) {
       sha256_toMidstate(result->issuance.entropy.s, input->issuance.assetEntropy);
       result->issuance.type = REISSUANCE;
     }
-    result->issuance.assetId = rustsimplicity_0_4_calculateAsset(&result->issuance.entropy);
-    result->issuance.tokenId = rustsimplicity_0_4_calculateToken(&result->issuance.entropy, result->issuance.assetAmt.prefix);
+    result->issuance.assetId = rustsimplicity_0_5_calculateAsset(&result->issuance.entropy);
+    result->issuance.tokenId = rustsimplicity_0_5_calculateToken(&result->issuance.entropy, result->issuance.assetAmt.prefix);
   }
 }
 
 /* As specified in https://github.com/ElementsProject/elements/blob/de942511a67c3a3fcbdf002a8ee7e9ba49679b78/src/primitives/transaction.h#L304-L307. */
-static bool isFee(const rawOutput* output) {
+static bool isFee(const rawElementsOutput* output) {
   return 0 == output->scriptPubKey.len &&                 /* Empty scriptPubKey */
     NULL != output->asset && 0x01 == output->asset[0] &&  /* Explicit asset */
     NULL != output->value && 0x01 == output->value[0];    /* Explicit amount */
 }
 
-static uint_fast32_t countFeeOutputs(const rawTransaction* rawTx) {
+static uint_fast32_t countFeeOutputs(const rawElementsTransaction* rawTx) {
   uint_fast32_t result = 0;
   for (uint_fast32_t i = 0; i < rawTx->numOutputs; ++i) {
     result += isFee(&rawTx->output[i]);
@@ -126,7 +126,7 @@ static uint_fast32_t countFeeOutputs(const rawTransaction* rawTx) {
  *
  * Precondition: NULL != scriptPubKey
  */
-static uint_fast32_t countNullDataCodes(const rawBuffer* scriptPubKey) {
+static uint_fast32_t countNullDataCodes(const rawElementsBuffer* scriptPubKey) {
   if (0 == scriptPubKey->len || 0x6a != scriptPubKey->buf[0] ) return 0;
 
   uint_fast32_t result = 0;
@@ -161,7 +161,7 @@ static uint_fast32_t countNullDataCodes(const rawBuffer* scriptPubKey) {
  *
  * Precondition: NULL != rawTx
  */
-static uint_fast64_t countTotalNullDataCodes(const rawTransaction* rawTx) {
+static uint_fast64_t countTotalNullDataCodes(const rawElementsTransaction* rawTx) {
   uint_fast64_t result = 0;
   for (uint_fast32_t i = 0; i < rawTx->numOutputs; ++i) {
     result += countNullDataCodes(&rawTx->output[i].scriptPubKey);
@@ -186,7 +186,7 @@ static uint_fast64_t countTotalNullDataCodes(const rawTransaction* rawTx) {
  *               NULL != scriptPubKey;
  *               countNullDataCodes(scriptPubKey) <= *allocationLen
  */
-static void parseNullData(parsedNullData* result, opcode** allocation, size_t* allocationLen, const rawBuffer* scriptPubKey) {
+static void parseNullData(parsedNullData* result, opcode** allocation, size_t* allocationLen, const rawElementsBuffer* scriptPubKey) {
   *result = (parsedNullData){ .op = *allocation };
 
   if (0 == scriptPubKey->len || 0x6a != scriptPubKey->buf[0] ) { result->op = NULL; return; }
@@ -233,7 +233,7 @@ static void parseNullData(parsedNullData* result, opcode** allocation, size_t* a
   *allocationLen -= result->len;
 }
 
-/* Initialize a 'sigOutput' from a 'rawOutput', copying or hashing the data as needed.
+/* Initialize a 'sigOutput' from a 'rawElementsOutput', copying or hashing the data as needed.
  *
  * '*allocation' is incremented by 'countNullDataCodes(&output->scriptPubKey)'
  * '*allocationLen' is decremented by 'countNullDataCodes(&output->scriptPubKey)'.
@@ -245,7 +245,7 @@ static void parseNullData(parsedNullData* result, opcode** allocation, size_t* a
  *               NULL != output;
  *               countNullDataCodes(&output->scriptPubKey) <= *allocationLen
  */
-static void copyOutput(sigOutput* result, opcode** allocation, size_t* allocationLen, const rawOutput* output) {
+static void copyOutput(sigOutput* result, opcode** allocation, size_t* allocationLen, const rawElementsOutput* output) {
   hashBuffer(&result->scriptPubKey, &output->scriptPubKey);
   result->emptyScript = 0 == output->scriptPubKey.len;
   copyRawConfidential(&result->asset, output->asset);
@@ -253,18 +253,18 @@ static void copyOutput(sigOutput* result, opcode** allocation, size_t* allocatio
   copyRawConfidential(&result->nonce, output->nonce);
   parseNullData(&result->pnd, allocation, allocationLen, &output->scriptPubKey);
   result->isNullData = NULL != result->pnd.op;
-  hashBuffer(&result->surjectionProofHash, is_confidential(result->asset.prefix) ? &output->surjectionProof : &(rawBuffer){0});
-  hashBuffer(&result->rangeProofHash, is_confidential(result->amt.prefix) ? &output->rangeProof : &(rawBuffer){0});
+  hashBuffer(&result->surjectionProofHash, is_confidential(result->asset.prefix) ? &output->surjectionProof : &(rawElementsBuffer){0});
+  hashBuffer(&result->rangeProofHash, is_confidential(result->amt.prefix) ? &output->rangeProof : &(rawElementsBuffer){0});
   result->assetFee = 0;
 }
 
 /* Tally a sorted list of feeOutputs
  *
- * Given a sorted array of feeOutput pointers, tally all the (explict) amounts of the entries with the same asset id,
+ * Given a sorted array of feeOutput pointers, tally all the (explicit) amounts of the entries with the same asset id,
  * which are all necessarily next to each other, into the assetFee field of the first entry of the bunch.
  *
  * Discard all entries other than the first one of each bunch.
- * Return 'ret_value', the number of remaning entries in the array after these discards.
+ * Return 'ret_value', the number of remaining entries in the array after these discards.
  *
  * Note: the array is not re-allocated, so there will be "junk" values in the array past the end of 'ret_value'.
  *
@@ -287,7 +287,7 @@ static uint_fast32_t sumFees(sigOutput** feeOutputs, uint_fast32_t numFees) {
 
   for(uint_fast32_t i = 0; i < numFees; ++i) {
     int cmp = memcmp(feeOutputs[i]->asset.data.s, feeOutputs[result]->asset.data.s, sizeof(feeOutputs[i]->asset.data.s));
-    rustsimplicity_0_4_assert(0 <= cmp);
+    rustsimplicity_0_5_assert(0 <= cmp);
     if (0 < cmp) {
       result++;
       feeOutputs[result] = feeOutputs[i];
@@ -306,15 +306,15 @@ static uint_fast32_t sumFees(sigOutput** feeOutputs, uint_fast32_t numFees) {
   return result + 1;
 }
 
-/* Allocate and initialize a 'transaction' from a 'rawTransaction', copying or hashing the data as needed.
+/* Allocate and initialize a 'elementsTransaction' from a 'rawElementsTransaction', copying or hashing the data as needed.
  * Returns NULL if malloc fails (or if malloc cannot be called because we require an allocation larger than SIZE_MAX).
  *
  * Precondition: NULL != rawTx
  */
-extern transaction* rustsimplicity_0_4_elements_mallocTransaction(const rawTransaction* rawTx) {
+extern elementsTransaction* rustsimplicity_0_5_elements_mallocTransaction(const rawElementsTransaction* rawTx) {
   if (!rawTx) return NULL;
 
-  size_t allocationSize = sizeof(transaction);
+  size_t allocationSize = sizeof(elementsTransaction);
 
   const size_t pad1 = PADDING(sigInput, allocationSize);
   if (SIZE_MAX - allocationSize < pad1) return NULL;
@@ -354,14 +354,14 @@ extern transaction* rustsimplicity_0_4_elements_mallocTransaction(const rawTrans
   if (SIZE_MAX - allocationSize < totalNullDataCodes * sizeof(opcode)) return NULL;
   allocationSize += (size_t)totalNullDataCodes * sizeof(opcode);
 
-  char *allocation = rustsimplicity_0_4_malloc(allocationSize);
+  char *allocation = rustsimplicity_0_5_malloc(allocationSize);
   if (!allocation) return NULL;
 
   /* Casting through void* to avoid warning about pointer alignment.
    * Our padding is done carefully to ensure alignment.
    */
-  transaction* const tx = (transaction*)(void*)allocation;
-  allocation += sizeof(transaction) + pad1;
+  elementsTransaction* const tx = (elementsTransaction*)(void*)allocation;
+  allocation += sizeof(elementsTransaction) + pad1;
 
   sigInput* const input = (sigInput*)(void*)allocation;
   allocation += rawTx->numInputs * sizeof(sigInput) + pad2;
@@ -379,15 +379,15 @@ extern transaction* rustsimplicity_0_4_elements_mallocTransaction(const rawTrans
      but C forgoes the complicated specification of C++.  Therefore we must make an explicit cast of feeOutputs in C.
      See <https://c-faq.com/ansi/constmismatch.html> for details.
   */
-  *tx = (transaction){ .input = input
-                     , .output = output
-                     , .feeOutputs = (sigOutput const * const *)feeOutputs
-                     , .numInputs = rawTx->numInputs
-                     , .numOutputs = rawTx->numOutputs
-                     , .version = rawTx->version
-                     , .lockTime = rawTx->lockTime
-                     , .isFinal = true
-                     };
+  *tx = (elementsTransaction){ .input = input
+                             , .output = output
+                             , .feeOutputs = (sigOutput const * const *)feeOutputs
+                             , .numInputs = rawTx->numInputs
+                             , .numOutputs = rawTx->numOutputs
+                             , .version = rawTx->version
+                             , .lockTime = rawTx->lockTime
+                             , .isFinal = true
+                             };
 
   sha256_toMidstate(tx->txid.s, rawTx->txid);
   {
@@ -423,8 +423,8 @@ extern transaction* rustsimplicity_0_4_elements_mallocTransaction(const rawTrans
       }
       sha256_hash(&ctx_inputOutpointsHash, &input[i].prevOutpoint.txid);
       sha256_u32be(&ctx_inputOutpointsHash, input[i].prevOutpoint.ix);
-      rustsimplicity_0_4_sha256_confAsset(&ctx_inputAssetAmountsHash, &input[i].txo.asset);
-      rustsimplicity_0_4_sha256_confAmt(&ctx_inputAssetAmountsHash, &input[i].txo.amt);
+      rustsimplicity_0_5_sha256_confAsset(&ctx_inputAssetAmountsHash, &input[i].txo.asset);
+      rustsimplicity_0_5_sha256_confAmt(&ctx_inputAssetAmountsHash, &input[i].txo.amt);
       sha256_hash(&ctx_inputScriptsHash, &input[i].txo.scriptPubKey);
       sha256_u32be(&ctx_inputSequencesHash, input[i].sequence);
       if (input[i].hasAnnex) {
@@ -441,10 +441,10 @@ extern transaction* rustsimplicity_0_4_elements_mallocTransaction(const rawTrans
         sha256_uchar(&ctx_issuanceTokenAmountsHash, 0);
         sha256_uchar(&ctx_issuanceBlindingEntropyHash, 0);
       } else {
-        rustsimplicity_0_4_sha256_confAsset(&ctx_issuanceAssetAmountsHash, &(confidential){ .prefix = EXPLICIT, .data = input[i].issuance.assetId});
-        rustsimplicity_0_4_sha256_confAsset(&ctx_issuanceTokenAmountsHash, &(confidential){ .prefix = EXPLICIT, .data = input[i].issuance.tokenId});
-        rustsimplicity_0_4_sha256_confAmt(&ctx_issuanceAssetAmountsHash, &input[i].issuance.assetAmt);
-        rustsimplicity_0_4_sha256_confAmt(&ctx_issuanceTokenAmountsHash, NEW_ISSUANCE == input[i].issuance.type
+        rustsimplicity_0_5_sha256_confAsset(&ctx_issuanceAssetAmountsHash, &(confidential){ .prefix = EXPLICIT, .data = input[i].issuance.assetId});
+        rustsimplicity_0_5_sha256_confAsset(&ctx_issuanceTokenAmountsHash, &(confidential){ .prefix = EXPLICIT, .data = input[i].issuance.tokenId});
+        rustsimplicity_0_5_sha256_confAmt(&ctx_issuanceAssetAmountsHash, &input[i].issuance.assetAmt);
+        rustsimplicity_0_5_sha256_confAmt(&ctx_issuanceTokenAmountsHash, NEW_ISSUANCE == input[i].issuance.type
                                                     ? &input[i].issuance.tokenAmt
                                                     : &(confAmount){ .prefix = EXPLICIT, .explicit = 0});
         sha256_uchar(&ctx_issuanceBlindingEntropyHash, 1);
@@ -497,7 +497,7 @@ extern transaction* rustsimplicity_0_4_elements_mallocTransaction(const rawTrans
     uint_fast32_t ix_fee = 0;
 
     /* perm is a temporary array the same length (numFees) and size as feeOutputs.
-     * perm is used to initalize feeOutputs and is not used afterward.
+     * perm is used to initialize feeOutputs and is not used afterward.
      * This makes it safe for perm to use the same memory allocation as feeOutputs.
      */
     static_assert(sizeof(const sha256_midstate*) == sizeof(sigOutput*), "Pointers (to structures) ought to have the same size.");
@@ -507,29 +507,29 @@ extern transaction* rustsimplicity_0_4_elements_mallocTransaction(const rawTrans
     for (uint_fast32_t i = 0; i < tx->numOutputs; ++i) {
       copyOutput(&output[i], &ops, &opsLen, &rawTx->output[i]);
       if (isFee(&rawTx->output[i])) {
-        rustsimplicity_0_4_assert(ix_fee < numFees);
+        rustsimplicity_0_5_assert(ix_fee < numFees);
         perm[ix_fee] = &output[i].asset.data;
         ++ix_fee;
       }
-      rustsimplicity_0_4_sha256_confAsset(&ctx_outputAssetAmountsHash, &output[i].asset);
-      rustsimplicity_0_4_sha256_confAmt(&ctx_outputAssetAmountsHash, &output[i].amt);
-      rustsimplicity_0_4_sha256_confNonce(&ctx_outputNoncesHash, &output[i].nonce);
+      rustsimplicity_0_5_sha256_confAsset(&ctx_outputAssetAmountsHash, &output[i].asset);
+      rustsimplicity_0_5_sha256_confAmt(&ctx_outputAssetAmountsHash, &output[i].amt);
+      rustsimplicity_0_5_sha256_confNonce(&ctx_outputNoncesHash, &output[i].nonce);
       sha256_hash(&ctx_outputScriptsHash, &output[i].scriptPubKey);
       sha256_hash(&ctx_outputRangeProofsHash, &output[i].rangeProofHash);
       sha256_hash(&ctx_outputSurjectionProofsHash, &output[i].surjectionProofHash);
     }
 
-    rustsimplicity_0_4_assert(numFees == ix_fee);
-    if (!rustsimplicity_0_4_rsort(perm, numFees)) {
-      rustsimplicity_0_4_free(tx);
+    rustsimplicity_0_5_assert(numFees == ix_fee);
+    if (!rustsimplicity_0_5_rsort(perm, numFees)) {
+      rustsimplicity_0_5_free(tx);
       return NULL;
     }
 
     /* Initialize the feeOutputs array from the perm array.
      * Because the perm array entries are the same size as the feeOutputs array entries, it is safe to initialize one by one.
      *
-     * In practical C implementations, the feeOutputs array entires are initalized to the same value as the perm array entries.
-     * In practical C implementations, this is a no-op, and generally compiliers are able to see this fact and eliminate this loop.
+     * In practical C implementations, the feeOutputs array entries are initialized to the same value as the perm array entries.
+     * In practical C implementations, this is a no-op, and generally compilers are able to see this fact and eliminate this loop.
      *
      * We keep the loop in the code just to be pedantic.
      */
@@ -569,22 +569,22 @@ extern transaction* rustsimplicity_0_4_elements_mallocTransaction(const rawTrans
   return tx;
 }
 
-/* Free a pointer to 'transaction'.
+/* Free a pointer to 'elementsTransaction'.
  */
-extern void rustsimplicity_0_4_elements_freeTransaction(transaction* tx) {
-  rustsimplicity_0_4_free(tx);
+extern void rustsimplicity_0_5_elements_freeTransaction(elementsTransaction* tx) {
+  rustsimplicity_0_5_free(tx);
 }
 
-/* Allocate and initialize a 'tapEnv' from a 'rawTapEnv', copying or hashing the data as needed.
+/* Allocate and initialize a 'elementsTapEnv' from a 'rawElementsTapEnv', copying or hashing the data as needed.
  * Returns NULL if malloc fails (or if malloc cannot be called because we require an allocation larger than SIZE_MAX).
  *
  * Precondition: *rawEnv is well-formed (i.e. rawEnv->pathLen <= 128.)
  */
-extern tapEnv* rustsimplicity_0_4_elements_mallocTapEnv(const rawTapEnv* rawEnv) {
+extern elementsTapEnv* rustsimplicity_0_5_elements_mallocTapEnv(const rawElementsTapEnv* rawEnv) {
   if (!rawEnv) return NULL;
   if (128 < rawEnv->pathLen) return NULL;
 
-  size_t allocationSize = sizeof(tapEnv);
+  size_t allocationSize = sizeof(elementsTapEnv);
 
   const size_t numMidstate = rawEnv->pathLen;
   const size_t pad1 = PADDING(sha256_midstate, allocationSize);
@@ -598,31 +598,31 @@ extern tapEnv* rustsimplicity_0_4_elements_mallocTapEnv(const rawTapEnv* rawEnv)
     allocationSize += numMidstate * sizeof(sha256_midstate);
   }
 
-  char *allocation = rustsimplicity_0_4_malloc(allocationSize);
+  char *allocation = rustsimplicity_0_5_malloc(allocationSize);
   if (!allocation) return NULL;
 
   /* Casting through void* to avoid warning about pointer alignment.
    * Our padding is done carefully to ensure alignment.
    */
-  tapEnv* const env = (tapEnv*)(void*)allocation;
+  elementsTapEnv* const env = (elementsTapEnv*)(void*)allocation;
   sha256_midstate* path = NULL;
   sha256_midstate internalKey;
 
   sha256_toMidstate(internalKey.s,  &rawEnv->controlBlock[1]);
 
   if (numMidstate)  {
-    allocation += sizeof(tapEnv) + pad1;
+    allocation += sizeof(elementsTapEnv) + pad1;
 
     if (rawEnv->pathLen) {
       path = (sha256_midstate*)(void*)allocation;
     }
   }
 
-  *env = (tapEnv){ .leafVersion = rawEnv->controlBlock[0] & 0xfe
-                 , .internalKey = internalKey
-                 , .path = path
-                 , .pathLen = rawEnv->pathLen
-                 };
+  *env = (elementsTapEnv){ .leafVersion = rawEnv->controlBlock[0] & 0xfe
+                         , .internalKey = internalKey
+                         , .path = path
+                         , .pathLen = rawEnv->pathLen
+                         };
   sha256_toMidstate(env->scriptCMR.s, rawEnv->scriptCMR);
 
   {
@@ -634,7 +634,7 @@ extern tapEnv* rustsimplicity_0_4_elements_mallocTapEnv(const rawTapEnv* rawEnv)
     sha256_finalize(&ctx);
   }
 
-  env->tapLeafHash = rustsimplicity_0_4_make_tapleaf(env->leafVersion, &env->scriptCMR);
+  env->tapLeafHash = rustsimplicity_0_5_make_tapleaf(env->leafVersion, &env->scriptCMR);
 
   {
     sha256_context ctx = sha256_init(env->tapEnvHash.s);
@@ -646,33 +646,8 @@ extern tapEnv* rustsimplicity_0_4_elements_mallocTapEnv(const rawTapEnv* rawEnv)
   return env;
 }
 
-/* Free a pointer to 'tapEnv'.
+/* Free a pointer to 'elementsTapEnv'.
  */
-extern void rustsimplicity_0_4_elements_freeTapEnv(tapEnv* env) {
-  rustsimplicity_0_4_free(env);
-}
-
-/* Contstruct a txEnv structure from its components.
- * This function will precompute any cached values.
- *
- * Precondition: NULL != tx
- *               NULL != taproot
- *               NULL != genesisHash
- *               ix < tx->numInputs
- */
-txEnv rustsimplicity_0_4_build_txEnv(const transaction* tx, const tapEnv* taproot, const sha256_midstate* genesisHash, uint_fast32_t ix) {
-  txEnv result = { .tx = tx
-                 , .taproot = taproot
-                 , .genesisHash = *genesisHash
-                 , .ix = ix
-                 };
-  sha256_context ctx = sha256_init(result.sigAllHash.s);
-  sha256_hash(&ctx, genesisHash);
-  sha256_hash(&ctx, genesisHash);
-  sha256_hash(&ctx, &tx->txHash);
-  sha256_hash(&ctx, &taproot->tapEnvHash);
-  sha256_u32be(&ctx, ix);
-  sha256_finalize(&ctx);
-
-  return result;
+extern void rustsimplicity_0_5_elements_freeTapEnv(elementsTapEnv* env) {
+  rustsimplicity_0_5_free(env);
 }

@@ -5,7 +5,7 @@
 #include <time.h>
 #include <getopt.h>
 #include <simplicity/elements/exec.h>
-#include <simplicity/cmr.h>
+#include <simplicity/elements/cmr.h>
 #include "ctx8Pruned.h"
 #include "ctx8Unpruned.h"
 #include "dag.h"
@@ -20,7 +20,8 @@
 #include "typeSkipTest.h"
 #include "simplicity_alloc.h"
 #include "typeInference.h"
-#include "primitive/elements/checkSigHashAllTx1.h"
+#include "elements/checkSigHashAllTx1.h"
+#include "elements/primitive.h"
 
 _Static_assert(CHAR_BIT == 8, "Buffers passed to fmemopen presume 8 bit chars");
 
@@ -60,7 +61,7 @@ static void test_decodeUptoMaxInt(void) {
 
   bitstream stream = initializeBitstream(buf, sizeof(buf));
   for (size_t i = 0; i < sizeof(expected)/sizeof(expected[0]); ++i) {
-    int32_t result = rustsimplicity_0_4_decodeUptoMaxInt(&stream);
+    int32_t result = rustsimplicity_0_5_decodeUptoMaxInt(&stream);
     if (expected[i] == result) {
       successes++;
     } else {
@@ -78,15 +79,15 @@ static void test_hashBlock(void) {
   simplicity_err error;
   {
     bitstream stream = initializeBitstream(hashBlock, sizeof_hashBlock);
-    len = rustsimplicity_0_4_decodeMallocDag(&dag, &census, &stream);
+    len = rustsimplicity_0_5_decodeMallocDag(&dag, rustsimplicity_0_5_elements_decodeJet, &census, &stream);
     if (!dag) {
-      rustsimplicity_0_4_assert(len < 0);
+      rustsimplicity_0_5_assert(len < 0);
       error = (simplicity_err)len;
       failures++;
       printf("Error parsing dag: %d\n", error);
     } else {
-      rustsimplicity_0_4_assert(0 < len);
-      error = rustsimplicity_0_4_closeBitstream(&stream);
+      rustsimplicity_0_5_assert(0 < len);
+      error = rustsimplicity_0_5_closeBitstream(&stream);
       if (!IS_OK(error)) {
         failures++;
         printf("Error closing dag stream for hashblock\n");
@@ -105,20 +106,20 @@ static void test_hashBlock(void) {
 
     type* type_dag;
     bitstream witness = initializeBitstream(hashBlock_witness, sizeof_hashBlock_witness);
-    if (!IS_OK(rustsimplicity_0_4_mallocTypeInference(&type_dag, dag, (uint_fast32_t)len, &census)) || !type_dag ||
+    if (!IS_OK(rustsimplicity_0_5_mallocTypeInference(&type_dag, rustsimplicity_0_5_elements_mallocBoundVars, dag, (uint_fast32_t)len, &census)) || !type_dag ||
         type_dag[dag[len-1].sourceType].bitSize != 768 || type_dag[dag[len-1].targetType].bitSize != 256) {
       failures++;
       printf("Unexpected failure of type inference for hashblock\n");
-    } else if (!IS_OK(rustsimplicity_0_4_fillWitnessData(dag, type_dag, (uint_fast32_t)len, &witness))) {
+    } else if (!IS_OK(rustsimplicity_0_5_fillWitnessData(dag, type_dag, (uint_fast32_t)len, &witness))) {
       failures++;
       printf("Unexpected failure of fillWitnessData for hashblock\n");
-    } else if (!IS_OK(rustsimplicity_0_4_closeBitstream(&witness))) {
+    } else if (!IS_OK(rustsimplicity_0_5_closeBitstream(&witness))) {
       failures++;
       printf("Unexpected failure of witness stream for hashblock\n");
     } else {
       {
         analyses analysis[len];
-        rustsimplicity_0_4_computeAnnotatedMerkleRoot(analysis, dag, type_dag, (uint_fast32_t)len);
+        rustsimplicity_0_5_computeAnnotatedMerkleRoot(analysis, dag, type_dag, (uint_fast32_t)len);
         if (0 == memcmp(hashBlock_amr, analysis[len-1].annotatedMerkleRoot.s, sizeof(uint32_t[8]))) {
           successes++;
         } else {
@@ -128,7 +129,7 @@ static void test_hashBlock(void) {
       }
       {
         sha256_midstate ihr;
-        if (IS_OK(rustsimplicity_0_4_verifyNoDuplicateIdentityHashes(&ihr, dag, type_dag, (uint_fast32_t)len)) &&
+        if (IS_OK(rustsimplicity_0_5_verifyNoDuplicateIdentityHashes(&ihr, dag, type_dag, (uint_fast32_t)len)) &&
             0 == memcmp(hashBlock_ihr, ihr.s, sizeof(uint32_t[8]))) {
           successes++;
         } else {
@@ -142,7 +143,7 @@ static void test_hashBlock(void) {
       UWORD input[ROUND_UWORD(inputBitSize)];
       UWORD output[ROUND_UWORD(outputBitSize)];
       { frameItem frame = initWriteFrame(inputBitSize, &input[ROUND_UWORD(inputBitSize)]);
-        rustsimplicity_0_4_assert(256+512 == inputBitSize);
+        rustsimplicity_0_5_assert(256+512 == inputBitSize);
         /* Set SHA-256's initial value. */
         write32s(&frame, (uint32_t[8])
             { 0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19 }
@@ -152,7 +153,7 @@ static void test_hashBlock(void) {
       }
       {
         ubounded cellsBound, UWORDBound, frameBound, costBound;
-        if (IS_OK(rustsimplicity_0_4_analyseBounds(&cellsBound, &UWORDBound, &frameBound, &costBound, UBOUNDED_MAX, UBOUNDED_MAX, dag, type_dag, (uint_fast32_t)len))
+        if (IS_OK(rustsimplicity_0_5_analyseBounds(&cellsBound, &UWORDBound, &frameBound, &costBound, UBOUNDED_MAX, 0, UBOUNDED_MAX, dag, type_dag, (uint_fast32_t)len))
             && hashBlock_cost == costBound) {
           successes++;
         } else {
@@ -160,14 +161,14 @@ static void test_hashBlock(void) {
           printf("Expected %d for cost, but got %d instead.\n", hashBlock_cost, costBound);
         }
       }
-      simplicity_err err = rustsimplicity_0_4_evalTCOExpression(CHECK_NONE, output, input, dag, type_dag, (uint_fast32_t)len, NULL, NULL);
+      simplicity_err err = rustsimplicity_0_5_evalTCOExpression(CHECK_NONE, output, input, dag, type_dag, (uint_fast32_t)len, 0, NULL, NULL);
       if (IS_OK(err)) {
         /* The expected result is the value 'SHA256("abc")'. */
         const uint32_t expectedHash[8] = { 0xba7816bful, 0x8f01cfeaul, 0x414140deul, 0x5dae2223ul
                                          , 0xb00361a3ul, 0x96177a9cul, 0xb410ff61ul, 0xf20015adul };
         frameItem frame = initReadFrame(outputBitSize, &output[0]);
         uint32_t result[8];
-        rustsimplicity_0_4_assert(256 == outputBitSize);
+        rustsimplicity_0_5_assert(256 == outputBitSize);
         read32s(result, 8, &frame);
         if (0 == memcmp(expectedHash, result, sizeof(uint32_t[8]))) {
           successes++;
@@ -180,9 +181,9 @@ static void test_hashBlock(void) {
         printf("Unexpected failure of hashblock evaluation: %d\n", err);
       }
     }
-    rustsimplicity_0_4_free(type_dag);
+    rustsimplicity_0_5_free(type_dag);
   }
-  rustsimplicity_0_4_free(dag);
+  rustsimplicity_0_5_free(dag);
 }
 
 static void test_program(char* name, const unsigned char* program, size_t program_len, const unsigned char* witness, size_t witness_len,
@@ -195,15 +196,15 @@ static void test_program(char* name, const unsigned char* program, size_t progra
   simplicity_err error;
   {
     bitstream stream = initializeBitstream(program, program_len);
-    len = rustsimplicity_0_4_decodeMallocDag(&dag, &census, &stream);
+    len = rustsimplicity_0_5_decodeMallocDag(&dag, rustsimplicity_0_5_elements_decodeJet, &census, &stream);
     if (!dag) {
-      rustsimplicity_0_4_assert(len < 0);
+      rustsimplicity_0_5_assert(len < 0);
       error = (simplicity_err)len;
       failures++;
       printf("Error parsing dag: %d\n", error);
     } else {
-      rustsimplicity_0_4_assert(0 < len);
-      error = rustsimplicity_0_4_closeBitstream(&stream);
+      rustsimplicity_0_5_assert(0 < len);
+      error = rustsimplicity_0_5_closeBitstream(&stream);
       if (!IS_OK(error)) {
         if (expectedResult == error) {
           successes++;
@@ -231,20 +232,20 @@ static void test_program(char* name, const unsigned char* program, size_t progra
     }
     type* type_dag;
     bitstream witness_stream = initializeBitstream(witness, witness_len);
-    if (!IS_OK(rustsimplicity_0_4_mallocTypeInference(&type_dag, dag, (uint_fast32_t)len, &census)) || !type_dag ||
+    if (!IS_OK(rustsimplicity_0_5_mallocTypeInference(&type_dag, rustsimplicity_0_5_elements_mallocBoundVars, dag, (uint_fast32_t)len, &census)) || !type_dag ||
         dag[len-1].sourceType != 0 || dag[len-1].targetType != 0) {
       failures++;
       printf("Unexpected failure of type inference.\n");
-    } else if (!IS_OK(rustsimplicity_0_4_fillWitnessData(dag, type_dag, (uint_fast32_t)len, &witness_stream))) {
+    } else if (!IS_OK(rustsimplicity_0_5_fillWitnessData(dag, type_dag, (uint_fast32_t)len, &witness_stream))) {
       failures++;
       printf("Unexpected failure of fillWitnessData.\n");
-    } else if (!IS_OK(rustsimplicity_0_4_closeBitstream(&witness_stream))) {
+    } else if (!IS_OK(rustsimplicity_0_5_closeBitstream(&witness_stream))) {
       failures++;
       printf("Unexpected failure closing witness_stream\n");
     } else {
       if (expectedAMR) {
         analyses analysis[len];
-        rustsimplicity_0_4_computeAnnotatedMerkleRoot(analysis, dag, type_dag, (uint_fast32_t)len);
+        rustsimplicity_0_5_computeAnnotatedMerkleRoot(analysis, dag, type_dag, (uint_fast32_t)len);
         if (0 == memcmp(expectedAMR, analysis[len-1].annotatedMerkleRoot.s, sizeof(uint32_t[8]))) {
           successes++;
         } else {
@@ -254,7 +255,7 @@ static void test_program(char* name, const unsigned char* program, size_t progra
       }
       {
         sha256_midstate ihr;
-        if (IS_OK(rustsimplicity_0_4_verifyNoDuplicateIdentityHashes(&ihr, dag, type_dag, (uint_fast32_t)len)) &&
+        if (IS_OK(rustsimplicity_0_5_verifyNoDuplicateIdentityHashes(&ihr, dag, type_dag, (uint_fast32_t)len)) &&
             (!expectedIHR || 0 == memcmp(expectedIHR, ihr.s, sizeof(uint32_t[8])))) {
           successes++;
         } else {
@@ -264,7 +265,8 @@ static void test_program(char* name, const unsigned char* program, size_t progra
       }
       if (expectedCost) {
         ubounded cellsBound, UWORDBound, frameBound, costBound;
-        if (IS_OK(rustsimplicity_0_4_analyseBounds(&cellsBound, &UWORDBound, &frameBound, &costBound, UBOUNDED_MAX, UBOUNDED_MAX, dag, type_dag, (uint_fast32_t)len))
+        if (IS_OK(rustsimplicity_0_5_analyseBounds(&cellsBound, &UWORDBound, &frameBound, &costBound, UBOUNDED_MAX, 0, UBOUNDED_MAX, dag, type_dag, (uint_fast32_t)len))
+           && 0 < costBound
            && *expectedCost == costBound) {
           successes++;
         } else {
@@ -272,7 +274,8 @@ static void test_program(char* name, const unsigned char* program, size_t progra
           printf("Expected %u for cost, but got %u instead.\n", *expectedCost, costBound);
         }
         /* Analysis should pass when computed bounds are used. */
-        if (IS_OK(rustsimplicity_0_4_analyseBounds(&cellsBound, &UWORDBound, &frameBound, &costBound, cellsBound, costBound, dag, type_dag, (uint_fast32_t)len))) {
+        if (IS_OK(rustsimplicity_0_5_analyseBounds(&cellsBound, &UWORDBound, &frameBound, &costBound, cellsBound, costBound-1, costBound, dag, type_dag, (uint_fast32_t)len))
+           && *expectedCost == costBound) {
           successes++;
         } else {
           failures++;
@@ -280,7 +283,7 @@ static void test_program(char* name, const unsigned char* program, size_t progra
         }
         /* if cellsBound is non-zero, analysis should fail when smaller cellsBound is used. */
         if (0 < cellsBound) {
-          if (SIMPLICITY_ERR_EXEC_MEMORY == rustsimplicity_0_4_analyseBounds(&cellsBound, &UWORDBound, &frameBound, &costBound, cellsBound-1, UBOUNDED_MAX, dag, type_dag, (uint_fast32_t)len)) {
+          if (SIMPLICITY_ERR_EXEC_MEMORY == rustsimplicity_0_5_analyseBounds(&cellsBound, &UWORDBound, &frameBound, &costBound, cellsBound-1, 0, UBOUNDED_MAX, dag, type_dag, (uint_fast32_t)len)) {
             successes++;
           } else {
             failures++;
@@ -289,15 +292,24 @@ static void test_program(char* name, const unsigned char* program, size_t progra
         }
         /* Analysis should fail when smaller costBound is used. */
         if (0 < *expectedCost &&
-            SIMPLICITY_ERR_EXEC_BUDGET == rustsimplicity_0_4_analyseBounds(&cellsBound, &UWORDBound, &frameBound, &costBound, UBOUNDED_MAX, *expectedCost-1, dag, type_dag, (uint_fast32_t)len)
+            SIMPLICITY_ERR_EXEC_BUDGET == rustsimplicity_0_5_analyseBounds(&cellsBound, &UWORDBound, &frameBound, &costBound, UBOUNDED_MAX, 0, *expectedCost-1, dag, type_dag, (uint_fast32_t)len)
            ) {
           successes++;
         } else {
           failures++;
           printf("Analysis with too small cost bounds failed.\n");
         }
+        /* Analysis should fail when overweight. */
+        if (0 < *expectedCost &&
+            SIMPLICITY_ERR_OVERWEIGHT == rustsimplicity_0_5_analyseBounds(&cellsBound, &UWORDBound, &frameBound, &costBound, UBOUNDED_MAX, *expectedCost, UBOUNDED_MAX, dag, type_dag, (uint_fast32_t)len)
+           ) {
+          successes++;
+        } else {
+          failures++;
+          printf("Analysis with too large minCost failed.\n");
+        }
       }
-      simplicity_err actualResult = evalTCOProgram(dag, type_dag, (uint_fast32_t)len, NULL, NULL);
+      simplicity_err actualResult = evalTCOProgram(dag, type_dag, (uint_fast32_t)len, 0, NULL, NULL);
       if (expectedResult == actualResult) {
         successes++;
       } else {
@@ -305,9 +317,9 @@ static void test_program(char* name, const unsigned char* program, size_t progra
         printf("Expected %d from evaluation, but got %d instead.\n", expectedResult, actualResult);
       }
     }
-    rustsimplicity_0_4_free(type_dag);
+    rustsimplicity_0_5_free(type_dag);
   }
-  rustsimplicity_0_4_free(dag);
+  rustsimplicity_0_5_free(dag);
 }
 
 static void test_occursCheck(void) {
@@ -319,24 +331,24 @@ static void test_occursCheck(void) {
   int_fast32_t len;
   {
     bitstream stream = initializeBitstream(buf, sizeof(buf));
-    len = rustsimplicity_0_4_decodeMallocDag(&dag, &census, &stream);
+    len = rustsimplicity_0_5_decodeMallocDag(&dag, rustsimplicity_0_5_elements_decodeJet, &census, &stream);
   }
   if (!dag) {
-    rustsimplicity_0_4_assert(len < 0);
+    rustsimplicity_0_5_assert(len < 0);
     printf("Error parsing dag: %" PRIdFAST32 "\n", len);
   } else {
     type* type_dag;
-    rustsimplicity_0_4_assert(0 < len);
-    if (SIMPLICITY_ERR_TYPE_INFERENCE_OCCURS_CHECK == rustsimplicity_0_4_mallocTypeInference(&type_dag, dag, (uint_fast32_t)len, &census) &&
+    rustsimplicity_0_5_assert(0 < len);
+    if (SIMPLICITY_ERR_TYPE_INFERENCE_OCCURS_CHECK == rustsimplicity_0_5_mallocTypeInference(&type_dag, rustsimplicity_0_5_elements_mallocBoundVars, dag, (uint_fast32_t)len, &census) &&
         !type_dag) {
       successes++;
     } else {
       printf("Unexpected occurs check success\n");
       failures++;
     }
-    rustsimplicity_0_4_free(type_dag);
+    rustsimplicity_0_5_free(type_dag);
   }
-  rustsimplicity_0_4_free(dag);
+  rustsimplicity_0_5_free(dag);
 }
 
 static void test_elements(void) {
@@ -345,18 +357,18 @@ static void test_elements(void) {
   sha256_fromMidstate(amr, elementsCheckSigHashAllTx1_amr);
 
   unsigned char genesisHash[32] = "\x0f\x91\x88\xf1\x3c\xb7\xb2\xc7\x1f\x2a\x33\x5e\x3a\x4f\xc3\x28\xbf\x5b\xeb\x43\x60\x12\xaf\xca\x59\x0b\x1a\x11\x46\x6e\x22\x06";
-  rawTapEnv rawTaproot = (rawTapEnv)
+  rawElementsTapEnv rawTaproot = (rawElementsTapEnv)
     { .controlBlock = (unsigned char [33]){"\xbe\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x3b\x78\xce\x56\x3f\x89\xa0\xed\x94\x14\xf5\xaa\x28\xad\x0d\x96\xd6\x79\x5f\x9c\x63"}
     , .pathLen = 0
     , .scriptCMR = cmr
     };
-  tapEnv* taproot = rustsimplicity_0_4_elements_mallocTapEnv(&rawTaproot);
+  elementsTapEnv* taproot = rustsimplicity_0_5_elements_mallocTapEnv(&rawTaproot);
 
   printf("Test elements\n");
   {
-    rawTransaction testTx1 = (rawTransaction)
+    rawElementsTransaction testTx1 = (rawElementsTransaction)
       { .txid = (unsigned char[32]){"\xdb\x9a\x3d\xe0\xb6\xb8\xcc\x74\x1e\x4d\x6c\x8f\x19\xce\x75\xec\x0d\xfd\x01\x02\xdb\x9c\xb5\xcd\x27\xa4\x1a\x66\x91\x66\x3a\x07"}
-      , .input = (rawInput[])
+      , .input = (rawElementsInput[])
                  { { .annex = NULL
                    , .prevTxid = (unsigned char[32]){"\xeb\x04\xb6\x8e\x9a\x26\xd1\x16\x04\x6c\x76\xe8\xff\x47\x33\x2f\xb7\x1d\xda\x90\xff\x4b\xef\x53\x70\xf2\x52\x26\xd3\xbc\x09\xfc"}
                    , .prevIx = 0
@@ -367,7 +379,7 @@ static void test_elements(void) {
                             , .value = (unsigned char[9]){"\x01\x00\x00\x00\x02\x54\x0b\xe4\x00"}
                             , .scriptPubKey = {0}
                  } }        }
-      , .output = (rawOutput[])
+      , .output = (rawElementsOutput[])
                   { { .asset = (unsigned char[33]){"\x01\x23\x0f\x4f\x5d\x4b\x7c\x6f\xa8\x45\x80\x6e\xe4\xf6\x77\x13\x45\x9e\x1b\x69\xe8\xe6\x0f\xce\xe2\xe4\x94\x0c\x7a\x0d\x5d\xe1\xb2"}
                     , .value = (unsigned char[9]){"\x01\x00\x00\x00\x02\x54\x0b\xd7\x1c"}
                     , .nonce = NULL
@@ -385,13 +397,13 @@ static void test_elements(void) {
       , .version = 0x00000002
       , .lockTime = 0x00000000
       };
-    transaction* tx1 = rustsimplicity_0_4_elements_mallocTransaction(&testTx1);
+    elementsTransaction* tx1 = rustsimplicity_0_5_elements_mallocTransaction(&testTx1);
     if (tx1) {
       successes++;
       simplicity_err execResult;
       {
         unsigned char cmrResult[32];
-        if (rustsimplicity_0_4_computeCmr(&execResult, cmrResult, elementsCheckSigHashAllTx1, sizeof_elementsCheckSigHashAllTx1) && IS_OK(execResult)) {
+        if (rustsimplicity_0_5_elements_computeCmr(&execResult, cmrResult, elementsCheckSigHashAllTx1, sizeof_elementsCheckSigHashAllTx1) && IS_OK(execResult)) {
           if (0 == memcmp(cmrResult, cmr, sizeof(unsigned char[8]))) {
             successes++;
           } else {
@@ -400,12 +412,12 @@ static void test_elements(void) {
           }
         } else {
           failures++;
-          printf("rustsimplicity_0_4_computeCmr of elementsCheckSigHashAllTx1 unexpectedly produced %d.\n", execResult);
+          printf("rustsimplicity_0_5_elements_computeCmr of elementsCheckSigHashAllTx1 unexpectedly produced %d.\n", execResult);
         }
       }
       {
         unsigned char ihrResult[32];
-        if (rustsimplicity_0_4_elements_execSimplicity(&execResult, ihrResult, tx1, 0, taproot, genesisHash, (elementsCheckSigHashAllTx1_cost + 999)/1000, amr, elementsCheckSigHashAllTx1, sizeof_elementsCheckSigHashAllTx1, elementsCheckSigHashAllTx1_witness, sizeof_elementsCheckSigHashAllTx1_witness) && IS_OK(execResult)) {
+        if (rustsimplicity_0_5_elements_execSimplicity(&execResult, ihrResult, tx1, 0, taproot, genesisHash, 0, (elementsCheckSigHashAllTx1_cost + 999)/1000, amr, elementsCheckSigHashAllTx1, sizeof_elementsCheckSigHashAllTx1, elementsCheckSigHashAllTx1_witness, sizeof_elementsCheckSigHashAllTx1_witness) && IS_OK(execResult)) {
           sha256_midstate ihr;
           sha256_toMidstate(ihr.s, ihrResult);
           if (0 == memcmp(ihr.s, elementsCheckSigHashAllTx1_ihr, sizeof(uint32_t[8]))) {
@@ -420,8 +432,8 @@ static void test_elements(void) {
         }
         if (elementsCheckSigHashAllTx1_cost){
           /* test the same transaction without adequate budget. */
-          rustsimplicity_0_4_assert(elementsCheckSigHashAllTx1_cost);
-          if (rustsimplicity_0_4_elements_execSimplicity(&execResult, ihrResult, tx1, 0, taproot, genesisHash, (elementsCheckSigHashAllTx1_cost - 1)/1000, amr, elementsCheckSigHashAllTx1, sizeof_elementsCheckSigHashAllTx1, elementsCheckSigHashAllTx1_witness, sizeof_elementsCheckSigHashAllTx1_witness) && SIMPLICITY_ERR_EXEC_BUDGET == execResult) {
+          rustsimplicity_0_5_assert(elementsCheckSigHashAllTx1_cost);
+          if (rustsimplicity_0_5_elements_execSimplicity(&execResult, ihrResult, tx1, 0, taproot, genesisHash, 0, (elementsCheckSigHashAllTx1_cost - 1)/1000, amr, elementsCheckSigHashAllTx1, sizeof_elementsCheckSigHashAllTx1, elementsCheckSigHashAllTx1_witness, sizeof_elementsCheckSigHashAllTx1_witness) && SIMPLICITY_ERR_EXEC_BUDGET == execResult) {
             successes++;
           } else {
             failures++;
@@ -434,7 +446,7 @@ static void test_elements(void) {
         unsigned char brokenSig[sizeof_elementsCheckSigHashAllTx1_witness];
         memcpy(brokenSig, elementsCheckSigHashAllTx1_witness, sizeof_elementsCheckSigHashAllTx1_witness);
         brokenSig[sizeof_elementsCheckSigHashAllTx1_witness - 1] ^= 0x80;
-        if (rustsimplicity_0_4_elements_execSimplicity(&execResult, NULL, tx1, 0, taproot, genesisHash, BUDGET_MAX, NULL, elementsCheckSigHashAllTx1, sizeof_elementsCheckSigHashAllTx1, brokenSig, sizeof_elementsCheckSigHashAllTx1_witness) && SIMPLICITY_ERR_EXEC_JET == execResult) {
+        if (rustsimplicity_0_5_elements_execSimplicity(&execResult, NULL, tx1, 0, taproot, genesisHash, 0, BUDGET_MAX, NULL, elementsCheckSigHashAllTx1, sizeof_elementsCheckSigHashAllTx1, brokenSig, sizeof_elementsCheckSigHashAllTx1_witness) && SIMPLICITY_ERR_EXEC_JET == execResult) {
           successes++;
         } else {
           failures++;
@@ -445,13 +457,13 @@ static void test_elements(void) {
       printf("mallocTransaction(&rawTx1) failed\n");
       failures++;
     }
-    rustsimplicity_0_4_elements_freeTransaction(tx1);
+    rustsimplicity_0_5_elements_freeTransaction(tx1);
   }
   /* test a modified transaction with the same signature. */
   {
-    rawTransaction testTx2 = (rawTransaction)
+    rawElementsTransaction testTx2 = (rawElementsTransaction)
       { .txid = (unsigned char[32]){"\xdb\x9a\x3d\xe0\xb6\xb8\xcc\x74\x1e\x4d\x6c\x8f\x19\xce\x75\xec\x0d\xfd\x01\x02\xdb\x9c\xb5\xcd\x27\xa4\x1a\x66\x91\x66\x3a\x07"}
-      , .input = (rawInput[])
+      , .input = (rawElementsInput[])
                  { { .prevTxid = (unsigned char[32]){"\xeb\x04\xb6\x8e\x9a\x26\xd1\x16\x04\x6c\x76\xe8\xff\x47\x33\x2f\xb7\x1d\xda\x90\xff\x4b\xef\x53\x70\xf2\x52\x26\xd3\xbc\x09\xfc"}
                    , .prevIx = 0
                    , .sequence = 0xffffffff /* Here is the modification. */
@@ -460,7 +472,7 @@ static void test_elements(void) {
                             , .value = (unsigned char[9]){"\x01\x00\x00\x00\x02\x54\x0b\xe4\x00"}
                             , .scriptPubKey = {0}
                  } }        }
-      , .output = (rawOutput[])
+      , .output = (rawElementsOutput[])
                   { { .asset = (unsigned char[33]){"\x01\x23\x0f\x4f\x5d\x4b\x7c\x6f\xa8\x45\x80\x6e\xe4\xf6\x77\x13\x45\x9e\x1b\x69\xe8\xe6\x0f\xce\xe2\xe4\x94\x0c\x7a\x0d\x5d\xe1\xb2"}
                     , .value = (unsigned char[9]){"\x01\x00\x00\x00\x02\x54\x0b\xd7\x1c"}
                     , .nonce = NULL
@@ -478,12 +490,12 @@ static void test_elements(void) {
       , .version = 0x00000002
       , .lockTime = 0x00000000
       };
-    transaction* tx2 = rustsimplicity_0_4_elements_mallocTransaction(&testTx2);
+    elementsTransaction* tx2 = rustsimplicity_0_5_elements_mallocTransaction(&testTx2);
     if (tx2) {
       successes++;
       simplicity_err execResult;
       {
-        if (rustsimplicity_0_4_elements_execSimplicity(&execResult, NULL, tx2, 0, taproot, genesisHash, BUDGET_MAX, NULL, elementsCheckSigHashAllTx1, sizeof_elementsCheckSigHashAllTx1, elementsCheckSigHashAllTx1_witness, sizeof_elementsCheckSigHashAllTx1_witness) && SIMPLICITY_ERR_EXEC_JET == execResult) {
+        if (rustsimplicity_0_5_elements_execSimplicity(&execResult, NULL, tx2, 0, taproot, genesisHash, 0, BUDGET_MAX, NULL, elementsCheckSigHashAllTx1, sizeof_elementsCheckSigHashAllTx1, elementsCheckSigHashAllTx1_witness, sizeof_elementsCheckSigHashAllTx1_witness) && SIMPLICITY_ERR_EXEC_JET == execResult) {
           successes++;
         } else {
           failures++;
@@ -494,9 +506,9 @@ static void test_elements(void) {
       printf("mallocTransaction(&testTx2) failed\n");
       failures++;
     }
-    rustsimplicity_0_4_elements_freeTransaction(tx2);
+    rustsimplicity_0_5_elements_freeTransaction(tx2);
   }
-  rustsimplicity_0_4_elements_freeTapEnv(taproot);
+  rustsimplicity_0_5_elements_freeTapEnv(taproot);
 }
 
 static sha256_midstate hashint(uint_fast32_t n) {
@@ -539,7 +551,7 @@ static void test_hasDuplicates(const char* name, int expected, sha256_midstate (
     hashes[i] = f(i);
   }
 
-  int actual = rustsimplicity_0_4_hasDuplicates(hashes, n);
+  int actual = rustsimplicity_0_5_hasDuplicates(hashes, n);
   if (expected == actual) {
     successes++;
   } else if (actual < 0) {
@@ -558,13 +570,13 @@ static void regression_tests(void) {
   {
     /* word("2^23 zero bits") ; unit */
     size_t sizeof_regression3 = ((size_t)1 << 20) + 4;
-    unsigned char *regression3 = rustsimplicity_0_4_calloc(sizeof_regression3, 1);
+    unsigned char *regression3 = rustsimplicity_0_5_calloc(sizeof_regression3, 1);
     clock_t start, end;
     double diff, bound;
     const uint32_t cmr[] = {
       0x872d12eeu, 0x631ae2e7u, 0xffb8b06au, 0xc54ef77fu, 0x693adbffu, 0xb229e760u, 0x111b8fd9u, 0x13d88b7au
     };
-    rustsimplicity_0_4_assert(regression3);
+    rustsimplicity_0_5_assert(regression3);
     regression3[0] = 0xb7; regression3[1] = 0x08;
     regression3[sizeof_regression3 - 2] = 0x48; regression3[sizeof_regression3 - 1] = 0x20;
     start = clock();
@@ -581,7 +593,7 @@ static void regression_tests(void) {
         printf("regression3 took too long.\n");
       }
     }
-    rustsimplicity_0_4_free(regression3);
+    rustsimplicity_0_5_free(regression3);
   }
   {
     clock_t start, end;
@@ -625,6 +637,83 @@ static void iden8mebi_test(void) {
     }
   }
 }
+static void exactBudget_test(void) {
+  /* Core Simplicity program with a cost that is exactly 410000 milliWU */
+  const unsigned char program[] = {
+    0xe0, 0x09, 0x40, 0x81, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x81, 0x02,
+    0x05, 0xb4, 0x6d, 0xa0, 0x80
+  };
+  const ubounded expectedCost = 410; /* in WU */
+
+  printf("Test exactBudget\n");
+
+  dag_node* dag;
+  type* type_dag;
+  combinator_counters census;
+  int_fast32_t len;
+  simplicity_err error, expected;
+  sha256_midstate ihr;
+  {
+    bitstream stream = initializeBitstream(program, sizeof(program));
+    len = rustsimplicity_0_5_decodeMallocDag(&dag, rustsimplicity_0_5_elements_decodeJet, &census, &stream);
+    rustsimplicity_0_5_assert(dag);
+    rustsimplicity_0_5_assert(0 < len);
+    error = rustsimplicity_0_5_closeBitstream(&stream);
+    rustsimplicity_0_5_assert(IS_OK(error));
+  }
+  error = rustsimplicity_0_5_mallocTypeInference(&type_dag, rustsimplicity_0_5_elements_mallocBoundVars, dag, (uint_fast32_t)len, &census);
+  rustsimplicity_0_5_assert(IS_OK(error));
+  rustsimplicity_0_5_assert(type_dag);
+  rustsimplicity_0_5_assert(!dag[len-1].sourceType);
+  rustsimplicity_0_5_assert(!dag[len-1].targetType);
+  {
+    bitstream stream = initializeBitstream(NULL, 0);
+    error = rustsimplicity_0_5_fillWitnessData(dag, type_dag, (uint_fast32_t)len, &stream);
+    rustsimplicity_0_5_assert(IS_OK(error));
+  }
+  error = rustsimplicity_0_5_verifyNoDuplicateIdentityHashes(&ihr, dag, type_dag, (uint_fast32_t)len);
+  rustsimplicity_0_5_assert(IS_OK(error));
+  {
+    ubounded cellsBound, UWORDBound, frameBound, costBound;
+    error = rustsimplicity_0_5_analyseBounds(&cellsBound, &UWORDBound, &frameBound, &costBound, UBOUNDED_MAX, 0, UBOUNDED_MAX, dag, type_dag, (uint_fast32_t)len);
+    rustsimplicity_0_5_assert(IS_OK(error));
+    rustsimplicity_0_5_assert(1000*expectedCost == costBound);
+  }
+  error = evalTCOProgram(dag, type_dag, (uint_fast32_t)len, expectedCost, &expectedCost, NULL);
+  expected = SIMPLICITY_ERR_OVERWEIGHT;
+  if (expected == error) {
+    successes++;
+  } else {
+    failures++;
+    printf("Expected %d from evaluation, but got %d instead.\n", expected, error);
+  }
+  error = evalTCOProgram(dag, type_dag, (uint_fast32_t)len, expectedCost-1, &(ubounded){expectedCost-1}, NULL);
+  expected = SIMPLICITY_ERR_EXEC_BUDGET;
+  if (expected == error) {
+    successes++;
+  } else {
+    failures++;
+    printf("Expected %d from evaluation, but got %d instead.\n", expected, error);
+  }
+  error = evalTCOProgram(dag, type_dag, (uint_fast32_t)len, expectedCost, &(ubounded){expectedCost+1}, NULL);
+  expected = SIMPLICITY_ERR_OVERWEIGHT;
+  if (expected == error) {
+    successes++;
+  } else {
+    failures++;
+    printf("Expected %d from evaluation, but got %d instead.\n", expected, error);
+  }
+  error = evalTCOProgram(dag, type_dag, (uint_fast32_t)len, expectedCost-1, &expectedCost, NULL);
+  expected = SIMPLICITY_NO_ERROR;
+  if (expected == error) {
+    successes++;
+  } else {
+    failures++;
+    printf("Expected %d from evaluation, but got %d instead.\n", expected, error);
+  }
+  rustsimplicity_0_5_free(type_dag);
+  rustsimplicity_0_5_free(dag);
+}
 
 int main(int argc, char **argv) {
   while (true) {
@@ -639,7 +728,7 @@ int main(int argc, char **argv) {
     if (0 == opt_result) continue;
     exit(EXIT_FAILURE);
   }
-  if (rustsimplicity_0_4_sha256_compression_is_optimized()) {
+  if (rustsimplicity_0_5_sha256_compression_is_optimized()) {
     printf("Sha optimization enabled.\n");
     if (timing_flag) {
       printf("Timings are checked.\n");
@@ -676,6 +765,7 @@ int main(int argc, char **argv) {
   test_program("schnorr6", schnorr6, sizeof_schnorr6, schnorr6_witness, sizeof_schnorr6_witness, SIMPLICITY_ERR_EXEC_JET, schnorr6_cmr, schnorr6_ihr, schnorr6_amr, &schnorr0_cost);
   test_program("typeSkipTest", typeSkipTest, sizeof_typeSkipTest, typeSkipTest_witness, sizeof_typeSkipTest_witness, SIMPLICITY_NO_ERROR, NULL, NULL, NULL, NULL);
   test_elements();
+  exactBudget_test();
   regression_tests();
   iden8mebi_test();
 
