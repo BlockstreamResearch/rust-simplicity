@@ -1,6 +1,6 @@
 /* This file has been automatically generated. */
 
-#include "simplicity/primitive/elements/elementsJets.h"
+#include "simplicity/elements/elementsJets.h"
 #include "simplicity/simplicity_assert.h"
 #include "wrapper.h"
 

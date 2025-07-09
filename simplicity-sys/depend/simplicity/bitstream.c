@@ -10,7 +10,7 @@
  *
  * Precondition: NULL != stream
  */
-simplicity_err rustsimplicity_0_4_closeBitstream(bitstream* stream) {
+simplicity_err rustsimplicity_0_5_closeBitstream(bitstream* stream) {
   if (1 < stream->len) return SIMPLICITY_ERR_BITSTREAM_TRAILING_BYTES;        /* If there is more than one byte remaining. */
   if (1 == stream->len) {
     if (0 == stream->offset) return SIMPLICITY_ERR_BITSTREAM_TRAILING_BYTES;  /* If there is one byte remaining */
@@ -30,8 +30,8 @@ simplicity_err rustsimplicity_0_4_closeBitstream(bitstream* stream) {
  * Precondition: 0 <= n < 32
  *               NULL != stream
  */
-int32_t rustsimplicity_0_4_readNBits(int n, bitstream* stream) {
-  rustsimplicity_0_4_assert(0 <= n && n < 32);
+int32_t rustsimplicity_0_5_readNBits(int n, bitstream* stream) {
+  rustsimplicity_0_5_assert(0 <= n && n < 32);
 
   uint32_t result = 0;
   while (CHAR_BIT <= stream->offset + n) {
@@ -109,7 +109,7 @@ static int32_t decodeUpto3Bits(int32_t* result, bitstream* stream) {
   } else {
     int32_t n = decodeUpto3(stream);
     if (0 <= n) {
-      *result = rustsimplicity_0_4_readNBits(n, stream);
+      *result = rustsimplicity_0_5_readNBits(n, stream);
       if (*result < 0) return *result;
     }
     return n;
@@ -153,7 +153,7 @@ static int32_t decodeUpto15Bits(int32_t* result, bitstream* stream) {
   } else {
     int32_t n = decodeUpto15(stream);
     if (0 <= n) {
-      *result = rustsimplicity_0_4_readNBits(n, stream);
+      *result = rustsimplicity_0_5_readNBits(n, stream);
       if (*result < 0) return *result;
     }
     return n;
@@ -184,7 +184,7 @@ static int32_t decodeUpto65535(bitstream* stream) {
  *
  * Precondition: NULL != stream
  */
-int32_t rustsimplicity_0_4_decodeUptoMaxInt(bitstream* stream) {
+int32_t rustsimplicity_0_5_decodeUptoMaxInt(bitstream* stream) {
   int32_t bit = read1Bit(stream);
   if (bit < 0) return bit;
   if (0 == bit) {
@@ -194,7 +194,7 @@ int32_t rustsimplicity_0_4_decodeUptoMaxInt(bitstream* stream) {
     if (n < 0) return n;
     if (30 < n) return SIMPLICITY_ERR_DATA_OUT_OF_RANGE;
     {
-      int32_t result = rustsimplicity_0_4_readNBits(n, stream);
+      int32_t result = rustsimplicity_0_5_readNBits(n, stream);
       if (result < 0) return result;
       return ((1 << n) | result);
     }
@@ -211,9 +211,9 @@ int32_t rustsimplicity_0_4_decodeUptoMaxInt(bitstream* stream) {
  *               n <= 2^31
  *               NULL != stream
  */
-simplicity_err rustsimplicity_0_4_readBitstring(bitstring* result, size_t n, bitstream* stream) {
+simplicity_err rustsimplicity_0_5_readBitstring(bitstring* result, size_t n, bitstream* stream) {
   static_assert(0x80000000u + 2*(CHAR_BIT - 1) <= SIZE_MAX, "size_t needs to be at least 32-bits");
-  rustsimplicity_0_4_assert(n <= 0x80000000u);
+  rustsimplicity_0_5_assert(n <= 0x80000000u);
   size_t total_offset = n + stream->offset;
   /* |= stream->len * CHAR_BIT < total_offset iff stream->len < (total_offset + (CHAR_BIT - 1)) / CHAR_BIT */
   if (stream->len < (total_offset + (CHAR_BIT - 1)) / CHAR_BIT) return SIMPLICITY_ERR_BITSTREAM_EOF;
