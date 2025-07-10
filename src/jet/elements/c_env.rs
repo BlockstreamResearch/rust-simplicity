@@ -15,18 +15,18 @@ use elements::{
 use simplicity_sys::c_jets::c_env::{
     c_set_rawElementsInput, c_set_rawElementsOutput, c_set_rawElementsTapEnv,
     c_set_rawElementsTransaction, c_set_txEnv, simplicity_elements_mallocTapEnv,
-    simplicity_elements_mallocTransaction, CElementsTxEnv, CRawBuffer, CRawInput, CRawOutput,
-    CRawTapEnv, CRawTransaction, CTapEnv, CTransaction, RawInputData, RawOutputData,
-    RawTransactionData,
+    simplicity_elements_mallocTransaction, CElementsRawBuffer, CElementsRawInput,
+    CElementsRawOutput, CElementsRawTapEnv, CElementsRawTransaction, CElementsTxEnv, CTapEnv,
+    CTransaction, RawInputData, RawOutputData, RawTransactionData,
 };
 
 use crate::merkle::cmr::Cmr;
 
 use super::ElementsUtxo;
 
-fn new_raw_output(out: &elements::TxOut, out_data: &RawOutputData) -> CRawOutput {
+fn new_raw_output(out: &elements::TxOut, out_data: &RawOutputData) -> CElementsRawOutput {
     unsafe {
-        let mut raw_output = std::mem::MaybeUninit::<CRawOutput>::uninit();
+        let mut raw_output = std::mem::MaybeUninit::<CElementsRawOutput>::uninit();
         c_set_rawElementsOutput(
             raw_output.as_mut_ptr(),
             asset_ptr(out.asset, &out_data.asset),
@@ -44,9 +44,9 @@ fn new_raw_input(
     inp: &elements::TxIn,
     in_utxo: &ElementsUtxo,
     inp_data: &RawInputData,
-) -> CRawInput {
+) -> CElementsRawInput {
     unsafe {
-        let mut raw_input = std::mem::MaybeUninit::<CRawInput>::uninit();
+        let mut raw_input = std::mem::MaybeUninit::<CElementsRawInput>::uninit();
 
         let (issue_nonce_ptr, issue_entropy_ptr, issue_amt_ptr, issue_infl_key_ptr) =
             if inp.has_issuance() {
@@ -141,7 +141,7 @@ pub(super) fn new_tx(tx: &elements::Transaction, in_utxos: &[ElementsUtxo]) -> *
         raw_outputs.push(new_raw_output(out, out_data));
     }
     unsafe {
-        let mut raw_tx = std::mem::MaybeUninit::<CRawTransaction>::uninit();
+        let mut raw_tx = std::mem::MaybeUninit::<CElementsRawTransaction>::uninit();
         c_set_rawElementsTransaction(
             raw_tx.as_mut_ptr(),
             tx.version as c_uint,
@@ -159,7 +159,7 @@ pub(super) fn new_tx(tx: &elements::Transaction, in_utxos: &[ElementsUtxo]) -> *
 
 pub(super) fn new_tap_env(control_block: &ControlBlock, script_cmr: Cmr) -> *mut CTapEnv {
     unsafe {
-        let mut raw_tap_env = std::mem::MaybeUninit::<CRawTapEnv>::uninit();
+        let mut raw_tap_env = std::mem::MaybeUninit::<CElementsRawTapEnv>::uninit();
         let cb_ser = control_block.serialize();
         c_set_rawElementsTapEnv(
             raw_tap_env.as_mut_ptr(),
@@ -223,20 +223,20 @@ fn opt_ptr<T>(t: Option<&T>) -> *const T {
     }
 }
 
-fn script_ptr(script: &elements::Script) -> CRawBuffer {
-    CRawBuffer::new(script.as_bytes())
+fn script_ptr(script: &elements::Script) -> CElementsRawBuffer {
+    CElementsRawBuffer::new(script.as_bytes())
 }
 
-fn annex_ptr(annex: &Option<Vec<c_uchar>>) -> Option<CRawBuffer> {
-    annex.as_ref().map(|annex| CRawBuffer::new(annex))
+fn annex_ptr(annex: &Option<Vec<c_uchar>>) -> Option<CElementsRawBuffer> {
+    annex.as_ref().map(|annex| CElementsRawBuffer::new(annex))
 }
 
-fn surjection_proof_ptr(surjection_proof: &[c_uchar]) -> CRawBuffer {
-    CRawBuffer::new(surjection_proof)
+fn surjection_proof_ptr(surjection_proof: &[c_uchar]) -> CElementsRawBuffer {
+    CElementsRawBuffer::new(surjection_proof)
 }
 
-fn range_proof_ptr(rangeproof: &[c_uchar]) -> CRawBuffer {
-    CRawBuffer::new(rangeproof)
+fn range_proof_ptr(rangeproof: &[c_uchar]) -> CElementsRawBuffer {
+    CElementsRawBuffer::new(rangeproof)
 }
 
 fn serialize_rangeproof(rangeproof: &Option<Box<RangeProof>>) -> Vec<c_uchar> {
