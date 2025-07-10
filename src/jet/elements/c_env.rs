@@ -13,10 +13,11 @@ use elements::{
     taproot::ControlBlock,
 };
 use simplicity_sys::c_jets::c_env::{
-    c_set_rawInput, c_set_rawOutput, c_set_rawTapEnv, c_set_rawTransaction, c_set_txEnv,
-    simplicity_elements_mallocTapEnv, simplicity_elements_mallocTransaction, CElementsTxEnv,
-    CRawBuffer, CRawInput, CRawOutput, CRawTapEnv, CRawTransaction, CTapEnv, CTransaction,
-    RawInputData, RawOutputData, RawTransactionData,
+    c_set_rawElementsInput, c_set_rawElementsOutput, c_set_rawElementsTapEnv,
+    c_set_rawElementsTransaction, c_set_txEnv, simplicity_elements_mallocTapEnv,
+    simplicity_elements_mallocTransaction, CElementsTxEnv, CRawBuffer, CRawInput, CRawOutput,
+    CRawTapEnv, CRawTransaction, CTapEnv, CTransaction, RawInputData, RawOutputData,
+    RawTransactionData,
 };
 
 use crate::merkle::cmr::Cmr;
@@ -26,7 +27,7 @@ use super::ElementsUtxo;
 fn new_raw_output(out: &elements::TxOut, out_data: &RawOutputData) -> CRawOutput {
     unsafe {
         let mut raw_output = std::mem::MaybeUninit::<CRawOutput>::uninit();
-        c_set_rawOutput(
+        c_set_rawElementsOutput(
             raw_output.as_mut_ptr(),
             asset_ptr(out.asset, &out_data.asset),
             value_ptr(out.value, &out_data.value),
@@ -66,7 +67,7 @@ fn new_raw_input(
                     std::ptr::null(),
                 )
             };
-        c_set_rawInput(
+        c_set_rawElementsInput(
             raw_input.as_mut_ptr(),
             opt_ptr(annex_ptr(&inp_data.annex).as_ref()),
             inp.pegin_data()
@@ -141,7 +142,7 @@ pub(super) fn new_tx(tx: &elements::Transaction, in_utxos: &[ElementsUtxo]) -> *
     }
     unsafe {
         let mut raw_tx = std::mem::MaybeUninit::<CRawTransaction>::uninit();
-        c_set_rawTransaction(
+        c_set_rawElementsTransaction(
             raw_tx.as_mut_ptr(),
             tx.version as c_uint,
             AsRef::<[u8]>::as_ref(&txid).as_ptr(),
@@ -160,7 +161,7 @@ pub(super) fn new_tap_env(control_block: &ControlBlock, script_cmr: Cmr) -> *mut
     unsafe {
         let mut raw_tap_env = std::mem::MaybeUninit::<CRawTapEnv>::uninit();
         let cb_ser = control_block.serialize();
-        c_set_rawTapEnv(
+        c_set_rawElementsTapEnv(
             raw_tap_env.as_mut_ptr(),
             cb_ser.as_ptr(),
             control_block.merkle_branch.as_inner().len() as c_uchar,

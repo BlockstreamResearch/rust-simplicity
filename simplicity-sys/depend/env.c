@@ -25,18 +25,18 @@ const size_t rustsimplicity_0_5_c_alignof_rawElementsTransaction = alignof(rawEl
 const size_t rustsimplicity_0_5_c_alignof_rawElementsTapEnv = alignof(rawElementsTapEnv);
 const size_t rustsimplicity_0_5_c_alignof_txEnv = alignof(txEnv);
 
-void rustsimplicity_0_5_c_set_rawBuffer(rawElementsBuffer *result, const unsigned char *buf, unsigned int len)
+void rustsimplicity_0_5_c_set_rawElementsBuffer(rawElementsBuffer *result, const unsigned char *buf, unsigned int len)
 {
     *result = (rawElementsBuffer){.buf = buf, .len = len};
 }
 
-void rustsimplicity_0_5_c_set_rawOutput(rawElementsOutput *result, const unsigned char *asset, const unsigned char *value, const unsigned char *nonce, const rawElementsBuffer *scriptPubKey,
+void rustsimplicity_0_5_c_set_rawElementsOutput(rawElementsOutput *result, const unsigned char *asset, const unsigned char *value, const unsigned char *nonce, const rawElementsBuffer *scriptPubKey,
                      const rawElementsBuffer *surjectionProof, const rawElementsBuffer *rangeProof)
 {
     *result = (rawElementsOutput){.asset = asset, .value = value, .nonce = nonce, .scriptPubKey = *scriptPubKey, .surjectionProof = *surjectionProof, .rangeProof = *rangeProof};
 }
 
-void rustsimplicity_0_5_c_set_rawInput(rawElementsInput *result, const rawElementsBuffer *annex, const unsigned char *pegin, const rawElementsBuffer *scriptSig,
+void rustsimplicity_0_5_c_set_rawElementsInput(rawElementsInput *result, const rawElementsBuffer *annex, const unsigned char *pegin, const rawElementsBuffer *scriptSig,
                     const unsigned char *prevTxid, unsigned int prevIx,
                     const unsigned char *asset, const unsigned char *value, const rawElementsBuffer *scriptPubKey,
                     unsigned int sequence,
@@ -46,7 +46,7 @@ void rustsimplicity_0_5_c_set_rawInput(rawElementsInput *result, const rawElemen
     *result = (rawElementsInput){.annex = annex, .scriptSig = *scriptSig, .prevTxid = prevTxid, .pegin = pegin, .issuance = {.blindingNonce = blindingNonce, .assetEntropy = assetEntropy, .amount = amount, .inflationKeys = inflationKeys, .amountRangePrf = *amountRangePrf, .inflationKeysRangePrf = *inflationKeysRangePrf}, .txo = {.asset = asset, .value = value, .scriptPubKey = *scriptPubKey}, .prevIx = prevIx, .sequence = sequence};
 }
 
-void rustsimplicity_0_5_c_set_rawTransaction(rawElementsTransaction *result, unsigned int version,
+void rustsimplicity_0_5_c_set_rawElementsTransaction(rawElementsTransaction *result, unsigned int version,
                           const unsigned char *txid,
                           const rawElementsInput *input, unsigned int numInputs,
                           const rawElementsOutput *output, unsigned int numOutputs,
@@ -63,7 +63,7 @@ void rustsimplicity_0_5_c_set_rawTransaction(rawElementsTransaction *result, uns
     };
 }
 
-void rustsimplicity_0_5_c_set_rawTapEnv(rawElementsTapEnv *result, const unsigned char *controlBlock, unsigned char pathLen, const unsigned char *scriptCMR)
+void rustsimplicity_0_5_c_set_rawElementsTapEnv(rawElementsTapEnv *result, const unsigned char *controlBlock, unsigned char pathLen, const unsigned char *scriptCMR)
 {
     *result = (rawElementsTapEnv){.controlBlock = controlBlock, .pathLen = pathLen, .scriptCMR = scriptCMR};
 }
