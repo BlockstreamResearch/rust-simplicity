@@ -151,10 +151,10 @@ extern "C" {
     #[link_name = "rustsimplicity_0_5_c_alignof_txEnv"]
     pub static c_alignof_txEnv: c_size_t;
 
-    #[link_name = "rustsimplicity_0_5_c_set_rawBuffer"]
-    pub fn c_set_rawBuffer(res: *mut CRawBuffer, buf: *const c_uchar, len: c_uint);
-    #[link_name = "rustsimplicity_0_5_c_set_rawOutput"]
-    pub fn c_set_rawOutput(
+    #[link_name = "rustsimplicity_0_5_c_set_rawElementsBuffer"]
+    pub fn c_set_rawElementsBuffer(res: *mut CRawBuffer, buf: *const c_uchar, len: c_uint);
+    #[link_name = "rustsimplicity_0_5_c_set_rawElementsOutput"]
+    pub fn c_set_rawElementsOutput(
         res: *mut CRawOutput,
         asset: *const c_uchar,
         value: *const c_uchar,
@@ -163,8 +163,8 @@ extern "C" {
         surjectionProof: *const CRawBuffer,
         rangeProof: *const CRawBuffer,
     );
-    #[link_name = "rustsimplicity_0_5_c_set_rawInput"]
-    pub fn c_set_rawInput(
+    #[link_name = "rustsimplicity_0_5_c_set_rawElementsInput"]
+    pub fn c_set_rawElementsInput(
         result: *mut CRawInput,
         annex: *const CRawBuffer,
         pegin: *const c_uchar,
@@ -183,8 +183,8 @@ extern "C" {
         inflationKeysRangePrf: *const CRawBuffer,
     );
 
-    #[link_name = "rustsimplicity_0_5_c_set_rawTransaction"]
-    pub fn c_set_rawTransaction(
+    #[link_name = "rustsimplicity_0_5_c_set_rawElementsTransaction"]
+    pub fn c_set_rawElementsTransaction(
         result: *mut CRawTransaction,
         version: c_uint,
         txid: *const c_uchar,
@@ -194,8 +194,8 @@ extern "C" {
         numOutputs: c_uint,
         lockTime: c_uint,
     );
-    #[link_name = "rustsimplicity_0_5_c_set_rawTapEnv"]
-    pub fn c_set_rawTapEnv(
+    #[link_name = "rustsimplicity_0_5_c_set_rawElementsTapEnv"]
+    pub fn c_set_rawElementsTapEnv(
         result: *mut CRawTapEnv,
         controlBlock: *const c_uchar,
         pathLen: c_uchar,
@@ -241,7 +241,7 @@ impl CRawBuffer {
     pub fn new(buf: &[c_uchar]) -> Self {
         unsafe {
             let mut raw_buffer = std::mem::MaybeUninit::<CRawBuffer>::uninit();
-            c_set_rawBuffer(raw_buffer.as_mut_ptr(), buf.as_ptr(), buf.len() as c_uint);
+            c_set_rawElementsBuffer(raw_buffer.as_mut_ptr(), buf.as_ptr(), buf.len() as c_uint);
             raw_buffer.assume_init()
         }
     }
