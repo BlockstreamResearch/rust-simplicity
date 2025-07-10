@@ -28,7 +28,7 @@ pub struct RawOutputData {
 
 #[derive(Debug)]
 #[repr(C)]
-pub struct CRawBuffer {
+pub struct CElementsRawBuffer {
     pub ptr: *const c_uchar,
     pub len: u32,
 }
@@ -56,19 +56,19 @@ pub struct RawTransactionData {
 
 #[derive(Debug)]
 #[repr(C)]
-pub struct CRawOutput {
+pub struct CElementsRawOutput {
     asset: *const c_uchar,
     value: *const c_uchar,
     nonce: *const c_uchar,
-    script_pubkey: CRawBuffer,
-    surjection_proof: CRawBuffer,
-    range_proof: CRawBuffer,
+    script_pubkey: CElementsRawBuffer,
+    surjection_proof: CElementsRawBuffer,
+    range_proof: CElementsRawBuffer,
 }
 
 #[derive(Debug)]
 #[repr(C)]
-pub struct CRawInput {
-    annex: *const CRawBuffer,
+pub struct CElementsRawInput {
+    annex: *const CElementsRawBuffer,
     prev_txid: *const c_uchar,
     pegin: *const c_uchar,
     // issuance
@@ -76,24 +76,24 @@ pub struct CRawInput {
     asset_entropy: *const c_uchar,
     amount: *const c_uchar,
     inflation_keys: *const c_uchar,
-    amount_range_proof: CRawBuffer,
-    inflation_keys_range_proof: CRawBuffer,
+    amount_range_proof: CElementsRawBuffer,
+    inflation_keys_range_proof: CElementsRawBuffer,
     // spent txo
     asset: *const c_uchar,
     value: *const c_uchar,
-    script_pubkey: CRawBuffer,
+    script_pubkey: CElementsRawBuffer,
     // inputs
-    script_sig: CRawBuffer,
+    script_sig: CElementsRawBuffer,
     prev_txout_index: u32,
     sequence: u32,
 }
 
 #[derive(Debug)]
 #[repr(C)]
-pub struct CRawTransaction {
+pub struct CElementsRawTransaction {
     txid: *const c_uchar,
-    inputs: *const CRawInput,
-    outputs: *const CRawOutput,
+    inputs: *const CElementsRawInput,
+    outputs: *const CElementsRawOutput,
     version: u32,
     locktime: u32,
     n_inputs: u32,
@@ -102,7 +102,7 @@ pub struct CRawTransaction {
 
 #[derive(Debug)]
 #[repr(C)]
-pub struct CRawTapEnv {
+pub struct CElementsRawTapEnv {
     control_block: *const c_uchar,
     script_cmr: *const c_uchar,
     branch_len: u8,
@@ -152,51 +152,51 @@ extern "C" {
     pub static c_alignof_txEnv: c_size_t;
 
     #[link_name = "rustsimplicity_0_5_c_set_rawElementsBuffer"]
-    pub fn c_set_rawElementsBuffer(res: *mut CRawBuffer, buf: *const c_uchar, len: c_uint);
+    pub fn c_set_rawElementsBuffer(res: *mut CElementsRawBuffer, buf: *const c_uchar, len: c_uint);
     #[link_name = "rustsimplicity_0_5_c_set_rawElementsOutput"]
     pub fn c_set_rawElementsOutput(
-        res: *mut CRawOutput,
+        res: *mut CElementsRawOutput,
         asset: *const c_uchar,
         value: *const c_uchar,
         nonce: *const c_uchar,
-        scriptPubKey: *const CRawBuffer,
-        surjectionProof: *const CRawBuffer,
-        rangeProof: *const CRawBuffer,
+        scriptPubKey: *const CElementsRawBuffer,
+        surjectionProof: *const CElementsRawBuffer,
+        rangeProof: *const CElementsRawBuffer,
     );
     #[link_name = "rustsimplicity_0_5_c_set_rawElementsInput"]
     pub fn c_set_rawElementsInput(
-        result: *mut CRawInput,
-        annex: *const CRawBuffer,
+        result: *mut CElementsRawInput,
+        annex: *const CElementsRawBuffer,
         pegin: *const c_uchar,
-        scriptSig: *const CRawBuffer,
+        scriptSig: *const CElementsRawBuffer,
         prevTxid: *const c_uchar,
         prevIx: c_uint,
         asset: *const c_uchar,
         value: *const c_uchar,
-        scriptPubKey: *const CRawBuffer,
+        scriptPubKey: *const CElementsRawBuffer,
         sequence: c_uint,
         blindingNonce: *const c_uchar,
         assetEntropy: *const c_uchar,
         amount: *const c_uchar,
         inflationKeys: *const c_uchar,
-        amountRangePrf: *const CRawBuffer,
-        inflationKeysRangePrf: *const CRawBuffer,
+        amountRangePrf: *const CElementsRawBuffer,
+        inflationKeysRangePrf: *const CElementsRawBuffer,
     );
 
     #[link_name = "rustsimplicity_0_5_c_set_rawElementsTransaction"]
     pub fn c_set_rawElementsTransaction(
-        result: *mut CRawTransaction,
+        result: *mut CElementsRawTransaction,
         version: c_uint,
         txid: *const c_uchar,
-        input: *const CRawInput,
+        input: *const CElementsRawInput,
         numInputs: c_uint,
-        output: *const CRawOutput,
+        output: *const CElementsRawOutput,
         numOutputs: c_uint,
         lockTime: c_uint,
     );
     #[link_name = "rustsimplicity_0_5_c_set_rawElementsTapEnv"]
     pub fn c_set_rawElementsTapEnv(
-        result: *mut CRawTapEnv,
+        result: *mut CElementsRawTapEnv,
         controlBlock: *const c_uchar,
         pathLen: c_uchar,
         scriptCMR: *const c_uchar,
@@ -210,10 +210,10 @@ extern "C" {
         ix: c_uint,
     );
     #[link_name = "rustsimplicity_0_5_elements_mallocTapEnv"]
-    pub fn simplicity_elements_mallocTapEnv(rawEnv: *const CRawTapEnv) -> *mut CTapEnv;
+    pub fn simplicity_elements_mallocTapEnv(rawEnv: *const CElementsRawTapEnv) -> *mut CTapEnv;
     #[link_name = "rustsimplicity_0_5_elements_mallocTransaction"]
     pub fn simplicity_elements_mallocTransaction(
-        rawTx: *const CRawTransaction,
+        rawTx: *const CElementsRawTransaction,
     ) -> *mut CTransaction;
     #[link_name = "rustsimplicity_0_5_c_free_transaction"]
     pub fn c_free_transaction(tx: *mut CTransaction);
@@ -237,10 +237,10 @@ impl Drop for CElementsTxEnv {
     }
 }
 
-impl CRawBuffer {
+impl CElementsRawBuffer {
     pub fn new(buf: &[c_uchar]) -> Self {
         unsafe {
-            let mut raw_buffer = std::mem::MaybeUninit::<CRawBuffer>::uninit();
+            let mut raw_buffer = std::mem::MaybeUninit::<Self>::uninit();
             c_set_rawElementsBuffer(raw_buffer.as_mut_ptr(), buf.as_ptr(), buf.len() as c_uint);
             raw_buffer.assume_init()
         }
@@ -257,14 +257,14 @@ mod tests {
     fn test_sizes() {
         unsafe {
             assert_eq!(size_of::<CFrameItem>(), c_sizeof_frameItem);
-            assert_eq!(size_of::<CRawBuffer>(), c_sizeof_rawElementsBuffer);
-            assert_eq!(size_of::<CRawInput>(), c_sizeof_rawElementsInput);
-            assert_eq!(size_of::<CRawOutput>(), c_sizeof_rawElementsOutput);
+            assert_eq!(size_of::<CElementsRawBuffer>(), c_sizeof_rawElementsBuffer);
+            assert_eq!(size_of::<CElementsRawInput>(), c_sizeof_rawElementsInput);
+            assert_eq!(size_of::<CElementsRawOutput>(), c_sizeof_rawElementsOutput);
             assert_eq!(
-                size_of::<CRawTransaction>(),
+                size_of::<CElementsRawTransaction>(),
                 c_sizeof_rawElementsTransaction
             );
-            assert_eq!(size_of::<CRawTapEnv>(), c_sizeof_rawElementsTapEnv);
+            assert_eq!(size_of::<CElementsRawTapEnv>(), c_sizeof_rawElementsTapEnv);
             assert_eq!(size_of::<CElementsTxEnv>(), c_sizeof_txEnv);
         }
     }
@@ -273,14 +273,23 @@ mod tests {
     fn test_aligns() {
         unsafe {
             assert_eq!(align_of::<CFrameItem>(), c_alignof_frameItem);
-            assert_eq!(align_of::<CRawBuffer>(), c_alignof_rawElementsBuffer);
-            assert_eq!(align_of::<CRawInput>(), c_alignof_rawElementsInput);
-            assert_eq!(align_of::<CRawOutput>(), c_alignof_rawElementsOutput);
             assert_eq!(
-                align_of::<CRawTransaction>(),
+                align_of::<CElementsRawBuffer>(),
+                c_alignof_rawElementsBuffer
+            );
+            assert_eq!(align_of::<CElementsRawInput>(), c_alignof_rawElementsInput);
+            assert_eq!(
+                align_of::<CElementsRawOutput>(),
+                c_alignof_rawElementsOutput
+            );
+            assert_eq!(
+                align_of::<CElementsRawTransaction>(),
                 c_alignof_rawElementsTransaction
             );
-            assert_eq!(align_of::<CRawTapEnv>(), c_alignof_rawElementsTapEnv);
+            assert_eq!(
+                align_of::<CElementsRawTapEnv>(),
+                c_alignof_rawElementsTapEnv
+            );
             assert_eq!(align_of::<CElementsTxEnv>(), c_alignof_txEnv);
         }
     }
