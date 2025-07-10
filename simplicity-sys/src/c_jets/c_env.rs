@@ -125,29 +125,29 @@ pub struct CElementsTxEnv {
 pub enum CTapEnv {}
 
 extern "C" {
-    #[link_name = "rustsimplicity_0_5_c_sizeof_rawBuffer"]
-    pub static c_sizeof_rawBuffer: c_size_t;
-    #[link_name = "rustsimplicity_0_5_c_sizeof_rawOutput"]
-    pub static c_sizeof_rawOutput: c_size_t;
-    #[link_name = "rustsimplicity_0_5_c_sizeof_rawInput"]
-    pub static c_sizeof_rawInput: c_size_t;
-    #[link_name = "rustsimplicity_0_5_c_sizeof_rawTransaction"]
-    pub static c_sizeof_rawTransaction: c_size_t;
-    #[link_name = "rustsimplicity_0_5_c_sizeof_rawTapEnv"]
-    pub static c_sizeof_rawTapEnv: c_size_t;
+    #[link_name = "rustsimplicity_0_5_c_sizeof_rawElementsBuffer"]
+    pub static c_sizeof_rawElementsBuffer: c_size_t;
+    #[link_name = "rustsimplicity_0_5_c_sizeof_rawElementsOutput"]
+    pub static c_sizeof_rawElementsOutput: c_size_t;
+    #[link_name = "rustsimplicity_0_5_c_sizeof_rawElementsInput"]
+    pub static c_sizeof_rawElementsInput: c_size_t;
+    #[link_name = "rustsimplicity_0_5_c_sizeof_rawElementsTransaction"]
+    pub static c_sizeof_rawElementsTransaction: c_size_t;
+    #[link_name = "rustsimplicity_0_5_c_sizeof_rawElementsTapEnv"]
+    pub static c_sizeof_rawElementsTapEnv: c_size_t;
     #[link_name = "rustsimplicity_0_5_c_sizeof_txEnv"]
     pub static c_sizeof_txEnv: c_size_t;
 
-    #[link_name = "rustsimplicity_0_5_c_alignof_rawBuffer"]
-    pub static c_alignof_rawBuffer: c_size_t;
-    #[link_name = "rustsimplicity_0_5_c_alignof_rawOutput"]
-    pub static c_alignof_rawOutput: c_size_t;
-    #[link_name = "rustsimplicity_0_5_c_alignof_rawInput"]
-    pub static c_alignof_rawInput: c_size_t;
-    #[link_name = "rustsimplicity_0_5_c_alignof_rawTransaction"]
-    pub static c_alignof_rawTransaction: c_size_t;
-    #[link_name = "rustsimplicity_0_5_c_alignof_rawTapEnv"]
-    pub static c_alignof_rawTapEnv: c_size_t;
+    #[link_name = "rustsimplicity_0_5_c_alignof_rawElementsBuffer"]
+    pub static c_alignof_rawElementsBuffer: c_size_t;
+    #[link_name = "rustsimplicity_0_5_c_alignof_rawElementsOutput"]
+    pub static c_alignof_rawElementsOutput: c_size_t;
+    #[link_name = "rustsimplicity_0_5_c_alignof_rawElementsInput"]
+    pub static c_alignof_rawElementsInput: c_size_t;
+    #[link_name = "rustsimplicity_0_5_c_alignof_rawElementsTransaction"]
+    pub static c_alignof_rawElementsTransaction: c_size_t;
+    #[link_name = "rustsimplicity_0_5_c_alignof_rawElementsTapEnv"]
+    pub static c_alignof_rawElementsTapEnv: c_size_t;
     #[link_name = "rustsimplicity_0_5_c_alignof_txEnv"]
     pub static c_alignof_txEnv: c_size_t;
 
@@ -257,11 +257,14 @@ mod tests {
     fn test_sizes() {
         unsafe {
             assert_eq!(size_of::<CFrameItem>(), c_sizeof_frameItem);
-            assert_eq!(size_of::<CRawBuffer>(), c_sizeof_rawBuffer);
-            assert_eq!(size_of::<CRawInput>(), c_sizeof_rawInput);
-            assert_eq!(size_of::<CRawOutput>(), c_sizeof_rawOutput);
-            assert_eq!(size_of::<CRawTransaction>(), c_sizeof_rawTransaction);
-            assert_eq!(size_of::<CRawTapEnv>(), c_sizeof_rawTapEnv);
+            assert_eq!(size_of::<CRawBuffer>(), c_sizeof_rawElementsBuffer);
+            assert_eq!(size_of::<CRawInput>(), c_sizeof_rawElementsInput);
+            assert_eq!(size_of::<CRawOutput>(), c_sizeof_rawElementsOutput);
+            assert_eq!(
+                size_of::<CRawTransaction>(),
+                c_sizeof_rawElementsTransaction
+            );
+            assert_eq!(size_of::<CRawTapEnv>(), c_sizeof_rawElementsTapEnv);
             assert_eq!(size_of::<CElementsTxEnv>(), c_sizeof_txEnv);
         }
     }
@@ -270,11 +273,14 @@ mod tests {
     fn test_aligns() {
         unsafe {
             assert_eq!(align_of::<CFrameItem>(), c_alignof_frameItem);
-            assert_eq!(align_of::<CRawBuffer>(), c_alignof_rawBuffer);
-            assert_eq!(align_of::<CRawInput>(), c_alignof_rawInput);
-            assert_eq!(align_of::<CRawOutput>(), c_alignof_rawOutput);
-            assert_eq!(align_of::<CRawTransaction>(), c_alignof_rawTransaction);
-            assert_eq!(align_of::<CRawTapEnv>(), c_alignof_rawTapEnv);
+            assert_eq!(align_of::<CRawBuffer>(), c_alignof_rawElementsBuffer);
+            assert_eq!(align_of::<CRawInput>(), c_alignof_rawElementsInput);
+            assert_eq!(align_of::<CRawOutput>(), c_alignof_rawElementsOutput);
+            assert_eq!(
+                align_of::<CRawTransaction>(),
+                c_alignof_rawElementsTransaction
+            );
+            assert_eq!(align_of::<CRawTapEnv>(), c_alignof_rawElementsTapEnv);
             assert_eq!(align_of::<CElementsTxEnv>(), c_alignof_txEnv);
         }
     }
