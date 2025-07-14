@@ -7,12 +7,22 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       nightly_version: ${{ steps.read_toolchain.outputs.nightly_version }}
+      msrv_version: ${{ steps.read_msrv.outputs.msrv_version }}
     steps:
       - name: "Checkout repo"
         uses: actions/checkout@v4
       - name: "Read nightly version"
         id: read_toolchain
-        run: echo "nightly_version=$(cat nightly-version)" >> $GITHUB_OUTPUT
+        run: |
+          set -euo pipefail
+          version=$(cat nightly-version)
+          echo "nightly_version=$version" >> $GITHUB_OUTPUT
+      - name: Read MSRV from clippy.toml
+        id: read_msrv
+        run: |
+          set -euo pipefail
+          msrv=$(grep '^msrv *= *"' clippy.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "msrv_version=$msrv" >> "$GITHUB_OUTPUT"
 
   fmt:
     name: Rustfmt
@@ -66,7 +76,7 @@ jobs:
           - stable
           - beta
           - ${{ needs.Prepare.outputs.nightly_version }}
-          - 1.78.0
+          - ${{ needs.Prepare.outputs.msrv_version }}
     steps:
       - name: Checkout Crate
         uses: actions/checkout@v4
@@ -100,6 +110,7 @@ jobs:
 
   clippy:
     name: Clippy
+    needs: Prepare
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -110,6 +121,7 @@ jobs:
       - name: Checkout Toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: ${{ needs.Prepare.outputs.nightly_version }}
           components: clippy
       - name: Running cargo clippy
         run: cargo clippy --workspace --all-targets -- --deny warnings

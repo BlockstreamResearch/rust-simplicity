@@ -435,7 +435,7 @@ impl Value {
     }
 
     /// A reference to this value, which can be recursed over.
-    pub fn as_ref(&self) -> ValueRef {
+    pub fn as_ref(&self) -> ValueRef<'_> {
         ValueRef {
             inner: &self.inner,
             bit_offset: self.bit_offset,
@@ -444,17 +444,17 @@ impl Value {
     }
 
     /// Access the inner value of a left sum value.
-    pub fn as_left(&self) -> Option<ValueRef> {
+    pub fn as_left(&self) -> Option<ValueRef<'_>> {
         self.as_ref().as_left()
     }
 
     /// Access the inner value of a right sum value.
-    pub fn as_right(&self) -> Option<ValueRef> {
+    pub fn as_right(&self) -> Option<ValueRef<'_>> {
         self.as_ref().as_right()
     }
 
     /// Access the inner values of a product value.
-    pub fn as_product(&self) -> Option<(ValueRef, ValueRef)> {
+    pub fn as_product(&self) -> Option<(ValueRef<'_>, ValueRef<'_>)> {
         self.as_ref().as_product()
     }
 
@@ -590,7 +590,7 @@ impl Value {
     /// The returned bytes match the padded bit-encoding of the value. You
     /// may wish to call [`Self::iter_padded`] instead to obtain the bits,
     /// but this method is more efficient in some contexts.
-    pub fn raw_byte_iter(&self) -> RawByteIter {
+    pub fn raw_byte_iter(&self) -> RawByteIter<'_> {
         RawByteIter {
             value: self,
             yielded_bytes: 0,
@@ -600,14 +600,14 @@ impl Value {
     /// Return an iterator over the compact bit encoding of the value.
     ///
     /// This encoding is used for writing witness data and for computing IHRs.
-    pub fn iter_compact(&self) -> CompactBitsIter {
+    pub fn iter_compact(&self) -> CompactBitsIter<'_> {
         CompactBitsIter::new(self.as_ref())
     }
 
     /// Return an iterator over the padded bit encoding of the value.
     ///
     /// This encoding is used to represent the value in the Bit Machine.
-    pub fn iter_padded(&self) -> PreOrderIter {
+    pub fn iter_padded(&self) -> PreOrderIter<'_> {
         PreOrderIter {
             inner: BitIter::new(self.raw_byte_iter()).take(self.ty.bit_width()),
         }

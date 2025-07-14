@@ -231,7 +231,7 @@ impl Context {
     }
 
     /// Locks the underlying slab mutex.
-    fn lock(&self) -> LockedContext {
+    fn lock(&self) -> LockedContext<'_> {
         LockedContext {
             context: Arc::as_ptr(&self.slab),
             slab: self.slab.lock().unwrap(),

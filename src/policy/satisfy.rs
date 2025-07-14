@@ -312,7 +312,7 @@ mod tests {
 
     fn get_satisfier(
         env: &ElementsEnv<Arc<elements::Transaction>>,
-    ) -> PolicySatisfier<XOnlyPublicKey> {
+    ) -> PolicySatisfier<'_, XOnlyPublicKey> {
         let mut preimages = HashMap::new();
 
         for i in 0..3 {
@@ -555,14 +555,14 @@ mod tests {
             let witness = to_witness(&program);
             assert_eq!(2, witness.len());
 
-            assert_eq!(Value::u1(bit as u8), *witness[0]);
+            assert_eq!(Value::u1(u8::from(bit)), *witness[0]);
             let preimage_bytes = witness[1]
                 .iter_padded()
                 .try_collect_bytes()
                 .expect("to bytes");
             let witness_preimage =
                 Preimage32::try_from(preimage_bytes.as_slice()).expect("to array");
-            assert_eq!(preimages[bit as usize], witness_preimage);
+            assert_eq!(preimages[usize::from(bit)], witness_preimage);
 
             execute_successful(program, &env);
         };
@@ -663,7 +663,7 @@ mod tests {
                         ],
                     );
 
-                    match bit0 as u8 + bit1 as u8 + bit2 as u8 {
+                    match u8::from(bit0) + u8::from(bit1) + u8::from(bit2) {
                         3 => assert_branches(&policy, &[bit0, bit1, false]),
                         2 => assert_branches(&policy, &[bit0, bit1, bit2]),
                         _ => assert!(policy.satisfy(&satisfier, &env).is_err()),
