@@ -87,7 +87,7 @@ static sha256_midstate mkJetCMR(uint32_t *ih, uint_fast64_t weight) {
   block[6] = (uint32_t)(weight >> 32);
   block[7] = (uint32_t)weight;
   memcpy(&block[8], ih, sizeof(uint32_t[8]));
-  simplicity_sha256_compression(result.s, block);
+  rustsimplicity_0_4_sha256_compression(result.s, block);
 
   return result;
 }
@@ -96,13 +96,13 @@ static sha256_midstate mkJetCMR(uint32_t *ih, uint_fast64_t weight) {
  *
  * Precondition: 2^n == value->len
  */
-sha256_midstate simplicity_computeWordCMR(const bitstring* value, size_t n) {
+sha256_midstate rustsimplicity_0_4_computeWordCMR(const bitstring* value, size_t n) {
   /* 'stack' is an array of 30 hashes consisting of 8 'uint32_t's each. */
   uint32_t stack[8*30] = {0};
   uint32_t *stack_ptr = stack;
   sha256_midstate ih = identityIV;
-  simplicity_assert(n < 32);
-  simplicity_assert((size_t)1 << n == value->len);
+  rustsimplicity_0_4_assert(n < 32);
+  rustsimplicity_0_4_assert((size_t)1 << n == value->len);
   /* Pass 1: Compute the CMR for the expression that writes 'value'.
    * This expression consists of deeply nested PAIRs of expressions that write one bit each.
    */
@@ -127,19 +127,19 @@ sha256_midstate simplicity_computeWordCMR(const bitstring* value, size_t n) {
       for (size_t j = i; j & 1; j = j >> 1) {
         sha256_midstate pair = cmrIV(PAIR);
         stack_ptr -= 8;
-        simplicity_sha256_compression(pair.s, stack_ptr);
+        rustsimplicity_0_4_sha256_compression(pair.s, stack_ptr);
         memcpy(stack_ptr, pair.s, sizeof(uint32_t[8]));
       }
     }
   }
   /* value->len is a power of 2.*/
-  simplicity_assert(stack_ptr == stack + 8);
+  rustsimplicity_0_4_assert(stack_ptr == stack + 8);
 
   /* Pass 2: Compute the identity hash for the expression by adding the type roots of ONE and TWO^(2^n) to the CMR. */
-  simplicity_sha256_compression(ih.s, stack);
+  rustsimplicity_0_4_sha256_compression(ih.s, stack);
   memcpy(&stack[0], word_type_root[0].s, sizeof(uint32_t[8]));
   memcpy(&stack[8], word_type_root[n+1].s, sizeof(uint32_t[8]));
-  simplicity_sha256_compression(ih.s, stack);
+  rustsimplicity_0_4_sha256_compression(ih.s, stack);
 
   /* Pass 3: Compute the jet's CMR from the specificion's identity hash. */
   return mkJetCMR(ih.s, ((uint_fast64_t)1 << n));
@@ -155,13 +155,13 @@ sha256_midstate simplicity_computeWordCMR(const bitstring* value, size_t n) {
  * Precondition: dag_node dag[i + 1] and 'dag' is well-formed.
  *               dag[i].'tag' \notin {HIDDEN, JET, WORD}
  */
-void simplicity_computeCommitmentMerkleRoot(dag_node* dag, const uint_fast32_t i) {
+void rustsimplicity_0_4_computeCommitmentMerkleRoot(dag_node* dag, const uint_fast32_t i) {
   uint32_t block[16] = {0};
   size_t j = 8;
 
-  simplicity_assert(HIDDEN != dag[i].tag);
-  simplicity_assert(JET != dag[i].tag);
-  simplicity_assert(WORD != dag[i].tag);
+  rustsimplicity_0_4_assert(HIDDEN != dag[i].tag);
+  rustsimplicity_0_4_assert(JET != dag[i].tag);
+  rustsimplicity_0_4_assert(WORD != dag[i].tag);
 
   dag[i].cmr = cmrIV(dag[i].tag);
 
@@ -181,7 +181,7 @@ void simplicity_computeCommitmentMerkleRoot(dag_node* dag, const uint_fast32_t i
    case TAKE:
    case DROP:
     memcpy(block + j, dag[dag[i].child[0]].cmr.s, sizeof(uint32_t[8]));
-    simplicity_sha256_compression(dag[i].cmr.s, block);
+    rustsimplicity_0_4_sha256_compression(dag[i].cmr.s, block);
    case IDEN:
    case UNIT:
    case WITNESS:
@@ -212,9 +212,9 @@ static void computeIdentityHashRoots(sha256_midstate* ihr, const dag_node* dag, 
            : imrIV(dag[i].tag);
     switch (dag[i].tag) {
      case WITNESS:
-      simplicity_sha256_bitstring(block, &dag[i].compactValue);
+      rustsimplicity_0_4_sha256_bitstring(block, &dag[i].compactValue);
       memcpy(block + 8, type_dag[WITNESS_B(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
-      simplicity_sha256_compression(ihr[i].s, block);
+      rustsimplicity_0_4_sha256_compression(ihr[i].s, block);
       break;
      case COMP:
      case ASSERTL:
@@ -230,7 +230,7 @@ static void computeIdentityHashRoots(sha256_midstate* ihr, const dag_node* dag, 
      case TAKE:
      case DROP:
       memcpy(block + j, ihr[dag[i].child[0]].s, sizeof(uint32_t[8]));
-      simplicity_sha256_compression(ihr[i].s, block);
+      rustsimplicity_0_4_sha256_compression(ihr[i].s, block);
      case IDEN:
      case UNIT:
      case HIDDEN:
@@ -247,14 +247,14 @@ static void computeIdentityHashRoots(sha256_midstate* ihr, const dag_node* dag, 
     if (HIDDEN == dag[i].tag) {
       memcpy(block + 8, ihr[i].s, sizeof(uint32_t[8]));
       ihr[i] = hiddenIV;
-      simplicity_sha256_compression(ihr[i].s, block);
+      rustsimplicity_0_4_sha256_compression(ihr[i].s, block);
     } else {
       memcpy(block + 8, ihr[i].s, sizeof(uint32_t[8]));
       ihr[i] = identityIV;
-      simplicity_sha256_compression(ihr[i].s, block);
+      rustsimplicity_0_4_sha256_compression(ihr[i].s, block);
       memcpy(block, type_dag[dag[i].sourceType].typeMerkleRoot.s, sizeof(uint32_t[8]));
       memcpy(block + 8, type_dag[dag[i].targetType].typeMerkleRoot.s, sizeof(uint32_t[8]));
-      simplicity_sha256_compression(ihr[i].s, block);
+      rustsimplicity_0_4_sha256_compression(ihr[i].s, block);
     }
   }
 }
@@ -270,7 +270,7 @@ static void computeIdentityHashRoots(sha256_midstate* ihr, const dag_node* dag, 
  *               dag_node dag[len] and 'dag' has witness data and is well-typed with 'type_dag'.
  * Postconditon: analyses analysis[len] contains the annotated Merkle roots of each subexpressions of 'dag'.
  */
-void simplicity_computeAnnotatedMerkleRoot(analyses* analysis, const dag_node* dag, const type* type_dag, const uint_fast32_t len) {
+void rustsimplicity_0_4_computeAnnotatedMerkleRoot(analyses* analysis, const dag_node* dag, const type* type_dag, const uint_fast32_t len) {
   for (uint_fast32_t i = 0; i < len; ++i) {
     uint32_t block[16] = {0};
 
@@ -286,77 +286,77 @@ void simplicity_computeAnnotatedMerkleRoot(analyses* analysis, const dag_node* d
       memcpy(block, type_dag[CASE_A(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
       memcpy(block + 8,
              type_dag[CASE_B(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
-      simplicity_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
+      rustsimplicity_0_4_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
       memcpy(block, type_dag[CASE_C(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
       memcpy(block + 8, type_dag[CASE_D(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
-      simplicity_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
+      rustsimplicity_0_4_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
       memcpy(block, analysis[dag[i].child[0]].annotatedMerkleRoot.s, sizeof(uint32_t[8]));
       memcpy(block + 8, analysis[dag[i].child[1]].annotatedMerkleRoot.s, sizeof(uint32_t[8]));
-      simplicity_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
+      rustsimplicity_0_4_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
       break;
      case DISCONNECT:
       memcpy(block, type_dag[DISCONNECT_A(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
       memcpy(block + 8, type_dag[DISCONNECT_B(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
-      simplicity_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
+      rustsimplicity_0_4_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
       memcpy(block, type_dag[DISCONNECT_C(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
       memcpy(block + 8, type_dag[DISCONNECT_D(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
-      simplicity_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
+      rustsimplicity_0_4_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
       memcpy(block, analysis[dag[i].child[0]].annotatedMerkleRoot.s, sizeof(uint32_t[8]));
       memcpy(block + 8, analysis[dag[i].child[1]].annotatedMerkleRoot.s, sizeof(uint32_t[8]));
-      simplicity_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
+      rustsimplicity_0_4_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
       break;
      case COMP:
       memcpy(block + 8, type_dag[COMP_A(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
-      simplicity_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
+      rustsimplicity_0_4_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
       memcpy(block, type_dag[COMP_B(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
       memcpy(block + 8, type_dag[COMP_C(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
-      simplicity_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
+      rustsimplicity_0_4_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
       memcpy(block, analysis[dag[i].child[0]].annotatedMerkleRoot.s, sizeof(uint32_t[8]));
       memcpy(block + 8, analysis[dag[i].child[1]].annotatedMerkleRoot.s, sizeof(uint32_t[8]));
-      simplicity_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
+      rustsimplicity_0_4_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
       break;
      case PAIR:
       memcpy(block + 8, type_dag[PAIR_A(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
-      simplicity_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
+      rustsimplicity_0_4_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
       memcpy(block, type_dag[PAIR_B(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
       memcpy(block + 8, type_dag[PAIR_C(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
-      simplicity_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
+      rustsimplicity_0_4_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
       memcpy(block, analysis[dag[i].child[0]].annotatedMerkleRoot.s, sizeof(uint32_t[8]));
       memcpy(block + 8, analysis[dag[i].child[1]].annotatedMerkleRoot.s, sizeof(uint32_t[8]));
-      simplicity_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
+      rustsimplicity_0_4_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
       break;
      case INJL:
      case INJR:
       memcpy(block, type_dag[INJ_A(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
       memcpy(block + 8, type_dag[INJ_B(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
-      simplicity_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
+      rustsimplicity_0_4_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
       memcpy(block, type_dag[INJ_C(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
       memcpy(block + 8, analysis[dag[i].child[0]].annotatedMerkleRoot.s, sizeof(uint32_t[8]));
-      simplicity_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
+      rustsimplicity_0_4_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
       break;
      case TAKE:
      case DROP:
       memcpy(block, type_dag[PROJ_A(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
       memcpy(block + 8, type_dag[PROJ_B(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
-      simplicity_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
+      rustsimplicity_0_4_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
       memcpy(block, type_dag[PROJ_C(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
       memcpy(block + 8, analysis[dag[i].child[0]].annotatedMerkleRoot.s, sizeof(uint32_t[8]));
-      simplicity_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
+      rustsimplicity_0_4_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
       break;
      case IDEN:
       memcpy(block + 8, type_dag[IDEN_A(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
-      simplicity_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
+      rustsimplicity_0_4_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
       break;
      case UNIT:
       memcpy(block + 8, type_dag[UNIT_A(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
-      simplicity_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
+      rustsimplicity_0_4_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
       break;
      case WITNESS:
       memcpy(block + 8, type_dag[WITNESS_A(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
-      simplicity_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
+      rustsimplicity_0_4_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
       memcpy(block, type_dag[WITNESS_B(dag, type_dag, i)].typeMerkleRoot.s, sizeof(uint32_t[8]));
-      simplicity_sha256_bitstring(block + 8, &dag[i].compactValue);
-      simplicity_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
+      rustsimplicity_0_4_sha256_bitstring(block + 8, &dag[i].compactValue);
+      rustsimplicity_0_4_sha256_compression(analysis[i].annotatedMerkleRoot.s, block);
       break;
      case HIDDEN:
      case JET:
@@ -377,12 +377,12 @@ void simplicity_computeAnnotatedMerkleRoot(analyses* analysis, const dag_node* d
  *
  * Precondition: dag_node dag[len] and 'dag' is well-formed.
  */
-simplicity_err simplicity_verifyCanonicalOrder(dag_node* dag, const uint_fast32_t len) {
+simplicity_err rustsimplicity_0_4_verifyCanonicalOrder(dag_node* dag, const uint_fast32_t len) {
   uint_fast32_t bottom = 0;
   uint_fast32_t top = len-1; /* Underflow is checked below. */
 
   if (!len) {
-    simplicity_assert(false); /* A well-formed dag has non-zero length */
+    rustsimplicity_0_4_assert(false); /* A well-formed dag has non-zero length */
     return SIMPLICITY_NO_ERROR; /* However, an empty dag is technically in canonical order */
   }
 
@@ -463,7 +463,7 @@ simplicity_err simplicity_verifyCanonicalOrder(dag_node* dag, const uint_fast32_
     /* top < bottom */
     top = dag[top].aux; /* Return. */
   }
-  simplicity_assert(bottom == top && top == len);
+  rustsimplicity_0_4_assert(bottom == top && top == len);
 
   return SIMPLICITY_NO_ERROR;
 }
@@ -481,7 +481,7 @@ simplicity_err simplicity_verifyCanonicalOrder(dag_node* dag, const uint_fast32_
  * Postcondition: dag_node dag[len] and 'dag' has witness data and is well-typed with 'type_dag'
  *                  when the result is 'SIMPLICITY_NO_ERROR';
  */
-simplicity_err simplicity_fillWitnessData(dag_node* dag, type* type_dag, const uint_fast32_t len, bitstream *witness) {
+simplicity_err rustsimplicity_0_4_fillWitnessData(dag_node* dag, type* type_dag, const uint_fast32_t len, bitstream *witness) {
   static_assert(CELLS_MAX <= 0x80000000, "CELLS_MAX is too large.");
   for (uint_fast32_t i = 0; i < len; ++i) {
     if (WITNESS == dag[i].tag) {
@@ -505,7 +505,7 @@ simplicity_err simplicity_fillWitnessData(dag_node* dag, type* type_dag, const u
         while (cur) {
           if (SUM == type_dag[cur].kind) {
             /* Parse one bit and traverse the left type or the right type depending on the value of the bit parsed. */
-            simplicity_assert(calling);
+            rustsimplicity_0_4_assert(calling);
             int32_t bit = read1Bit(witness);
             if (bit < 0) return SIMPLICITY_ERR_WITNESS_EOF;
             dag[i].compactValue.len++;
@@ -518,7 +518,7 @@ simplicity_err simplicity_fillWitnessData(dag_node* dag, type* type_dag, const u
               calling = false;
             }
           } else {
-            simplicity_assert(PRODUCT == type_dag[cur].kind);
+            rustsimplicity_0_4_assert(PRODUCT == type_dag[cur].kind);
             size_t next;
             if (calling) {
               next = typeSkip(type_dag[cur].typeArg[0], type_dag);
@@ -570,19 +570,19 @@ simplicity_err simplicity_fillWitnessData(dag_node* dag, type* type_dag, const u
  *
  * Precondition: dag_node dag[len] and 'dag' is well-typed with 'type_dag' and contains witnesses.
  */
-simplicity_err simplicity_verifyNoDuplicateIdentityHashes(sha256_midstate* ihr, const dag_node* dag, const type* type_dag, const uint_fast32_t dag_len) {
-  simplicity_assert(0 < dag_len);
-  simplicity_assert(dag_len <= DAG_LEN_MAX);
-  sha256_midstate* ih_buf = simplicity_malloc((size_t)dag_len * sizeof(sha256_midstate));
+simplicity_err rustsimplicity_0_4_verifyNoDuplicateIdentityHashes(sha256_midstate* ihr, const dag_node* dag, const type* type_dag, const uint_fast32_t dag_len) {
+  rustsimplicity_0_4_assert(0 < dag_len);
+  rustsimplicity_0_4_assert(dag_len <= DAG_LEN_MAX);
+  sha256_midstate* ih_buf = rustsimplicity_0_4_malloc((size_t)dag_len * sizeof(sha256_midstate));
   if (!ih_buf) return SIMPLICITY_ERR_MALLOC;
 
   computeIdentityHashRoots(ih_buf, dag, type_dag, dag_len);
 
   if (ihr) *ihr = ih_buf[dag_len-1];
 
-  int result = simplicity_hasDuplicates(ih_buf, dag_len);
+  int result = rustsimplicity_0_4_hasDuplicates(ih_buf, dag_len);
 
-  simplicity_free(ih_buf);
+  rustsimplicity_0_4_free(ih_buf);
 
   switch (result) {
   case -1: return SIMPLICITY_ERR_MALLOC;

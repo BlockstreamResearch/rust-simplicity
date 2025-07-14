@@ -125,22 +125,35 @@ pub struct CElementsTxEnv {
 pub enum CTapEnv {}
 
 extern "C" {
-
+    #[link_name = "rustsimplicity_0_4_c_sizeof_rawBuffer"]
     pub static c_sizeof_rawBuffer: c_size_t;
+    #[link_name = "rustsimplicity_0_4_c_sizeof_rawOutput"]
     pub static c_sizeof_rawOutput: c_size_t;
+    #[link_name = "rustsimplicity_0_4_c_sizeof_rawInput"]
     pub static c_sizeof_rawInput: c_size_t;
+    #[link_name = "rustsimplicity_0_4_c_sizeof_rawTransaction"]
     pub static c_sizeof_rawTransaction: c_size_t;
+    #[link_name = "rustsimplicity_0_4_c_sizeof_rawTapEnv"]
     pub static c_sizeof_rawTapEnv: c_size_t;
+    #[link_name = "rustsimplicity_0_4_c_sizeof_txEnv"]
     pub static c_sizeof_txEnv: c_size_t;
 
+    #[link_name = "rustsimplicity_0_4_c_alignof_rawBuffer"]
     pub static c_alignof_rawBuffer: c_size_t;
+    #[link_name = "rustsimplicity_0_4_c_alignof_rawOutput"]
     pub static c_alignof_rawOutput: c_size_t;
+    #[link_name = "rustsimplicity_0_4_c_alignof_rawInput"]
     pub static c_alignof_rawInput: c_size_t;
+    #[link_name = "rustsimplicity_0_4_c_alignof_rawTransaction"]
     pub static c_alignof_rawTransaction: c_size_t;
+    #[link_name = "rustsimplicity_0_4_c_alignof_rawTapEnv"]
     pub static c_alignof_rawTapEnv: c_size_t;
+    #[link_name = "rustsimplicity_0_4_c_alignof_txEnv"]
     pub static c_alignof_txEnv: c_size_t;
 
+    #[link_name = "rustsimplicity_0_4_c_set_rawBuffer"]
     pub fn c_set_rawBuffer(res: *mut CRawBuffer, buf: *const c_uchar, len: c_uint);
+    #[link_name = "rustsimplicity_0_4_c_set_rawOutput"]
     pub fn c_set_rawOutput(
         res: *mut CRawOutput,
         asset: *const c_uchar,
@@ -150,6 +163,7 @@ extern "C" {
         surjectionProof: *const CRawBuffer,
         rangeProof: *const CRawBuffer,
     );
+    #[link_name = "rustsimplicity_0_4_c_set_rawInput"]
     pub fn c_set_rawInput(
         result: *mut CRawInput,
         annex: *const CRawBuffer,
@@ -169,6 +183,7 @@ extern "C" {
         inflationKeysRangePrf: *const CRawBuffer,
     );
 
+    #[link_name = "rustsimplicity_0_4_c_set_rawTransaction"]
     pub fn c_set_rawTransaction(
         result: *mut CRawTransaction,
         version: c_uint,
@@ -179,12 +194,14 @@ extern "C" {
         numOutputs: c_uint,
         lockTime: c_uint,
     );
+    #[link_name = "rustsimplicity_0_4_c_set_rawTapEnv"]
     pub fn c_set_rawTapEnv(
         result: *mut CRawTapEnv,
         controlBlock: *const c_uchar,
         pathLen: c_uchar,
         scriptCMR: *const c_uchar,
     );
+    #[link_name = "rustsimplicity_0_4_c_set_txEnv"]
     pub fn c_set_txEnv(
         result: *mut CElementsTxEnv,
         tx: *const CTransaction,
@@ -192,11 +209,15 @@ extern "C" {
         genesisHash: *const c_uchar,
         ix: c_uint,
     );
+    #[link_name = "rustsimplicity_0_4_elements_mallocTapEnv"]
     pub fn simplicity_elements_mallocTapEnv(rawEnv: *const CRawTapEnv) -> *mut CTapEnv;
+    #[link_name = "rustsimplicity_0_4_elements_mallocTransaction"]
     pub fn simplicity_elements_mallocTransaction(
         rawTx: *const CRawTransaction,
     ) -> *mut CTransaction;
+    #[link_name = "rustsimplicity_0_4_c_free_transaction"]
     pub fn c_free_transaction(tx: *mut CTransaction);
+    #[link_name = "rustsimplicity_0_4_c_free_tapEnv"]
     pub fn c_free_tapEnv(env: *mut CTapEnv);
 }
 impl CElementsTxEnv {

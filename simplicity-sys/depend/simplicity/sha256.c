@@ -120,14 +120,14 @@ static void sha256_compression_portable(uint32_t* s, const uint32_t* chunk) {
     s[7] = 1U * s[7] + h;
 }
 
-void (*simplicity_sha256_compression)(uint32_t* midstate, const uint32_t* block) = sha256_compression_portable;
+void (*rustsimplicity_0_4_sha256_compression)(uint32_t* midstate, const uint32_t* block) = sha256_compression_portable;
 
 /* For information purposes only.
  * Returns true if the sha256_compression implemenation has been optimized for the CPU.
  * Otherwise returns false.
  */
-bool simplicity_sha256_compression_is_optimized(void) {
-  return sha256_compression_portable != simplicity_sha256_compression;
+bool rustsimplicity_0_4_sha256_compression_is_optimized(void) {
+  return sha256_compression_portable != rustsimplicity_0_4_sha256_compression;
 };
 
 /* Given a SHA-256 midstate, 'h', of 'len / 512' blocks, and
@@ -140,12 +140,12 @@ bool simplicity_sha256_compression_is_optimized(void) {
 static void sha256_end(uint32_t* h, uint32_t* block, const uint_fast64_t len) {
   block[len / 32 % 16] |= (uint32_t)1 << (31 - len % 32);
   if (448 <= len % 512) {
-    simplicity_sha256_compression(h, block);
+    rustsimplicity_0_4_sha256_compression(h, block);
     memset(block, 0, sizeof(uint32_t[14]));
   }
   block[14] = (uint32_t)(len >> 32);
   block[15] = (uint32_t)len;
-  simplicity_sha256_compression(h, block);
+  rustsimplicity_0_4_sha256_compression(h, block);
 }
 
 /* Compute the SHA-256 hash, 'h', of the bitstring represented by 's'.
@@ -154,7 +154,7 @@ static void sha256_end(uint32_t* h, uint32_t* block, const uint_fast64_t len) {
  *               '*s' is a valid bitstring;
  *               's->len < 2^64;
  */
-void simplicity_sha256_bitstring(uint32_t* h, const bitstring* s) {
+void rustsimplicity_0_4_sha256_bitstring(uint32_t* h, const bitstring* s) {
   /* This static assert should never fail if uint32_t exists.
    * But for more certainty, we note that the correctness of this implementation depends on CHAR_BIT being no more than 32.
    */
@@ -190,7 +190,7 @@ void simplicity_sha256_bitstring(uint32_t* h, const bitstring* s) {
         /* The next character from s->arr straddles (or almost straddles) the boundary of two elements of the block array. */
         block[count / 32 % 16] |= (uint32_t)((uint_fast32_t)ch >> (count + CHAR_BIT) % 32);
         if (count / 512 != (count + delta) / 512) {
-          simplicity_sha256_compression(h, block);
+          rustsimplicity_0_4_sha256_compression(h, block);
           memset(block, 0, sizeof(uint32_t[16]));
         }
       }
@@ -200,7 +200,7 @@ void simplicity_sha256_bitstring(uint32_t* h, const bitstring* s) {
       count += delta;
     }
   }
-  simplicity_assert(count == s->len);
+  rustsimplicity_0_4_assert(count == s->len);
   sha256_end(h, block, s->len);
 }
 

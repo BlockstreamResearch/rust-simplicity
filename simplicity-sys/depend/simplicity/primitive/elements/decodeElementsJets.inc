@@ -2,11 +2,11 @@
 
 {
   int32_t code;
-  code = simplicity_decodeUptoMaxInt(stream);
+  code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
   if (code < 0) return (simplicity_err)code;
   switch (code) {
     case 1:
-      code = simplicity_decodeUptoMaxInt(stream);
+      code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
       if (code < 0) return (simplicity_err)code;
       switch (code) {
         case 1: *result = SIG_ALL_HASH; return SIMPLICITY_NO_ERROR;
@@ -47,7 +47,7 @@
       }
       break;
     case 2:
-      code = simplicity_decodeUptoMaxInt(stream);
+      code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
       if (code < 0) return (simplicity_err)code;
       switch (code) {
         case 1: *result = CHECK_LOCK_HEIGHT; return SIMPLICITY_NO_ERROR;
@@ -62,7 +62,7 @@
       }
       break;
     case 3:
-      code = simplicity_decodeUptoMaxInt(stream);
+      code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
       if (code < 0) return (simplicity_err)code;
       switch (code) {
         case 1: *result = ISSUANCE; return SIMPLICITY_NO_ERROR;
@@ -77,7 +77,7 @@
       }
       break;
     case 4:
-      code = simplicity_decodeUptoMaxInt(stream);
+      code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
       if (code < 0) return (simplicity_err)code;
       switch (code) {
         case 1: *result = SCRIPT_CMR; return SIMPLICITY_NO_ERROR;

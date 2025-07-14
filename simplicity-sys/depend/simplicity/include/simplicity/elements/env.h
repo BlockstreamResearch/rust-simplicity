@@ -92,11 +92,11 @@ typedef struct transaction transaction;
  *
  * Precondition: NULL != rawTx
  */
-extern transaction* simplicity_elements_mallocTransaction(const rawTransaction* rawTx);
+extern transaction* rustsimplicity_0_4_elements_mallocTransaction(const rawTransaction* rawTx);
 
 /* Free a pointer to 'transaction'.
  */
-extern void simplicity_elements_freeTransaction(transaction* tx);
+extern void rustsimplicity_0_4_elements_freeTransaction(transaction* tx);
 
 /* A structure representing taproot spending data for an Elements transaction.
  *
@@ -118,9 +118,9 @@ typedef struct tapEnv tapEnv;
  *
  * Precondition: *rawEnv is well-formed (i.e. rawEnv->pathLen <= 128.)
  */
-extern tapEnv* simplicity_elements_mallocTapEnv(const rawTapEnv* rawEnv);
+extern tapEnv* rustsimplicity_0_4_elements_mallocTapEnv(const rawTapEnv* rawEnv);
 
 /* Free a pointer to 'tapEnv'.
  */
-extern void simplicity_elements_freeTapEnv(tapEnv* env);
+extern void rustsimplicity_0_4_elements_freeTapEnv(tapEnv* env);
 #endif

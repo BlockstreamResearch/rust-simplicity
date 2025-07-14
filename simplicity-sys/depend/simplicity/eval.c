@@ -130,7 +130,7 @@ static void forward(frameItem* frame, size_t n) {
  * Precondition: n <= frame->offset
  */
 static void backward(frameItem* frame, size_t n) {
-  simplicity_debug_assert(n <= frame->offset);
+  rustsimplicity_0_4_debug_assert(n <= frame->offset);
   frame->offset -= n;
 }
 
@@ -139,7 +139,7 @@ static void backward(frameItem* frame, size_t n) {
  * Precondition: n <= frame->offset
  */
 static void skip(frameItem* frame, size_t n) {
-  simplicity_debug_assert(n <= frame->offset);
+  rustsimplicity_0_4_debug_assert(n <= frame->offset);
   frame->offset -= n;
 }
 
@@ -161,7 +161,7 @@ static void writeValue(frameItem* dst, const bitstring* compactValue, size_t typ
   setTypeBack(cur, type_dag, 0);
   while (cur) {
     if (SUM == type_dag[cur].kind) {
-      simplicity_debug_assert(calling);
+      rustsimplicity_0_4_debug_assert(calling);
 
       /* Write one bit to the write frame and then skip over any padding bits. */
       bool bit = getBit(compactValue, offset);
@@ -178,7 +178,7 @@ static void writeValue(frameItem* dst, const bitstring* compactValue, size_t typ
         calling = false;
       }
     } else {
-      simplicity_debug_assert(PRODUCT == type_dag[cur].kind);
+      rustsimplicity_0_4_debug_assert(PRODUCT == type_dag[cur].kind);
       size_t next;
       if (calling) {
         next = typeSkip(type_dag[cur].typeArg[0], type_dag);
@@ -311,8 +311,8 @@ static simplicity_err runTCO(evalState state, call* stack, const dag_node* dag, 
   while(pc < len) {
     stack[pc].flags |= FLAG_EXEC;
     tag_t tag = dag[pc].tag;
-    simplicity_debug_assert(state.activeReadFrame < state.activeWriteFrame);
-    simplicity_debug_assert(state.activeReadFrame->edge <= state.activeWriteFrame->edge);
+    rustsimplicity_0_4_debug_assert(state.activeReadFrame < state.activeWriteFrame);
+    rustsimplicity_0_4_debug_assert(state.activeReadFrame->edge <= state.activeWriteFrame->edge);
     if (dag[pc].jet) {
       if(!dag[pc].jet(state.activeWriteFrame, *state.activeReadFrame, env)) return SIMPLICITY_ERR_EXEC_JET;
       /* Like IDEN and WITNESS, we want to "fallthrough" to the UNIT case. */
@@ -331,7 +331,7 @@ static simplicity_err runTCO(evalState state, call* stack, const dag_node* dag, 
         pc = dag[pc].child[0];
       } else {
         /* MOVE_FRAME */
-        simplicity_debug_assert(0 == state.activeWriteFrame->offset);
+        rustsimplicity_0_4_debug_assert(0 == state.activeWriteFrame->offset);
         memmove( state.activeReadFrame->edge, state.activeWriteFrame->edge
                , (size_t)((state.activeWriteFrame + 1)->edge - state.activeWriteFrame->edge) * sizeof(UWORD)
                );
@@ -405,7 +405,7 @@ static simplicity_err runTCO(evalState state, call* stack, const dag_node* dag, 
         write32s(state.activeWriteFrame, dag[dag[pc].child[1]].cmr.s, 8);
 
         /* COPY(BITSIZE(A)) */
-        simplicity_copyBits(state.activeWriteFrame, state.activeReadFrame, type_dag[DISCONNECT_A(dag, type_dag, pc)].bitSize);
+        rustsimplicity_0_4_copyBits(state.activeWriteFrame, state.activeReadFrame, type_dag[DISCONNECT_A(dag, type_dag, pc)].bitSize);
 
         if (get_tco_flag(&stack[pc])) {
           /* DROP_FRAME */
@@ -413,7 +413,7 @@ static simplicity_err runTCO(evalState state, call* stack, const dag_node* dag, 
         }
 
         /* MOVE_FRAME */
-        simplicity_debug_assert(0 == state.activeWriteFrame->offset);
+        rustsimplicity_0_4_debug_assert(0 == state.activeWriteFrame->offset);
         memmove( state.activeReadFrame->edge, state.activeWriteFrame->edge
                , (size_t)((state.activeWriteFrame + 1)->edge - state.activeWriteFrame->edge) * sizeof(UWORD)
                );
@@ -432,7 +432,7 @@ static simplicity_err runTCO(evalState state, call* stack, const dag_node* dag, 
         pc = dag[pc].child[0];
       } else {
         /* MOVE_FRAME */
-        simplicity_debug_assert(0 == state.activeWriteFrame->offset);
+        rustsimplicity_0_4_debug_assert(0 == state.activeWriteFrame->offset);
         memmove( state.activeReadFrame->edge, state.activeWriteFrame->edge
                , (size_t)((state.activeWriteFrame + 1)->edge - state.activeWriteFrame->edge) * sizeof(UWORD)
                );
@@ -441,7 +441,7 @@ static simplicity_err runTCO(evalState state, call* stack, const dag_node* dag, 
         state.activeWriteFrame++; state.activeReadFrame++;
 
         /* COPY(BITSIZE(B)) */
-        simplicity_copyBits(state.activeWriteFrame, state.activeReadFrame, type_dag[DISCONNECT_B(dag, type_dag, pc)].bitSize);
+        rustsimplicity_0_4_copyBits(state.activeWriteFrame, state.activeReadFrame, type_dag[DISCONNECT_B(dag, type_dag, pc)].bitSize);
 
         /* FWD(BITSIZE(B)) */
         forward(state.activeReadFrame, type_dag[DISCONNECT_B(dag, type_dag, pc)].bitSize);
@@ -464,7 +464,7 @@ static simplicity_err runTCO(evalState state, call* stack, const dag_node* dag, 
                                  , type_dag[INJ_C(dag, type_dag, pc)].bitSize));
       /*@fallthrough@*/
      case TAKE:
-      simplicity_debug_assert(calling);
+      rustsimplicity_0_4_debug_assert(calling);
       /* TAIL_CALL(dag[pc].child[0], SAME_TCO); */
       stack[dag[pc].child[0]].return_to = stack[pc].return_to;
       set_tco_flag(&stack[dag[pc].child[0]], get_tco_flag(&stack[pc]));
@@ -492,13 +492,13 @@ static simplicity_err runTCO(evalState state, call* stack, const dag_node* dag, 
      case WITNESS:
       if (IDEN == tag) {
         /* COPY(BITSIZE(A)) */
-        simplicity_copyBits(state.activeWriteFrame, state.activeReadFrame, type_dag[IDEN_A(dag, type_dag, pc)].bitSize);
+        rustsimplicity_0_4_copyBits(state.activeWriteFrame, state.activeReadFrame, type_dag[IDEN_A(dag, type_dag, pc)].bitSize);
       } else {
         writeValue(state.activeWriteFrame, &dag[pc].compactValue, dag[pc].targetType, type_dag);
       }
       /*@fallthrough@*/
      case UNIT:
-      simplicity_debug_assert(calling);
+      rustsimplicity_0_4_debug_assert(calling);
       if (get_tco_flag(&stack[pc])) {
         /* DROP_FRAME */
         state.activeReadFrame--;
@@ -514,7 +514,7 @@ static simplicity_err runTCO(evalState state, call* stack, const dag_node* dag, 
       SIMPLICITY_UNREACHABLE;
     }
   }
-  simplicity_assert(pc == len);
+  rustsimplicity_0_4_assert(pc == len);
 
   return SIMPLICITY_NO_ERROR;
 }
@@ -534,7 +534,7 @@ static simplicity_err runTCO(evalState state, call* stack, const dag_node* dag, 
 static simplicity_err antiDos(flags_type checks, const call* stack, const dag_node* dag, size_t len) {
   static_assert(CHECK_EXEC == FLAG_EXEC, "CHECK_EXEC does not match FLAG_EXEC");
   static_assert(CHECK_CASE == (FLAG_CASE_LEFT | FLAG_CASE_RIGHT), "CHECK_CASE does not match FLAG_CASE");
-  simplicity_assert(CHECK_CASE == (checks & CHECK_CASE) || 0 == (checks & CHECK_CASE));
+  rustsimplicity_0_4_assert(CHECK_CASE == (checks & CHECK_CASE) || 0 == (checks & CHECK_CASE));
 
   if (!checks) return SIMPLICITY_NO_ERROR;
 
@@ -586,14 +586,14 @@ typedef struct boundsAnalysis {
  *
  * :TODO: The cost calculations below are estimated and need to be replaced by experimental data.
  */
-simplicity_err simplicity_analyseBounds( ubounded *cellsBound, ubounded *UWORDBound, ubounded *frameBound, ubounded *costBound
+simplicity_err rustsimplicity_0_4_analyseBounds( ubounded *cellsBound, ubounded *UWORDBound, ubounded *frameBound, ubounded *costBound
                             , ubounded maxCells, ubounded maxCost, const dag_node* dag, const type* type_dag, const size_t len) {
   static_assert(DAG_LEN_MAX <= SIZE_MAX / sizeof(boundsAnalysis), "bound array too large.");
   static_assert(1 <= DAG_LEN_MAX, "DAG_LEN_MAX is zero.");
   static_assert(DAG_LEN_MAX - 1 <= UINT32_MAX, "bound array index does not fit in uint32_t.");
-  simplicity_assert(1 <= len);
-  simplicity_assert(len <= DAG_LEN_MAX);
-  boundsAnalysis* bound = simplicity_malloc(len * sizeof(boundsAnalysis));
+  rustsimplicity_0_4_assert(1 <= len);
+  rustsimplicity_0_4_assert(len <= DAG_LEN_MAX);
+  boundsAnalysis* bound = rustsimplicity_0_4_malloc(len * sizeof(boundsAnalysis));
   if (!bound) return SIMPLICITY_ERR_MALLOC;
 
   /* Sum up the total costs.
@@ -748,7 +748,7 @@ simplicity_err simplicity_analyseBounds( ubounded *cellsBound, ubounded *UWORDBo
     *frameBound = bound[len-1].extraFrameBound[0] + 2; /* add the initial input and output frames to the count. */
     *costBound = bound[len-1].cost;
   }
-  simplicity_free(bound);
+  rustsimplicity_0_4_free(bound);
   /* Note that the cellsBound and costBound computations have been clipped at UBOUNDED_MAX.
    * Therefore setting maxCells or maxCost to UBOUNDED_MAX will disable the corresponding error check.
    */
@@ -779,45 +779,45 @@ simplicity_err simplicity_analyseBounds( ubounded *cellsBound, ubounded *UWORDBo
  *               if NULL != budget then *budget <= BUDGET_MAX
  *               if 'dag[len]' represents a Simplicity expression with primitives then 'NULL != env';
  */
-simplicity_err simplicity_evalTCOExpression( flags_type anti_dos_checks, UWORD* output, const UWORD* input
+simplicity_err rustsimplicity_0_4_evalTCOExpression( flags_type anti_dos_checks, UWORD* output, const UWORD* input
                                 , const dag_node* dag, type* type_dag, size_t len, const ubounded* budget, const txEnv* env
                                 ) {
-  simplicity_assert(1 <= len);
-  simplicity_assert(len <= DAG_LEN_MAX);
-  if (budget) { simplicity_assert(*budget <= BUDGET_MAX); }
+  rustsimplicity_0_4_assert(1 <= len);
+  rustsimplicity_0_4_assert(len <= DAG_LEN_MAX);
+  if (budget) { rustsimplicity_0_4_assert(*budget <= BUDGET_MAX); }
   static_assert(1 <= UBOUNDED_MAX, "UBOUNDED_MAX is zero.");
   static_assert(BUDGET_MAX <= (UBOUNDED_MAX - 1) / 1000, "BUDGET_MAX is too large.");
   static_assert(CELLS_MAX < UBOUNDED_MAX, "CELLS_MAX is too large.");
   ubounded cellsBound, UWORDBound, frameBound, costBound;
-  simplicity_err result = simplicity_analyseBounds(&cellsBound, &UWORDBound, &frameBound, &costBound, CELLS_MAX, budget ? *budget*1000 : UBOUNDED_MAX, dag, type_dag, len);
+  simplicity_err result = rustsimplicity_0_4_analyseBounds(&cellsBound, &UWORDBound, &frameBound, &costBound, CELLS_MAX, budget ? *budget*1000 : UBOUNDED_MAX, dag, type_dag, len);
   if (!IS_OK(result)) return result;
 
   /* frameBound is at most 2*len. */
   static_assert(DAG_LEN_MAX <= UBOUNDED_MAX / 2, "2*DAG_LEN_MAX does not fit in size_t.");
-  simplicity_assert(frameBound <= 2*len);
+  rustsimplicity_0_4_assert(frameBound <= 2*len);
 
   /* UWORDBound * UWORD_BIT, the number of bits actually allocacted, is at most the cellBound count plus (worse case) padding bits in each frame. */
   static_assert(1 <= UWORD_BIT, "UWORD_BIT is zero.");
   static_assert(2*DAG_LEN_MAX <= (SIZE_MAX - CELLS_MAX) / (UWORD_BIT - 1), "cellsBound + frameBound*(UWORD_BIT - 1) doesn't fit in size_t.");
-  simplicity_assert(UWORDBound <= (cellsBound + frameBound*(UWORD_BIT - 1)) / UWORD_BIT);
+  rustsimplicity_0_4_assert(UWORDBound <= (cellsBound + frameBound*(UWORD_BIT - 1)) / UWORD_BIT);
 
   /* UWORDBound, is also at most the cellsBound, with an entire UWORD per cell (the rest of the UWORD being padding). */
-  simplicity_assert(UWORDBound <= cellsBound);
+  rustsimplicity_0_4_assert(UWORDBound <= cellsBound);
 
   /* We use calloc for 'cells' because the frame data must be initialized before we can perform bitwise operations. */
   static_assert(CELLS_MAX - 1 <= UINT32_MAX, "cells array index does not fit in uint32_t.");
-  UWORD* cells = simplicity_calloc(UWORDBound ? UWORDBound : 1, sizeof(UWORD));
+  UWORD* cells = rustsimplicity_0_4_calloc(UWORDBound ? UWORDBound : 1, sizeof(UWORD));
   static_assert(2*DAG_LEN_MAX <= SIZE_MAX / sizeof(frameItem), "frames array does not fit in size_t.");
   static_assert(1 <= DAG_LEN_MAX, "DAG_LEN_MAX is zero.");
   static_assert(2*DAG_LEN_MAX - 1 <= UINT32_MAX, "frames array index does not fit in uint32_t.");
-  frameItem* frames = simplicity_malloc(frameBound * sizeof(frameItem));
-  call* stack = simplicity_calloc(len, sizeof(call));
+  frameItem* frames = rustsimplicity_0_4_malloc(frameBound * sizeof(frameItem));
+  call* stack = rustsimplicity_0_4_calloc(len, sizeof(call));
 
   result = cells && frames && stack ? SIMPLICITY_NO_ERROR : SIMPLICITY_ERR_MALLOC;
   if (IS_OK(result)) {
     const ubounded inputSize = type_dag[dag[len-1].sourceType].bitSize;
     const ubounded outputSize = type_dag[dag[len-1].targetType].bitSize;
-    simplicity_assert(NULL != input || 0 == inputSize);
+    rustsimplicity_0_4_assert(NULL != input || 0 == inputSize);
     if (inputSize) memcpy(cells, input, ROUND_UWORD(inputSize) * sizeof(UWORD));
 
     evalState state =
@@ -830,15 +830,15 @@ simplicity_err simplicity_evalTCOExpression( flags_type anti_dos_checks, UWORD* 
     result = runTCO(state, stack, dag, type_dag, len, env);
 
     if (IS_OK(result)) {
-      simplicity_assert(NULL != output || 0 == outputSize);
+      rustsimplicity_0_4_assert(NULL != output || 0 == outputSize);
       if (outputSize) memcpy(output, state.activeWriteFrame->edge, ROUND_UWORD(outputSize) * sizeof(UWORD));
 
       result = antiDos(anti_dos_checks, stack, dag, len);
     }
   }
 
-  simplicity_free(stack);
-  simplicity_free(frames);
-  simplicity_free(cells);
+  rustsimplicity_0_4_free(stack);
+  rustsimplicity_0_4_free(frames);
+  rustsimplicity_0_4_free(cells);
   return result;
 }

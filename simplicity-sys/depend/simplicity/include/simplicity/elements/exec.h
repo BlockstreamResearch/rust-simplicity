@@ -32,7 +32,7 @@
  *               unsigned char program[program_len]
  *               unsigned char witness[witness_len]
  */
-extern bool simplicity_elements_execSimplicity( simplicity_err* error, unsigned char* ihr
+extern bool rustsimplicity_0_4_elements_execSimplicity( simplicity_err* error, unsigned char* ihr
                                               , const transaction* tx, uint_fast32_t ix, const tapEnv* taproot
                                               , const unsigned char* genesisBlockHash
                                               , int64_t budget

@@ -9,7 +9,7 @@
  * Precondition: NULL != ctx;
  *               NULL != conf;
  */
-void simplicity_sha256_confidential(unsigned char evenPrefix, unsigned char oddPrefix, sha256_context* ctx, const confidential* conf) {
+void rustsimplicity_0_4_sha256_confidential(unsigned char evenPrefix, unsigned char oddPrefix, sha256_context* ctx, const confidential* conf) {
   switch (conf->prefix) {
    case NONE: sha256_uchar(ctx, 0x00); return;
    case EXPLICIT: sha256_uchar(ctx, 0x01); break;
@@ -24,8 +24,8 @@ void simplicity_sha256_confidential(unsigned char evenPrefix, unsigned char oddP
  * Precondition: NULL != ctx;
  *               NULL != asset;
  */
-void simplicity_sha256_confAsset(sha256_context* ctx, const confidential* asset) {
-  simplicity_sha256_confidential(0x0a, 0x0b, ctx, asset);
+void rustsimplicity_0_4_sha256_confAsset(sha256_context* ctx, const confidential* asset) {
+  rustsimplicity_0_4_sha256_confidential(0x0a, 0x0b, ctx, asset);
 }
 
 /* Add an 'confidential' nonce to be consumed by an ongoing SHA-256 evaluation.
@@ -33,8 +33,8 @@ void simplicity_sha256_confAsset(sha256_context* ctx, const confidential* asset)
  * Precondition: NULL != ctx;
  *               NULL != nonce;
  */
-void simplicity_sha256_confNonce(sha256_context* ctx, const confidential* nonce) {
-  simplicity_sha256_confidential(0x02, 0x03, ctx, nonce);
+void rustsimplicity_0_4_sha256_confNonce(sha256_context* ctx, const confidential* nonce) {
+  rustsimplicity_0_4_sha256_confidential(0x02, 0x03, ctx, nonce);
 }
 
 /* Add an 'confidential' amount to be consumed by an ongoing SHA-256 evaluation.
@@ -42,7 +42,7 @@ void simplicity_sha256_confNonce(sha256_context* ctx, const confidential* nonce)
  * Precondition: NULL != ctx;
  *               NULL != amt;
  */
-void simplicity_sha256_confAmt(sha256_context* ctx, const confAmount* amt) {
+void rustsimplicity_0_4_sha256_confAmt(sha256_context* ctx, const confAmount* amt) {
   switch (amt->prefix) {
    case NONE: SIMPLICITY_UNREACHABLE;
    case EXPLICIT:
@@ -63,7 +63,7 @@ void simplicity_sha256_confAmt(sha256_context* ctx, const confAmount* amt) {
  * Precondition: NULL != op;
  *               NULL != contract;
  */
-sha256_midstate simplicity_generateIssuanceEntropy(const outpoint* op, const sha256_midstate* contract) {
+sha256_midstate rustsimplicity_0_4_generateIssuanceEntropy(const outpoint* op, const sha256_midstate* contract) {
   uint32_t block[16];
   unsigned char buf[32];
   sha256_midstate result;
@@ -86,7 +86,7 @@ sha256_midstate simplicity_generateIssuanceEntropy(const outpoint* op, const sha
 
   memcpy(&block[8], contract->s, sizeof(contract->s));
   sha256_iv(result.s);
-  simplicity_sha256_compression(result.s, block);
+  rustsimplicity_0_4_sha256_compression(result.s, block);
 
   return result;
 }
@@ -96,13 +96,13 @@ sha256_midstate simplicity_generateIssuanceEntropy(const outpoint* op, const sha
  *
  * Precondition: NULL != entropy;
  */
-sha256_midstate simplicity_calculateAsset(const sha256_midstate* entropy) {
+sha256_midstate rustsimplicity_0_4_calculateAsset(const sha256_midstate* entropy) {
   uint32_t block[16] = {0};
   sha256_midstate result;
 
   memcpy(&block[0], entropy->s, sizeof(entropy->s));
   sha256_iv(result.s);
-  simplicity_sha256_compression(result.s, block);
+  rustsimplicity_0_4_sha256_compression(result.s, block);
 
   return result;
 }
@@ -112,14 +112,14 @@ sha256_midstate simplicity_calculateAsset(const sha256_midstate* entropy) {
  *
  * Precondition: NULL != entropy;
  */
-sha256_midstate simplicity_calculateToken(const sha256_midstate* entropy, confPrefix prefix) {
+sha256_midstate rustsimplicity_0_4_calculateToken(const sha256_midstate* entropy, confPrefix prefix) {
   uint32_t block[16] = {0};
   sha256_midstate result;
 
   memcpy(&block[0], entropy->s, sizeof(entropy->s));
   block[8] = is_confidential(prefix) ? 0x02000000 : 0x01000000;
   sha256_iv(result.s);
-  simplicity_sha256_compression(result.s, block);
+  rustsimplicity_0_4_sha256_compression(result.s, block);
 
   return result;
 }
@@ -130,7 +130,7 @@ sha256_midstate simplicity_calculateToken(const sha256_midstate* entropy, confPr
  *
  * Precondition: NULL != cmr;
  */
-sha256_midstate simplicity_make_tapleaf(unsigned char version, const sha256_midstate* cmr) {
+sha256_midstate rustsimplicity_0_4_make_tapleaf(unsigned char version, const sha256_midstate* cmr) {
   sha256_midstate result;
   sha256_midstate tapleafTag;
   {
@@ -155,7 +155,7 @@ sha256_midstate simplicity_make_tapleaf(unsigned char version, const sha256_mids
  * Precondition: NULL != a;
  *               NULL != b;
  */
-sha256_midstate simplicity_make_tapbranch(const sha256_midstate* a, const sha256_midstate* b) {
+sha256_midstate rustsimplicity_0_4_make_tapbranch(const sha256_midstate* a, const sha256_midstate* b) {
   sha256_midstate result;
   sha256_midstate tapbranchTag;
   {
