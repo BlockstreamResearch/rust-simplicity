@@ -192,7 +192,9 @@ extern "C" {
         genesisHash: *const c_uchar,
         ix: c_uint,
     );
+    #[link_name = "rustsimplicity_0_4_elements_mallocTapEnv"]
     pub fn simplicity_elements_mallocTapEnv(rawEnv: *const CRawTapEnv) -> *mut CTapEnv;
+    #[link_name = "rustsimplicity_0_4_elements_mallocTransaction"]
     pub fn simplicity_elements_mallocTransaction(
         rawTx: *const CRawTransaction,
     ) -> *mut CTransaction;

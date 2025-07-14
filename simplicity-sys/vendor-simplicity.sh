@@ -71,12 +71,30 @@ git ls-files | rsync -av --files-from=- . "$VENDORED_SIM_DIR"
 
 popd
 
-## 3. Patch copied files.
+## 3. Patch things to include versions
+
+# a. patch our own drop/new functions for C structures.
 find "$DEPEND_PATH/.." -name "*.rs" -type f -exec sed -i "s/rust_[0-9_]*_free/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_free/" {} \;
 find "$DEPEND_PATH/.." -name "*.rs" -type f -exec sed -i "s/rust_[0-9_]*_malloc/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_malloc/" {} \;
 find "$DEPEND_PATH/.." -name "*.rs" -type f -exec sed -i "s/rust_[0-9_]*_calloc/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_calloc/" {} \;
 
+# b. patch the rust_{malloc,calloc,free} functions in simplicity_alloc.h
 sed "s/rust_/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_/" \
     < "$DEPEND_PATH/simplicity_alloc.h.patch" \
     | patch "$VENDORED_SIM_DIR/simplicity_alloc.h"
 
+# c. patch every single simplicity_* symbol in the library (every instance except
+#    those in #includes, which is overkill but doesn't hurt anything)
+find "$DEPEND_PATH/simplicity" \( -name "*.[ch]" -o -name '*.inc' \) -type f -print0 | xargs -0 \
+    sed -i "/^#include/! s/simplicity_/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_/g"
+# ...ok, actually we didn't want to replace simplicity_err
+find "$DEPEND_PATH/simplicity" \( -name "*.[ch]" -o -name '*.inc' \) -type f -print0 | xargs -0 \
+    sed -i "s/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_err/simplicity_err/g"
+# Special-case calls in depend/env.c and depend/warpper.h
+sed -i -r "s/rustsimplicity_[0-9]+_[0-9]+_/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_/" \
+    "$DEPEND_PATH/env.c" \
+    "$DEPEND_PATH/wrapper.h"
+
+# d. ...also update the corresponding link_name= entries in the Rust source code
+find "./src/" -name "*.rs" -type f -print0 | xargs -0 \
+    sed -i -r "s/rustsimplicity_[0-9]+_[0-9]+_(.*)([\"\(])/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_\1\2/g"

@@ -76,7 +76,7 @@ static bool applyBinding_cont(unification_var* alpha, binding* bound, unificatio
   }
 
   if (&alpha->bound == bound) {
-    simplicity_assert(false); /* The algorithm should never try to bind an already bound variable to it's own binding. */
+    rustsimplicity_0_4_assert(false); /* The algorithm should never try to bind an already bound variable to it's own binding. */
 
     /* However, if it does happen then just return successfully without pushing any new unification constraints. */
     *cont = (*cont)->next;
@@ -104,7 +104,7 @@ static bool applyBinding_cont(unification_var* alpha, binding* bound, unificatio
                                     , .next = (*cont)->next
                                     };
     (*cont)->next = &(bound->cont);
-    simplicity_assert(0 < *bindings_used);
+    rustsimplicity_0_4_assert(0 < *bindings_used);
     (*bindings_used)--;
   }
   return true;
@@ -401,7 +401,7 @@ static simplicity_err typeInference( unification_arrow* arrow, const dag_node* d
  * Precondition: NULL == var->parent
  */
 static bool isFrozen(unification_var* var) {
-  simplicity_assert(!var->isBound || ONE != var->bound.kind || 0 == var->bound.frozen_ix);
+  rustsimplicity_0_4_assert(!var->isBound || ONE != var->bound.kind || 0 == var->bound.frozen_ix);
   return !var->isBound || ONE == var->bound.kind || var->bound.frozen_ix;
 }
 
@@ -446,7 +446,7 @@ static bool freeze(size_t* result, type* type_dag, size_t* type_dag_used, unific
    * Create a one item stack of unification variables 'var' to be frozen.
    */
   var->next = NULL;
-  simplicity_assert(!var->bound.occursCheck);
+  rustsimplicity_0_4_assert(!var->bound.occursCheck);
   var->bound.occursCheck = true;
 
   /* Attempt to freeze all variables on the stack, pushing new variables onto the stack to recursively freeze them if needed.
@@ -534,7 +534,7 @@ static simplicity_err freezeTypes(type* type_dag, dag_node* dag, unification_arr
     }
   }
 
-  simplicity_computeTypeAnalyses(type_dag, type_dag_used);
+  rustsimplicity_0_4_computeTypeAnalyses(type_dag, type_dag_used);
 
   return SIMPLICITY_NO_ERROR;
 }
@@ -559,21 +559,21 @@ static simplicity_err freezeTypes(type* type_dag, dag_node* dag, unification_arr
  *                     or 'dag' is well-typed with '*type_dag' and without witness values
  *                if the return value is not 'SIMPLICITY_NO_ERROR' then 'NULL == *type_dag'
  */
-simplicity_err simplicity_mallocTypeInference(type** type_dag, dag_node* dag, const uint_fast32_t len, const combinator_counters* census) {
+simplicity_err rustsimplicity_0_4_mallocTypeInference(type** type_dag, dag_node* dag, const uint_fast32_t len, const combinator_counters* census) {
   *type_dag = NULL;
   static_assert(DAG_LEN_MAX <= SIZE_MAX / sizeof(unification_arrow), "arrow array too large.");
   static_assert(1 <= DAG_LEN_MAX, "DAG_LEN_MAX is zero.");
   static_assert(DAG_LEN_MAX - 1 <= UINT32_MAX, "arrow array index does not fit in uint32_t.");
-  simplicity_assert(1 <= len);
-  simplicity_assert(len <= DAG_LEN_MAX);
-  unification_arrow* arrow = simplicity_malloc(len * sizeof(unification_arrow));
+  rustsimplicity_0_4_assert(1 <= len);
+  rustsimplicity_0_4_assert(len <= DAG_LEN_MAX);
+  unification_arrow* arrow = rustsimplicity_0_4_malloc(len * sizeof(unification_arrow));
   unification_var* bound_var = NULL;
   size_t word256_ix, extra_var_start;
-  const size_t orig_bindings_used = simplicity_mallocBoundVars(&bound_var, &word256_ix, &extra_var_start, max_extra_vars(census));
+  const size_t orig_bindings_used = rustsimplicity_0_4_mallocBoundVars(&bound_var, &word256_ix, &extra_var_start, max_extra_vars(census));
   size_t bindings_used = orig_bindings_used;
 
   static_assert(1 <= NUMBER_OF_TYPENAMES_MAX, "NUMBER_OF_TYPENAMES_MAX is zero.");
-  simplicity_assert(orig_bindings_used <= NUMBER_OF_TYPENAMES_MAX - 1);
+  rustsimplicity_0_4_assert(orig_bindings_used <= NUMBER_OF_TYPENAMES_MAX - 1);
 
   simplicity_err result = arrow && bound_var ? SIMPLICITY_NO_ERROR : SIMPLICITY_ERR_MALLOC;
   if (IS_OK(result)) {
@@ -585,19 +585,19 @@ simplicity_err simplicity_mallocTypeInference(type** type_dag, dag_node* dag, co
     static_assert(1 <= TYPE_DAG_LEN_MAX, "TYPE_DAG_LEN_MAX is zero.");
     static_assert(TYPE_DAG_LEN_MAX - 1 <= UINT32_MAX, "type_dag array index does not fit in uint32_t.");
     /* 'bindings_used' is at most 4*len plus the initial value of 'bindings_used' set by 'mallocBoundVars'. */
-    simplicity_assert(bindings_used <= orig_bindings_used + 4*len);
-    *type_dag = simplicity_malloc((1 + bindings_used) * sizeof(type));
+    rustsimplicity_0_4_assert(bindings_used <= orig_bindings_used + 4*len);
+    *type_dag = rustsimplicity_0_4_malloc((1 + bindings_used) * sizeof(type));
     result = *type_dag ? SIMPLICITY_NO_ERROR : SIMPLICITY_ERR_MALLOC;
     if (IS_OK(result)) {
       result = freezeTypes(*type_dag, dag, arrow, len);
     }
     if (!IS_OK(result)) {
-      simplicity_free(*type_dag);
+      rustsimplicity_0_4_free(*type_dag);
       *type_dag = NULL;
     }
   }
 
-  simplicity_free(arrow);
-  simplicity_free(bound_var);
+  rustsimplicity_0_4_free(arrow);
+  rustsimplicity_0_4_free(bound_var);
   return result;
 }

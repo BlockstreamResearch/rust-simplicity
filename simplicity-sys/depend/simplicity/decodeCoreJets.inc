@@ -2,16 +2,16 @@
 
 {
   int32_t code;
-  code = simplicity_decodeUptoMaxInt(stream);
+  code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
   if (code < 0) return (simplicity_err)code;
   switch (code) {
     case 1:
-      code = simplicity_decodeUptoMaxInt(stream);
+      code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
       if (code < 0) return (simplicity_err)code;
       switch (code) {
         case 1: *result = VERIFY; return SIMPLICITY_NO_ERROR;
         case 2:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1: *result = LOW_1; return SIMPLICITY_NO_ERROR;
@@ -22,7 +22,7 @@
           }
           break;
         case 3:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1: *result = HIGH_1; return SIMPLICITY_NO_ERROR;
@@ -33,7 +33,7 @@
           }
           break;
         case 4:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1: *result = COMPLEMENT_1; return SIMPLICITY_NO_ERROR;
@@ -44,7 +44,7 @@
           }
           break;
         case 5:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1: *result = AND_1; return SIMPLICITY_NO_ERROR;
@@ -55,7 +55,7 @@
           }
           break;
         case 6:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1: *result = OR_1; return SIMPLICITY_NO_ERROR;
@@ -66,7 +66,7 @@
           }
           break;
         case 7:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1: *result = XOR_1; return SIMPLICITY_NO_ERROR;
@@ -77,7 +77,7 @@
           }
           break;
         case 8:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1: *result = MAJ_1; return SIMPLICITY_NO_ERROR;
@@ -88,7 +88,7 @@
           }
           break;
         case 9:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1: *result = XOR_XOR_1; return SIMPLICITY_NO_ERROR;
@@ -99,7 +99,7 @@
           }
           break;
         case 10:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1: *result = CH_1; return SIMPLICITY_NO_ERROR;
@@ -110,7 +110,7 @@
           }
           break;
         case 11:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1: *result = SOME_1; return SIMPLICITY_NO_ERROR;
@@ -121,7 +121,7 @@
           }
           break;
         case 12:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = ALL_8; return SIMPLICITY_NO_ERROR;
@@ -131,7 +131,7 @@
           }
           break;
         case 13:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1: *result = EQ_1; return SIMPLICITY_NO_ERROR;
@@ -143,11 +143,11 @@
           }
           break;
         case 14:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 3: *result = FULL_LEFT_SHIFT_8_1; return SIMPLICITY_NO_ERROR;
@@ -157,7 +157,7 @@
               }
               break;
             case 2:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 2: *result = FULL_LEFT_SHIFT_8_2; return SIMPLICITY_NO_ERROR;
@@ -167,7 +167,7 @@
               }
               break;
             case 3:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = FULL_LEFT_SHIFT_8_4; return SIMPLICITY_NO_ERROR;
@@ -177,7 +177,7 @@
               }
               break;
             case 4:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = FULL_LEFT_SHIFT_16_8; return SIMPLICITY_NO_ERROR;
@@ -186,7 +186,7 @@
               }
               break;
             case 5:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = FULL_LEFT_SHIFT_32_16; return SIMPLICITY_NO_ERROR;
@@ -194,7 +194,7 @@
               }
               break;
             case 6:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = FULL_LEFT_SHIFT_64_32; return SIMPLICITY_NO_ERROR;
@@ -203,11 +203,11 @@
           }
           break;
         case 15:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 3: *result = FULL_RIGHT_SHIFT_8_1; return SIMPLICITY_NO_ERROR;
@@ -217,7 +217,7 @@
               }
               break;
             case 2:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 2: *result = FULL_RIGHT_SHIFT_8_2; return SIMPLICITY_NO_ERROR;
@@ -227,7 +227,7 @@
               }
               break;
             case 3:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = FULL_RIGHT_SHIFT_8_4; return SIMPLICITY_NO_ERROR;
@@ -237,7 +237,7 @@
               }
               break;
             case 4:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = FULL_RIGHT_SHIFT_16_8; return SIMPLICITY_NO_ERROR;
@@ -246,7 +246,7 @@
               }
               break;
             case 5:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = FULL_RIGHT_SHIFT_32_16; return SIMPLICITY_NO_ERROR;
@@ -254,7 +254,7 @@
               }
               break;
             case 6:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = FULL_RIGHT_SHIFT_64_32; return SIMPLICITY_NO_ERROR;
@@ -263,11 +263,11 @@
           }
           break;
         case 16:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 3: *result = LEFTMOST_8_1; return SIMPLICITY_NO_ERROR;
@@ -277,7 +277,7 @@
               }
               break;
             case 2:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 2: *result = LEFTMOST_8_2; return SIMPLICITY_NO_ERROR;
@@ -287,7 +287,7 @@
               }
               break;
             case 3:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = LEFTMOST_8_4; return SIMPLICITY_NO_ERROR;
@@ -297,7 +297,7 @@
               }
               break;
             case 4:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = LEFTMOST_16_8; return SIMPLICITY_NO_ERROR;
@@ -306,7 +306,7 @@
               }
               break;
             case 5:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = LEFTMOST_32_16; return SIMPLICITY_NO_ERROR;
@@ -314,7 +314,7 @@
               }
               break;
             case 6:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = LEFTMOST_64_32; return SIMPLICITY_NO_ERROR;
@@ -323,11 +323,11 @@
           }
           break;
         case 17:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 3: *result = RIGHTMOST_8_1; return SIMPLICITY_NO_ERROR;
@@ -337,7 +337,7 @@
               }
               break;
             case 2:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 2: *result = RIGHTMOST_8_2; return SIMPLICITY_NO_ERROR;
@@ -347,7 +347,7 @@
               }
               break;
             case 3:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = RIGHTMOST_8_4; return SIMPLICITY_NO_ERROR;
@@ -357,7 +357,7 @@
               }
               break;
             case 4:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = RIGHTMOST_16_8; return SIMPLICITY_NO_ERROR;
@@ -366,7 +366,7 @@
               }
               break;
             case 5:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = RIGHTMOST_32_16; return SIMPLICITY_NO_ERROR;
@@ -374,7 +374,7 @@
               }
               break;
             case 6:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = RIGHTMOST_64_32; return SIMPLICITY_NO_ERROR;
@@ -383,11 +383,11 @@
           }
           break;
         case 18:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 3: *result = LEFT_PAD_LOW_1_8; return SIMPLICITY_NO_ERROR;
@@ -397,7 +397,7 @@
               }
               break;
             case 4:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = LEFT_PAD_LOW_8_16; return SIMPLICITY_NO_ERROR;
@@ -406,7 +406,7 @@
               }
               break;
             case 5:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = LEFT_PAD_LOW_16_32; return SIMPLICITY_NO_ERROR;
@@ -414,7 +414,7 @@
               }
               break;
             case 6:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = LEFT_PAD_LOW_32_64; return SIMPLICITY_NO_ERROR;
@@ -423,11 +423,11 @@
           }
           break;
         case 19:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 3: *result = LEFT_PAD_HIGH_1_8; return SIMPLICITY_NO_ERROR;
@@ -437,7 +437,7 @@
               }
               break;
             case 4:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = LEFT_PAD_HIGH_8_16; return SIMPLICITY_NO_ERROR;
@@ -446,7 +446,7 @@
               }
               break;
             case 5:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = LEFT_PAD_HIGH_16_32; return SIMPLICITY_NO_ERROR;
@@ -454,7 +454,7 @@
               }
               break;
             case 6:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = LEFT_PAD_HIGH_32_64; return SIMPLICITY_NO_ERROR;
@@ -463,11 +463,11 @@
           }
           break;
         case 20:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 3: *result = LEFT_EXTEND_1_8; return SIMPLICITY_NO_ERROR;
@@ -477,7 +477,7 @@
               }
               break;
             case 4:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = LEFT_EXTEND_8_16; return SIMPLICITY_NO_ERROR;
@@ -486,7 +486,7 @@
               }
               break;
             case 5:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = LEFT_EXTEND_16_32; return SIMPLICITY_NO_ERROR;
@@ -494,7 +494,7 @@
               }
               break;
             case 6:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = LEFT_EXTEND_32_64; return SIMPLICITY_NO_ERROR;
@@ -503,11 +503,11 @@
           }
           break;
         case 21:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 3: *result = RIGHT_PAD_LOW_1_8; return SIMPLICITY_NO_ERROR;
@@ -517,7 +517,7 @@
               }
               break;
             case 4:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = RIGHT_PAD_LOW_8_16; return SIMPLICITY_NO_ERROR;
@@ -526,7 +526,7 @@
               }
               break;
             case 5:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = RIGHT_PAD_LOW_16_32; return SIMPLICITY_NO_ERROR;
@@ -534,7 +534,7 @@
               }
               break;
             case 6:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = RIGHT_PAD_LOW_32_64; return SIMPLICITY_NO_ERROR;
@@ -543,11 +543,11 @@
           }
           break;
         case 22:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 3: *result = RIGHT_PAD_HIGH_1_8; return SIMPLICITY_NO_ERROR;
@@ -557,7 +557,7 @@
               }
               break;
             case 4:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = RIGHT_PAD_HIGH_8_16; return SIMPLICITY_NO_ERROR;
@@ -566,7 +566,7 @@
               }
               break;
             case 5:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = RIGHT_PAD_HIGH_16_32; return SIMPLICITY_NO_ERROR;
@@ -574,7 +574,7 @@
               }
               break;
             case 6:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = RIGHT_PAD_HIGH_32_64; return SIMPLICITY_NO_ERROR;
@@ -583,11 +583,11 @@
           }
           break;
         case 23:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 4:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = RIGHT_EXTEND_8_16; return SIMPLICITY_NO_ERROR;
@@ -596,7 +596,7 @@
               }
               break;
             case 5:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = RIGHT_EXTEND_16_32; return SIMPLICITY_NO_ERROR;
@@ -604,7 +604,7 @@
               }
               break;
             case 6:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = RIGHT_EXTEND_32_64; return SIMPLICITY_NO_ERROR;
@@ -613,7 +613,7 @@
           }
           break;
         case 24:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = LEFT_SHIFT_WITH_8; return SIMPLICITY_NO_ERROR;
@@ -623,7 +623,7 @@
           }
           break;
         case 25:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = RIGHT_SHIFT_WITH_8; return SIMPLICITY_NO_ERROR;
@@ -633,7 +633,7 @@
           }
           break;
         case 26:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = LEFT_SHIFT_8; return SIMPLICITY_NO_ERROR;
@@ -643,7 +643,7 @@
           }
           break;
         case 27:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = RIGHT_SHIFT_8; return SIMPLICITY_NO_ERROR;
@@ -653,7 +653,7 @@
           }
           break;
         case 28:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = LEFT_ROTATE_8; return SIMPLICITY_NO_ERROR;
@@ -663,7 +663,7 @@
           }
           break;
         case 29:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = RIGHT_ROTATE_8; return SIMPLICITY_NO_ERROR;
@@ -675,11 +675,11 @@
       }
       break;
     case 2:
-      code = simplicity_decodeUptoMaxInt(stream);
+      code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
       if (code < 0) return (simplicity_err)code;
       switch (code) {
         case 1:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = ONE_8; return SIMPLICITY_NO_ERROR;
@@ -689,7 +689,7 @@
           }
           break;
         case 2:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = FULL_ADD_8; return SIMPLICITY_NO_ERROR;
@@ -699,7 +699,7 @@
           }
           break;
         case 3:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = ADD_8; return SIMPLICITY_NO_ERROR;
@@ -709,7 +709,7 @@
           }
           break;
         case 4:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = FULL_INCREMENT_8; return SIMPLICITY_NO_ERROR;
@@ -719,7 +719,7 @@
           }
           break;
         case 5:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = INCREMENT_8; return SIMPLICITY_NO_ERROR;
@@ -729,7 +729,7 @@
           }
           break;
         case 7:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = FULL_SUBTRACT_8; return SIMPLICITY_NO_ERROR;
@@ -739,7 +739,7 @@
           }
           break;
         case 8:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = SUBTRACT_8; return SIMPLICITY_NO_ERROR;
@@ -749,7 +749,7 @@
           }
           break;
         case 9:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = NEGATE_8; return SIMPLICITY_NO_ERROR;
@@ -759,7 +759,7 @@
           }
           break;
         case 10:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = FULL_DECREMENT_8; return SIMPLICITY_NO_ERROR;
@@ -769,7 +769,7 @@
           }
           break;
         case 11:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = DECREMENT_8; return SIMPLICITY_NO_ERROR;
@@ -779,7 +779,7 @@
           }
           break;
         case 12:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = FULL_MULTIPLY_8; return SIMPLICITY_NO_ERROR;
@@ -789,7 +789,7 @@
           }
           break;
         case 13:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = MULTIPLY_8; return SIMPLICITY_NO_ERROR;
@@ -799,7 +799,7 @@
           }
           break;
         case 14:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = IS_ZERO_8; return SIMPLICITY_NO_ERROR;
@@ -809,7 +809,7 @@
           }
           break;
         case 15:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = IS_ONE_8; return SIMPLICITY_NO_ERROR;
@@ -819,7 +819,7 @@
           }
           break;
         case 16:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = LE_8; return SIMPLICITY_NO_ERROR;
@@ -829,7 +829,7 @@
           }
           break;
         case 17:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = LT_8; return SIMPLICITY_NO_ERROR;
@@ -839,7 +839,7 @@
           }
           break;
         case 18:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = MIN_8; return SIMPLICITY_NO_ERROR;
@@ -849,7 +849,7 @@
           }
           break;
         case 19:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = MAX_8; return SIMPLICITY_NO_ERROR;
@@ -859,7 +859,7 @@
           }
           break;
         case 20:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = MEDIAN_8; return SIMPLICITY_NO_ERROR;
@@ -869,14 +869,14 @@
           }
           break;
         case 21:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 6: *result = DIV_MOD_128_64; return SIMPLICITY_NO_ERROR;
           }
           break;
         case 22:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = DIV_MOD_8; return SIMPLICITY_NO_ERROR;
@@ -886,7 +886,7 @@
           }
           break;
         case 23:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = DIVIDE_8; return SIMPLICITY_NO_ERROR;
@@ -896,7 +896,7 @@
           }
           break;
         case 24:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = MODULO_8; return SIMPLICITY_NO_ERROR;
@@ -906,7 +906,7 @@
           }
           break;
         case 25:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 3: *result = DIVIDES_8; return SIMPLICITY_NO_ERROR;
@@ -918,17 +918,17 @@
       }
       break;
     case 3:
-      code = simplicity_decodeUptoMaxInt(stream);
+      code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
       if (code < 0) return (simplicity_err)code;
       switch (code) {
         case 1:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1: *result = SHA_256_BLOCK; return SIMPLICITY_NO_ERROR;
             case 2: *result = SHA_256_IV; return SIMPLICITY_NO_ERROR;
             case 3:
-              code = simplicity_decodeUptoMaxInt(stream);
+              code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
               if (code < 0) return (simplicity_err)code;
               switch (code) {
                 case 1: *result = SHA_256_CTX_8_ADD_1; return SIMPLICITY_NO_ERROR;
@@ -951,11 +951,11 @@
       }
       break;
     case 4:
-      code = simplicity_decodeUptoMaxInt(stream);
+      code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
       if (code < 0) return (simplicity_err)code;
       switch (code) {
         case 1:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1: *result = POINT_VERIFY_1; return SIMPLICITY_NO_ERROR;
@@ -963,14 +963,14 @@
           break;
         case 2: *result = DECOMPRESS; return SIMPLICITY_NO_ERROR;
         case 3:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1: *result = LINEAR_VERIFY_1; return SIMPLICITY_NO_ERROR;
           }
           break;
         case 4:
-          code = simplicity_decodeUptoMaxInt(stream);
+          code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
           if (code < 0) return (simplicity_err)code;
           switch (code) {
             case 1: *result = LINEAR_COMBINATION_1; return SIMPLICITY_NO_ERROR;
@@ -1017,7 +1017,7 @@
       }
       break;
     case 5:
-      code = simplicity_decodeUptoMaxInt(stream);
+      code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
       if (code < 0) return (simplicity_err)code;
       switch (code) {
         case 1: *result = CHECK_SIG_VERIFY; return SIMPLICITY_NO_ERROR;
@@ -1025,7 +1025,7 @@
       }
       break;
     case 7:
-      code = simplicity_decodeUptoMaxInt(stream);
+      code = rustsimplicity_0_4_decodeUptoMaxInt(stream);
       if (code < 0) return (simplicity_err)code;
       switch (code) {
         case 1: *result = PARSE_LOCK; return SIMPLICITY_NO_ERROR;
