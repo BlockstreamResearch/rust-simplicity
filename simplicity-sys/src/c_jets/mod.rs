@@ -19,7 +19,10 @@ pub use frame_ffi::CFrameItem;
 // The bindings use elements_ffi instead of jets_ffi.
 pub use jets_ffi as elements_ffi;
 
-use crate::c_jets::c_env::{CRawBuffer, CRawInput, CRawOutput, CRawTapEnv, CRawTransaction};
+use crate::c_jets::c_env::{
+    CElementsRawBuffer, CElementsRawInput, CElementsRawOutput, CElementsRawTapEnv,
+    CElementsRawTransaction,
+};
 
 #[cfg(feature = "test-utils")]
 pub mod exec_ffi;
@@ -38,23 +41,25 @@ pub fn sanity_checks() -> bool {
         }
 
         if std::mem::size_of::<CFrameItem>() != frame_ffi::c_sizeof_frameItem
-            || std::mem::size_of::<CRawBuffer>() != c_env::c_sizeof_rawBuffer
-            || std::mem::size_of::<CRawInput>() != c_env::c_sizeof_rawInput
-            || std::mem::size_of::<CRawOutput>() != c_env::c_sizeof_rawOutput
-            || std::mem::size_of::<CRawTransaction>() != c_env::c_sizeof_rawTransaction
+            || std::mem::size_of::<CElementsRawBuffer>() != c_env::c_sizeof_rawElementsBuffer
+            || std::mem::size_of::<CElementsRawInput>() != c_env::c_sizeof_rawElementsInput
+            || std::mem::size_of::<CElementsRawOutput>() != c_env::c_sizeof_rawElementsOutput
+            || std::mem::size_of::<CElementsRawTransaction>()
+                != c_env::c_sizeof_rawElementsTransaction
             || std::mem::size_of::<CElementsTxEnv>() != c_env::c_sizeof_txEnv
-            || std::mem::size_of::<CRawTapEnv>() != c_env::c_sizeof_rawTapEnv
+            || std::mem::size_of::<CElementsRawTapEnv>() != c_env::c_sizeof_rawElementsTapEnv
         {
             return false;
         }
 
         if std::mem::align_of::<CFrameItem>() != frame_ffi::c_alignof_frameItem
-            || std::mem::align_of::<CRawBuffer>() != c_env::c_alignof_rawBuffer
-            || std::mem::align_of::<CRawInput>() != c_env::c_alignof_rawInput
-            || std::mem::align_of::<CRawOutput>() != c_env::c_alignof_rawOutput
-            || std::mem::align_of::<CRawTransaction>() != c_env::c_alignof_rawTransaction
+            || std::mem::align_of::<CElementsRawBuffer>() != c_env::c_alignof_rawElementsBuffer
+            || std::mem::align_of::<CElementsRawInput>() != c_env::c_alignof_rawElementsInput
+            || std::mem::align_of::<CElementsRawOutput>() != c_env::c_alignof_rawElementsOutput
+            || std::mem::align_of::<CElementsRawTransaction>()
+                != c_env::c_alignof_rawElementsTransaction
             || std::mem::align_of::<CElementsTxEnv>() != c_env::c_alignof_txEnv
-            || std::mem::align_of::<CRawTapEnv>() != c_env::c_alignof_rawTapEnv
+            || std::mem::align_of::<CElementsRawTapEnv>() != c_env::c_alignof_rawElementsTapEnv
         {
             return false;
         }
