@@ -363,7 +363,7 @@ mod tests {
         let iter = BitIter::from(prog);
         match CommitNode::<J>::decode(iter) {
             Ok(prog) => panic!(
-                "Program {} succeded (expected error {}). Program parsed as:\n{}",
+                "Program {} succeded (expected error {}). Program parsed as:\n{:?}",
                 prog_hex, err, prog
             ),
             Err(e) if e.to_string() == err_str => {} // ok

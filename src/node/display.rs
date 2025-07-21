@@ -1,7 +1,70 @@
 use std::fmt;
+use std::sync::OnceLock;
 
-use crate::dag::{Dag, DagLike, InternalSharing, NoSharing};
+use crate::dag::{Dag, DagLike, InternalSharing, MaxSharing, NoSharing};
+use crate::encode;
 use crate::node::{Inner, Marker, Node};
+use crate::BitWriter;
+
+/// Convenience structure for displaying a Simplictiy expression with its
+/// witness.
+pub struct Display<'n, M: Marker> {
+    node: &'n Node<M>,
+    #[cfg_attr(not(feature = "base64"), allow(dead_code))]
+    prog_bytes: OnceLock<Vec<u8>>,
+    wit_bytes: OnceLock<Vec<u8>>,
+}
+
+impl<'n, M: Marker> From<&'n Node<M>> for Display<'n, M> {
+    fn from(node: &'n Node<M>) -> Self {
+        // Because of Rust's lack of specialization we cannot cache the witness data
+        // until we're in a function which is gated on `M: Marker<Witness = Value>`.
+        // So we use `OnceLock` for that.
+        //
+        // While we're at it, use `OnceLock` for the program bytes, since maybe the
+        // user doesn't want the program data (or can't use it due to lack of base64).
+        Self {
+            node,
+            prog_bytes: OnceLock::new(),
+            wit_bytes: OnceLock::new(),
+        }
+    }
+}
+
+impl<'n, M: Marker> Display<'n, M> {
+    /// Display the program in base64.
+    #[cfg(feature = "base64")]
+    pub fn program(&self) -> impl fmt::Display + '_ {
+        use crate::base64::display::Base64Display;
+        use crate::base64::engine::general_purpose;
+
+        let prog_bytes = self
+            .prog_bytes
+            .get_or_init(|| self.node.to_vec_without_witness());
+        Base64Display::new(prog_bytes, &general_purpose::STANDARD)
+    }
+}
+
+impl<'n, M: Marker<Witness = crate::Value>> Display<'n, M> {
+    /// Display the witness data in hex.
+    pub fn witness(&self) -> impl fmt::Display + '_ {
+        use crate::hex::DisplayHex;
+
+        let wit_bytes = self.wit_bytes.get_or_init(|| {
+            let mut wit_v = vec![];
+            let mut witness = BitWriter::new(&mut wit_v);
+            let sharing_iter = self.node.post_order_iter::<MaxSharing<M>>();
+
+            encode::encode_witness(sharing_iter.into_witnesses(), &mut witness)
+                .expect("Vec::write is infallible");
+            witness.flush_all().expect("Vec::write is infallible");
+
+            wit_v
+        });
+
+        wit_bytes.as_hex()
+    }
+}
 
 /// Display a Simplicity expression as a linear string.
 ///

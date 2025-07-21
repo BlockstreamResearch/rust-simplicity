@@ -85,7 +85,7 @@ pub use commit::{Commit, CommitData, CommitNode};
 pub use construct::{Construct, ConstructData, ConstructNode};
 pub use convert::{Converter, Hide, SimpleFinalizer};
 pub use disconnect::{Disconnectable, NoDisconnect};
-use display::DisplayExpr;
+pub use display::{Display, DisplayExpr};
 pub use hiding::Hiding;
 pub use inner::Inner;
 pub use redeem::{Redeem, RedeemData, RedeemNode};
@@ -393,20 +393,25 @@ where
     for<'a> &'a Node<N>: DagLike,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(self, f)
-    }
-}
-
-impl<N: Marker> fmt::Display for Node<N>
-where
-    for<'a> &'a Node<N>: DagLike,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.post_order_iter::<MaxSharing<N>>().into_display(
             f,
             |node, f| fmt::Display::fmt(&node.inner, f),
             |_, _| Ok(()),
         )
+    }
+}
+
+#[cfg(feature = "base64")]
+impl<N: Marker> fmt::Display for Node<N> {
+    /// Displays the program data in base64.
+    ///
+    /// If you need witness data as well, then use [`Node::display`].
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use crate::base64::display::Base64Display;
+        use crate::base64::engine::general_purpose;
+
+        let v = self.to_vec_without_witness();
+        Base64Display::new(&v, &general_purpose::STANDARD).fmt(f)
     }
 }
 
@@ -698,6 +703,10 @@ impl<N: Marker> Node<N> {
             }));
         }
         Ok(converted.pop().unwrap())
+    }
+
+    pub fn display(&self) -> Display<N> {
+        Display::from(self)
     }
 
     /// Display the Simplicity expression as a linear string.

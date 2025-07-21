@@ -644,7 +644,7 @@ mod tests {
         let witness = BitIter::from(witness_bytes);
         match RedeemNode::<J>::decode(prog, witness) {
             Ok(prog) => panic!(
-                "Program {} wit {} succeded (expected error {}). Program parsed as:\n{}",
+                "Program {} wit {} succeded (expected error {}). Program parsed as:\n{:?}",
                 prog_hex, witness_hex, err, prog
             ),
             Err(e) if e.to_string() == err_str => {} // ok

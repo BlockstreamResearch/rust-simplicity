@@ -16,7 +16,6 @@ use simplicity::human_encoding::Forest;
 use simplicity::node::CommitNode;
 use simplicity::{self, BitIter};
 
-use simplicity::base64::display::Base64Display;
 use simplicity::base64::engine::general_purpose::STANDARD;
 use std::str::FromStr;
 use std::{env, fs};
@@ -141,8 +140,7 @@ fn main() -> Result<(), String> {
 
             if let Some(prog) = roots.get("main") {
                 if !error {
-                    let encoded = prog.encode_to_vec();
-                    println!("{}", Base64Display::new(&encoded, &STANDARD));
+                    println!("{}", prog);
                 }
             } else {
                 eprintln!("Expression `main` not found.");
