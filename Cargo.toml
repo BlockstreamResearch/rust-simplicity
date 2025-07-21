@@ -11,6 +11,7 @@ edition = "2021"
 rust-version = "1.78.0"
 
 [features]
+base64 = ["bitcoin/base64"]
 default = ["elements"]
 elements = ["dep:elements", "bitcoin"]
 test-utils = ["simplicity-sys/test-utils"]

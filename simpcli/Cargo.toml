@@ -6,9 +6,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-base64 = "0.21"
 # todo add lexopt for command line parsing
-simplicity-lang = { version = "0.4", path = "..", features = [ "serde", "elements" ] }
+simplicity-lang = { version = "0.4", path = "..", features = [ "base64", "serde", "elements" ] }
 
 [[bin]]
 name = "simpcli"

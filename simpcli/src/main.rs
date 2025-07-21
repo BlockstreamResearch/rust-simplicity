@@ -16,8 +16,8 @@ use simplicity::human_encoding::Forest;
 use simplicity::node::CommitNode;
 use simplicity::{self, BitIter};
 
-use base64::display::Base64Display;
-use base64::engine::general_purpose::STANDARD;
+use simplicity::base64::display::Base64Display;
+use simplicity::base64::engine::general_purpose::STANDARD;
 use std::str::FromStr;
 use std::{env, fs};
 
@@ -149,7 +149,7 @@ fn main() -> Result<(), String> {
             }
         }
         Command::Disassemble => {
-            let v = base64::Engine::decode(&STANDARD, first_arg.as_bytes())
+            let v = simplicity::base64::Engine::decode(&STANDARD, first_arg.as_bytes())
                 .map_err(|e| format!("failed to parse base64: {}", e))?;
             let iter = BitIter::from(v.into_iter());
             let commit =
