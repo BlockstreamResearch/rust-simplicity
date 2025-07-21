@@ -124,7 +124,7 @@ mod tests {
     #[test]
     fn vec() {
         let program = Arc::<ConstructNode<Core>>::unit(&types::Context::new());
-        let _ = write_to_vec(|w| program.encode(w));
+        let _ = write_to_vec(|w| program.encode_without_witness(w));
     }
 
     #[test]

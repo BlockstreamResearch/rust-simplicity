@@ -195,6 +195,7 @@ impl<J: Jet> NamedCommitNode<J> {
     }
 
     /// Encode a Simplicity expression to bits without any witness data
+    #[deprecated(since = "0.5.0", note = "use Self::encode_without_witness instead")]
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
         let program_bits = encode::encode_program(self, w)?;
         w.flush_all()?;
@@ -202,14 +203,14 @@ impl<J: Jet> NamedCommitNode<J> {
     }
 
     /// Encode a Simplicity program to a vector of bytes, without any witness data.
+    #[deprecated(since = "0.5.0", note = "use Self::to_vec_without_witness instead")]
     pub fn encode_to_vec(&self) -> Vec<u8> {
-        let mut program_and_witness_bytes = Vec::<u8>::new();
-        let mut writer = BitWriter::new(&mut program_and_witness_bytes);
-        self.encode(&mut writer)
+        let mut prog = Vec::<u8>::new();
+        self.encode_without_witness(&mut prog)
             .expect("write to vector never fails");
-        debug_assert!(!program_and_witness_bytes.is_empty());
+        debug_assert!(!prog.is_empty());
 
-        program_and_witness_bytes
+        prog
     }
 }
 

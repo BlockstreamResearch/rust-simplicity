@@ -17,7 +17,6 @@ pub extern crate elements;
 #[cfg(feature = "serde")]
 pub extern crate serde;
 
-
 /// Re-export of base64 crate
 #[cfg(feature = "base64")]
 pub use bitcoin::base64;

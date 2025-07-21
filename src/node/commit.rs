@@ -264,6 +264,7 @@ impl<J: Jet> CommitNode<J> {
     }
 
     /// Encode a Simplicity expression to bits without any witness data
+    #[deprecated(since = "0.5.0", note = "use Self::encode_without_witness instead")]
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
         let program_bits = encode::encode_program(self, w)?;
         w.flush_all()?;
@@ -271,10 +272,10 @@ impl<J: Jet> CommitNode<J> {
     }
 
     /// Encode a Simplicity program to a vector of bytes, without any witness data.
+    #[deprecated(since = "0.5.0", note = "use Self::to_vec_without_witness instead")]
     pub fn encode_to_vec(&self) -> Vec<u8> {
         let mut program = Vec::<u8>::new();
-        let mut writer = BitWriter::new(&mut program);
-        self.encode(&mut writer)
+        self.encode_without_witness(&mut program)
             .expect("write to vector never fails");
         debug_assert!(!program.is_empty());
 
@@ -295,6 +296,7 @@ mod tests {
     use crate::node::SimpleFinalizer;
     use crate::{BitMachine, Value};
 
+    #[track_caller]
     fn assert_program_deserializable<J: Jet>(
         prog_str: &str,
         prog_bytes: &[u8],
@@ -316,7 +318,7 @@ mod tests {
         };
 
         let prog_hex = prog_bytes.as_hex();
-        let main_bytes = main.encode_to_vec();
+        let main_bytes = main.to_vec_without_witness();
         assert_eq!(
             prog_bytes,
             main_bytes,
@@ -341,7 +343,7 @@ mod tests {
             prog_hex,
         );
 
-        let reser_sink = prog.encode_to_vec();
+        let reser_sink = prog.to_vec_without_witness();
         assert_eq!(
             prog_bytes,
             &reser_sink[..],
@@ -353,6 +355,7 @@ mod tests {
         prog
     }
 
+    #[track_caller]
     fn assert_program_not_deserializable<J: Jet>(prog: &[u8], err: &dyn fmt::Display) {
         let prog_hex = prog.as_hex();
         let err_str = err.to_string();

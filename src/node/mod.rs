@@ -64,11 +64,12 @@
 //!
 
 use crate::dag::{DagLike, MaxSharing, SharingTracker};
+use crate::encode;
 use crate::jet::Jet;
-use crate::{types, Cmr, FailEntropy, HasCmr, Value};
+use crate::{types, BitWriter, Cmr, FailEntropy, HasCmr, Value};
 
 use std::sync::Arc;
-use std::{fmt, hash};
+use std::{fmt, hash, io};
 
 mod commit;
 mod construct;
@@ -706,12 +707,58 @@ impl<N: Marker> Node<N> {
     pub fn display_expr(&self) -> DisplayExpr<'_, N> {
         DisplayExpr::from(self)
     }
+
+    /// Encode a Simplicity expression to bits without any witness data.
+    pub fn encode_without_witness<W: io::Write>(&self, prog: W) -> io::Result<usize> {
+        let mut w = BitWriter::new(prog);
+        let program_bits = encode::encode_program(self, &mut w)?;
+        w.flush_all()?;
+        Ok(program_bits)
+    }
+
+    /// Encode a Simplicity expression to a vector of bytes, without any witness data.
+    pub fn to_vec_without_witness(&self) -> Vec<u8> {
+        let mut program = Vec::<u8>::new();
+        self.encode_without_witness(&mut program)
+            .expect("Vec::write is infallible");
+        debug_assert!(!program.is_empty());
+        program
+    }
+}
+
+impl<N: Marker<Witness = Value>> Node<N> {
+    /// Encode the program and witness data to bits.
+    ///
+    /// Returns the number of written bits for the program and witness, respectively.
+    pub fn encode_with_witness<W1: io::Write, W2: io::Write>(
+        &self,
+        prog: W1,
+        witness: W2,
+    ) -> io::Result<(usize, usize)> {
+        let mut prog = BitWriter::new(prog);
+        let mut witness = BitWriter::new(witness);
+
+        let sharing_iter = self.post_order_iter::<MaxSharing<N>>();
+        let program_bits = encode::encode_program(self, &mut prog)?;
+        prog.flush_all()?;
+        let witness_bits = encode::encode_witness(sharing_iter.into_witnesses(), &mut witness)?;
+        witness.flush_all()?;
+        Ok((program_bits, witness_bits))
+    }
+
+    /// Encode the program and witness data to byte vectors.
+    pub fn to_vec_with_witness(&self) -> (Vec<u8>, Vec<u8>) {
+        let mut ret_1 = vec![];
+        let mut ret_2 = vec![];
+        self.encode_with_witness(&mut ret_1, &mut ret_2)
+            .expect("Vec::write is infallible");
+        (ret_1, ret_2)
+    }
 }
 
 #[cfg(test)]
 #[cfg(all(feature = "test-utils", feature = "elements"))]
 mod tests {
-
     use ffi::tests::TestData;
 
     use crate::analysis::Cost;

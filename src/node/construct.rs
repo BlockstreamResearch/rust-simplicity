@@ -234,6 +234,7 @@ impl<J: Jet> ConstructNode<J> {
     }
 
     /// Encode a Simplicity expression to bits, with no witness data
+    #[deprecated(since = "0.5.0", note = "use Self::encode_without_witness instead")]
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
         let program_bits = encode::encode_program(self, w)?;
         w.flush_all()?;
@@ -543,7 +544,7 @@ mod tests {
         let c15 = Arc::<ConstructNode<Core>>::comp(&p8, &c14).unwrap();
 
         let finalized: Arc<CommitNode<_>> = c15.finalize_types().unwrap();
-        let prog = finalized.encode_to_vec();
+        let prog = finalized.to_vec_without_witness();
         // In #286 we are encoding correctly...
         assert_eq!(
             hex::DisplayHex::as_hex(&prog).to_string(),

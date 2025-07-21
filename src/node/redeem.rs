@@ -530,6 +530,7 @@ impl<J: Jet> RedeemNode<J> {
     /// Encode the program to bits.
     ///
     /// Includes witness data. Returns the number of written bits.
+    #[deprecated(since = "0.5.0", note = "use Self::encode_with_witness instead")]
     pub fn encode<W1, W2>(
         &self,
         prog: &mut BitWriter<W1>,
@@ -548,14 +549,11 @@ impl<J: Jet> RedeemNode<J> {
     }
 
     /// Encode the program and witness data to byte vectors.
+    #[deprecated(since = "0.5.0", note = "use Self::to_vec_with_witness instead")]
     pub fn encode_to_vec(&self) -> (Vec<u8>, Vec<u8>) {
         let mut ret_1 = vec![];
         let mut ret_2 = vec![];
-        self.encode(
-            &mut BitWriter::new(&mut ret_1),
-            &mut BitWriter::new(&mut ret_2),
-        )
-        .unwrap();
+        self.encode_with_witness(&mut ret_1, &mut ret_2).unwrap();
         (ret_1, ret_2)
     }
 }
@@ -614,7 +612,7 @@ mod tests {
             prog_hex,
         );
 
-        let (reser_prog, reser_witness) = prog.encode_to_vec();
+        let (reser_prog, reser_witness) = prog.to_vec_with_witness();
         assert_eq!(
             prog_bytes,
             &reser_prog[..],
@@ -674,7 +672,7 @@ mod tests {
                 0xDEADBEEF,
             ))))
             .unwrap();
-        let output = eqwits_final.encode_to_vec();
+        let output = eqwits_final.to_vec_with_witness();
 
         assert_eq!(
             output,
