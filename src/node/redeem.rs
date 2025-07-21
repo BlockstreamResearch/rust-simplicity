@@ -569,12 +569,15 @@ mod tests {
     use std::collections::HashMap;
     use std::fmt;
 
+    #[cfg_attr(not(feature = "base64"), allow(unused_variables))]
+    #[track_caller]
     fn assert_program_deserializable<J: Jet>(
         prog_bytes: &[u8],
         witness_bytes: &[u8],
         cmr_str: &str,
         amr_str: &str,
         ihr_str: &str,
+        b64_str: &str,
     ) -> Arc<RedeemNode<J>> {
         let prog_hex = prog_bytes.as_hex();
         let witness_hex = witness_bytes.as_hex();
@@ -628,9 +631,21 @@ mod tests {
             reser_witness.as_hex(),
         );
 
+        #[cfg(feature = "base64")]
+        {
+            let disp = prog.display();
+            assert_eq!(prog.to_string(), b64_str);
+            assert_eq!(disp.program().to_string(), b64_str);
+            assert_eq!(
+                disp.witness().to_string(),
+                witness_bytes.as_hex().to_string()
+            );
+        }
+
         prog
     }
 
+    #[track_caller]
     fn assert_program_not_deserializable<J: Jet>(
         prog_bytes: &[u8],
         witness_bytes: &[u8],
@@ -697,6 +712,7 @@ mod tests {
             "d7969920eff9a1ed0359aaa8545b239c69969e22c304c645a7b49bcc976a40a8",
             "f7acbb077e7661a08384818bc8e3a275ed42ad446252575a35a35f71689fef78",
             "3ce4a6390b4e4bda6330acda4800e66e5d2cae0f5a2888564c706f2b910146b8",
+            "ycRtuIIwEA==",
         );
     }
 
@@ -744,6 +760,7 @@ mod tests {
             "8a54101335ca2cf7e933d74cdb15f99becc4e540799ba5e2d19c00c9d7219e71",
             "74e868bd640c250bc45522085158a9723fc7e277bb16a8d582c4012ebbb1f6f1",
             "39b8f72bd1539de87d26673890603d6548cfc8b68571d996bdf9b1d8b557bd35",
+            "wQAAAQA=",
         );
     }
 
@@ -765,6 +782,7 @@ mod tests {
             "abdd773fc7a503908739b4a63198416fdd470948830cb5a6516b98fe0a3bfa85",
             "1362ee53ae75218ed51dc4bd46cdbfa585f934ac6c6c3ff787e27dce91ccd80b",
             "251c6778129e0f12da3f2388ab30184e815e9d9456b5931e54802a6715d9ca42",
+            "zSQIS29W33fvVt9371bfd+9W33fvVt9371bfd+9W33fvVt93hgGA",
         );
 
 
@@ -783,6 +801,7 @@ mod tests {
             "f6c678dfb180b94567a9d524e05fbc893f6905e0e3db931ff01dc2701e783d4c",
             "212d4fa3dbe2b33db1e11bb6f4cc973be5de0896a3775387a06056483b8feb0f",
             "7a583edcc733b6bba66998110be403ac61fab2d93fc09ba3c84ab2509b538043",
+            "zSUIberb7v3q2+796tvu/erb7v3q2+796tvu/erb7v3q2+70hgGA",
         );
     }
 
@@ -800,6 +819,7 @@ mod tests {
             "afe8f5f8bd3f64bfa51d2f29ffa22523604d9654c0d9862dbf2dc67ba097cbb2",
             "15239708cb7b448cedc6a0b6401dce86ed74084056dd95831928860dd0c3ca67",
             "9cdacb48b16e108ccbd6bcbce459a64056df285c2dc6e02dca6d13c4b1530fb0",
+            "xQIGJBA=",
         );
     }
 
@@ -841,6 +861,7 @@ mod tests {
             "f3cd4537d7ebb201732203195b30b549b8dc0c2c6257b3a0d53bedb08ea02874",
             "107fa80454ed0f2d95d7c18d307912b1497505b98de47198fee23b5018efa544",
             "d52021c638ba742a90bead9b3055efd66091fb50bb131aa8b10eb7c13ef464d1",
+            "02kAAAAAAAAAAAAAADt4zlY/iaDtlBT1qiitDZbWeV+cY0cHAsDijYgQ",
         );
     }
 
@@ -863,6 +884,7 @@ mod tests {
             "b689bdee289c8dd4e2e283358d187813363d441776cf826dafc27cc8a81ec441",
             "3c68660a1afde7982ce4aa9d499ad382bc32f5f9ad894a5e915f76e66303a25b",
             "85313720ee43ae0ee03f88b05e6d9e4494308c6897bdeb3e93b94559c3317484",
+            "yQkgdJBA",
         );
     }
 
@@ -890,6 +912,7 @@ mod tests {
             "8a9e97676b24be7797d9ee0bf32dd76bcd78028e973025f785eae8dc91c8a0da",
             "ec97c8774cb6bfb381fdbbcc8d964380fb3a3b45779322624490d6231ae777a4",
             "ad7c38b16b9129646dc89b52cff144de94a80e383c4983b53de65e3575abcf38",
+            "xtXyYRQDJLGGIJJonwvxOqRTamOQiwbfM2EMA+InecBt8gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4o2MBAA=",
         );
     }
 

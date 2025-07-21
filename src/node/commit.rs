@@ -296,11 +296,13 @@ mod tests {
     use crate::node::SimpleFinalizer;
     use crate::{BitMachine, Value};
 
+    #[cfg_attr(not(feature = "base64"), allow(unused_variables))]
     #[track_caller]
     fn assert_program_deserializable<J: Jet>(
         prog_str: &str,
         prog_bytes: &[u8],
         cmr_str: &str,
+        b64_str: &str,
     ) -> Arc<CommitNode<J>> {
         let forest = match Forest::<J>::parse(prog_str) {
             Ok(forest) => forest,
@@ -351,6 +353,12 @@ mod tests {
             prog_hex,
             reser_sink.as_hex(),
         );
+
+        #[cfg(feature = "base64")]
+        {
+            assert_eq!(prog.to_string(), b64_str);
+            assert_eq!(prog.display().program().to_string(), b64_str);
+        }
 
         prog
     }
@@ -451,6 +459,7 @@ mod tests {
             "main := witness",
             &[0x38],
             "a0fc8debd6796917c86b77aded82e6c61649889ae8f2ed65b57b41aa9d90e375",
+            "OA==",
         );
 
         #[rustfmt::skip]
@@ -494,6 +503,7 @@ mod tests {
                 ],
                 // CMR not checked against C code, since C won't give us any data without witnesses
                 "e9339a0d715c721bff752aedc02710cdf3399f3f8d86e64456e85a1bc06ecb7c",
+                "3O4o5oxBCDgVxiKNtxBGAgA=",
             ),
             // Same program but with each `witness` replaced by `comp iden witness`.
             (
@@ -515,12 +525,13 @@ mod tests {
                 ],
                 // CMR not checked against C code, since C won't give us any data without witnesses
                 "d03bf350f406aef3af0d48e6533b3325ff86f18a36e0e73895a5cd6d6692b860",
+                "4ChwQ4MAq5oxBCDgVxiKNtxBGAg=",
             )
         ];
 
-        for (prog_str, diff1, cmr) in diff1s {
+        for (prog_str, diff1, cmr, b64) in diff1s {
             let diff1_prog = crate::node::commit::tests::assert_program_deserializable::<Core>(
-                prog_str, &diff1, cmr,
+                prog_str, &diff1, cmr, b64,
             );
 
             // Attempt to finalize, providing 32-bit witnesses 0, 1, ..., and then
