@@ -456,7 +456,7 @@ dependencies = [
  "byteorder",
  "elements",
  "getrandom",
- "hex-conservative 0.1.2",
+ "hex-conservative 0.2.1",
  "miniscript",
  "santiago",
  "serde",
