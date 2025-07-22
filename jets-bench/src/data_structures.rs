@@ -9,7 +9,7 @@ use simplicity::{
     hashes::Hash,
     hex::FromHex,
     types::Final,
-    BitIter, Error, Value,
+    BitIter, EarlyEndOfStreamError, Value,
 };
 
 /// Engine to compute SHA256 hash function.
@@ -54,7 +54,7 @@ impl SimplicityCtx8 {
 /// # Panics:
 ///
 /// Panics if the length of the slice is >= 2^(n + 1) bytes
-pub fn var_len_buf_from_slice(v: &[u8], mut n: usize) -> Result<Value, Error> {
+pub fn var_len_buf_from_slice(v: &[u8], mut n: usize) -> Result<Value, EarlyEndOfStreamError> {
     // Simplicity consensus rule for n < 16 while reading buffers.
     assert!(n < 16);
     assert!(v.len() < (1 << (n + 1)));

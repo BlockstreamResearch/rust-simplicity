@@ -4,7 +4,7 @@ use crate::dag::{DagLike, MaxSharing, NoSharing, PostOrderIterItem};
 use crate::jet::Jet;
 use crate::types::arrow::{Arrow, FinalArrow};
 use crate::{encode, types, Value};
-use crate::{Amr, BitIter, BitWriter, Cmr, Error, Ihr, Imr};
+use crate::{Amr, BitIter, BitWriter, Cmr, DecodeError, Ihr, Imr};
 
 use super::{
     Construct, ConstructData, ConstructNode, Constructible, Converter, Inner, Marker, NoDisconnect,
@@ -248,15 +248,17 @@ impl<J: Jet> CommitNode<J> {
     /// or the witness is provided by other means.
     ///
     /// If the serialization contains the witness data, then use [`RedeemNode::decode()`].
-    pub fn decode<I: Iterator<Item = u8>>(bits: BitIter<I>) -> Result<Arc<Self>, Error> {
+    pub fn decode<I: Iterator<Item = u8>>(bits: BitIter<I>) -> Result<Arc<Self>, DecodeError> {
+        use crate::decode;
+
         // 1. Decode program with out witnesses.
-        let construct = crate::ConstructNode::decode(bits)?;
-        let program = construct.finalize_types()?;
+        let construct = crate::ConstructNode::decode(bits).map_err(DecodeError::Decode)?;
+        let program = construct.finalize_types().map_err(DecodeError::Type)?;
         // 2. Do sharing check, using incomplete IHRs
         if program.as_ref().is_shared_as::<MaxSharing<Commit<J>>>() {
             Ok(program)
         } else {
-            Err(Error::Decode(crate::decode::Error::SharingNotMaximal))
+            Err(DecodeError::Decode(decode::Error::SharingNotMaximal))
         }
     }
 

@@ -6,7 +6,7 @@ use crate::dag::{DagLike, InternalSharing, MaxSharing, PostOrderIterItem};
 use crate::jet::Jet;
 use crate::types::{self, arrow::FinalArrow};
 use crate::{encode, BitMachine};
-use crate::{Amr, BitIter, BitWriter, Cmr, Error, Ihr, Imr, Value};
+use crate::{Amr, BitIter, BitWriter, Cmr, DecodeError, Ihr, Imr, Value};
 
 use super::{
     Commit, CommitData, CommitNode, Construct, ConstructData, ConstructNode, Constructible,
@@ -440,7 +440,7 @@ impl<J: Jet> RedeemNode<J> {
     pub fn decode<I1, I2>(
         program: BitIter<I1>,
         mut witness: BitIter<I2>,
-    ) -> Result<Arc<Self>, Error>
+    ) -> Result<Arc<Self>, DecodeError>
     where
         I1: Iterator<Item = u8>,
         I2: Iterator<Item = u8>,
@@ -454,15 +454,17 @@ impl<J: Jet> RedeemNode<J> {
         impl<J: Jet, I: Iterator<Item = u8>> Converter<Construct<J>, Redeem<J>>
             for DecodeFinalizer<'_, J, I>
         {
-            type Error = Error;
+            type Error = DecodeError;
             fn convert_witness(
                 &mut self,
                 data: &PostOrderIterItem<&ConstructNode<J>>,
                 _: &Option<Value>,
             ) -> Result<Value, Self::Error> {
                 let arrow = data.node.data.arrow();
-                let target_ty = arrow.target.finalize()?;
-                Value::from_compact_bits(self.bits, &target_ty).map_err(Error::from)
+                let target_ty = arrow.target.finalize().map_err(DecodeError::Type)?;
+                Value::from_compact_bits(self.bits, &target_ty)
+                    .map_err(crate::decode::Error::from)
+                    .map_err(DecodeError::Decode)
             }
 
             fn convert_disconnect(
@@ -474,7 +476,7 @@ impl<J: Jet> RedeemNode<J> {
                 if let Some(child) = right {
                     Ok(Arc::clone(child))
                 } else {
-                    Err(Error::DisconnectRedeemTime)
+                    Err(DecodeError::DisconnectRedeemTime)
                 }
             }
 
@@ -483,7 +485,12 @@ impl<J: Jet> RedeemNode<J> {
                 data: &PostOrderIterItem<&ConstructNode<J>>,
                 inner: Inner<&Arc<RedeemNode<J>>, J, &Arc<RedeemNode<J>>, &Value>,
             ) -> Result<Arc<RedeemData<J>>, Self::Error> {
-                let arrow = data.node.data.arrow().finalize()?;
+                let arrow = data
+                    .node
+                    .data
+                    .arrow()
+                    .finalize()
+                    .map_err(DecodeError::Type)?;
                 let converted_data = inner
                     .map(|node| node.cached_data())
                     .map_disconnect(|node| node.cached_data())
@@ -493,8 +500,10 @@ impl<J: Jet> RedeemNode<J> {
         }
 
         // 1. Decode program without witnesses as ConstructNode
-        let construct = crate::ConstructNode::decode(program)?;
-        construct.set_arrow_to_program()?;
+        let construct = crate::ConstructNode::decode(program).map_err(DecodeError::Decode)?;
+        construct
+            .set_arrow_to_program()
+            .map_err(DecodeError::Type)?;
 
         // Importantly, we  use `InternalSharing` here to make sure that we respect
         // the sharing choices that were actually encoded in the bitstream.
@@ -508,7 +517,7 @@ impl<J: Jet> RedeemNode<J> {
         witness
             .close()
             .map_err(crate::decode::Error::BitIter)
-            .map_err(Error::Decode)?;
+            .map_err(DecodeError::Decode)?;
 
         // 4. Check sharing
         // This loop is equivalent to using `program.is_shared_as::<MaxSharing>()`
@@ -516,7 +525,7 @@ impl<J: Jet> RedeemNode<J> {
         let mut ihrs: HashSet<Ihr> = HashSet::new();
         for data in program.as_ref().post_order_iter::<InternalSharing>() {
             if !ihrs.insert(data.node.ihr()) {
-                return Err(Error::Decode(crate::decode::Error::SharingNotMaximal));
+                return Err(DecodeError::Decode(crate::decode::Error::SharingNotMaximal));
             }
         }
 
@@ -722,7 +731,7 @@ mod tests {
         assert_program_not_deserializable::<Core>(
             &[0xc1, 0x08, 0x04, 0x00],
             &[],
-            &Error::Decode(crate::decode::Error::SharingNotMaximal),
+            &DecodeError::Decode(crate::decode::Error::SharingNotMaximal),
         );
     }
 
@@ -732,7 +741,7 @@ mod tests {
         let prog = BitIter::from(&[0x24][..]);
         let wit = BitIter::from(&[0x00][..]);
         match RedeemNode::<Core>::decode(prog, wit) {
-            Err(Error::Decode(crate::decode::Error::BitIter(
+            Err(DecodeError::Decode(crate::decode::Error::BitIter(
                 crate::BitIterCloseError::TrailingBytes { first_byte: 0 },
             ))) => {} // ok,
             Err(e) => panic!("got incorrect error {e}"),

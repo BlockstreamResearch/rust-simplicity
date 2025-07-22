@@ -3,7 +3,7 @@
 use crate::dag::{InternalSharing, PostOrderIterItem};
 use crate::jet::Jet;
 use crate::types::{self, arrow::Arrow};
-use crate::{encode, BitIter, BitWriter, Cmr, FailEntropy, RedeemNode, Value, Word};
+use crate::{encode, BitIter, BitWriter, Cmr, FailEntropy, FinalizeError, RedeemNode, Value, Word};
 
 use std::io;
 use std::marker::PhantomData;
@@ -73,7 +73,7 @@ impl<J: Jet> ConstructNode<J> {
     /// certainly what you want, since the resulting `CommitNode` cannot be further
     /// composed, and needs to be 1->1 to go on-chain. But if you don't, call
     /// [`Self::finalize_types_non_program`] instead.
-    pub fn finalize_types(&self) -> Result<Arc<CommitNode<J>>, crate::Error> {
+    pub fn finalize_types(&self) -> Result<Arc<CommitNode<J>>, types::Error> {
         self.set_arrow_to_program()?;
         self.finalize_types_non_program()
     }
@@ -81,11 +81,12 @@ impl<J: Jet> ConstructNode<J> {
     /// Convert a [`ConstructNode`] to a [`CommitNode`] by finalizing all of the types.
     ///
     /// Does *not* sets the source and target type of this node to unit.
-    pub fn finalize_types_non_program(&self) -> Result<Arc<CommitNode<J>>, crate::Error> {
+    pub fn finalize_types_non_program(&self) -> Result<Arc<CommitNode<J>>, types::Error> {
         struct FinalizeTypes<J: Jet>(PhantomData<J>);
 
         impl<J: Jet> Converter<Construct<J>, Commit<J>> for FinalizeTypes<J> {
-            type Error = crate::Error;
+            type Error = types::Error;
+
             fn convert_witness(
                 &mut self,
                 _: &PostOrderIterItem<&ConstructNode<J>>,
@@ -109,9 +110,7 @@ impl<J: Jet> ConstructNode<J> {
                 inner: Inner<&Arc<CommitNode<J>>, J, &NoDisconnect, &NoWitness>,
             ) -> Result<Arc<CommitData<J>>, Self::Error> {
                 let converted_data = inner.map(|node| node.cached_data());
-                CommitData::new(&data.node.data.arrow, converted_data)
-                    .map(Arc::new)
-                    .map_err(crate::Error::from)
+                CommitData::new(&data.node.data.arrow, converted_data).map(Arc::new)
             }
         }
 
@@ -130,11 +129,11 @@ impl<J: Jet> ConstructNode<J> {
     /// ## See
     ///
     /// [`RedeemNode::prune`]
-    pub fn finalize_unpruned(&self) -> Result<Arc<RedeemNode<J>>, crate::Error> {
+    pub fn finalize_unpruned(&self) -> Result<Arc<RedeemNode<J>>, FinalizeError> {
         struct Finalizer<J>(PhantomData<J>);
 
         impl<J: Jet> Converter<Construct<J>, Redeem<J>> for Finalizer<J> {
-            type Error = crate::Error;
+            type Error = FinalizeError;
 
             fn convert_witness(
                 &mut self,
@@ -159,7 +158,12 @@ impl<J: Jet> ConstructNode<J> {
                     // didn't provide any witness data. However, this is only the case for the
                     // most trivial programs. The only place where we must be careful is our
                     // unit tests, which tend to include these kinds of trivial programs.
-                    let ty = data.node.arrow().target.finalize()?;
+                    let ty = data
+                        .node
+                        .arrow()
+                        .target
+                        .finalize()
+                        .map_err(FinalizeError::Type)?;
                     Ok(Value::zero(&ty))
                 }
             }
@@ -173,7 +177,7 @@ impl<J: Jet> ConstructNode<J> {
                 if let Some(child) = maybe_converted {
                     Ok(Arc::clone(child))
                 } else {
-                    Err(crate::Error::DisconnectRedeemTime)
+                    Err(FinalizeError::DisconnectRedeemTime)
                 }
             }
 
@@ -187,7 +191,7 @@ impl<J: Jet> ConstructNode<J> {
                     .map_disconnect(|node| node.cached_data())
                     .map_witness(Value::shallow_clone);
                 Ok(Arc::new(RedeemData::new(
-                    data.node.arrow().finalize()?,
+                    data.node.arrow().finalize().map_err(FinalizeError::Type)?,
                     converted_data,
                 )))
             }
@@ -211,9 +215,9 @@ impl<J: Jet> ConstructNode<J> {
     pub fn finalize_pruned(
         &self,
         env: &J::Environment,
-    ) -> Result<Arc<RedeemNode<J>>, crate::Error> {
+    ) -> Result<Arc<RedeemNode<J>>, FinalizeError> {
         let unpruned = self.finalize_unpruned()?;
-        unpruned.prune(env).map_err(crate::Error::Execution)
+        unpruned.prune(env).map_err(FinalizeError::Execution)
     }
 
     /// Decode a Simplicity expression from bits, without witness data.
@@ -409,7 +413,7 @@ mod tests {
 
         assert!(matches!(
             node.finalize_types_non_program(),
-            Err(crate::Error::Type(types::Error::OccursCheck { .. })),
+            Err(types::Error::OccursCheck { .. }),
         ));
     }
 
@@ -430,7 +434,7 @@ mod tests {
 
         assert!(matches!(
             comp2.finalize_types_non_program(),
-            Err(crate::Error::Type(types::Error::OccursCheck { .. })),
+            Err(types::Error::OccursCheck { .. }),
         ));
     }
 
@@ -458,7 +462,7 @@ mod tests {
 
         assert!(matches!(
             comp8.finalize_types_non_program(),
-            Err(crate::Error::Type(types::Error::OccursCheck { .. })),
+            Err(types::Error::OccursCheck { .. }),
         ));
     }
 
@@ -560,9 +564,6 @@ mod tests {
 
     #[test]
     fn regression_286_2() {
-        use crate::types::Error as TypeError;
-        use crate::Error;
-
         // This one is smaller because it starts with a witness node which has a large type.
         // This is a bit easier to grok but can't be serialized as a complete/valid program
         // without providing the witness data, which limits its ability to share with the
@@ -586,6 +587,6 @@ mod tests {
 
         // In #286 we incorrectly succeed finalizing the types, and then encode a bad program.
         let err = c10.finalize_types().unwrap_err();
-        assert!(matches!(err, Error::Type(TypeError::OccursCheck { .. })));
+        assert!(matches!(err, types::Error::OccursCheck { .. }));
     }
 }
