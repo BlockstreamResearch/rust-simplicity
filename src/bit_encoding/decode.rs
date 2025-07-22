@@ -390,96 +390,93 @@ mod tests {
 
     #[test]
     fn decode_fixed_natural() {
-        let tries = vec![
-            (1, vec![false]),
-            (2, vec![true, false, false]),
-            (3, vec![true, false, true]),
-            (4, vec![true, true, false, false, false, false]),
-            (5, vec![true, true, false, false, false, true]),
-            (6, vec![true, true, false, false, true, false]),
-            (7, vec![true, true, false, false, true, true]),
-            (8, vec![true, true, false, true, false, false, false]),
-            (15, vec![true, true, false, true, true, true, true]),
-            (
-                16,
-                vec![
-                    true, true, true, false, // len: 1
-                    false, // len: 2
-                    false, false, // len: 4
-                    false, false, false, false,
-                ],
-            ),
+        let tries: Vec<(usize, usize, &[u8])> = vec![
+            (1, 1, &[0b00000000]),
+            (2, 3, &[0b10000000]),
+            (3, 3, &[0b10100000]),
+            (4, 6, &[0b11_000000]),
+            (5, 6, &[0b11_000100]),
+            (6, 6, &[0b11_001000]),
+            (7, 6, &[0b11_001100]),
+            (8, 7, &[0b110_10000]),
+            (15, 7, &[0b110_11110]),
+            (16, 11, &[0b11100000, 0b00000000]),
             // 31
-            (
-                31,
-                vec![
-                    true, true, true, false, // len: 1
-                    false, // len: 2
-                    false, false, // len: 4
-                    true, true, true, true,
-                ],
-            ),
+            (31, 11, &[0b11100001, 0b11100000]),
             // 32
-            (
-                32,
-                vec![
-                    true, true, true, false, // len: 1
-                    false, // len: 2
-                    false, true, // len: 5
-                    false, false, false, false, false,
-                ],
-            ),
+            (32, 12, &[0b11100010, 0b00000000]),
             // 2^15
+            (32768, 23, &[0b11101111, 0b00000000, 0b00000000]),
+            (65535, 23, &[0b11101111, 0b11111111, 0b11111110]),
+            (65536, 28, &[0b11110000, 0b00000000, 0b00000000, 0b00000000]),
             (
-                32768,
-                vec![
-                    true, true, true, false, // len: 1
-                    true,  // len: 3
-                    true, true, true, // len: 15
-                    false, false, false, false, false, false, false, false, false, false, false,
-                    false, false, false, false,
+                u32::MAX as usize - 1, // cast ok, in unit test
+                43,
+                &[
+                    0b11110000, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11000000,
                 ],
             ),
             (
-                65535,
-                vec![
-                    true, true, true, false, // len: 1
-                    true,  // len: 3
-                    true, true, true, // len: 15
-                    true, true, true, true, true, true, true, true, true, true, true, true, true,
-                    true, true,
-                ],
-            ),
-            (
-                65536,
-                vec![
-                    true, true, true, true, false, // len: 1
-                    false, // len: 2
-                    false, false, // len: 4
-                    false, false, false, false, // len: 16
-                    false, false, false, false, false, false, false, false, false, false, false,
-                    false, false, false, false, false,
+                u32::MAX as usize, // cast ok, in unit test
+                43,
+                &[
+                    0b11110000, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11100000,
                 ],
             ),
         ];
 
-        for (natural, bitvec) in tries {
-            let truncated = bitvec[0..bitvec.len() - 1].to_vec();
+        for (natural, len, bitvec) in tries {
+            let mut iter = BitIter::new(bitvec.iter().copied());
+
+            // Truncating the iterator causes a clean failure.
+            let mut truncated = iter.clone().take(bitvec.len() - 1);
             assert!(matches!(
-                decode_natural(&mut truncated.into_iter(), None),
+                decode_natural(&mut truncated, None),
                 Err(Error::EndOfStream)
             ));
 
+            // Test decoding under various bounds
+            assert_eq!(decode_natural(&mut iter.clone(), None).unwrap(), natural,);
+            assert_eq!(
+                decode_natural(&mut iter.clone(), Some(natural)).unwrap(),
+                natural,
+            );
+            assert_eq!(
+                decode_natural(&mut iter.clone(), Some(natural + 1)).unwrap(),
+                natural,
+            );
+            assert!(matches!(
+                decode_natural(&mut iter, Some(natural - 1)),
+                Err(Error::BadIndex)
+            ));
+            assert!(matches!(
+                decode_natural(&mut iter, Some(0)),
+                Err(Error::BadIndex)
+            ));
+
+            // Attempt to re-encode.
             let mut sink = Vec::<u8>::new();
 
             let mut w = BitWriter::from(&mut sink);
             encode::encode_natural(natural, &mut w).expect("encoding to vector");
             w.flush_all().expect("flushing");
-            assert_eq!(w.n_total_written(), bitvec.len());
+            assert_eq!(w.n_total_written(), len);
 
-            let decoded_natural = decode_natural(&mut BitIter::from(sink.into_iter()), None)
-                .expect("decoding from vector");
-            assert_eq!(natural, decoded_natural);
+            assert_eq!(sink, bitvec);
         }
+
+        // Test u32::MAX + 1 separately. This should always return an overflow and
+        // never succeed or panic. Just hammer it with a bunch of different types
+        // and call patterns.
+        let iter = BitIter::new(
+            [
+                0b11110001, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
+            ]
+            .into_iter(),
+        );
+        assert!(matches!(
+            iter.clone().read_natural(None),
+            Err(Error::NaturalOverflow),
+        ));
     }
 }

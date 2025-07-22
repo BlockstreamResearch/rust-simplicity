@@ -82,7 +82,7 @@ impl From<u2> for u8 {
 
 /// Bitwise iterator formed from a wrapped bytewise iterator. Bytes are
 /// interpreted big-endian, i.e. MSB is returned first
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BitIter<I: Iterator<Item = u8>> {
     /// Byte iterator
     iter: I,
