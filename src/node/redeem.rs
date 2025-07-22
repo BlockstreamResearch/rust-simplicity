@@ -438,7 +438,7 @@ impl<J: Jet> RedeemNode<J> {
 
     /// Decode a Simplicity program from bits, including the witness data.
     pub fn decode<I1, I2>(
-        mut program: BitIter<I1>,
+        program: BitIter<I1>,
         mut witness: BitIter<I2>,
     ) -> Result<Arc<Self>, Error>
     where
@@ -493,11 +493,7 @@ impl<J: Jet> RedeemNode<J> {
         }
 
         // 1. Decode program without witnesses as ConstructNode
-        let construct = crate::decode::decode_expression(&mut program)?;
-        program
-            .close()
-            .map_err(crate::decode::Error::BitIter)
-            .map_err(Error::Decode)?;
+        let construct = crate::ConstructNode::decode(program)?;
         construct.set_arrow_to_program()?;
 
         // Importantly, we  use `InternalSharing` here to make sure that we respect

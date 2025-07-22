@@ -248,12 +248,9 @@ impl<J: Jet> CommitNode<J> {
     /// or the witness is provided by other means.
     ///
     /// If the serialization contains the witness data, then use [`RedeemNode::decode()`].
-    pub fn decode<I: Iterator<Item = u8>>(mut bits: BitIter<I>) -> Result<Arc<Self>, Error> {
+    pub fn decode<I: Iterator<Item = u8>>(bits: BitIter<I>) -> Result<Arc<Self>, Error> {
         // 1. Decode program with out witnesses.
-        let construct = crate::decode::decode_expression(&mut bits)?;
-        bits.close()
-            .map_err(crate::decode::Error::BitIter)
-            .map_err(Error::Decode)?;
+        let construct = crate::ConstructNode::decode(bits)?;
         let program = construct.finalize_types()?;
         // 2. Do sharing check, using incomplete IHRs
         if program.as_ref().is_shared_as::<MaxSharing<Commit<J>>>() {
