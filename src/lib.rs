@@ -113,6 +113,41 @@ impl std::error::Error for DecodeError {
     }
 }
 
+/// Error parsing a program or witness (decoding it from a string encoding).
+#[non_exhaustive]
+#[derive(Debug)]
+pub enum ParseError {
+    /// Bit-encoding error.
+    Decode(DecodeError),
+    /// Base64 decoding error
+    #[cfg(feature = "base64")]
+    Base64(base64::DecodeError),
+    /// Hex decoding error
+    Hex(hex::error::HexToBytesError),
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Decode(ref e) => e.fmt(f),
+            #[cfg(feature = "base64")]
+            Self::Base64(ref e) => e.fmt(f),
+            Self::Hex(ref e) => e.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for ParseError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Decode(ref e) => Some(e),
+            #[cfg(feature = "base64")]
+            Self::Base64(ref e) => Some(e),
+            Self::Hex(ref e) => Some(e),
+        }
+    }
+}
+
 /// Error finalizing a program (i.e. typechecking and pruning).
 #[non_exhaustive]
 #[derive(Debug)]

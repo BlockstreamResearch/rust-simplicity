@@ -237,6 +237,21 @@ impl<J: Jet> ConstructNode<J> {
         Ok(res)
     }
 
+    #[cfg(feature = "base64")]
+    #[allow(clippy::should_implement_trait)] // returns Arc<Self>
+    pub fn from_str(s: &str) -> Result<Arc<Self>, crate::ParseError> {
+        use crate::base64::engine::general_purpose;
+        use crate::base64::Engine as _;
+
+        let v = general_purpose::STANDARD
+            .decode(s)
+            .map_err(crate::ParseError::Base64)?;
+        let iter = crate::BitIter::new(v.into_iter());
+        Self::decode(iter)
+            .map_err(crate::DecodeError::Decode)
+            .map_err(crate::ParseError::Decode)
+    }
+
     /// Encode a Simplicity expression to bits, with no witness data
     #[deprecated(since = "0.5.0", note = "use Self::encode_without_witness instead")]
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {

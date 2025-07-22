@@ -262,6 +262,19 @@ impl<J: Jet> CommitNode<J> {
         }
     }
 
+    #[cfg(feature = "base64")]
+    #[allow(clippy::should_implement_trait)] // returns Arc<Self>
+    pub fn from_str(s: &str) -> Result<Arc<Self>, crate::ParseError> {
+        use crate::base64::engine::general_purpose;
+        use crate::base64::Engine as _;
+
+        let v = general_purpose::STANDARD
+            .decode(s)
+            .map_err(crate::ParseError::Base64)?;
+        let iter = crate::BitIter::new(v.into_iter());
+        Self::decode(iter).map_err(crate::ParseError::Decode)
+    }
+
     /// Encode a Simplicity expression to bits without any witness data
     #[deprecated(since = "0.5.0", note = "use Self::encode_without_witness instead")]
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
@@ -357,6 +370,7 @@ mod tests {
         {
             assert_eq!(prog.to_string(), b64_str);
             assert_eq!(prog.display().program().to_string(), b64_str);
+            assert_eq!(prog, CommitNode::from_str(b64_str).unwrap());
         }
 
         prog

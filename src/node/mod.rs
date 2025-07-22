@@ -125,6 +125,12 @@ pub trait Marker:
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub struct NoWitness;
 
+impl From<NoWitness> for Option<Value> {
+    fn from(_: NoWitness) -> Self {
+        None
+    }
+}
+
 pub trait Constructible<J, X, W>:
     JetConstructible<J>
     + DisconnectConstructible<X>
