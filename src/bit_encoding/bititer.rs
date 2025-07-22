@@ -9,13 +9,64 @@
 //! `Iterator<Item=bool>`.
 //!
 
-use crate::decode;
 use crate::{Cmr, FailEntropy};
 use std::{error, fmt};
 
 /// Attempted to read from a bit iterator, but there was no more data
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[non_exhaustive]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EarlyEndOfStreamError;
+
+impl fmt::Display for EarlyEndOfStreamError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("bitstream ended early")
+    }
+}
+
+impl error::Error for EarlyEndOfStreamError {}
+
+/// Failed to decode a natural number from a bitstream.
+#[non_exhaustive]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum DecodeNaturalError {
+    /// Natural was a backreference, and pointed past the beginning of the program.
+    BadIndex {
+        /// The number we read.
+        got: usize,
+        /// The maximum value.
+        max: usize,
+    },
+    /// Ran out of bits to read.
+    EndOfStream(EarlyEndOfStreamError),
+    /// Read a natural that exceeded the maximum value (2^31).
+    Overflow,
+}
+
+impl fmt::Display for DecodeNaturalError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Self::BadIndex { got, max } => {
+                write!(
+                    f,
+                    "backreference {} exceeds current program length {}",
+                    got, max
+                )
+            }
+            Self::EndOfStream(ref e) => e.fmt(f),
+            Self::Overflow => f.write_str("encoded number exceeded 31 bits"),
+        }
+    }
+}
+
+impl error::Error for DecodeNaturalError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        match *self {
+            Self::BadIndex { .. } => None,
+            Self::EndOfStream(ref e) => Some(e),
+            Self::Overflow => None,
+        }
+    }
+}
 
 /// Closed out a bit iterator and there was remaining data.
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord)]
@@ -50,11 +101,7 @@ impl fmt::Display for CloseError {
     }
 }
 
-impl error::Error for CloseError {
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        None
-    }
-}
+impl error::Error for CloseError {}
 
 /// Two-bit type used during decoding
 ///
@@ -234,8 +281,60 @@ impl<I: Iterator<Item = u8>> BitIter<I> {
     ///
     /// If a bound is specified, then the decoding terminates before trying to
     /// decode a larger number.
-    pub fn read_natural(&mut self, bound: Option<usize>) -> Result<usize, decode::Error> {
-        decode::decode_natural(self, bound)
+    pub fn read_natural<N>(&mut self, bound: Option<N>) -> Result<N, DecodeNaturalError>
+    where
+        N: TryFrom<u32> + PartialOrd,
+        u32: TryFrom<N>,
+        usize: TryFrom<N>,
+    {
+        let mut recurse_depth = 0;
+        loop {
+            match self.read_bit() {
+                Ok(true) => recurse_depth += 1,
+                Ok(false) => break,
+                Err(e) => return Err(DecodeNaturalError::EndOfStream(e)),
+            }
+        }
+
+        let mut len = 0;
+        loop {
+            let mut n = 1u32;
+            for _ in 0..len {
+                let bit = u32::from(self.read_bit().map_err(DecodeNaturalError::EndOfStream)?);
+                n = 2 * n + bit;
+            }
+
+            if recurse_depth == 0 {
+                let ret = N::try_from(n).map_err(|_| DecodeNaturalError::Overflow)?;
+
+                if let Some(bound) = bound {
+                    if ret > bound {
+                        // We are doing our arithmetic in 32 bits and will return early if we try
+                        // to exceed this. But maybe usize will be smaller than 32 bits. To handle
+                        // this without casts or panics we just saturate here. It's just error
+                        // reporting.
+                        //
+                        // Also, we can't write usize::try_from(n) here even though usize implements
+                        // TryFrom<u32> because of some bug in the Rust compiler. I couldn't find an
+                        // issue in a five minute search and I refuse to file any more issues on
+                        // rustc because it's a waste of time. So we have to write try_into and the
+                        // reader can do type inference themselves.
+                        let got = n.try_into().unwrap_or(usize::MAX);
+                        let max = bound.try_into().unwrap_or(usize::MAX);
+                        return Err(DecodeNaturalError::BadIndex { got, max });
+                    }
+                }
+
+                return Ok(ret);
+            } else {
+                // This is an attempted conversion to usize. See above comment.
+                len = n.try_into().map_err(|_| DecodeNaturalError::Overflow)?;
+                if len > 31 {
+                    return Err(DecodeNaturalError::Overflow);
+                }
+                recurse_depth -= 1;
+            }
+        }
     }
 
     /// Accessor for the number of bits which have been read,

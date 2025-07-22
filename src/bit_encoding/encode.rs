@@ -338,7 +338,6 @@ pub fn encode_natural<W: io::Write>(mut n: usize, w: &mut BitWriter<W>) -> io::R
 mod test {
     use super::*;
 
-    use crate::decode;
     use crate::BitIter;
 
     #[test]
@@ -348,7 +347,8 @@ mod test {
             let mut w = BitWriter::from(&mut sink);
             encode_natural(n, &mut w).expect("encoding to vector");
             w.flush_all().expect("flushing");
-            let m = decode::decode_natural(&mut BitIter::from(sink.into_iter()), None)
+            let m = BitIter::from(sink.into_iter())
+                .read_natural(None)
                 .expect("decoding from vector");
             assert_eq!(n, m);
         }
