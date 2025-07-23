@@ -13,9 +13,10 @@ fn main() {
         "jets-secp256k1.c",
         "rsort.c",
         "sha256.c",
-        "primitive/elements/env.c",
-        "primitive/elements/ops.c",
-        "primitive/elements/elementsJets.c",
+        "elements/env.c",
+        "elements/ops.c",
+        "elements/elementsJets.c",
+        "elements/txEnv.c",
     ]
     .into_iter()
     .map(|x| simplicity_path.join(x))
@@ -40,14 +41,14 @@ fn main() {
             "eval.c",
             "type.c",
             "typeInference.c",
-            "primitive/elements/exec.c",
-            "primitive/elements/primitive.c",
+            "elements/exec.c",
+            "elements/primitive.c",
             "ctx8Pruned.c",
             "ctx8Unpruned.c",
             "hashBlock.c",
             "schnorr0.c",
             "schnorr6.c",
-            "primitive/elements/checkSigHashAllTx1.c",
+            "elements/checkSigHashAllTx1.c",
         ]
         .into_iter()
         .map(|x| simplicity_path.join(x))

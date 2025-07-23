@@ -165,10 +165,10 @@ static void sha256_compression_x86_sha_ni(uint32_t* midstate, const uint32_t* bl
 
 /* This function inspects the CPU's capabilities and enables the use of some optimized instructions, if they are known and available.
  */
-extern void rustsimplicity_0_4_sha256_cpu_optimize_not_thread_safe(void) __attribute__((constructor));
-extern void rustsimplicity_0_4_sha256_cpu_optimize_not_thread_safe(void) {
+extern void rustsimplicity_0_5_sha256_cpu_optimize_not_thread_safe(void) __attribute__((constructor));
+extern void rustsimplicity_0_5_sha256_cpu_optimize_not_thread_safe(void) {
   if (cpu_has_sha_ni()) {
-    rustsimplicity_0_4_sha256_compression = sha256_compression_x86_sha_ni;
+    rustsimplicity_0_5_sha256_compression = sha256_compression_x86_sha_ni;
   }
 }
 

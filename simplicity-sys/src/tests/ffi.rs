@@ -48,6 +48,7 @@ pub enum SimplicityErr {
     AntiDoS = -42,
     HiddenRoot = -44,
     Amr = -46,
+    Overweight = -48,
 }
 
 extern "C" {
@@ -135,13 +136,13 @@ pub mod bitstream {
         pub static c_sizeof_bitstream: c_size_t;
         pub static c_alignof_bitstream: c_size_t;
 
-        #[link_name = "rustsimplicity_0_4_closeBitstream"]
+        #[link_name = "rustsimplicity_0_5_closeBitstream"]
         pub fn simplicity_closeBitstream(stream: *mut CBitstream) -> i32;
-        #[link_name = "rustsimplicity_0_4_readNBits"]
+        #[link_name = "rustsimplicity_0_5_readNBits"]
         pub fn simplicity_readNBits(n: c_int, stream: *mut CBitstream) -> i32;
-        #[link_name = "rustsimplicity_0_4_decodeUptoMaxInt"]
+        #[link_name = "rustsimplicity_0_5_decodeUptoMaxInt"]
         pub fn simplicity_decodeUptoMaxInt(stream: *mut CBitstream) -> i32;
-        #[link_name = "rustsimplicity_0_4_readBitstring"]
+        #[link_name = "rustsimplicity_0_5_readBitstring"]
         pub fn simplicity_readBitstring(
             result: *mut CBitstring,
             n: c_size_t,
@@ -286,16 +287,16 @@ pub mod dag {
 
         /// Compute the CMR of a jet of scribe(v) : ONE |- TWO^(2^n) that outputs a given
         /// bitstring
-        #[link_name = "rustsimplicity_0_4_computeWordCMR"]
+        #[link_name = "rustsimplicity_0_5_computeWordCMR"]
         pub fn simplicity_computeWordCMR(value: *const CBitstring, n: c_size_t) -> CSha256Midstate;
 
         /// Given a well-formed dag\[i + 1\], set the `cmr` field of every node in `dag`
-        #[link_name = "rustsimplicity_0_4_computeCommitmentMerkleRoot"]
+        #[link_name = "rustsimplicity_0_5_computeCommitmentMerkleRoot"]
         pub fn simplicity_computeCommitmentMerkleRoot(dag: *mut CDagNode, i: c_size_t);
 
         /// Given a well-typed dag representing a Simplicity expression, compute
         /// the annotated Merkle roots of all subexpressions.
-        #[link_name = "rustsimplicity_0_4_computeAnnotatedMerkleRoot"]
+        #[link_name = "rustsimplicity_0_5_computeAnnotatedMerkleRoot"]
         pub fn simplicity_computeAnnotatedMerkleRoot(
             analyses: *mut CAnalyses,
             dag: *const CDagNode,
@@ -305,11 +306,11 @@ pub mod dag {
 
         /// Verifies that the 'dag' is in canonical order, meaning that nodes
         /// under the left branches have lower indices than nodes under
-        #[link_name = "rustsimplicity_0_4_verifyCanonicalOrder"]
+        #[link_name = "rustsimplicity_0_5_verifyCanonicalOrder"]
         pub fn simplicity_verifyCanonicalOrder(dag: *mut CDagNode, len: c_size_t) -> SimplicityErr;
 
         /// Fills in the 'WITNESS' nodes of a 'dag' with the data from 'witness'
-        #[link_name = "rustsimplicity_0_4_fillWitnessData"]
+        #[link_name = "rustsimplicity_0_5_fillWitnessData"]
         pub fn simplicity_fillWitnessData(
             dag: *mut CDagNode,
             type_dag: *mut CType,
@@ -318,7 +319,7 @@ pub mod dag {
         ) -> SimplicityErr;
 
         /// Computes the identity Merkle roots of every subexpression in a well-typed 'dag' with witnesses    .
-        #[link_name = "rustsimplicity_0_4_verifyNoDuplicateIdentityHashes"]
+        #[link_name = "rustsimplicity_0_5_verifyNoDuplicateIdentityHashes"]
         pub fn simplicity_verifyNoDuplicateIdentityHashes(
             ihr: *mut CSha256Midstate,
             dag: *const CDagNode,
@@ -331,14 +332,45 @@ pub mod dag {
 pub mod deserialize {
     use crate::tests::ffi::bitstream::CBitstream;
     use crate::tests::ffi::dag::{CCombinatorCounters, CDagNode};
+    use crate::tests::ffi::SimplicityErr;
+
+    pub type CCallbackDecodeJet =
+        unsafe extern "C" fn(*mut CDagNode, *mut CBitstream) -> SimplicityErr;
 
     extern "C" {
-        #[link_name = "rustsimplicity_0_4_decodeMallocDag"]
+        #[link_name = "rustsimplicity_0_5_decodeMallocDag"]
         pub fn simplicity_decodeMallocDag(
             dag: *mut *mut CDagNode,
+            decodeJet: CCallbackDecodeJet,
             combinator_counters: *mut CCombinatorCounters,
             stream: *mut CBitstream,
         ) -> i32;
+    }
+}
+
+#[allow(non_snake_case)]
+pub mod elements {
+    use crate::tests::ffi::bitstream::CBitstream;
+    use crate::tests::ffi::dag::CDagNode;
+    use crate::tests::ffi::type_inference::CUnificationVar;
+    use crate::tests::ffi::{c_size_t, SimplicityErr};
+
+    extern "C" {
+        // defined in primitive/elements/primitive.c
+        #[link_name = "rustsimplicity_0_5_elements_decodeJet"]
+        pub fn simplicity_elements_decodeJet(
+            node: *mut CDagNode,
+            stream: *mut CBitstream,
+        ) -> SimplicityErr;
+
+        // defined in primitive/elements/primitive.c
+        #[link_name = "rustsimplicity_0_5_elements_mallocBoundVars"]
+        pub fn simplicity_elements_mallocBoundVars(
+            bound_var: *mut *mut CUnificationVar,
+            word256_ix: *mut c_size_t,
+            extra_var_start: *mut c_size_t,
+            extra_var_len: c_size_t,
+        ) -> SimplicityErr;
     }
 }
 
@@ -358,7 +390,7 @@ pub mod eval {
 
     extern "C" {
         /// Run the Bit Machine on the well-typed Simplicity expression 'dag\[len\]'.
-        #[link_name = "rustsimplicity_0_4_evalTCOExpression"]
+        #[link_name = "rustsimplicity_0_5_evalTCOExpression"]
         pub fn simplicity_evalTCOExpression(
             anti_dos_checks: c_uchar,
             output: *mut UWORD,
@@ -374,13 +406,14 @@ pub mod eval {
         /// compute the memory and CPU requirements for evaluation.
         ///
         /// Refer to C documentation for preconditions.
-        #[link_name = "rustsimplicity_0_4_analyseBounds"]
+        #[link_name = "rustsimplicity_0_5_analyseBounds"]
         pub fn simplicity_analyseBounds(
             cell_bound: *mut ubounded,
             UWORD_bound: *mut ubounded,
             frame_bound: *mut ubounded,
             cost_bound: *mut ubounded,
             max_cells: ubounded,
+            min_cost: ubounded,
             max_cost: ubounded,
             dag: *const CDagNode,
             type_dag: *const CType,
@@ -459,7 +492,7 @@ pub mod ty {
         pub static c_alignof_type: c_size_t;
 
         /// Given a well-formed 'type_dag', compute the bitSizes, skips, and type Merkle roots of all subexpressions.
-        #[link_name = "rustsimplicity_0_4_computeTypeAnalyses"]
+        #[link_name = "rustsimplicity_0_5_computeTypeAnalyses"]
         pub fn simplicity_computeTypeAnalyses(type_dag: *mut CType, len: c_size_t);
     }
 }
@@ -467,16 +500,68 @@ pub mod ty {
 pub mod type_inference {
     use super::*;
     use crate::tests::ffi::dag::{CCombinatorCounters, CDagNode};
-    use crate::tests::ffi::ty::CType;
+    use crate::tests::ffi::ty::{CType, CTypeName};
     use crate::tests::ffi::SimplicityErr;
+
+    /// A stack element holding a pair of variables to be unified.
+    #[repr(C)]
+    #[derive(Copy, Clone)]
+    pub struct CUnificationCont {
+        alpha: *mut CUnificationVar,
+        beta: *mut CUnificationVar,
+        next: *mut CUnificationCont,
+    }
+
+    #[repr(C)]
+    #[derive(Copy, Clone)]
+    /// Anonymous struct
+    pub struct CBindingAux {
+        arg: [*mut CUnificationVar; 2],
+        frozen: c_size_t,
+        kind: CTypeName,
+    }
+
+    #[repr(C)]
+    #[derive(Copy, Clone)]
+    /// A type-inference binding.
+    pub union CBinding {
+        pub aux: CBindingAux,
+        pub cont: CUnificationCont,
+    }
+
+    /// Anonymous union
+    #[repr(C)]
+    #[derive(Copy, Clone)]
+    pub union CUnificationVarAux {
+        rank: c_int,
+        next: *mut CUnificationVar,
+    }
+
+    /// A single type-inference unification variable.
+    #[repr(C)]
+    #[derive(Copy, Clone)]
+    pub struct CUnificationVar {
+        pub parent: *mut CUnificationVar,
+        pub bound: CBinding,
+        pub aux: CUnificationVarAux,
+        is_bound: bool,
+    }
+
+    pub type CCallbackMallocBoundVars = unsafe extern "C" fn(
+        *mut *mut CUnificationVar,
+        *mut c_size_t,
+        *mut c_size_t,
+        c_size_t,
+    ) -> SimplicityErr;
 
     extern "C" {
         /// If the Simplicity DAG, 'dag', has a principal type (including constraints
         /// due to sharing of subexpressions), then allocate a well-formed type DAG
         /// containing all the types needed for all the subexpressions of 'dag'.
-        #[link_name = "rustsimplicity_0_4_mallocTypeInference"]
+        #[link_name = "rustsimplicity_0_5_mallocTypeInference"]
         pub fn simplicity_mallocTypeInference(
             type_dag: *mut *mut CType,
+            decodeJet: CCallbackMallocBoundVars,
             dag: *mut CDagNode,
             len: c_size_t,
             census: *const CCombinatorCounters,

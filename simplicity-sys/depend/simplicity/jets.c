@@ -10,19 +10,19 @@
 #endif
 
 static void write128(frameItem* frame, const secp256k1_uint128* x) {
-  rustsimplicity_0_4_write64(frame, secp256k1_u128_hi_u64(x));
-  rustsimplicity_0_4_write64(frame, secp256k1_u128_to_u64(x));
+  rustsimplicity_0_5_write64(frame, secp256k1_u128_hi_u64(x));
+  rustsimplicity_0_5_write64(frame, secp256k1_u128_to_u64(x));
 }
 
 /* verify : TWO |- ONE */
-bool rustsimplicity_0_4_verify(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_verify(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   (void) dst; /* dst is unused. */
   return readBit(&src);
 }
 
 /* low_1 : ONE |- TWO */
-bool rustsimplicity_0_4_low_1(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_low_1(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   (void) src; /* src is unused. */
   writeBit(dst, 0);
@@ -31,10 +31,10 @@ bool rustsimplicity_0_4_low_1(frameItem* dst, frameItem src, const txEnv* env) {
 
 #define LOW_(bits)                                                            \
 /* low_n : ONE |- TWO^n */                                                    \
-bool rustsimplicity_0_4_low_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_low_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                            \
   (void) src; /* src is unused. */                                            \
-  rustsimplicity_0_4_write##bits(dst, 0);                                             \
+  rustsimplicity_0_5_write##bits(dst, 0);                                             \
   return true;                                                                \
 }
 LOW_(8)
@@ -43,7 +43,7 @@ LOW_(32)
 LOW_(64)
 
 /* high_1 : ONE |- TWO */
-bool rustsimplicity_0_4_high_1(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_high_1(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   (void) src; /* src is unused. */
   writeBit(dst, 1);
@@ -52,10 +52,10 @@ bool rustsimplicity_0_4_high_1(frameItem* dst, frameItem src, const txEnv* env) 
 
 #define HIGH_(bits)                                                            \
 /* high_n : ONE |- TWO^n */                                                    \
-bool rustsimplicity_0_4_high_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_high_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                             \
   (void) src; /* src is unused. */                                             \
-  rustsimplicity_0_4_write##bits(dst, UINT##bits##_MAX);                               \
+  rustsimplicity_0_5_write##bits(dst, UINT##bits##_MAX);                               \
   return true;                                                                 \
 }
 HIGH_(8)
@@ -64,7 +64,7 @@ HIGH_(32)
 HIGH_(64)
 
 /* complement_1 : TWO |- TWO */
-bool rustsimplicity_0_4_complement_1(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_complement_1(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   bool x = readBit(&src);
   writeBit(dst, !x);
@@ -73,10 +73,10 @@ bool rustsimplicity_0_4_complement_1(frameItem* dst, frameItem src, const txEnv*
 
 #define COMPLEMENT_(bits)                                                            \
 /* complement_n : TWO^n |- TWO^n */                                                  \
-bool rustsimplicity_0_4_complement_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_complement_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                                   \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                               \
-  rustsimplicity_0_4_write##bits(dst, ~(1U*x));                                              \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                               \
+  rustsimplicity_0_5_write##bits(dst, ~(1U*x));                                              \
   return true;                                                                       \
 }
 COMPLEMENT_(8)
@@ -85,7 +85,7 @@ COMPLEMENT_(32)
 COMPLEMENT_(64)
 
 /* and_1 : TWO * TWO |- TWO */
-bool rustsimplicity_0_4_and_1(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_and_1(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   bool x = readBit(&src);
   bool y = readBit(&src);
@@ -95,11 +95,11 @@ bool rustsimplicity_0_4_and_1(frameItem* dst, frameItem src, const txEnv* env) {
 
 #define AND_(bits)                                                            \
 /* and_n : TWO^n * TWO^n |- TWO^n */                                          \
-bool rustsimplicity_0_4_and_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_and_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                            \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                        \
-  uint_fast##bits##_t y = rustsimplicity_0_4_read##bits(&src);                        \
-  rustsimplicity_0_4_write##bits(dst, x & y);                                         \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                        \
+  uint_fast##bits##_t y = rustsimplicity_0_5_read##bits(&src);                        \
+  rustsimplicity_0_5_write##bits(dst, x & y);                                         \
   return true;                                                                \
 }
 AND_(8)
@@ -108,7 +108,7 @@ AND_(32)
 AND_(64)
 
 /* or_1 : TWO * TWO |- TWO */
-bool rustsimplicity_0_4_or_1(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_or_1(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   bool x = readBit(&src);
   bool y = readBit(&src);
@@ -118,11 +118,11 @@ bool rustsimplicity_0_4_or_1(frameItem* dst, frameItem src, const txEnv* env) {
 
 #define OR_(bits)                                                            \
 /* or_n : TWO^n * TWO^n |- TWO^n */                                          \
-bool rustsimplicity_0_4_or_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_or_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                           \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                       \
-  uint_fast##bits##_t y = rustsimplicity_0_4_read##bits(&src);                       \
-  rustsimplicity_0_4_write##bits(dst, x | y);                                        \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                       \
+  uint_fast##bits##_t y = rustsimplicity_0_5_read##bits(&src);                       \
+  rustsimplicity_0_5_write##bits(dst, x | y);                                        \
   return true;                                                               \
 }
 OR_(8)
@@ -131,7 +131,7 @@ OR_(32)
 OR_(64)
 
 /* xor_1 : TWO * TWO |- TWO */
-bool rustsimplicity_0_4_xor_1(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_xor_1(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   bool x = readBit(&src);
   bool y = readBit(&src);
@@ -141,11 +141,11 @@ bool rustsimplicity_0_4_xor_1(frameItem* dst, frameItem src, const txEnv* env) {
 
 #define XOR_(bits)                                                            \
 /* xor_n : TWO^n * TWO^n |- TWO^n */                                          \
-bool rustsimplicity_0_4_xor_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_xor_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                            \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                        \
-  uint_fast##bits##_t y = rustsimplicity_0_4_read##bits(&src);                        \
-  rustsimplicity_0_4_write##bits(dst, x ^ y);                                         \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                        \
+  uint_fast##bits##_t y = rustsimplicity_0_5_read##bits(&src);                        \
+  rustsimplicity_0_5_write##bits(dst, x ^ y);                                         \
   return true;                                                                \
 }
 XOR_(8)
@@ -154,7 +154,7 @@ XOR_(32)
 XOR_(64)
 
 /* maj_1 : TWO * TWO * TWO |- TWO */
-bool rustsimplicity_0_4_maj_1(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_maj_1(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   bool x = readBit(&src);
   bool y = readBit(&src);
@@ -165,12 +165,12 @@ bool rustsimplicity_0_4_maj_1(frameItem* dst, frameItem src, const txEnv* env) {
 
 #define MAJ_(bits)                                                            \
 /* maj_n : TWO^n * TWO^n * TWO^n |- TWO^n */                                  \
-bool rustsimplicity_0_4_maj_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_maj_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                            \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                        \
-  uint_fast##bits##_t y = rustsimplicity_0_4_read##bits(&src);                        \
-  uint_fast##bits##_t z = rustsimplicity_0_4_read##bits(&src);                        \
-  rustsimplicity_0_4_write##bits(dst, (x&y) | (y&z) | (z&x));                         \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                        \
+  uint_fast##bits##_t y = rustsimplicity_0_5_read##bits(&src);                        \
+  uint_fast##bits##_t z = rustsimplicity_0_5_read##bits(&src);                        \
+  rustsimplicity_0_5_write##bits(dst, (x&y) | (y&z) | (z&x));                         \
   return true;                                                                \
 }
 MAJ_(8)
@@ -179,7 +179,7 @@ MAJ_(32)
 MAJ_(64)
 
 /* xor_xor_1 : TWO * TWO * TWO |- TWO */
-bool rustsimplicity_0_4_xor_xor_1(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_xor_xor_1(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   bool x = readBit(&src);
   bool y = readBit(&src);
@@ -190,12 +190,12 @@ bool rustsimplicity_0_4_xor_xor_1(frameItem* dst, frameItem src, const txEnv* en
 
 #define XOR_XOR_(bits)                                                            \
 /* xor_xor_n : TWO^n * TWO^n * TWO^n |- TWO^n */                                  \
-bool rustsimplicity_0_4_xor_xor_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_xor_xor_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                                \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                            \
-  uint_fast##bits##_t y = rustsimplicity_0_4_read##bits(&src);                            \
-  uint_fast##bits##_t z = rustsimplicity_0_4_read##bits(&src);                            \
-  rustsimplicity_0_4_write##bits(dst, x ^ y ^ z);                                         \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                            \
+  uint_fast##bits##_t y = rustsimplicity_0_5_read##bits(&src);                            \
+  uint_fast##bits##_t z = rustsimplicity_0_5_read##bits(&src);                            \
+  rustsimplicity_0_5_write##bits(dst, x ^ y ^ z);                                         \
   return true;                                                                    \
 }
 XOR_XOR_(8)
@@ -204,7 +204,7 @@ XOR_XOR_(32)
 XOR_XOR_(64)
 
 /* ch_1 : TWO * TWO * TWO |- TWO */
-bool rustsimplicity_0_4_ch_1(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_ch_1(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   bool x = readBit(&src);
   bool y = readBit(&src);
@@ -215,12 +215,12 @@ bool rustsimplicity_0_4_ch_1(frameItem* dst, frameItem src, const txEnv* env) {
 
 #define CH_(bits)                                                            \
 /* ch_n : TWO^n * TWO^n * TWO^n |- TWO^n */                                  \
-bool rustsimplicity_0_4_ch_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_ch_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                           \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                       \
-  uint_fast##bits##_t y = rustsimplicity_0_4_read##bits(&src);                       \
-  uint_fast##bits##_t z = rustsimplicity_0_4_read##bits(&src);                       \
-  rustsimplicity_0_4_write##bits(dst, ((x&y) | ((~(1U*x))&z)));                      \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                       \
+  uint_fast##bits##_t y = rustsimplicity_0_5_read##bits(&src);                       \
+  uint_fast##bits##_t z = rustsimplicity_0_5_read##bits(&src);                       \
+  rustsimplicity_0_5_write##bits(dst, ((x&y) | ((~(1U*x))&z)));                      \
   return true;                                                               \
 }
 CH_(8)
@@ -229,7 +229,7 @@ CH_(32)
 CH_(64)
 
 /* some_1 : TWO |- TWO */
-bool rustsimplicity_0_4_some_1(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_some_1(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   bool x = readBit(&src);
   writeBit(dst, x);
@@ -238,9 +238,9 @@ bool rustsimplicity_0_4_some_1(frameItem* dst, frameItem src, const txEnv* env) 
 
 #define SOME_(bits)                                                            \
 /* some_n : TWO^n |- TWO */                                                    \
-bool rustsimplicity_0_4_some_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_some_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                             \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                         \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                         \
   writeBit(dst, x != 0);                                                       \
   return true;                                                                 \
 }
@@ -251,9 +251,9 @@ SOME_(64)
 
 #define ALL_(bits)                                                            \
 /* all_n : TWO^n |- TWO */                                                    \
-bool rustsimplicity_0_4_all_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_all_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                            \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                        \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                        \
   writeBit(dst, x == UINT##bits##_MAX);                                       \
   return true;                                                                \
 }
@@ -263,7 +263,7 @@ ALL_(32)
 ALL_(64)
 
 /* eq_1 : TWO * TWO |- TWO */
-bool rustsimplicity_0_4_eq_1(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_eq_1(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   bool x = readBit(&src);
   bool y = readBit(&src);
@@ -273,10 +273,10 @@ bool rustsimplicity_0_4_eq_1(frameItem* dst, frameItem src, const txEnv* env) {
 
 #define EQ_(bits)                                                            \
 /* eq_n : TWO^n * TWO^n |- TWO */                                            \
-bool rustsimplicity_0_4_eq_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_eq_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                           \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                       \
-  uint_fast##bits##_t y = rustsimplicity_0_4_read##bits(&src);                       \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                       \
+  uint_fast##bits##_t y = rustsimplicity_0_5_read##bits(&src);                       \
   writeBit(dst, x == y);                                                     \
   return true;                                                               \
 }
@@ -286,7 +286,7 @@ EQ_(32)
 EQ_(64)
 
 /* eq_256 : TWO^256 * TWO^256 |- TWO */
-bool rustsimplicity_0_4_eq_256(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_eq_256(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   uint32_t arr[16];
   read32s(arr, 16, &src);
@@ -302,10 +302,10 @@ bool rustsimplicity_0_4_eq_256(frameItem* dst, frameItem src, const txEnv* env) 
 
 #define FULL_LEFT_SHIFT_(bitsN, bitsM)                                                                    \
 /* full_left_shift_n_m : TWO^n * TWO^m |- TWO^m * TWO^n */                                                \
-bool rustsimplicity_0_4_full_left_shift_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {      \
+bool rustsimplicity_0_5_full_left_shift_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {      \
   (void) env; /* env is unused. */                                                                        \
   static_assert(0 <= (bitsM) && (bitsM) <= (bitsN) && (bitsN) <= 64, "Bad arguments for bitsN or bitsM"); \
-  rustsimplicity_0_4_copyBits(dst, &src, (bitsN) + (bitsM));                                                      \
+  rustsimplicity_0_5_copyBits(dst, &src, (bitsN) + (bitsM));                                                      \
   return true;                                                                                            \
 }
 FULL_LEFT_SHIFT_(8,1)
@@ -329,10 +329,10 @@ FULL_LEFT_SHIFT_(64,32)
 
 #define FULL_RIGHT_SHIFT_(bitsN, bitsM)                                                                   \
 /* full_right_shift_n_m : TWO^m * TWO^n |- TWO^n * TWO^m */                                               \
-bool rustsimplicity_0_4_full_right_shift_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {     \
+bool rustsimplicity_0_5_full_right_shift_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {     \
   (void) env; /* env is unused. */                                                                        \
   static_assert(0 <= (bitsM) && (bitsM) <= (bitsN) && (bitsN) <= 64, "Bad arguments for bitsN or bitsM"); \
-  rustsimplicity_0_4_copyBits(dst, &src, (bitsN) + (bitsM));                                                      \
+  rustsimplicity_0_5_copyBits(dst, &src, (bitsN) + (bitsM));                                                      \
   return true;                                                                                            \
 }
 FULL_RIGHT_SHIFT_(8,1)
@@ -356,10 +356,10 @@ FULL_RIGHT_SHIFT_(64,32)
 
 #define LEFTMOST_(bitsN, bitsM)                                                                           \
 /* leftmost_n_m : TWO^n |- TWO^m */                                                                       \
-bool rustsimplicity_0_4_leftmost_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {             \
+bool rustsimplicity_0_5_leftmost_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {             \
   (void) env; /* env is unused. */                                                                        \
   static_assert(0 <= (bitsM) && (bitsM) <= (bitsN) && (bitsN) <= 64, "Bad arguments for bitsN or bitsM"); \
-  rustsimplicity_0_4_copyBits(dst, &src, (bitsM));                                                                \
+  rustsimplicity_0_5_copyBits(dst, &src, (bitsM));                                                                \
   return true;                                                                                            \
 }
 LEFTMOST_(8,1)
@@ -383,11 +383,11 @@ LEFTMOST_(64,32)
 
 #define RIGHTMOST_(bitsN, bitsM)                                                                          \
 /* rightmost_n_m : TWO^n |- TWO^m */                                                                      \
-bool rustsimplicity_0_4_rightmost_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {            \
+bool rustsimplicity_0_5_rightmost_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {            \
   (void) env; /* env is unused. */                                                                        \
   static_assert(0 <= (bitsM) && (bitsM) <= (bitsN) && (bitsN) <= 64, "Bad arguments for bitsN or bitsM"); \
   forwardBits(&src, (bitsN) - (bitsM));                                                                   \
-  rustsimplicity_0_4_copyBits(dst, &src, (bitsM));                                                                \
+  rustsimplicity_0_5_copyBits(dst, &src, (bitsM));                                                                \
   return true;                                                                                            \
 }
 RIGHTMOST_(8,1)
@@ -411,10 +411,10 @@ RIGHTMOST_(64,32)
 
 #define LEFT_PAD_LOW_1_(bitsM)                                                            \
 /* left_pad_low_1_m : TWO |- TWO^m */                                                     \
-bool rustsimplicity_0_4_left_pad_low_1_##bitsM(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_left_pad_low_1_##bitsM(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                                        \
   bool bit = readBit(&src);                                                               \
-  rustsimplicity_0_4_write##bitsM(dst, bit);                                                      \
+  rustsimplicity_0_5_write##bitsM(dst, bit);                                                      \
   return true;                                                                            \
 }
 LEFT_PAD_LOW_1_(8)
@@ -424,13 +424,13 @@ LEFT_PAD_LOW_1_(64)
 
 #define LEFT_PAD_LOW_(bitsN, bitsM)                                                               \
 /* left_pad_low_n_m : TWO^n |- TWO^m */                                                           \
-bool rustsimplicity_0_4_left_pad_low_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_left_pad_low_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                                                \
   static_assert(0 < (bitsN) && (bitsN) <= 64, "bitsN is out of range");                           \
   static_assert(0 < (bitsM) && (bitsM) <= 64, "bitsM is out of range");                           \
   static_assert(0 == (bitsM) % (bitsN), "bitsM is not a multiple of bitsN");                      \
-  for(int i = 0; i < (bitsM)/(bitsN) - 1; ++i) { rustsimplicity_0_4_write##bitsN(dst, 0); }               \
-  rustsimplicity_0_4_copyBits(dst, &src, (bitsN));                                                        \
+  for(int i = 0; i < (bitsM)/(bitsN) - 1; ++i) { rustsimplicity_0_5_write##bitsN(dst, 0); }               \
+  rustsimplicity_0_5_copyBits(dst, &src, (bitsN));                                                        \
   return true;                                                                                    \
 }
 LEFT_PAD_LOW_(8,16)
@@ -442,11 +442,11 @@ LEFT_PAD_LOW_(32,64)
 
 #define LEFT_PAD_HIGH_1_(bitsM)                                                            \
 /* left_pad_high_1_m : TWO |- TWO^m */                                                     \
-bool rustsimplicity_0_4_left_pad_high_1_##bitsM(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_left_pad_high_1_##bitsM(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                                         \
   static_assert(0 < (bitsM) && (bitsM) <= 64, "bitsM is out of range");                    \
   for(int i = 0; i < (bitsM) - 1; ++i) { writeBit(dst, true); }                            \
-  rustsimplicity_0_4_copyBits(dst, &src, 1);                                                       \
+  rustsimplicity_0_5_copyBits(dst, &src, 1);                                                       \
   return true;                                                                             \
 }
 LEFT_PAD_HIGH_1_(8)
@@ -456,13 +456,13 @@ LEFT_PAD_HIGH_1_(64)
 
 #define LEFT_PAD_HIGH_(bitsN, bitsM)                                                                \
 /* left_pad_high_n_m : TWO^n |- TWO^m */                                                            \
-bool rustsimplicity_0_4_left_pad_high_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {  \
+bool rustsimplicity_0_5_left_pad_high_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {  \
   (void) env; /* env is unused. */                                                                  \
   static_assert(0 < (bitsN) && (bitsN) <= 64, "bitsN is out of range");                             \
   static_assert(0 < (bitsM) && (bitsM) <= 64, "bitsM is out of range");                             \
   static_assert(0 == (bitsM) % (bitsN), "bitsM is not a multiple of bitsN");                        \
-  for(int i = 0; i < (bitsM)/(bitsN) - 1; ++i) { rustsimplicity_0_4_write##bitsN(dst, UINT##bitsN##_MAX); } \
-  rustsimplicity_0_4_copyBits(dst, &src, (bitsN));                                                          \
+  for(int i = 0; i < (bitsM)/(bitsN) - 1; ++i) { rustsimplicity_0_5_write##bitsN(dst, UINT##bitsN##_MAX); } \
+  rustsimplicity_0_5_copyBits(dst, &src, (bitsN));                                                          \
   return true;                                                                                      \
 }
 LEFT_PAD_HIGH_(8,16)
@@ -474,10 +474,10 @@ LEFT_PAD_HIGH_(32,64)
 
 #define LEFT_EXTEND_1_(bitsM)                                                            \
 /* left_extend_1_m : TWO |- TWO^m */                                                     \
-bool rustsimplicity_0_4_left_extend_1_##bitsM(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_left_extend_1_##bitsM(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                                       \
   bool bit = readBit(&src);                                                              \
-  rustsimplicity_0_4_write##bitsM(dst, bit ? UINT##bitsM##_MAX : 0);                             \
+  rustsimplicity_0_5_write##bitsM(dst, bit ? UINT##bitsM##_MAX : 0);                             \
   return true;                                                                           \
 }
 LEFT_EXTEND_1_(8)
@@ -487,15 +487,15 @@ LEFT_EXTEND_1_(64)
 
 #define LEFT_EXTEND_(bitsN, bitsM)                                                                            \
 /* left_extend_n_m : TWO^n |- TWO^m */                                                                        \
-bool rustsimplicity_0_4_left_extend_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {              \
+bool rustsimplicity_0_5_left_extend_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {              \
   (void) env; /* env is unused. */                                                                            \
   static_assert(0 < (bitsN) && (bitsN) <= 64, "bitsN is out of range");                                       \
   static_assert(0 < (bitsM) && (bitsM) <= 64, "bitsM is out of range");                                       \
   static_assert(0 == (bitsM) % (bitsN), "bitsM is not a multiple of bitsN");                                  \
-  uint_fast##bitsN##_t input = rustsimplicity_0_4_read##bitsN(&src);                                                  \
+  uint_fast##bitsN##_t input = rustsimplicity_0_5_read##bitsN(&src);                                                  \
   bool msb = input >> ((bitsN) - 1);                                                                          \
-  for(int i = 0; i < (bitsM)/(bitsN) - 1; ++i) { rustsimplicity_0_4_write##bitsN(dst, msb ? UINT##bitsN##_MAX : 0); } \
-  rustsimplicity_0_4_write##bitsN(dst, input);                                                                        \
+  for(int i = 0; i < (bitsM)/(bitsN) - 1; ++i) { rustsimplicity_0_5_write##bitsN(dst, msb ? UINT##bitsN##_MAX : 0); } \
+  rustsimplicity_0_5_write##bitsN(dst, input);                                                                        \
   return true;                                                                                                \
 }
 LEFT_EXTEND_(8,16)
@@ -507,11 +507,11 @@ LEFT_EXTEND_(32,64)
 
 #define RIGHT_PAD_LOW_1_(bitsM)                                                                     \
 /* right_pad_low_1_m : TWO |- TWO^m */                                                              \
-bool rustsimplicity_0_4_right_pad_low_1_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {          \
+bool rustsimplicity_0_5_right_pad_low_1_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {          \
   (void) env; /* env is unused. */                                                                  \
   static_assert(0 < (bitsM) && (bitsM) <= 64, "bitsM is out of range");                             \
   bool bit = readBit(&src);                                                                         \
-  rustsimplicity_0_4_write##bitsM(dst, (uint_fast##bitsM##_t)((uint_fast##bitsM##_t)bit << ((bitsM) - 1))); \
+  rustsimplicity_0_5_write##bitsM(dst, (uint_fast##bitsM##_t)((uint_fast##bitsM##_t)bit << ((bitsM) - 1))); \
   return true;                                                                                      \
 }
 RIGHT_PAD_LOW_1_(8)
@@ -521,13 +521,13 @@ RIGHT_PAD_LOW_1_(64)
 
 #define RIGHT_PAD_LOW_(bitsN, bitsM)                                                               \
 /* right_pad_low_n_m : TWO^n |- TWO^m */                                                           \
-bool rustsimplicity_0_4_right_pad_low_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_right_pad_low_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                                                 \
   static_assert(0 < (bitsN) && (bitsN) <= 64, "bitsN is out of range");                            \
   static_assert(0 < (bitsM) && (bitsM) <= 64, "bitsM is out of range");                            \
   static_assert(0 == (bitsM) % (bitsN), "bitsM is not a multiple of bitsN");                       \
-  rustsimplicity_0_4_copyBits(dst, &src, (bitsN));                                                         \
-  for(int i = 0; i < (bitsM)/(bitsN) - 1; ++i) { rustsimplicity_0_4_write##bitsN(dst, 0); }                \
+  rustsimplicity_0_5_copyBits(dst, &src, (bitsN));                                                         \
+  for(int i = 0; i < (bitsM)/(bitsN) - 1; ++i) { rustsimplicity_0_5_write##bitsN(dst, 0); }                \
   return true;                                                                                     \
 }
 RIGHT_PAD_LOW_(8,16)
@@ -539,10 +539,10 @@ RIGHT_PAD_LOW_(32,64)
 
 #define RIGHT_PAD_HIGH_1_(bitsM)                                                            \
 /* right_pad_high_1_m : TWO |- TWO^m */                                                     \
-bool rustsimplicity_0_4_right_pad_high_1_##bitsM(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_right_pad_high_1_##bitsM(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                                          \
   static_assert(0 < (bitsM) && (bitsM) <= 64, "bitsM is out of range");                     \
-  rustsimplicity_0_4_copyBits(dst, &src, 1);                                                        \
+  rustsimplicity_0_5_copyBits(dst, &src, 1);                                                        \
   for(int i = 0; i < (bitsM) - 1; ++i) { writeBit(dst, true); }                             \
   return true;                                                                              \
 }
@@ -553,13 +553,13 @@ RIGHT_PAD_HIGH_1_(64)
 
 #define RIGHT_PAD_HIGH_(bitsN, bitsM)                                                               \
 /* right_pad_high_n_m : TWO^n |- TWO^m */                                                           \
-bool rustsimplicity_0_4_right_pad_high_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_right_pad_high_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                                                  \
   static_assert(0 < (bitsN) && (bitsN) <= 64, "bitsN is out of range");                             \
   static_assert(0 < (bitsM) && (bitsM) <= 64, "bitsM is out of range");                             \
   static_assert(0 == (bitsM) % (bitsN), "bitsM is not a multiple of bitsN");                        \
-  rustsimplicity_0_4_copyBits(dst, &src, (bitsN));                                                          \
-  for(int i = 0; i < (bitsM)/(bitsN) - 1; ++i) { rustsimplicity_0_4_write##bitsN(dst, UINT##bitsN##_MAX); } \
+  rustsimplicity_0_5_copyBits(dst, &src, (bitsN));                                                          \
+  for(int i = 0; i < (bitsM)/(bitsN) - 1; ++i) { rustsimplicity_0_5_write##bitsN(dst, UINT##bitsN##_MAX); } \
   return true;                                                                                      \
 }
 RIGHT_PAD_HIGH_(8,16)
@@ -571,15 +571,15 @@ RIGHT_PAD_HIGH_(32,64)
 
 #define RIGHT_EXTEND_(bitsN, bitsM)                                                                           \
 /* right_extend_n_m : TWO^n |- TWO^m */                                                                       \
-bool rustsimplicity_0_4_right_extend_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {             \
+bool rustsimplicity_0_5_right_extend_##bitsN##_##bitsM(frameItem* dst, frameItem src, const txEnv* env) {             \
   (void) env; /* env is unused. */                                                                            \
   static_assert(0 < (bitsN) && (bitsN) <= 64, "bitsN is out of range");                                       \
   static_assert(0 < (bitsM) && (bitsM) <= 64, "bitsM is out of range");                                       \
   static_assert(0 == (bitsM) % (bitsN), "bitsM is not a multiple of bitsN");                                  \
-  uint_fast##bitsN##_t input = rustsimplicity_0_4_read##bitsN(&src);                                                  \
+  uint_fast##bitsN##_t input = rustsimplicity_0_5_read##bitsN(&src);                                                  \
   bool lsb = input & 1;                                                                                       \
-  rustsimplicity_0_4_write##bitsN(dst, input);                                                                        \
-  for(int i = 0; i < (bitsM)/(bitsN) - 1; ++i) { rustsimplicity_0_4_write##bitsN(dst, lsb ? UINT##bitsN##_MAX : 0); } \
+  rustsimplicity_0_5_write##bitsN(dst, input);                                                                        \
+  for(int i = 0; i < (bitsM)/(bitsN) - 1; ++i) { rustsimplicity_0_5_write##bitsN(dst, lsb ? UINT##bitsN##_MAX : 0); } \
   return true;                                                                                                \
 }
 RIGHT_EXTEND_(8,16)
@@ -591,9 +591,9 @@ RIGHT_EXTEND_(32,64)
 
 #define LEFT_SHIFT_(log, bits)                                                            \
 static inline void left_shift_helper_##bits(bool with, frameItem* dst, frameItem *src) {  \
-  static_assert(log <= 8, "Only log parameter upto 8 is supported.");                     \
-  uint_fast8_t amt = rustsimplicity_0_4_read##log(src);                                           \
-  uint_fast##bits##_t output = rustsimplicity_0_4_read##bits(src);                                \
+  static_assert(log <= 8, "Only log parameter up to 8 is supported.");                    \
+  uint_fast8_t amt = rustsimplicity_0_5_read##log(src);                                           \
+  uint_fast##bits##_t output = rustsimplicity_0_5_read##bits(src);                                \
   if (with) output = UINT##bits##_MAX ^ output;                                           \
   if (amt < bits) {                                                                       \
     output = (uint_fast##bits##_t)((1U * output) << amt);                                 \
@@ -601,11 +601,11 @@ static inline void left_shift_helper_##bits(bool with, frameItem* dst, frameItem
     output = 0;                                                                           \
   }                                                                                       \
   if (with) output = UINT##bits##_MAX ^ output;                                           \
-  rustsimplicity_0_4_write##bits(dst, output);                                                    \
+  rustsimplicity_0_5_write##bits(dst, output);                                                    \
 }                                                                                         \
                                                                                           \
 /* left_shift_with_n : TWO * TWO^l * TWO^n |- TWO^n */                                    \
-bool rustsimplicity_0_4_left_shift_with_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_left_shift_with_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                                        \
   bool with = readBit(&src);                                                              \
   left_shift_helper_##bits(with, dst, &src);                                              \
@@ -613,7 +613,7 @@ bool rustsimplicity_0_4_left_shift_with_##bits(frameItem* dst, frameItem src, co
 }                                                                                         \
                                                                                           \
 /* left_shift_n : TWO^l * TWO^n |- TWO^n */                                               \
-bool rustsimplicity_0_4_left_shift_##bits(frameItem* dst, frameItem src, const txEnv* env) {      \
+bool rustsimplicity_0_5_left_shift_##bits(frameItem* dst, frameItem src, const txEnv* env) {      \
   (void) env; /* env is unused. */                                                        \
   left_shift_helper_##bits(0, dst, &src);                                                 \
   return true;                                                                            \
@@ -625,9 +625,9 @@ LEFT_SHIFT_(8,64)
 
 #define RIGHT_SHIFT_(log, bits)                                                            \
 static inline void right_shift_helper_##bits(bool with, frameItem* dst, frameItem *src) {  \
-  static_assert(log <= 8, "Only log parameter upto 8 is supported.");                      \
-  uint_fast8_t amt = rustsimplicity_0_4_read##log(src);                                            \
-  uint_fast##bits##_t output = rustsimplicity_0_4_read##bits(src);                                 \
+  static_assert(log <= 8, "Only log parameter up to 8 is supported.");                     \
+  uint_fast8_t amt = rustsimplicity_0_5_read##log(src);                                            \
+  uint_fast##bits##_t output = rustsimplicity_0_5_read##bits(src);                                 \
   if (with) output = UINT##bits##_MAX ^ output;                                            \
   if (amt < bits) {                                                                        \
     output = (uint_fast##bits##_t)(output >> amt);                                         \
@@ -635,11 +635,11 @@ static inline void right_shift_helper_##bits(bool with, frameItem* dst, frameIte
     output = 0;                                                                            \
   }                                                                                        \
   if (with) output = UINT##bits##_MAX ^ output;                                            \
-  rustsimplicity_0_4_write##bits(dst, output);                                                     \
+  rustsimplicity_0_5_write##bits(dst, output);                                                     \
 }                                                                                          \
                                                                                            \
 /* right_shift_with_n : TWO * TWO^l * TWO^n |- TWO^n */                                    \
-bool rustsimplicity_0_4_right_shift_with_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_right_shift_with_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                                         \
   bool with = readBit(&src);                                                               \
   right_shift_helper_##bits(with, dst, &src);                                              \
@@ -647,7 +647,7 @@ bool rustsimplicity_0_4_right_shift_with_##bits(frameItem* dst, frameItem src, c
 }                                                                                          \
                                                                                            \
 /* right_shift_n : TWO^l * TWO^n |- TWO^n */                                               \
-bool rustsimplicity_0_4_right_shift_##bits(frameItem* dst, frameItem src, const txEnv* env) {      \
+bool rustsimplicity_0_5_right_shift_##bits(frameItem* dst, frameItem src, const txEnv* env) {      \
   (void) env; /* env is unused. */                                                         \
   right_shift_helper_##bits(0, dst, &src);                                                 \
   return true;                                                                             \
@@ -668,21 +668,21 @@ static inline uint_fast##bits##_t rotate_##bits(uint_fast##bits##_t value, uint_
 }                                                                                              \
                                                                                                \
 /* left_rotate_n : TWO^l * TWO^n |- TWO^n */                                                   \
-bool rustsimplicity_0_4_left_rotate_##bits(frameItem* dst, frameItem src, const txEnv* env) {          \
+bool rustsimplicity_0_5_left_rotate_##bits(frameItem* dst, frameItem src, const txEnv* env) {          \
   (void) env; /* env is unused. */                                                             \
-  uint_fast8_t amt = rustsimplicity_0_4_read##log(&src) % bits;                                        \
-  uint_fast##bits##_t input = rustsimplicity_0_4_read##bits(&src);                                     \
-  rustsimplicity_0_4_write##bits(dst, rotate_##bits(input, amt));                                      \
+  uint_fast8_t amt = rustsimplicity_0_5_read##log(&src) % bits;                                        \
+  uint_fast##bits##_t input = rustsimplicity_0_5_read##bits(&src);                                     \
+  rustsimplicity_0_5_write##bits(dst, rotate_##bits(input, amt));                                      \
   return true;                                                                                 \
 }                                                                                              \
                                                                                                \
 /* right_rotate_n : TWO^l * TWO^n |- TWO^n */                                                  \
-bool rustsimplicity_0_4_right_rotate_##bits(frameItem* dst, frameItem src, const txEnv* env) {         \
+bool rustsimplicity_0_5_right_rotate_##bits(frameItem* dst, frameItem src, const txEnv* env) {         \
   static_assert(bits <= UINT8_MAX, "'bits' is too large.");                                    \
   (void) env; /* env is unused. */                                                             \
-  uint_fast8_t amt = rustsimplicity_0_4_read##log(&src) % bits;                                        \
-  uint_fast##bits##_t input = rustsimplicity_0_4_read##bits(&src);                                     \
-  rustsimplicity_0_4_write##bits(dst, rotate_##bits(input, (uint_fast8_t)((bits - amt) % bits)));      \
+  uint_fast8_t amt = rustsimplicity_0_5_read##log(&src) % bits;                                        \
+  uint_fast##bits##_t input = rustsimplicity_0_5_read##bits(&src);                                     \
+  rustsimplicity_0_5_write##bits(dst, rotate_##bits(input, (uint_fast8_t)((bits - amt) % bits)));      \
   return true;                                                                                 \
 }
 ROTATE_(4,8)
@@ -692,10 +692,10 @@ ROTATE_(8,64)
 
 #define ONE_(bits)                                                            \
 /* one_n : ONE |- TWO^n */                                                    \
-bool rustsimplicity_0_4_one_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_one_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                            \
   (void) src; /* src is unused. */                                            \
-  rustsimplicity_0_4_write##bits(dst, 1);                                             \
+  rustsimplicity_0_5_write##bits(dst, 1);                                             \
   return true;                                                                \
 }
 ONE_(8)
@@ -705,12 +705,12 @@ ONE_(64)
 
 #define ADD_(bits)                                                            \
 /* add_n : TWO^n * TWO^n |- TWO * TWO^n */                                    \
-bool rustsimplicity_0_4_add_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_add_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                            \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                        \
-  uint_fast##bits##_t y = rustsimplicity_0_4_read##bits(&src);                        \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                        \
+  uint_fast##bits##_t y = rustsimplicity_0_5_read##bits(&src);                        \
   writeBit(dst, 1U * UINT##bits##_MAX - y < x);                               \
-  rustsimplicity_0_4_write##bits(dst, (uint_fast##bits##_t)(1U * x + y));             \
+  rustsimplicity_0_5_write##bits(dst, (uint_fast##bits##_t)(1U * x + y));             \
   return true;                                                                \
 }
 ADD_(8)
@@ -720,13 +720,13 @@ ADD_(64)
 
 #define FULL_ADD_(bits)                                                                   \
 /* full_add_n : TWO * TWO^n * TWO^n |- TWO * TWO^n */                                     \
-bool rustsimplicity_0_4_full_add_##bits(frameItem* dst, frameItem src, const txEnv* env) {        \
+bool rustsimplicity_0_5_full_add_##bits(frameItem* dst, frameItem src, const txEnv* env) {        \
   (void) env; /* env is unused. */                                                        \
   bool z = readBit(&src);                                                                 \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                                    \
-  uint_fast##bits##_t y = rustsimplicity_0_4_read##bits(&src);                                    \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                                    \
+  uint_fast##bits##_t y = rustsimplicity_0_5_read##bits(&src);                                    \
   writeBit(dst, 1U * UINT##bits##_MAX - y < x || 1U * UINT##bits##_MAX - z < 1U * x + y); \
-  rustsimplicity_0_4_write##bits(dst, (uint_fast##bits##_t)(1U * x + y + z));                     \
+  rustsimplicity_0_5_write##bits(dst, (uint_fast##bits##_t)(1U * x + y + z));                     \
   return true;                                                                            \
 }
 FULL_ADD_(8)
@@ -736,12 +736,12 @@ FULL_ADD_(64)
 
 #define FULL_INCREMENT_(bits)                                                            \
 /* full_increment_n : TWO * TWO^n |- TWO * TWO^n */                                      \
-bool rustsimplicity_0_4_full_increment_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_full_increment_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                                       \
   bool z = readBit(&src);                                                                \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                                   \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                                   \
   writeBit(dst, 1U * UINT##bits##_MAX - z < x);                                          \
-  rustsimplicity_0_4_write##bits(dst, (uint_fast##bits##_t)(1U * x + z));                        \
+  rustsimplicity_0_5_write##bits(dst, (uint_fast##bits##_t)(1U * x + z));                        \
   return true;                                                                           \
 }
 FULL_INCREMENT_(8)
@@ -751,11 +751,11 @@ FULL_INCREMENT_(64)
 
 #define INCREMENT_(bits)                                                            \
 /* increment_n : TWO^n |- TWO * TWO^n */                                            \
-bool rustsimplicity_0_4_increment_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_increment_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                                  \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                              \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                              \
   writeBit(dst, 1U * UINT##bits##_MAX - 1 < x);                                     \
-  rustsimplicity_0_4_write##bits(dst, (uint_fast##bits##_t)(1U * x + 1));                   \
+  rustsimplicity_0_5_write##bits(dst, (uint_fast##bits##_t)(1U * x + 1));                   \
   return true;                                                                      \
 }
 INCREMENT_(8)
@@ -765,12 +765,12 @@ INCREMENT_(64)
 
 #define SUBTRACT_(bits)                                                            \
 /* subtract_n : TWO^n * TWO^n |- TWO * TWO^n */                                    \
-bool rustsimplicity_0_4_subtract_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_subtract_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                                 \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                             \
-  uint_fast##bits##_t y = rustsimplicity_0_4_read##bits(&src);                             \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                             \
+  uint_fast##bits##_t y = rustsimplicity_0_5_read##bits(&src);                             \
   writeBit(dst, x < y);                                                            \
-  rustsimplicity_0_4_write##bits(dst, (uint_fast##bits##_t)(1U * x - y));                  \
+  rustsimplicity_0_5_write##bits(dst, (uint_fast##bits##_t)(1U * x - y));                  \
   return true;                                                                     \
 }
 SUBTRACT_(8)
@@ -780,11 +780,11 @@ SUBTRACT_(64)
 
 #define NEGATE_(bits)                                                            \
 /* negate_n : TWO^n |- TWO * TWO^n */                                            \
-bool rustsimplicity_0_4_negate_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_negate_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                               \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                           \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                           \
   writeBit(dst, x != 0);                                                         \
-  rustsimplicity_0_4_write##bits(dst, (uint_fast##bits##_t)(- (1U * x)));                \
+  rustsimplicity_0_5_write##bits(dst, (uint_fast##bits##_t)(- (1U * x)));                \
   return true;                                                                   \
 }
 NEGATE_(8)
@@ -794,12 +794,12 @@ NEGATE_(64)
 
 #define FULL_DECREMENT_(bits)                                                            \
 /* full_decrement_n : TWO * TWO^n |- TWO * TWO^n */                                      \
-bool rustsimplicity_0_4_full_decrement_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_full_decrement_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                                       \
   bool z = readBit(&src);                                                                \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                                   \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                                   \
   writeBit(dst, 1U * x < 1U * z);                                                        \
-  rustsimplicity_0_4_write##bits(dst, (uint_fast##bits##_t)(1U * x - z));                        \
+  rustsimplicity_0_5_write##bits(dst, (uint_fast##bits##_t)(1U * x - z));                        \
   return true;                                                                           \
 }
 FULL_DECREMENT_(8)
@@ -809,11 +809,11 @@ FULL_DECREMENT_(64)
 
 #define DECREMENT_(bits)                                                            \
 /* decrement_n : TWO^n |- TWO * TWO^n */                                            \
-bool rustsimplicity_0_4_decrement_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_decrement_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                                  \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                              \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                              \
   writeBit(dst, x < 1);                                                             \
-  rustsimplicity_0_4_write##bits(dst, (uint_fast##bits##_t)(1U * x - 1));                   \
+  rustsimplicity_0_5_write##bits(dst, (uint_fast##bits##_t)(1U * x - 1));                   \
   return true;                                                                      \
 }
 DECREMENT_(8)
@@ -823,13 +823,13 @@ DECREMENT_(64)
 
 #define FULL_SUBTRACT_(bits)                                                            \
 /* full_subtract_n : TWO * TWO^n * TWO^n |- TWO * TWO^n */                              \
-bool rustsimplicity_0_4_full_subtract_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_full_subtract_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                                      \
   bool z = readBit(&src);                                                               \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                                  \
-  uint_fast##bits##_t y = rustsimplicity_0_4_read##bits(&src);                                  \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                                  \
+  uint_fast##bits##_t y = rustsimplicity_0_5_read##bits(&src);                                  \
   writeBit(dst, 1U * x < 1U * y || 1U * x - y < 1U * z);                                \
-  rustsimplicity_0_4_write##bits(dst, (uint_fast##bits##_t)(1U * x - y - z));                   \
+  rustsimplicity_0_5_write##bits(dst, (uint_fast##bits##_t)(1U * x - y - z));                   \
   return true;                                                                          \
 }
 FULL_SUBTRACT_(8)
@@ -838,21 +838,21 @@ FULL_SUBTRACT_(32)
 FULL_SUBTRACT_(64)
 
 #define MULTIPLY_(bits,bitsx2)                                                     \
-bool rustsimplicity_0_4_multiply_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_multiply_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                                 \
-  uint_fast##bitsx2##_t x = rustsimplicity_0_4_read##bits(&src);                           \
-  uint_fast##bitsx2##_t y = rustsimplicity_0_4_read##bits(&src);                           \
-  rustsimplicity_0_4_write##bitsx2(dst, x * y);                                            \
+  uint_fast##bitsx2##_t x = rustsimplicity_0_5_read##bits(&src);                           \
+  uint_fast##bitsx2##_t y = rustsimplicity_0_5_read##bits(&src);                           \
+  rustsimplicity_0_5_write##bitsx2(dst, x * y);                                            \
   return true;                                                                     \
 }
 MULTIPLY_(8, 16)
 MULTIPLY_(16, 32)
 MULTIPLY_(32, 64)
 
-bool rustsimplicity_0_4_multiply_64(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_multiply_64(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
-  uint_fast64_t x = rustsimplicity_0_4_read64(&src);
-  uint_fast64_t y = rustsimplicity_0_4_read64(&src);
+  uint_fast64_t x = rustsimplicity_0_5_read64(&src);
+  uint_fast64_t y = rustsimplicity_0_5_read64(&src);
   secp256k1_uint128 r;
   secp256k1_u128_mul(&r, x, y);
   write128(dst, &r);
@@ -860,25 +860,25 @@ bool rustsimplicity_0_4_multiply_64(frameItem* dst, frameItem src, const txEnv* 
 }
 
 #define FULL_MULTIPLY_(bits,bitsx2)                                                     \
-bool rustsimplicity_0_4_full_multiply_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_full_multiply_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                                      \
-  uint_fast##bitsx2##_t x = rustsimplicity_0_4_read##bits(&src);                                \
-  uint_fast##bitsx2##_t y = rustsimplicity_0_4_read##bits(&src);                                \
-  uint_fast##bitsx2##_t z = rustsimplicity_0_4_read##bits(&src);                                \
-  uint_fast##bitsx2##_t w = rustsimplicity_0_4_read##bits(&src);                                \
-  rustsimplicity_0_4_write##bitsx2(dst, x * y + z + w);                                         \
+  uint_fast##bitsx2##_t x = rustsimplicity_0_5_read##bits(&src);                                \
+  uint_fast##bitsx2##_t y = rustsimplicity_0_5_read##bits(&src);                                \
+  uint_fast##bitsx2##_t z = rustsimplicity_0_5_read##bits(&src);                                \
+  uint_fast##bitsx2##_t w = rustsimplicity_0_5_read##bits(&src);                                \
+  rustsimplicity_0_5_write##bitsx2(dst, x * y + z + w);                                         \
   return true;                                                                          \
 }
 FULL_MULTIPLY_(8, 16)
 FULL_MULTIPLY_(16, 32)
 FULL_MULTIPLY_(32, 64)
 
-bool rustsimplicity_0_4_full_multiply_64(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_full_multiply_64(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
-  uint_fast64_t x = rustsimplicity_0_4_read64(&src);
-  uint_fast64_t y = rustsimplicity_0_4_read64(&src);
-  uint_fast64_t z = rustsimplicity_0_4_read64(&src);
-  uint_fast64_t w = rustsimplicity_0_4_read64(&src);
+  uint_fast64_t x = rustsimplicity_0_5_read64(&src);
+  uint_fast64_t y = rustsimplicity_0_5_read64(&src);
+  uint_fast64_t z = rustsimplicity_0_5_read64(&src);
+  uint_fast64_t w = rustsimplicity_0_5_read64(&src);
   secp256k1_uint128 r;
   secp256k1_u128_mul(&r, x, y);
   secp256k1_u128_accum_u64(&r, z);
@@ -889,9 +889,9 @@ bool rustsimplicity_0_4_full_multiply_64(frameItem* dst, frameItem src, const tx
 
 #define IS_ZERO_(bits)                                                            \
 /* is_zero_n : TWO^n |- TWO */                                                    \
-bool rustsimplicity_0_4_is_zero_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_is_zero_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                                \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                            \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                            \
   writeBit(dst, x == 0);                                                          \
   return true;                                                                    \
 }
@@ -902,9 +902,9 @@ IS_ZERO_(64)
 
 #define IS_ONE_(bits)                                                            \
 /* is_one_n : TWO^n |- TWO */                                                    \
-bool rustsimplicity_0_4_is_one_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_is_one_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                               \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                           \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                           \
   writeBit(dst, x == 1);                                                         \
   return true;                                                                   \
 }
@@ -915,10 +915,10 @@ IS_ONE_(64)
 
 #define LE_(bits)                                                            \
 /* le_n : TWO^n * TWO^n |- TWO */                                            \
-bool rustsimplicity_0_4_le_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_le_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                           \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                       \
-  uint_fast##bits##_t y = rustsimplicity_0_4_read##bits(&src);                       \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                       \
+  uint_fast##bits##_t y = rustsimplicity_0_5_read##bits(&src);                       \
   writeBit(dst, x <= y);                                                     \
   return true;                                                               \
 }
@@ -929,10 +929,10 @@ LE_(64)
 
 #define LT_(bits)                                                            \
 /* lt_n : TWO^n * TWO^n |- TWO */                                            \
-bool rustsimplicity_0_4_lt_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_lt_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                           \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                       \
-  uint_fast##bits##_t y = rustsimplicity_0_4_read##bits(&src);                       \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                       \
+  uint_fast##bits##_t y = rustsimplicity_0_5_read##bits(&src);                       \
   writeBit(dst, x < y);                                                      \
   return true;                                                               \
 }
@@ -943,11 +943,11 @@ LT_(64)
 
 #define MIN_(bits)                                                            \
 /* min_n : TWO^n * TWO^n |- TWO^n */                                          \
-bool rustsimplicity_0_4_min_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_min_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                            \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                        \
-  uint_fast##bits##_t y = rustsimplicity_0_4_read##bits(&src);                        \
-  rustsimplicity_0_4_write##bits(dst, x < y ? x : y);                                 \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                        \
+  uint_fast##bits##_t y = rustsimplicity_0_5_read##bits(&src);                        \
+  rustsimplicity_0_5_write##bits(dst, x < y ? x : y);                                 \
   return true;                                                                \
 }
 MIN_(8)
@@ -957,11 +957,11 @@ MIN_(64)
 
 #define MAX_(bits)                                                            \
 /* max_n : TWO^n * TWO^n |- TWO^n */                                          \
-bool rustsimplicity_0_4_max_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_max_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                            \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                        \
-  uint_fast##bits##_t y = rustsimplicity_0_4_read##bits(&src);                        \
-  rustsimplicity_0_4_write##bits(dst, x < y ? y : x);                                 \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                        \
+  uint_fast##bits##_t y = rustsimplicity_0_5_read##bits(&src);                        \
+  rustsimplicity_0_5_write##bits(dst, x < y ? y : x);                                 \
   return true;                                                                \
 }
 MAX_(8)
@@ -971,12 +971,12 @@ MAX_(64)
 
 #define MEDIAN_(bits)                                                            \
 /* median_n : TWO^n * TWO^n * TWO^n |- TWO^n */                                  \
-bool rustsimplicity_0_4_median_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_median_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                               \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                           \
-  uint_fast##bits##_t y = rustsimplicity_0_4_read##bits(&src);                           \
-  uint_fast##bits##_t z = rustsimplicity_0_4_read##bits(&src);                           \
-  rustsimplicity_0_4_write##bits(dst, x < y                                              \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                           \
+  uint_fast##bits##_t y = rustsimplicity_0_5_read##bits(&src);                           \
+  uint_fast##bits##_t z = rustsimplicity_0_5_read##bits(&src);                           \
+  rustsimplicity_0_5_write##bits(dst, x < y                                              \
                  ? (y < z ? y : (z < x ? x : z))                                 \
                  : (x < z ? x : (z < y ? y : z)));                               \
   return true;                                                                   \
@@ -988,12 +988,12 @@ MEDIAN_(64)
 
 #define DIV_MOD_(bits)                                                            \
 /* div_mod_n : TWO^n * TWO^n |- TWO^n * TWO^n */                                  \
-bool rustsimplicity_0_4_div_mod_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_div_mod_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                                \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                            \
-  uint_fast##bits##_t y = rustsimplicity_0_4_read##bits(&src);                            \
-  rustsimplicity_0_4_write##bits(dst, 0 == y ? 0 : x / y);                                \
-  rustsimplicity_0_4_write##bits(dst, 0 == y ? x : x % y);                                \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                            \
+  uint_fast##bits##_t y = rustsimplicity_0_5_read##bits(&src);                            \
+  rustsimplicity_0_5_write##bits(dst, 0 == y ? 0 : x / y);                                \
+  rustsimplicity_0_5_write##bits(dst, 0 == y ? x : x % y);                                \
   return true;                                                                    \
 }
 DIV_MOD_(8)
@@ -1003,11 +1003,11 @@ DIV_MOD_(64)
 
 #define DIVIDE_(bits)                                                            \
 /* divide_n : TWO^n * TWO^n |- TWO^n */                                          \
-bool rustsimplicity_0_4_divide_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_divide_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                               \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                           \
-  uint_fast##bits##_t y = rustsimplicity_0_4_read##bits(&src);                           \
-  rustsimplicity_0_4_write##bits(dst, 0 == y ? 0 : x / y);                               \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                           \
+  uint_fast##bits##_t y = rustsimplicity_0_5_read##bits(&src);                           \
+  rustsimplicity_0_5_write##bits(dst, 0 == y ? 0 : x / y);                               \
   return true;                                                                   \
 }
 DIVIDE_(8)
@@ -1017,11 +1017,11 @@ DIVIDE_(64)
 
 #define MODULO_(bits)                                                            \
 /* modulo_n : TWO^n * TWO^n |- TWO^n */                                          \
-bool rustsimplicity_0_4_modulo_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_modulo_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                               \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                           \
-  uint_fast##bits##_t y = rustsimplicity_0_4_read##bits(&src);                           \
-  rustsimplicity_0_4_write##bits(dst, 0 == y ? x : x % y);                               \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                           \
+  uint_fast##bits##_t y = rustsimplicity_0_5_read##bits(&src);                           \
+  rustsimplicity_0_5_write##bits(dst, 0 == y ? x : x % y);                               \
   return true;                                                                   \
 }
 MODULO_(8)
@@ -1031,10 +1031,10 @@ MODULO_(64)
 
 #define DIVIDES_(bits)                                                            \
 /* divides_n : TWO^n * TWO^n |- TWO */                                            \
-bool rustsimplicity_0_4_divides_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
+bool rustsimplicity_0_5_divides_##bits(frameItem* dst, frameItem src, const txEnv* env) { \
   (void) env; /* env is unused. */                                                \
-  uint_fast##bits##_t x = rustsimplicity_0_4_read##bits(&src);                            \
-  uint_fast##bits##_t y = rustsimplicity_0_4_read##bits(&src);                            \
+  uint_fast##bits##_t x = rustsimplicity_0_5_read##bits(&src);                            \
+  uint_fast##bits##_t y = rustsimplicity_0_5_read##bits(&src);                            \
   writeBit(dst, 0 == (0 == x ? y : y % x));                                       \
   return true;                                                                    \
 }
@@ -1046,7 +1046,7 @@ DIVIDES_(64)
 /* Implements the 3n/2n division algorithm for n=32 bits.
  * For more details see "Fast Recursive Division" by Christoph Burnikel and Joachim Ziegler, MPI-I-98-1-022, Oct. 1998.
  *
- * Given a 96 bit (unsigned) value A and a 64 bit value B, set *q and *r to the quotent and remainder of A divided by B.
+ * Given a 96 bit (unsigned) value A and a 64 bit value B, set *q and *r to the quotient and remainder of A divided by B.
  *
  * ah is passed the high 64 bits of A, and al is passed the low 32 bits of A.
  * We say that A = [ah;al] where [ah;al] denotes ah * 2^32 + al.
@@ -1067,7 +1067,7 @@ DIVIDES_(64)
  *
  * Preconditon 2 ensures that this estimate is close to the true value of Q.  In fact Q <= estQ <= Q + 2 (see proof below)
  *
- * There is a corresponding estR value satifying the equation estR = A - estQ * B.
+ * There is a corresponding estR value satisfying the equation estR = A - estQ * B.
  * This estR is one of {R, R - B, R - 2B}.
  * Therefore if estR is non-negative, then estR is equal to the true R value, and hence estQ is equal to the true Q value.
  *
@@ -1085,7 +1085,7 @@ DIVIDES_(64)
  *
  * Lemma 2: estQ < [1;2] (== 2^32 + 2).
  * First note that ah - [bh;0] < [1;0] because
- * ah < B (by precondtion 1)
+ * ah < B (by precondition 1)
  *    < [bh+1;0]
  *    == [bh;0] + [1;0]
  *
@@ -1109,14 +1109,14 @@ DIVIDES_(64)
 static void div_mod_96_64(uint_fast32_t *q, uint_fast64_t *r,
                           uint_fast64_t ah, uint_fast32_t al,
                           uint_fast64_t b) {
-  rustsimplicity_0_4_debug_assert(ah < b);
-  rustsimplicity_0_4_debug_assert(0x8000000000000000u <= b);
+  rustsimplicity_0_5_debug_assert(ah < b);
+  rustsimplicity_0_5_debug_assert(0x8000000000000000u <= b);
   uint_fast64_t bh = b >> 32;
   uint_fast64_t bl = b & 0xffffffffu;
   /* B == b == [bh;bl] */
   uint_fast64_t estQ = ah / bh;
 
-  /* Precondition 1 guarentees Q is 32-bits, if estQ is greater than UINT32_MAX, then reduce our initial estimated quotient to UINT32_MAX. */
+  /* Precondition 1 guarantees Q is 32-bits, if estQ is greater than UINT32_MAX, then reduce our initial estimated quotient to UINT32_MAX. */
   *q = estQ <= UINT32_MAX ? (uint_fast32_t)estQ : UINT32_MAX;
 
   /* *q * bh <= estQ * bh <= ah */
@@ -1131,7 +1131,7 @@ static void div_mod_96_64(uint_fast32_t *q, uint_fast64_t *r,
    * This value is negative when [rh;al] < d.
    * Note that d is 64 bit and thus if rh is greater than UINT32_MAX, then this value cannot be negative.
    */
-  /* This loop is exectued at most twice. */
+  /* This loop is executed at most twice. */
   while (rh <= UINT32_MAX && 0x100000000u*rh + al < d) {
     /* Our estimated remainder, A - *q * B is negative. */
     /* 0 < d == *q * bl and hence 0 < *q, so this decrement does not underflow. */
@@ -1152,14 +1152,14 @@ static void div_mod_96_64(uint_fast32_t *q, uint_fast64_t *r,
 }
 
 /* div_mod_128_64 : TWO^128 * TWO^64 |- TWO^64 * TWO^64 */
-bool rustsimplicity_0_4_div_mod_128_64(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_div_mod_128_64(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   uint_fast32_t qh, ql;
   uint_fast64_t r;
-  uint_fast64_t ah = rustsimplicity_0_4_read64(&src);
-  uint_fast32_t am = rustsimplicity_0_4_read32(&src);
-  uint_fast32_t al = rustsimplicity_0_4_read32(&src);
-  uint_fast64_t b = rustsimplicity_0_4_read64(&src);
+  uint_fast64_t ah = rustsimplicity_0_5_read64(&src);
+  uint_fast32_t am = rustsimplicity_0_5_read32(&src);
+  uint_fast32_t al = rustsimplicity_0_5_read32(&src);
+  uint_fast64_t b = rustsimplicity_0_5_read64(&src);
 
   /* div2n1n is only defined when 2^(n-1) <= b and when the quotient q < 2^n. */
   if (0x8000000000000000 <= b && ah < b) {
@@ -1173,10 +1173,10 @@ bool rustsimplicity_0_4_div_mod_128_64(frameItem* dst, frameItem src, const txEn
      *         RR
      *
      * First divide the high 3 "digit"s (96-bits) of A by the two "digit"s (64-bits) of B,
-     * returning the first "digit" (high 32-bits) of the quotient, and an intermediate remainer consisiting of 2 "digit"s (64-bits).
+     * returning the first "digit" (high 32-bits) of the quotient, and an intermediate remainder consisiting of 2 "digit"s (64-bits).
      */
     div_mod_96_64(&qh, &r, ah, am, b);
-    rustsimplicity_0_4_debug_assert(r < b);
+    rustsimplicity_0_5_debug_assert(r < b);
     /* 2.       QQ
      *      ______
      *    BB) AAA|
@@ -1187,23 +1187,23 @@ bool rustsimplicity_0_4_div_mod_128_64(frameItem* dst, frameItem src, const txEn
      *         ---
      *          RR
      *
-     * Then append the last "digit" of A to the intermidiate remainder and divide that value (96_bits) by the two "digit"s (64-bits) of B,
-     * returning the second "digit" (low 32-bits) of the quotient, and the final remainer consisiting of 2 "digit"s (64-bits).
+     * Then append the last "digit" of A to the intermediate remainder and divide that value (96_bits) by the two "digit"s (64-bits) of B,
+     * returning the second "digit" (low 32-bits) of the quotient, and the final remainder consisiting of 2 "digit"s (64-bits).
      */
     div_mod_96_64(&ql, &r, r, al, b);
-    rustsimplicity_0_4_write32(dst, qh);
-    rustsimplicity_0_4_write32(dst, ql);
-    rustsimplicity_0_4_write64(dst, r);
+    rustsimplicity_0_5_write32(dst, qh);
+    rustsimplicity_0_5_write32(dst, ql);
+    rustsimplicity_0_5_write64(dst, r);
   } else {
     /* Set all the bits in the output when the input is out of bounds. */
-    rustsimplicity_0_4_write64(dst, (uint64_t)(-1));
-    rustsimplicity_0_4_write64(dst, (uint64_t)(-1));
+    rustsimplicity_0_5_write64(dst, (uint64_t)(-1));
+    rustsimplicity_0_5_write64(dst, (uint64_t)(-1));
   }
   return true;
 }
 
 /* sha_256_iv : ONE |- TWO^256 */
-bool rustsimplicity_0_4_sha_256_iv(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_sha_256_iv(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   (void) src; /* env is unused. */
 
@@ -1215,13 +1215,13 @@ bool rustsimplicity_0_4_sha_256_iv(frameItem* dst, frameItem src, const txEnv* e
 }
 
 /* sha_256_block : TWO^256 * TWO^512 |- TWO^256 */
-bool rustsimplicity_0_4_sha_256_block(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_sha_256_block(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   uint32_t h[8];
   uint32_t block[16];
   read32s(h, 8, &src);
   read32s(block, 16, &src);
-  rustsimplicity_0_4_sha256_compression(h, block);
+  rustsimplicity_0_5_sha256_compression(h, block);
   write32s(dst, h, 8);
   return true;
 }
@@ -1230,14 +1230,14 @@ bool rustsimplicity_0_4_sha_256_block(frameItem* dst, frameItem src, const txEnv
  * where
  * CTX8 = (TWO^8)^<64 * TWO^64 * TWO^256
  */
-bool rustsimplicity_0_4_sha_256_ctx_8_init(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_sha_256_ctx_8_init(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   (void) src; /* env is unused. */
 
   uint32_t iv[8];
   sha256_context ctx = sha256_init(iv);
 
-  return rustsimplicity_0_4_write_sha256_context(dst, &ctx);
+  return rustsimplicity_0_5_write_sha256_context(dst, &ctx);
 }
 
 /* sha_256_ctx_8_add_n : CTX8 * (TWO^8)^n |- CTX8
@@ -1247,22 +1247,22 @@ bool rustsimplicity_0_4_sha_256_ctx_8_init(frameItem* dst, frameItem src, const 
  * CTX8 = (TWO^8)^<64 * TWO^64 * TWO^256
  */
 static bool sha_256_ctx_8_add_n(frameItem* dst, frameItem *src, size_t n) {
-  rustsimplicity_0_4_debug_assert(0 < n && n <= 512 && (n & (n - 1)) == 0);
+  rustsimplicity_0_5_debug_assert(0 < n && n <= 512 && (n & (n - 1)) == 0);
   sha256_midstate midstate;
   unsigned char buf[512];
   sha256_context ctx = {.output = midstate.s};
 
-  if (!rustsimplicity_0_4_read_sha256_context(&ctx, src)) return false;
+  if (!rustsimplicity_0_5_read_sha256_context(&ctx, src)) return false;
   read8s(buf, n, src);
   sha256_uchars(&ctx, buf, n);
-  return rustsimplicity_0_4_write_sha256_context(dst, &ctx);
+  return rustsimplicity_0_5_write_sha256_context(dst, &ctx);
 }
 
 /* sha_256_ctx_8_add_1 : CTX8 * TWO^8 |- CTX8
  * where
  * CTX8 = (TWO^8)^<64 * TWO^64 * TWO^256
  */
-bool rustsimplicity_0_4_sha_256_ctx_8_add_1(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_sha_256_ctx_8_add_1(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   return sha_256_ctx_8_add_n(dst, &src, 1);
 }
@@ -1271,7 +1271,7 @@ bool rustsimplicity_0_4_sha_256_ctx_8_add_1(frameItem* dst, frameItem src, const
  * where
  * CTX8 = (TWO^8)^<64 * TWO^64 * TWO^256
  */
-bool rustsimplicity_0_4_sha_256_ctx_8_add_2(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_sha_256_ctx_8_add_2(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   return sha_256_ctx_8_add_n(dst, &src, 2);
 }
@@ -1280,7 +1280,7 @@ bool rustsimplicity_0_4_sha_256_ctx_8_add_2(frameItem* dst, frameItem src, const
  * where
  * CTX8 = (TWO^8)^<64 * TWO^64 * TWO^256
  */
-bool rustsimplicity_0_4_sha_256_ctx_8_add_4(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_sha_256_ctx_8_add_4(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   return sha_256_ctx_8_add_n(dst, &src, 4);
 }
@@ -1289,7 +1289,7 @@ bool rustsimplicity_0_4_sha_256_ctx_8_add_4(frameItem* dst, frameItem src, const
  * where
  * CTX8 = (TWO^8)^<64 * TWO^64 * TWO^256
  */
-bool rustsimplicity_0_4_sha_256_ctx_8_add_8(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_sha_256_ctx_8_add_8(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   return sha_256_ctx_8_add_n(dst, &src, 8);
 }
@@ -1298,7 +1298,7 @@ bool rustsimplicity_0_4_sha_256_ctx_8_add_8(frameItem* dst, frameItem src, const
  * where
  * CTX8 = (TWO^8)^<64 * TWO^64 * TWO^256
  */
-bool rustsimplicity_0_4_sha_256_ctx_8_add_16(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_sha_256_ctx_8_add_16(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   return sha_256_ctx_8_add_n(dst, &src, 16);
 }
@@ -1307,7 +1307,7 @@ bool rustsimplicity_0_4_sha_256_ctx_8_add_16(frameItem* dst, frameItem src, cons
  * where
  * CTX8 = (TWO^8)^<64 * TWO^64 * TWO^256
  */
-bool rustsimplicity_0_4_sha_256_ctx_8_add_32(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_sha_256_ctx_8_add_32(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   return sha_256_ctx_8_add_n(dst, &src, 32);
 }
@@ -1316,7 +1316,7 @@ bool rustsimplicity_0_4_sha_256_ctx_8_add_32(frameItem* dst, frameItem src, cons
  * where
  * CTX8 = (TWO^8)^<64 * TWO^64 * TWO^256
  */
-bool rustsimplicity_0_4_sha_256_ctx_8_add_64(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_sha_256_ctx_8_add_64(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   return sha_256_ctx_8_add_n(dst, &src, 64);
 }
@@ -1325,7 +1325,7 @@ bool rustsimplicity_0_4_sha_256_ctx_8_add_64(frameItem* dst, frameItem src, cons
  * where
  * CTX8 = (TWO^8)^<64 * TWO^64 * TWO^256
  */
-bool rustsimplicity_0_4_sha_256_ctx_8_add_128(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_sha_256_ctx_8_add_128(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   return sha_256_ctx_8_add_n(dst, &src, 128);
 }
@@ -1334,7 +1334,7 @@ bool rustsimplicity_0_4_sha_256_ctx_8_add_128(frameItem* dst, frameItem src, con
  * where
  * CTX8 = (TWO^8)^<64 * TWO^64 * TWO^256
  */
-bool rustsimplicity_0_4_sha_256_ctx_8_add_256(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_sha_256_ctx_8_add_256(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   return sha_256_ctx_8_add_n(dst, &src, 256);
 }
@@ -1343,7 +1343,7 @@ bool rustsimplicity_0_4_sha_256_ctx_8_add_256(frameItem* dst, frameItem src, con
  * where
  * CTX8 = (TWO^8)^<64 * TWO^64 * TWO^256
  */
-bool rustsimplicity_0_4_sha_256_ctx_8_add_512(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_sha_256_ctx_8_add_512(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   return sha_256_ctx_8_add_n(dst, &src, 512);
 }
@@ -1352,30 +1352,30 @@ bool rustsimplicity_0_4_sha_256_ctx_8_add_512(frameItem* dst, frameItem src, con
  * where
  * CTX8 = (TWO^8)^<64 * TWO^64 * TWO^256
  */
-bool rustsimplicity_0_4_sha_256_ctx_8_add_buffer_511(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_sha_256_ctx_8_add_buffer_511(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   sha256_midstate midstate;
   unsigned char buf[511];
   size_t buf_len;
   sha256_context ctx = {.output = midstate.s};
 
-  if (!rustsimplicity_0_4_read_sha256_context(&ctx, &src)) return false;
+  if (!rustsimplicity_0_5_read_sha256_context(&ctx, &src)) return false;
 
-  rustsimplicity_0_4_read_buffer8(buf, &buf_len, &src, 8);
+  rustsimplicity_0_5_read_buffer8(buf, &buf_len, &src, 8);
   sha256_uchars(&ctx, buf, buf_len);
-  return rustsimplicity_0_4_write_sha256_context(dst, &ctx);
+  return rustsimplicity_0_5_write_sha256_context(dst, &ctx);
 }
 
 /* sha_256_ctx_8_finalize : CTX8 |- TWO^256
  * where
  * CTX8 = (TWO^8)^<64 * TWO^64 * TWO^256
  */
-bool rustsimplicity_0_4_sha_256_ctx_8_finalize(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_sha_256_ctx_8_finalize(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   sha256_midstate midstate;
   sha256_context ctx = {.output = midstate.s};
 
-  if (!rustsimplicity_0_4_read_sha256_context(&ctx, &src)) return false;
+  if (!rustsimplicity_0_5_read_sha256_context(&ctx, &src)) return false;
 
   sha256_finalize(&ctx);
   write32s(dst, midstate.s, 8);
@@ -1383,29 +1383,29 @@ bool rustsimplicity_0_4_sha_256_ctx_8_finalize(frameItem* dst, frameItem src, co
 }
 
 /* parse_sequence : TWO^32 |- TWO^32 + TWO^32 */
-bool rustsimplicity_0_4_parse_lock(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_parse_lock(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
-  uint_fast32_t nLockTime = rustsimplicity_0_4_read32(&src);
+  uint_fast32_t nLockTime = rustsimplicity_0_5_read32(&src);
   writeBit(dst, 500000000U <= nLockTime);
-  rustsimplicity_0_4_write32(dst, nLockTime);
+  rustsimplicity_0_5_write32(dst, nLockTime);
   return true;
 }
 
 /* parse_sequence : TWO^32 |- S (TWO^16 + TWO^16) */
-bool rustsimplicity_0_4_parse_sequence(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_5_parse_sequence(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
-  uint_fast32_t nSequence = rustsimplicity_0_4_read32(&src);
+  uint_fast32_t nSequence = rustsimplicity_0_5_read32(&src);
   if (writeBit(dst, nSequence < ((uint_fast32_t)1 << 31))) {
     writeBit(dst, nSequence & ((uint_fast32_t)1 << 22));
-    rustsimplicity_0_4_write16(dst, nSequence & 0xffff);
+    rustsimplicity_0_5_write16(dst, nSequence & 0xffff);
   } else {
     skipBits(dst, 17);
   }
   return true;
 }
 
-/* rustsimplicity_0_4_tapdata_init : ONE |- CTX8 */
-bool rustsimplicity_0_4_tapdata_init(frameItem* dst, frameItem src, const txEnv* env) {
+/* rustsimplicity_0_5_tapdata_init : ONE |- CTX8 */
+bool rustsimplicity_0_5_tapdata_init(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; /* env is unused. */
   (void) src; /* env is unused. */
 
@@ -1421,5 +1421,5 @@ bool rustsimplicity_0_4_tapdata_init(frameItem* dst, frameItem src, const txEnv*
   sha256_hash(&ctx, &tapleafTag);
   sha256_hash(&ctx, &tapleafTag);
 
-  return rustsimplicity_0_4_write_sha256_context(dst, &ctx);
+  return rustsimplicity_0_5_write_sha256_context(dst, &ctx);
 }

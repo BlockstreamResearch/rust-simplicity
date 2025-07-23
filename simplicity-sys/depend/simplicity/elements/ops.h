@@ -1,10 +1,10 @@
 /* This module defines operations used in the construction the environment ('txEnv') and some jets.
  */
-#ifndef SIMPLICITY_PRIMITIVE_ELEMENTS_OPS_H
-#define SIMPLICITY_PRIMITIVE_ELEMENTS_OPS_H
+#ifndef SIMPLICITY_ELEMENTS_OPS_H
+#define SIMPLICITY_ELEMENTS_OPS_H
 
-#include "../../sha256.h"
-#include "primitive.h"
+#include "../sha256.h"
+#include "txEnv.h"
 
 /* Add an 'confidential' value to be consumed by an ongoing SHA-256 evaluation.
  * If the 'confidential' value is blinded, then the 'evenPrefix' used if the y coordinate is even,
@@ -15,28 +15,28 @@
  * Precondition: NULL != ctx;
  *               NULL != conf;
  */
-void rustsimplicity_0_4_sha256_confidential(unsigned char evenPrefix, unsigned char oddPrefix, sha256_context* ctx, const confidential* conf);
+void rustsimplicity_0_5_sha256_confidential(unsigned char evenPrefix, unsigned char oddPrefix, sha256_context* ctx, const confidential* conf);
 
 /* Add an 'confidential' asset to be consumed by an ongoing SHA-256 evaluation.
  *
  * Precondition: NULL != ctx;
  *               NULL != asset;
  */
-void rustsimplicity_0_4_sha256_confAsset(sha256_context* ctx, const confidential* asset);
+void rustsimplicity_0_5_sha256_confAsset(sha256_context* ctx, const confidential* asset);
 
 /* Add an 'confidential' nonce to be consumed by an ongoing SHA-256 evaluation.
  *
  * Precondition: NULL != ctx;
  *               NULL != nonce;
  */
-void rustsimplicity_0_4_sha256_confNonce(sha256_context* ctx, const confidential* nonce);
+void rustsimplicity_0_5_sha256_confNonce(sha256_context* ctx, const confidential* nonce);
 
 /* Add an 'confidential' amount to be consumed by an ongoing SHA-256 evaluation.
  *
  * Precondition: NULL != ctx;
  *               NULL != amt;
  */
-void rustsimplicity_0_4_sha256_confAmt(sha256_context* ctx, const confAmount* amt);
+void rustsimplicity_0_5_sha256_confAmt(sha256_context* ctx, const confAmount* amt);
 
 /* Compute an Element's entropy value from a prevoutpoint and a contract hash.
  * A reimplementation of GenerateAssetEntropy from Element's 'issuance.cpp'.
@@ -44,21 +44,21 @@ void rustsimplicity_0_4_sha256_confAmt(sha256_context* ctx, const confAmount* am
  * Precondition: NULL != op;
  *               NULL != contract;
  */
-sha256_midstate rustsimplicity_0_4_generateIssuanceEntropy(const outpoint* op, const sha256_midstate* contract);
+sha256_midstate rustsimplicity_0_5_generateIssuanceEntropy(const outpoint* op, const sha256_midstate* contract);
 
 /* Compute an Element's issuance Asset ID value from an entropy value.
  * A reimplementation of CalculateAsset from Element's 'issuance.cpp'.
  *
  * Precondition: NULL != entropy;
  */
-sha256_midstate rustsimplicity_0_4_calculateAsset(const sha256_midstate* entropy);
+sha256_midstate rustsimplicity_0_5_calculateAsset(const sha256_midstate* entropy);
 
 /* Compute an Element's issuance Token ID value from an entropy value and an amount prefix.
  * A reimplementation of CalculateReissuanceToken from Element's 'issuance.cpp'.
  *
  * Precondition: NULL != entropy;
  */
-sha256_midstate rustsimplicity_0_4_calculateToken(const sha256_midstate* entropy, confPrefix prefix);
+sha256_midstate rustsimplicity_0_5_calculateToken(const sha256_midstate* entropy, confPrefix prefix);
 
 /* Compute an Element's tapleaf hash from a tapleaf version and a 256-bit script value.
  * A reimplementation of ComputeTapleafHash from Element's 'interpreter.cpp'.
@@ -66,13 +66,13 @@ sha256_midstate rustsimplicity_0_4_calculateToken(const sha256_midstate* entropy
  *
  * Precondition: NULL != cmr;
  */
-sha256_midstate rustsimplicity_0_4_make_tapleaf(unsigned char version, const sha256_midstate* cmr);
+sha256_midstate rustsimplicity_0_5_make_tapleaf(unsigned char version, const sha256_midstate* cmr);
 
 /* Compute an Element's tapbrach hash from two branches.
  *
  * Precondition: NULL != a;
  *               NULL != b;
  */
-sha256_midstate rustsimplicity_0_4_make_tapbranch(const sha256_midstate* a, const sha256_midstate* b);
+sha256_midstate rustsimplicity_0_5_make_tapbranch(const sha256_midstate* a, const sha256_midstate* b);
 
 #endif
