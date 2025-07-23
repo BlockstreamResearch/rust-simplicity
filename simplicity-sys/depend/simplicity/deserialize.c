@@ -17,10 +17,10 @@
 static simplicity_err getWord32Array(uint32_t* result, const size_t len, bitstream* stream) {
   for (size_t i = 0; i < len; ++i) {
     /* Due to error codes, readNBits cannot fetch 32 bits at once. Instead we fetch two groups of 16 bits. */
-    int32_t bits16 = simplicity_readNBits(16, stream);
+    int32_t bits16 = rustsimplicity_0_4_readNBits(16, stream);
     if (bits16 < 0) return (simplicity_err)bits16;
     result[i] = (uint32_t)bits16 << 16;
-    bits16 = simplicity_readNBits(16, stream);
+    bits16 = rustsimplicity_0_4_readNBits(16, stream);
     if (bits16 < 0) return (simplicity_err)bits16;
     result[i] |= (uint32_t)bits16;
   }
@@ -63,27 +63,27 @@ static simplicity_err decodeNode(dag_node* dag, uint_fast32_t i, bitstream* stre
     bit = read1Bit(stream);
     if (bit < 0) return (simplicity_err)bit;
     if (bit) {
-      return simplicity_decodeJet(&dag[i], stream);
+      return rustsimplicity_0_4_decodeJet(&dag[i], stream);
     } else {
       /* Decode WORD. */
-      int32_t depth = simplicity_decodeUptoMaxInt(stream);
+      int32_t depth = rustsimplicity_0_4_decodeUptoMaxInt(stream);
       if (depth < 0) return (simplicity_err)depth;
       if (32 < depth) return SIMPLICITY_ERR_DATA_OUT_OF_RANGE;
       {
-        simplicity_err error = simplicity_readBitstring(&dag[i].compactValue, (size_t)1 << (depth - 1), stream);
+        simplicity_err error = rustsimplicity_0_4_readBitstring(&dag[i].compactValue, (size_t)1 << (depth - 1), stream);
         if (!IS_OK(error)) return error;
       }
       dag[i].tag = WORD;
       dag[i].targetIx = (size_t)depth;
-      dag[i].cmr = simplicity_computeWordCMR(&dag[i].compactValue, (size_t)(depth - 1));
+      dag[i].cmr = rustsimplicity_0_4_computeWordCMR(&dag[i].compactValue, (size_t)(depth - 1));
     }
   } else {
-    int32_t code = simplicity_readNBits(2, stream);
+    int32_t code = rustsimplicity_0_4_readNBits(2, stream);
     if (code < 0) return (simplicity_err)code;
-    int32_t subcode = simplicity_readNBits(code < 3 ? 2 : 1, stream);
+    int32_t subcode = rustsimplicity_0_4_readNBits(code < 3 ? 2 : 1, stream);
     if (subcode < 0) return (simplicity_err)subcode;
     for (int32_t j = 0; j < 2 - code; ++j) {
-      int32_t ix = simplicity_decodeUptoMaxInt(stream);
+      int32_t ix = rustsimplicity_0_4_decodeUptoMaxInt(stream);
       if (ix < 0) return (simplicity_err)ix;
       if (i < (uint_fast32_t)ix) return SIMPLICITY_ERR_DATA_OUT_OF_RANGE;
       dag[i].child[j] = i - (uint_fast32_t)ix;
@@ -134,7 +134,7 @@ static simplicity_err decodeNode(dag_node* dag, uint_fast32_t i, bitstream* stre
        if (HIDDEN == dag[dag[i].child[j]].tag && dag[i].tag != (j ? ASSERTL : ASSERTR)) return SIMPLICITY_ERR_HIDDEN;
     }
 
-    simplicity_computeCommitmentMerkleRoot(dag, i);
+    rustsimplicity_0_4_computeCommitmentMerkleRoot(dag, i);
   }
   return SIMPLICITY_NO_ERROR;
 }
@@ -186,16 +186,16 @@ static simplicity_err decodeDag(dag_node* dag, const uint_fast32_t len, combinat
  *                          of the function is positive and when NULL != census;
  *                NULL == *dag when the return value is negative.
  */
-int_fast32_t simplicity_decodeMallocDag(dag_node** dag, combinator_counters* census, bitstream* stream) {
+int_fast32_t rustsimplicity_0_4_decodeMallocDag(dag_node** dag, combinator_counters* census, bitstream* stream) {
   *dag = NULL;
-  int32_t dagLen = simplicity_decodeUptoMaxInt(stream);
+  int32_t dagLen = rustsimplicity_0_4_decodeUptoMaxInt(stream);
   if (dagLen <= 0) return dagLen;
   static_assert(DAG_LEN_MAX <= (uint32_t)INT32_MAX, "DAG_LEN_MAX exceeds supported parsing range.");
   if (DAG_LEN_MAX < (uint32_t)dagLen) return SIMPLICITY_ERR_DATA_OUT_OF_RANGE;
   static_assert(DAG_LEN_MAX <= SIZE_MAX / sizeof(dag_node), "dag array too large.");
   static_assert(1 <= DAG_LEN_MAX, "DAG_LEN_MAX is zero.");
   static_assert(DAG_LEN_MAX - 1 <= UINT32_MAX, "dag array index does not fit in uint32_t.");
-  *dag = simplicity_malloc((size_t)dagLen * sizeof(dag_node));
+  *dag = rustsimplicity_0_4_malloc((size_t)dagLen * sizeof(dag_node));
   if (!*dag) return SIMPLICITY_ERR_MALLOC;
 
   if (census) *census = (combinator_counters){0};
@@ -204,13 +204,13 @@ int_fast32_t simplicity_decodeMallocDag(dag_node** dag, combinator_counters* cen
   if (IS_OK(error)) {
     error = HIDDEN == (*dag)[dagLen - 1].tag
           ? SIMPLICITY_ERR_HIDDEN_ROOT
-          : simplicity_verifyCanonicalOrder(*dag, (uint_fast32_t)(dagLen));
+          : rustsimplicity_0_4_verifyCanonicalOrder(*dag, (uint_fast32_t)(dagLen));
   }
 
   if (IS_OK(error)) {
     return dagLen;
   } else {
-    simplicity_free(*dag);
+    rustsimplicity_0_4_free(*dag);
     *dag = NULL;
     return (int_fast32_t)error;
   }

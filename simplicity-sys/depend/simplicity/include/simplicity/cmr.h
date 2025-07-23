@@ -18,6 +18,6 @@
  *               unsigned char cmr[32]
  *               unsigned char program[program_len]
  */
-extern bool simplicity_computeCmr( simplicity_err* error, unsigned char* cmr
+extern bool rustsimplicity_0_4_computeCmr( simplicity_err* error, unsigned char* cmr
                                  , const unsigned char* program, size_t program_len);
 #endif

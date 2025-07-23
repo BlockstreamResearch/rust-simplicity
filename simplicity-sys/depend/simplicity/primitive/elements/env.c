@@ -90,7 +90,7 @@ static void copyInput(sigInput* result, const rawInput* input) {
         0 == result->issuance.blindingNonce.s[4] && 0 == result->issuance.blindingNonce.s[5] &&
         0 == result->issuance.blindingNonce.s[6] && 0 == result->issuance.blindingNonce.s[7]) {
       sha256_toMidstate(result->issuance.contractHash.s, input->issuance.assetEntropy);
-      result->issuance.entropy = simplicity_generateIssuanceEntropy(&result->prevOutpoint, &result->issuance.contractHash);
+      result->issuance.entropy = rustsimplicity_0_4_generateIssuanceEntropy(&result->prevOutpoint, &result->issuance.contractHash);
       copyRawAmt(&result->issuance.tokenAmt, input->issuance.inflationKeys);
       if (is_confidential(result->issuance.tokenAmt.prefix)) hashBuffer(&result->issuance.tokenRangeProofHash, &input->issuance.inflationKeysRangePrf);
       result->issuance.type = NEW_ISSUANCE;
@@ -98,8 +98,8 @@ static void copyInput(sigInput* result, const rawInput* input) {
       sha256_toMidstate(result->issuance.entropy.s, input->issuance.assetEntropy);
       result->issuance.type = REISSUANCE;
     }
-    result->issuance.assetId = simplicity_calculateAsset(&result->issuance.entropy);
-    result->issuance.tokenId = simplicity_calculateToken(&result->issuance.entropy, result->issuance.assetAmt.prefix);
+    result->issuance.assetId = rustsimplicity_0_4_calculateAsset(&result->issuance.entropy);
+    result->issuance.tokenId = rustsimplicity_0_4_calculateToken(&result->issuance.entropy, result->issuance.assetAmt.prefix);
   }
 }
 
@@ -287,7 +287,7 @@ static uint_fast32_t sumFees(sigOutput** feeOutputs, uint_fast32_t numFees) {
 
   for(uint_fast32_t i = 0; i < numFees; ++i) {
     int cmp = memcmp(feeOutputs[i]->asset.data.s, feeOutputs[result]->asset.data.s, sizeof(feeOutputs[i]->asset.data.s));
-    simplicity_assert(0 <= cmp);
+    rustsimplicity_0_4_assert(0 <= cmp);
     if (0 < cmp) {
       result++;
       feeOutputs[result] = feeOutputs[i];
@@ -311,7 +311,7 @@ static uint_fast32_t sumFees(sigOutput** feeOutputs, uint_fast32_t numFees) {
  *
  * Precondition: NULL != rawTx
  */
-extern transaction* simplicity_elements_mallocTransaction(const rawTransaction* rawTx) {
+extern transaction* rustsimplicity_0_4_elements_mallocTransaction(const rawTransaction* rawTx) {
   if (!rawTx) return NULL;
 
   size_t allocationSize = sizeof(transaction);
@@ -354,7 +354,7 @@ extern transaction* simplicity_elements_mallocTransaction(const rawTransaction* 
   if (SIZE_MAX - allocationSize < totalNullDataCodes * sizeof(opcode)) return NULL;
   allocationSize += (size_t)totalNullDataCodes * sizeof(opcode);
 
-  char *allocation = simplicity_malloc(allocationSize);
+  char *allocation = rustsimplicity_0_4_malloc(allocationSize);
   if (!allocation) return NULL;
 
   /* Casting through void* to avoid warning about pointer alignment.
@@ -423,8 +423,8 @@ extern transaction* simplicity_elements_mallocTransaction(const rawTransaction* 
       }
       sha256_hash(&ctx_inputOutpointsHash, &input[i].prevOutpoint.txid);
       sha256_u32be(&ctx_inputOutpointsHash, input[i].prevOutpoint.ix);
-      simplicity_sha256_confAsset(&ctx_inputAssetAmountsHash, &input[i].txo.asset);
-      simplicity_sha256_confAmt(&ctx_inputAssetAmountsHash, &input[i].txo.amt);
+      rustsimplicity_0_4_sha256_confAsset(&ctx_inputAssetAmountsHash, &input[i].txo.asset);
+      rustsimplicity_0_4_sha256_confAmt(&ctx_inputAssetAmountsHash, &input[i].txo.amt);
       sha256_hash(&ctx_inputScriptsHash, &input[i].txo.scriptPubKey);
       sha256_u32be(&ctx_inputSequencesHash, input[i].sequence);
       if (input[i].hasAnnex) {
@@ -441,10 +441,10 @@ extern transaction* simplicity_elements_mallocTransaction(const rawTransaction* 
         sha256_uchar(&ctx_issuanceTokenAmountsHash, 0);
         sha256_uchar(&ctx_issuanceBlindingEntropyHash, 0);
       } else {
-        simplicity_sha256_confAsset(&ctx_issuanceAssetAmountsHash, &(confidential){ .prefix = EXPLICIT, .data = input[i].issuance.assetId});
-        simplicity_sha256_confAsset(&ctx_issuanceTokenAmountsHash, &(confidential){ .prefix = EXPLICIT, .data = input[i].issuance.tokenId});
-        simplicity_sha256_confAmt(&ctx_issuanceAssetAmountsHash, &input[i].issuance.assetAmt);
-        simplicity_sha256_confAmt(&ctx_issuanceTokenAmountsHash, NEW_ISSUANCE == input[i].issuance.type
+        rustsimplicity_0_4_sha256_confAsset(&ctx_issuanceAssetAmountsHash, &(confidential){ .prefix = EXPLICIT, .data = input[i].issuance.assetId});
+        rustsimplicity_0_4_sha256_confAsset(&ctx_issuanceTokenAmountsHash, &(confidential){ .prefix = EXPLICIT, .data = input[i].issuance.tokenId});
+        rustsimplicity_0_4_sha256_confAmt(&ctx_issuanceAssetAmountsHash, &input[i].issuance.assetAmt);
+        rustsimplicity_0_4_sha256_confAmt(&ctx_issuanceTokenAmountsHash, NEW_ISSUANCE == input[i].issuance.type
                                                     ? &input[i].issuance.tokenAmt
                                                     : &(confAmount){ .prefix = EXPLICIT, .explicit = 0});
         sha256_uchar(&ctx_issuanceBlindingEntropyHash, 1);
@@ -507,21 +507,21 @@ extern transaction* simplicity_elements_mallocTransaction(const rawTransaction* 
     for (uint_fast32_t i = 0; i < tx->numOutputs; ++i) {
       copyOutput(&output[i], &ops, &opsLen, &rawTx->output[i]);
       if (isFee(&rawTx->output[i])) {
-        simplicity_assert(ix_fee < numFees);
+        rustsimplicity_0_4_assert(ix_fee < numFees);
         perm[ix_fee] = &output[i].asset.data;
         ++ix_fee;
       }
-      simplicity_sha256_confAsset(&ctx_outputAssetAmountsHash, &output[i].asset);
-      simplicity_sha256_confAmt(&ctx_outputAssetAmountsHash, &output[i].amt);
-      simplicity_sha256_confNonce(&ctx_outputNoncesHash, &output[i].nonce);
+      rustsimplicity_0_4_sha256_confAsset(&ctx_outputAssetAmountsHash, &output[i].asset);
+      rustsimplicity_0_4_sha256_confAmt(&ctx_outputAssetAmountsHash, &output[i].amt);
+      rustsimplicity_0_4_sha256_confNonce(&ctx_outputNoncesHash, &output[i].nonce);
       sha256_hash(&ctx_outputScriptsHash, &output[i].scriptPubKey);
       sha256_hash(&ctx_outputRangeProofsHash, &output[i].rangeProofHash);
       sha256_hash(&ctx_outputSurjectionProofsHash, &output[i].surjectionProofHash);
     }
 
-    simplicity_assert(numFees == ix_fee);
-    if (!simplicity_rsort(perm, numFees)) {
-      simplicity_free(tx);
+    rustsimplicity_0_4_assert(numFees == ix_fee);
+    if (!rustsimplicity_0_4_rsort(perm, numFees)) {
+      rustsimplicity_0_4_free(tx);
       return NULL;
     }
 
@@ -571,8 +571,8 @@ extern transaction* simplicity_elements_mallocTransaction(const rawTransaction* 
 
 /* Free a pointer to 'transaction'.
  */
-extern void simplicity_elements_freeTransaction(transaction* tx) {
-  simplicity_free(tx);
+extern void rustsimplicity_0_4_elements_freeTransaction(transaction* tx) {
+  rustsimplicity_0_4_free(tx);
 }
 
 /* Allocate and initialize a 'tapEnv' from a 'rawTapEnv', copying or hashing the data as needed.
@@ -580,7 +580,7 @@ extern void simplicity_elements_freeTransaction(transaction* tx) {
  *
  * Precondition: *rawEnv is well-formed (i.e. rawEnv->pathLen <= 128.)
  */
-extern tapEnv* simplicity_elements_mallocTapEnv(const rawTapEnv* rawEnv) {
+extern tapEnv* rustsimplicity_0_4_elements_mallocTapEnv(const rawTapEnv* rawEnv) {
   if (!rawEnv) return NULL;
   if (128 < rawEnv->pathLen) return NULL;
 
@@ -598,7 +598,7 @@ extern tapEnv* simplicity_elements_mallocTapEnv(const rawTapEnv* rawEnv) {
     allocationSize += numMidstate * sizeof(sha256_midstate);
   }
 
-  char *allocation = simplicity_malloc(allocationSize);
+  char *allocation = rustsimplicity_0_4_malloc(allocationSize);
   if (!allocation) return NULL;
 
   /* Casting through void* to avoid warning about pointer alignment.
@@ -634,7 +634,7 @@ extern tapEnv* simplicity_elements_mallocTapEnv(const rawTapEnv* rawEnv) {
     sha256_finalize(&ctx);
   }
 
-  env->tapLeafHash = simplicity_make_tapleaf(env->leafVersion, &env->scriptCMR);
+  env->tapLeafHash = rustsimplicity_0_4_make_tapleaf(env->leafVersion, &env->scriptCMR);
 
   {
     sha256_context ctx = sha256_init(env->tapEnvHash.s);
@@ -648,8 +648,8 @@ extern tapEnv* simplicity_elements_mallocTapEnv(const rawTapEnv* rawEnv) {
 
 /* Free a pointer to 'tapEnv'.
  */
-extern void simplicity_elements_freeTapEnv(tapEnv* env) {
-  simplicity_free(env);
+extern void rustsimplicity_0_4_elements_freeTapEnv(tapEnv* env) {
+  rustsimplicity_0_4_free(env);
 }
 
 /* Contstruct a txEnv structure from its components.
@@ -660,7 +660,7 @@ extern void simplicity_elements_freeTapEnv(tapEnv* env) {
  *               NULL != genesisHash
  *               ix < tx->numInputs
  */
-txEnv simplicity_build_txEnv(const transaction* tx, const tapEnv* taproot, const sha256_midstate* genesisHash, uint_fast32_t ix) {
+txEnv rustsimplicity_0_4_build_txEnv(const transaction* tx, const tapEnv* taproot, const sha256_midstate* genesisHash, uint_fast32_t ix) {
   txEnv result = { .tx = tx
                  , .taproot = taproot
                  , .genesisHash = *genesisHash

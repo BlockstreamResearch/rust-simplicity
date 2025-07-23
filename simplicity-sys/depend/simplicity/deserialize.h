@@ -28,6 +28,6 @@
  *                          of the function is positive and when NULL != census;
  *                NULL == *dag when the return value is negative.
  */
-int_fast32_t simplicity_decodeMallocDag(dag_node** dag, combinator_counters* census, bitstream* stream);
+int_fast32_t rustsimplicity_0_4_decodeMallocDag(dag_node** dag, combinator_counters* census, bitstream* stream);
 
 #endif
