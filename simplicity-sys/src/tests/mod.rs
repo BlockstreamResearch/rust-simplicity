@@ -12,6 +12,7 @@ use crate::tests::ffi::{
         simplicity_verifyNoDuplicateIdentityHashes, CAnalyses, CCombinatorCounters,
     },
     deserialize::simplicity_decodeMallocDag,
+    elements::{simplicity_elements_decodeJet, simplicity_elements_mallocBoundVars},
     eval::{simplicity_analyseBounds, simplicity_evalTCOProgram},
     type_inference::simplicity_mallocTypeInference,
     SimplicityErr,
@@ -105,7 +106,7 @@ struct FreeOnDrop(*mut u8);
 impl Drop for FreeOnDrop {
     fn drop(&mut self) {
         unsafe {
-            crate::alloc::rust_0_4_free(self.0);
+            crate::alloc::rust_0_5_free(self.0);
         }
     }
 }
@@ -137,6 +138,7 @@ pub fn run_program(
         let mut dag = ptr::null_mut();
         let len = SimplicityErr::from_i32(simplicity_decodeMallocDag(
             &mut dag,
+            simplicity_elements_decodeJet,
             &mut census,
             &mut prog_stream,
         ))? as usize;
@@ -152,7 +154,14 @@ pub fn run_program(
 
         // 3. Do type inference.
         let mut type_dag = ptr::null_mut();
-        simplicity_mallocTypeInference(&mut type_dag, dag, len, &census).into_result()?;
+        simplicity_mallocTypeInference(
+            &mut type_dag,
+            simplicity_elements_mallocBoundVars,
+            dag,
+            len,
+            &census,
+        )
+        .into_result()?;
         assert!(!type_dag.is_null());
         let _d2 = FreeOnDrop(type_dag as *mut u8);
         if test_up_to <= TestUpTo::TypeInference {
@@ -194,6 +203,7 @@ pub fn run_program(
             &mut frame_bound,
             &mut cost_bound,
             UBOUNDED_MAX,
+            0,
             UBOUNDED_MAX,
             dag,
             type_dag,
@@ -204,13 +214,28 @@ pub fn run_program(
         if test_up_to <= TestUpTo::ComputeCostUnbounded {
             return Ok(result);
         }
-        // 7b. analysis with strict bounds
+        // 7b. analysis with strict upper bounds
         simplicity_analyseBounds(
             &mut cell_bound,
             &mut word_bound,
             &mut frame_bound,
             &mut cost_bound,
             cell_bound,
+            0,
+            cost_bound,
+            dag,
+            type_dag,
+            len,
+        )
+        .into_result()?;
+        // 7c. analysis with strict bounds
+        simplicity_analyseBounds(
+            &mut cell_bound,
+            &mut word_bound,
+            &mut frame_bound,
+            &mut cost_bound,
+            cell_bound,
+            cost_bound.saturating_sub(1),
             cost_bound,
             dag,
             type_dag,
@@ -220,7 +245,7 @@ pub fn run_program(
         if test_up_to <= TestUpTo::ComputeCostBounded {
             return Ok(result);
         }
-        // 7c. analysis with strict cell bounds
+        // 7d. analysis with strict cell bounds (cell bound violated)
         if 0 < cell_bound {
             let res = simplicity_analyseBounds(
                 &mut cell_bound,
@@ -228,6 +253,7 @@ pub fn run_program(
                 &mut frame_bound,
                 &mut cost_bound,
                 cell_bound - 1,
+                0,
                 cost_bound,
                 dag,
                 type_dag,
@@ -240,7 +266,7 @@ pub fn run_program(
         if test_up_to <= TestUpTo::CheckCellCount {
             return Ok(result);
         }
-        // 7d. analysis with strict cost bounds
+        // 7e. analysis with strict cell bounds (max cost bound violated)
         if 0 < cost_bound {
             let res = simplicity_analyseBounds(
                 &mut cell_bound,
@@ -248,6 +274,7 @@ pub fn run_program(
                 &mut frame_bound,
                 &mut cost_bound,
                 cell_bound,
+                0,
                 cost_bound - 1,
                 dag,
                 type_dag,
@@ -256,6 +283,24 @@ pub fn run_program(
             .into_result()
             .expect_err("should fail");
             assert_eq!(res, SimplicityErr::ExecBudget);
+        }
+        // 7f. analysis with strict cell bounds (mincost bound violated)
+        if UBOUNDED_MAX > cost_bound {
+            let res = simplicity_analyseBounds(
+                &mut cell_bound,
+                &mut word_bound,
+                &mut frame_bound,
+                &mut cost_bound,
+                cell_bound,
+                cost_bound,
+                cost_bound + 1,
+                dag,
+                type_dag,
+                len,
+            )
+            .into_result()
+            .expect_err("should fail");
+            assert_eq!(res, SimplicityErr::Overweight);
         }
         if test_up_to <= TestUpTo::CheckBudget {
             return Ok(result);
