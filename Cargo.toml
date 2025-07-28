@@ -65,3 +65,4 @@ cast_possible_wrap = "allow" # Same as above re code comment.
 cast_precision_loss = "warn"
 cast_ptr_alignment = "warn"
 cast_sign_loss = "allow" # All casts should include a code comment (except in test code).
+
