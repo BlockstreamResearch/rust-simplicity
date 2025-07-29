@@ -33,11 +33,11 @@ impl<J: Jet> node::Marker for Named<Commit<J>> {
     type CachedData = NamedCommitData<J>;
     type Witness = <Commit<J> as node::Marker>::Witness;
     type Disconnect = Arc<str>;
-    type SharingId = Arc<str>;
+    type SharingId = <Commit<J> as node::Marker>::SharingId;
     type Jet = J;
 
-    fn compute_sharing_id(_: Cmr, cached_data: &Self::CachedData) -> Option<Arc<str>> {
-        Some(Arc::clone(&cached_data.name))
+    fn compute_sharing_id(cmr: Cmr, cached_data: &Self::CachedData) -> Option<Self::SharingId> {
+        Commit::<J>::compute_sharing_id(cmr, &cached_data.internal)
     }
 }
 
@@ -195,21 +195,22 @@ impl<J: Jet> NamedCommitNode<J> {
     }
 
     /// Encode a Simplicity expression to bits without any witness data
+    #[deprecated(since = "0.5.0", note = "use Self::encode_without_witness instead")]
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
-        let program_bits = encode::encode_program(self.to_commit_node().as_ref(), w)?;
+        let program_bits = encode::encode_program(self, w)?;
         w.flush_all()?;
         Ok(program_bits)
     }
 
     /// Encode a Simplicity program to a vector of bytes, without any witness data.
+    #[deprecated(since = "0.5.0", note = "use Self::to_vec_without_witness instead")]
     pub fn encode_to_vec(&self) -> Vec<u8> {
-        let mut program_and_witness_bytes = Vec::<u8>::new();
-        let mut writer = BitWriter::new(&mut program_and_witness_bytes);
-        self.encode(&mut writer)
+        let mut prog = Vec::<u8>::new();
+        self.encode_without_witness(&mut prog)
             .expect("write to vector never fails");
-        debug_assert!(!program_and_witness_bytes.is_empty());
+        debug_assert!(!prog.is_empty());
 
-        program_and_witness_bytes
+        prog
     }
 }
 
@@ -219,11 +220,11 @@ impl<J: Jet> node::Marker for Named<Construct<J>> {
     type CachedData = NamedConstructData<J>;
     type Witness = WitnessOrHole;
     type Disconnect = Arc<NamedConstructNode<J>>;
-    type SharingId = Arc<str>;
+    type SharingId = <Construct<J> as node::Marker>::SharingId;
     type Jet = J;
 
-    fn compute_sharing_id(_: Cmr, cached_data: &Self::CachedData) -> Option<Arc<str>> {
-        Some(Arc::clone(&cached_data.name))
+    fn compute_sharing_id(cmr: Cmr, cached_data: &Self::CachedData) -> Option<Self::SharingId> {
+        Construct::<J>::compute_sharing_id(cmr, &cached_data.internal)
     }
 }
 

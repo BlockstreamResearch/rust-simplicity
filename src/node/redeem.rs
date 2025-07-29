@@ -6,7 +6,7 @@ use crate::dag::{DagLike, InternalSharing, MaxSharing, PostOrderIterItem};
 use crate::jet::Jet;
 use crate::types::{self, arrow::FinalArrow};
 use crate::{encode, BitMachine};
-use crate::{Amr, BitIter, BitWriter, Cmr, Error, Ihr, Imr, Value};
+use crate::{Amr, BitIter, BitWriter, Cmr, DecodeError, Ihr, Imr, Value};
 
 use super::{
     Commit, CommitData, CommitNode, Construct, ConstructData, ConstructNode, Constructible,
@@ -438,9 +438,9 @@ impl<J: Jet> RedeemNode<J> {
 
     /// Decode a Simplicity program from bits, including the witness data.
     pub fn decode<I1, I2>(
-        mut program: BitIter<I1>,
+        program: BitIter<I1>,
         mut witness: BitIter<I2>,
-    ) -> Result<Arc<Self>, Error>
+    ) -> Result<Arc<Self>, DecodeError>
     where
         I1: Iterator<Item = u8>,
         I2: Iterator<Item = u8>,
@@ -454,15 +454,17 @@ impl<J: Jet> RedeemNode<J> {
         impl<J: Jet, I: Iterator<Item = u8>> Converter<Construct<J>, Redeem<J>>
             for DecodeFinalizer<'_, J, I>
         {
-            type Error = Error;
+            type Error = DecodeError;
             fn convert_witness(
                 &mut self,
                 data: &PostOrderIterItem<&ConstructNode<J>>,
                 _: &Option<Value>,
             ) -> Result<Value, Self::Error> {
                 let arrow = data.node.data.arrow();
-                let target_ty = arrow.target.finalize()?;
-                Value::from_compact_bits(self.bits, &target_ty).map_err(Error::from)
+                let target_ty = arrow.target.finalize().map_err(DecodeError::Type)?;
+                Value::from_compact_bits(self.bits, &target_ty)
+                    .map_err(crate::decode::Error::from)
+                    .map_err(DecodeError::Decode)
             }
 
             fn convert_disconnect(
@@ -474,7 +476,7 @@ impl<J: Jet> RedeemNode<J> {
                 if let Some(child) = right {
                     Ok(Arc::clone(child))
                 } else {
-                    Err(Error::DisconnectRedeemTime)
+                    Err(DecodeError::DisconnectRedeemTime)
                 }
             }
 
@@ -483,7 +485,12 @@ impl<J: Jet> RedeemNode<J> {
                 data: &PostOrderIterItem<&ConstructNode<J>>,
                 inner: Inner<&Arc<RedeemNode<J>>, J, &Arc<RedeemNode<J>>, &Value>,
             ) -> Result<Arc<RedeemData<J>>, Self::Error> {
-                let arrow = data.node.data.arrow().finalize()?;
+                let arrow = data
+                    .node
+                    .data
+                    .arrow()
+                    .finalize()
+                    .map_err(DecodeError::Type)?;
                 let converted_data = inner
                     .map(|node| node.cached_data())
                     .map_disconnect(|node| node.cached_data())
@@ -493,12 +500,10 @@ impl<J: Jet> RedeemNode<J> {
         }
 
         // 1. Decode program without witnesses as ConstructNode
-        let construct = crate::decode::decode_expression(&mut program)?;
-        program
-            .close()
-            .map_err(crate::decode::Error::BitIter)
-            .map_err(Error::Decode)?;
-        construct.set_arrow_to_program()?;
+        let construct = crate::ConstructNode::decode(program).map_err(DecodeError::Decode)?;
+        construct
+            .set_arrow_to_program()
+            .map_err(DecodeError::Type)?;
 
         // Importantly, we  use `InternalSharing` here to make sure that we respect
         // the sharing choices that were actually encoded in the bitstream.
@@ -512,7 +517,7 @@ impl<J: Jet> RedeemNode<J> {
         witness
             .close()
             .map_err(crate::decode::Error::BitIter)
-            .map_err(Error::Decode)?;
+            .map_err(DecodeError::Decode)?;
 
         // 4. Check sharing
         // This loop is equivalent to using `program.is_shared_as::<MaxSharing>()`
@@ -520,16 +525,34 @@ impl<J: Jet> RedeemNode<J> {
         let mut ihrs: HashSet<Ihr> = HashSet::new();
         for data in program.as_ref().post_order_iter::<InternalSharing>() {
             if !ihrs.insert(data.node.ihr()) {
-                return Err(Error::Decode(crate::decode::Error::SharingNotMaximal));
+                return Err(DecodeError::Decode(crate::decode::Error::SharingNotMaximal));
             }
         }
 
         Ok(program)
     }
 
+    #[cfg(feature = "base64")]
+    #[allow(clippy::should_implement_trait)] // returns Arc<Self>
+    pub fn from_str(prog: &str, wit: &str) -> Result<Arc<Self>, crate::ParseError> {
+        use crate::base64::engine::general_purpose;
+        use crate::base64::Engine as _;
+        use crate::hex::FromHex as _;
+
+        let v = general_purpose::STANDARD
+            .decode(prog)
+            .map_err(crate::ParseError::Base64)?;
+        let prog_iter = crate::BitIter::new(v.into_iter());
+
+        let v = Vec::from_hex(wit).map_err(crate::ParseError::Hex)?;
+        let wit_iter = crate::BitIter::new(v.into_iter());
+        Self::decode(prog_iter, wit_iter).map_err(crate::ParseError::Decode)
+    }
+
     /// Encode the program to bits.
     ///
     /// Includes witness data. Returns the number of written bits.
+    #[deprecated(since = "0.5.0", note = "use Self::encode_with_witness instead")]
     pub fn encode<W1, W2>(
         &self,
         prog: &mut BitWriter<W1>,
@@ -548,14 +571,11 @@ impl<J: Jet> RedeemNode<J> {
     }
 
     /// Encode the program and witness data to byte vectors.
+    #[deprecated(since = "0.5.0", note = "use Self::to_vec_with_witness instead")]
     pub fn encode_to_vec(&self) -> (Vec<u8>, Vec<u8>) {
         let mut ret_1 = vec![];
         let mut ret_2 = vec![];
-        self.encode(
-            &mut BitWriter::new(&mut ret_1),
-            &mut BitWriter::new(&mut ret_2),
-        )
-        .unwrap();
+        self.encode_with_witness(&mut ret_1, &mut ret_2).unwrap();
         (ret_1, ret_2)
     }
 }
@@ -571,12 +591,15 @@ mod tests {
     use std::collections::HashMap;
     use std::fmt;
 
+    #[cfg_attr(not(feature = "base64"), allow(unused_variables))]
+    #[track_caller]
     fn assert_program_deserializable<J: Jet>(
         prog_bytes: &[u8],
         witness_bytes: &[u8],
         cmr_str: &str,
         amr_str: &str,
         ihr_str: &str,
+        b64_str: &str,
     ) -> Arc<RedeemNode<J>> {
         let prog_hex = prog_bytes.as_hex();
         let witness_hex = witness_bytes.as_hex();
@@ -614,7 +637,7 @@ mod tests {
             prog_hex,
         );
 
-        let (reser_prog, reser_witness) = prog.encode_to_vec();
+        let (reser_prog, reser_witness) = prog.to_vec_with_witness();
         assert_eq!(
             prog_bytes,
             &reser_prog[..],
@@ -630,9 +653,21 @@ mod tests {
             reser_witness.as_hex(),
         );
 
+        #[cfg(feature = "base64")]
+        {
+            let disp = prog.display();
+            assert_eq!(prog.to_string(), b64_str);
+            assert_eq!(disp.program().to_string(), b64_str);
+            assert_eq!(
+                disp.witness().to_string(),
+                witness_bytes.as_hex().to_string()
+            );
+        }
+
         prog
     }
 
+    #[track_caller]
     fn assert_program_not_deserializable<J: Jet>(
         prog_bytes: &[u8],
         witness_bytes: &[u8],
@@ -646,7 +681,7 @@ mod tests {
         let witness = BitIter::from(witness_bytes);
         match RedeemNode::<J>::decode(prog, witness) {
             Ok(prog) => panic!(
-                "Program {} wit {} succeded (expected error {}). Program parsed as:\n{}",
+                "Program {} wit {} succeded (expected error {}). Program parsed as:\n{:?}",
                 prog_hex, witness_hex, err, prog
             ),
             Err(e) if e.to_string() == err_str => {} // ok
@@ -674,7 +709,7 @@ mod tests {
                 0xDEADBEEF,
             ))))
             .unwrap();
-        let output = eqwits_final.encode_to_vec();
+        let output = eqwits_final.to_vec_with_witness();
 
         assert_eq!(
             output,
@@ -699,6 +734,7 @@ mod tests {
             "d7969920eff9a1ed0359aaa8545b239c69969e22c304c645a7b49bcc976a40a8",
             "f7acbb077e7661a08384818bc8e3a275ed42ad446252575a35a35f71689fef78",
             "3ce4a6390b4e4bda6330acda4800e66e5d2cae0f5a2888564c706f2b910146b8",
+            "ycRtuIIwEA==",
         );
     }
 
@@ -712,7 +748,7 @@ mod tests {
         assert_program_not_deserializable::<Core>(
             &[0xc1, 0x08, 0x04, 0x00],
             &[],
-            &Error::Decode(crate::decode::Error::SharingNotMaximal),
+            &DecodeError::Decode(crate::decode::Error::SharingNotMaximal),
         );
     }
 
@@ -722,7 +758,7 @@ mod tests {
         let prog = BitIter::from(&[0x24][..]);
         let wit = BitIter::from(&[0x00][..]);
         match RedeemNode::<Core>::decode(prog, wit) {
-            Err(Error::Decode(crate::decode::Error::BitIter(
+            Err(DecodeError::Decode(crate::decode::Error::BitIter(
                 crate::BitIterCloseError::TrailingBytes { first_byte: 0 },
             ))) => {} // ok,
             Err(e) => panic!("got incorrect error {e}"),
@@ -746,6 +782,7 @@ mod tests {
             "8a54101335ca2cf7e933d74cdb15f99becc4e540799ba5e2d19c00c9d7219e71",
             "74e868bd640c250bc45522085158a9723fc7e277bb16a8d582c4012ebbb1f6f1",
             "39b8f72bd1539de87d26673890603d6548cfc8b68571d996bdf9b1d8b557bd35",
+            "wQAAAQA=",
         );
     }
 
@@ -767,6 +804,7 @@ mod tests {
             "abdd773fc7a503908739b4a63198416fdd470948830cb5a6516b98fe0a3bfa85",
             "1362ee53ae75218ed51dc4bd46cdbfa585f934ac6c6c3ff787e27dce91ccd80b",
             "251c6778129e0f12da3f2388ab30184e815e9d9456b5931e54802a6715d9ca42",
+            "zSQIS29W33fvVt9371bfd+9W33fvVt9371bfd+9W33fvVt93hgGA",
         );
 
 
@@ -785,6 +823,7 @@ mod tests {
             "f6c678dfb180b94567a9d524e05fbc893f6905e0e3db931ff01dc2701e783d4c",
             "212d4fa3dbe2b33db1e11bb6f4cc973be5de0896a3775387a06056483b8feb0f",
             "7a583edcc733b6bba66998110be403ac61fab2d93fc09ba3c84ab2509b538043",
+            "zSUIberb7v3q2+796tvu/erb7v3q2+796tvu/erb7v3q2+70hgGA",
         );
     }
 
@@ -802,6 +841,7 @@ mod tests {
             "afe8f5f8bd3f64bfa51d2f29ffa22523604d9654c0d9862dbf2dc67ba097cbb2",
             "15239708cb7b448cedc6a0b6401dce86ed74084056dd95831928860dd0c3ca67",
             "9cdacb48b16e108ccbd6bcbce459a64056df285c2dc6e02dca6d13c4b1530fb0",
+            "xQIGJBA=",
         );
     }
 
@@ -843,6 +883,7 @@ mod tests {
             "f3cd4537d7ebb201732203195b30b549b8dc0c2c6257b3a0d53bedb08ea02874",
             "107fa80454ed0f2d95d7c18d307912b1497505b98de47198fee23b5018efa544",
             "d52021c638ba742a90bead9b3055efd66091fb50bb131aa8b10eb7c13ef464d1",
+            "02kAAAAAAAAAAAAAADt4zlY/iaDtlBT1qiitDZbWeV+cY0cHAsDijYgQ",
         );
     }
 
@@ -865,6 +906,7 @@ mod tests {
             "b689bdee289c8dd4e2e283358d187813363d441776cf826dafc27cc8a81ec441",
             "3c68660a1afde7982ce4aa9d499ad382bc32f5f9ad894a5e915f76e66303a25b",
             "85313720ee43ae0ee03f88b05e6d9e4494308c6897bdeb3e93b94559c3317484",
+            "yQkgdJBA",
         );
     }
 
@@ -892,6 +934,7 @@ mod tests {
             "8a9e97676b24be7797d9ee0bf32dd76bcd78028e973025f785eae8dc91c8a0da",
             "ec97c8774cb6bfb381fdbbcc8d964380fb3a3b45779322624490d6231ae777a4",
             "ad7c38b16b9129646dc89b52cff144de94a80e383c4983b53de65e3575abcf38",
+            "xtXyYRQDJLGGIJJonwvxOqRTamOQiwbfM2EMA+InecBt8gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4o2MBAA=",
         );
     }
 

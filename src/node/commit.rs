@@ -4,7 +4,7 @@ use crate::dag::{DagLike, MaxSharing, NoSharing, PostOrderIterItem};
 use crate::jet::Jet;
 use crate::types::arrow::{Arrow, FinalArrow};
 use crate::{encode, types, Value};
-use crate::{Amr, BitIter, BitWriter, Cmr, Error, Ihr, Imr};
+use crate::{Amr, BitIter, BitWriter, Cmr, DecodeError, Ihr, Imr};
 
 use super::{
     Construct, ConstructData, ConstructNode, Constructible, Converter, Inner, Marker, NoDisconnect,
@@ -248,22 +248,35 @@ impl<J: Jet> CommitNode<J> {
     /// or the witness is provided by other means.
     ///
     /// If the serialization contains the witness data, then use [`RedeemNode::decode()`].
-    pub fn decode<I: Iterator<Item = u8>>(mut bits: BitIter<I>) -> Result<Arc<Self>, Error> {
+    pub fn decode<I: Iterator<Item = u8>>(bits: BitIter<I>) -> Result<Arc<Self>, DecodeError> {
+        use crate::decode;
+
         // 1. Decode program with out witnesses.
-        let construct = crate::decode::decode_expression(&mut bits)?;
-        bits.close()
-            .map_err(crate::decode::Error::BitIter)
-            .map_err(Error::Decode)?;
-        let program = construct.finalize_types()?;
+        let construct = crate::ConstructNode::decode(bits).map_err(DecodeError::Decode)?;
+        let program = construct.finalize_types().map_err(DecodeError::Type)?;
         // 2. Do sharing check, using incomplete IHRs
         if program.as_ref().is_shared_as::<MaxSharing<Commit<J>>>() {
             Ok(program)
         } else {
-            Err(Error::Decode(crate::decode::Error::SharingNotMaximal))
+            Err(DecodeError::Decode(decode::Error::SharingNotMaximal))
         }
     }
 
+    #[cfg(feature = "base64")]
+    #[allow(clippy::should_implement_trait)] // returns Arc<Self>
+    pub fn from_str(s: &str) -> Result<Arc<Self>, crate::ParseError> {
+        use crate::base64::engine::general_purpose;
+        use crate::base64::Engine as _;
+
+        let v = general_purpose::STANDARD
+            .decode(s)
+            .map_err(crate::ParseError::Base64)?;
+        let iter = crate::BitIter::new(v.into_iter());
+        Self::decode(iter).map_err(crate::ParseError::Decode)
+    }
+
     /// Encode a Simplicity expression to bits without any witness data
+    #[deprecated(since = "0.5.0", note = "use Self::encode_without_witness instead")]
     pub fn encode<W: io::Write>(&self, w: &mut BitWriter<W>) -> io::Result<usize> {
         let program_bits = encode::encode_program(self, w)?;
         w.flush_all()?;
@@ -271,10 +284,10 @@ impl<J: Jet> CommitNode<J> {
     }
 
     /// Encode a Simplicity program to a vector of bytes, without any witness data.
+    #[deprecated(since = "0.5.0", note = "use Self::to_vec_without_witness instead")]
     pub fn encode_to_vec(&self) -> Vec<u8> {
         let mut program = Vec::<u8>::new();
-        let mut writer = BitWriter::new(&mut program);
-        self.encode(&mut writer)
+        self.encode_without_witness(&mut program)
             .expect("write to vector never fails");
         debug_assert!(!program.is_empty());
 
@@ -295,10 +308,13 @@ mod tests {
     use crate::node::SimpleFinalizer;
     use crate::{BitMachine, Value};
 
+    #[cfg_attr(not(feature = "base64"), allow(unused_variables))]
+    #[track_caller]
     fn assert_program_deserializable<J: Jet>(
         prog_str: &str,
         prog_bytes: &[u8],
         cmr_str: &str,
+        b64_str: &str,
     ) -> Arc<CommitNode<J>> {
         let forest = match Forest::<J>::parse(prog_str) {
             Ok(forest) => forest,
@@ -316,7 +332,7 @@ mod tests {
         };
 
         let prog_hex = prog_bytes.as_hex();
-        let main_bytes = main.encode_to_vec();
+        let main_bytes = main.to_vec_without_witness();
         assert_eq!(
             prog_bytes,
             main_bytes,
@@ -341,7 +357,7 @@ mod tests {
             prog_hex,
         );
 
-        let reser_sink = prog.encode_to_vec();
+        let reser_sink = prog.to_vec_without_witness();
         assert_eq!(
             prog_bytes,
             &reser_sink[..],
@@ -350,9 +366,17 @@ mod tests {
             reser_sink.as_hex(),
         );
 
+        #[cfg(feature = "base64")]
+        {
+            assert_eq!(prog.to_string(), b64_str);
+            assert_eq!(prog.display().program().to_string(), b64_str);
+            assert_eq!(prog, CommitNode::from_str(b64_str).unwrap());
+        }
+
         prog
     }
 
+    #[track_caller]
     fn assert_program_not_deserializable<J: Jet>(prog: &[u8], err: &dyn fmt::Display) {
         let prog_hex = prog.as_hex();
         let err_str = err.to_string();
@@ -360,7 +384,7 @@ mod tests {
         let iter = BitIter::from(prog);
         match CommitNode::<J>::decode(iter) {
             Ok(prog) => panic!(
-                "Program {} succeded (expected error {}). Program parsed as:\n{}",
+                "Program {} succeded (expected error {}). Program parsed as:\n{:?}",
                 prog_hex, err, prog
             ),
             Err(e) if e.to_string() == err_str => {} // ok
@@ -448,6 +472,7 @@ mod tests {
             "main := witness",
             &[0x38],
             "a0fc8debd6796917c86b77aded82e6c61649889ae8f2ed65b57b41aa9d90e375",
+            "OA==",
         );
 
         #[rustfmt::skip]
@@ -491,6 +516,7 @@ mod tests {
                 ],
                 // CMR not checked against C code, since C won't give us any data without witnesses
                 "e9339a0d715c721bff752aedc02710cdf3399f3f8d86e64456e85a1bc06ecb7c",
+                "3O4o5oxBCDgVxiKNtxBGAgA=",
             ),
             // Same program but with each `witness` replaced by `comp iden witness`.
             (
@@ -512,12 +538,13 @@ mod tests {
                 ],
                 // CMR not checked against C code, since C won't give us any data without witnesses
                 "d03bf350f406aef3af0d48e6533b3325ff86f18a36e0e73895a5cd6d6692b860",
+                "4ChwQ4MAq5oxBCDgVxiKNtxBGAg=",
             )
         ];
 
-        for (prog_str, diff1, cmr) in diff1s {
+        for (prog_str, diff1, cmr, b64) in diff1s {
             let diff1_prog = crate::node::commit::tests::assert_program_deserializable::<Core>(
-                prog_str, &diff1, cmr,
+                prog_str, &diff1, cmr, b64,
             );
 
             // Attempt to finalize, providing 32-bit witnesses 0, 1, ..., and then

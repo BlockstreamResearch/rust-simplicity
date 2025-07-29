@@ -169,7 +169,7 @@ impl<W: Iterator<Item = Value>> SimpleFinalizer<W> {
 }
 
 impl<W: Iterator<Item = Value>, J: Jet> Converter<Commit<J>, Redeem<J>> for SimpleFinalizer<W> {
-    type Error = crate::Error;
+    type Error = crate::FinalizeError;
 
     fn convert_witness(
         &mut self,
@@ -188,7 +188,7 @@ impl<W: Iterator<Item = Value>, J: Jet> Converter<Commit<J>, Redeem<J>> for Simp
         _: Option<&Arc<RedeemNode<J>>>,
         _: &NoDisconnect,
     ) -> Result<Arc<RedeemNode<J>>, Self::Error> {
-        Err(crate::Error::DisconnectRedeemTime)
+        Err(crate::FinalizeError::DisconnectRedeemTime)
     }
 
     fn convert_data(

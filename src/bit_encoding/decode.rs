@@ -17,9 +17,9 @@ use crate::value::Word;
 use crate::{BitIter, FailEntropy};
 use std::collections::HashSet;
 use std::sync::Arc;
-use std::{error, fmt};
+use std::{cmp, error, fmt};
 
-use super::bititer::u2;
+use super::bititer::{u2, DecodeNaturalError};
 
 type ArcNode<J> = Arc<ConstructNode<J>>;
 
@@ -27,28 +27,22 @@ type ArcNode<J> = Arc<ConstructNode<J>>;
 #[non_exhaustive]
 #[derive(Debug)]
 pub enum Error {
-    /// Node made a back-reference past the beginning of the program
-    BadIndex,
     /// Error closing the bitstream
     BitIter(crate::BitIterCloseError),
     /// Both children of a node are hidden
     BothChildrenHidden,
-    /// Program must not be empty
-    EmptyProgram,
     /// Bitstream ended early
     EndOfStream,
     /// Hidden node occurred outside of a case combinator
     HiddenNode,
     /// Tried to parse a jet but the name wasn't recognized
     InvalidJet,
-    /// Number exceeded 32 bits
-    NaturalOverflow,
+    /// Error decoding a natural number.
+    Natural(DecodeNaturalError),
     /// Program is not encoded in canonical order
     NotInCanonicalOrder,
     /// Program does not have maximal sharing
     SharingNotMaximal,
-    /// Tried to allocate too many nodes in a program
-    TooManyNodes(usize),
     /// Type-checking error
     Type(crate::types::Error),
 }
@@ -65,6 +59,12 @@ impl From<crate::BitIterCloseError> for Error {
     }
 }
 
+impl From<DecodeNaturalError> for Error {
+    fn from(e: DecodeNaturalError) -> Error {
+        Error::Natural(e)
+    }
+}
+
 impl From<crate::types::Error> for Error {
     fn from(e: crate::types::Error) -> Error {
         Error::Type(e)
@@ -74,21 +74,14 @@ impl From<crate::types::Error> for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Error::BadIndex => {
-                f.write_str("node made a back-reference past the beginning of the program")
-            }
             Error::BitIter(ref e) => fmt::Display::fmt(e, f),
             Error::BothChildrenHidden => f.write_str("both children of a case node are hidden"),
-            Error::EmptyProgram => f.write_str("empty program"),
             Error::EndOfStream => f.write_str("bitstream ended early"),
             Error::HiddenNode => write!(f, "hidden node occurred outside of a case combinator"),
             Error::InvalidJet => write!(f, "unrecognized jet"),
-            Error::NaturalOverflow => f.write_str("encoded number exceeded 32 bits"),
+            Error::Natural(ref e) => e.fmt(f),
             Error::NotInCanonicalOrder => f.write_str("program not in canonical order"),
             Error::SharingNotMaximal => f.write_str("Decoded programs must have maximal sharing"),
-            Error::TooManyNodes(k) => {
-                write!(f, "program has too many nodes ({})", k)
-            }
             Error::Type(ref e) => fmt::Display::fmt(e, f),
         }
     }
@@ -97,17 +90,14 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         match *self {
-            Error::BadIndex => None,
             Error::BitIter(ref e) => Some(e),
             Error::BothChildrenHidden => None,
-            Error::EmptyProgram => None,
             Error::EndOfStream => None,
             Error::HiddenNode => None,
             Error::InvalidJet => None,
-            Error::NaturalOverflow => None,
+            Error::Natural(ref e) => Some(e),
             Error::NotInCanonicalOrder => None,
             Error::SharingNotMaximal => None,
-            Error::TooManyNodes(..) => None,
             Error::Type(ref e) => Some(e),
         }
     }
@@ -180,18 +170,11 @@ pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
         }
     }
 
-    let len = bits.read_natural(None)?;
-
-    if len == 0 {
-        return Err(Error::EmptyProgram);
-    }
-    // FIXME: check maximum length of DAG that is allowed by consensus
-    if len > 1_000_000 {
-        return Err(Error::TooManyNodes(len));
-    }
+    let len = bits.read_natural::<usize>(None)?;
+    assert_ne!(len, 0, "impossible to encode 0 in Simplicity");
 
     let inference_context = types::Context::new();
-    let mut nodes = Vec::with_capacity(len);
+    let mut nodes = Vec::with_capacity(cmp::min(len, 10_000));
     for _ in 0..len {
         let new_node = decode_node(bits, nodes.len())?;
         nodes.push(new_node);
@@ -266,7 +249,7 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
         if bits.read_bit()? {
             J::decode(bits).map(|jet| DecodeNode::Jet(jet))
         } else {
-            let n = bits.read_natural(Some(32))? as u32; // cast safety: decoded number is at most the number 32
+            let n = bits.read_natural(Some(32))?;
             let word = Word::from_bits(bits, n - 1)?;
             Ok(DecodeNode::Word(word))
         }
@@ -321,50 +304,6 @@ fn decode_node<I: Iterator<Item = u8>, J: Jet>(
     }
 }
 
-/// Decode a natural number from bits.
-/// If a bound is specified, then the decoding terminates before trying to decode a larger number.
-pub fn decode_natural<I: Iterator<Item = bool>>(
-    iter: &mut I,
-    bound: Option<usize>,
-) -> Result<usize, Error> {
-    let mut recurse_depth = 0;
-    loop {
-        match iter.next() {
-            Some(true) => recurse_depth += 1,
-            Some(false) => break,
-            None => return Err(Error::EndOfStream),
-        }
-    }
-
-    let mut len = 0;
-    loop {
-        let mut n = 1;
-        for _ in 0..len {
-            let bit = match iter.next() {
-                Some(false) => 0,
-                Some(true) => 1,
-                None => return Err(Error::EndOfStream),
-            };
-            n = 2 * n + bit;
-        }
-
-        if recurse_depth == 0 {
-            if let Some(bound) = bound {
-                if n > bound {
-                    return Err(Error::BadIndex);
-                }
-            }
-            return Ok(n);
-        } else {
-            len = n;
-            if len > 31 {
-                return Err(Error::NaturalOverflow);
-            }
-            recurse_depth -= 1;
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -390,96 +329,134 @@ mod tests {
 
     #[test]
     fn decode_fixed_natural() {
-        let tries = vec![
-            (1, vec![false]),
-            (2, vec![true, false, false]),
-            (3, vec![true, false, true]),
-            (4, vec![true, true, false, false, false, false]),
-            (5, vec![true, true, false, false, false, true]),
-            (6, vec![true, true, false, false, true, false]),
-            (7, vec![true, true, false, false, true, true]),
-            (8, vec![true, true, false, true, false, false, false]),
-            (15, vec![true, true, false, true, true, true, true]),
-            (
-                16,
-                vec![
-                    true, true, true, false, // len: 1
-                    false, // len: 2
-                    false, false, // len: 4
-                    false, false, false, false,
-                ],
-            ),
+        let tries: Vec<(usize, usize, &[u8])> = vec![
+            (1, 1, &[0b00000000]),
+            (2, 3, &[0b10000000]),
+            (3, 3, &[0b10100000]),
+            (4, 6, &[0b11_000000]),
+            (5, 6, &[0b11_000100]),
+            (6, 6, &[0b11_001000]),
+            (7, 6, &[0b11_001100]),
+            (8, 7, &[0b110_10000]),
+            (15, 7, &[0b110_11110]),
+            (16, 11, &[0b11100000, 0b00000000]),
             // 31
-            (
-                31,
-                vec![
-                    true, true, true, false, // len: 1
-                    false, // len: 2
-                    false, false, // len: 4
-                    true, true, true, true,
-                ],
-            ),
+            (31, 11, &[0b11100001, 0b11100000]),
             // 32
-            (
-                32,
-                vec![
-                    true, true, true, false, // len: 1
-                    false, // len: 2
-                    false, true, // len: 5
-                    false, false, false, false, false,
-                ],
-            ),
+            (32, 12, &[0b11100010, 0b00000000]),
             // 2^15
+            (32768, 23, &[0b11101111, 0b00000000, 0b00000000]),
+            (65535, 23, &[0b11101111, 0b11111111, 0b11111110]),
+            (65536, 28, &[0b11110000, 0b00000000, 0b00000000, 0b00000000]),
             (
-                32768,
-                vec![
-                    true, true, true, false, // len: 1
-                    true,  // len: 3
-                    true, true, true, // len: 15
-                    false, false, false, false, false, false, false, false, false, false, false,
-                    false, false, false, false,
+                u32::MAX as usize - 1, // cast ok, in unit test
+                43,
+                &[
+                    0b11110000, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11000000,
                 ],
             ),
             (
-                65535,
-                vec![
-                    true, true, true, false, // len: 1
-                    true,  // len: 3
-                    true, true, true, // len: 15
-                    true, true, true, true, true, true, true, true, true, true, true, true, true,
-                    true, true,
-                ],
-            ),
-            (
-                65536,
-                vec![
-                    true, true, true, true, false, // len: 1
-                    false, // len: 2
-                    false, false, // len: 4
-                    false, false, false, false, // len: 16
-                    false, false, false, false, false, false, false, false, false, false, false,
-                    false, false, false, false, false,
+                u32::MAX as usize, // cast ok, in unit test
+                43,
+                &[
+                    0b11110000, 0b11111111, 0b11111111, 0b11111111, 0b11111111, 0b11100000,
                 ],
             ),
         ];
 
-        for (natural, bitvec) in tries {
-            let truncated = bitvec[0..bitvec.len() - 1].to_vec();
-            assert!(matches!(
-                decode_natural(&mut truncated.into_iter(), None),
-                Err(Error::EndOfStream)
-            ));
+        for (natural, len, bitvec) in tries {
+            let mut iter = BitIter::new(bitvec.iter().copied());
 
+            // Truncating the iterator causes a clean failure.
+            let mut truncated = BitIter::new(bitvec.iter().copied().take(bitvec.len() - 1));
+            assert_eq!(
+                truncated.read_natural::<usize>(None),
+                Err(DecodeNaturalError::EndOfStream(
+                    crate::EarlyEndOfStreamError
+                )),
+            );
+
+            // Test decoding under various bounds
+            assert_eq!(iter.clone().read_natural(None), Ok(natural),);
+            assert_eq!(iter.clone().read_natural::<u64>(None), Ok(natural as u64),);
+
+            assert_eq!(iter.clone().read_natural(Some(natural)), Ok(natural),);
+            assert_eq!(iter.clone().read_natural(Some(natural + 1)), Ok(natural),);
+            assert_eq!(
+                iter.clone().read_natural(Some(natural - 1)),
+                Err(DecodeNaturalError::BadIndex {
+                    got: natural,
+                    max: natural - 1
+                }),
+            );
+            assert_eq!(
+                iter.clone().read_natural(Some(0u64)),
+                Err(DecodeNaturalError::BadIndex {
+                    got: natural,
+                    max: 0
+                }),
+            );
+
+            // Try decoding as a small type.
+            if let Ok(natural) = u16::try_from(natural) {
+                assert_eq!(iter.read_natural::<u16>(None), Ok(natural),);
+            } else {
+                assert_eq!(
+                    iter.read_natural::<u16>(None),
+                    Err(DecodeNaturalError::Overflow),
+                );
+            }
+            // Attempt to re-encode.
             let mut sink = Vec::<u8>::new();
 
             let mut w = BitWriter::from(&mut sink);
             encode::encode_natural(natural, &mut w).expect("encoding to vector");
             w.flush_all().expect("flushing");
-            assert_eq!(w.n_total_written(), bitvec.len());
+            assert_eq!(w.n_total_written(), len);
 
-            let decoded_natural = decode_natural(&mut BitIter::from(sink.into_iter()), None)
-                .expect("decoding from vector");
-            assert_eq!(natural, decoded_natural);
+            assert_eq!(sink, bitvec);
         }
+
+        // Test u32::MAX + 1 separately. This should always return an overflow and
+        // never succeed or panic. Just hammer it with a bunch of different types
+        // and call patterns.
+        let iter = BitIter::new(
+            [
+                0b11110001, 0b00000000, 0b00000000, 0b00000000, 0b00000000, 0b00000000,
+            ]
+            .into_iter(),
+        );
+        assert_eq!(
+            iter.clone().read_natural::<usize>(None),
+            Err(DecodeNaturalError::Overflow),
+        );
+        assert_eq!(
+            iter.clone().read_natural::<u16>(None),
+            Err(DecodeNaturalError::Overflow),
+        );
+        assert_eq!(
+            iter.clone().read_natural::<i32>(None),
+            Err(DecodeNaturalError::Overflow),
+        );
+        assert_eq!(
+            iter.clone().read_natural::<u32>(None),
+            Err(DecodeNaturalError::Overflow),
+        );
+        assert_eq!(
+            iter.clone().read_natural::<u64>(None),
+            Err(DecodeNaturalError::Overflow),
+        );
+        assert_eq!(
+            iter.clone().read_natural(Some(0u8)),
+            Err(DecodeNaturalError::Overflow),
+        );
+        assert_eq!(
+            iter.clone().read_natural(Some(0i32)),
+            Err(DecodeNaturalError::Overflow),
+        );
+        assert_eq!(
+            iter.clone().read_natural(Some(0u32)),
+            Err(DecodeNaturalError::Overflow),
+        );
     }
 }
