@@ -711,7 +711,7 @@ impl<N: Marker> Node<N> {
         Ok(converted.pop().unwrap())
     }
 
-    pub fn display(&self) -> Display<N> {
+    pub fn display(&self) -> Display<'_, N> {
         Display::from(self)
     }
 
