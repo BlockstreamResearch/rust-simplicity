@@ -75,19 +75,20 @@ use self::union_bound::{PointerLike, UbElement};
 use crate::dag::{DagLike, NoSharing};
 use crate::Tmr;
 
-use std::collections::HashSet;
 use std::fmt;
 use std::sync::Arc;
 
 pub mod arrow;
 mod context;
 mod final_data;
+mod incomplete;
 mod precomputed;
 mod union_bound;
 mod variable;
 
 pub use context::{BoundRef, Context};
 pub use final_data::{CompleteBound, Final};
+pub use incomplete::Incomplete;
 
 /// Error type for simplicity
 #[non_exhaustive]
@@ -95,8 +96,8 @@ pub use final_data::{CompleteBound, Final};
 pub enum Error {
     /// An attempt to bind a type conflicted with an existing bound on the type
     Bind {
-        existing_bound: Type,
-        new_bound: Type,
+        existing_bound: Arc<Incomplete>,
+        new_bound: Arc<Incomplete>,
         hint: &'static str,
     },
     /// Two unequal complete types were attempted to be unified
@@ -106,7 +107,7 @@ pub enum Error {
         hint: &'static str,
     },
     /// A type is recursive (i.e., occurs within itself), violating the "occurs check"
-    OccursCheck { infinite_bound: Type },
+    OccursCheck { infinite_bound: Arc<Incomplete> },
     /// Attempted to combine two nodes which had different type inference
     /// contexts. This is probably a programming error.
     InferenceContextMismatch,
@@ -274,17 +275,14 @@ impl Type {
         self.final_data().is_some()
     }
 
+    /// Converts a type as-is to an `Incomplete` type for use in an error.
+    pub fn to_incomplete(&self) -> Arc<Incomplete> {
+        let root = self.inner.bound.root();
+        Incomplete::from_bound_ref(&self.ctx, root)
+    }
+
     /// Attempts to finalize the type. Returns its TMR on success.
     pub fn finalize(&self) -> Result<Arc<Final>, Error> {
-        use context::OccursCheckId;
-
-        /// Helper type for the occurs-check.
-        enum OccursCheckStack {
-            Iterate(BoundRef),
-            Complete(OccursCheckId),
-        }
-
-        // Done with sharing tracker. Actual algorithm follows.
         let root = self.inner.bound.root();
         let bound = self.ctx.get(&root);
         if let Bound::Complete(ref data) = bound {
@@ -292,38 +290,8 @@ impl Type {
         }
 
         // First, do occurs-check to ensure that we have no infinitely sized types.
-        let mut stack = vec![OccursCheckStack::Iterate(root)];
-        let mut in_progress = HashSet::new();
-        let mut completed = HashSet::new();
-        while let Some(top) = stack.pop() {
-            let bound = match top {
-                OccursCheckStack::Complete(id) => {
-                    in_progress.remove(&id);
-                    completed.insert(id);
-                    continue;
-                }
-                OccursCheckStack::Iterate(b) => b,
-            };
-
-            let id = bound.occurs_check_id();
-            if completed.contains(&id) {
-                // Once we have iterated through a type, we don't need to check it again.
-                // Without this shortcut the occurs-check would take exponential time.
-                continue;
-            }
-            if !in_progress.insert(id) {
-                return Err(Error::OccursCheck {
-                    infinite_bound: Type::wrap_bound(&self.ctx, bound),
-                });
-            }
-
-            stack.push(OccursCheckStack::Complete(id));
-            if let Some((_, child)) = (&self.ctx, bound.shallow_clone()).right_child() {
-                stack.push(OccursCheckStack::Iterate(child));
-            }
-            if let Some((_, child)) = (&self.ctx, bound).left_child() {
-                stack.push(OccursCheckStack::Iterate(child));
-            }
+        if let Some(infinite_bound) = Incomplete::occurs_check(&self.ctx, root) {
+            return Err(Error::OccursCheck { infinite_bound });
         }
 
         // Now that we know our types have finite size, we can safely use a

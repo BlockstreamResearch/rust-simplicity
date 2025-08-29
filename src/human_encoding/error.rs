@@ -244,7 +244,8 @@ pub enum Error {
     /// us from knowing the whole program.
     HoleAtCommitTime {
         name: Arc<str>,
-        arrow: types::arrow::Arrow,
+        arrow_source: Arc<types::Incomplete>,
+        arrow_target: Arc<types::Incomplete>,
     },
     /// When converting to a `CommitNode`, a disconnect node had an actual node rather
     /// than a hole.
@@ -303,11 +304,12 @@ impl fmt::Display for Error {
             ),
             Error::HoleAtCommitTime {
                 ref name,
-                ref arrow,
+                ref arrow_source,
+                ref arrow_target,
             } => write!(
                 f,
-                "unfilled hole ?{} at commitment time; type arrow {}",
-                name, arrow
+                "unfilled hole ?{} at commitment time; type arrow {} -> {}",
+                name, arrow_source, arrow_target,
             ),
             Error::HoleFilledAtCommitTime => {
                 f.write_str("disconnect node has a non-hole child at commit time")

@@ -347,11 +347,15 @@ impl<J: Jet> NamedConstructNode<J> {
                         self.errors.add(position, error);
                     }
                     if let node::Inner::Witness(WitnessOrHole::TypedHole(name)) = inner {
+                        let arrow_source = data.node.arrow().source.to_incomplete();
+                        let arrow_target = data.node.arrow().source.to_incomplete();
+
                         self.pending_hole_error = Some((
                             data.node.position(),
                             Error::HoleAtCommitTime {
                                 name: Arc::clone(name),
-                                arrow: data.node.arrow().shallow_clone(),
+                                arrow_source,
+                                arrow_target,
                             },
                         ));
                     }

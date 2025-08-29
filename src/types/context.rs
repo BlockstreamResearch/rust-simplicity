@@ -19,7 +19,7 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use crate::dag::{Dag, DagLike};
 
-use super::{Bound, CompleteBound, Error, Final, Type, TypeInner};
+use super::{Bound, CompleteBound, Error, Final, Incomplete, Type, TypeInner};
 
 /// Type inference context, or handle to a context.
 ///
@@ -211,9 +211,10 @@ impl Context {
         let mut lock = self.lock();
         lock.bind(existing_root, new_bound).map_err(|e| {
             let new_bound = lock.alloc_bound(e.new);
+            drop(lock);
             Error::Bind {
-                existing_bound: Type::wrap_bound(self, e.existing),
-                new_bound: Type::wrap_bound(self, new_bound),
+                existing_bound: Incomplete::from_bound_ref(self, e.existing),
+                new_bound: Incomplete::from_bound_ref(self, new_bound),
                 hint,
             }
         })
@@ -228,9 +229,10 @@ impl Context {
         let mut lock = self.lock();
         lock.unify(&ty1.inner, &ty2.inner).map_err(|e| {
             let new_bound = lock.alloc_bound(e.new);
+            drop(lock);
             Error::Bind {
-                existing_bound: Type::wrap_bound(self, e.existing),
-                new_bound: Type::wrap_bound(self, new_bound),
+                existing_bound: Incomplete::from_bound_ref(self, e.existing),
+                new_bound: Incomplete::from_bound_ref(self, new_bound),
                 hint,
             }
         })
