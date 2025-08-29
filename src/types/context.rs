@@ -32,19 +32,23 @@ use super::{Bound, CompleteBound, Error, Final, Type, TypeInner};
 /// please file an issue.
 #[derive(Clone)]
 pub struct Context {
-    slab: Arc<Mutex<Vec<Bound>>>,
+    inner: Arc<ContextInner>,
+}
+
+struct ContextInner {
+    slab: Mutex<Vec<Bound>>,
 }
 
 impl fmt::Debug for Context {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let id = Arc::as_ptr(&self.slab) as usize;
+        let id = Arc::as_ptr(&self.inner) as usize;
         write!(f, "inference_ctx_{:08x}", id)
     }
 }
 
 impl PartialEq for Context {
     fn eq(&self, other: &Self) -> bool {
-        Arc::ptr_eq(&self.slab, &other.slab)
+        Arc::ptr_eq(&self.inner, &other.inner)
     }
 }
 impl Eq for Context {}
@@ -53,7 +57,9 @@ impl Context {
     /// Creates a new empty type inference context.
     pub fn new() -> Self {
         Context {
-            slab: Arc::new(Mutex::new(vec![])),
+            inner: Arc::new(ContextInner {
+                slab: Mutex::new(vec![]),
+            }),
         }
     }
 
@@ -131,7 +137,7 @@ impl Context {
     /// the original context object, are dropped.
     pub fn shallow_clone(&self) -> Self {
         Self {
-            slab: Arc::clone(&self.slab),
+            inner: Arc::clone(&self.inner),
         }
     }
 
@@ -233,15 +239,15 @@ impl Context {
     /// Locks the underlying slab mutex.
     fn lock(&self) -> LockedContext<'_> {
         LockedContext {
-            context: Arc::as_ptr(&self.slab),
-            slab: self.slab.lock().unwrap(),
+            context: Arc::as_ptr(&self.inner),
+            slab: self.inner.slab.lock().unwrap(),
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct BoundRef {
-    context: *const Mutex<Vec<Bound>>,
+    context: *const ContextInner,
     index: usize,
 }
 
@@ -262,7 +268,7 @@ impl BoundRef {
     pub fn assert_matches_context(&self, ctx: &Context) {
         assert_eq!(
             self.context,
-            Arc::as_ptr(&ctx.slab),
+            Arc::as_ptr(&ctx.inner),
             "bound was accessed from a type inference context that did not create it",
         );
     }
@@ -313,7 +319,7 @@ impl DagLike for (&'_ Context, BoundRef) {
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
 pub struct OccursCheckId {
-    context: *const Mutex<Vec<Bound>>,
+    context: *const ContextInner,
     index: usize,
 }
 
@@ -327,7 +333,7 @@ struct BindError {
 /// This type is never exposed outside of this module and should only exist
 /// ephemerally within function calls into this module.
 struct LockedContext<'ctx> {
-    context: *const Mutex<Vec<Bound>>,
+    context: *const ContextInner,
     slab: MutexGuard<'ctx, Vec<Bound>>,
 }
 
