@@ -27,25 +27,25 @@ use super::variable::new_name;
 /// A container for an expression's source and target types, whether or not
 /// these types are complete.
 #[derive(Debug)]
-pub struct Arrow {
+pub struct Arrow<'brand> {
     /// The source type
-    pub source: Type,
+    pub source: Type<'brand>,
     /// The target type
-    pub target: Type,
+    pub target: Type<'brand>,
     /// Type inference context for both types.
-    pub inference_context: Context,
+    pub inference_context: Context<'brand>,
 }
 
 // Having `Clone` makes it easier to derive Clone on structures
 // that contain Arrow, even though it is potentially confusing
 // to use `.clone` to mean a shallow clone.
-impl Clone for Arrow {
+impl Clone for Arrow<'_> {
     fn clone(&self) -> Self {
         self.shallow_clone()
     }
 }
 
-impl fmt::Display for Arrow {
+impl fmt::Display for Arrow<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{} → {}", self.source, self.target)
     }
@@ -77,7 +77,7 @@ impl FinalArrow {
     }
 }
 
-impl Arrow {
+impl<'brand> Arrow<'brand> {
     /// Finalize the source and target types in the arrow
     pub fn finalize(&self) -> Result<FinalArrow, Error> {
         Ok(FinalArrow {
@@ -104,7 +104,7 @@ impl Arrow {
     /// # Panics
     ///
     /// If neither child is provided, this function will panic.
-    fn for_case(lchild_arrow: Option<&Arrow>, rchild_arrow: Option<&Arrow>) -> Result<Self, Error> {
+    fn for_case(lchild_arrow: Option<&Self>, rchild_arrow: Option<&Self>) -> Result<Self, Error> {
         if let (Some(left), Some(right)) = (lchild_arrow, rchild_arrow) {
             left.inference_context.check_eq(&right.inference_context)?;
         }
@@ -154,7 +154,7 @@ impl Arrow {
     }
 
     /// Helper function to combine code for the two `DisconnectConstructible` impls for [`Arrow`].
-    fn for_disconnect(lchild_arrow: &Arrow, rchild_arrow: &Arrow) -> Result<Self, Error> {
+    fn for_disconnect(lchild_arrow: &Self, rchild_arrow: &Self) -> Result<Self, Error> {
         lchild_arrow
             .inference_context
             .check_eq(&rchild_arrow.inference_context)?;
@@ -188,8 +188,8 @@ impl Arrow {
     }
 }
 
-impl CoreConstructible for Arrow {
-    fn iden(inference_context: &Context) -> Self {
+impl<'brand> CoreConstructible<'brand> for Arrow<'brand> {
+    fn iden(inference_context: &Context<'brand>) -> Self {
         // Throughout this module, when two types are the same, we reuse a
         // pointer to them rather than creating distinct types and unifying
         // them. This theoretically could lead to more confusing errors for
@@ -203,7 +203,7 @@ impl CoreConstructible for Arrow {
         }
     }
 
-    fn unit(inference_context: &Context) -> Self {
+    fn unit(inference_context: &Context<'brand>) -> Self {
         Arrow {
             source: Type::free(inference_context, new_name("unit_src_")),
             target: Type::unit(inference_context),
@@ -303,7 +303,7 @@ impl CoreConstructible for Arrow {
         })
     }
 
-    fn fail(inference_context: &Context, _: crate::FailEntropy) -> Self {
+    fn fail(inference_context: &Context<'brand>, _: crate::FailEntropy) -> Self {
         Arrow {
             source: Type::free(inference_context, new_name("fail_src_")),
             target: Type::free(inference_context, new_name("fail_tgt_")),
@@ -311,7 +311,7 @@ impl CoreConstructible for Arrow {
         }
     }
 
-    fn const_word(inference_context: &Context, word: Word) -> Self {
+    fn const_word(inference_context: &Context<'brand>, word: Word) -> Self {
         Arrow {
             source: Type::unit(inference_context),
             target: Type::two_two_n(inference_context, word.n() as usize), // cast safety: 32-bit machine or higher
@@ -319,18 +319,18 @@ impl CoreConstructible for Arrow {
         }
     }
 
-    fn inference_context(&self) -> &Context {
+    fn inference_context(&self) -> &Context<'brand> {
         &self.inference_context
     }
 }
 
-impl DisconnectConstructible<Arrow> for Arrow {
+impl<'brand> DisconnectConstructible<'brand, Arrow<'brand>> for Arrow<'brand> {
     fn disconnect(left: &Self, right: &Self) -> Result<Self, Error> {
         Self::for_disconnect(left, right)
     }
 }
 
-impl DisconnectConstructible<NoDisconnect> for Arrow {
+impl<'brand> DisconnectConstructible<'brand, NoDisconnect> for Arrow<'brand> {
     fn disconnect(left: &Self, _: &NoDisconnect) -> Result<Self, Error> {
         let source = Type::free(&left.inference_context, "disc_src".into());
         let target = Type::free(&left.inference_context, "disc_tgt".into());
@@ -345,7 +345,7 @@ impl DisconnectConstructible<NoDisconnect> for Arrow {
     }
 }
 
-impl DisconnectConstructible<Option<&Arrow>> for Arrow {
+impl<'brand> DisconnectConstructible<'brand, Option<&Arrow<'brand>>> for Arrow<'brand> {
     fn disconnect(left: &Self, right: &Option<&Self>) -> Result<Self, Error> {
         match *right {
             Some(right) => Self::disconnect(left, right),
@@ -354,8 +354,8 @@ impl DisconnectConstructible<Option<&Arrow>> for Arrow {
     }
 }
 
-impl<J: Jet> JetConstructible<J> for Arrow {
-    fn jet(inference_context: &Context, jet: J) -> Self {
+impl<'brand, J: Jet> JetConstructible<'brand, J> for Arrow<'brand> {
+    fn jet(inference_context: &Context<'brand>, jet: J) -> Self {
         Arrow {
             source: jet.source_ty().to_type(inference_context),
             target: jet.target_ty().to_type(inference_context),
@@ -364,8 +364,8 @@ impl<J: Jet> JetConstructible<J> for Arrow {
     }
 }
 
-impl<W> WitnessConstructible<W> for Arrow {
-    fn witness(inference_context: &Context, _: W) -> Self {
+impl<'brand, W> WitnessConstructible<'brand, W> for Arrow<'brand> {
+    fn witness(inference_context: &Context<'brand>, _: W) -> Self {
         Arrow {
             source: Type::free(inference_context, new_name("witness_src_")),
             target: Type::free(inference_context, new_name("witness_tgt_")),

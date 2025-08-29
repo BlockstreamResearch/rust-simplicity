@@ -152,24 +152,24 @@ impl std::error::Error for Error {}
 
 /// The state of a [`Type`] based on all constraints currently imposed on it.
 #[derive(Clone)]
-enum Bound {
+enum Bound<'brand> {
     /// Fully-unconstrained type
     Free(String),
     /// Fully-constrained (i.e. complete) type, which has no free variables.
     Complete(Arc<Final>),
     /// A sum of two other types
-    Sum(TypeInner, TypeInner),
+    Sum(TypeInner<'brand>, TypeInner<'brand>),
     /// A product of two other types
-    Product(TypeInner, TypeInner),
+    Product(TypeInner<'brand>, TypeInner<'brand>),
 }
 
-impl Bound {
+impl Bound<'_> {
     /// Clones the `Bound`.
     ///
     /// This is the same as just calling `.clone()` but has a different name to
     /// emphasize that what's being cloned is (at most) a pair of ref-counted
     /// pointers.
-    pub fn shallow_clone(&self) -> Bound {
+    pub fn shallow_clone(&self) -> Self {
         self.clone()
     }
 }
@@ -181,60 +181,60 @@ impl Bound {
 /// actually create a new independent type, just a second pointer to the
 /// first one.
 #[derive(Clone)]
-pub struct Type {
+pub struct Type<'brand> {
     /// Handle to the type context.
-    ctx: Context,
+    ctx: Context<'brand>,
     /// The actual contents of the type.
-    inner: TypeInner,
+    inner: TypeInner<'brand>,
 }
 
 #[derive(Clone)]
-struct TypeInner {
+struct TypeInner<'brand> {
     /// A set of constraints, which maintained by the union-bound algorithm and
     /// is progressively tightened as type inference proceeds.
-    bound: UbElement<BoundRef>,
+    bound: UbElement<BoundRef<'brand>>,
 }
 
-impl TypeInner {
+impl TypeInner<'_> {
     fn shallow_clone(&self) -> Self {
         self.clone()
     }
 }
 
-impl Type {
+impl<'brand> Type<'brand> {
     /// Return an unbound type with the given name
-    pub fn free(ctx: &Context, name: String) -> Self {
+    pub fn free(ctx: &Context<'brand>, name: String) -> Self {
         Self::wrap_bound(ctx, ctx.alloc_free(name))
     }
 
     /// Create the unit type.
-    pub fn unit(ctx: &Context) -> Self {
+    pub fn unit(ctx: &Context<'brand>) -> Self {
         Self::wrap_bound(ctx, ctx.alloc_unit())
     }
 
     /// Create the type `2^(2^n)` for the given `n`.
     ///
     /// The type is precomputed and fast to access.
-    pub fn two_two_n(ctx: &Context, n: usize) -> Self {
+    pub fn two_two_n(ctx: &Context<'brand>, n: usize) -> Self {
         Self::complete(ctx, precomputed::nth_power_of_2(n))
     }
 
     /// Create the sum of the given `left` and `right` types.
-    pub fn sum(ctx: &Context, left: Self, right: Self) -> Self {
+    pub fn sum(ctx: &Context<'brand>, left: Self, right: Self) -> Self {
         Self::wrap_bound(ctx, ctx.alloc_sum(left, right))
     }
 
     /// Create the product of the given `left` and `right` types.
-    pub fn product(ctx: &Context, left: Self, right: Self) -> Self {
+    pub fn product(ctx: &Context<'brand>, left: Self, right: Self) -> Self {
         Self::wrap_bound(ctx, ctx.alloc_product(left, right))
     }
 
     /// Create a complete type.
-    pub fn complete(ctx: &Context, final_data: Arc<Final>) -> Self {
+    pub fn complete(ctx: &Context<'brand>, final_data: Arc<Final>) -> Self {
         Self::wrap_bound(ctx, ctx.alloc_complete(final_data))
     }
 
-    fn wrap_bound(ctx: &Context, bound: BoundRef) -> Self {
+    fn wrap_bound(ctx: &Context<'brand>, bound: BoundRef<'brand>) -> Self {
         bound.assert_matches_context(ctx);
         Type {
             ctx: ctx.shallow_clone(),
@@ -248,7 +248,7 @@ impl Type {
     ///
     /// This is the same as just calling `.clone()` but has a different name to
     /// emphasize that what's being cloned is merely a ref-counted pointer.
-    pub fn shallow_clone(&self) -> Type {
+    pub fn shallow_clone(&self) -> Self {
         self.clone()
     }
 
@@ -322,7 +322,7 @@ impl Type {
     }
 
     /// Return a vector containing the types 2^(2^i) for i from 0 to n-1.
-    pub fn powers_of_two(ctx: &Context, n: usize) -> Vec<Self> {
+    pub fn powers_of_two(ctx: &Context<'brand>, n: usize) -> Vec<Self> {
         let mut ret = Vec::with_capacity(n);
 
         let unit = Type::unit(ctx);
@@ -338,7 +338,7 @@ impl Type {
 const MAX_DISPLAY_DEPTH: usize = 64;
 const MAX_DISPLAY_LENGTH: usize = 10000;
 
-impl fmt::Debug for Type {
+impl fmt::Debug for Type<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for data in (&self.ctx, self.inner.bound.root())
             .verbose_pre_order_iter::<NoSharing>(Some(MAX_DISPLAY_DEPTH))
@@ -375,7 +375,7 @@ impl fmt::Debug for Type {
     }
 }
 
-impl fmt::Display for Type {
+impl fmt::Display for Type<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for data in (&self.ctx, self.inner.bound.root())
             .verbose_pre_order_iter::<NoSharing>(Some(MAX_DISPLAY_DEPTH))

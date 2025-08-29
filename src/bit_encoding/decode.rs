@@ -21,7 +21,7 @@ use std::{cmp, error, fmt};
 
 use super::bititer::{u2, DecodeNaturalError};
 
-type ArcNode<J> = Arc<ConstructNode<J>>;
+type ArcNode<'brand, J> = Arc<ConstructNode<'brand, J>>;
 
 /// Decoding error
 #[non_exhaustive]
@@ -48,13 +48,13 @@ pub enum Error {
 }
 
 impl From<crate::EarlyEndOfStreamError> for Error {
-    fn from(_: crate::EarlyEndOfStreamError) -> Error {
+    fn from(_: crate::EarlyEndOfStreamError) -> Self {
         Error::EndOfStream
     }
 }
 
 impl From<crate::BitIterCloseError> for Error {
-    fn from(e: crate::BitIterCloseError) -> Error {
+    fn from(e: crate::BitIterCloseError) -> Self {
         Error::BitIter(e)
     }
 }
@@ -153,16 +153,16 @@ impl<J: Jet> DagLike for (usize, &'_ [DecodeNode<J>]) {
     }
 }
 
-pub fn decode_expression<I: Iterator<Item = u8>, J: Jet>(
+pub fn decode_expression<'brand, I: Iterator<Item = u8>, J: Jet>(
     bits: &mut BitIter<I>,
-) -> Result<ArcNode<J>, Error> {
-    enum Converted<J: Jet> {
-        Node(ArcNode<J>),
+) -> Result<ArcNode<'brand, J>, Error> {
+    enum Converted<'brand, J: Jet> {
+        Node(ArcNode<'brand, J>),
         Hidden(Cmr),
     }
     use Converted::{Hidden, Node};
-    impl<J: Jet> Converted<J> {
-        fn get(&self) -> Result<&ArcNode<J>, Error> {
+    impl<'brand, J: Jet> Converted<'brand, J> {
+        fn get(&self) -> Result<&ArcNode<'brand, J>, Error> {
             match self {
                 Node(arc) => Ok(arc),
                 Hidden(_) => Err(Error::HiddenNode),

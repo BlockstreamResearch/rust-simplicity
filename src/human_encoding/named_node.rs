@@ -107,19 +107,21 @@ impl<J: Jet> NamedCommitNode<J> {
             .unwrap()
     }
 
-    pub fn to_construct_node(
+    pub fn to_construct_node<'brand>(
         &self,
         witness: &HashMap<Arc<str>, Value>,
         disconnect: &HashMap<Arc<str>, Arc<NamedCommitNode<J>>>,
-    ) -> Arc<ConstructNode<J>> {
-        struct Populator<'a, J: Jet> {
+    ) -> Arc<ConstructNode<'brand, J>> {
+        struct Populator<'a, 'brand, J: Jet> {
             witness_map: &'a HashMap<Arc<str>, Value>,
             disconnect_map: &'a HashMap<Arc<str>, Arc<NamedCommitNode<J>>>,
-            inference_context: types::Context,
+            inference_context: types::Context<'brand>,
             phantom: PhantomData<J>,
         }
 
-        impl<J: Jet> Converter<Named<Commit<J>>, Construct<J>> for Populator<'_, J> {
+        impl<'brand, J: Jet> Converter<Named<Commit<J>>, Construct<'brand, J>>
+            for Populator<'_, 'brand, J>
+        {
             type Error = ();
 
             fn convert_witness(
@@ -139,9 +141,9 @@ impl<J: Jet> NamedCommitNode<J> {
             fn convert_disconnect(
                 &mut self,
                 data: &PostOrderIterItem<&Node<Named<Commit<J>>>>,
-                maybe_converted: Option<&Arc<Node<Construct<J>>>>,
+                maybe_converted: Option<&Arc<Node<Construct<'brand, J>>>>,
                 _: &Arc<str>,
-            ) -> Result<Option<Arc<Node<Construct<J>>>>, Self::Error> {
+            ) -> Result<Option<Arc<Node<Construct<'brand, J>>>>, Self::Error> {
                 if let Some(converted) = maybe_converted {
                     Ok(Some(converted.clone()))
                 } else {
@@ -171,12 +173,12 @@ impl<J: Jet> NamedCommitNode<J> {
                 &mut self,
                 _: &PostOrderIterItem<&Node<Named<Commit<J>>>>,
                 inner: Inner<
-                    &Arc<Node<Construct<J>>>,
+                    &Arc<Node<Construct<'brand, J>>>,
                     J,
-                    &Option<Arc<ConstructNode<J>>>,
+                    &Option<Arc<ConstructNode<'brand, J>>>,
                     &Option<Value>,
                 >,
-            ) -> Result<ConstructData<J>, Self::Error> {
+            ) -> Result<ConstructData<'brand, J>, Self::Error> {
                 let inner = inner
                     .map(|node| node.cached_data())
                     .map_witness(|maybe_value| maybe_value.clone());
@@ -214,13 +216,13 @@ impl<J: Jet> NamedCommitNode<J> {
     }
 }
 
-pub type NamedConstructNode<J> = Node<Named<Construct<J>>>;
+pub type NamedConstructNode<'brand, J> = Node<Named<Construct<'brand, J>>>;
 
-impl<J: Jet> node::Marker for Named<Construct<J>> {
-    type CachedData = NamedConstructData<J>;
+impl<'brand, J: Jet> node::Marker for Named<Construct<'brand, J>> {
+    type CachedData = NamedConstructData<'brand, J>;
     type Witness = WitnessOrHole;
-    type Disconnect = Arc<NamedConstructNode<J>>;
-    type SharingId = <Construct<J> as node::Marker>::SharingId;
+    type Disconnect = Arc<NamedConstructNode<'brand, J>>;
+    type SharingId = <Construct<'brand, J> as node::Marker>::SharingId;
     type Jet = J;
 
     fn compute_sharing_id(cmr: Cmr, cached_data: &Self::CachedData) -> Option<Self::SharingId> {
@@ -229,29 +231,29 @@ impl<J: Jet> node::Marker for Named<Construct<J>> {
 }
 
 #[derive(Clone, Debug)]
-pub struct NamedConstructData<J> {
+pub struct NamedConstructData<'brand, J> {
     /// Data related to the node itself
-    internal: ConstructData<J>,
+    internal: ConstructData<'brand, J>,
     /// Name assigned to the node
     name: Arc<str>,
     /// Position of the node, if it comes from source code.
     position: Position,
     /// User-provided type bounds on the source (will be checked for consistency
     /// but only after the type checking has completed.)
-    user_source_types: Arc<[types::Type]>,
+    user_source_types: Arc<[types::Type<'brand>]>,
     /// User-provided type bounds on the target (will be checked for consistency
     /// but only after the type checking has completed.)
-    user_target_types: Arc<[types::Type]>,
+    user_target_types: Arc<[types::Type<'brand>]>,
 }
 
-impl<J: Jet> NamedConstructNode<J> {
+impl<'brand, J: Jet> NamedConstructNode<'brand, J> {
     /// Construct a named construct node from parts.
     pub fn new(
-        inference_context: &types::Context,
+        inference_context: &types::Context<'brand>,
         name: Arc<str>,
         position: Position,
-        user_source_types: Arc<[types::Type]>,
-        user_target_types: Arc<[types::Type]>,
+        user_source_types: Arc<[types::Type<'brand>]>,
+        user_target_types: Arc<[types::Type<'brand>]>,
         inner: node::Inner<Arc<Self>, J, Arc<Self>, WitnessOrHole>,
     ) -> Result<Self, types::Error> {
         let construct_data = ConstructData::from_inner(
@@ -295,12 +297,12 @@ impl<J: Jet> NamedConstructNode<J> {
     }
 
     /// Accessor for the node's arrow
-    pub fn arrow(&self) -> &Arrow {
+    pub fn arrow(&self) -> &Arrow<'brand> {
         self.cached_data().internal.arrow()
     }
 
     /// Accessor for the node's type inference context.
-    pub fn inference_context(&self) -> &types::Context {
+    pub fn inference_context(&self) -> &types::Context<'brand> {
         self.cached_data().internal.inference_context()
     }
 
@@ -326,7 +328,7 @@ impl<J: Jet> NamedConstructNode<J> {
             phantom: PhantomData<J>,
         }
 
-        impl<J: Jet> Converter<Named<Construct<J>>, Named<Commit<J>>> for FinalizeTypes<J> {
+        impl<'brand, J: Jet> Converter<Named<Construct<'brand, J>>, Named<Commit<J>>> for FinalizeTypes<J> {
             type Error = ErrorSet;
 
             fn visit_node(&mut self, data: &PostOrderIterItem<&NamedConstructNode<J>>) {

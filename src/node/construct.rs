@@ -23,17 +23,17 @@ use super::{CoreConstructible, DisconnectConstructible, JetConstructible, Witnes
 pub enum ConstructId {}
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub struct Construct<J> {
+pub struct Construct<'brand, J> {
     /// Makes the type non-constructible.
     never: std::convert::Infallible,
     /// Required by Rust.
-    phantom: std::marker::PhantomData<J>,
+    phantom: std::marker::PhantomData<&'brand J>,
 }
 
-impl<J: Jet> Marker for Construct<J> {
-    type CachedData = ConstructData<J>;
+impl<'brand, J: Jet> Marker for Construct<'brand, J> {
+    type CachedData = ConstructData<'brand, J>;
     type Witness = Option<Value>;
-    type Disconnect = Option<Arc<ConstructNode<J>>>;
+    type Disconnect = Option<Arc<ConstructNode<'brand, J>>>;
     type SharingId = ConstructId;
     type Jet = J;
 
@@ -42,11 +42,11 @@ impl<J: Jet> Marker for Construct<J> {
     }
 }
 
-pub type ConstructNode<J> = Node<Construct<J>>;
+pub type ConstructNode<'brand, J> = Node<Construct<'brand, J>>;
 
-impl<J: Jet> ConstructNode<J> {
+impl<'brand, J: Jet> ConstructNode<'brand, J> {
     /// Accessor for the node's arrow
-    pub fn arrow(&self) -> &Arrow {
+    pub fn arrow(&self) -> &Arrow<'brand> {
         self.data.arrow()
     }
 
@@ -84,7 +84,7 @@ impl<J: Jet> ConstructNode<J> {
     pub fn finalize_types_non_program(&self) -> Result<Arc<CommitNode<J>>, types::Error> {
         struct FinalizeTypes<J: Jet>(PhantomData<J>);
 
-        impl<J: Jet> Converter<Construct<J>, Commit<J>> for FinalizeTypes<J> {
+        impl<'brand, J: Jet> Converter<Construct<'brand, J>, Commit<J>> for FinalizeTypes<J> {
             type Error = types::Error;
 
             fn convert_witness(
@@ -132,7 +132,7 @@ impl<J: Jet> ConstructNode<J> {
     pub fn finalize_unpruned(&self) -> Result<Arc<RedeemNode<J>>, FinalizeError> {
         struct Finalizer<J>(PhantomData<J>);
 
-        impl<J: Jet> Converter<Construct<J>, Redeem<J>> for Finalizer<J> {
+        impl<'brand, J: Jet> Converter<Construct<'brand, J>, Redeem<J>> for Finalizer<J> {
             type Error = FinalizeError;
 
             fn convert_witness(
@@ -262,17 +262,17 @@ impl<J: Jet> ConstructNode<J> {
 }
 
 #[derive(Clone, Debug)]
-pub struct ConstructData<J> {
-    arrow: Arrow,
+pub struct ConstructData<'brand, J> {
+    arrow: Arrow<'brand>,
     /// This isn't really necessary, but it helps type inference if every
     /// struct has a \<J\> parameter, since it forces the choice of jets to
     /// be consistent without the user needing to specify it too many times.
     phantom: PhantomData<J>,
 }
 
-impl<J: Jet> ConstructData<J> {
+impl<'brand, J: Jet> ConstructData<'brand, J> {
     /// Constructs a new [`ConstructData`] from an (unfinalized) type arrow
-    pub fn new(arrow: Arrow) -> Self {
+    pub fn new(arrow: Arrow<'brand>) -> Self {
         ConstructData {
             arrow,
             phantom: PhantomData,
@@ -280,20 +280,20 @@ impl<J: Jet> ConstructData<J> {
     }
 
     /// Accessor for the node's arrow
-    pub fn arrow(&self) -> &Arrow {
+    pub fn arrow(&self) -> &Arrow<'brand> {
         &self.arrow
     }
 }
 
-impl<J> CoreConstructible for ConstructData<J> {
-    fn iden(inference_context: &types::Context) -> Self {
+impl<'brand, J> CoreConstructible<'brand> for ConstructData<'brand, J> {
+    fn iden(inference_context: &types::Context<'brand>) -> Self {
         ConstructData {
             arrow: Arrow::iden(inference_context),
             phantom: PhantomData,
         }
     }
 
-    fn unit(inference_context: &types::Context) -> Self {
+    fn unit(inference_context: &types::Context<'brand>) -> Self {
         ConstructData {
             arrow: Arrow::unit(inference_context),
             phantom: PhantomData,
@@ -363,29 +363,31 @@ impl<J> CoreConstructible for ConstructData<J> {
         })
     }
 
-    fn fail(inference_context: &types::Context, entropy: FailEntropy) -> Self {
+    fn fail(inference_context: &types::Context<'brand>, entropy: FailEntropy) -> Self {
         ConstructData {
             arrow: Arrow::fail(inference_context, entropy),
             phantom: PhantomData,
         }
     }
 
-    fn const_word(inference_context: &types::Context, word: Word) -> Self {
+    fn const_word(inference_context: &types::Context<'brand>, word: Word) -> Self {
         ConstructData {
             arrow: Arrow::const_word(inference_context, word),
             phantom: PhantomData,
         }
     }
 
-    fn inference_context(&self) -> &types::Context {
+    fn inference_context(&self) -> &types::Context<'brand> {
         self.arrow.inference_context()
     }
 }
 
-impl<J: Jet> DisconnectConstructible<Option<Arc<ConstructNode<J>>>> for ConstructData<J> {
+impl<'brand, J: Jet> DisconnectConstructible<'brand, Option<Arc<ConstructNode<'brand, J>>>>
+    for ConstructData<'brand, J>
+{
     fn disconnect(
         left: &Self,
-        right: &Option<Arc<ConstructNode<J>>>,
+        right: &Option<Arc<ConstructNode<'brand, J>>>,
     ) -> Result<Self, types::Error> {
         let right = right.as_ref();
         Ok(ConstructData {
@@ -395,8 +397,8 @@ impl<J: Jet> DisconnectConstructible<Option<Arc<ConstructNode<J>>>> for Construc
     }
 }
 
-impl<J> WitnessConstructible<Option<Value>> for ConstructData<J> {
-    fn witness(inference_context: &types::Context, _witness: Option<Value>) -> Self {
+impl<'brand, J> WitnessConstructible<'brand, Option<Value>> for ConstructData<'brand, J> {
+    fn witness(inference_context: &types::Context<'brand>, _witness: Option<Value>) -> Self {
         ConstructData {
             arrow: Arrow::witness(inference_context, NoWitness),
             phantom: PhantomData,
@@ -404,8 +406,8 @@ impl<J> WitnessConstructible<Option<Value>> for ConstructData<J> {
     }
 }
 
-impl<J: Jet> JetConstructible<J> for ConstructData<J> {
-    fn jet(inference_context: &types::Context, jet: J) -> Self {
+impl<'brand, J: Jet> JetConstructible<'brand, J> for ConstructData<'brand, J> {
+    fn jet(inference_context: &types::Context<'brand>, jet: J) -> Self {
         ConstructData {
             arrow: Arrow::jet(inference_context, jet),
             phantom: PhantomData,

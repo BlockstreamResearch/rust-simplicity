@@ -210,10 +210,10 @@ impl<J: Jet> Forest<J> {
     /// Convert the forest into a witness node.
     ///
     /// Succeeds if the forest contains a "main" root and returns `None` otherwise.
-    pub fn to_witness_node(
+    pub fn to_witness_node<'brand>(
         &self,
         witness: &HashMap<Arc<str>, Value>,
-    ) -> Option<Arc<ConstructNode<J>>> {
+    ) -> Option<Arc<ConstructNode<'brand, J>>> {
         let main = self.roots.get("main")?;
         Some(main.to_construct_node(witness, self.roots()))
     }

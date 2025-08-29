@@ -57,12 +57,15 @@ pub enum Policy<Pk: SimplicityKey> {
 
 impl<Pk: ToXOnlyPubkey> Policy<Pk> {
     /// Serializes the policy as a Simplicity fragment, with all witness nodes unpopulated.
-    fn serialize_no_witness<N>(&self, inference_context: &types::Context) -> Option<N>
+    fn serialize_no_witness<'brand, N>(
+        &self,
+        inference_context: &types::Context<'brand>,
+    ) -> Option<N>
     where
-        N: CoreConstructible
-            + JetConstructible<Elements>
-            + WitnessConstructible<Option<Value>>
-            + AssemblyConstructible,
+        N: CoreConstructible<'brand>
+            + JetConstructible<'brand, Elements>
+            + WitnessConstructible<'brand, Option<Value>>
+            + AssemblyConstructible<'brand>,
     {
         match *self {
             Policy::Unsatisfiable(entropy) => {

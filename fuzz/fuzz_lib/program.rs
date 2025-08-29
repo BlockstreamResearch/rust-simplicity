@@ -45,11 +45,11 @@ impl ProgramControl {
 }
 
 impl Extractor<'_> {
-    pub fn extract_core_construct_node(
+    pub fn extract_core_construct_node<'brand>(
         &mut self,
         force_control: Option<ProgramControl>,
-    ) -> Option<Arc<ConstructNode<Core>>> {
-        type ArcNode = Arc<ConstructNode<Core>>;
+    ) -> Option<Arc<ConstructNode<'brand, Core>>> {
+        type ArcNode<'brand> = Arc<ConstructNode<'brand, Core>>;
 
         let ctx = types::Context::new();
         let mut stack: Vec<ArcNode> = vec![];

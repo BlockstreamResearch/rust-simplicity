@@ -24,7 +24,7 @@ pub type Preimage32 = [u8; 32];
 /// Every method has a default implementation that simply returns `None`
 /// on every query. Users are expected to override the methods that they
 /// have data for.
-pub trait Satisfier<Pk: ToXOnlyPubkey> {
+pub trait Satisfier<'brand, Pk: ToXOnlyPubkey> {
     /// Given a public key, look up a Schnorr signature with that key.
     fn lookup_tap_leaf_script_sig(&self, _: &Pk, _: &TapLeafHash) -> Option<elements::SchnorrSig> {
         None
@@ -57,12 +57,12 @@ pub trait Satisfier<Pk: ToXOnlyPubkey> {
     ///
     /// If the assembly program fails to run for the current transaction environment,
     /// then implementations should return `None`.
-    fn lookup_asm_program(&self, _: Cmr) -> Option<Arc<ConstructNode<Elements>>> {
+    fn lookup_asm_program(&self, _: Cmr) -> Option<Arc<ConstructNode<'brand, Elements>>> {
         None
     }
 }
 
-impl<Pk: ToXOnlyPubkey> Satisfier<Pk> for elements::Sequence {
+impl<'brand, Pk: ToXOnlyPubkey> Satisfier<'brand, Pk> for elements::Sequence {
     fn check_older(&self, n: elements::Sequence) -> bool {
         use elements::bitcoin::locktime::relative::LockTime::*;
 
@@ -83,7 +83,7 @@ impl<Pk: ToXOnlyPubkey> Satisfier<Pk> for elements::Sequence {
     }
 }
 
-impl<Pk: ToXOnlyPubkey> Satisfier<Pk> for elements::LockTime {
+impl<'brand, Pk: ToXOnlyPubkey> Satisfier<'brand, Pk> for elements::LockTime {
     fn check_after(&self, n: elements::LockTime) -> bool {
         use elements::LockTime::*;
 
@@ -105,7 +105,7 @@ pub enum SatisfierError {
     AssemblyFailed(crate::bit_machine::ExecutionError),
 }
 
-type SatResult = Hiding<Arc<ConstructNode<Elements>>>;
+type SatResult<'brand> = Hiding<'brand, Arc<ConstructNode<'brand, Elements>>>;
 
 fn ok_if(condition: bool, expr: SatResult) -> SatResult {
     match condition {
@@ -115,11 +115,11 @@ fn ok_if(condition: bool, expr: SatResult) -> SatResult {
 }
 
 impl<Pk: ToXOnlyPubkey> Policy<Pk> {
-    fn satisfy_internal<S: Satisfier<Pk>>(
+    fn satisfy_internal<'brand, S: Satisfier<'brand, Pk>>(
         &self,
-        inference_context: &types::Context,
+        inference_context: &types::Context<'brand>,
         satisfier: &S,
-    ) -> Result<SatResult, SatisfierError> {
+    ) -> Result<SatResult<'brand>, SatisfierError> {
         let node: SatResult = match *self {
             Policy::Unsatisfiable(entropy) => {
                 super::serialize::unsatisfiable::<SatResult>(inference_context, entropy).hide()
@@ -243,7 +243,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
     ///
     /// The program is run on the Bit Machine for pruning,
     /// so the transaction environment needs to be provided.
-    pub fn satisfy<S: Satisfier<Pk>>(
+    pub fn satisfy<'brand, S: Satisfier<'brand, Pk>>(
         &self,
         satisfier: &S,
         env: &ElementsEnv<Arc<elements::Transaction>>,
@@ -275,15 +275,15 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::Arc;
 
-    pub struct PolicySatisfier<'a, Pk: SimplicityKey> {
+    pub struct PolicySatisfier<'a, 'brand, Pk: SimplicityKey> {
         pub preimages: HashMap<Pk::Sha256, Preimage32>,
         pub signatures: HashMap<Pk, elements::SchnorrSig>,
-        pub assembly: HashMap<Cmr, Arc<ConstructNode<Elements>>>,
+        pub assembly: HashMap<Cmr, Arc<ConstructNode<'brand, Elements>>>,
         pub tx: &'a elements::Transaction,
         pub index: usize,
     }
 
-    impl<Pk: ToXOnlyPubkey> Satisfier<Pk> for PolicySatisfier<'_, Pk> {
+    impl<'brand, Pk: ToXOnlyPubkey> Satisfier<'brand, Pk> for PolicySatisfier<'_, 'brand, Pk> {
         fn lookup_tap_leaf_script_sig(
             &self,
             pk: &Pk,
@@ -305,14 +305,14 @@ mod tests {
             <elements::LockTime as Satisfier<Pk>>::check_after(&self.tx.lock_time, locktime)
         }
 
-        fn lookup_asm_program(&self, cmr: Cmr) -> Option<Arc<ConstructNode<Elements>>> {
+        fn lookup_asm_program(&self, cmr: Cmr) -> Option<Arc<ConstructNode<'brand, Elements>>> {
             self.assembly.get(&cmr).cloned()
         }
     }
 
     fn get_satisfier(
         env: &ElementsEnv<Arc<elements::Transaction>>,
-    ) -> PolicySatisfier<'_, XOnlyPublicKey> {
+    ) -> PolicySatisfier<'_, '_, XOnlyPublicKey> {
         let mut preimages = HashMap::new();
 
         for i in 0..3 {

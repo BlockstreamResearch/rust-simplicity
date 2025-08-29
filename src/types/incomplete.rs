@@ -106,16 +106,19 @@ impl Incomplete {
     ///
     /// Returns None on success, and a Some(Incomplete) indicating the occurs-check
     /// failure if there is a cyclic reference.
-    pub(super) fn occurs_check(ctx: &Context, bound_ref: BoundRef) -> Option<Arc<Self>> {
+    pub(super) fn occurs_check<'brand>(
+        ctx: &Context<'brand>,
+        bound_ref: BoundRef<'brand>,
+    ) -> Option<Arc<Self>> {
         use std::collections::HashSet;
 
         use super::context::OccursCheckId;
         use super::BoundRef;
 
         /// Helper type for the occurs-check.
-        enum OccursCheckStack {
-            Iterate(BoundRef),
-            Complete(OccursCheckId),
+        enum OccursCheckStack<'brand> {
+            Iterate(BoundRef<'brand>),
+            Complete(OccursCheckId<'brand>),
         }
 
         // First, do occurs-check to ensure that we have no infinitely sized types.
@@ -155,7 +158,10 @@ impl Incomplete {
         None
     }
 
-    pub(super) fn from_bound_ref(ctx: &Context, bound_ref: BoundRef) -> Arc<Self> {
+    pub(super) fn from_bound_ref<'brand>(
+        ctx: &Context<'brand>,
+        bound_ref: BoundRef<'brand>,
+    ) -> Arc<Self> {
         if let Some(err) = Self::occurs_check(ctx, bound_ref.shallow_clone()) {
             return err;
         }

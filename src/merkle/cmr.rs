@@ -251,20 +251,20 @@ impl Cmr {
 /// Wrapper around a CMR which allows it to be constructed with the
 /// `*Constructible*` traits, allowing CMRs to be computed using the
 /// same generic construction code that nodes are.
-pub struct ConstructibleCmr {
+pub struct ConstructibleCmr<'brand> {
     pub cmr: Cmr,
-    pub inference_context: types::Context,
+    pub inference_context: types::Context<'brand>,
 }
 
-impl CoreConstructible for ConstructibleCmr {
-    fn iden(inference_context: &types::Context) -> Self {
+impl<'brand> CoreConstructible<'brand> for ConstructibleCmr<'brand> {
+    fn iden(inference_context: &types::Context<'brand>) -> Self {
         ConstructibleCmr {
             cmr: Cmr::iden(),
             inference_context: inference_context.shallow_clone(),
         }
     }
 
-    fn unit(inference_context: &types::Context) -> Self {
+    fn unit(inference_context: &types::Context<'brand>) -> Self {
         ConstructibleCmr {
             cmr: Cmr::unit(),
             inference_context: inference_context.shallow_clone(),
@@ -337,26 +337,26 @@ impl CoreConstructible for ConstructibleCmr {
         })
     }
 
-    fn fail(inference_context: &types::Context, entropy: FailEntropy) -> Self {
+    fn fail(inference_context: &types::Context<'brand>, entropy: FailEntropy) -> Self {
         ConstructibleCmr {
             cmr: Cmr::fail(entropy),
             inference_context: inference_context.shallow_clone(),
         }
     }
 
-    fn const_word(inference_context: &types::Context, word: Word) -> Self {
+    fn const_word(inference_context: &types::Context<'brand>, word: Word) -> Self {
         ConstructibleCmr {
             cmr: Cmr::const_word(&word),
             inference_context: inference_context.shallow_clone(),
         }
     }
 
-    fn inference_context(&self) -> &types::Context {
+    fn inference_context(&self) -> &types::Context<'brand> {
         &self.inference_context
     }
 }
 
-impl<X> DisconnectConstructible<X> for ConstructibleCmr {
+impl<'brand, X> DisconnectConstructible<'brand, X> for ConstructibleCmr<'brand> {
     // Specifically with disconnect we don't check for consistency between the
     // type inference context of the disconnected node, if any, and that of
     // the left node. The idea is, from the point of view of (Constructible)Cmr,
@@ -369,8 +369,8 @@ impl<X> DisconnectConstructible<X> for ConstructibleCmr {
     }
 }
 
-impl<W> WitnessConstructible<W> for ConstructibleCmr {
-    fn witness(inference_context: &types::Context, _witness: W) -> Self {
+impl<'brand, W> WitnessConstructible<'brand, W> for ConstructibleCmr<'brand> {
+    fn witness(inference_context: &types::Context<'brand>, _witness: W) -> Self {
         ConstructibleCmr {
             cmr: Cmr::witness(),
             inference_context: inference_context.shallow_clone(),
@@ -378,8 +378,8 @@ impl<W> WitnessConstructible<W> for ConstructibleCmr {
     }
 }
 
-impl<J: Jet> JetConstructible<J> for ConstructibleCmr {
-    fn jet(inference_context: &types::Context, jet: J) -> Self {
+impl<'brand, J: Jet> JetConstructible<'brand, J> for ConstructibleCmr<'brand> {
+    fn jet(inference_context: &types::Context<'brand>, jet: J) -> Self {
         ConstructibleCmr {
             cmr: jet.cmr(),
             inference_context: inference_context.shallow_clone(),
@@ -481,7 +481,7 @@ mod tests {
     #[test]
     fn const_bits() {
         /// The scribe expression, as defined in the Simplicity tech report.
-        fn scribe(bit: u8) -> Arc<ConstructNode<Core>> {
+        fn scribe<'brand>(bit: u8) -> Arc<ConstructNode<'brand, Core>> {
             match bit {
                 0 => Arc::<ConstructNode<Core>>::injl(&Arc::<ConstructNode<Core>>::unit(
                     &types::Context::new(),

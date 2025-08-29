@@ -187,13 +187,13 @@ impl<J: Jet> CommitNode<J> {
     }
 
     /// Convert a [`CommitNode`] back to a [`ConstructNode`] by redoing type inference
-    pub fn unfinalize_types(&self) -> Result<Arc<ConstructNode<J>>, types::Error> {
-        struct UnfinalizeTypes<J: Jet> {
-            inference_context: types::Context,
+    pub fn unfinalize_types<'brand>(&self) -> Result<Arc<ConstructNode<'brand, J>>, types::Error> {
+        struct UnfinalizeTypes<'brand, J: Jet> {
+            inference_context: types::Context<'brand>,
             phantom: PhantomData<J>,
         }
 
-        impl<J: Jet> Converter<Commit<J>, Construct<J>> for UnfinalizeTypes<J> {
+        impl<'brand, J: Jet> Converter<Commit<J>, Construct<'brand, J>> for UnfinalizeTypes<'brand, J> {
             type Error = types::Error;
             fn convert_witness(
                 &mut self,
@@ -206,9 +206,9 @@ impl<J: Jet> CommitNode<J> {
             fn convert_disconnect(
                 &mut self,
                 _: &PostOrderIterItem<&CommitNode<J>>,
-                _: Option<&Arc<ConstructNode<J>>>,
+                _: Option<&Arc<ConstructNode<'brand, J>>>,
                 _: &NoDisconnect,
-            ) -> Result<Option<Arc<ConstructNode<J>>>, Self::Error> {
+            ) -> Result<Option<Arc<ConstructNode<'brand, J>>>, Self::Error> {
                 Ok(None)
             }
 
@@ -216,12 +216,12 @@ impl<J: Jet> CommitNode<J> {
                 &mut self,
                 _: &PostOrderIterItem<&CommitNode<J>>,
                 inner: Inner<
-                    &Arc<ConstructNode<J>>,
+                    &Arc<ConstructNode<'brand, J>>,
                     J,
-                    &Option<Arc<ConstructNode<J>>>,
+                    &Option<Arc<ConstructNode<'brand, J>>>,
                     &Option<Value>,
                 >,
-            ) -> Result<ConstructData<J>, Self::Error> {
+            ) -> Result<ConstructData<'brand, J>, Self::Error> {
                 let inner = inner
                     .map(|node| node.arrow())
                     .map_disconnect(|maybe_node| maybe_node.as_ref().map(|node| node.arrow()));

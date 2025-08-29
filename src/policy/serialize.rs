@@ -16,15 +16,15 @@ use std::convert::TryFrom;
 use std::sync::Arc;
 
 /// Constructors for the assembly fragment.
-pub trait AssemblyConstructible: Sized {
+pub trait AssemblyConstructible<'brand>: Sized {
     /// Construct the assembly fragment with the given CMR.
     ///
     /// The construction fails if the CMR alone is not enough information to construct the object.
-    fn assembly(inference_context: &types::Context, cmr: Cmr) -> Option<Self>;
+    fn assembly(inference_context: &types::Context<'brand>, cmr: Cmr) -> Option<Self>;
 }
 
-impl AssemblyConstructible for ConstructibleCmr {
-    fn assembly(inference_context: &types::Context, cmr: Cmr) -> Option<Self> {
+impl<'brand> AssemblyConstructible<'brand> for ConstructibleCmr<'brand> {
+    fn assembly(inference_context: &types::Context<'brand>, cmr: Cmr) -> Option<Self> {
         Some(ConstructibleCmr {
             cmr,
             inference_context: inference_context.shallow_clone(),
@@ -32,30 +32,35 @@ impl AssemblyConstructible for ConstructibleCmr {
     }
 }
 
-impl<J: Jet> AssemblyConstructible for Arc<ConstructNode<J>> {
+impl<'brand, J: Jet> AssemblyConstructible<'brand> for Arc<ConstructNode<'brand, J>> {
     fn assembly(_: &types::Context, _cmr: Cmr) -> Option<Self> {
         None
     }
 }
 
-pub fn unsatisfiable<N>(inference_context: &types::Context, entropy: FailEntropy) -> N
+pub fn unsatisfiable<'brand, N>(
+    inference_context: &types::Context<'brand>,
+    entropy: FailEntropy,
+) -> N
 where
-    N: CoreConstructible,
+    N: CoreConstructible<'brand>,
 {
     N::fail(inference_context, entropy)
 }
 
-pub fn trivial<N>(inference_context: &types::Context) -> N
+pub fn trivial<'brand, N>(inference_context: &types::Context<'brand>) -> N
 where
-    N: CoreConstructible,
+    N: CoreConstructible<'brand>,
 {
     N::unit(inference_context)
 }
 
-pub fn key<Pk, N, W>(inference_context: &types::Context, key: &Pk, witness: W) -> N
+pub fn key<'brand, Pk, N, W>(inference_context: &types::Context<'brand>, key: &Pk, witness: W) -> N
 where
     Pk: ToXOnlyPubkey,
-    N: CoreConstructible + JetConstructible<Elements> + WitnessConstructible<W>,
+    N: CoreConstructible<'brand>
+        + JetConstructible<'brand, Elements>
+        + WitnessConstructible<'brand, W>,
 {
     let key_value = Word::u256(key.to_x_only_pubkey().serialize());
     let const_key = N::const_word(inference_context, key_value);
@@ -68,9 +73,9 @@ where
     N::comp(&pair_key_msg_sig, &bip_0340_verify).expect("consistent types")
 }
 
-pub fn after<N>(inference_context: &types::Context, n: u32) -> N
+pub fn after<'brand, N>(inference_context: &types::Context<'brand>, n: u32) -> N
 where
-    N: CoreConstructible + JetConstructible<Elements>,
+    N: CoreConstructible<'brand> + JetConstructible<'brand, Elements>,
 {
     let n_value = Word::u32(n);
     let const_n = N::const_word(inference_context, n_value);
@@ -79,9 +84,9 @@ where
     N::comp(&const_n, &check_lock_height).expect("consistent types")
 }
 
-pub fn older<N>(inference_context: &types::Context, n: u16) -> N
+pub fn older<'brand, N>(inference_context: &types::Context<'brand>, n: u16) -> N
 where
-    N: CoreConstructible + JetConstructible<Elements>,
+    N: CoreConstructible<'brand> + JetConstructible<'brand, Elements>,
 {
     let n_value = Word::u16(n);
     let const_n = N::const_word(inference_context, n_value);
@@ -90,9 +95,9 @@ where
     N::comp(&const_n, &check_lock_distance).expect("consistent types")
 }
 
-pub fn compute_sha256<N>(witness256: &N) -> N
+pub fn compute_sha256<'brand, N>(witness256: &N) -> N
 where
-    N: CoreConstructible + JetConstructible<Elements>,
+    N: CoreConstructible<'brand> + JetConstructible<'brand, Elements>,
 {
     let ctx = N::jet(witness256.inference_context(), Elements::Sha256Ctx8Init);
     let pair_ctx_witness = N::pair(&ctx, witness256).expect("consistent types");
@@ -102,9 +107,9 @@ where
     N::comp(&digest_ctx, &finalize).expect("consistent types")
 }
 
-pub fn verify_bexp<N>(input: &N, bexp: &N) -> N
+pub fn verify_bexp<'brand, N>(input: &N, bexp: &N) -> N
 where
-    N: CoreConstructible + JetConstructible<Elements>,
+    N: CoreConstructible<'brand> + JetConstructible<'brand, Elements>,
 {
     assert_eq!(
         input.inference_context(),
@@ -116,10 +121,16 @@ where
     N::comp(&computed_bexp, &verify).expect("consistent types")
 }
 
-pub fn sha256<Pk, N, W>(inference_context: &types::Context, hash: &Pk::Sha256, witness: W) -> N
+pub fn sha256<'brand, Pk, N, W>(
+    inference_context: &types::Context<'brand>,
+    hash: &Pk::Sha256,
+    witness: W,
+) -> N
 where
     Pk: ToXOnlyPubkey,
-    N: CoreConstructible + JetConstructible<Elements> + WitnessConstructible<W>,
+    N: CoreConstructible<'brand>
+        + JetConstructible<'brand, Elements>
+        + WitnessConstructible<'brand, W>,
 {
     let hash_value = Word::u256(Pk::to_sha256(hash).to_byte_array());
     let const_hash = N::const_word(inference_context, hash_value);
@@ -131,25 +142,25 @@ where
     verify_bexp(&pair_hash_computed_hash, &eq256)
 }
 
-pub fn and<N>(left: &N, right: &N) -> N
+pub fn and<'brand, N>(left: &N, right: &N) -> N
 where
-    N: CoreConstructible,
+    N: CoreConstructible<'brand>,
 {
     N::comp(left, right).expect("consistent types")
 }
 
-pub fn selector<N, W>(inference_context: &types::Context, witness_bit: W) -> N
+pub fn selector<'brand, N, W>(inference_context: &types::Context<'brand>, witness_bit: W) -> N
 where
-    N: CoreConstructible + WitnessConstructible<W>,
+    N: CoreConstructible<'brand> + WitnessConstructible<'brand, W>,
 {
     let witness = N::witness(inference_context, witness_bit);
     let unit = N::unit(inference_context);
     N::pair(&witness, &unit).expect("consistent types")
 }
 
-pub fn or<N, W>(left: &N, right: &N, witness_bit: W) -> N
+pub fn or<'brand, N, W>(left: &N, right: &N, witness_bit: W) -> N
 where
-    N: CoreConstructible + WitnessConstructible<W>,
+    N: CoreConstructible<'brand> + WitnessConstructible<'brand, W>,
 {
     assert_eq!(
         left.inference_context(),
@@ -167,9 +178,9 @@ where
 /// child: 1 → 1
 ///
 /// summand(child): 1 → 2^32
-pub fn thresh_summand<N, W>(child: &N, witness_bit: W) -> N
+pub fn thresh_summand<'brand, N, W>(child: &N, witness_bit: W) -> N
 where
-    N: CoreConstructible + WitnessConstructible<W>,
+    N: CoreConstructible<'brand> + WitnessConstructible<'brand, W>,
 {
     // 1 → 2 x 1
     let selector = selector(child.inference_context(), witness_bit);
@@ -195,9 +206,9 @@ where
 /// acc: 1 → 2^32, summand: 1 → 2^32
 ///
 /// add(sum, summand): 1 → 2^32
-pub fn thresh_add<N>(sum: &N, summand: &N) -> N
+pub fn thresh_add<'brand, N>(sum: &N, summand: &N) -> N
 where
-    N: CoreConstructible + JetConstructible<Elements>,
+    N: CoreConstructible<'brand> + JetConstructible<'brand, Elements>,
 {
     assert_eq!(
         sum.inference_context(),
@@ -222,9 +233,9 @@ where
 }
 
 /// verify(sum): 1 → 1
-pub fn thresh_verify<N>(sum: &N, k: u32) -> N
+pub fn thresh_verify<'brand, N>(sum: &N, k: u32) -> N
 where
-    N: CoreConstructible + JetConstructible<Elements>,
+    N: CoreConstructible<'brand> + JetConstructible<'brand, Elements>,
 {
     // 1 → 2^32
     let const_k = N::const_word(sum.inference_context(), Word::u32(k));
@@ -237,9 +248,11 @@ where
     verify_bexp(&pair_k_sum, &eq32)
 }
 
-pub fn threshold<N, W>(k: u32, subs: &[N], witness_bits: &[W]) -> N
+pub fn threshold<'brand, N, W>(k: u32, subs: &[N], witness_bits: &[W]) -> N
 where
-    N: CoreConstructible + JetConstructible<Elements> + WitnessConstructible<W>,
+    N: CoreConstructible<'brand>
+        + JetConstructible<'brand, Elements>
+        + WitnessConstructible<'brand, W>,
     W: Clone,
 {
     let n = u32::try_from(subs.len()).expect("can have at most 2^32 children in a threshold");

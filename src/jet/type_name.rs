@@ -32,7 +32,7 @@ pub struct TypeName(pub &'static [u8]);
 
 impl TypeName {
     /// Convert the type name into a type.
-    pub fn to_type(&self, ctx: &types::Context) -> Type {
+    pub fn to_type<'brand>(&self, ctx: &types::Context<'brand>) -> Type<'brand> {
         Type::complete(ctx, self.to_final())
     }
 
