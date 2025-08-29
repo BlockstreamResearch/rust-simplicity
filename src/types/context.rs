@@ -30,7 +30,7 @@ use super::{Bound, CompleteBound, Error, Final, Type, TypeInner};
 /// There is currently no way to create an independent context with the same
 /// type inference variables (i.e. a deep clone). If you need this functionality,
 /// please file an issue.
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct Context {
     slab: Arc<Mutex<Vec<Bound>>>,
 }
