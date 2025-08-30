@@ -500,7 +500,8 @@ impl<J: Jet> RedeemNode<J> {
         }
 
         // 1. Decode program without witnesses as ConstructNode
-        let construct = crate::ConstructNode::decode(program).map_err(DecodeError::Decode)?;
+        let ctx = types::Context::new();
+        let construct = crate::ConstructNode::decode(&ctx, program).map_err(DecodeError::Decode)?;
         construct
             .set_arrow_to_program()
             .map_err(DecodeError::Type)?;

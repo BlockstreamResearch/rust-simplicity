@@ -230,16 +230,20 @@ impl<'brand, J: Jet> ConstructNode<'brand, J> {
     ///
     /// If the serialization contains the witness data, then use [`crate::RedeemNode::decode()`].
     pub fn decode<I: Iterator<Item = u8>>(
+        context: &types::Context<'brand>,
         mut bits: BitIter<I>,
     ) -> Result<Arc<Self>, crate::decode::Error> {
-        let res = crate::decode::decode_expression(&mut bits)?;
+        let res = crate::decode::decode_expression(context, &mut bits)?;
         bits.close()?;
         Ok(res)
     }
 
     #[cfg(feature = "base64")]
-    #[allow(clippy::should_implement_trait)] // returns Arc<Self>
-    pub fn from_str(s: &str) -> Result<Arc<Self>, crate::ParseError> {
+    #[allow(clippy::should_implement_trait)] // returns Arc<Self>, needs tyctx
+    pub fn from_str(
+        context: &types::Context<'brand>,
+        s: &str,
+    ) -> Result<Arc<Self>, crate::ParseError> {
         use crate::base64::engine::general_purpose;
         use crate::base64::Engine as _;
 
@@ -247,7 +251,7 @@ impl<'brand, J: Jet> ConstructNode<'brand, J> {
             .decode(s)
             .map_err(crate::ParseError::Base64)?;
         let iter = crate::BitIter::new(v.into_iter());
-        Self::decode(iter)
+        Self::decode(context, iter)
             .map_err(crate::DecodeError::Decode)
             .map_err(crate::ParseError::Decode)
     }

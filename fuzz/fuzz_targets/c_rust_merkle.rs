@@ -7,6 +7,7 @@ fn do_test(data: &[u8]) {
     use simplicity::ffi::tests::{ffi::SimplicityErr, run_program, TestUpTo};
     use simplicity::hashes::sha256::Midstate;
     use simplicity::jet::Elements;
+    use simplicity::types;
     use simplicity::{BitIter, RedeemNode};
 
     // To decode the program length, we first try decoding the program using
@@ -17,7 +18,10 @@ fn do_test(data: &[u8]) {
     // If the program doesn't decode, just use the first byte as a "length".
     let prog_len = {
         let mut iter = BitIter::from(data);
-        match simplicity::decode::decode_expression::<_, Elements>(&mut iter) {
+        match simplicity::decode::decode_expression::<_, Elements>(
+            &types::Context::new(),
+            &mut iter,
+        ) {
             Ok(_) => (iter.n_total_read() + 7) / 8,
             Err(_) => match data.first() {
                 Some(&n) => core::cmp::min(data.len(), n.into()),

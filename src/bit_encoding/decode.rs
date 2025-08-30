@@ -154,6 +154,7 @@ impl<J: Jet> DagLike for (usize, &'_ [DecodeNode<J>]) {
 }
 
 pub fn decode_expression<'brand, I: Iterator<Item = u8>, J: Jet>(
+    ctx: &types::Context<'brand>,
     bits: &mut BitIter<I>,
 ) -> Result<ArcNode<'brand, J>, Error> {
     enum Converted<'brand, J: Jet> {
@@ -173,7 +174,6 @@ pub fn decode_expression<'brand, I: Iterator<Item = u8>, J: Jet>(
     let len = bits.read_natural::<usize>(None)?;
     assert_ne!(len, 0, "impossible to encode 0 in Simplicity");
 
-    let inference_context = types::Context::new();
     let mut nodes = Vec::with_capacity(cmp::min(len, 10_000));
     for _ in 0..len {
         let new_node = decode_node(bits, nodes.len())?;
@@ -191,8 +191,8 @@ pub fn decode_expression<'brand, I: Iterator<Item = u8>, J: Jet>(
         }
 
         let new = match nodes[data.node.0] {
-            DecodeNode::Unit => Node(ArcNode::unit(&inference_context)),
-            DecodeNode::Iden => Node(ArcNode::iden(&inference_context)),
+            DecodeNode::Unit => Node(ArcNode::unit(ctx)),
+            DecodeNode::Iden => Node(ArcNode::iden(ctx)),
             DecodeNode::InjL(i) => Node(ArcNode::injl(converted[i].get()?)),
             DecodeNode::InjR(i) => Node(ArcNode::injr(converted[i].get()?)),
             DecodeNode::Take(i) => Node(ArcNode::take(converted[i].get()?)),
@@ -218,18 +218,16 @@ pub fn decode_expression<'brand, I: Iterator<Item = u8>, J: Jet>(
                 converted[i].get()?,
                 &Some(Arc::clone(converted[j].get()?)),
             )?),
-            DecodeNode::Witness => Node(ArcNode::witness(&inference_context, None)),
-            DecodeNode::Fail(entropy) => Node(ArcNode::fail(&inference_context, entropy)),
+            DecodeNode::Witness => Node(ArcNode::witness(ctx, None)),
+            DecodeNode::Fail(entropy) => Node(ArcNode::fail(ctx, entropy)),
             DecodeNode::Hidden(cmr) => {
                 if !hidden_set.insert(cmr) {
                     return Err(Error::SharingNotMaximal);
                 }
                 Hidden(cmr)
             }
-            DecodeNode::Jet(j) => Node(ArcNode::jet(&inference_context, j)),
-            DecodeNode::Word(ref w) => {
-                Node(ArcNode::const_word(&inference_context, w.shallow_clone()))
-            }
+            DecodeNode::Jet(j) => Node(ArcNode::jet(ctx, j)),
+            DecodeNode::Word(ref w) => Node(ArcNode::const_word(ctx, w.shallow_clone())),
         };
         converted.push(new);
     }
@@ -318,7 +316,8 @@ mod tests {
         let justjet = [0x6d, 0xb8, 0x80];
         // Should be able to decode this as an expression...
         let mut iter = BitIter::from(&justjet[..]);
-        decode_expression::<_, Core>(&mut iter).unwrap();
+        let ctx = types::Context::new();
+        decode_expression::<_, Core>(&ctx, &mut iter).unwrap();
         // ...but NOT as a CommitNode
         let iter = BitIter::from(&justjet[..]);
         CommitNode::<Core>::decode(iter).unwrap_err();
