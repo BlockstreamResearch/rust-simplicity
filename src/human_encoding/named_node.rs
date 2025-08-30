@@ -109,13 +109,14 @@ impl<J: Jet> NamedCommitNode<J> {
 
     pub fn to_construct_node<'brand>(
         &self,
+        inference_context: &types::Context<'brand>,
         witness: &HashMap<Arc<str>, Value>,
         disconnect: &HashMap<Arc<str>, Arc<NamedCommitNode<J>>>,
     ) -> Arc<ConstructNode<'brand, J>> {
         struct Populator<'a, 'brand, J: Jet> {
             witness_map: &'a HashMap<Arc<str>, Value>,
             disconnect_map: &'a HashMap<Arc<str>, Arc<NamedCommitNode<J>>>,
-            inference_context: types::Context<'brand>,
+            inference_context: &'a types::Context<'brand>,
             phantom: PhantomData<J>,
         }
 
@@ -182,7 +183,7 @@ impl<J: Jet> NamedCommitNode<J> {
                 let inner = inner
                     .map(|node| node.cached_data())
                     .map_witness(|maybe_value| maybe_value.clone());
-                Ok(ConstructData::from_inner(&self.inference_context, inner)
+                Ok(ConstructData::from_inner(self.inference_context, inner)
                     .expect("types are already finalized"))
             }
         }
@@ -190,7 +191,7 @@ impl<J: Jet> NamedCommitNode<J> {
         self.convert::<InternalSharing, _, _>(&mut Populator {
             witness_map: witness,
             disconnect_map: disconnect,
-            inference_context: types::Context::new(),
+            inference_context,
             phantom: PhantomData,
         })
         .unwrap()

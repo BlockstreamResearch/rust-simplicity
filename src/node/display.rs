@@ -201,15 +201,17 @@ where
 mod tests {
     use crate::human_encoding::Forest;
     use crate::jet::Core;
+    use crate::types;
     use crate::RedeemNode;
     use std::collections::HashMap;
     use std::sync::Arc;
 
     fn parse_program(s: &str) -> Arc<RedeemNode<Core>> {
+        let ctx = types::Context::new();
         let empty_witness = HashMap::new();
         Forest::<Core>::parse(s)
             .unwrap()
-            .to_witness_node(&empty_witness)
+            .to_witness_node(&ctx, &empty_witness)
             .unwrap()
             .finalize_unpruned()
             .unwrap()

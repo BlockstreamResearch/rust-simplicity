@@ -13,6 +13,7 @@ mod parse;
 use crate::dag::{DagLike, MaxSharing};
 use crate::jet::Jet;
 use crate::node::{self, CommitNode, NoWitness};
+use crate::types;
 use crate::{Cmr, ConstructNode, Ihr, Value};
 
 use std::collections::HashMap;
@@ -212,10 +213,11 @@ impl<J: Jet> Forest<J> {
     /// Succeeds if the forest contains a "main" root and returns `None` otherwise.
     pub fn to_witness_node<'brand>(
         &self,
+        inference_context: &types::Context<'brand>,
         witness: &HashMap<Arc<str>, Value>,
     ) -> Option<Arc<ConstructNode<'brand, J>>> {
         let main = self.roots.get("main")?;
-        Some(main.to_construct_node(witness, self.roots()))
+        Some(main.to_construct_node(inference_context, witness, self.roots()))
     }
 }
 
@@ -223,6 +225,7 @@ impl<J: Jet> Forest<J> {
 mod tests {
     use crate::human_encoding::Forest;
     use crate::jet::{Core, Jet};
+    use crate::types;
     use crate::{BitMachine, Value};
     use std::collections::HashMap;
     use std::sync::Arc;
@@ -232,9 +235,10 @@ mod tests {
         witness: &HashMap<Arc<str>, Value>,
         env: &J::Environment,
     ) {
+        let ctx = types::Context::new();
         let program = Forest::<J>::parse(s)
             .expect("Failed to parse human encoding")
-            .to_witness_node(witness)
+            .to_witness_node(&ctx, witness)
             .expect("Forest is missing expected root")
             .finalize_pruned(env)
             .expect("Failed to finalize");
@@ -248,9 +252,10 @@ mod tests {
         env: &J::Environment,
         err_msg: &'static str,
     ) {
+        let ctx = types::Context::new();
         let program = match Forest::<J>::parse(s)
             .expect("Failed to parse human encoding")
-            .to_witness_node(witness)
+            .to_witness_node(&ctx, witness)
             .expect("Forest is missing expected root")
             .finalize_pruned(env)
         {

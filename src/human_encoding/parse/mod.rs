@@ -597,8 +597,9 @@ mod tests {
                 let main = &forest["main"];
                 assert_eq!(main.cmr().to_string(), cmr);
 
+                let ctx = types::Context::new();
                 let program = main
-                    .to_construct_node(witness, &forest)
+                    .to_construct_node(&ctx, witness, &forest)
                     .finalize_unpruned()
                     .expect("finalize");
 

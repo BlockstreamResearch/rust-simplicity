@@ -952,13 +952,13 @@ mod tests {
     ) {
         let unpruned_program = Forest::<J>::parse(unpruned_prog)
             .expect("unpruned program should parse")
-            .to_witness_node(unpruned_wit)
+            .to_witness_node(&types::Context::new(), unpruned_wit)
             .expect("unpruned program should have main")
             .finalize_unpruned()
             .expect("unpruned program should finalize");
         let expected_unpruned_program = Forest::<J>::parse(expected_pruned_prog)
             .expect("expected pruned program should parse")
-            .to_witness_node(expected_pruned_wit)
+            .to_witness_node(&types::Context::new(), expected_pruned_wit)
             .expect("expected pruned program should have main")
             .finalize_unpruned()
             .expect("expected pruned program should finalize");
