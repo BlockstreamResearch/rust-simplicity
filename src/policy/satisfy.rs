@@ -714,4 +714,60 @@ mod tests {
             }
         }
     }
+
+    // This test fails with an "InferenceContextMismatch". In fact, it is impossible to
+    // combine asm with any other fragments in the current codebase, because the non-asm
+    // fragments are satisfied using an ephemeral type inference context constructed in
+    // `satisfy_internal`, which is inaccessible and impossible to use in the return
+    // value of `lookup_asm_program`.
+    //
+    // This will be fixed in the next commit.
+    #[test]
+    #[ignore]
+    fn satisfy_asm_and_older() {
+        let env = ElementsEnv::dummy_with(
+            elements::LockTime::ZERO,
+            elements::Sequence::from_consensus(42),
+        );
+        let mut satisfier = get_satisfier(&env);
+
+        let mut assert_branch = |witness0: Value, witness1: Value| {
+            let ctx = &types::Context::new();
+            let asm_program = serialize::verify_bexp(
+                &Arc::<ConstructNode<Elements>>::pair(
+                    &Arc::<ConstructNode<Elements>>::witness(ctx, Some(witness0.clone())),
+                    &Arc::<ConstructNode<Elements>>::witness(ctx, Some(witness1.clone())),
+                )
+                .expect("sound types"),
+                &Arc::<ConstructNode<Elements>>::jet(ctx, Elements::Eq8),
+            );
+            let cmr = asm_program.cmr();
+            satisfier.assembly.insert(cmr, asm_program);
+
+            let policy = Policy::And {
+                left: Arc::new(Policy::Assembly(cmr)),
+                right: Arc::new(Policy::Older(41)),
+            };
+            let result = policy.satisfy(&satisfier, &env);
+
+            if witness0 == witness1 {
+                let program = result.expect("policy should be satisfiable");
+                let witness = to_witness(&program);
+
+                assert_eq!(2, witness.len());
+                assert_eq!(&witness0, witness[0]);
+                assert_eq!(&witness1, witness[1]);
+
+                execute_successful(program, &env);
+            } else {
+                assert!(matches!(result, Err(SatisfierError::AssemblyFailed(..))));
+            }
+        };
+
+        for a in 0..2 {
+            for b in 0..2 {
+                assert_branch(Value::u8(a), Value::u8(b))
+            }
+        }
+    }
 }
