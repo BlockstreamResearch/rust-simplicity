@@ -22,7 +22,7 @@ use ghost_cell::GhostToken;
 
 use crate::dag::{Dag, DagLike};
 
-use super::{Bound, CompleteBound, Error, Final, Incomplete, Type, TypeInner};
+use super::{Bound, CompleteBound, Error, Final, Incomplete, Type, TypeInner, WithGhostToken};
 
 // Copied from ghost_cell source. See
 //     https://arhan.sh/blog/the-generativity-pattern-in-rust/
@@ -41,12 +41,11 @@ type InvariantLifetime<'brand> = PhantomData<fn(&'brand ()) -> &'brand ()>;
 /// please file an issue.
 #[derive(Clone)]
 pub struct Context<'brand> {
-    inner: Arc<Mutex<ContextInner<'brand>>>,
+    inner: Arc<Mutex<WithGhostToken<'brand, ContextInner<'brand>>>>,
 }
 
 struct ContextInner<'brand> {
     slab: Vec<Bound<'brand>>,
-    _token: GhostToken<'brand>,
 }
 
 impl fmt::Debug for Context<'_> {
@@ -78,9 +77,9 @@ impl<'brand> Context<'brand> {
     /// Creates a new empty type inference context.
     pub fn new(token: GhostToken<'brand>) -> Self {
         Context {
-            inner: Arc::new(Mutex::new(ContextInner {
-                slab: vec![],
+            inner: Arc::new(Mutex::new(WithGhostToken {
                 _token: token,
+                inner: ContextInner { slab: vec![] },
             })),
         }
     }
@@ -285,7 +284,7 @@ struct BindError<'brand> {
 /// This type is never exposed outside of this module and should only exist
 /// ephemerally within function calls into this module.
 struct LockedContext<'ctx, 'brand> {
-    inner: MutexGuard<'ctx, ContextInner<'brand>>,
+    inner: MutexGuard<'ctx, WithGhostToken<'brand, ContextInner<'brand>>>,
 }
 
 impl<'brand> LockedContext<'_, 'brand> {

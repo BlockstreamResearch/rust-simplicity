@@ -71,7 +71,7 @@
 //     or a sum or product of other types.
 //
 
-use self::union_bound::{PointerLike, UbElement};
+use self::union_bound::{PointerLike, UbElement, WithGhostToken};
 use crate::dag::{DagLike, NoSharing};
 use crate::Tmr;
 

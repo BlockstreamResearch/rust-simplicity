@@ -30,7 +30,9 @@
 //!
 
 use std::sync::{Arc, Mutex};
-use std::{cmp, fmt, mem};
+use std::{cmp, fmt, mem, ops};
+
+use ghost_cell::GhostToken;
 
 /// Trait describing objects that can be stored and manipulated by the union-bound
 /// algorithm.
@@ -53,6 +55,32 @@ impl<T> PointerLike for Arc<T> {
     }
     fn shallow_clone(&self) -> Self {
         Arc::clone(self)
+    }
+}
+
+/// Container which associates a ghost token with some arbitrary other data.
+///
+/// This allows the union-bound algorithm to work with a token (which is used
+/// by the algorithm) while passing data (which is -not- used by the algorithm)
+/// everywhere that needs it, without offending the borrow checker or forcing
+/// callers to manually destructure their types to separate out tokens.
+///
+/// If Rust had view types, this structure wouldn't be necessary.
+pub struct WithGhostToken<'brand, T> {
+    pub _token: GhostToken<'brand>,
+    pub inner: T,
+}
+
+impl<'brand, T> ops::Deref for WithGhostToken<'brand, T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        &self.inner
+    }
+}
+
+impl<'brand, T> ops::DerefMut for WithGhostToken<'brand, T> {
+    fn deref_mut(&mut self) -> &mut T {
+        &mut self.inner
     }
 }
 
