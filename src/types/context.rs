@@ -22,7 +22,9 @@ use ghost_cell::GhostToken;
 
 use crate::dag::{Dag, DagLike};
 
-use super::{Bound, CompleteBound, Error, Final, Incomplete, Type, TypeInner, WithGhostToken};
+use super::{
+    Bound, CompleteBound, Error, Final, Incomplete, Type, TypeInner, UbElement, WithGhostToken,
+};
 
 // Copied from ghost_cell source. See
 //     https://arhan.sh/blog/the-generativity-pattern-in-rust/
@@ -78,7 +80,7 @@ impl<'brand> Context<'brand> {
     pub fn new(token: GhostToken<'brand>) -> Self {
         Context {
             inner: Arc::new(Mutex::new(WithGhostToken {
-                _token: token,
+                token,
                 inner: ContextInner { slab: vec![] },
             })),
         }
@@ -151,6 +153,15 @@ impl<'brand> Context<'brand> {
         lock.inner.slab[bound.index].shallow_clone()
     }
 
+    /// Accesses a bound through a union-bound element.
+    pub(super) fn get_root_ref(
+        &self,
+        bound: &UbElement<'brand, BoundRef<'brand>>,
+    ) -> BoundRef<'brand> {
+        let mut lock = self.lock();
+        bound.root(&mut lock.token)
+    }
+
     /// Reassigns a bound to a different bound.
     ///
     /// # Panics
@@ -177,10 +188,10 @@ impl<'brand> Context<'brand> {
         prod_r: &Type<'brand>,
         hint: &'static str,
     ) -> Result<(), Error> {
-        let existing_root = existing.inner.bound.root();
+        let mut lock = self.lock();
+        let existing_root = existing.inner.bound.root(&mut lock.token);
         let new_bound = Bound::Product(prod_l.inner.shallow_clone(), prod_r.inner.shallow_clone());
 
-        let mut lock = self.lock();
         lock.bind(existing_root, new_bound).map_err(|e| {
             let new_bound = lock.alloc_bound(e.new);
             drop(lock);
@@ -260,7 +271,9 @@ impl<'brand> DagLike for (&'_ Context<'brand>, BoundRef<'brand>) {
         match self.0.get(&self.1) {
             Bound::Free(..) | Bound::Complete(..) => Dag::Nullary,
             Bound::Sum(ref ty1, ref ty2) | Bound::Product(ref ty1, ref ty2) => {
-                Dag::Binary((self.0, ty1.bound.root()), (self.0, ty2.bound.root()))
+                let root1 = self.0.get_root_ref(&ty1.bound);
+                let root2 = self.0.get_root_ref(&ty2.bound);
+                Dag::Binary((self.0, root1), (self.0, root2))
             }
         }
     }
@@ -295,26 +308,29 @@ impl<'brand> ContextInner<'brand> {
         );
         self.slab[bound.index] = new;
     }
+}
 
+impl<'brand> WithGhostToken<'brand, ContextInner<'brand>> {
     /// It is a common situation that we are pairing two types, and in the
     /// case that they are both complete, we want to pair the complete types.
     ///
     /// This method deals with all the annoying/complicated member variable
     /// paths to get the actual complete data out.
     fn complete_pair_data(
-        &self,
+        &mut self,
         inn1: &TypeInner<'brand>,
         inn2: &TypeInner<'brand>,
     ) -> Option<(Arc<Final>, Arc<Final>)> {
-        let bound1 = &self.slab[inn1.bound.root().index];
-        let bound2 = &self.slab[inn2.bound.root().index];
+        let idx1 = inn1.bound.root(&mut self.token).index;
+        let idx2 = inn2.bound.root(&mut self.token).index;
+        let bound1 = &self.slab[idx1];
+        let bound2 = &self.slab[idx2];
         if let (Bound::Complete(ref data1), Bound::Complete(ref data2)) = (bound1, bound2) {
             Some((Arc::clone(data1), Arc::clone(data2)))
         } else {
             None
         }
     }
-
     /// Unify the type with another one.
     ///
     /// Fails if the bounds on the two types are incompatible
@@ -323,9 +339,11 @@ impl<'brand> ContextInner<'brand> {
         existing: &TypeInner<'brand>,
         other: &TypeInner<'brand>,
     ) -> Result<(), BindError<'brand>> {
-        existing.bound.unify(&other.bound, |x_bound, y_bound| {
-            self.bind(x_bound, self.slab[y_bound.index].shallow_clone())
-        })
+        existing
+            .bound
+            .unify(self, &other.bound, |self_, x_bound, y_bound| {
+                self_.bind(x_bound, self_.slab[y_bound.index].shallow_clone())
+            })
     }
 
     fn bind(
@@ -368,8 +386,8 @@ impl<'brand> ContextInner<'brand> {
                         Bound::Product(ref ty1, ref ty2),
                     )
                     | (CompleteBound::Sum(ref comp1, ref comp2), Bound::Sum(ref ty1, ref ty2)) => {
-                        let bound1 = ty1.bound.root();
-                        let bound2 = ty2.bound.root();
+                        let bound1 = ty1.bound.root(&mut self.token);
+                        let bound2 = ty2.bound.root(&mut self.token);
                         self.bind(bound1, Bound::Complete(Arc::clone(comp1)))?;
                         self.bind(bound2, Bound::Complete(Arc::clone(comp2)))
                     }

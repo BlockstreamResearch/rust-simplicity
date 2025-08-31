@@ -192,7 +192,7 @@ pub struct Type<'brand> {
 struct TypeInner<'brand> {
     /// A set of constraints, which maintained by the union-bound algorithm and
     /// is progressively tightened as type inference proceeds.
-    bound: UbElement<BoundRef<'brand>>,
+    bound: UbElement<'brand, BoundRef<'brand>>,
 }
 
 impl TypeInner<'_> {
@@ -258,7 +258,9 @@ impl<'brand> Type<'brand> {
 
     /// Accessor for the data of this type, if it is complete
     pub fn final_data(&self) -> Option<Arc<Final>> {
-        if let Bound::Complete(ref data) = self.ctx.get(&self.inner.bound.root()) {
+        let root = self.ctx.get_root_ref(&self.inner.bound);
+        let bound = self.ctx.get(&root);
+        if let Bound::Complete(ref data) = bound {
             Some(Arc::clone(data))
         } else {
             None
@@ -276,27 +278,27 @@ impl<'brand> Type<'brand> {
 
     /// Converts a type as-is to an `Incomplete` type for use in an error.
     pub fn to_incomplete(&self) -> Arc<Incomplete> {
-        let root = self.inner.bound.root();
+        let root = self.ctx.get_root_ref(&self.inner.bound);
         Incomplete::from_bound_ref(&self.ctx, root)
     }
 
     /// Attempts to finalize the type. Returns its TMR on success.
     pub fn finalize(&self) -> Result<Arc<Final>, Error> {
-        let root = self.inner.bound.root();
+        let root = self.ctx.get_root_ref(&self.inner.bound);
         let bound = self.ctx.get(&root);
         if let Bound::Complete(ref data) = bound {
             return Ok(Arc::clone(data));
         }
 
         // First, do occurs-check to ensure that we have no infinitely sized types.
-        if let Some(infinite_bound) = Incomplete::occurs_check(&self.ctx, root) {
+        if let Some(infinite_bound) = Incomplete::occurs_check(&self.ctx, root.shallow_clone()) {
             return Err(Error::OccursCheck { infinite_bound });
         }
 
         // Now that we know our types have finite size, we can safely use a
         // post-order iterator to finalize them.
         let mut finalized = vec![];
-        for data in (&self.ctx, self.inner.bound.root()).post_order_iter::<NoSharing>() {
+        for data in (&self.ctx, root).post_order_iter::<NoSharing>() {
             let bound_get = data.node.0.get(&data.node.1);
             let final_data = match bound_get {
                 Bound::Free(_) => Final::unit(),
@@ -339,9 +341,8 @@ const MAX_DISPLAY_LENGTH: usize = 10000;
 
 impl fmt::Debug for Type<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for data in (&self.ctx, self.inner.bound.root())
-            .verbose_pre_order_iter::<NoSharing>(Some(MAX_DISPLAY_DEPTH))
-        {
+        let root = self.ctx.get_root_ref(&self.inner.bound);
+        for data in (&self.ctx, root).verbose_pre_order_iter::<NoSharing>(Some(MAX_DISPLAY_DEPTH)) {
             if data.index > MAX_DISPLAY_LENGTH {
                 write!(f, "... [truncated type after {} nodes]", MAX_DISPLAY_LENGTH)?;
                 return Ok(());
@@ -376,9 +377,8 @@ impl fmt::Debug for Type<'_> {
 
 impl fmt::Display for Type<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for data in (&self.ctx, self.inner.bound.root())
-            .verbose_pre_order_iter::<NoSharing>(Some(MAX_DISPLAY_DEPTH))
-        {
+        let root = self.ctx.get_root_ref(&self.inner.bound);
+        for data in (&self.ctx, root).verbose_pre_order_iter::<NoSharing>(Some(MAX_DISPLAY_DEPTH)) {
             if data.index > MAX_DISPLAY_LENGTH {
                 write!(f, "... [truncated type after {} nodes]", MAX_DISPLAY_LENGTH)?;
                 return Ok(());
