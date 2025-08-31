@@ -219,13 +219,16 @@ impl<J: Jet> RedeemNode<J> {
 
     /// Convert a [`RedeemNode`] back into a [`ConstructNode`]
     /// by loosening the finalized types, witness data and disconnected branches.
-    pub fn to_construct_node<'brand>(&self) -> Arc<ConstructNode<'brand, J>> {
-        struct ToConstruct<'brand, J> {
-            inference_context: types::Context<'brand>,
+    pub fn to_construct_node<'brand>(
+        &self,
+        inference_context: &types::Context<'brand>,
+    ) -> Arc<ConstructNode<'brand, J>> {
+        struct ToConstruct<'a, 'brand, J> {
+            inference_context: &'a types::Context<'brand>,
             phantom: PhantomData<J>,
         }
 
-        impl<'brand, J: Jet> Converter<Redeem<J>, Construct<'brand, J>> for ToConstruct<'brand, J> {
+        impl<'brand, J: Jet> Converter<Redeem<J>, Construct<'brand, J>> for ToConstruct<'_, 'brand, J> {
             type Error = ();
 
             fn convert_witness(
@@ -258,13 +261,13 @@ impl<J: Jet> RedeemNode<J> {
                 let inner = inner
                     .map(|node| node.cached_data())
                     .map_witness(|maybe_value| maybe_value.clone());
-                Ok(ConstructData::from_inner(&self.inference_context, inner)
+                Ok(ConstructData::from_inner(self.inference_context, inner)
                     .expect("types were already finalized"))
             }
         }
 
         self.convert::<InternalSharing, _, _>(&mut ToConstruct {
-            inference_context: types::Context::new(),
+            inference_context,
             phantom: PhantomData,
         })
         .unwrap()
