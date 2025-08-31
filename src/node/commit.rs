@@ -255,9 +255,11 @@ impl<J: Jet> CommitNode<J> {
         use crate::decode;
 
         // 1. Decode program with out witnesses.
-        let ctx = types::Context::new();
-        let construct = crate::ConstructNode::decode(&ctx, bits).map_err(DecodeError::Decode)?;
-        let program = construct.finalize_types().map_err(DecodeError::Type)?;
+        let program = types::Context::with_context(|ctx| {
+            let construct =
+                crate::ConstructNode::decode(&ctx, bits).map_err(DecodeError::Decode)?;
+            construct.finalize_types().map_err(DecodeError::Type)
+        })?;
         // 2. Do sharing check, using incomplete IHRs
         if program.as_ref().is_shared_as::<MaxSharing<Commit<J>>>() {
             Ok(program)

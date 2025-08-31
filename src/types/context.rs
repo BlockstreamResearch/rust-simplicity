@@ -18,9 +18,17 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex, MutexGuard};
 
+use ghost_cell::GhostToken;
+
 use crate::dag::{Dag, DagLike};
 
 use super::{Bound, CompleteBound, Error, Final, Incomplete, Type, TypeInner};
+
+// Copied from ghost_cell source. See
+//     https://arhan.sh/blog/the-generativity-pattern-in-rust/
+// in particular the box labeled "Throughout the years lifetime invariance has
+// been achieved in several other ways." for some detail about this.
+type InvariantLifetime<'brand> = PhantomData<fn(&'brand ()) -> &'brand ()>;
 
 /// Type inference context, or handle to a context.
 ///
@@ -33,12 +41,12 @@ use super::{Bound, CompleteBound, Error, Final, Incomplete, Type, TypeInner};
 /// please file an issue.
 #[derive(Clone)]
 pub struct Context<'brand> {
-    inner: Arc<ContextInner<'brand>>,
+    inner: Arc<Mutex<ContextInner<'brand>>>,
 }
 
 struct ContextInner<'brand> {
-    slab: Mutex<Vec<Bound<'brand>>>,
-    phantom: PhantomData<&'brand mut ()>,
+    slab: Vec<Bound<'brand>>,
+    _token: GhostToken<'brand>,
 }
 
 impl fmt::Debug for Context<'_> {
@@ -56,13 +64,24 @@ impl PartialEq for Context<'_> {
 impl Eq for Context<'_> {}
 
 impl<'brand> Context<'brand> {
+    /// Creates a scope with a new empty type inference context.
+    pub fn with_context<R, F>(fun: F) -> R
+    where
+        F: for<'new_brand> FnOnce(Context<'new_brand>) -> R,
+    {
+        GhostToken::new(|token| {
+            let ctx = Context::new(token);
+            fun(ctx)
+        })
+    }
+
     /// Creates a new empty type inference context.
-    pub fn new() -> Self {
+    pub fn new(token: GhostToken<'brand>) -> Self {
         Context {
-            inner: Arc::new(ContextInner {
-                slab: Mutex::new(vec![]),
-                phantom: PhantomData,
-            }),
+            inner: Arc::new(Mutex::new(ContextInner {
+                slab: vec![],
+                _token: token,
+            })),
         }
     }
 
@@ -88,20 +107,7 @@ impl<'brand> Context<'brand> {
     }
 
     /// Allocate a new sum-type bound, and return a reference to it.
-    ///
-    /// # Panics
-    ///
-    /// Panics if either of the child types are from a different inference context.
     pub fn alloc_sum(&self, left: Type<'brand>, right: Type<'brand>) -> BoundRef<'brand> {
-        assert_eq!(
-            left.ctx, *self,
-            "left type did not match inference context of sum"
-        );
-        assert_eq!(
-            right.ctx, *self,
-            "right type did not match inference context of sum"
-        );
-
         let mut lock = self.lock();
         if let Some((data1, data2)) = lock.complete_pair_data(&left.inner, &right.inner) {
             lock.alloc_bound(Bound::Complete(Final::sum(data1, data2)))
@@ -111,20 +117,7 @@ impl<'brand> Context<'brand> {
     }
 
     /// Allocate a new product-type bound, and return a reference to it.
-    ///
-    /// # Panics
-    ///
-    /// Panics if either of the child types are from a different inference context.
     pub fn alloc_product(&self, left: Type<'brand>, right: Type<'brand>) -> BoundRef<'brand> {
-        assert_eq!(
-            left.ctx, *self,
-            "left type did not match inference context of product"
-        );
-        assert_eq!(
-            right.ctx, *self,
-            "right type did not match inference context of product"
-        );
-
         let mut lock = self.lock();
         if let Some((data1, data2)) = lock.complete_pair_data(&left.inner, &right.inner) {
             lock.alloc_bound(Bound::Complete(Final::product(data1, data2)))
@@ -154,14 +147,9 @@ impl<'brand> Context<'brand> {
     }
 
     /// Accesses a bound.
-    ///
-    /// # Panics
-    ///
-    /// Panics if passed a `BoundRef` that was not allocated by this context.
     pub(super) fn get(&self, bound: &BoundRef<'brand>) -> Bound<'brand> {
-        bound.assert_matches_context(self);
         let lock = self.lock();
-        lock.slab[bound.index].shallow_clone()
+        lock.inner.slab[bound.index].shallow_clone()
     }
 
     /// Reassigns a bound to a different bound.
@@ -183,11 +171,6 @@ impl<'brand> Context<'brand> {
     /// fails, attach the provided hint to the error.
     ///
     /// Fails if the type has an existing incompatible bound.
-    ///
-    /// # Panics
-    ///
-    /// Panics if any of the three types passed in were allocated from a different
-    /// context than this one.
     pub fn bind_product(
         &self,
         existing: &Type<'brand>,
@@ -195,19 +178,6 @@ impl<'brand> Context<'brand> {
         prod_r: &Type<'brand>,
         hint: &'static str,
     ) -> Result<(), Error> {
-        assert_eq!(
-            existing.ctx, *self,
-            "attempted to bind existing type with wrong context",
-        );
-        assert_eq!(
-            prod_l.ctx, *self,
-            "attempted to bind product whose left type had wrong context",
-        );
-        assert_eq!(
-            prod_r.ctx, *self,
-            "attempted to bind product whose right type had wrong context",
-        );
-
         let existing_root = existing.inner.bound.root();
         let new_bound = Bound::Product(prod_l.inner.shallow_clone(), prod_r.inner.shallow_clone());
 
@@ -232,8 +202,6 @@ impl<'brand> Context<'brand> {
         ty2: &Type<'brand>,
         hint: &'static str,
     ) -> Result<(), Error> {
-        assert_eq!(ty1.ctx, *self);
-        assert_eq!(ty2.ctx, *self);
         let mut lock = self.lock();
         lock.unify(&ty1.inner, &ty2.inner).map_err(|e| {
             let new_bound = lock.alloc_bound(e.new);
@@ -249,46 +217,24 @@ impl<'brand> Context<'brand> {
     /// Locks the underlying slab mutex.
     fn lock(&self) -> LockedContext<'_, 'brand> {
         LockedContext {
-            context: Arc::as_ptr(&self.inner),
-            slab: self.inner.slab.lock().unwrap(),
+            inner: self.inner.lock().unwrap(),
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct BoundRef<'brand> {
-    context: *const ContextInner<'brand>,
+    phantom: InvariantLifetime<'brand>,
     index: usize,
 }
 
-// SAFETY: The pointer inside `BoundRef` is always (eventually) constructed from Arc::as_ptr
-// from the slab of a type-inference context.
-//
-// Arc will prevent the pointer from ever changing, except to be deallocated when the last
-// Arc goes away. But this occurs only when the context itself goes away, which in turn
-// happens only when every type bound referring to the context goes away.
-//
-// If this were untrue, our use of `BoundRef` would lead to dereferences of a dangling
-// pointer, and `Send`/`Sync` would be the least of our concerns!
-unsafe impl Send for BoundRef<'_> {}
-// SAFETY: see comment on `Send`
-unsafe impl Sync for BoundRef<'_> {}
-
 impl<'brand> BoundRef<'brand> {
-    pub fn assert_matches_context(&self, ctx: &Context<'brand>) {
-        assert_eq!(
-            self.context,
-            Arc::as_ptr(&ctx.inner),
-            "bound was accessed from a type inference context that did not create it",
-        );
-    }
-
     /// Creates an "occurs-check ID" which is just a copy of the [`BoundRef`]
     /// with `PartialEq` and `Eq` implemented in terms of underlying pointer
     /// equality.
     pub fn occurs_check_id(&self) -> OccursCheckId<'brand> {
         OccursCheckId {
-            context: self.context,
+            phantom: InvariantLifetime::default(),
             index: self.index,
         }
     }
@@ -296,16 +242,12 @@ impl<'brand> BoundRef<'brand> {
 
 impl super::PointerLike for BoundRef<'_> {
     fn ptr_eq(&self, other: &Self) -> bool {
-        debug_assert_eq!(
-            self.context, other.context,
-            "tried to compare two bounds from different inference contexts"
-        );
         self.index == other.index
     }
 
     fn shallow_clone(&self) -> Self {
         BoundRef {
-            context: self.context,
+            phantom: InvariantLifetime::default(),
             index: self.index,
         }
     }
@@ -329,7 +271,7 @@ impl<'brand> DagLike for (&'_ Context<'brand>, BoundRef<'brand>) {
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
 pub struct OccursCheckId<'brand> {
-    context: *const ContextInner<'brand>,
+    phantom: InvariantLifetime<'brand>,
     index: usize,
 }
 
@@ -343,27 +285,26 @@ struct BindError<'brand> {
 /// This type is never exposed outside of this module and should only exist
 /// ephemerally within function calls into this module.
 struct LockedContext<'ctx, 'brand> {
-    context: *const ContextInner<'brand>,
-    slab: MutexGuard<'ctx, Vec<Bound<'brand>>>,
+    inner: MutexGuard<'ctx, ContextInner<'brand>>,
 }
 
 impl<'brand> LockedContext<'_, 'brand> {
     fn alloc_bound(&mut self, bound: Bound<'brand>) -> BoundRef<'brand> {
-        self.slab.push(bound);
-        let index = self.slab.len() - 1;
+        self.inner.slab.push(bound);
+        let index = self.inner.slab.len() - 1;
 
         BoundRef {
-            context: self.context,
+            phantom: InvariantLifetime::default(),
             index,
         }
     }
 
     fn reassign_non_complete(&mut self, bound: BoundRef<'brand>, new: Bound<'brand>) {
         assert!(
-            !matches!(self.slab[bound.index], Bound::Complete(..)),
+            !matches!(self.inner.slab[bound.index], Bound::Complete(..)),
             "tried to modify finalized type",
         );
-        self.slab[bound.index] = new;
+        self.inner.slab[bound.index] = new;
     }
 
     /// It is a common situation that we are pairing two types, and in the
@@ -376,8 +317,8 @@ impl<'brand> LockedContext<'_, 'brand> {
         inn1: &TypeInner<'brand>,
         inn2: &TypeInner<'brand>,
     ) -> Option<(Arc<Final>, Arc<Final>)> {
-        let bound1 = &self.slab[inn1.bound.root().index];
-        let bound2 = &self.slab[inn2.bound.root().index];
+        let bound1 = &self.inner.slab[inn1.bound.root().index];
+        let bound2 = &self.inner.slab[inn2.bound.root().index];
         if let (Bound::Complete(ref data1), Bound::Complete(ref data2)) = (bound1, bound2) {
             Some((Arc::clone(data1), Arc::clone(data2)))
         } else {
@@ -394,7 +335,7 @@ impl<'brand> LockedContext<'_, 'brand> {
         other: &TypeInner<'brand>,
     ) -> Result<(), BindError<'brand>> {
         existing.bound.unify(&other.bound, |x_bound, y_bound| {
-            self.bind(x_bound, self.slab[y_bound.index].shallow_clone())
+            self.bind(x_bound, self.inner.slab[y_bound.index].shallow_clone())
         })
     }
 
@@ -403,7 +344,7 @@ impl<'brand> LockedContext<'_, 'brand> {
         existing: BoundRef<'brand>,
         new: Bound<'brand>,
     ) -> Result<(), BindError<'brand>> {
-        let existing_bound = self.slab[existing.index].shallow_clone();
+        let existing_bound = self.inner.slab[existing.index].shallow_clone();
         let bind_error = || BindError {
             existing: existing.clone(),
             new: new.shallow_clone(),

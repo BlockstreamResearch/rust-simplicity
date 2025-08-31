@@ -187,8 +187,14 @@ enum ResolvedInner<'brand, J: Jet> {
 pub fn parse<J: Jet + 'static>(
     program: &str,
 ) -> Result<HashMap<Arc<str>, Arc<NamedCommitNode<J>>>, ErrorSet> {
+    types::Context::with_context(|ctx| parse_inner(ctx, program))
+}
+
+fn parse_inner<J: Jet + 'static>(
+    inference_context: types::Context<'_>,
+    program: &str,
+) -> Result<HashMap<Arc<str>, Arc<NamedCommitNode<J>>>, ErrorSet> {
     let mut errors = ErrorSet::new();
-    let inference_context = types::Context::new();
     // **
     // Step 1: Read expressions into HashMap, checking for dupes and illegal names.
     // **
@@ -597,11 +603,11 @@ mod tests {
                 let main = &forest["main"];
                 assert_eq!(main.cmr().to_string(), cmr);
 
-                let ctx = types::Context::new();
-                let program = main
-                    .to_construct_node(&ctx, witness, &forest)
-                    .finalize_unpruned()
-                    .expect("finalize");
+                let program = types::Context::with_context(|ctx| {
+                    main.to_construct_node(&ctx, witness, &forest)
+                        .finalize_unpruned()
+                        .expect("finalize")
+                });
 
                 let mut mac =
                     BitMachine::for_program(&program).expect("program has reasonable bounds");

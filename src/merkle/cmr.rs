@@ -399,19 +399,20 @@ mod tests {
 
     #[test]
     fn cmr_display_unit() {
-        let ctx = types::Context::new();
-        let c = Arc::<ConstructNode<Core>>::unit(&ctx);
+        types::Context::with_context(|ctx| {
+            let c = Arc::<ConstructNode<Core>>::unit(&ctx);
 
-        assert_eq!(
-            c.cmr().to_string(),
-            "c40a10263f7436b4160acbef1c36fba4be4d95df181a968afeab5eac247adff7"
-        );
-        assert_eq!(format!("{:.8}", c.cmr()), "c40a1026");
+            assert_eq!(
+                c.cmr().to_string(),
+                "c40a10263f7436b4160acbef1c36fba4be4d95df181a968afeab5eac247adff7"
+            );
+            assert_eq!(format!("{:.8}", c.cmr()), "c40a1026");
 
-        assert_eq!(
-            Cmr::from_str("c40a10263f7436b4160acbef1c36fba4be4d95df181a968afeab5eac247adff7"),
-            Ok(c.cmr()),
-        );
+            assert_eq!(
+                Cmr::from_str("c40a10263f7436b4160acbef1c36fba4be4d95df181a968afeab5eac247adff7"),
+                Ok(c.cmr()),
+            );
+        });
     }
 
     #[test]
@@ -427,13 +428,14 @@ mod tests {
 
     #[test]
     fn bit_cmr() {
-        let ctx = types::Context::new();
-        let unit = Arc::<ConstructNode<Core>>::unit(&ctx);
-        let bit0 = Arc::<ConstructNode<Core>>::injl(&unit);
-        assert_eq!(bit0.cmr(), Cmr::BITS[0]);
+        types::Context::with_context(|ctx| {
+            let unit = Arc::<ConstructNode<Core>>::unit(&ctx);
+            let bit0 = Arc::<ConstructNode<Core>>::injl(&unit);
+            assert_eq!(bit0.cmr(), Cmr::BITS[0]);
 
-        let bit1 = Arc::<ConstructNode<_>>::injr(&unit);
-        assert_eq!(bit1.cmr(), Cmr::BITS[1]);
+            let bit1 = Arc::<ConstructNode<_>>::injr(&unit);
+            assert_eq!(bit1.cmr(), Cmr::BITS[1]);
+        });
     }
 
     #[test]
@@ -481,14 +483,13 @@ mod tests {
     #[test]
     fn const_bits() {
         /// The scribe expression, as defined in the Simplicity tech report.
-        fn scribe<'brand>(bit: u8) -> Arc<ConstructNode<'brand, Core>> {
+        fn scribe<'brand>(
+            ctx: &types::Context<'brand>,
+            bit: u8,
+        ) -> Arc<ConstructNode<'brand, Core>> {
             match bit {
-                0 => Arc::<ConstructNode<Core>>::injl(&Arc::<ConstructNode<Core>>::unit(
-                    &types::Context::new(),
-                )),
-                1 => Arc::<ConstructNode<Core>>::injr(&Arc::<ConstructNode<Core>>::unit(
-                    &types::Context::new(),
-                )),
+                0 => Arc::<ConstructNode<Core>>::injl(&Arc::<ConstructNode<Core>>::unit(ctx)),
+                1 => Arc::<ConstructNode<Core>>::injr(&Arc::<ConstructNode<Core>>::unit(ctx)),
                 _ => panic!("Unexpected bit {bit}"),
             }
         }
@@ -504,11 +505,13 @@ mod tests {
             print!("       "); for ch in &target.0[24..32] { print!(" 0x{:02x},", ch); }; println!();
             println!("    ])),");
             */
-            assert_eq!(
-                target,
-                scribe(index).cmr(),
-                "mismatch on CMR for bit {index}",
-            );
+            types::Context::with_context(|ctx| {
+                assert_eq!(
+                    target,
+                    scribe(&ctx, index).cmr(),
+                    "mismatch on CMR for bit {index}",
+                );
+            });
         }
 
         for index in 0..2u8 {

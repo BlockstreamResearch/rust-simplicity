@@ -774,13 +774,15 @@ mod tests {
 
         type Node<'brand> = Arc<crate::ConstructNode<'brand, crate::jet::Core>>;
 
-        let mut bomb = Node::jet(
-            &crate::types::Context::new(),
-            crate::jet::Core::Ch8, // arbitrary jet with nonzero output size
-        );
-        for _ in 0..100 {
-            bomb = Node::pair(&bomb, &bomb).unwrap();
-        }
-        let _ = bomb.finalize_pruned(&());
+        crate::types::Context::with_context(|ctx| {
+            let mut bomb = Node::jet(
+                &ctx,
+                crate::jet::Core::Ch8, // arbitrary jet with nonzero output size
+            );
+            for _ in 0..100 {
+                bomb = Node::pair(&bomb, &bomb).unwrap();
+            }
+            let _ = bomb.finalize_pruned(&());
+        });
     }
 }

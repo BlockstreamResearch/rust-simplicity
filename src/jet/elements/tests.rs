@@ -100,11 +100,13 @@ fn test_ffi_env() {
         BlockHash::all_zeros(),
     );
 
-    let prog = Arc::<ConstructNode<_>>::jet(&types::Context::new(), Elements::LockTime);
-    assert_eq!(
-        BitMachine::test_exec(prog, &env).expect("executing"),
-        Value::u32(100),
-    );
+    types::Context::with_context(|ctx| {
+        let prog = Arc::<ConstructNode<_>>::jet(&ctx, Elements::LockTime);
+        assert_eq!(
+            BitMachine::test_exec(prog, &env).expect("executing"),
+            Value::u32(100),
+        );
+    });
 }
 
 fn hex_script(s: &str) -> elements::Script {

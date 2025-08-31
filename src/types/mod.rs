@@ -235,7 +235,6 @@ impl<'brand> Type<'brand> {
     }
 
     fn wrap_bound(ctx: &Context<'brand>, bound: BoundRef<'brand>) -> Self {
-        bound.assert_matches_context(ctx);
         Type {
             ctx: ctx.shallow_clone(),
             inner: TypeInner {
@@ -421,30 +420,31 @@ mod tests {
 
     #[test]
     fn inference_failure() {
-        let ctx = Context::new();
+        Context::with_context(|ctx| {
+            // unit: A -> 1
+            let unit = Arc::<ConstructNode<Core>>::unit(&ctx); // 1 -> 1
 
-        // unit: A -> 1
-        let unit = Arc::<ConstructNode<Core>>::unit(&ctx); // 1 -> 1
+            // Force unit to be 1->1
+            Arc::<ConstructNode<Core>>::comp(&unit, &unit).unwrap();
 
-        // Force unit to be 1->1
-        Arc::<ConstructNode<Core>>::comp(&unit, &unit).unwrap();
+            // take unit: 1 * B -> 1
+            let take_unit = Arc::<ConstructNode<Core>>::take(&unit); // 1*1 -> 1
 
-        // take unit: 1 * B -> 1
-        let take_unit = Arc::<ConstructNode<Core>>::take(&unit); // 1*1 -> 1
-
-        // Pair will try to unify 1 and 1*B
-        Arc::<ConstructNode<Core>>::pair(&unit, &take_unit).unwrap_err();
-        // Trying to do it again should not work.
-        Arc::<ConstructNode<Core>>::pair(&unit, &take_unit).unwrap_err();
+            // Pair will try to unify 1 and 1*B
+            Arc::<ConstructNode<Core>>::pair(&unit, &take_unit).unwrap_err();
+            // Trying to do it again should not work.
+            Arc::<ConstructNode<Core>>::pair(&unit, &take_unit).unwrap_err();
+        });
     }
 
     #[test]
     fn memory_leak() {
-        let ctx = Context::new();
-        let iden = Arc::<ConstructNode<Core>>::iden(&ctx);
-        let drop = Arc::<ConstructNode<Core>>::drop_(&iden);
-        let case = Arc::<ConstructNode<Core>>::case(&iden, &drop).unwrap();
+        Context::with_context(|ctx| {
+            let iden = Arc::<ConstructNode<Core>>::iden(&ctx);
+            let drop = Arc::<ConstructNode<Core>>::drop_(&iden);
+            let case = Arc::<ConstructNode<Core>>::case(&iden, &drop).unwrap();
 
-        let _ = format!("{:?}", case.arrow().source);
+            let _ = format!("{:?}", case.arrow().source);
+        });
     }
 }

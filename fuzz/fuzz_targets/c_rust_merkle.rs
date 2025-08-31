@@ -16,18 +16,19 @@ fn do_test(data: &[u8]) {
     // from the error return.
     //
     // If the program doesn't decode, just use the first byte as a "length".
-    let prog_len = {
+    let prog_len: Option<usize> = types::Context::with_context(|ctx| {
         let mut iter = BitIter::from(data);
-        match simplicity::decode::decode_expression::<_, Elements>(
-            &types::Context::new(),
-            &mut iter,
-        ) {
-            Ok(_) => (iter.n_total_read() + 7) / 8,
+        match simplicity::decode::decode_expression::<_, Elements>(&ctx, &mut iter) {
+            Ok(_) => Some((iter.n_total_read() + 7) / 8),
             Err(_) => match data.first() {
-                Some(&n) => core::cmp::min(data.len(), n.into()),
-                None => return,
+                Some(&n) => Some(core::cmp::min(data.len(), n.into())),
+                None => return None,
             },
         }
+    });
+    let prog_len = match prog_len {
+        Some(x) => x,
+        None => return,
     };
 
     let (program, witness) = data.split_at(prog_len);

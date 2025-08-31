@@ -109,17 +109,20 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
 
     /// Return the program commitment of the policy.
     pub fn commit(&self) -> Option<Arc<CommitNode<Elements>>> {
-        let construct: Arc<ConstructNode<Elements>> =
-            self.serialize_no_witness(&types::Context::new())?;
-        let commit = construct.finalize_types().expect("policy has sound types");
-        Some(commit)
+        types::Context::with_context(|ctx| {
+            let construct: Arc<ConstructNode<Elements>> = self.serialize_no_witness(&ctx)?;
+            let commit = construct.finalize_types().expect("policy has sound types");
+            Some(commit)
+        })
     }
 
     /// Return the CMR of the policy.
     pub fn cmr(&self) -> Cmr {
-        self.serialize_no_witness::<crate::merkle::cmr::ConstructibleCmr>(&types::Context::new())
-            .expect("CMR is defined for asm fragment")
-            .cmr
+        types::Context::with_context(|ctx| {
+            self.serialize_no_witness::<crate::merkle::cmr::ConstructibleCmr>(&ctx)
+                .expect("CMR is defined for asm fragment")
+                .cmr
+        })
     }
 }
 

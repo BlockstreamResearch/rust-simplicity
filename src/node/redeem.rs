@@ -423,20 +423,22 @@ impl<J: Jet> RedeemNode<J> {
         // 2) Prune out unused case branches.
         // Because the types of the pruned program may change,
         // we construct a temporary witness program with unfinalized types.
-        let pruned_witness_program = self
-            .convert::<InternalSharing, _, _>(&mut Pruner {
-                inference_context: types::Context::new(),
-                tracker,
-                phantom: PhantomData,
-            })
-            .expect("pruning unused branches is infallible");
+        types::Context::with_context(|inference_context| {
+            let pruned_witness_program = self
+                .convert::<InternalSharing, _, _>(&mut Pruner {
+                    inference_context,
+                    tracker,
+                    phantom: PhantomData,
+                })
+                .expect("pruning unused branches is infallible");
 
-        // 3) Finalize the types of the witness program.
-        // We obtain the pruned redeem program.
-        // Once the pruned type is finalized, we can proceed to prune witness values.
-        Ok(pruned_witness_program
-            .convert::<InternalSharing, _, _>(&mut Finalizer(PhantomData))
-            .expect("finalization is infallible"))
+            // 3) Finalize the types of the witness program.
+            // We obtain the pruned redeem program.
+            // Once the pruned type is finalized, we can proceed to prune witness values.
+            Ok(pruned_witness_program
+                .convert::<InternalSharing, _, _>(&mut Finalizer(PhantomData))
+                .expect("finalization is infallible"))
+        })
     }
 
     /// Decode a Simplicity program from bits, including the witness data.
@@ -503,19 +505,20 @@ impl<J: Jet> RedeemNode<J> {
         }
 
         // 1. Decode program without witnesses as ConstructNode
-        let ctx = types::Context::new();
-        let construct = crate::ConstructNode::decode(&ctx, program).map_err(DecodeError::Decode)?;
-        construct
-            .set_arrow_to_program()
-            .map_err(DecodeError::Type)?;
+        let program: Arc<Self> = types::Context::with_context(|ctx| {
+            let construct =
+                crate::ConstructNode::decode(&ctx, program).map_err(DecodeError::Decode)?;
+            construct
+                .set_arrow_to_program()
+                .map_err(DecodeError::Type)?;
 
-        // Importantly, we  use `InternalSharing` here to make sure that we respect
-        // the sharing choices that were actually encoded in the bitstream.
-        let program: Arc<Self> =
+            // Importantly, we  use `InternalSharing` here to make sure that we respect
+            // the sharing choices that were actually encoded in the bitstream.
             construct.convert::<InternalSharing, _, _>(&mut DecodeFinalizer {
                 bits: &mut witness,
                 phantom: PhantomData,
-            })?;
+            })
+        })?;
 
         // 3. Check that we read exactly as much witness data as we expected
         witness
@@ -950,18 +953,22 @@ mod tests {
         expected_pruned_wit: &HashMap<Arc<str>, Value>,
         env: &J::Environment,
     ) {
-        let unpruned_program = Forest::<J>::parse(unpruned_prog)
-            .expect("unpruned program should parse")
-            .to_witness_node(&types::Context::new(), unpruned_wit)
-            .expect("unpruned program should have main")
-            .finalize_unpruned()
-            .expect("unpruned program should finalize");
-        let expected_unpruned_program = Forest::<J>::parse(expected_pruned_prog)
-            .expect("expected pruned program should parse")
-            .to_witness_node(&types::Context::new(), expected_pruned_wit)
-            .expect("expected pruned program should have main")
-            .finalize_unpruned()
-            .expect("expected pruned program should finalize");
+        let unpruned_program = types::Context::with_context(|ctx| {
+            Forest::<J>::parse(unpruned_prog)
+                .expect("unpruned program should parse")
+                .to_witness_node(&ctx, unpruned_wit)
+                .expect("unpruned program should have main")
+                .finalize_unpruned()
+                .expect("unpruned program should finalize")
+        });
+        let expected_unpruned_program = types::Context::with_context(|ctx| {
+            Forest::<J>::parse(expected_pruned_prog)
+                .expect("expected pruned program should parse")
+                .to_witness_node(&ctx, expected_pruned_wit)
+                .expect("expected pruned program should have main")
+                .finalize_unpruned()
+                .expect("expected pruned program should finalize")
+        });
 
         let mut mac = BitMachine::for_program(&unpruned_program)
             .expect("unpruned program has reasonable bounds");

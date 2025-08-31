@@ -207,14 +207,15 @@ mod tests {
     use std::sync::Arc;
 
     fn parse_program(s: &str) -> Arc<RedeemNode<Core>> {
-        let ctx = types::Context::new();
-        let empty_witness = HashMap::new();
-        Forest::<Core>::parse(s)
-            .unwrap()
-            .to_witness_node(&ctx, &empty_witness)
-            .unwrap()
-            .finalize_unpruned()
-            .unwrap()
+        types::Context::with_context(|ctx| {
+            let empty_witness = HashMap::new();
+            Forest::<Core>::parse(s)
+                .unwrap()
+                .to_witness_node(&ctx, &empty_witness)
+                .unwrap()
+                .finalize_unpruned()
+                .unwrap()
+        })
     }
 
     #[test]

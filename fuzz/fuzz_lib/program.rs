@@ -47,11 +47,11 @@ impl ProgramControl {
 impl Extractor<'_> {
     pub fn extract_core_construct_node<'brand>(
         &mut self,
+        ctx: &types::Context<'brand>,
         force_control: Option<ProgramControl>,
     ) -> Option<Arc<ConstructNode<'brand, Core>>> {
         type ArcNode<'brand> = Arc<ConstructNode<'brand, Core>>;
 
-        let ctx = types::Context::new();
         let mut stack: Vec<ArcNode> = vec![];
 
         let program_control =
@@ -89,8 +89,8 @@ impl Extractor<'_> {
                         }
                     }
                     // 1 through 63
-                    1 => stack.push(ArcNode::unit(&ctx)),
-                    2 => stack.push(ArcNode::iden(&ctx)),
+                    1 => stack.push(ArcNode::unit(ctx)),
+                    2 => stack.push(ArcNode::iden(ctx)),
                     3 => {
                         use simplicity::dag::DagLike as _;
 
@@ -105,9 +105,9 @@ impl Extractor<'_> {
                                 return None;
                             }
                         }
-                        stack.push(ArcNode::scribe(&ctx, &val));
+                        stack.push(ArcNode::scribe(ctx, &val));
                     }
-                    4 if program_control.enable_witness => stack.push(ArcNode::witness(&ctx, None)),
+                    4 if program_control.enable_witness => stack.push(ArcNode::witness(ctx, None)),
                     5 => {
                         let child = stack.pop()?;
                         stack.push(ArcNode::injl(&child));
@@ -139,7 +139,7 @@ impl Extractor<'_> {
                     11 if program_control.enable_fail => {
                         let fail_u8 = self.extract_u8()?;
                         let fail = FailEntropy::from_byte_array([fail_u8; 64]);
-                        stack.push(ArcNode::fail(&ctx, fail));
+                        stack.push(ArcNode::fail(ctx, fail));
                     }
                     12 => {
                         let rchild = stack.pop()?;
@@ -165,7 +165,7 @@ impl Extractor<'_> {
                     _ => {
                         let extra_bits = usize::from(control >> 6);
                         let idx = (extra_bits << 8) + usize::from(self.extract_u8()?);
-                        stack.push(ArcNode::jet(&ctx, Core::ALL[idx % Core::ALL.len()]));
+                        stack.push(ArcNode::jet(ctx, Core::ALL[idx % Core::ALL.len()]));
                     }
                 }
             }

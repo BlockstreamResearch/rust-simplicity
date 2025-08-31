@@ -4,36 +4,40 @@
 
 #[cfg(any(fuzzing, test))]
 fn do_test(data: &[u8]) {
-    use simplicity::{jet::Core, BitIter, CommitNode};
+    use simplicity::{jet::Core, types, BitIter, CommitNode};
 
-    let mut extractor = simplicity_fuzz::Extractor::new(data);
+    types::Context::with_context(|ctx| {
+        let mut extractor = simplicity_fuzz::Extractor::new(data);
 
-    let construct =
-        match extractor.extract_core_construct_node(Some(simplicity_fuzz::ProgramControl {
-            enable_type_bomb: false,
-            enable_disconnect: false,
-            enable_witness: false,
-            enable_fail: false,
-            enable_asserts: true,
-            max_nodes: Some(25),
-        })) {
+        let construct = match extractor.extract_core_construct_node(
+            &ctx,
+            Some(simplicity_fuzz::ProgramControl {
+                enable_type_bomb: false,
+                enable_disconnect: false,
+                enable_witness: false,
+                enable_fail: false,
+                enable_asserts: true,
+                max_nodes: Some(25),
+            }),
+        ) {
             Some(x) => x,
             None => return,
         };
-    //println!("constructed {construct}");
-    let finalized = match construct.finalize_types() {
-        Ok(x) => x,
-        Err(_) => return,
-    };
-    //println!("finalized {finalized}");
-    let prog = finalized.encode_to_vec();
-    //println!("{}", simplicity::bitcoin::hex::DisplayHex::as_hex(&prog));
-    let prog = BitIter::from(prog);
-    let decode = CommitNode::<Core>::decode(prog).unwrap();
-    assert_eq!(
-        finalized, decode,
-        "Constructed committed LHS; encoded and decoded to get RHS",
-    );
+        //println!("constructed {construct}");
+        let finalized = match construct.finalize_types() {
+            Ok(x) => x,
+            Err(_) => return,
+        };
+        //println!("finalized {finalized}");
+        let prog = finalized.encode_to_vec();
+        //println!("{}", simplicity::bitcoin::hex::DisplayHex::as_hex(&prog));
+        let prog = BitIter::from(prog);
+        let decode = CommitNode::<Core>::decode(prog).unwrap();
+        assert_eq!(
+            finalized, decode,
+            "Constructed committed LHS; encoded and decoded to get RHS",
+        );
+    });
 }
 
 #[cfg(fuzzing)]

@@ -343,9 +343,11 @@ mod tests {
         }
     }
 
-    fn get_satisfier(
-        env: &ElementsEnv<Arc<elements::Transaction>>,
-    ) -> PolicySatisfier<'_, '_, XOnlyPublicKey> {
+    fn get_satisfier<'tx, 'brand>(
+        context: types::Context<'brand>,
+
+        env: &'tx ElementsEnv<Arc<elements::Transaction>>,
+    ) -> PolicySatisfier<'tx, 'brand, XOnlyPublicKey> {
         let mut preimages = HashMap::new();
 
         for i in 0..3 {
@@ -372,7 +374,7 @@ mod tests {
         }
 
         PolicySatisfier {
-            context: types::Context::new(),
+            context,
             preimages,
             signatures,
             assembly: HashMap::new(),
@@ -406,395 +408,420 @@ mod tests {
 
     #[test]
     fn satisfy_unsatisfiable() {
-        let env = ElementsEnv::dummy();
-        let satisfier = get_satisfier(&env);
-        let policy = Policy::Unsatisfiable(FailEntropy::ZERO);
+        types::Context::with_context(|ctx| {
+            let env = ElementsEnv::dummy();
+            let satisfier = get_satisfier(ctx, &env);
+            let policy = Policy::Unsatisfiable(FailEntropy::ZERO);
 
-        assert!(policy.satisfy(&satisfier, &env).is_err());
+            assert!(policy.satisfy(&satisfier, &env).is_err());
 
-        let commit = policy.commit().expect("no asm");
-        let program = commit
-            .finalize(&mut SimpleFinalizer::new(std::iter::empty()))
-            .expect("finalize");
+            let commit = policy.commit().expect("no asm");
+            let program = commit
+                .finalize(&mut SimpleFinalizer::new(std::iter::empty()))
+                .expect("finalize");
 
-        execute_unsuccessful(program, &env);
+            execute_unsuccessful(program, &env);
+        });
     }
 
     #[test]
     fn satisfy_trivial() {
-        let env = ElementsEnv::dummy();
-        let satisfier = get_satisfier(&env);
-        let policy = Policy::Trivial;
+        types::Context::with_context(|ctx| {
+            let env = ElementsEnv::dummy();
+            let satisfier = get_satisfier(ctx, &env);
+            let policy = Policy::Trivial;
 
-        let program = policy.satisfy(&satisfier, &env).expect("satisfiable");
-        let witness = to_witness(&program);
-        assert!(witness.is_empty());
+            let program = policy.satisfy(&satisfier, &env).expect("satisfiable");
+            let witness = to_witness(&program);
+            assert!(witness.is_empty());
 
-        execute_successful(program, &env);
+            execute_successful(program, &env);
+        });
     }
 
     #[test]
     fn satisfy_pk() {
-        let env = ElementsEnv::dummy();
-        let satisfier = get_satisfier(&env);
-        let mut it = satisfier.signatures.keys();
-        let xonly = it.next().unwrap();
-        let policy = Policy::Key(*xonly);
+        types::Context::with_context(|ctx| {
+            let env = ElementsEnv::dummy();
+            let satisfier = get_satisfier(ctx, &env);
+            let mut it = satisfier.signatures.keys();
+            let xonly = it.next().unwrap();
+            let policy = Policy::Key(*xonly);
 
-        let program = policy.satisfy(&satisfier, &env).expect("satisfiable");
-        let witness = to_witness(&program);
-        assert_eq!(1, witness.len());
+            let program = policy.satisfy(&satisfier, &env).expect("satisfiable");
+            let witness = to_witness(&program);
+            assert_eq!(1, witness.len());
 
-        let sighash = env.c_tx_env().sighash_all();
-        let message = secp256k1_zkp::Message::from_digest(sighash.to_byte_array());
-        let signature_bytes = witness[0]
-            .iter_padded()
-            .try_collect_bytes()
-            .expect("to bytes");
-        let signature =
-            secp256k1_zkp::schnorr::Signature::from_slice(&signature_bytes).expect("to signature");
-        assert!(signature.verify(&message, xonly).is_ok());
+            let sighash = env.c_tx_env().sighash_all();
+            let message = secp256k1_zkp::Message::from_digest(sighash.to_byte_array());
+            let signature_bytes = witness[0]
+                .iter_padded()
+                .try_collect_bytes()
+                .expect("to bytes");
+            let signature = secp256k1_zkp::schnorr::Signature::from_slice(&signature_bytes)
+                .expect("to signature");
+            assert!(signature.verify(&message, xonly).is_ok());
 
-        execute_successful(program, &env);
+            execute_successful(program, &env);
+        });
     }
 
     #[test]
     fn satisfy_sha256() {
-        let env = ElementsEnv::dummy();
-        let satisfier = get_satisfier(&env);
-        let mut it = satisfier.preimages.keys();
-        let image = *it.next().unwrap();
-        let policy = Policy::Sha256(image);
+        types::Context::with_context(|ctx| {
+            let env = ElementsEnv::dummy();
+            let satisfier = get_satisfier(ctx, &env);
+            let mut it = satisfier.preimages.keys();
+            let image = *it.next().unwrap();
+            let policy = Policy::Sha256(image);
 
-        let program = policy.satisfy(&satisfier, &env).expect("satisfiable");
-        let witness = to_witness(&program);
-        assert_eq!(1, witness.len());
+            let program = policy.satisfy(&satisfier, &env).expect("satisfiable");
+            let witness = to_witness(&program);
+            assert_eq!(1, witness.len());
 
-        let witness_bytes = witness[0]
-            .iter_padded()
-            .try_collect_bytes()
-            .expect("to bytes");
-        let witness_preimage = Preimage32::try_from(witness_bytes.as_slice()).expect("to array");
-        let preimage = *satisfier.preimages.get(&image).unwrap();
-        assert_eq!(preimage, witness_preimage);
+            let witness_bytes = witness[0]
+                .iter_padded()
+                .try_collect_bytes()
+                .expect("to bytes");
+            let witness_preimage =
+                Preimage32::try_from(witness_bytes.as_slice()).expect("to array");
+            let preimage = *satisfier.preimages.get(&image).unwrap();
+            assert_eq!(preimage, witness_preimage);
 
-        execute_successful(program, &env);
+            execute_successful(program, &env);
+        });
     }
 
     #[test]
     fn satisfy_after() {
-        let height = Height::from_consensus(42).unwrap();
-        let env =
-            ElementsEnv::dummy_with(elements::LockTime::Blocks(height), elements::Sequence::ZERO);
-        let satisfier = get_satisfier(&env);
+        types::Context::with_context(|ctx| {
+            let height = Height::from_consensus(42).unwrap();
+            let env = ElementsEnv::dummy_with(
+                elements::LockTime::Blocks(height),
+                elements::Sequence::ZERO,
+            );
+            let satisfier = get_satisfier(ctx, &env);
 
-        let policy0 = Policy::After(41);
-        let program = policy0.satisfy(&satisfier, &env).expect("satisfiable");
-        let witness = to_witness(&program);
-        assert!(witness.is_empty());
-        execute_successful(program, &env);
+            let policy0 = Policy::After(41);
+            let program = policy0.satisfy(&satisfier, &env).expect("satisfiable");
+            let witness = to_witness(&program);
+            assert!(witness.is_empty());
+            execute_successful(program, &env);
 
-        let policy1 = Policy::After(42);
-        let program = policy1.satisfy(&satisfier, &env).expect("satisfiable");
-        let witness = to_witness(&program);
-        assert!(witness.is_empty());
-        execute_successful(program, &env);
+            let policy1 = Policy::After(42);
+            let program = policy1.satisfy(&satisfier, &env).expect("satisfiable");
+            let witness = to_witness(&program);
+            assert!(witness.is_empty());
+            execute_successful(program, &env);
 
-        let policy2 = Policy::After(43);
-        assert!(policy2.satisfy(&satisfier, &env).is_err(), "unsatisfiable");
+            let policy2 = Policy::After(43);
+            assert!(policy2.satisfy(&satisfier, &env).is_err(), "unsatisfiable");
+        });
     }
 
     #[test]
     fn satisfy_older() {
-        let env = ElementsEnv::dummy_with(
-            elements::LockTime::ZERO,
-            elements::Sequence::from_consensus(42),
-        );
-        let satisfier = get_satisfier(&env);
+        types::Context::with_context(|ctx| {
+            let env = ElementsEnv::dummy_with(
+                elements::LockTime::ZERO,
+                elements::Sequence::from_consensus(42),
+            );
+            let satisfier = get_satisfier(ctx, &env);
 
-        let policy0 = Policy::Older(41);
-        let program = policy0.satisfy(&satisfier, &env).expect("satisfiable");
-        let witness = to_witness(&program);
-        assert!(witness.is_empty());
-        execute_successful(program, &env);
+            let policy0 = Policy::Older(41);
+            let program = policy0.satisfy(&satisfier, &env).expect("satisfiable");
+            let witness = to_witness(&program);
+            assert!(witness.is_empty());
+            execute_successful(program, &env);
 
-        let policy1 = Policy::Older(42);
-        let program = policy1.satisfy(&satisfier, &env).expect("satisfiable");
-        let witness = to_witness(&program);
-        assert!(witness.is_empty());
-        execute_successful(program, &env);
+            let policy1 = Policy::Older(42);
+            let program = policy1.satisfy(&satisfier, &env).expect("satisfiable");
+            let witness = to_witness(&program);
+            assert!(witness.is_empty());
+            execute_successful(program, &env);
 
-        let policy2 = Policy::Older(43);
-        assert!(policy2.satisfy(&satisfier, &env).is_err(), "unsatisfiable");
+            let policy2 = Policy::Older(43);
+            assert!(policy2.satisfy(&satisfier, &env).is_err(), "unsatisfiable");
+        });
     }
 
     #[test]
     fn satisfy_and() {
-        let env = ElementsEnv::dummy();
-        let satisfier = get_satisfier(&env);
-        let images: Vec<_> = satisfier.preimages.keys().copied().collect();
-        let preimages: Vec<_> = images
-            .iter()
-            .map(|x| satisfier.preimages.get(x).unwrap())
-            .collect();
+        types::Context::with_context(|ctx| {
+            let env = ElementsEnv::dummy();
+            let satisfier = get_satisfier(ctx, &env);
+            let images: Vec<_> = satisfier.preimages.keys().copied().collect();
+            let preimages: Vec<_> = images
+                .iter()
+                .map(|x| satisfier.preimages.get(x).unwrap())
+                .collect();
 
-        // Policy 0
+            // Policy 0
 
-        let policy0 = Policy::And {
-            left: Arc::new(Policy::Sha256(images[0])),
-            right: Arc::new(Policy::Sha256(images[1])),
-        };
-        let program = policy0.satisfy(&satisfier, &env).expect("satisfiable");
-        let witness = to_witness(&program);
-        assert_eq!(2, witness.len());
+            let policy0 = Policy::And {
+                left: Arc::new(Policy::Sha256(images[0])),
+                right: Arc::new(Policy::Sha256(images[1])),
+            };
+            let program = policy0.satisfy(&satisfier, &env).expect("satisfiable");
+            let witness = to_witness(&program);
+            assert_eq!(2, witness.len());
 
-        for i in 0..2 {
-            let preimage_bytes = witness[i]
-                .iter_padded()
-                .try_collect_bytes()
-                .expect("to bytes");
-            let witness_preimage =
-                Preimage32::try_from(preimage_bytes.as_slice()).expect("to array");
-            assert_eq!(preimages[i], &witness_preimage);
-        }
+            for i in 0..2 {
+                let preimage_bytes = witness[i]
+                    .iter_padded()
+                    .try_collect_bytes()
+                    .expect("to bytes");
+                let witness_preimage =
+                    Preimage32::try_from(preimage_bytes.as_slice()).expect("to array");
+                assert_eq!(preimages[i], &witness_preimage);
+            }
 
-        execute_successful(program, &env);
+            execute_successful(program, &env);
 
-        // Policy 1
+            // Policy 1
 
-        let policy1 = Policy::And {
-            left: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([0; 32]))),
-            right: Arc::new(Policy::Sha256(images[1])),
-        };
-        assert!(policy1.satisfy(&satisfier, &env).is_err());
+            let policy1 = Policy::And {
+                left: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([0; 32]))),
+                right: Arc::new(Policy::Sha256(images[1])),
+            };
+            assert!(policy1.satisfy(&satisfier, &env).is_err());
 
-        // Policy 2
+            // Policy 2
 
-        let policy2 = Policy::And {
-            left: Arc::new(Policy::Sha256(images[0])),
-            right: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([0; 32]))),
-        };
-        assert!(policy2.satisfy(&satisfier, &env).is_err());
+            let policy2 = Policy::And {
+                left: Arc::new(Policy::Sha256(images[0])),
+                right: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([0; 32]))),
+            };
+            assert!(policy2.satisfy(&satisfier, &env).is_err());
+        });
     }
 
     #[test]
     fn satisfy_or() {
-        let env = ElementsEnv::dummy();
-        let satisfier = get_satisfier(&env);
-        let images: Vec<_> = satisfier.preimages.keys().copied().collect();
-        let preimages: Vec<_> = images.iter().map(|x| satisfier.preimages[x]).collect();
+        types::Context::with_context(|ctx| {
+            let env = ElementsEnv::dummy();
+            let satisfier = get_satisfier(ctx, &env);
+            let images: Vec<_> = satisfier.preimages.keys().copied().collect();
+            let preimages: Vec<_> = images.iter().map(|x| satisfier.preimages[x]).collect();
 
-        let assert_branch = |policy: &Policy<XOnlyPublicKey>, bit: bool| {
-            let program = policy.satisfy(&satisfier, &env).expect("satisfiable");
-            let witness = to_witness(&program);
-            assert_eq!(2, witness.len());
+            let assert_branch = |policy: &Policy<XOnlyPublicKey>, bit: bool| {
+                let program = policy.satisfy(&satisfier, &env).expect("satisfiable");
+                let witness = to_witness(&program);
+                assert_eq!(2, witness.len());
 
-            assert_eq!(Value::u1(u8::from(bit)), *witness[0]);
-            let preimage_bytes = witness[1]
-                .iter_padded()
-                .try_collect_bytes()
-                .expect("to bytes");
-            let witness_preimage =
-                Preimage32::try_from(preimage_bytes.as_slice()).expect("to array");
-            assert_eq!(preimages[usize::from(bit)], witness_preimage);
+                assert_eq!(Value::u1(u8::from(bit)), *witness[0]);
+                let preimage_bytes = witness[1]
+                    .iter_padded()
+                    .try_collect_bytes()
+                    .expect("to bytes");
+                let witness_preimage =
+                    Preimage32::try_from(preimage_bytes.as_slice()).expect("to array");
+                assert_eq!(preimages[usize::from(bit)], witness_preimage);
 
-            execute_successful(program, &env);
-        };
+                execute_successful(program, &env);
+            };
 
-        // Policy 0
+            // Policy 0
 
-        let policy0 = Policy::Or {
-            left: Arc::new(Policy::Sha256(images[0])),
-            right: Arc::new(Policy::Sha256(images[1])),
-        };
-        assert_branch(&policy0, false);
+            let policy0 = Policy::Or {
+                left: Arc::new(Policy::Sha256(images[0])),
+                right: Arc::new(Policy::Sha256(images[1])),
+            };
+            assert_branch(&policy0, false);
 
-        // Policy 1
+            // Policy 1
 
-        let policy1 = Policy::Or {
-            left: Arc::new(Policy::Sha256(images[0])),
-            right: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([1; 32]))),
-        };
-        assert_branch(&policy1, false);
+            let policy1 = Policy::Or {
+                left: Arc::new(Policy::Sha256(images[0])),
+                right: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([1; 32]))),
+            };
+            assert_branch(&policy1, false);
 
-        // Policy 2
+            // Policy 2
 
-        let policy2 = Policy::Or {
-            left: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([0; 32]))),
-            right: Arc::new(Policy::Sha256(images[1])),
-        };
-        assert_branch(&policy2, true);
+            let policy2 = Policy::Or {
+                left: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([0; 32]))),
+                right: Arc::new(Policy::Sha256(images[1])),
+            };
+            assert_branch(&policy2, true);
 
-        // Policy 3
+            // Policy 3
 
-        let policy3 = Policy::Or {
-            left: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([0; 32]))),
-            right: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([1; 32]))),
-        };
-        assert!(policy3.satisfy(&satisfier, &env).is_err());
+            let policy3 = Policy::Or {
+                left: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([0; 32]))),
+                right: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([1; 32]))),
+            };
+            assert!(policy3.satisfy(&satisfier, &env).is_err());
+        });
     }
 
     #[test]
     fn satisfy_thresh() {
-        let env = ElementsEnv::dummy();
-        let satisfier = get_satisfier(&env);
-        let images: Vec<_> = satisfier.preimages.keys().copied().collect();
-        let preimages: Vec<_> = images
-            .iter()
-            .map(|x| satisfier.preimages.get(x).unwrap())
-            .collect();
+        types::Context::with_context(|ctx| {
+            let env = ElementsEnv::dummy();
+            let satisfier = get_satisfier(ctx, &env);
+            let images: Vec<_> = satisfier.preimages.keys().copied().collect();
+            let preimages: Vec<_> = images
+                .iter()
+                .map(|x| satisfier.preimages.get(x).unwrap())
+                .collect();
 
-        let assert_branches = |policy: &Policy<XOnlyPublicKey>, bits: &[bool]| {
-            let program = policy.satisfy(&satisfier, &env).expect("satisfiable");
-            let witness = to_witness(&program);
-            assert_eq!(
-                witness.len(),
-                bits.len() + bits.iter().filter(|b| **b).count(),
-            );
+            let assert_branches = |policy: &Policy<XOnlyPublicKey>, bits: &[bool]| {
+                let program = policy.satisfy(&satisfier, &env).expect("satisfiable");
+                let witness = to_witness(&program);
+                assert_eq!(
+                    witness.len(),
+                    bits.len() + bits.iter().filter(|b| **b).count(),
+                );
 
-            let mut witidx = 0;
-            for (bit_n, bit) in bits.iter().copied().enumerate() {
-                assert_eq!(*witness[witidx], Value::u1(bit.into()));
-                witidx += 1;
-                if bit {
-                    let preimage_bytes = witness[witidx]
-                        .iter_padded()
-                        .try_collect_bytes()
-                        .expect("to bytes");
-                    let witness_preimage =
-                        Preimage32::try_from(preimage_bytes.as_slice()).expect("to array");
-                    assert_eq!(preimages[bit_n], &witness_preimage);
+                let mut witidx = 0;
+                for (bit_n, bit) in bits.iter().copied().enumerate() {
+                    assert_eq!(*witness[witidx], Value::u1(bit.into()));
                     witidx += 1;
+                    if bit {
+                        let preimage_bytes = witness[witidx]
+                            .iter_padded()
+                            .try_collect_bytes()
+                            .expect("to bytes");
+                        let witness_preimage =
+                            Preimage32::try_from(preimage_bytes.as_slice()).expect("to array");
+                        assert_eq!(preimages[bit_n], &witness_preimage);
+                        witidx += 1;
+                    }
                 }
-            }
 
-            execute_successful(program, &env);
-        };
+                execute_successful(program, &env);
+            };
 
-        let image_from_bit = |bit: bool, j: u8| {
-            if bit {
-                images[j as usize]
-            } else {
-                sha256::Hash::from_byte_array([j; 32])
-            }
-        };
+            let image_from_bit = |bit: bool, j: u8| {
+                if bit {
+                    images[j as usize]
+                } else {
+                    sha256::Hash::from_byte_array([j; 32])
+                }
+            };
 
-        for &bit0 in &[true, false] {
-            let image0 = image_from_bit(bit0, 0);
+            for &bit0 in &[true, false] {
+                let image0 = image_from_bit(bit0, 0);
 
-            for &bit1 in &[true, false] {
-                let image1 = image_from_bit(bit1, 1);
+                for &bit1 in &[true, false] {
+                    let image1 = image_from_bit(bit1, 1);
 
-                for &bit2 in &[true, false] {
-                    let image2 = image_from_bit(bit2, 2);
+                    for &bit2 in &[true, false] {
+                        let image2 = image_from_bit(bit2, 2);
 
-                    let policy = Policy::Threshold(
-                        2,
-                        vec![
-                            Policy::Sha256(image0),
-                            Policy::Sha256(image1),
-                            Policy::Sha256(image2),
-                        ],
-                    );
+                        let policy = Policy::Threshold(
+                            2,
+                            vec![
+                                Policy::Sha256(image0),
+                                Policy::Sha256(image1),
+                                Policy::Sha256(image2),
+                            ],
+                        );
 
-                    match u8::from(bit0) + u8::from(bit1) + u8::from(bit2) {
-                        3 => assert_branches(&policy, &[bit0, bit1, false]),
-                        2 => assert_branches(&policy, &[bit0, bit1, bit2]),
-                        _ => assert!(policy.satisfy(&satisfier, &env).is_err()),
+                        match u8::from(bit0) + u8::from(bit1) + u8::from(bit2) {
+                            3 => assert_branches(&policy, &[bit0, bit1, false]),
+                            2 => assert_branches(&policy, &[bit0, bit1, bit2]),
+                            _ => assert!(policy.satisfy(&satisfier, &env).is_err()),
+                        }
                     }
                 }
             }
-        }
+        });
     }
 
     #[test]
     fn satisfy_asm() {
-        let ctx = types::Context::new();
-        let env = ElementsEnv::dummy();
-        let mut satisfier = get_satisfier(&env);
+        types::Context::with_context(|ctx| {
+            let env = ElementsEnv::dummy();
+            let mut satisfier = get_satisfier(ctx, &env);
 
-        let mut assert_branch = |witness0: Value, witness1: Value| {
-            let asm_program = serialize::verify_bexp(
-                &Arc::<ConstructNode<Elements>>::pair(
-                    &Arc::<ConstructNode<Elements>>::witness(&ctx, Some(witness0.clone())),
-                    &Arc::<ConstructNode<Elements>>::witness(&ctx, Some(witness1.clone())),
-                )
-                .expect("sound types"),
-                &Arc::<ConstructNode<Elements>>::jet(&ctx, Elements::Eq8),
-            );
-            let cmr = asm_program.cmr();
-            satisfier.assembly.insert(cmr, asm_program);
+            let mut assert_branch = |witness0: Value, witness1: Value| {
+                let ctx = &satisfier.context;
+                let asm_program = serialize::verify_bexp(
+                    &Arc::<ConstructNode<Elements>>::pair(
+                        &Arc::<ConstructNode<Elements>>::witness(ctx, Some(witness0.clone())),
+                        &Arc::<ConstructNode<Elements>>::witness(ctx, Some(witness1.clone())),
+                    )
+                    .expect("sound types"),
+                    &Arc::<ConstructNode<Elements>>::jet(ctx, Elements::Eq8),
+                );
+                let cmr = asm_program.cmr();
+                satisfier.assembly.insert(cmr, asm_program);
 
-            let policy = Policy::Assembly(cmr);
-            let result = policy.satisfy(&satisfier, &env);
+                let policy = Policy::Assembly(cmr);
+                let result = policy.satisfy(&satisfier, &env);
 
-            if witness0 == witness1 {
-                let program = result.expect("policy should be satisfiable");
-                let witness = to_witness(&program);
+                if witness0 == witness1 {
+                    let program = result.expect("policy should be satisfiable");
+                    let witness = to_witness(&program);
 
-                assert_eq!(2, witness.len());
-                assert_eq!(&witness0, witness[0]);
-                assert_eq!(&witness1, witness[1]);
+                    assert_eq!(2, witness.len());
+                    assert_eq!(&witness0, witness[0]);
+                    assert_eq!(&witness1, witness[1]);
 
-                execute_successful(program, &env);
-            } else {
-                assert!(matches!(result, Err(SatisfierError::AssemblyFailed(..))));
+                    execute_successful(program, &env);
+                } else {
+                    assert!(matches!(result, Err(SatisfierError::AssemblyFailed(..))));
+                }
+            };
+
+            for a in 0..2 {
+                for b in 0..2 {
+                    assert_branch(Value::u8(a), Value::u8(b))
+                }
             }
-        };
-
-        for a in 0..2 {
-            for b in 0..2 {
-                assert_branch(Value::u8(a), Value::u8(b))
-            }
-        }
+        });
     }
 
     #[test]
     #[ignore]
     fn satisfy_asm_and_older() {
-        let env = ElementsEnv::dummy_with(
-            elements::LockTime::ZERO,
-            elements::Sequence::from_consensus(42),
-        );
-        let mut satisfier = get_satisfier(&env);
-
-        let mut assert_branch = |witness0: Value, witness1: Value| {
-            let ctx = &types::Context::new();
-            let asm_program = serialize::verify_bexp(
-                &Arc::<ConstructNode<Elements>>::pair(
-                    &Arc::<ConstructNode<Elements>>::witness(ctx, Some(witness0.clone())),
-                    &Arc::<ConstructNode<Elements>>::witness(ctx, Some(witness1.clone())),
-                )
-                .expect("sound types"),
-                &Arc::<ConstructNode<Elements>>::jet(ctx, Elements::Eq8),
+        types::Context::with_context(|ctx| {
+            let env = ElementsEnv::dummy_with(
+                elements::LockTime::ZERO,
+                elements::Sequence::from_consensus(42),
             );
-            let cmr = asm_program.cmr();
-            satisfier.assembly.insert(cmr, asm_program);
+            let mut satisfier = get_satisfier(ctx, &env);
 
-            let policy = Policy::And {
-                left: Arc::new(Policy::Assembly(cmr)),
-                right: Arc::new(Policy::Older(41)),
+            let mut assert_branch = |witness0: Value, witness1: Value| {
+                let ctx = &satisfier.context;
+                let asm_program = serialize::verify_bexp(
+                    &Arc::<ConstructNode<Elements>>::pair(
+                        &Arc::<ConstructNode<Elements>>::witness(ctx, Some(witness0.clone())),
+                        &Arc::<ConstructNode<Elements>>::witness(ctx, Some(witness1.clone())),
+                    )
+                    .expect("sound types"),
+                    &Arc::<ConstructNode<Elements>>::jet(ctx, Elements::Eq8),
+                );
+                let cmr = asm_program.cmr();
+                satisfier.assembly.insert(cmr, asm_program);
+
+                let policy = Policy::And {
+                    left: Arc::new(Policy::Assembly(cmr)),
+                    right: Arc::new(Policy::Older(41)),
+                };
+                let result = policy.satisfy(&satisfier, &env);
+
+                if witness0 == witness1 {
+                    let program = result.expect("policy should be satisfiable");
+                    let witness = to_witness(&program);
+
+                    assert_eq!(2, witness.len());
+                    assert_eq!(&witness0, witness[0]);
+                    assert_eq!(&witness1, witness[1]);
+
+                    execute_successful(program, &env);
+                } else {
+                    assert!(matches!(result, Err(SatisfierError::AssemblyFailed(..))));
+                }
             };
-            let result = policy.satisfy(&satisfier, &env);
 
-            if witness0 == witness1 {
-                let program = result.expect("policy should be satisfiable");
-                let witness = to_witness(&program);
-
-                assert_eq!(2, witness.len());
-                assert_eq!(&witness0, witness[0]);
-                assert_eq!(&witness1, witness[1]);
-
-                execute_successful(program, &env);
-            } else {
-                assert!(matches!(result, Err(SatisfierError::AssemblyFailed(..))));
+            for a in 0..2 {
+                for b in 0..2 {
+                    assert_branch(Value::u8(a), Value::u8(b))
+                }
             }
-        };
-
-        for a in 0..2 {
-            for b in 0..2 {
-                assert_branch(Value::u8(a), Value::u8(b))
-            }
-        }
+        });
     }
 }

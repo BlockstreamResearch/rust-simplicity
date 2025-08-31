@@ -316,8 +316,9 @@ mod tests {
         let justjet = [0x6d, 0xb8, 0x80];
         // Should be able to decode this as an expression...
         let mut iter = BitIter::from(&justjet[..]);
-        let ctx = types::Context::new();
-        decode_expression::<_, Core>(&ctx, &mut iter).unwrap();
+        types::Context::with_context(|ctx| {
+            decode_expression::<_, Core>(&ctx, &mut iter).unwrap();
+        });
         // ...but NOT as a CommitNode
         let iter = BitIter::from(&justjet[..]);
         CommitNode::<Core>::decode(iter).unwrap_err();
