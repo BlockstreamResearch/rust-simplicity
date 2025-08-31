@@ -45,6 +45,22 @@ pub trait Satisfier<'brand, Pk: ToXOnlyPubkey> {
         false
     }
 
+    /// Returns at type inference context to be used when constructing programs.
+    ///
+    /// Unlike in Miniscript, satisfactions can't exist independently of the programs
+    /// they satisfy. Instead, they are represented by programs whose 'witness' nodes
+    /// are populated with the witness data. Therefore, during satisfaction, we must
+    /// construct a program, doing type inference along the way.
+    ///
+    /// In order to support the [`Self::lookup_asm_program`] method, which needs to
+    /// return a [`ConstructNode`] with the same type inference context as the other
+    /// parts of the constructed program, this context must be part of the satisfier
+    /// and made available through this method.
+    ///
+    /// Because of Rust's lack of specialization, this is true even for satisfiers
+    /// that do not implement [`Self::lookup_asm_program`].
+    fn inference_context(&self) -> &types::Context<'brand>;
+
     /// Given a CMR, look up a matching assembly program.
     ///
     /// ## Successful execution
@@ -62,11 +78,17 @@ pub trait Satisfier<'brand, Pk: ToXOnlyPubkey> {
     }
 }
 
-impl<'brand, Pk: ToXOnlyPubkey> Satisfier<'brand, Pk> for elements::Sequence {
+impl<'brand, Pk: ToXOnlyPubkey> Satisfier<'brand, Pk>
+    for (&types::Context<'brand>, elements::Sequence)
+{
+    fn inference_context(&self) -> &types::Context<'brand> {
+        self.0
+    }
+
     fn check_older(&self, n: elements::Sequence) -> bool {
         use elements::bitcoin::locktime::relative::LockTime::*;
 
-        let this = match bitcoin::Sequence(self.0).to_relative_lock_time() {
+        let this = match bitcoin::Sequence(self.1 .0).to_relative_lock_time() {
             Some(x) => x,
             None => return false,
         };
@@ -83,11 +105,17 @@ impl<'brand, Pk: ToXOnlyPubkey> Satisfier<'brand, Pk> for elements::Sequence {
     }
 }
 
-impl<'brand, Pk: ToXOnlyPubkey> Satisfier<'brand, Pk> for elements::LockTime {
+impl<'brand, Pk: ToXOnlyPubkey> Satisfier<'brand, Pk>
+    for (&types::Context<'brand>, elements::LockTime)
+{
+    fn inference_context(&self) -> &types::Context<'brand> {
+        self.0
+    }
+
     fn check_after(&self, n: elements::LockTime) -> bool {
         use elements::LockTime::*;
 
-        match (n, *self) {
+        match (n, self.1) {
             (Blocks(n), Blocks(lock_time)) => n <= lock_time,
             (Seconds(n), Seconds(lock_time)) => n <= lock_time,
             _ => false, // Not the same units.
@@ -117,9 +145,9 @@ fn ok_if(condition: bool, expr: SatResult) -> SatResult {
 impl<Pk: ToXOnlyPubkey> Policy<Pk> {
     fn satisfy_internal<'brand, S: Satisfier<'brand, Pk>>(
         &self,
-        inference_context: &types::Context<'brand>,
         satisfier: &S,
     ) -> Result<SatResult<'brand>, SatisfierError> {
+        let inference_context = satisfier.inference_context();
         let node: SatResult = match *self {
             Policy::Unsatisfiable(entropy) => {
                 super::serialize::unsatisfiable::<SatResult>(inference_context, entropy).hide()
@@ -157,16 +185,16 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                 ref left,
                 ref right,
             } => {
-                let left_res = left.satisfy_internal(inference_context, satisfier)?;
-                let right_res = right.satisfy_internal(inference_context, satisfier)?;
+                let left_res = left.satisfy_internal(satisfier)?;
+                let right_res = right.satisfy_internal(satisfier)?;
                 super::serialize::and(&left_res, &right_res)
             }
             Policy::Or {
                 ref left,
                 ref right,
             } => {
-                let left_res = left.satisfy_internal(inference_context, satisfier)?;
-                let right_res = right.satisfy_internal(inference_context, satisfier)?;
+                let left_res = left.satisfy_internal(satisfier)?;
+                let right_res = right.satisfy_internal(satisfier)?;
                 let take_right = match (left_res.as_node(), right_res.as_node()) {
                     (Some(left), Some(right)) => {
                         let left_cost = left
@@ -201,7 +229,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
             Policy::Threshold(k, ref subs) => {
                 let subs_res: Vec<SatResult> = subs
                     .iter()
-                    .map(|sub| sub.satisfy_internal(inference_context, satisfier))
+                    .map(|sub| sub.satisfy_internal(satisfier))
                     .collect::<Result<_, SatisfierError>>()?;
                 let costs: Vec<Cost> = subs_res
                     .iter()
@@ -248,7 +276,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
         satisfier: &S,
         env: &ElementsEnv<Arc<elements::Transaction>>,
     ) -> Result<Arc<RedeemNode<Elements>>, SatisfierError> {
-        let result = self.satisfy_internal(&types::Context::new(), satisfier)?;
+        let result = self.satisfy_internal(satisfier)?;
         match result.get_node() {
             Some(program) => program
                 .finalize_unpruned()
@@ -276,6 +304,7 @@ mod tests {
     use std::sync::Arc;
 
     pub struct PolicySatisfier<'a, 'brand, Pk: SimplicityKey> {
+        pub context: types::Context<'brand>,
         pub preimages: HashMap<Pk::Sha256, Preimage32>,
         pub signatures: HashMap<Pk, elements::SchnorrSig>,
         pub assembly: HashMap<Cmr, Arc<ConstructNode<'brand, Elements>>>,
@@ -284,6 +313,10 @@ mod tests {
     }
 
     impl<'brand, Pk: ToXOnlyPubkey> Satisfier<'brand, Pk> for PolicySatisfier<'_, 'brand, Pk> {
+        fn inference_context(&self) -> &types::Context<'brand> {
+            &self.context
+        }
+
         fn lookup_tap_leaf_script_sig(
             &self,
             pk: &Pk,
@@ -298,11 +331,11 @@ mod tests {
 
         fn check_older(&self, sequence: elements::Sequence) -> bool {
             let self_sequence = self.tx.input[self.index].sequence;
-            <elements::Sequence as Satisfier<Pk>>::check_older(&self_sequence, sequence)
+            Satisfier::<Pk>::check_older(&(&self.context, self_sequence), sequence)
         }
 
         fn check_after(&self, locktime: elements::LockTime) -> bool {
-            <elements::LockTime as Satisfier<Pk>>::check_after(&self.tx.lock_time, locktime)
+            Satisfier::<Pk>::check_after(&(&self.context, self.tx.lock_time), locktime)
         }
 
         fn lookup_asm_program(&self, cmr: Cmr) -> Option<Arc<ConstructNode<'brand, Elements>>> {
@@ -339,6 +372,7 @@ mod tests {
         }
 
         PolicySatisfier {
+            context: types::Context::new(),
             preimages,
             signatures,
             assembly: HashMap::new(),
@@ -715,13 +749,6 @@ mod tests {
         }
     }
 
-    // This test fails with an "InferenceContextMismatch". In fact, it is impossible to
-    // combine asm with any other fragments in the current codebase, because the non-asm
-    // fragments are satisfied using an ephemeral type inference context constructed in
-    // `satisfy_internal`, which is inaccessible and impossible to use in the return
-    // value of `lookup_asm_program`.
-    //
-    // This will be fixed in the next commit.
     #[test]
     #[ignore]
     fn satisfy_asm_and_older() {
