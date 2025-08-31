@@ -187,13 +187,16 @@ impl<J: Jet> CommitNode<J> {
     }
 
     /// Convert a [`CommitNode`] back to a [`ConstructNode`] by redoing type inference
-    pub fn unfinalize_types<'brand>(&self) -> Result<Arc<ConstructNode<'brand, J>>, types::Error> {
-        struct UnfinalizeTypes<'brand, J: Jet> {
-            inference_context: types::Context<'brand>,
+    pub fn unfinalize_types<'brand>(
+        &self,
+        inference_context: &types::Context<'brand>,
+    ) -> Result<Arc<ConstructNode<'brand, J>>, types::Error> {
+        struct UnfinalizeTypes<'a, 'brand, J: Jet> {
+            inference_context: &'a types::Context<'brand>,
             phantom: PhantomData<J>,
         }
 
-        impl<'brand, J: Jet> Converter<Commit<J>, Construct<'brand, J>> for UnfinalizeTypes<'brand, J> {
+        impl<'brand, J: Jet> Converter<Commit<J>, Construct<'brand, J>> for UnfinalizeTypes<'_, 'brand, J> {
             type Error = types::Error;
             fn convert_witness(
                 &mut self,
@@ -227,14 +230,14 @@ impl<J: Jet> CommitNode<J> {
                     .map_disconnect(|maybe_node| maybe_node.as_ref().map(|node| node.arrow()));
                 let inner = inner.disconnect_as_ref(); // lol sigh rust
                 Ok(ConstructData::new(Arrow::from_inner(
-                    &self.inference_context,
+                    self.inference_context,
                     inner,
                 )?))
             }
         }
 
         self.convert::<MaxSharing<Commit<J>>, _, _>(&mut UnfinalizeTypes {
-            inference_context: types::Context::new(),
+            inference_context,
             phantom: PhantomData,
         })
     }
