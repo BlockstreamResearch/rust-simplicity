@@ -214,10 +214,8 @@ impl<'brand> Context<'brand> {
     }
 
     /// Locks the underlying slab mutex.
-    fn lock(&self) -> LockedContext<'_, 'brand> {
-        LockedContext {
-            inner: self.inner.lock().unwrap(),
-        }
+    fn lock(&self) -> MutexGuard<'_, WithGhostToken<'brand, ContextInner<'brand>>> {
+        self.inner.lock().unwrap()
     }
 }
 
@@ -279,18 +277,10 @@ struct BindError<'brand> {
     new: Bound<'brand>,
 }
 
-/// Structure representing an inference context with its slab allocator mutex locked.
-///
-/// This type is never exposed outside of this module and should only exist
-/// ephemerally within function calls into this module.
-struct LockedContext<'ctx, 'brand> {
-    inner: MutexGuard<'ctx, WithGhostToken<'brand, ContextInner<'brand>>>,
-}
-
-impl<'brand> LockedContext<'_, 'brand> {
+impl<'brand> ContextInner<'brand> {
     fn alloc_bound(&mut self, bound: Bound<'brand>) -> BoundRef<'brand> {
-        self.inner.slab.push(bound);
-        let index = self.inner.slab.len() - 1;
+        self.slab.push(bound);
+        let index = self.slab.len() - 1;
 
         BoundRef {
             phantom: InvariantLifetime::default(),
@@ -300,10 +290,10 @@ impl<'brand> LockedContext<'_, 'brand> {
 
     fn reassign_non_complete(&mut self, bound: BoundRef<'brand>, new: Bound<'brand>) {
         assert!(
-            !matches!(self.inner.slab[bound.index], Bound::Complete(..)),
+            !matches!(self.slab[bound.index], Bound::Complete(..)),
             "tried to modify finalized type",
         );
-        self.inner.slab[bound.index] = new;
+        self.slab[bound.index] = new;
     }
 
     /// It is a common situation that we are pairing two types, and in the
@@ -316,8 +306,8 @@ impl<'brand> LockedContext<'_, 'brand> {
         inn1: &TypeInner<'brand>,
         inn2: &TypeInner<'brand>,
     ) -> Option<(Arc<Final>, Arc<Final>)> {
-        let bound1 = &self.inner.slab[inn1.bound.root().index];
-        let bound2 = &self.inner.slab[inn2.bound.root().index];
+        let bound1 = &self.slab[inn1.bound.root().index];
+        let bound2 = &self.slab[inn2.bound.root().index];
         if let (Bound::Complete(ref data1), Bound::Complete(ref data2)) = (bound1, bound2) {
             Some((Arc::clone(data1), Arc::clone(data2)))
         } else {
@@ -334,7 +324,7 @@ impl<'brand> LockedContext<'_, 'brand> {
         other: &TypeInner<'brand>,
     ) -> Result<(), BindError<'brand>> {
         existing.bound.unify(&other.bound, |x_bound, y_bound| {
-            self.bind(x_bound, self.inner.slab[y_bound.index].shallow_clone())
+            self.bind(x_bound, self.slab[y_bound.index].shallow_clone())
         })
     }
 
@@ -343,7 +333,7 @@ impl<'brand> LockedContext<'_, 'brand> {
         existing: BoundRef<'brand>,
         new: Bound<'brand>,
     ) -> Result<(), BindError<'brand>> {
-        let existing_bound = self.inner.slab[existing.index].shallow_clone();
+        let existing_bound = self.slab[existing.index].shallow_clone();
         let bind_error = || BindError {
             existing: existing.clone(),
             new: new.shallow_clone(),
