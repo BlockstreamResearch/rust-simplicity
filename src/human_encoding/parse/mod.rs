@@ -19,12 +19,12 @@ use super::{Position, WitnessOrHole};
 use super::{Error, ErrorSet};
 
 #[derive(Clone)]
-struct UnresolvedExpression<J: Jet> {
-    inner: UnresolvedInner<J>,
+struct UnresolvedExpression<'brand, J: Jet> {
+    inner: UnresolvedInner<'brand, J>,
     position: Position,
 }
 
-impl<J: Jet> UnresolvedExpression<J> {
+impl<'brand, J: Jet> UnresolvedExpression<'brand, J> {
     fn from_name(name: Arc<str>, position: Position) -> Self {
         UnresolvedExpression {
             inner: UnresolvedInner::NoExpr {
@@ -70,7 +70,7 @@ impl<J: Jet> UnresolvedExpression<J> {
         }
     }
 
-    fn add_source_type(&mut self, ty: Type) {
+    fn add_source_type(&mut self, ty: Type<'brand>) {
         match self.inner {
             UnresolvedInner::NoExpr {
                 ref mut user_source_types,
@@ -88,7 +88,7 @@ impl<J: Jet> UnresolvedExpression<J> {
         }
     }
 
-    fn add_target_type(&mut self, ty: Type) {
+    fn add_target_type(&mut self, ty: Type<'brand>) {
         match self.inner {
             UnresolvedInner::NoExpr {
                 ref mut user_target_types,
@@ -108,37 +108,37 @@ impl<J: Jet> UnresolvedExpression<J> {
 }
 
 #[derive(Clone)]
-enum UnresolvedInner<J: Jet> {
+enum UnresolvedInner<'brand, J: Jet> {
     NoExpr {
         name: Arc<str>,
-        user_source_types: Vec<Type>,
-        user_target_types: Vec<Type>,
+        user_source_types: Vec<Type<'brand>>,
+        user_target_types: Vec<Type<'brand>>,
     },
     Inline {
         expr_inner: ast::ExprInner<J>,
     },
     Named {
         name: Arc<str>,
-        user_source_types: Vec<Type>,
-        user_target_types: Vec<Type>,
+        user_source_types: Vec<Type<'brand>>,
+        user_target_types: Vec<Type<'brand>>,
         expr_inner: ast::ExprInner<J>,
     },
 }
 
-struct ResolvedExpression<J: Jet> {
-    inner: ResolvedInner<J>,
+struct ResolvedExpression<'brand, J: Jet> {
+    inner: ResolvedInner<'brand, J>,
     position: Position,
 
     name: Option<Arc<str>>,
-    user_source_types: Arc<[Type]>,
-    user_target_types: Arc<[Type]>,
+    user_source_types: Arc<[Type<'brand>]>,
+    user_target_types: Arc<[Type<'brand>]>,
 
     in_degree: AtomicUsize,
 }
 
-impl<J: Jet> DagLike for &'_ ResolvedExpression<J> {
-    type Node = ResolvedExpression<J>;
-    fn data(&self) -> &ResolvedExpression<J> {
+impl<'brand, J: Jet> DagLike for &'_ ResolvedExpression<'brand, J> {
+    type Node = ResolvedExpression<'brand, J>;
+    fn data(&self) -> &ResolvedExpression<'brand, J> {
         self
     }
 
@@ -157,31 +157,44 @@ impl<J: Jet> DagLike for &'_ ResolvedExpression<J> {
     }
 }
 
-enum ResolvedCmr<J: Jet> {
-    Expr(Arc<ResolvedExpression<J>>),
+enum ResolvedCmr<'brand, J: Jet> {
+    Expr(Arc<ResolvedExpression<'brand, J>>),
     Literal,
 }
 
-enum ResolvedInner<J: Jet> {
+enum ResolvedInner<'brand, J: Jet> {
     /// A reference to a missing expression
     Missing { name: Arc<str> },
     /// A reference to a name with no associated expression
     NoExpr { name: Arc<str> },
     /// A reference to another expression
-    Reference(Arc<ResolvedExpression<J>>),
+    Reference(Arc<ResolvedExpression<'brand, J>>),
     /// A left assertion (referring to the CMR of an expression on the right)
-    AssertL(Arc<ResolvedExpression<J>>, ResolvedCmr<J>),
+    AssertL(Arc<ResolvedExpression<'brand, J>>, ResolvedCmr<'brand, J>),
     /// A right assertion (referring to the CMR of an expression on the left)
-    AssertR(ResolvedCmr<J>, Arc<ResolvedExpression<J>>),
+    AssertR(ResolvedCmr<'brand, J>, Arc<ResolvedExpression<'brand, J>>),
     /// An inline expression
-    Inline(node::Inner<Arc<ResolvedExpression<J>>, J, Arc<ResolvedExpression<J>>, WitnessOrHole>),
+    Inline(
+        node::Inner<
+            Arc<ResolvedExpression<'brand, J>>,
+            J,
+            Arc<ResolvedExpression<'brand, J>>,
+            WitnessOrHole,
+        >,
+    ),
 }
 
 pub fn parse<J: Jet + 'static>(
     program: &str,
 ) -> Result<HashMap<Arc<str>, Arc<NamedCommitNode<J>>>, ErrorSet> {
+    types::Context::with_context(|ctx| parse_inner(ctx, program))
+}
+
+fn parse_inner<J: Jet + 'static>(
+    inference_context: types::Context<'_>,
+    program: &str,
+) -> Result<HashMap<Arc<str>, Arc<NamedCommitNode<J>>>, ErrorSet> {
     let mut errors = ErrorSet::new();
-    let inference_context = types::Context::new();
     // **
     // Step 1: Read expressions into HashMap, checking for dupes and illegal names.
     // **
@@ -226,8 +239,8 @@ pub fn parse<J: Jet + 'static>(
         let expr = unresolved_map.remove(&name).unwrap();
 
         #[derive(Clone)]
-        struct StackItem<J: Jet> {
-            expr: UnresolvedExpression<J>,
+        struct StackItem<'brand, J: Jet> {
+            expr: UnresolvedExpression<'brand, J>,
             name: Option<Arc<str>>,
             done_children: bool,
         }
@@ -590,10 +603,11 @@ mod tests {
                 let main = &forest["main"];
                 assert_eq!(main.cmr().to_string(), cmr);
 
-                let program = main
-                    .to_construct_node(witness, &forest)
-                    .finalize_unpruned()
-                    .expect("finalize");
+                let program = types::Context::with_context(|ctx| {
+                    main.to_construct_node(&ctx, witness, &forest)
+                        .finalize_unpruned()
+                        .expect("finalize")
+                });
 
                 let mut mac =
                     BitMachine::for_program(&program).expect("program has reasonable bounds");

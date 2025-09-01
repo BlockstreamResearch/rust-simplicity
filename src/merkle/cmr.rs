@@ -251,20 +251,20 @@ impl Cmr {
 /// Wrapper around a CMR which allows it to be constructed with the
 /// `*Constructible*` traits, allowing CMRs to be computed using the
 /// same generic construction code that nodes are.
-pub struct ConstructibleCmr {
+pub struct ConstructibleCmr<'brand> {
     pub cmr: Cmr,
-    pub inference_context: types::Context,
+    pub inference_context: types::Context<'brand>,
 }
 
-impl CoreConstructible for ConstructibleCmr {
-    fn iden(inference_context: &types::Context) -> Self {
+impl<'brand> CoreConstructible<'brand> for ConstructibleCmr<'brand> {
+    fn iden(inference_context: &types::Context<'brand>) -> Self {
         ConstructibleCmr {
             cmr: Cmr::iden(),
             inference_context: inference_context.shallow_clone(),
         }
     }
 
-    fn unit(inference_context: &types::Context) -> Self {
+    fn unit(inference_context: &types::Context<'brand>) -> Self {
         ConstructibleCmr {
             cmr: Cmr::unit(),
             inference_context: inference_context.shallow_clone(),
@@ -337,26 +337,26 @@ impl CoreConstructible for ConstructibleCmr {
         })
     }
 
-    fn fail(inference_context: &types::Context, entropy: FailEntropy) -> Self {
+    fn fail(inference_context: &types::Context<'brand>, entropy: FailEntropy) -> Self {
         ConstructibleCmr {
             cmr: Cmr::fail(entropy),
             inference_context: inference_context.shallow_clone(),
         }
     }
 
-    fn const_word(inference_context: &types::Context, word: Word) -> Self {
+    fn const_word(inference_context: &types::Context<'brand>, word: Word) -> Self {
         ConstructibleCmr {
             cmr: Cmr::const_word(&word),
             inference_context: inference_context.shallow_clone(),
         }
     }
 
-    fn inference_context(&self) -> &types::Context {
+    fn inference_context(&self) -> &types::Context<'brand> {
         &self.inference_context
     }
 }
 
-impl<X> DisconnectConstructible<X> for ConstructibleCmr {
+impl<'brand, X> DisconnectConstructible<'brand, X> for ConstructibleCmr<'brand> {
     // Specifically with disconnect we don't check for consistency between the
     // type inference context of the disconnected node, if any, and that of
     // the left node. The idea is, from the point of view of (Constructible)Cmr,
@@ -369,8 +369,8 @@ impl<X> DisconnectConstructible<X> for ConstructibleCmr {
     }
 }
 
-impl<W> WitnessConstructible<W> for ConstructibleCmr {
-    fn witness(inference_context: &types::Context, _witness: W) -> Self {
+impl<'brand, W> WitnessConstructible<'brand, W> for ConstructibleCmr<'brand> {
+    fn witness(inference_context: &types::Context<'brand>, _witness: W) -> Self {
         ConstructibleCmr {
             cmr: Cmr::witness(),
             inference_context: inference_context.shallow_clone(),
@@ -378,8 +378,8 @@ impl<W> WitnessConstructible<W> for ConstructibleCmr {
     }
 }
 
-impl<J: Jet> JetConstructible<J> for ConstructibleCmr {
-    fn jet(inference_context: &types::Context, jet: J) -> Self {
+impl<'brand, J: Jet> JetConstructible<'brand, J> for ConstructibleCmr<'brand> {
+    fn jet(inference_context: &types::Context<'brand>, jet: J) -> Self {
         ConstructibleCmr {
             cmr: jet.cmr(),
             inference_context: inference_context.shallow_clone(),
@@ -399,19 +399,20 @@ mod tests {
 
     #[test]
     fn cmr_display_unit() {
-        let ctx = types::Context::new();
-        let c = Arc::<ConstructNode<Core>>::unit(&ctx);
+        types::Context::with_context(|ctx| {
+            let c = Arc::<ConstructNode<Core>>::unit(&ctx);
 
-        assert_eq!(
-            c.cmr().to_string(),
-            "c40a10263f7436b4160acbef1c36fba4be4d95df181a968afeab5eac247adff7"
-        );
-        assert_eq!(format!("{:.8}", c.cmr()), "c40a1026");
+            assert_eq!(
+                c.cmr().to_string(),
+                "c40a10263f7436b4160acbef1c36fba4be4d95df181a968afeab5eac247adff7"
+            );
+            assert_eq!(format!("{:.8}", c.cmr()), "c40a1026");
 
-        assert_eq!(
-            Cmr::from_str("c40a10263f7436b4160acbef1c36fba4be4d95df181a968afeab5eac247adff7"),
-            Ok(c.cmr()),
-        );
+            assert_eq!(
+                Cmr::from_str("c40a10263f7436b4160acbef1c36fba4be4d95df181a968afeab5eac247adff7"),
+                Ok(c.cmr()),
+            );
+        });
     }
 
     #[test]
@@ -427,13 +428,14 @@ mod tests {
 
     #[test]
     fn bit_cmr() {
-        let ctx = types::Context::new();
-        let unit = Arc::<ConstructNode<Core>>::unit(&ctx);
-        let bit0 = Arc::<ConstructNode<Core>>::injl(&unit);
-        assert_eq!(bit0.cmr(), Cmr::BITS[0]);
+        types::Context::with_context(|ctx| {
+            let unit = Arc::<ConstructNode<Core>>::unit(&ctx);
+            let bit0 = Arc::<ConstructNode<Core>>::injl(&unit);
+            assert_eq!(bit0.cmr(), Cmr::BITS[0]);
 
-        let bit1 = Arc::<ConstructNode<_>>::injr(&unit);
-        assert_eq!(bit1.cmr(), Cmr::BITS[1]);
+            let bit1 = Arc::<ConstructNode<_>>::injr(&unit);
+            assert_eq!(bit1.cmr(), Cmr::BITS[1]);
+        });
     }
 
     #[test]
@@ -481,14 +483,13 @@ mod tests {
     #[test]
     fn const_bits() {
         /// The scribe expression, as defined in the Simplicity tech report.
-        fn scribe(bit: u8) -> Arc<ConstructNode<Core>> {
+        fn scribe<'brand>(
+            ctx: &types::Context<'brand>,
+            bit: u8,
+        ) -> Arc<ConstructNode<'brand, Core>> {
             match bit {
-                0 => Arc::<ConstructNode<Core>>::injl(&Arc::<ConstructNode<Core>>::unit(
-                    &types::Context::new(),
-                )),
-                1 => Arc::<ConstructNode<Core>>::injr(&Arc::<ConstructNode<Core>>::unit(
-                    &types::Context::new(),
-                )),
+                0 => Arc::<ConstructNode<Core>>::injl(&Arc::<ConstructNode<Core>>::unit(ctx)),
+                1 => Arc::<ConstructNode<Core>>::injr(&Arc::<ConstructNode<Core>>::unit(ctx)),
                 _ => panic!("Unexpected bit {bit}"),
             }
         }
@@ -504,11 +505,13 @@ mod tests {
             print!("       "); for ch in &target.0[24..32] { print!(" 0x{:02x},", ch); }; println!();
             println!("    ])),");
             */
-            assert_eq!(
-                target,
-                scribe(index).cmr(),
-                "mismatch on CMR for bit {index}",
-            );
+            types::Context::with_context(|ctx| {
+                assert_eq!(
+                    target,
+                    scribe(&ctx, index).cmr(),
+                    "mismatch on CMR for bit {index}",
+                );
+            });
         }
 
         for index in 0..2u8 {

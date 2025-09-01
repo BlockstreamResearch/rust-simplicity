@@ -772,15 +772,17 @@ mod tests {
     fn crash_regression2() {
         use crate::node::{CoreConstructible as _, JetConstructible as _};
 
-        type Node = Arc<crate::ConstructNode<crate::jet::Core>>;
+        type Node<'brand> = Arc<crate::ConstructNode<'brand, crate::jet::Core>>;
 
-        let mut bomb = Node::jet(
-            &crate::types::Context::new(),
-            crate::jet::Core::Ch8, // arbitrary jet with nonzero output size
-        );
-        for _ in 0..100 {
-            bomb = Node::pair(&bomb, &bomb).unwrap();
-        }
-        let _ = bomb.finalize_pruned(&());
+        crate::types::Context::with_context(|ctx| {
+            let mut bomb = Node::jet(
+                &ctx,
+                crate::jet::Core::Ch8, // arbitrary jet with nonzero output size
+            );
+            for _ in 0..100 {
+                bomb = Node::pair(&bomb, &bomb).unwrap();
+            }
+            let _ = bomb.finalize_pruned(&());
+        });
     }
 }

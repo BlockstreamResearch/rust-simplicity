@@ -57,12 +57,15 @@ pub enum Policy<Pk: SimplicityKey> {
 
 impl<Pk: ToXOnlyPubkey> Policy<Pk> {
     /// Serializes the policy as a Simplicity fragment, with all witness nodes unpopulated.
-    fn serialize_no_witness<N>(&self, inference_context: &types::Context) -> Option<N>
+    fn serialize_no_witness<'brand, N>(
+        &self,
+        inference_context: &types::Context<'brand>,
+    ) -> Option<N>
     where
-        N: CoreConstructible
-            + JetConstructible<Elements>
-            + WitnessConstructible<Option<Value>>
-            + AssemblyConstructible,
+        N: CoreConstructible<'brand>
+            + JetConstructible<'brand, Elements>
+            + WitnessConstructible<'brand, Option<Value>>
+            + AssemblyConstructible<'brand>,
     {
         match *self {
             Policy::Unsatisfiable(entropy) => {
@@ -106,17 +109,20 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
 
     /// Return the program commitment of the policy.
     pub fn commit(&self) -> Option<Arc<CommitNode<Elements>>> {
-        let construct: Arc<ConstructNode<Elements>> =
-            self.serialize_no_witness(&types::Context::new())?;
-        let commit = construct.finalize_types().expect("policy has sound types");
-        Some(commit)
+        types::Context::with_context(|ctx| {
+            let construct: Arc<ConstructNode<Elements>> = self.serialize_no_witness(&ctx)?;
+            let commit = construct.finalize_types().expect("policy has sound types");
+            Some(commit)
+        })
     }
 
     /// Return the CMR of the policy.
     pub fn cmr(&self) -> Cmr {
-        self.serialize_no_witness::<crate::merkle::cmr::ConstructibleCmr>(&types::Context::new())
-            .expect("CMR is defined for asm fragment")
-            .cmr
+        types::Context::with_context(|ctx| {
+            self.serialize_no_witness::<crate::merkle::cmr::ConstructibleCmr>(&ctx)
+                .expect("CMR is defined for asm fragment")
+                .cmr
+        })
     }
 }
 

@@ -23,17 +23,17 @@ use super::{CoreConstructible, DisconnectConstructible, JetConstructible, Witnes
 pub enum ConstructId {}
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-pub struct Construct<J> {
+pub struct Construct<'brand, J> {
     /// Makes the type non-constructible.
     never: std::convert::Infallible,
     /// Required by Rust.
-    phantom: std::marker::PhantomData<J>,
+    phantom: std::marker::PhantomData<&'brand J>,
 }
 
-impl<J: Jet> Marker for Construct<J> {
-    type CachedData = ConstructData<J>;
+impl<'brand, J: Jet> Marker for Construct<'brand, J> {
+    type CachedData = ConstructData<'brand, J>;
     type Witness = Option<Value>;
-    type Disconnect = Option<Arc<ConstructNode<J>>>;
+    type Disconnect = Option<Arc<ConstructNode<'brand, J>>>;
     type SharingId = ConstructId;
     type Jet = J;
 
@@ -42,11 +42,11 @@ impl<J: Jet> Marker for Construct<J> {
     }
 }
 
-pub type ConstructNode<J> = Node<Construct<J>>;
+pub type ConstructNode<'brand, J> = Node<Construct<'brand, J>>;
 
-impl<J: Jet> ConstructNode<J> {
+impl<'brand, J: Jet> ConstructNode<'brand, J> {
     /// Accessor for the node's arrow
-    pub fn arrow(&self) -> &Arrow {
+    pub fn arrow(&self) -> &Arrow<'brand> {
         self.data.arrow()
     }
 
@@ -84,7 +84,7 @@ impl<J: Jet> ConstructNode<J> {
     pub fn finalize_types_non_program(&self) -> Result<Arc<CommitNode<J>>, types::Error> {
         struct FinalizeTypes<J: Jet>(PhantomData<J>);
 
-        impl<J: Jet> Converter<Construct<J>, Commit<J>> for FinalizeTypes<J> {
+        impl<'brand, J: Jet> Converter<Construct<'brand, J>, Commit<J>> for FinalizeTypes<J> {
             type Error = types::Error;
 
             fn convert_witness(
@@ -132,7 +132,7 @@ impl<J: Jet> ConstructNode<J> {
     pub fn finalize_unpruned(&self) -> Result<Arc<RedeemNode<J>>, FinalizeError> {
         struct Finalizer<J>(PhantomData<J>);
 
-        impl<J: Jet> Converter<Construct<J>, Redeem<J>> for Finalizer<J> {
+        impl<'brand, J: Jet> Converter<Construct<'brand, J>, Redeem<J>> for Finalizer<J> {
             type Error = FinalizeError;
 
             fn convert_witness(
@@ -230,16 +230,20 @@ impl<J: Jet> ConstructNode<J> {
     ///
     /// If the serialization contains the witness data, then use [`crate::RedeemNode::decode()`].
     pub fn decode<I: Iterator<Item = u8>>(
+        context: &types::Context<'brand>,
         mut bits: BitIter<I>,
     ) -> Result<Arc<Self>, crate::decode::Error> {
-        let res = crate::decode::decode_expression(&mut bits)?;
+        let res = crate::decode::decode_expression(context, &mut bits)?;
         bits.close()?;
         Ok(res)
     }
 
     #[cfg(feature = "base64")]
-    #[allow(clippy::should_implement_trait)] // returns Arc<Self>
-    pub fn from_str(s: &str) -> Result<Arc<Self>, crate::ParseError> {
+    #[allow(clippy::should_implement_trait)] // returns Arc<Self>, needs tyctx
+    pub fn from_str(
+        context: &types::Context<'brand>,
+        s: &str,
+    ) -> Result<Arc<Self>, crate::ParseError> {
         use crate::base64::engine::general_purpose;
         use crate::base64::Engine as _;
 
@@ -247,7 +251,7 @@ impl<J: Jet> ConstructNode<J> {
             .decode(s)
             .map_err(crate::ParseError::Base64)?;
         let iter = crate::BitIter::new(v.into_iter());
-        Self::decode(iter)
+        Self::decode(context, iter)
             .map_err(crate::DecodeError::Decode)
             .map_err(crate::ParseError::Decode)
     }
@@ -262,17 +266,17 @@ impl<J: Jet> ConstructNode<J> {
 }
 
 #[derive(Clone, Debug)]
-pub struct ConstructData<J> {
-    arrow: Arrow,
+pub struct ConstructData<'brand, J> {
+    arrow: Arrow<'brand>,
     /// This isn't really necessary, but it helps type inference if every
     /// struct has a \<J\> parameter, since it forces the choice of jets to
     /// be consistent without the user needing to specify it too many times.
     phantom: PhantomData<J>,
 }
 
-impl<J: Jet> ConstructData<J> {
+impl<'brand, J: Jet> ConstructData<'brand, J> {
     /// Constructs a new [`ConstructData`] from an (unfinalized) type arrow
-    pub fn new(arrow: Arrow) -> Self {
+    pub fn new(arrow: Arrow<'brand>) -> Self {
         ConstructData {
             arrow,
             phantom: PhantomData,
@@ -280,20 +284,20 @@ impl<J: Jet> ConstructData<J> {
     }
 
     /// Accessor for the node's arrow
-    pub fn arrow(&self) -> &Arrow {
+    pub fn arrow(&self) -> &Arrow<'brand> {
         &self.arrow
     }
 }
 
-impl<J> CoreConstructible for ConstructData<J> {
-    fn iden(inference_context: &types::Context) -> Self {
+impl<'brand, J> CoreConstructible<'brand> for ConstructData<'brand, J> {
+    fn iden(inference_context: &types::Context<'brand>) -> Self {
         ConstructData {
             arrow: Arrow::iden(inference_context),
             phantom: PhantomData,
         }
     }
 
-    fn unit(inference_context: &types::Context) -> Self {
+    fn unit(inference_context: &types::Context<'brand>) -> Self {
         ConstructData {
             arrow: Arrow::unit(inference_context),
             phantom: PhantomData,
@@ -363,29 +367,31 @@ impl<J> CoreConstructible for ConstructData<J> {
         })
     }
 
-    fn fail(inference_context: &types::Context, entropy: FailEntropy) -> Self {
+    fn fail(inference_context: &types::Context<'brand>, entropy: FailEntropy) -> Self {
         ConstructData {
             arrow: Arrow::fail(inference_context, entropy),
             phantom: PhantomData,
         }
     }
 
-    fn const_word(inference_context: &types::Context, word: Word) -> Self {
+    fn const_word(inference_context: &types::Context<'brand>, word: Word) -> Self {
         ConstructData {
             arrow: Arrow::const_word(inference_context, word),
             phantom: PhantomData,
         }
     }
 
-    fn inference_context(&self) -> &types::Context {
+    fn inference_context(&self) -> &types::Context<'brand> {
         self.arrow.inference_context()
     }
 }
 
-impl<J: Jet> DisconnectConstructible<Option<Arc<ConstructNode<J>>>> for ConstructData<J> {
+impl<'brand, J: Jet> DisconnectConstructible<'brand, Option<Arc<ConstructNode<'brand, J>>>>
+    for ConstructData<'brand, J>
+{
     fn disconnect(
         left: &Self,
-        right: &Option<Arc<ConstructNode<J>>>,
+        right: &Option<Arc<ConstructNode<'brand, J>>>,
     ) -> Result<Self, types::Error> {
         let right = right.as_ref();
         Ok(ConstructData {
@@ -395,8 +401,8 @@ impl<J: Jet> DisconnectConstructible<Option<Arc<ConstructNode<J>>>> for Construc
     }
 }
 
-impl<J> WitnessConstructible<Option<Value>> for ConstructData<J> {
-    fn witness(inference_context: &types::Context, _witness: Option<Value>) -> Self {
+impl<'brand, J> WitnessConstructible<'brand, Option<Value>> for ConstructData<'brand, J> {
+    fn witness(inference_context: &types::Context<'brand>, _witness: Option<Value>) -> Self {
         ConstructData {
             arrow: Arrow::witness(inference_context, NoWitness),
             phantom: PhantomData,
@@ -404,8 +410,8 @@ impl<J> WitnessConstructible<Option<Value>> for ConstructData<J> {
     }
 }
 
-impl<J: Jet> JetConstructible<J> for ConstructData<J> {
-    fn jet(inference_context: &types::Context, jet: J) -> Self {
+impl<'brand, J: Jet> JetConstructible<'brand, J> for ConstructData<'brand, J> {
+    fn jet(inference_context: &types::Context<'brand>, jet: J) -> Self {
         ConstructData {
             arrow: Arrow::jet(inference_context, jet),
             phantom: PhantomData,
@@ -422,75 +428,80 @@ mod tests {
 
     #[test]
     fn occurs_check_error() {
-        let ctx = types::Context::new();
-        let iden = Arc::<ConstructNode<Core>>::iden(&ctx);
-        let node = Arc::<ConstructNode<Core>>::disconnect(&iden, &Some(Arc::clone(&iden))).unwrap();
+        types::Context::with_context(|ctx| {
+            let iden = Arc::<ConstructNode<Core>>::iden(&ctx);
+            let node =
+                Arc::<ConstructNode<Core>>::disconnect(&iden, &Some(Arc::clone(&iden))).unwrap();
 
-        assert!(matches!(
-            node.finalize_types_non_program(),
-            Err(types::Error::OccursCheck { .. }),
-        ));
+            assert!(matches!(
+                node.finalize_types_non_program(),
+                Err(types::Error::OccursCheck { .. }),
+            ));
+        });
     }
 
     #[test]
     fn occurs_check_2() {
-        let ctx = types::Context::new();
-        // A more complicated occurs-check test that caused a deadlock in the past.
-        let iden = Arc::<ConstructNode<Core>>::iden(&ctx);
-        let injr = Arc::<ConstructNode<Core>>::injr(&iden);
-        let pair = Arc::<ConstructNode<Core>>::pair(&injr, &iden).unwrap();
-        let drop = Arc::<ConstructNode<Core>>::drop_(&pair);
+        types::Context::with_context(|ctx| {
+            // A more complicated occurs-check test that caused a deadlock in the past.
+            let iden = Arc::<ConstructNode<Core>>::iden(&ctx);
+            let injr = Arc::<ConstructNode<Core>>::injr(&iden);
+            let pair = Arc::<ConstructNode<Core>>::pair(&injr, &iden).unwrap();
+            let drop = Arc::<ConstructNode<Core>>::drop_(&pair);
 
-        let case1 = Arc::<ConstructNode<Core>>::case(&drop, &drop).unwrap();
-        let case2 = Arc::<ConstructNode<Core>>::case(&case1, &case1).unwrap();
+            let case1 = Arc::<ConstructNode<Core>>::case(&drop, &drop).unwrap();
+            let case2 = Arc::<ConstructNode<Core>>::case(&case1, &case1).unwrap();
 
-        let comp1 = Arc::<ConstructNode<Core>>::comp(&case2, &case2).unwrap();
-        let comp2 = Arc::<ConstructNode<Core>>::comp(&comp1, &case1).unwrap();
+            let comp1 = Arc::<ConstructNode<Core>>::comp(&case2, &case2).unwrap();
+            let comp2 = Arc::<ConstructNode<Core>>::comp(&comp1, &case1).unwrap();
 
-        assert!(matches!(
-            comp2.finalize_types_non_program(),
-            Err(types::Error::OccursCheck { .. }),
-        ));
+            assert!(matches!(
+                comp2.finalize_types_non_program(),
+                Err(types::Error::OccursCheck { .. }),
+            ));
+        });
     }
 
     #[test]
     fn occurs_check_3() {
-        let ctx = types::Context::new();
-        // A similar example that caused a slightly different deadlock in the past.
-        let wit = Arc::<ConstructNode<Core>>::witness(&ctx, None);
-        let drop = Arc::<ConstructNode<Core>>::drop_(&wit);
+        types::Context::with_context(|ctx| {
+            // A similar example that caused a slightly different deadlock in the past.
+            let wit = Arc::<ConstructNode<Core>>::witness(&ctx, None);
+            let drop = Arc::<ConstructNode<Core>>::drop_(&wit);
 
-        let comp1 = Arc::<ConstructNode<Core>>::comp(&drop, &drop).unwrap();
-        let comp2 = Arc::<ConstructNode<Core>>::comp(&comp1, &comp1).unwrap();
-        let comp3 = Arc::<ConstructNode<Core>>::comp(&comp2, &comp2).unwrap();
-        let comp4 = Arc::<ConstructNode<Core>>::comp(&comp3, &comp3).unwrap();
-        let comp5 = Arc::<ConstructNode<Core>>::comp(&comp4, &comp4).unwrap();
+            let comp1 = Arc::<ConstructNode<Core>>::comp(&drop, &drop).unwrap();
+            let comp2 = Arc::<ConstructNode<Core>>::comp(&comp1, &comp1).unwrap();
+            let comp3 = Arc::<ConstructNode<Core>>::comp(&comp2, &comp2).unwrap();
+            let comp4 = Arc::<ConstructNode<Core>>::comp(&comp3, &comp3).unwrap();
+            let comp5 = Arc::<ConstructNode<Core>>::comp(&comp4, &comp4).unwrap();
 
-        let case = Arc::<ConstructNode<Core>>::case(&comp5, &comp4).unwrap();
-        let drop2 = Arc::<ConstructNode<Core>>::drop_(&case);
-        let case2 = Arc::<ConstructNode<Core>>::case(&drop2, &case).unwrap();
-        let comp6 = Arc::<ConstructNode<Core>>::comp(&case2, &case2).unwrap();
-        let case3 = Arc::<ConstructNode<Core>>::case(&comp6, &comp6).unwrap();
+            let case = Arc::<ConstructNode<Core>>::case(&comp5, &comp4).unwrap();
+            let drop2 = Arc::<ConstructNode<Core>>::drop_(&case);
+            let case2 = Arc::<ConstructNode<Core>>::case(&drop2, &case).unwrap();
+            let comp6 = Arc::<ConstructNode<Core>>::comp(&case2, &case2).unwrap();
+            let case3 = Arc::<ConstructNode<Core>>::case(&comp6, &comp6).unwrap();
 
-        let comp7 = Arc::<ConstructNode<Core>>::comp(&case3, &case3).unwrap();
-        let comp8 = Arc::<ConstructNode<Core>>::comp(&comp7, &comp7).unwrap();
+            let comp7 = Arc::<ConstructNode<Core>>::comp(&case3, &case3).unwrap();
+            let comp8 = Arc::<ConstructNode<Core>>::comp(&comp7, &comp7).unwrap();
 
-        assert!(matches!(
-            comp8.finalize_types_non_program(),
-            Err(types::Error::OccursCheck { .. }),
-        ));
+            assert!(matches!(
+                comp8.finalize_types_non_program(),
+                Err(types::Error::OccursCheck { .. }),
+            ));
+        });
     }
 
     #[test]
     fn type_check_error() {
-        let ctx = types::Context::new();
-        let unit = Arc::<ConstructNode<Core>>::unit(&ctx);
-        let case = Arc::<ConstructNode<Core>>::case(&unit, &unit).unwrap();
+        types::Context::with_context(|ctx| {
+            let unit = Arc::<ConstructNode<Core>>::unit(&ctx);
+            let case = Arc::<ConstructNode<Core>>::case(&unit, &unit).unwrap();
 
-        assert!(matches!(
-            Arc::<ConstructNode<Core>>::disconnect(&case, &Some(unit)),
-            Err(types::Error::Bind { .. }),
-        ));
+            assert!(matches!(
+                Arc::<ConstructNode<Core>>::disconnect(&case, &Some(unit)),
+                Err(types::Error::Bind { .. }),
+            ));
+        });
     }
 
     #[test]
@@ -498,83 +509,91 @@ mod tests {
         // Ok to use same type inference context for all the below tests,
         // since everything has concrete types and anyway we only care
         // about CMRs, for which type inference is irrelevant.
-        let ctx = types::Context::new();
-        let unit = Arc::<ConstructNode<Core>>::unit(&ctx);
-        let bit0 = Arc::<ConstructNode<Core>>::const_word(&ctx, Word::u1(0));
-        let bit1 = Arc::<ConstructNode<Core>>::const_word(&ctx, Word::u1(1));
+        types::Context::with_context(|ctx| {
+            let unit = Arc::<ConstructNode<Core>>::unit(&ctx);
+            let bit0 = Arc::<ConstructNode<Core>>::const_word(&ctx, Word::u1(0));
+            let bit1 = Arc::<ConstructNode<Core>>::const_word(&ctx, Word::u1(1));
 
-        assert_eq!(
-            unit.cmr(),
-            Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::unit()).cmr()
-        );
-        assert_eq!(
-            bit0.cmr(),
-            Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::u1(0)).cmr()
-        );
-        assert_eq!(
-            bit1.cmr(),
-            Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::u1(1)).cmr()
-        );
-        assert_eq!(
-            Arc::<ConstructNode<Core>>::const_word(&ctx, Word::u2(1)).cmr(),
-            Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::u2(1)).cmr()
-        );
-        assert_eq!(
-            Arc::<ConstructNode<Core>>::injl(&bit0).cmr(),
-            Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::left(Value::u1(0), Final::unit()))
+            assert_eq!(
+                unit.cmr(),
+                Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::unit()).cmr()
+            );
+            assert_eq!(
+                bit0.cmr(),
+                Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::u1(0)).cmr()
+            );
+            assert_eq!(
+                bit1.cmr(),
+                Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::u1(1)).cmr()
+            );
+            assert_eq!(
+                Arc::<ConstructNode<Core>>::const_word(&ctx, Word::u2(1)).cmr(),
+                Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::u2(1)).cmr()
+            );
+            assert_eq!(
+                Arc::<ConstructNode<Core>>::injl(&bit0).cmr(),
+                Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::left(Value::u1(0), Final::unit()))
+                    .cmr()
+            );
+            assert_eq!(
+                Arc::<ConstructNode<Core>>::injr(&bit1).cmr(),
+                Arc::<ConstructNode<Core>>::scribe(
+                    &ctx,
+                    &Value::right(Final::unit(), Value::u1(1))
+                )
                 .cmr()
-        );
-        assert_eq!(
-            Arc::<ConstructNode<Core>>::injr(&bit1).cmr(),
-            Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::right(Final::unit(), Value::u1(1)))
+            );
+            assert_eq!(
+                Arc::<ConstructNode<Core>>::pair(&unit, &unit)
+                    .unwrap()
+                    .cmr(),
+                Arc::<ConstructNode<Core>>::scribe(
+                    &ctx,
+                    &Value::product(Value::unit(), Value::unit())
+                )
                 .cmr()
-        );
-        assert_eq!(
-            Arc::<ConstructNode<Core>>::pair(&unit, &unit)
-                .unwrap()
-                .cmr(),
-            Arc::<ConstructNode<Core>>::scribe(&ctx, &Value::product(Value::unit(), Value::unit()))
-                .cmr()
-        );
+            );
+        });
     }
 
     #[test]
     fn regression_286_1() {
         // This is the smallest pure Simplicity program I was able to find that exhibits the bad
         // behavior seen in https://github.com/BlockstreamResearch/rust-simplicity/issues/286
-        let ctx = types::Context::new();
-        let cmr = Cmr::from_byte_array([0xde; 32]);
+        types::Context::with_context(|ctx| {
+            let cmr = Cmr::from_byte_array([0xde; 32]);
 
-        let u0 = Arc::<ConstructNode<Core>>::unit(&ctx);
-        let i1 = Arc::<ConstructNode<Core>>::injl(&u0);
-        let i2 = Arc::<ConstructNode<Core>>::injr(&i1);
-        let i3 = Arc::<ConstructNode<Core>>::injr(&i2);
-        let i4 = Arc::<ConstructNode<Core>>::injl(&i3);
-        let u5 = Arc::<ConstructNode<Core>>::unit(&ctx);
-        let i6 = Arc::<ConstructNode<Core>>::injl(&u5);
-        let i7 = Arc::<ConstructNode<Core>>::injr(&i6);
-        let p8 = Arc::<ConstructNode<Core>>::pair(&i4, &i7).unwrap();
-        let u9 = Arc::<ConstructNode<Core>>::unit(&ctx);
-        let a10 = Arc::<ConstructNode<Core>>::assertr(cmr, &u9).unwrap();
-        let u11 = Arc::<ConstructNode<Core>>::unit(&ctx);
-        let a12 = Arc::<ConstructNode<Core>>::assertr(cmr, &u11).unwrap();
-        let a13 = Arc::<ConstructNode<Core>>::assertl(&a12, cmr).unwrap();
-        let c14 = Arc::<ConstructNode<Core>>::case(&a10, &a13).unwrap();
-        let c15 = Arc::<ConstructNode<Core>>::comp(&p8, &c14).unwrap();
+            let u0 = Arc::<ConstructNode<Core>>::unit(&ctx);
+            let i1 = Arc::<ConstructNode<Core>>::injl(&u0);
+            let i2 = Arc::<ConstructNode<Core>>::injr(&i1);
+            let i3 = Arc::<ConstructNode<Core>>::injr(&i2);
+            let i4 = Arc::<ConstructNode<Core>>::injl(&i3);
+            let u5 = Arc::<ConstructNode<Core>>::unit(&ctx);
+            let i6 = Arc::<ConstructNode<Core>>::injl(&u5);
+            let i7 = Arc::<ConstructNode<Core>>::injr(&i6);
+            let p8 = Arc::<ConstructNode<Core>>::pair(&i4, &i7).unwrap();
+            let u9 = Arc::<ConstructNode<Core>>::unit(&ctx);
+            let a10 = Arc::<ConstructNode<Core>>::assertr(cmr, &u9).unwrap();
+            let u11 = Arc::<ConstructNode<Core>>::unit(&ctx);
+            let a12 = Arc::<ConstructNode<Core>>::assertr(cmr, &u11).unwrap();
+            let a13 = Arc::<ConstructNode<Core>>::assertl(&a12, cmr).unwrap();
+            let c14 = Arc::<ConstructNode<Core>>::case(&a10, &a13).unwrap();
+            let c15 = Arc::<ConstructNode<Core>>::comp(&p8, &c14).unwrap();
 
-        let finalized: Arc<CommitNode<_>> = c15.finalize_types().unwrap();
-        let prog = finalized.to_vec_without_witness();
-        // In #286 we are encoding correctly...
-        assert_eq!(
-            hex::DisplayHex::as_hex(&prog).to_string(),
-            "dc920a28812b6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f243090e00b10e00680",
-        );
+            let finalized: Arc<CommitNode<_>> = c15.finalize_types().unwrap();
+            let prog = finalized.to_vec_without_witness();
+            // In #286 we are encoding correctly...
+            assert_eq!(
+                hex::DisplayHex::as_hex(&prog).to_string(),
+                "dc920a28812b6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f243090e00b10e00680",
+            );
 
-        let prog = BitIter::from(prog);
-        let decode = CommitNode::<Core>::decode(prog).unwrap();
+            let prog = BitIter::from(prog);
+            let decode = CommitNode::<Core>::decode(prog).unwrap();
 
-        // ...but then during decoding we read the program incorrectly and this assertion fails.
-        assert_eq!(finalized, decode);
+            // ...but then during decoding we read the program incorrectly and this assertion fails.
+            assert_eq!(finalized, decode);
+        });
     }
 
     #[test]
@@ -586,22 +605,22 @@ mod tests {
         //
         // It also exhibits the bug earlier than the other one -- it *should* just fail to
         // typecheck and not be constructible. So we can't get an encoding of it.
-        let ctx = types::Context::new();
+        types::Context::with_context(|ctx| {
+            let w0 = Arc::<ConstructNode<Core>>::witness(&ctx, None);
+            let i1 = Arc::<ConstructNode<Core>>::iden(&ctx);
+            let d2 = Arc::<ConstructNode<Core>>::drop_(&i1);
+            let i3 = Arc::<ConstructNode<Core>>::iden(&ctx);
+            let i4 = Arc::<ConstructNode<Core>>::iden(&ctx);
+            let t5 = Arc::<ConstructNode<Core>>::take(&i4);
+            let ca6 = Arc::<ConstructNode<Core>>::case(&i3, &t5).unwrap();
+            let ca7 = Arc::<ConstructNode<Core>>::case(&d2, &ca6).unwrap();
+            let c8 = Arc::<ConstructNode<Core>>::comp(&w0, &ca7).unwrap();
+            let u9 = Arc::<ConstructNode<Core>>::unit(&ctx);
+            let c10 = Arc::<ConstructNode<Core>>::comp(&c8, &u9).unwrap();
 
-        let w0 = Arc::<ConstructNode<Core>>::witness(&ctx, None);
-        let i1 = Arc::<ConstructNode<Core>>::iden(&ctx);
-        let d2 = Arc::<ConstructNode<Core>>::drop_(&i1);
-        let i3 = Arc::<ConstructNode<Core>>::iden(&ctx);
-        let i4 = Arc::<ConstructNode<Core>>::iden(&ctx);
-        let t5 = Arc::<ConstructNode<Core>>::take(&i4);
-        let ca6 = Arc::<ConstructNode<Core>>::case(&i3, &t5).unwrap();
-        let ca7 = Arc::<ConstructNode<Core>>::case(&d2, &ca6).unwrap();
-        let c8 = Arc::<ConstructNode<Core>>::comp(&w0, &ca7).unwrap();
-        let u9 = Arc::<ConstructNode<Core>>::unit(&ctx);
-        let c10 = Arc::<ConstructNode<Core>>::comp(&c8, &u9).unwrap();
-
-        // In #286 we incorrectly succeed finalizing the types, and then encode a bad program.
-        let err = c10.finalize_types().unwrap_err();
-        assert!(matches!(err, types::Error::OccursCheck { .. }));
+            // In #286 we incorrectly succeed finalizing the types, and then encode a bad program.
+            let err = c10.finalize_types().unwrap_err();
+            assert!(matches!(err, types::Error::OccursCheck { .. }));
+        });
     }
 }

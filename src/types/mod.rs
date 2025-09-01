@@ -71,23 +71,24 @@
 //     or a sum or product of other types.
 //
 
-use self::union_bound::{PointerLike, UbElement};
+use self::union_bound::{PointerLike, UbElement, WithGhostToken};
 use crate::dag::{DagLike, NoSharing};
 use crate::Tmr;
 
-use std::collections::HashSet;
 use std::fmt;
 use std::sync::Arc;
 
 pub mod arrow;
 mod context;
 mod final_data;
+mod incomplete;
 mod precomputed;
 mod union_bound;
 mod variable;
 
 pub use context::{BoundRef, Context};
 pub use final_data::{CompleteBound, Final};
+pub use incomplete::Incomplete;
 
 /// Error type for simplicity
 #[non_exhaustive]
@@ -95,8 +96,8 @@ pub use final_data::{CompleteBound, Final};
 pub enum Error {
     /// An attempt to bind a type conflicted with an existing bound on the type
     Bind {
-        existing_bound: Type,
-        new_bound: Type,
+        existing_bound: Arc<Incomplete>,
+        new_bound: Arc<Incomplete>,
         hint: &'static str,
     },
     /// Two unequal complete types were attempted to be unified
@@ -106,7 +107,7 @@ pub enum Error {
         hint: &'static str,
     },
     /// A type is recursive (i.e., occurs within itself), violating the "occurs check"
-    OccursCheck { infinite_bound: Type },
+    OccursCheck { infinite_bound: Arc<Incomplete> },
     /// Attempted to combine two nodes which had different type inference
     /// contexts. This is probably a programming error.
     InferenceContextMismatch,
@@ -151,24 +152,24 @@ impl std::error::Error for Error {}
 
 /// The state of a [`Type`] based on all constraints currently imposed on it.
 #[derive(Clone)]
-enum Bound {
+enum Bound<'brand> {
     /// Fully-unconstrained type
     Free(String),
     /// Fully-constrained (i.e. complete) type, which has no free variables.
     Complete(Arc<Final>),
     /// A sum of two other types
-    Sum(TypeInner, TypeInner),
+    Sum(TypeInner<'brand>, TypeInner<'brand>),
     /// A product of two other types
-    Product(TypeInner, TypeInner),
+    Product(TypeInner<'brand>, TypeInner<'brand>),
 }
 
-impl Bound {
+impl Bound<'_> {
     /// Clones the `Bound`.
     ///
     /// This is the same as just calling `.clone()` but has a different name to
     /// emphasize that what's being cloned is (at most) a pair of ref-counted
     /// pointers.
-    pub fn shallow_clone(&self) -> Bound {
+    pub fn shallow_clone(&self) -> Self {
         self.clone()
     }
 }
@@ -180,61 +181,60 @@ impl Bound {
 /// actually create a new independent type, just a second pointer to the
 /// first one.
 #[derive(Clone)]
-pub struct Type {
+pub struct Type<'brand> {
     /// Handle to the type context.
-    ctx: Context,
+    ctx: Context<'brand>,
     /// The actual contents of the type.
-    inner: TypeInner,
+    inner: TypeInner<'brand>,
 }
 
 #[derive(Clone)]
-struct TypeInner {
+struct TypeInner<'brand> {
     /// A set of constraints, which maintained by the union-bound algorithm and
     /// is progressively tightened as type inference proceeds.
-    bound: UbElement<BoundRef>,
+    bound: UbElement<'brand, BoundRef<'brand>>,
 }
 
-impl TypeInner {
+impl TypeInner<'_> {
     fn shallow_clone(&self) -> Self {
         self.clone()
     }
 }
 
-impl Type {
+impl<'brand> Type<'brand> {
     /// Return an unbound type with the given name
-    pub fn free(ctx: &Context, name: String) -> Self {
+    pub fn free(ctx: &Context<'brand>, name: String) -> Self {
         Self::wrap_bound(ctx, ctx.alloc_free(name))
     }
 
     /// Create the unit type.
-    pub fn unit(ctx: &Context) -> Self {
+    pub fn unit(ctx: &Context<'brand>) -> Self {
         Self::wrap_bound(ctx, ctx.alloc_unit())
     }
 
     /// Create the type `2^(2^n)` for the given `n`.
     ///
     /// The type is precomputed and fast to access.
-    pub fn two_two_n(ctx: &Context, n: usize) -> Self {
+    pub fn two_two_n(ctx: &Context<'brand>, n: usize) -> Self {
         Self::complete(ctx, precomputed::nth_power_of_2(n))
     }
 
     /// Create the sum of the given `left` and `right` types.
-    pub fn sum(ctx: &Context, left: Self, right: Self) -> Self {
+    pub fn sum(ctx: &Context<'brand>, left: Self, right: Self) -> Self {
         Self::wrap_bound(ctx, ctx.alloc_sum(left, right))
     }
 
     /// Create the product of the given `left` and `right` types.
-    pub fn product(ctx: &Context, left: Self, right: Self) -> Self {
+    pub fn product(ctx: &Context<'brand>, left: Self, right: Self) -> Self {
         Self::wrap_bound(ctx, ctx.alloc_product(left, right))
     }
 
     /// Create a complete type.
-    pub fn complete(ctx: &Context, final_data: Arc<Final>) -> Self {
+    pub fn complete(ctx: &Context<'brand>, final_data: Arc<Final>) -> Self {
         Self::wrap_bound(ctx, ctx.alloc_complete(final_data))
     }
 
-    fn wrap_bound(ctx: &Context, bound: BoundRef) -> Self {
-        bound.assert_matches_context(ctx);
+    fn wrap_bound(ctx: &Context<'brand>, bound: BoundRef<'brand>) -> Self {
         Type {
             ctx: ctx.shallow_clone(),
             inner: TypeInner {
@@ -247,7 +247,7 @@ impl Type {
     ///
     /// This is the same as just calling `.clone()` but has a different name to
     /// emphasize that what's being cloned is merely a ref-counted pointer.
-    pub fn shallow_clone(&self) -> Type {
+    pub fn shallow_clone(&self) -> Self {
         self.clone()
     }
 
@@ -258,7 +258,9 @@ impl Type {
 
     /// Accessor for the data of this type, if it is complete
     pub fn final_data(&self) -> Option<Arc<Final>> {
-        if let Bound::Complete(ref data) = self.ctx.get(&self.inner.bound.root()) {
+        let root = self.ctx.get_root_ref(&self.inner.bound);
+        let bound = self.ctx.get(&root);
+        if let Bound::Complete(ref data) = bound {
             Some(Arc::clone(data))
         } else {
             None
@@ -274,62 +276,29 @@ impl Type {
         self.final_data().is_some()
     }
 
+    /// Converts a type as-is to an `Incomplete` type for use in an error.
+    pub fn to_incomplete(&self) -> Arc<Incomplete> {
+        let root = self.ctx.get_root_ref(&self.inner.bound);
+        Incomplete::from_bound_ref(&self.ctx, root)
+    }
+
     /// Attempts to finalize the type. Returns its TMR on success.
     pub fn finalize(&self) -> Result<Arc<Final>, Error> {
-        use context::OccursCheckId;
-
-        /// Helper type for the occurs-check.
-        enum OccursCheckStack {
-            Iterate(BoundRef),
-            Complete(OccursCheckId),
-        }
-
-        // Done with sharing tracker. Actual algorithm follows.
-        let root = self.inner.bound.root();
+        let root = self.ctx.get_root_ref(&self.inner.bound);
         let bound = self.ctx.get(&root);
         if let Bound::Complete(ref data) = bound {
             return Ok(Arc::clone(data));
         }
 
         // First, do occurs-check to ensure that we have no infinitely sized types.
-        let mut stack = vec![OccursCheckStack::Iterate(root)];
-        let mut in_progress = HashSet::new();
-        let mut completed = HashSet::new();
-        while let Some(top) = stack.pop() {
-            let bound = match top {
-                OccursCheckStack::Complete(id) => {
-                    in_progress.remove(&id);
-                    completed.insert(id);
-                    continue;
-                }
-                OccursCheckStack::Iterate(b) => b,
-            };
-
-            let id = bound.occurs_check_id();
-            if completed.contains(&id) {
-                // Once we have iterated through a type, we don't need to check it again.
-                // Without this shortcut the occurs-check would take exponential time.
-                continue;
-            }
-            if !in_progress.insert(id) {
-                return Err(Error::OccursCheck {
-                    infinite_bound: Type::wrap_bound(&self.ctx, bound),
-                });
-            }
-
-            stack.push(OccursCheckStack::Complete(id));
-            if let Some((_, child)) = (&self.ctx, bound.shallow_clone()).right_child() {
-                stack.push(OccursCheckStack::Iterate(child));
-            }
-            if let Some((_, child)) = (&self.ctx, bound).left_child() {
-                stack.push(OccursCheckStack::Iterate(child));
-            }
+        if let Some(infinite_bound) = Incomplete::occurs_check(&self.ctx, root.shallow_clone()) {
+            return Err(Error::OccursCheck { infinite_bound });
         }
 
         // Now that we know our types have finite size, we can safely use a
         // post-order iterator to finalize them.
         let mut finalized = vec![];
-        for data in (&self.ctx, self.inner.bound.root()).post_order_iter::<NoSharing>() {
+        for data in (&self.ctx, root).post_order_iter::<NoSharing>() {
             let bound_get = data.node.0.get(&data.node.1);
             let final_data = match bound_get {
                 Bound::Free(_) => Final::unit(),
@@ -354,7 +323,7 @@ impl Type {
     }
 
     /// Return a vector containing the types 2^(2^i) for i from 0 to n-1.
-    pub fn powers_of_two(ctx: &Context, n: usize) -> Vec<Self> {
+    pub fn powers_of_two(ctx: &Context<'brand>, n: usize) -> Vec<Self> {
         let mut ret = Vec::with_capacity(n);
 
         let unit = Type::unit(ctx);
@@ -370,11 +339,10 @@ impl Type {
 const MAX_DISPLAY_DEPTH: usize = 64;
 const MAX_DISPLAY_LENGTH: usize = 10000;
 
-impl fmt::Debug for Type {
+impl fmt::Debug for Type<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for data in (&self.ctx, self.inner.bound.root())
-            .verbose_pre_order_iter::<NoSharing>(Some(MAX_DISPLAY_DEPTH))
-        {
+        let root = self.ctx.get_root_ref(&self.inner.bound);
+        for data in (&self.ctx, root).verbose_pre_order_iter::<NoSharing>(Some(MAX_DISPLAY_DEPTH)) {
             if data.index > MAX_DISPLAY_LENGTH {
                 write!(f, "... [truncated type after {} nodes]", MAX_DISPLAY_LENGTH)?;
                 return Ok(());
@@ -407,11 +375,10 @@ impl fmt::Debug for Type {
     }
 }
 
-impl fmt::Display for Type {
+impl fmt::Display for Type<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for data in (&self.ctx, self.inner.bound.root())
-            .verbose_pre_order_iter::<NoSharing>(Some(MAX_DISPLAY_DEPTH))
-        {
+        let root = self.ctx.get_root_ref(&self.inner.bound);
+        for data in (&self.ctx, root).verbose_pre_order_iter::<NoSharing>(Some(MAX_DISPLAY_DEPTH)) {
             if data.index > MAX_DISPLAY_LENGTH {
                 write!(f, "... [truncated type after {} nodes]", MAX_DISPLAY_LENGTH)?;
                 return Ok(());
@@ -453,30 +420,31 @@ mod tests {
 
     #[test]
     fn inference_failure() {
-        let ctx = Context::new();
+        Context::with_context(|ctx| {
+            // unit: A -> 1
+            let unit = Arc::<ConstructNode<Core>>::unit(&ctx); // 1 -> 1
 
-        // unit: A -> 1
-        let unit = Arc::<ConstructNode<Core>>::unit(&ctx); // 1 -> 1
+            // Force unit to be 1->1
+            Arc::<ConstructNode<Core>>::comp(&unit, &unit).unwrap();
 
-        // Force unit to be 1->1
-        Arc::<ConstructNode<Core>>::comp(&unit, &unit).unwrap();
+            // take unit: 1 * B -> 1
+            let take_unit = Arc::<ConstructNode<Core>>::take(&unit); // 1*1 -> 1
 
-        // take unit: 1 * B -> 1
-        let take_unit = Arc::<ConstructNode<Core>>::take(&unit); // 1*1 -> 1
-
-        // Pair will try to unify 1 and 1*B
-        Arc::<ConstructNode<Core>>::pair(&unit, &take_unit).unwrap_err();
-        // Trying to do it again should not work.
-        Arc::<ConstructNode<Core>>::pair(&unit, &take_unit).unwrap_err();
+            // Pair will try to unify 1 and 1*B
+            Arc::<ConstructNode<Core>>::pair(&unit, &take_unit).unwrap_err();
+            // Trying to do it again should not work.
+            Arc::<ConstructNode<Core>>::pair(&unit, &take_unit).unwrap_err();
+        });
     }
 
     #[test]
     fn memory_leak() {
-        let ctx = Context::new();
-        let iden = Arc::<ConstructNode<Core>>::iden(&ctx);
-        let drop = Arc::<ConstructNode<Core>>::drop_(&iden);
-        let case = Arc::<ConstructNode<Core>>::case(&iden, &drop).unwrap();
+        Context::with_context(|ctx| {
+            let iden = Arc::<ConstructNode<Core>>::iden(&ctx);
+            let drop = Arc::<ConstructNode<Core>>::drop_(&iden);
+            let case = Arc::<ConstructNode<Core>>::case(&iden, &drop).unwrap();
 
-        let _ = format!("{:?}", case.arrow().source);
+            let _ = format!("{:?}", case.arrow().source);
+        });
     }
 }

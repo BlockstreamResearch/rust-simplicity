@@ -219,13 +219,16 @@ impl<J: Jet> RedeemNode<J> {
 
     /// Convert a [`RedeemNode`] back into a [`ConstructNode`]
     /// by loosening the finalized types, witness data and disconnected branches.
-    pub fn to_construct_node(&self) -> Arc<ConstructNode<J>> {
-        struct ToConstruct<J> {
-            inference_context: types::Context,
+    pub fn to_construct_node<'brand>(
+        &self,
+        inference_context: &types::Context<'brand>,
+    ) -> Arc<ConstructNode<'brand, J>> {
+        struct ToConstruct<'a, 'brand, J> {
+            inference_context: &'a types::Context<'brand>,
             phantom: PhantomData<J>,
         }
 
-        impl<J: Jet> Converter<Redeem<J>, Construct<J>> for ToConstruct<J> {
+        impl<'brand, J: Jet> Converter<Redeem<J>, Construct<'brand, J>> for ToConstruct<'_, 'brand, J> {
             type Error = ();
 
             fn convert_witness(
@@ -239,9 +242,9 @@ impl<J: Jet> RedeemNode<J> {
             fn convert_disconnect(
                 &mut self,
                 _: &PostOrderIterItem<&Node<Redeem<J>>>,
-                right: Option<&Arc<Node<Construct<J>>>>,
+                right: Option<&Arc<Node<Construct<'brand, J>>>>,
                 _: &Arc<RedeemNode<J>>,
-            ) -> Result<Option<Arc<Node<Construct<J>>>>, Self::Error> {
+            ) -> Result<Option<Arc<Node<Construct<'brand, J>>>>, Self::Error> {
                 Ok(right.cloned())
             }
 
@@ -249,22 +252,22 @@ impl<J: Jet> RedeemNode<J> {
                 &mut self,
                 _: &PostOrderIterItem<&Node<Redeem<J>>>,
                 inner: Inner<
-                    &Arc<Node<Construct<J>>>,
+                    &Arc<Node<Construct<'brand, J>>>,
                     J,
-                    &Option<Arc<ConstructNode<J>>>,
+                    &Option<Arc<ConstructNode<'brand, J>>>,
                     &Option<Value>,
                 >,
-            ) -> Result<ConstructData<J>, Self::Error> {
+            ) -> Result<ConstructData<'brand, J>, Self::Error> {
                 let inner = inner
                     .map(|node| node.cached_data())
                     .map_witness(|maybe_value| maybe_value.clone());
-                Ok(ConstructData::from_inner(&self.inference_context, inner)
+                Ok(ConstructData::from_inner(self.inference_context, inner)
                     .expect("types were already finalized"))
             }
         }
 
         self.convert::<InternalSharing, _, _>(&mut ToConstruct {
-            inference_context: types::Context::new(),
+            inference_context,
             phantom: PhantomData,
         })
         .unwrap()
@@ -287,13 +290,13 @@ impl<J: Jet> RedeemNode<J> {
     /// In this case, the witness data needs to be revised.
     /// The other pruning steps (2 & 3) never fail.
     pub fn prune(&self, env: &J::Environment) -> Result<Arc<RedeemNode<J>>, ExecutionError> {
-        struct Pruner<J> {
-            inference_context: types::Context,
+        struct Pruner<'brand, J> {
+            inference_context: types::Context<'brand>,
             tracker: SetTracker,
             phantom: PhantomData<J>,
         }
 
-        impl<J: Jet> Converter<Redeem<J>, Construct<J>> for Pruner<J> {
+        impl<'brand, J: Jet> Converter<Redeem<J>, Construct<'brand, J>> for Pruner<'brand, J> {
             type Error = std::convert::Infallible;
 
             fn convert_witness(
@@ -309,9 +312,9 @@ impl<J: Jet> RedeemNode<J> {
             fn convert_disconnect(
                 &mut self,
                 _: &PostOrderIterItem<&RedeemNode<J>>,
-                right: Option<&Arc<ConstructNode<J>>>,
+                right: Option<&Arc<ConstructNode<'brand, J>>>,
                 _: &Arc<RedeemNode<J>>,
-            ) -> Result<Option<Arc<ConstructNode<J>>>, Self::Error> {
+            ) -> Result<Option<Arc<ConstructNode<'brand, J>>>, Self::Error> {
                 debug_assert!(
                     right.is_some(),
                     "disconnected branch should exist in unpruned redeem program"
@@ -343,12 +346,12 @@ impl<J: Jet> RedeemNode<J> {
                 &mut self,
                 _: &PostOrderIterItem<&RedeemNode<J>>,
                 inner: Inner<
-                    &Arc<ConstructNode<J>>,
+                    &Arc<ConstructNode<'brand, J>>,
                     J,
-                    &Option<Arc<ConstructNode<J>>>,
+                    &Option<Arc<ConstructNode<'brand, J>>>,
                     &Option<Value>,
                 >,
-            ) -> Result<ConstructData<J>, Self::Error> {
+            ) -> Result<ConstructData<'brand, J>, Self::Error> {
                 let converted_inner = inner
                     .map(|node| node.cached_data())
                     .map_witness(Option::<Value>::clone);
@@ -360,7 +363,7 @@ impl<J: Jet> RedeemNode<J> {
 
         struct Finalizer<J>(PhantomData<J>);
 
-        impl<J: Jet> Converter<Construct<J>, Redeem<J>> for Finalizer<J> {
+        impl<'brand, J: Jet> Converter<Construct<'brand, J>, Redeem<J>> for Finalizer<J> {
             type Error = std::convert::Infallible;
 
             fn convert_witness(
@@ -420,20 +423,22 @@ impl<J: Jet> RedeemNode<J> {
         // 2) Prune out unused case branches.
         // Because the types of the pruned program may change,
         // we construct a temporary witness program with unfinalized types.
-        let pruned_witness_program = self
-            .convert::<InternalSharing, _, _>(&mut Pruner {
-                inference_context: types::Context::new(),
-                tracker,
-                phantom: PhantomData,
-            })
-            .expect("pruning unused branches is infallible");
+        types::Context::with_context(|inference_context| {
+            let pruned_witness_program = self
+                .convert::<InternalSharing, _, _>(&mut Pruner {
+                    inference_context,
+                    tracker,
+                    phantom: PhantomData,
+                })
+                .expect("pruning unused branches is infallible");
 
-        // 3) Finalize the types of the witness program.
-        // We obtain the pruned redeem program.
-        // Once the pruned type is finalized, we can proceed to prune witness values.
-        Ok(pruned_witness_program
-            .convert::<InternalSharing, _, _>(&mut Finalizer(PhantomData))
-            .expect("finalization is infallible"))
+            // 3) Finalize the types of the witness program.
+            // We obtain the pruned redeem program.
+            // Once the pruned type is finalized, we can proceed to prune witness values.
+            Ok(pruned_witness_program
+                .convert::<InternalSharing, _, _>(&mut Finalizer(PhantomData))
+                .expect("finalization is infallible"))
+        })
     }
 
     /// Decode a Simplicity program from bits, including the witness data.
@@ -451,7 +456,7 @@ impl<J: Jet> RedeemNode<J> {
             phantom: PhantomData<J>,
         }
 
-        impl<J: Jet, I: Iterator<Item = u8>> Converter<Construct<J>, Redeem<J>>
+        impl<'brand, J: Jet, I: Iterator<Item = u8>> Converter<Construct<'brand, J>, Redeem<J>>
             for DecodeFinalizer<'_, J, I>
         {
             type Error = DecodeError;
@@ -500,18 +505,20 @@ impl<J: Jet> RedeemNode<J> {
         }
 
         // 1. Decode program without witnesses as ConstructNode
-        let construct = crate::ConstructNode::decode(program).map_err(DecodeError::Decode)?;
-        construct
-            .set_arrow_to_program()
-            .map_err(DecodeError::Type)?;
+        let program: Arc<Self> = types::Context::with_context(|ctx| {
+            let construct =
+                crate::ConstructNode::decode(&ctx, program).map_err(DecodeError::Decode)?;
+            construct
+                .set_arrow_to_program()
+                .map_err(DecodeError::Type)?;
 
-        // Importantly, we  use `InternalSharing` here to make sure that we respect
-        // the sharing choices that were actually encoded in the bitstream.
-        let program: Arc<Self> =
+            // Importantly, we  use `InternalSharing` here to make sure that we respect
+            // the sharing choices that were actually encoded in the bitstream.
             construct.convert::<InternalSharing, _, _>(&mut DecodeFinalizer {
                 bits: &mut witness,
                 phantom: PhantomData,
-            })?;
+            })
+        })?;
 
         // 3. Check that we read exactly as much witness data as we expected
         witness
@@ -946,18 +953,22 @@ mod tests {
         expected_pruned_wit: &HashMap<Arc<str>, Value>,
         env: &J::Environment,
     ) {
-        let unpruned_program = Forest::<J>::parse(unpruned_prog)
-            .expect("unpruned program should parse")
-            .to_witness_node(unpruned_wit)
-            .expect("unpruned program should have main")
-            .finalize_unpruned()
-            .expect("unpruned program should finalize");
-        let expected_unpruned_program = Forest::<J>::parse(expected_pruned_prog)
-            .expect("expected pruned program should parse")
-            .to_witness_node(expected_pruned_wit)
-            .expect("expected pruned program should have main")
-            .finalize_unpruned()
-            .expect("expected pruned program should finalize");
+        let unpruned_program = types::Context::with_context(|ctx| {
+            Forest::<J>::parse(unpruned_prog)
+                .expect("unpruned program should parse")
+                .to_witness_node(&ctx, unpruned_wit)
+                .expect("unpruned program should have main")
+                .finalize_unpruned()
+                .expect("unpruned program should finalize")
+        });
+        let expected_unpruned_program = types::Context::with_context(|ctx| {
+            Forest::<J>::parse(expected_pruned_prog)
+                .expect("expected pruned program should parse")
+                .to_witness_node(&ctx, expected_pruned_wit)
+                .expect("expected pruned program should have main")
+                .finalize_unpruned()
+                .expect("expected pruned program should finalize")
+        });
 
         let mut mac = BitMachine::for_program(&unpruned_program)
             .expect("unpruned program has reasonable bounds");
@@ -1100,5 +1111,41 @@ main := comp input comp process jet_verify : 1 -> 1"#;
             &pruned_wit,
             &env,
         );
+    }
+}
+
+#[cfg(bench)]
+#[cfg(feature = "elements")]
+mod benches {
+    use super::*;
+
+    use crate::bit_encoding::BitIter;
+    use crate::jet::Elements;
+
+    use test::{black_box, Bencher};
+
+    #[bench]
+    fn decode_fixed_program(bh: &mut Bencher) {
+        let prog = &[
+            0xd3, 0x69, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3b,
+            0x78, 0xce, 0x56, 0x3f, 0x89, 0xa0, 0xed, 0x94, 0x14, 0xf5, 0xaa, 0x28, 0xad, 0x0d,
+            0x96, 0xd6, 0x79, 0x5f, 0x9c, 0x63, 0x47, 0x07, 0x02, 0xc0, 0xe2, 0x8d, 0x88, 0x10,
+        ][..];
+        let witness = &[
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3b, 0x78, 0xce,
+            0x56, 0x3f, 0x89, 0xa0, 0xed, 0x94, 0x14, 0xf5, 0xaa, 0x28, 0xad, 0x0d, 0x96, 0xd6,
+            0x79, 0x5f, 0x9c, 0x63, 0xdb, 0x86, 0x8d, 0x45, 0xa0, 0xbc, 0x1d, 0x19, 0x01, 0x30,
+            0x2b, 0xc8, 0x7a, 0x87, 0x1c, 0xf1, 0x58, 0xe2, 0xbd, 0xe2, 0xcf, 0xa6, 0x45, 0xa8,
+            0x95, 0xc1, 0xb4, 0x5d, 0x68, 0xea, 0x24, 0xc0,
+        ][..];
+        bh.iter(|| {
+            let prog = BitIter::from(prog);
+            let witness = BitIter::from(witness);
+            black_box(RedeemNode::<Elements>::decode(
+                black_box(prog),
+                black_box(witness),
+            ))
+            .unwrap();
+        });
     }
 }

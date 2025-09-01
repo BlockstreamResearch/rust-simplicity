@@ -32,7 +32,7 @@ use crate::{Cmr, FailEntropy, HasCmr, Word};
 /// At no point are actual hidden nodes created.
 /// To stress this fact, I write "hidden" in quotation marks.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Hiding<N> {
+pub struct Hiding<'brand, N> {
     result: HidingResult<N>,
     /// Inference context for program construction.
     ///
@@ -41,17 +41,17 @@ pub struct Hiding<N> {
     /// When a "hidden" node is converted into an assertion via the
     /// [`CoreConstructible::case`] constructor, this context is required to build the case node.
     /// For soundness, the same context should be returned for all nodes of the same program.
-    ctx: Context,
+    ctx: Context<'brand>,
 }
 
 type HidingResult<N> = Result<N, Cmr>;
 
-impl<N> Hiding<N> {
+impl<'brand, N> Hiding<'brand, N> {
     /// Create a "hidden" node with the given CMR.
     ///
     /// To enable the construction of possible parent nodes,
     /// the inference context of the current program must be passed.
-    pub const fn hidden(cmr: Cmr, ctx: Context) -> Self {
+    pub const fn hidden(cmr: Cmr, ctx: Context<'brand>) -> Self {
         // # Soundness
         // The hidden node introduces no type variables.
         Self {
@@ -82,7 +82,7 @@ impl<N> Hiding<N> {
     }
 }
 
-impl<N: HasCmr> Hiding<N> {
+impl<N: HasCmr> Hiding<'_, N> {
     /// Ensure that the wrapped node is "hidden".
     /// Convert non-hidden nodes into "hidden" nodes with the same CMR.
     pub fn hide(self) -> Self {
@@ -104,7 +104,7 @@ impl<N: HasCmr> Hiding<N> {
     }
 }
 
-impl<N: HasCmr> HasCmr for Hiding<N> {
+impl<N: HasCmr> HasCmr for Hiding<'_, N> {
     fn cmr(&self) -> Cmr {
         match &self.result {
             Ok(node) => node.cmr(),
@@ -116,7 +116,7 @@ impl<N: HasCmr> HasCmr for Hiding<N> {
 // We need `N: CoreConstructible` to access the inference context.
 // Because of this, implementations of `{Jet, Disconnect, Witness}Constructible`
 // for `Hiding<N>` require `N: CoreConstructible`.
-impl<N: CoreConstructible> From<N> for Hiding<N> {
+impl<'brand, N: CoreConstructible<'brand>> From<N> for Hiding<'brand, N> {
     fn from(node: N) -> Self {
         Self {
             ctx: node.inference_context().shallow_clone(),
@@ -127,12 +127,14 @@ impl<N: CoreConstructible> From<N> for Hiding<N> {
 
 // # Soundness
 // See [`Hiding::hide`].
-impl<N: CoreConstructible + HasCmr> CoreConstructible for Hiding<N> {
-    fn iden(inference_context: &Context) -> Self {
+impl<'brand, N: CoreConstructible<'brand> + HasCmr> CoreConstructible<'brand>
+    for Hiding<'brand, N>
+{
+    fn iden(inference_context: &Context<'brand>) -> Self {
         N::iden(inference_context).into()
     }
 
-    fn unit(inference_context: &Context) -> Self {
+    fn unit(inference_context: &Context<'brand>) -> Self {
         N::unit(inference_context).into()
     }
 
@@ -201,31 +203,31 @@ impl<N: CoreConstructible + HasCmr> CoreConstructible for Hiding<N> {
         }
     }
 
-    fn fail(inference_context: &Context, entropy: FailEntropy) -> Self {
+    fn fail(inference_context: &Context<'brand>, entropy: FailEntropy) -> Self {
         N::fail(inference_context, entropy).into()
     }
 
-    fn const_word(inference_context: &Context, word: Word) -> Self {
+    fn const_word(inference_context: &Context<'brand>, word: Word) -> Self {
         N::const_word(inference_context, word).into()
     }
 
-    fn inference_context(&self) -> &Context {
+    fn inference_context(&self) -> &Context<'brand> {
         &self.ctx
     }
 }
 
-impl<J, N> JetConstructible<J> for Hiding<N>
+impl<'brand, J, N> JetConstructible<'brand, J> for Hiding<'brand, N>
 where
-    N: JetConstructible<J> + CoreConstructible,
+    N: JetConstructible<'brand, J> + CoreConstructible<'brand>,
 {
-    fn jet(inference_context: &Context, jet: J) -> Self {
+    fn jet(inference_context: &Context<'brand>, jet: J) -> Self {
         N::jet(inference_context, jet).into()
     }
 }
 
-impl<X, N> DisconnectConstructible<Option<X>> for Hiding<N>
+impl<'brand, X, N> DisconnectConstructible<'brand, Option<X>> for Hiding<'brand, N>
 where
-    N: DisconnectConstructible<Option<X>> + CoreConstructible + HasCmr,
+    N: DisconnectConstructible<'brand, Option<X>> + CoreConstructible<'brand> + HasCmr,
 {
     fn disconnect(left: &Self, right: &Option<X>) -> Result<Self, Error> {
         match &left.result {
@@ -235,11 +237,11 @@ where
     }
 }
 
-impl<W, N> WitnessConstructible<W> for Hiding<N>
+impl<'brand, W, N> WitnessConstructible<'brand, W> for Hiding<'brand, N>
 where
-    N: WitnessConstructible<W> + CoreConstructible,
+    N: WitnessConstructible<'brand, W> + CoreConstructible<'brand>,
 {
-    fn witness(inference_context: &Context, witness: W) -> Self {
+    fn witness(inference_context: &Context<'brand>, witness: W) -> Self {
         N::witness(inference_context, witness).into()
     }
 }

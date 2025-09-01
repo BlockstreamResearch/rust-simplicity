@@ -297,16 +297,17 @@ mod tests {
 
     #[test]
     fn fixed_amr() {
-        let ctx = types::Context::new();
-        let node = Arc::<ConstructNode<_>>::jet(&ctx, Core::Verify)
-            .finalize_types_non_program()
-            .unwrap();
-        // Checked against C implementation
-        #[rustfmt::skip]
-        assert_eq!(
-            &node.amr().unwrap().to_string(),
-            "343e6dc16b3f52e83e3b4ccc99b8c6f96a074fe399327af364bc285e299745a2"
-        );
+        types::Context::with_context(|ctx| {
+            let node = Arc::<ConstructNode<_>>::jet(&ctx, Core::Verify)
+                .finalize_types_non_program()
+                .unwrap();
+            // Checked against C implementation
+            #[rustfmt::skip]
+            assert_eq!(
+                &node.amr().unwrap().to_string(),
+                "343e6dc16b3f52e83e3b4ccc99b8c6f96a074fe399327af364bc285e299745a2"
+            );
+        });
     }
 
     #[test]

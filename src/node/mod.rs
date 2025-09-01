@@ -131,15 +131,15 @@ impl From<NoWitness> for Option<Value> {
     }
 }
 
-pub trait Constructible<J, X, W>:
-    JetConstructible<J>
-    + DisconnectConstructible<X>
-    + WitnessConstructible<W>
-    + CoreConstructible
+pub trait Constructible<'brand, J, X, W>:
+    JetConstructible<'brand, J>
+    + DisconnectConstructible<'brand, X>
+    + WitnessConstructible<'brand, W>
+    + CoreConstructible<'brand>
     + Sized
 {
     fn from_inner(
-        inference_context: &types::Context,
+        inference_context: &types::Context<'brand>,
         inner: Inner<&Self, J, &X, W>,
     ) -> Result<Self, types::Error> {
         match inner {
@@ -163,18 +163,18 @@ pub trait Constructible<J, X, W>:
     }
 }
 
-impl<J, X, W, T> Constructible<J, X, W> for T where
-    T: DisconnectConstructible<X>
-        + JetConstructible<J>
-        + WitnessConstructible<W>
-        + CoreConstructible
+impl<'brand, J, X, W, T> Constructible<'brand, J, X, W> for T where
+    T: DisconnectConstructible<'brand, X>
+        + JetConstructible<'brand, J>
+        + WitnessConstructible<'brand, W>
+        + CoreConstructible<'brand>
         + Sized
 {
 }
 
-pub trait CoreConstructible: Sized {
-    fn iden(inference_context: &types::Context) -> Self;
-    fn unit(inference_context: &types::Context) -> Self;
+pub trait CoreConstructible<'brand>: Sized {
+    fn iden(inference_context: &types::Context<'brand>) -> Self;
+    fn unit(inference_context: &types::Context<'brand>) -> Self;
     fn injl(child: &Self) -> Self;
     fn injr(child: &Self) -> Self;
     fn take(child: &Self) -> Self;
@@ -184,16 +184,16 @@ pub trait CoreConstructible: Sized {
     fn assertl(left: &Self, right: Cmr) -> Result<Self, types::Error>;
     fn assertr(left: Cmr, right: &Self) -> Result<Self, types::Error>;
     fn pair(left: &Self, right: &Self) -> Result<Self, types::Error>;
-    fn fail(inference_context: &types::Context, entropy: FailEntropy) -> Self;
-    fn const_word(inference_context: &types::Context, word: Word) -> Self;
+    fn fail(inference_context: &types::Context<'brand>, entropy: FailEntropy) -> Self;
+    fn const_word(inference_context: &types::Context<'brand>, word: Word) -> Self;
 
     /// Accessor for the type inference context used to create the object.
-    fn inference_context(&self) -> &types::Context;
+    fn inference_context(&self) -> &types::Context<'brand>;
 
     /// Create an expression that produces the given `value`.
     ///
     /// The expression is minimized by using as many word jets as possible.
-    fn scribe(ctx: &types::Context, value: &Value) -> Self {
+    fn scribe(ctx: &types::Context<'brand>, value: &Value) -> Self {
         use crate::value::ValueRef;
 
         #[derive(Debug, Clone)]
@@ -252,7 +252,7 @@ pub trait CoreConstructible: Sized {
     /// Create a DAG that takes any input and returns bit `0` as constant output.
     ///
     /// _Overall type: A → 2_
-    fn bit_false(inference_context: &types::Context) -> Self {
+    fn bit_false(inference_context: &types::Context<'brand>) -> Self {
         let unit = Self::unit(inference_context);
         Self::injl(&unit)
     }
@@ -260,7 +260,7 @@ pub trait CoreConstructible: Sized {
     /// Create a DAG that takes any input and returns bit `1` as constant output.
     ///
     /// _Overall type: A → 2_
-    fn bit_true(inference_context: &types::Context) -> Self {
+    fn bit_true(inference_context: &types::Context<'brand>) -> Self {
         let unit = Self::unit(inference_context);
         Self::injr(&unit)
     }
@@ -343,16 +343,16 @@ pub trait CoreConstructible: Sized {
     }
 }
 
-pub trait DisconnectConstructible<X>: Sized {
+pub trait DisconnectConstructible<'brand, X>: Sized {
     fn disconnect(left: &Self, right: &X) -> Result<Self, types::Error>;
 }
 
-pub trait JetConstructible<J>: Sized {
-    fn jet(inference_context: &types::Context, jet: J) -> Self;
+pub trait JetConstructible<'brand, J>: Sized {
+    fn jet(inference_context: &types::Context<'brand>, jet: J) -> Self;
 }
 
-pub trait WitnessConstructible<W>: Sized {
-    fn witness(inference_context: &types::Context, witness: W) -> Self;
+pub trait WitnessConstructible<'brand, W>: Sized {
+    fn witness(inference_context: &types::Context<'brand>, witness: W) -> Self;
 }
 
 /// A node in a Simplicity expression.
@@ -433,12 +433,12 @@ impl<N: Marker> HasCmr for Arc<Node<N>> {
     }
 }
 
-impl<N> CoreConstructible for Arc<Node<N>>
+impl<'brand, N> CoreConstructible<'brand> for Arc<Node<N>>
 where
     N: Marker,
-    N::CachedData: CoreConstructible,
+    N::CachedData: CoreConstructible<'brand>,
 {
-    fn iden(inference_context: &types::Context) -> Self {
+    fn iden(inference_context: &types::Context<'brand>) -> Self {
         Arc::new(Node {
             cmr: Cmr::iden(),
             data: N::CachedData::iden(inference_context),
@@ -446,7 +446,7 @@ where
         })
     }
 
-    fn unit(inference_context: &types::Context) -> Self {
+    fn unit(inference_context: &types::Context<'brand>) -> Self {
         Arc::new(Node {
             cmr: Cmr::unit(),
             data: N::CachedData::unit(inference_context),
@@ -526,7 +526,7 @@ where
         }))
     }
 
-    fn fail(inference_context: &types::Context, entropy: FailEntropy) -> Self {
+    fn fail(inference_context: &types::Context<'brand>, entropy: FailEntropy) -> Self {
         Arc::new(Node {
             cmr: Cmr::fail(entropy),
             data: N::CachedData::fail(inference_context, entropy),
@@ -534,7 +534,7 @@ where
         })
     }
 
-    fn const_word(inference_context: &types::Context, word: Word) -> Self {
+    fn const_word(inference_context: &types::Context<'brand>, word: Word) -> Self {
         Arc::new(Node {
             cmr: Cmr::const_word(&word),
             data: N::CachedData::const_word(inference_context, word.shallow_clone()),
@@ -542,15 +542,15 @@ where
         })
     }
 
-    fn inference_context(&self) -> &types::Context {
+    fn inference_context(&self) -> &types::Context<'brand> {
         self.data.inference_context()
     }
 }
 
-impl<N> DisconnectConstructible<N::Disconnect> for Arc<Node<N>>
+impl<'brand, N> DisconnectConstructible<'brand, N::Disconnect> for Arc<Node<N>>
 where
     N: Marker,
-    N::CachedData: DisconnectConstructible<N::Disconnect>,
+    N::CachedData: DisconnectConstructible<'brand, N::Disconnect>,
 {
     fn disconnect(left: &Self, right: &N::Disconnect) -> Result<Self, types::Error> {
         Ok(Arc::new(Node {
@@ -561,12 +561,12 @@ where
     }
 }
 
-impl<N> WitnessConstructible<N::Witness> for Arc<Node<N>>
+impl<'brand, N> WitnessConstructible<'brand, N::Witness> for Arc<Node<N>>
 where
     N: Marker,
-    N::CachedData: WitnessConstructible<N::Witness>,
+    N::CachedData: WitnessConstructible<'brand, N::Witness>,
 {
-    fn witness(inference_context: &types::Context, value: N::Witness) -> Self {
+    fn witness(inference_context: &types::Context<'brand>, value: N::Witness) -> Self {
         Arc::new(Node {
             cmr: Cmr::witness(),
             data: N::CachedData::witness(inference_context, value.clone()),
@@ -575,12 +575,12 @@ where
     }
 }
 
-impl<N> JetConstructible<N::Jet> for Arc<Node<N>>
+impl<'brand, N> JetConstructible<'brand, N::Jet> for Arc<Node<N>>
 where
     N: Marker,
-    N::CachedData: JetConstructible<N::Jet>,
+    N::CachedData: JetConstructible<'brand, N::Jet>,
 {
-    fn jet(inference_context: &types::Context, jet: N::Jet) -> Self {
+    fn jet(inference_context: &types::Context<'brand>, jet: N::Jet) -> Self {
         Arc::new(Node {
             cmr: Cmr::jet(jet),
             data: N::CachedData::jet(inference_context, jet),

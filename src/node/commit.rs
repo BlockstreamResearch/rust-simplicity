@@ -187,13 +187,16 @@ impl<J: Jet> CommitNode<J> {
     }
 
     /// Convert a [`CommitNode`] back to a [`ConstructNode`] by redoing type inference
-    pub fn unfinalize_types(&self) -> Result<Arc<ConstructNode<J>>, types::Error> {
-        struct UnfinalizeTypes<J: Jet> {
-            inference_context: types::Context,
+    pub fn unfinalize_types<'brand>(
+        &self,
+        inference_context: &types::Context<'brand>,
+    ) -> Result<Arc<ConstructNode<'brand, J>>, types::Error> {
+        struct UnfinalizeTypes<'a, 'brand, J: Jet> {
+            inference_context: &'a types::Context<'brand>,
             phantom: PhantomData<J>,
         }
 
-        impl<J: Jet> Converter<Commit<J>, Construct<J>> for UnfinalizeTypes<J> {
+        impl<'brand, J: Jet> Converter<Commit<J>, Construct<'brand, J>> for UnfinalizeTypes<'_, 'brand, J> {
             type Error = types::Error;
             fn convert_witness(
                 &mut self,
@@ -206,9 +209,9 @@ impl<J: Jet> CommitNode<J> {
             fn convert_disconnect(
                 &mut self,
                 _: &PostOrderIterItem<&CommitNode<J>>,
-                _: Option<&Arc<ConstructNode<J>>>,
+                _: Option<&Arc<ConstructNode<'brand, J>>>,
                 _: &NoDisconnect,
-            ) -> Result<Option<Arc<ConstructNode<J>>>, Self::Error> {
+            ) -> Result<Option<Arc<ConstructNode<'brand, J>>>, Self::Error> {
                 Ok(None)
             }
 
@@ -216,25 +219,25 @@ impl<J: Jet> CommitNode<J> {
                 &mut self,
                 _: &PostOrderIterItem<&CommitNode<J>>,
                 inner: Inner<
-                    &Arc<ConstructNode<J>>,
+                    &Arc<ConstructNode<'brand, J>>,
                     J,
-                    &Option<Arc<ConstructNode<J>>>,
+                    &Option<Arc<ConstructNode<'brand, J>>>,
                     &Option<Value>,
                 >,
-            ) -> Result<ConstructData<J>, Self::Error> {
+            ) -> Result<ConstructData<'brand, J>, Self::Error> {
                 let inner = inner
                     .map(|node| node.arrow())
                     .map_disconnect(|maybe_node| maybe_node.as_ref().map(|node| node.arrow()));
                 let inner = inner.disconnect_as_ref(); // lol sigh rust
                 Ok(ConstructData::new(Arrow::from_inner(
-                    &self.inference_context,
+                    self.inference_context,
                     inner,
                 )?))
             }
         }
 
         self.convert::<MaxSharing<Commit<J>>, _, _>(&mut UnfinalizeTypes {
-            inference_context: types::Context::new(),
+            inference_context,
             phantom: PhantomData,
         })
     }
@@ -252,8 +255,11 @@ impl<J: Jet> CommitNode<J> {
         use crate::decode;
 
         // 1. Decode program with out witnesses.
-        let construct = crate::ConstructNode::decode(bits).map_err(DecodeError::Decode)?;
-        let program = construct.finalize_types().map_err(DecodeError::Type)?;
+        let program = types::Context::with_context(|ctx| {
+            let construct =
+                crate::ConstructNode::decode(&ctx, bits).map_err(DecodeError::Decode)?;
+            construct.finalize_types().map_err(DecodeError::Type)
+        })?;
         // 2. Do sharing check, using incomplete IHRs
         if program.as_ref().is_shared_as::<MaxSharing<Commit<J>>>() {
             Ok(program)

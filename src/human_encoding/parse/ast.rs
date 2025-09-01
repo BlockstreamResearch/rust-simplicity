@@ -83,7 +83,7 @@ pub enum Type {
 
 impl Type {
     /// Convert to a Simplicity type
-    pub fn reify(self, ctx: &types::Context) -> types::Type {
+    pub fn reify<'brand>(self, ctx: &types::Context<'brand>) -> types::Type<'brand> {
         match self {
             Type::Name(s) => types::Type::free(ctx, s),
             Type::One => types::Type::unit(ctx),

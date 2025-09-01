@@ -306,13 +306,15 @@ mod tests {
         }
 
         let n = Tmr::TWO_TWO_N.len();
-        let tmrs = types::Type::powers_of_two(&types::Context::new(), n)
-            .iter()
-            .filter_map(types::Type::tmr)
-            .collect::<Vec<Tmr>>();
-        debug_assert_eq!(tmrs.len(), n);
-        for i in 0..n {
-            check_pow(Tmr::TWO_TWO_N[i], i, &tmrs);
-        }
+        types::Context::with_context(|ctx| {
+            let tmrs = types::Type::powers_of_two(&ctx, n)
+                .iter()
+                .filter_map(types::Type::tmr)
+                .collect::<Vec<Tmr>>();
+            debug_assert_eq!(tmrs.len(), n);
+            for i in 0..n {
+                check_pow(Tmr::TWO_TWO_N[i], i, &tmrs);
+            }
+        });
     }
 }
