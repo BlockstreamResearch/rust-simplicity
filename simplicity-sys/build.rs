@@ -43,11 +43,17 @@ fn main() {
         );
     }
 
-    // Split into Bitcoin and Elements.
-    let mut elements_files = files.clone();
-    let mut bitcoin_files = files;
+    // Common files are compiled once into their own static library; Bitcoin
+    // and Elements each get their own library with only the chain-specific
+    // files. Duplicating the common files into both the Bitcoin and Elements
+    // libraries (as before) builds fine on stable (the linker only pulls the
+    // archive members it needs), but MSRV (1.74.0) forces `--whole-archive`
+    // on every native static lib, which pulls every object from both copies
+    // and fails with "multiple definition of" for every common symbol.
+    let common_files = files;
 
     // 3B. Bitcoin base files.
+    let mut bitcoin_files = vec![];
     bitcoin_files.extend(
         [
             "bitcoin/env.c",
@@ -61,6 +67,7 @@ fn main() {
     bitcoin_files.push("depend/bitcoin_env.c".into());
 
     // 3E. Elements base files.
+    let mut elements_files = vec![];
     elements_files.extend(
         [
             "elements/env.c",
@@ -103,8 +110,6 @@ fn main() {
         .std("c11")
         .flag_if_supported("-fno-inline-functions")
         .opt_level(2)
-        .file(Path::new("depend/wrapper.c"))
-        .file(Path::new("depend/jets_wrapper.c"))
         .include(simplicity_path.join("include"));
 
     if cfg!(not(fuzzing)) {
@@ -116,11 +121,24 @@ fn main() {
         build.include("wasm-sysroot");
     }
 
-    let mut _bitcoin_build = build.clone();
+    let mut common_build = build.clone();
+    let mut bitcoin_build = build.clone();
     let mut elements_build = build;
 
+    // Common build: files shared between Bitcoin and Elements, including the
+    // wrapper files. Compiled once into its own static library so neither
+    // the Bitcoin nor the Elements library contains these object files --
+    // see the comment above `common_files` for why that matters.
+    common_build
+        .file(Path::new("depend/wrapper.c"))
+        .file(Path::new("depend/jets_wrapper.c"))
+        .files(common_files)
+        .compile("RustSimplicityCommon");
+
     // Bitcoin build
-    // TODO
+    bitcoin_build
+        .files(bitcoin_files)
+        .compile("BitcoinSimplicity");
 
     // Elements build
     elements_build

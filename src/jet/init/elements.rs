@@ -8,7 +8,7 @@ use crate::{decode, BitIter, BitWriter};
 use crate::analysis::Cost;
 use simplicity_sys::CFrameItem;
 use std::io::Write;
-use std::{fmt, str};
+use std::{borrow::Borrow, fmt, str};
 use simplicity_sys::CElementsTxEnv;
 
 /// The Elements jet family.
