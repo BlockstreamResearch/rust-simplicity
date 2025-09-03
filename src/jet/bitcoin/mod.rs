@@ -8,7 +8,7 @@ use super::init::bitcoin::Bitcoin;
 use super::JetEnvironment;
 use simplicity_sys::c_jets::frame_ffi::CFrameItem;
 
-impl JetEnvironment for BitcoinEnv {
+impl<T: core::borrow::Borrow<bitcoin::Transaction>> JetEnvironment for BitcoinEnv<T> {
     type Jet = Bitcoin;
     type CJetEnvironment = ();
 
