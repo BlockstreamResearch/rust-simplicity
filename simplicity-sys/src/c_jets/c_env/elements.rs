@@ -213,10 +213,6 @@ extern "C" {
     pub fn simplicity_mallocTapEnv(rawEnv: *const CRawTapEnv) -> *mut CTapEnv;
     #[link_name = "rustsimplicity_0_5_elements_mallocTransaction"]
     pub fn simplicity_mallocTransaction(rawTx: *const CRawTransaction) -> *mut CTransaction;
-    #[link_name = "rustsimplicity_0_5_c_free_transaction"]
-    pub fn c_free_transaction(tx: *mut CTransaction);
-    #[link_name = "rustsimplicity_0_5_c_free_tapEnv"]
-    pub fn c_free_tapEnv(env: *mut CTapEnv);
 }
 impl CTxEnv {
     pub fn sighash_all(&self) -> sha256::Hash {
