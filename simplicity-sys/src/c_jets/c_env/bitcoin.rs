@@ -68,7 +68,6 @@ pub struct CTapEnv {
     _data: (),
 }
 
-/*
 // Will uncomment in a later commit; need to update libsimplicity first so these
 // symbols have something to link against.
 extern "C" {
@@ -110,7 +109,7 @@ extern "C" {
     #[link_name = "rustsimplicity_0_6_bitcoin_mallocTransaction"]
     pub fn simplicity_mallocTransaction(rawTx: *const CRawTransaction) -> *mut CTransaction;
 }
-*/
+
 impl CTxEnv {
     pub fn sighash_all(&self) -> sha256::Hash {
         let midstate: sha256::Midstate = self.sighash_all.into();
@@ -137,7 +136,6 @@ impl CRawBuffer {
     }
 }
 
-/*
 // Will uncomment in a later commit; need to update libsimplicity first.
 #[cfg(test)]
 mod tests {
@@ -173,4 +171,3 @@ mod tests {
         }
     }
 }
-*/

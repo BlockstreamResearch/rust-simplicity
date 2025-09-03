@@ -591,11 +591,12 @@ mod tests {
     use crate::value::Word;
     use crate::{BitMachine, Value};
 
-    fn assert_cmr_witness<J: Jet>(
+    #[track_caller]
+    fn assert_cmr_witness<J: Jet, T: core::borrow::Borrow<J::Transaction>>(
         s: &str,
         cmr: &str,
         witness: &HashMap<Arc<str>, Value>,
-        env: &J::Environment,
+        env: &J::Environment<T>,
     ) {
         match parse::<J>(s) {
             Ok(forest) => {
@@ -673,7 +674,7 @@ mod tests {
     #[test]
     fn simple_program() {
         let empty = HashMap::new();
-        assert_cmr_witness::<Core>(
+        assert_cmr_witness::<Core, _>(
             "main := unit",
             "c40a10263f7436b4160acbef1c36fba4be4d95df181a968afeab5eac247adff7",
             &empty,
@@ -684,7 +685,7 @@ mod tests {
             (Arc::from("wit1"), Value::u32(0x00010203)),
             (Arc::from("wit2"), Value::u32(0x00010203)),
         ]);
-        assert_cmr_witness::<Core>(
+        assert_cmr_witness::<Core, _>(
             "
                 wit1 := witness : 1 -> 2^32
                 wit2 := witness : 1 -> 2^32
@@ -692,7 +693,7 @@ mod tests {
                 wits_are_equal := comp (pair wit1 wit2) jet_eq_32 : 1 -> 2
                 main := comp wits_are_equal jet_verify            : 1 -> 1
             ",
-            "d7969920eff9a1ed0359aaa8545b239c69969e22c304c645a7b49bcc976a40a8",
+            "ee2d966aeccfba7f1f1e54bc130237a6ae575db9c1132193d513aeb14b18151a",
             &witness,
             &crate::jet::CoreEnv::EMPTY,
         );
@@ -720,7 +721,7 @@ mod tests {
 
         let empty = HashMap::new();
         let dummy = ElementsEnv::dummy();
-        assert_cmr_witness::<Elements>(
+        assert_cmr_witness::<Elements, _>(
             "main := unit",
             "c40a10263f7436b4160acbef1c36fba4be4d95df181a968afeab5eac247adff7",
             &empty,
@@ -737,7 +738,7 @@ mod tests {
         ];
 
         let signature = HashMap::from([(Arc::from("wit1"), Value::u512(sig))]);
-        assert_cmr_witness::<Elements>(
+        assert_cmr_witness::<Elements, _>(
             "
                 -- Witnesses
                 wit1 := witness : 1 -> 2^512

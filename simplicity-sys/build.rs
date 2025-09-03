@@ -116,11 +116,13 @@ fn main() {
         build.include("wasm-sysroot");
     }
 
-    let mut _bitcoin_build = build.clone();
+    let mut bitcoin_build = build.clone();
     let mut elements_build = build;
 
     // Bitcoin build
-    // TODO
+    bitcoin_build
+        .files(bitcoin_files)
+        .compile("BitcoinSimplicity");
 
     // Elements build
     elements_build

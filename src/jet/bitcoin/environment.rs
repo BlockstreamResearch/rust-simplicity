@@ -3,8 +3,7 @@
 use simplicity_sys::c_jets::c_env::bitcoin as c_bitcoin;
 
 /// Environment for Bitcoin Simplicity
-// In later commit, when we update Jet trait, will remove default type.
-pub struct BitcoinEnv<T = bitcoin::Transaction> {
+pub struct BitcoinEnv<T> {
     pub tx: T,
 }
 

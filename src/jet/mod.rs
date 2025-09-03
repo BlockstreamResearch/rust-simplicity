@@ -33,6 +33,7 @@ use crate::decode;
 use crate::jet::type_name::TypeName;
 use crate::merkle::cmr::Cmr;
 use crate::{BitIter, BitWriter};
+use std::borrow::Borrow;
 use std::hash::Hash;
 use std::io::Write;
 
@@ -61,8 +62,11 @@ impl std::error::Error for JetFailed {}
 pub trait Jet:
     Copy + Eq + Ord + Hash + std::fmt::Debug + std::fmt::Display + std::str::FromStr + 'static
 {
+    type Transaction;
     /// Environment for jet to read from
-    type Environment;
+    type Environment<T>
+    where
+        T: Borrow<Self::Transaction>;
     /// CJetEnvironment to interact with C FFI.
     type CJetEnvironment;
 
@@ -82,7 +86,9 @@ pub trait Jet:
     fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Self, decode::Error>;
 
     /// Obtains a C FFI compatible environment for the jet.
-    fn c_jet_env(env: &Self::Environment) -> &Self::CJetEnvironment;
+    fn c_jet_env<T>(env: &Self::Environment<T>) -> &Self::CJetEnvironment
+    where
+        T: Borrow<Self::Transaction>;
 
     /// Obtain the FFI C pointer for the jet.
     fn c_jet_ptr(&self) -> &dyn Fn(&mut CFrameItem, CFrameItem, &Self::CJetEnvironment) -> bool;
