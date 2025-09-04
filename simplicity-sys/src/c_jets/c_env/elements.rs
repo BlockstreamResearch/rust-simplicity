@@ -57,12 +57,12 @@ pub struct RawTransactionData {
 #[derive(Debug)]
 #[repr(C)]
 pub struct CRawOutput<'raw> {
-    asset: Option<&'raw [c_uchar; 33]>,
-    value: *const c_uchar,
-    nonce: Option<&'raw [c_uchar; 33]>,
-    script_pubkey: CRawBuffer,
-    surjection_proof: CRawBuffer,
-    range_proof: CRawBuffer,
+    pub asset: Option<&'raw [c_uchar; 33]>,
+    pub value: *const c_uchar,
+    pub nonce: Option<&'raw [c_uchar; 33]>,
+    pub script_pubkey: CRawBuffer,
+    pub surjection_proof: CRawBuffer,
+    pub range_proof: CRawBuffer,
 }
 
 #[repr(C)]
@@ -83,9 +83,9 @@ pub struct CRawInputTxo<'raw> {
 }
 
 #[repr(C)]
-pub struct CRawInput<'tx, 'raw> {
+pub struct CRawInput<'raw> {
     annex: *const CRawBuffer,
-    prev_txid: &'tx [c_uchar; 32],
+    prev_txid: &'raw [c_uchar; 32],
     pegin: Option<&'raw [c_uchar; 32]>,
     issuance: CRawInputIssuance<'raw>,
     txo: CRawInputTxo<'raw>,
@@ -96,9 +96,9 @@ pub struct CRawInput<'tx, 'raw> {
 
 #[derive(Debug)]
 #[repr(C)]
-pub struct CRawTransaction<'tx, 'raw> {
+pub struct CRawTransaction<'raw> {
     txid: *const c_uchar,
-    inputs: *const CRawInput<'tx, 'raw>,
+    inputs: *const CRawInput<'raw>,
     outputs: *const CRawOutput<'raw>,
     version: u32,
     locktime: u32,
@@ -159,16 +159,6 @@ extern "C" {
 
     #[link_name = "rustsimplicity_0_5_c_set_rawElementsBuffer"]
     pub fn c_set_rawBuffer(res: *mut CRawBuffer, buf: *const c_uchar, len: c_uint);
-    #[link_name = "rustsimplicity_0_5_c_set_rawElementsOutput"]
-    pub fn c_set_rawOutput(
-        res: *mut CRawOutput,
-        asset: Option<&[u8; 33]>,
-        value: *const c_uchar,
-        nonce: Option<&[u8; 33]>,
-        scriptPubKey: *const CRawBuffer,
-        surjectionProof: *const CRawBuffer,
-        rangeProof: *const CRawBuffer,
-    );
     #[link_name = "rustsimplicity_0_5_c_set_rawElementsInput"]
     pub fn c_set_rawInput(
         result: *mut CRawInput,

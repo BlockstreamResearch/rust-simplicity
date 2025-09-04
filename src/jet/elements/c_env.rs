@@ -22,26 +22,21 @@ fn new_raw_output<'raw>(
     out: &elements::TxOut,
     out_data: &'raw c_elements::RawOutputData,
 ) -> c_elements::CRawOutput<'raw> {
-    unsafe {
-        let mut raw_output = std::mem::MaybeUninit::<c_elements::CRawOutput>::uninit();
-        c_elements::c_set_rawOutput(
-            raw_output.as_mut_ptr(),
-            out_data.asset.as_ref(),
-            value_ptr(out.value, &out_data.value),
-            out_data.nonce.as_ref(),
-            &script_ptr(&out.script_pubkey),
-            &surjection_proof_ptr(&out_data.surjection_proof),
-            &range_proof_ptr(&out_data.range_proof),
-        );
-        raw_output.assume_init()
+    c_elements::CRawOutput {
+        asset: out_data.asset.as_ref(),
+        value: value_ptr(out.value, &out_data.value),
+        nonce: out_data.nonce.as_ref(),
+        script_pubkey: c_elements::CRawBuffer::new(out.script_pubkey.as_bytes()),
+        surjection_proof: c_elements::CRawBuffer::new(&out_data.surjection_proof),
+        range_proof: c_elements::CRawBuffer::new(&out_data.range_proof),
     }
 }
 
-fn new_raw_input<'raw, 'tx>(
-    inp: &'tx elements::TxIn,
+fn new_raw_input<'raw>(
+    inp: &'raw elements::TxIn,
     in_utxo: &'raw ElementsUtxo,
     inp_data: &c_elements::RawInputData,
-) -> c_elements::CRawInput<'raw, 'tx> {
+) -> c_elements::CRawInput<'raw> {
     unsafe {
         let mut raw_input = std::mem::MaybeUninit::<c_elements::CRawInput>::uninit();
 
@@ -237,10 +232,6 @@ fn annex_ptr(annex: &Option<Vec<c_uchar>>) -> Option<c_elements::CRawBuffer> {
     annex
         .as_ref()
         .map(|annex| c_elements::CRawBuffer::new(annex))
-}
-
-fn surjection_proof_ptr(surjection_proof: &[c_uchar]) -> c_elements::CRawBuffer {
-    c_elements::CRawBuffer::new(surjection_proof)
 }
 
 fn range_proof_ptr(rangeproof: &[c_uchar]) -> c_elements::CRawBuffer {

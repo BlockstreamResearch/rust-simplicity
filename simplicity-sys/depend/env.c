@@ -30,12 +30,6 @@ void rustsimplicity_0_5_c_set_rawElementsBuffer(rawElementsBuffer *result, const
     *result = (rawElementsBuffer){.buf = buf, .len = len};
 }
 
-void rustsimplicity_0_5_c_set_rawElementsOutput(rawElementsOutput *result, const unsigned char *asset, const unsigned char *value, const unsigned char *nonce, const rawElementsBuffer *scriptPubKey,
-                     const rawElementsBuffer *surjectionProof, const rawElementsBuffer *rangeProof)
-{
-    *result = (rawElementsOutput){.asset = asset, .value = value, .nonce = nonce, .scriptPubKey = *scriptPubKey, .surjectionProof = *surjectionProof, .rangeProof = *rangeProof};
-}
-
 void rustsimplicity_0_5_c_set_rawElementsInput(rawElementsInput *result, const rawElementsBuffer *annex, const unsigned char *pegin, const rawElementsBuffer *scriptSig,
                     const unsigned char *prevTxid, unsigned int prevIx,
                     const unsigned char *asset, const unsigned char *value, const rawElementsBuffer *scriptPubKey,
