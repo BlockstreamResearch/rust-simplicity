@@ -3,7 +3,6 @@
 //! High level APIs for creating C FFI compatible environment.
 //!
 
-use elements::secp256k1_zkp::ffi::CPtr;
 use hashes::Hash;
 use std::os::raw::{c_uchar, c_uint};
 
@@ -36,49 +35,38 @@ fn new_raw_output<'raw>(
 fn new_raw_input<'raw>(
     inp: &'raw elements::TxIn,
     in_utxo: &'raw ElementsUtxo,
-    inp_data: &c_elements::RawInputData,
+    inp_data: &'raw c_elements::RawInputData,
 ) -> c_elements::CRawInput<'raw> {
-    unsafe {
-        let mut raw_input = std::mem::MaybeUninit::<c_elements::CRawInput>::uninit();
-
-        let (issue_nonce_ptr, issue_entropy_ptr, issue_amt_ptr, issue_infl_key_ptr) =
-            if inp.has_issuance() {
-                (
-                    inp.asset_issuance.asset_blinding_nonce.as_c_ptr(),
-                    inp.asset_issuance.asset_entropy.as_ptr(),
-                    value_ptr(inp.asset_issuance.amount, &inp_data.issuance_amount),
-                    value_ptr(
-                        inp.asset_issuance.inflation_keys,
-                        &inp_data.issuance_inflation_keys,
-                    ),
-                )
-            } else {
-                (
-                    std::ptr::null(),
-                    std::ptr::null(),
-                    std::ptr::null(),
-                    std::ptr::null(),
-                )
-            };
-        c_elements::c_set_rawInput(
-            raw_input.as_mut_ptr(),
-            opt_ptr(annex_ptr(&inp_data.annex).as_ref()),
-            inp_data.genesis_hash.as_ref(),
-            &script_ptr(&inp.script_sig),
-            AsRef::<[u8]>::as_ref(&inp.previous_output.txid).as_ptr(),
-            inp.previous_output.vout as c_uint,
-            inp_data.asset.as_ref(),
-            value_ptr(in_utxo.value, &inp_data.value),
-            &script_ptr(&in_utxo.script_pubkey),
-            inp.sequence.0 as c_uint,
-            issue_nonce_ptr, // FIXME: CHECK ASSET ISSUANCE IS NOT NULL. EASIER WITH NEW ELEMENTS VERSION.
-            issue_entropy_ptr,
-            issue_amt_ptr,
-            issue_infl_key_ptr,
-            &range_proof_ptr(&inp_data.amount_range_proof),
-            &range_proof_ptr(&inp_data.inflation_keys_range_proof),
-        );
-        raw_input.assume_init()
+    c_elements::CRawInput {
+        // FIXME actually pass the annex in; see https://github.com/BlockstreamResearch/simplicity/issues/311 for some difficulty here.
+        annex: core::ptr::null(),
+        prev_txid: inp.previous_output.txid.as_ref(),
+        pegin: inp_data.genesis_hash.as_ref(),
+        issuance: if inp.has_issuance() {
+            c_elements::CRawInputIssuance {
+                blinding_nonce: Some(inp.asset_issuance.asset_blinding_nonce.as_ref()),
+                asset_entropy: Some(&inp.asset_issuance.asset_entropy),
+                amount: value_ptr(inp.asset_issuance.amount, &inp_data.issuance_amount),
+                inflation_keys: value_ptr(
+                    inp.asset_issuance.inflation_keys,
+                    &inp_data.issuance_inflation_keys,
+                ),
+                amount_range_proof: c_elements::CRawBuffer::new(&inp_data.amount_range_proof),
+                inflation_keys_range_proof: c_elements::CRawBuffer::new(
+                    &inp_data.inflation_keys_range_proof,
+                ),
+            }
+        } else {
+            c_elements::CRawInputIssuance::no_issuance()
+        },
+        txo: c_elements::CRawInputTxo {
+            asset: inp_data.asset.as_ref(),
+            value: value_ptr(in_utxo.value, &inp_data.value),
+            script_pubkey: c_elements::CRawBuffer::new(in_utxo.script_pubkey.as_bytes()),
+        },
+        script_sig: c_elements::CRawBuffer::new(inp.script_sig.as_bytes()),
+        prev_txout_index: inp.previous_output.vout,
+        sequence: inp.sequence.to_consensus_u32(),
     }
 }
 
@@ -216,28 +204,6 @@ fn value_ptr(value: confidential::Value, data: &[u8]) -> *const c_uchar {
     } else {
         data.as_ptr()
     }
-}
-
-fn opt_ptr<T>(t: Option<&T>) -> *const T {
-    if let Some(t) = t {
-        t
-    } else {
-        std::ptr::null()
-    }
-}
-
-fn script_ptr(script: &elements::Script) -> c_elements::CRawBuffer {
-    c_elements::CRawBuffer::new(script.as_bytes())
-}
-
-fn annex_ptr(annex: &Option<Vec<c_uchar>>) -> Option<c_elements::CRawBuffer> {
-    annex
-        .as_ref()
-        .map(|annex| c_elements::CRawBuffer::new(annex))
-}
-
-fn range_proof_ptr(rangeproof: &[c_uchar]) -> c_elements::CRawBuffer {
-    c_elements::CRawBuffer::new(rangeproof)
 }
 
 fn serialize_rangeproof(rangeproof: &Option<Box<RangeProof>>) -> Vec<c_uchar> {

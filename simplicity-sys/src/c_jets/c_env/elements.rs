@@ -69,31 +69,45 @@ pub struct CRawOutput<'raw> {
 
 #[repr(C)]
 pub struct CRawInputIssuance<'raw> {
-    blinding_nonce: Option<&'raw [c_uchar; 32]>,
-    asset_entropy: Option<&'raw [c_uchar; 32]>,
-    amount: *const c_uchar,
-    inflation_keys: *const c_uchar,
-    amount_range_proof: CRawBuffer,
-    inflation_keys_range_proof: CRawBuffer,
+    pub blinding_nonce: Option<&'raw [c_uchar; 32]>,
+    pub asset_entropy: Option<&'raw [c_uchar; 32]>,
+    pub amount: *const c_uchar,
+    pub inflation_keys: *const c_uchar,
+    pub amount_range_proof: CRawBuffer,
+    pub inflation_keys_range_proof: CRawBuffer,
+}
+
+impl<'raw> CRawInputIssuance<'raw> {
+    /// Constructs a raw input issuance structure corresponding to "no issuance".
+    pub fn no_issuance() -> Self {
+        Self {
+            blinding_nonce: None,
+            asset_entropy: None,
+            amount: core::ptr::null(),
+            inflation_keys: core::ptr::null(),
+            amount_range_proof: CRawBuffer::new(&[]),
+            inflation_keys_range_proof: CRawBuffer::new(&[]),
+        }
+    }
 }
 
 #[repr(C)]
 pub struct CRawInputTxo<'raw> {
-    asset: Option<&'raw [c_uchar; 33]>,
-    value: *const c_uchar,
-    script_pubkey: CRawBuffer,
+    pub asset: Option<&'raw [c_uchar; 33]>,
+    pub value: *const c_uchar,
+    pub script_pubkey: CRawBuffer,
 }
 
 #[repr(C)]
 pub struct CRawInput<'raw> {
-    annex: *const CRawBuffer,
-    prev_txid: &'raw [c_uchar; 32],
-    pegin: Option<&'raw [c_uchar; 32]>,
-    issuance: CRawInputIssuance<'raw>,
-    txo: CRawInputTxo<'raw>,
-    script_sig: CRawBuffer,
-    prev_txout_index: u32,
-    sequence: u32,
+    pub annex: *const CRawBuffer,
+    pub prev_txid: &'raw [c_uchar; 32],
+    pub pegin: Option<&'raw [c_uchar; 32]>,
+    pub issuance: CRawInputIssuance<'raw>,
+    pub txo: CRawInputTxo<'raw>,
+    pub script_sig: CRawBuffer,
+    pub prev_txout_index: u32,
+    pub sequence: u32,
 }
 
 #[derive(Debug)]
@@ -161,25 +175,6 @@ extern "C" {
 
     #[link_name = "rustsimplicity_0_5_c_set_rawElementsBuffer"]
     pub fn c_set_rawBuffer(res: *mut CRawBuffer, buf: *const c_uchar, len: c_uint);
-    #[link_name = "rustsimplicity_0_5_c_set_rawElementsInput"]
-    pub fn c_set_rawInput(
-        result: *mut CRawInput,
-        annex: *const CRawBuffer,
-        pegin: Option<&[c_uchar; 32]>,
-        scriptSig: *const CRawBuffer,
-        prevTxid: *const c_uchar,
-        prevIx: c_uint,
-        asset: Option<&[u8; 33]>,
-        value: *const c_uchar,
-        scriptPubKey: *const CRawBuffer,
-        sequence: c_uint,
-        blindingNonce: *const c_uchar,
-        assetEntropy: *const c_uchar,
-        amount: *const c_uchar,
-        inflationKeys: *const c_uchar,
-        amountRangePrf: *const CRawBuffer,
-        inflationKeysRangePrf: *const CRawBuffer,
-    );
 
     #[link_name = "rustsimplicity_0_5_c_set_rawElementsTransaction"]
     pub fn c_set_rawTransaction(

@@ -30,16 +30,6 @@ void rustsimplicity_0_5_c_set_rawElementsBuffer(rawElementsBuffer *result, const
     *result = (rawElementsBuffer){.buf = buf, .len = len};
 }
 
-void rustsimplicity_0_5_c_set_rawElementsInput(rawElementsInput *result, const rawElementsBuffer *annex, const unsigned char *pegin, const rawElementsBuffer *scriptSig,
-                    const unsigned char *prevTxid, unsigned int prevIx,
-                    const unsigned char *asset, const unsigned char *value, const rawElementsBuffer *scriptPubKey,
-                    unsigned int sequence,
-                    const unsigned char *blindingNonce, const unsigned char *assetEntropy, const unsigned char *amount, const unsigned char *inflationKeys,
-                    const rawElementsBuffer *amountRangePrf, const rawElementsBuffer *inflationKeysRangePrf)
-{
-    *result = (rawElementsInput){.annex = annex, .scriptSig = *scriptSig, .prevTxid = prevTxid, .pegin = pegin, .issuance = {.blindingNonce = blindingNonce, .assetEntropy = assetEntropy, .amount = amount, .inflationKeys = inflationKeys, .amountRangePrf = *amountRangePrf, .inflationKeysRangePrf = *inflationKeysRangePrf}, .txo = {.asset = asset, .value = value, .scriptPubKey = *scriptPubKey}, .prevIx = prevIx, .sequence = sequence};
-}
-
 void rustsimplicity_0_5_c_set_rawElementsTransaction(rawElementsTransaction *result, unsigned int version,
                           const unsigned char *txid,
                           const rawElementsInput *input, unsigned int numInputs,
