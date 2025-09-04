@@ -19,9 +19,9 @@ use crate::ffi::{c_size_t, c_uchar, c_uint, c_uint_fast32_t};
 /// consensus serialization format.
 #[derive(Debug)]
 pub struct RawOutputData {
-    pub asset: Vec<c_uchar>,
+    pub asset: Option<[c_uchar; 33]>,
     pub value: Vec<c_uchar>,
-    pub nonce: Vec<c_uchar>,
+    pub nonce: Option<[c_uchar; 33]>,
     pub surjection_proof: Vec<c_uchar>,
     pub range_proof: Vec<c_uchar>,
 }
@@ -43,7 +43,7 @@ pub struct RawInputData {
     pub amount_range_proof: Vec<c_uchar>,
     pub inflation_keys_range_proof: Vec<c_uchar>,
     // spent txo
-    pub asset: Vec<c_uchar>,
+    pub asset: Option<[c_uchar; 33]>,
     pub value: Vec<c_uchar>,
 }
 
@@ -56,19 +56,19 @@ pub struct RawTransactionData {
 
 #[derive(Debug)]
 #[repr(C)]
-pub struct CRawOutput {
-    asset: *const c_uchar,
+pub struct CRawOutput<'raw> {
+    asset: Option<&'raw [c_uchar; 33]>,
     value: *const c_uchar,
-    nonce: *const c_uchar,
+    nonce: Option<&'raw [c_uchar; 33]>,
     script_pubkey: CRawBuffer,
     surjection_proof: CRawBuffer,
     range_proof: CRawBuffer,
 }
 
 #[repr(C)]
-pub struct CRawInputIssuance {
-    blinding_nonce: *const c_uchar,
-    asset_entropy: *const c_uchar,
+pub struct CRawInputIssuance<'raw> {
+    blinding_nonce: Option<&'raw [c_uchar; 32]>,
+    asset_entropy: Option<&'raw [c_uchar; 32]>,
     amount: *const c_uchar,
     inflation_keys: *const c_uchar,
     amount_range_proof: CRawBuffer,
@@ -76,19 +76,19 @@ pub struct CRawInputIssuance {
 }
 
 #[repr(C)]
-pub struct CRawInputTxo {
-    asset: *const c_uchar,
+pub struct CRawInputTxo<'raw> {
+    asset: Option<&'raw [c_uchar; 33]>,
     value: *const c_uchar,
     script_pubkey: CRawBuffer,
 }
 
 #[repr(C)]
-pub struct CRawInput {
+pub struct CRawInput<'tx, 'raw> {
     annex: *const CRawBuffer,
-    prev_txid: *const c_uchar,
-    pegin: *const c_uchar,
-    issuance: CRawInputIssuance,
-    txo: CRawInputTxo,
+    prev_txid: &'tx [c_uchar; 32],
+    pegin: Option<&'raw [c_uchar; 32]>,
+    issuance: CRawInputIssuance<'raw>,
+    txo: CRawInputTxo<'raw>,
     script_sig: CRawBuffer,
     prev_txout_index: u32,
     sequence: u32,
@@ -96,10 +96,10 @@ pub struct CRawInput {
 
 #[derive(Debug)]
 #[repr(C)]
-pub struct CRawTransaction {
+pub struct CRawTransaction<'tx, 'raw> {
     txid: *const c_uchar,
-    inputs: *const CRawInput,
-    outputs: *const CRawOutput,
+    inputs: *const CRawInput<'tx, 'raw>,
+    outputs: *const CRawOutput<'raw>,
     version: u32,
     locktime: u32,
     n_inputs: u32,
@@ -162,9 +162,9 @@ extern "C" {
     #[link_name = "rustsimplicity_0_5_c_set_rawElementsOutput"]
     pub fn c_set_rawOutput(
         res: *mut CRawOutput,
-        asset: *const c_uchar,
+        asset: Option<&[u8; 33]>,
         value: *const c_uchar,
-        nonce: *const c_uchar,
+        nonce: Option<&[u8; 33]>,
         scriptPubKey: *const CRawBuffer,
         surjectionProof: *const CRawBuffer,
         rangeProof: *const CRawBuffer,
@@ -177,7 +177,7 @@ extern "C" {
         scriptSig: *const CRawBuffer,
         prevTxid: *const c_uchar,
         prevIx: c_uint,
-        asset: *const c_uchar,
+        asset: Option<&[u8; 33]>,
         value: *const c_uchar,
         scriptPubKey: *const CRawBuffer,
         sequence: c_uint,

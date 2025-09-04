@@ -18,17 +18,17 @@ use crate::merkle::cmr::Cmr;
 
 use super::ElementsUtxo;
 
-fn new_raw_output(
+fn new_raw_output<'raw>(
     out: &elements::TxOut,
-    out_data: &c_elements::RawOutputData,
-) -> c_elements::CRawOutput {
+    out_data: &'raw c_elements::RawOutputData,
+) -> c_elements::CRawOutput<'raw> {
     unsafe {
         let mut raw_output = std::mem::MaybeUninit::<c_elements::CRawOutput>::uninit();
         c_elements::c_set_rawOutput(
             raw_output.as_mut_ptr(),
-            asset_ptr(out.asset, &out_data.asset),
+            out_data.asset.as_ref(),
             value_ptr(out.value, &out_data.value),
-            nonce_ptr(out.nonce, &out_data.nonce),
+            out_data.nonce.as_ref(),
             &script_ptr(&out.script_pubkey),
             &surjection_proof_ptr(&out_data.surjection_proof),
             &range_proof_ptr(&out_data.range_proof),
@@ -37,11 +37,11 @@ fn new_raw_output(
     }
 }
 
-fn new_raw_input(
-    inp: &elements::TxIn,
-    in_utxo: &ElementsUtxo,
+fn new_raw_input<'raw, 'tx>(
+    inp: &'tx elements::TxIn,
+    in_utxo: &'raw ElementsUtxo,
     inp_data: &c_elements::RawInputData,
-) -> c_elements::CRawInput {
+) -> c_elements::CRawInput<'raw, 'tx> {
     unsafe {
         let mut raw_input = std::mem::MaybeUninit::<c_elements::CRawInput>::uninit();
 
@@ -73,7 +73,7 @@ fn new_raw_input(
             &script_ptr(&inp.script_sig),
             AsRef::<[u8]>::as_ref(&inp.previous_output.txid).as_ptr(),
             inp.previous_output.vout as c_uint,
-            asset_ptr(in_utxo.asset, &inp_data.asset),
+            inp_data.asset.as_ref(),
             value_ptr(in_utxo.value, &inp_data.value),
             &script_ptr(&in_utxo.script_pubkey),
             inp.sequence.0 as c_uint,
@@ -105,16 +105,16 @@ fn new_tx_data(
             inflation_keys_range_proof: serialize_rangeproof(
                 &inp.witness.inflation_keys_rangeproof,
             ),
-            asset: serialize(&in_utxo.asset),
+            asset: asset_array(&in_utxo.asset),
             value: serialize(&in_utxo.value),
         };
         tx_data.inputs.push(inp_data);
     }
     for out in &tx.output {
         let out_data = c_elements::RawOutputData {
-            asset: serialize(&out.asset),
+            asset: asset_array(&out.asset),
             value: serialize(&out.value),
-            nonce: serialize(&out.nonce),
+            nonce: nonce_array(&out.nonce),
             surjection_proof: serialize_surjection_proof(&out.witness.surjection_proof),
             range_proof: serialize_rangeproof(&out.witness.rangeproof),
         };
@@ -197,24 +197,24 @@ pub(super) fn new_tx_env(
     }
 }
 
-fn asset_ptr(asset: confidential::Asset, data: &[u8]) -> *const c_uchar {
-    if asset.is_null() {
-        std::ptr::null()
-    } else {
-        data.as_ptr()
-    }
+fn asset_array(asset: &confidential::Asset) -> Option<[u8; 33]> {
+    (!asset.is_null()).then(|| {
+        serialize(asset)
+            .try_into()
+            .expect("non-null asset is 33 bytes")
+    })
+}
+
+fn nonce_array(nonce: &confidential::Nonce) -> Option<[u8; 33]> {
+    (!nonce.is_null()).then(|| {
+        serialize(nonce)
+            .try_into()
+            .expect("non-null asset is 33 bytes")
+    })
 }
 
 fn value_ptr(value: confidential::Value, data: &[u8]) -> *const c_uchar {
     if value.is_null() {
-        std::ptr::null()
-    } else {
-        data.as_ptr()
-    }
-}
-
-fn nonce_ptr(nonce: confidential::Nonce, data: &[u8]) -> *const c_uchar {
-    if nonce.is_null() {
         std::ptr::null()
     } else {
         data.as_ptr()
