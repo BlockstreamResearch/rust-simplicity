@@ -65,24 +65,30 @@ pub struct CRawOutput {
     range_proof: CRawBuffer,
 }
 
-#[derive(Debug)]
 #[repr(C)]
-pub struct CRawInput {
-    annex: *const CRawBuffer,
-    prev_txid: *const c_uchar,
-    pegin: *const c_uchar,
-    // issuance
+pub struct CRawInputIssuance {
     blinding_nonce: *const c_uchar,
     asset_entropy: *const c_uchar,
     amount: *const c_uchar,
     inflation_keys: *const c_uchar,
     amount_range_proof: CRawBuffer,
     inflation_keys_range_proof: CRawBuffer,
-    // spent txo
+}
+
+#[repr(C)]
+pub struct CRawInputTxo {
     asset: *const c_uchar,
     value: *const c_uchar,
     script_pubkey: CRawBuffer,
-    // inputs
+}
+
+#[repr(C)]
+pub struct CRawInput {
+    annex: *const CRawBuffer,
+    prev_txid: *const c_uchar,
+    pegin: *const c_uchar,
+    issuance: CRawInputIssuance,
+    txo: CRawInputTxo,
     script_sig: CRawBuffer,
     prev_txout_index: u32,
     sequence: u32,
