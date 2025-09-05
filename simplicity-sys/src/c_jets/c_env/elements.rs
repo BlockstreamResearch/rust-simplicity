@@ -130,8 +130,10 @@ pub struct CRawTapEnv {
     pub branch_len: u8,
 }
 
-#[derive(Debug)]
-pub enum CTransaction {}
+#[repr(C)]
+pub struct CTransaction {
+    _data: (),
+}
 
 #[derive(Debug)]
 #[repr(C)]
@@ -143,8 +145,10 @@ pub struct CTxEnv {
     ix: c_uint_fast32_t,
 }
 
-#[derive(Debug)]
-pub enum CTapEnv {}
+#[repr(C)]
+pub struct CTapEnv {
+    _data: (),
+}
 
 extern "C" {
     #[link_name = "rustsimplicity_0_5_c_sizeof_rawElementsBuffer"]
