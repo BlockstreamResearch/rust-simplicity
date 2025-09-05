@@ -18,9 +18,46 @@ use crate::merkle::cmr::Cmr;
 
 use super::ElementsUtxo;
 
+/// Holds transaction output data which needs to be re-serialized before being
+/// passed to the C FFI.
+#[derive(Debug)]
+struct RawOutputData {
+    pub asset: Option<[c_uchar; 33]>,
+    pub value: Vec<c_uchar>,
+    pub nonce: Option<[c_uchar; 33]>,
+    pub surjection_proof: Vec<c_uchar>,
+    pub range_proof: Vec<c_uchar>,
+}
+
+/// Holds transaction input data which needs to be re-serialized before being
+/// passed to the C FFI.
+#[derive(Debug)]
+struct RawInputData {
+    #[allow(dead_code)] // see FIXME below
+    pub annex: Option<Vec<c_uchar>>,
+    // pegin
+    pub genesis_hash: Option<[c_uchar; 32]>,
+    // issuance
+    pub issuance_amount: Vec<c_uchar>,
+    pub issuance_inflation_keys: Vec<c_uchar>,
+    pub amount_range_proof: Vec<c_uchar>,
+    pub inflation_keys_range_proof: Vec<c_uchar>,
+    // spent txo
+    pub asset: Option<[c_uchar; 33]>,
+    pub value: Vec<c_uchar>,
+}
+
+/// Holds transaction data which needs to be re-serialized before being
+/// passed to the C FFI.
+#[derive(Debug)]
+struct RawTransactionData {
+    pub inputs: Vec<RawInputData>,
+    pub outputs: Vec<RawOutputData>,
+}
+
 fn new_raw_output<'raw>(
     out: &elements::TxOut,
-    out_data: &'raw c_elements::RawOutputData,
+    out_data: &'raw RawOutputData,
 ) -> c_elements::CRawOutput<'raw> {
     c_elements::CRawOutput {
         asset: out_data.asset.as_ref(),
@@ -35,7 +72,7 @@ fn new_raw_output<'raw>(
 fn new_raw_input<'raw>(
     inp: &'raw elements::TxIn,
     in_utxo: &'raw ElementsUtxo,
-    inp_data: &'raw c_elements::RawInputData,
+    inp_data: &'raw RawInputData,
 ) -> c_elements::CRawInput<'raw> {
     c_elements::CRawInput {
         // FIXME actually pass the annex in; see https://github.com/BlockstreamResearch/simplicity/issues/311 for some difficulty here.
@@ -70,16 +107,13 @@ fn new_raw_input<'raw>(
     }
 }
 
-fn new_tx_data(
-    tx: &elements::Transaction,
-    in_utxos: &[ElementsUtxo],
-) -> c_elements::RawTransactionData {
-    let mut tx_data = c_elements::RawTransactionData {
+fn new_tx_data(tx: &elements::Transaction, in_utxos: &[ElementsUtxo]) -> RawTransactionData {
+    let mut tx_data = RawTransactionData {
         inputs: Vec::with_capacity(tx.input.len()),
         outputs: Vec::with_capacity(tx.output.len()),
     };
     for (inp, in_utxo) in tx.input.iter().zip(in_utxos.iter()) {
-        let inp_data = c_elements::RawInputData {
+        let inp_data = RawInputData {
             annex: None, // Actually store annex
             genesis_hash: inp
                 .pegin_data()
@@ -96,7 +130,7 @@ fn new_tx_data(
         tx_data.inputs.push(inp_data);
     }
     for out in &tx.output {
-        let out_data = c_elements::RawOutputData {
+        let out_data = RawOutputData {
             asset: asset_array(&out.asset),
             value: serialize(&out.value),
             nonce: nonce_array(&out.nonce),

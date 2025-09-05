@@ -5,55 +5,11 @@ use hashes::{sha256, Hash};
 use crate::ffi::sha256::CSha256Midstate;
 use crate::ffi::{c_size_t, c_uchar, c_uint, c_uint_fast32_t};
 
-/// Documentation of RawInputData/RawOutputData/RawTapData/Raw.
-///
-/// Data structure for holding data that CTransaction points to.
-///
-/// Why do we this special data structure?
-///     1. We need to keep the data in memory until the CTransaction is dropped.
-///     2. The memory is Transaction is not saved in the same format as required by FFI.
-/// We use more ergonomics in rust to allow better UX which interfere with the FFI. For example,
-/// the Value is stored as Tagged Union, but we require it to be a slice of bytes in elements format.
-///     3. Allocating inside FFI functions does not work because the memory is freed after the function returns.
-///     4. We only create allocations for data fields that are stored differently from the
-/// consensus serialization format.
-#[derive(Debug)]
-pub struct RawOutputData {
-    pub asset: Option<[c_uchar; 33]>,
-    pub value: Vec<c_uchar>,
-    pub nonce: Option<[c_uchar; 33]>,
-    pub surjection_proof: Vec<c_uchar>,
-    pub range_proof: Vec<c_uchar>,
-}
-
 #[derive(Debug)]
 #[repr(C)]
 pub struct CRawBuffer {
     pub ptr: *const c_uchar,
     pub len: u32,
-}
-
-/// Similar to [`RawOutputData`], for inputs.
-#[derive(Debug)]
-pub struct RawInputData {
-    pub annex: Option<Vec<c_uchar>>,
-    // pegin
-    pub genesis_hash: Option<[c_uchar; 32]>,
-    // issuance
-    pub issuance_amount: Vec<c_uchar>,
-    pub issuance_inflation_keys: Vec<c_uchar>,
-    pub amount_range_proof: Vec<c_uchar>,
-    pub inflation_keys_range_proof: Vec<c_uchar>,
-    // spent txo
-    pub asset: Option<[c_uchar; 33]>,
-    pub value: Vec<c_uchar>,
-}
-
-/// Similar to [`RawOutputData`], but for transaction
-#[derive(Debug)]
-pub struct RawTransactionData {
-    pub inputs: Vec<RawInputData>,
-    pub outputs: Vec<RawOutputData>,
 }
 
 #[derive(Debug)]
