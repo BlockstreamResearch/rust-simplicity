@@ -25,11 +25,6 @@ const size_t rustsimplicity_0_5_c_alignof_rawElementsTransaction = alignof(rawEl
 const size_t rustsimplicity_0_5_c_alignof_rawElementsTapEnv = alignof(rawElementsTapEnv);
 const size_t rustsimplicity_0_5_c_alignof_txEnv = alignof(txEnv);
 
-void rustsimplicity_0_5_c_set_rawElementsBuffer(rawElementsBuffer *result, const unsigned char *buf, unsigned int len)
-{
-    *result = (rawElementsBuffer){.buf = buf, .len = len};
-}
-
 void rustsimplicity_0_5_c_set_rawElementsTransaction(rawElementsTransaction *result, unsigned int version,
                           const unsigned char *txid,
                           const rawElementsInput *input, unsigned int numInputs,

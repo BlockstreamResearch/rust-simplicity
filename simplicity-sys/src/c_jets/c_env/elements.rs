@@ -173,9 +173,6 @@ extern "C" {
     #[link_name = "rustsimplicity_0_5_c_alignof_txEnv"]
     pub static c_alignof_txEnv: c_size_t;
 
-    #[link_name = "rustsimplicity_0_5_c_set_rawElementsBuffer"]
-    pub fn c_set_rawBuffer(res: *mut CRawBuffer, buf: *const c_uchar, len: c_uint);
-
     #[link_name = "rustsimplicity_0_5_c_set_rawElementsTransaction"]
     pub fn c_set_rawTransaction(
         result: *mut CRawTransaction,
@@ -226,10 +223,9 @@ impl Drop for CTxEnv {
 
 impl CRawBuffer {
     pub fn new(buf: &[c_uchar]) -> Self {
-        unsafe {
-            let mut raw_buffer = std::mem::MaybeUninit::<Self>::uninit();
-            c_set_rawBuffer(raw_buffer.as_mut_ptr(), buf.as_ptr(), buf.len() as c_uint);
-            raw_buffer.assume_init()
+        Self {
+            ptr: buf.as_ptr(),
+            len: buf.len().try_into().expect("sane buffer lengths"),
         }
     }
 }
