@@ -125,9 +125,9 @@ pub struct CRawTransaction<'raw> {
 #[derive(Debug)]
 #[repr(C)]
 pub struct CRawTapEnv {
-    control_block: *const c_uchar,
-    script_cmr: *const c_uchar,
-    branch_len: u8,
+    pub control_block: *const c_uchar,
+    pub script_cmr: *const c_uchar,
+    pub branch_len: u8,
 }
 
 #[derive(Debug)]
@@ -173,13 +173,6 @@ extern "C" {
     #[link_name = "rustsimplicity_0_5_c_alignof_txEnv"]
     pub static c_alignof_txEnv: c_size_t;
 
-    #[link_name = "rustsimplicity_0_5_c_set_rawElementsTapEnv"]
-    pub fn c_set_rawTapEnv(
-        result: *mut CRawTapEnv,
-        controlBlock: *const c_uchar,
-        pathLen: c_uchar,
-        scriptCMR: *const c_uchar,
-    );
     #[link_name = "rustsimplicity_0_5_c_set_txEnv"]
     pub fn c_set_txEnv(
         result: *mut CTxEnv,

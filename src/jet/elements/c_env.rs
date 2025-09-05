@@ -148,16 +148,20 @@ pub(super) fn new_tap_env(
     control_block: &ControlBlock,
     script_cmr: Cmr,
 ) -> *mut c_elements::CTapEnv {
+    let cb_ser = control_block.serialize();
+    let raw_tap_env = c_elements::CRawTapEnv {
+        control_block: cb_ser.as_ptr(),
+        script_cmr: script_cmr.as_ref().as_ptr(),
+        branch_len: control_block
+            .merkle_branch
+            .as_inner()
+            .len()
+            .try_into()
+            .expect("sane length"),
+    };
+
     unsafe {
-        let mut raw_tap_env = std::mem::MaybeUninit::<c_elements::CRawTapEnv>::uninit();
-        let cb_ser = control_block.serialize();
-        c_elements::c_set_rawTapEnv(
-            raw_tap_env.as_mut_ptr(),
-            cb_ser.as_ptr(),
-            control_block.merkle_branch.as_inner().len() as c_uchar,
-            script_cmr.as_ref().as_ptr(),
-        );
-        let raw_tap_env = raw_tap_env.assume_init();
+        // SAFETY: this is a FFI call and we constructed its argument correctly.
         c_elements::simplicity_mallocTapEnv(&raw_tap_env)
     }
 }

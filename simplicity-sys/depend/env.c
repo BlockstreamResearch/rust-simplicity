@@ -25,11 +25,6 @@ const size_t rustsimplicity_0_5_c_alignof_rawElementsTransaction = alignof(rawEl
 const size_t rustsimplicity_0_5_c_alignof_rawElementsTapEnv = alignof(rawElementsTapEnv);
 const size_t rustsimplicity_0_5_c_alignof_txEnv = alignof(txEnv);
 
-void rustsimplicity_0_5_c_set_rawElementsTapEnv(rawElementsTapEnv *result, const unsigned char *controlBlock, unsigned char pathLen, const unsigned char *scriptCMR)
-{
-    *result = (rawElementsTapEnv){.controlBlock = controlBlock, .pathLen = pathLen, .scriptCMR = scriptCMR};
-}
-
 void rustsimplicity_0_5_c_set_txEnv(txEnv *result, const elementsTransaction *tx, const elementsTapEnv *taproot, const unsigned char *genesisHash, unsigned int ix)
 {
     sha256_midstate genesis;
