@@ -4,6 +4,7 @@
 //!
 
 use elements::secp256k1_zkp::ffi::CPtr;
+use hashes::Hash;
 use std::os::raw::{c_uchar, c_uint};
 
 use elements::{
@@ -62,9 +63,7 @@ fn new_raw_input<'raw>(
         c_elements::c_set_rawInput(
             raw_input.as_mut_ptr(),
             opt_ptr(annex_ptr(&inp_data.annex).as_ref()),
-            inp.pegin_data()
-                .map(|x| AsRef::<[u8]>::as_ref(&x.genesis_hash).as_ptr())
-                .unwrap_or(std::ptr::null()),
+            inp_data.genesis_hash.as_ref(),
             &script_ptr(&inp.script_sig),
             AsRef::<[u8]>::as_ref(&inp.previous_output.txid).as_ptr(),
             inp.previous_output.vout as c_uint,
@@ -94,6 +93,9 @@ fn new_tx_data(
     for (inp, in_utxo) in tx.input.iter().zip(in_utxos.iter()) {
         let inp_data = c_elements::RawInputData {
             annex: None, // Actually store annex
+            genesis_hash: inp
+                .pegin_data()
+                .map(|x| x.genesis_hash.to_raw_hash().to_byte_array()),
             issuance_amount: serialize(&inp.asset_issuance.amount),
             issuance_inflation_keys: serialize(&inp.asset_issuance.inflation_keys),
             amount_range_proof: serialize_rangeproof(&inp.witness.amount_rangeproof),

@@ -37,6 +37,8 @@ pub struct CRawBuffer {
 #[derive(Debug)]
 pub struct RawInputData {
     pub annex: Option<Vec<c_uchar>>,
+    // pegin
+    pub genesis_hash: Option<[c_uchar; 32]>,
     // issuance
     pub issuance_amount: Vec<c_uchar>,
     pub issuance_inflation_keys: Vec<c_uchar>,
@@ -163,7 +165,7 @@ extern "C" {
     pub fn c_set_rawInput(
         result: *mut CRawInput,
         annex: *const CRawBuffer,
-        pegin: *const c_uchar,
+        pegin: Option<&[c_uchar; 32]>,
         scriptSig: *const CRawBuffer,
         prevTxid: *const c_uchar,
         prevIx: c_uint,
