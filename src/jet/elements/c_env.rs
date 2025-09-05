@@ -4,7 +4,7 @@
 //!
 
 use hashes::Hash;
-use std::os::raw::{c_uchar, c_uint};
+use std::os::raw::c_uchar;
 
 use elements::{
     confidential,
@@ -128,20 +128,19 @@ pub(super) fn new_tx(
     for (out, out_data) in tx.output.iter().zip(tx_data.outputs.iter()) {
         raw_outputs.push(new_raw_output(out, out_data));
     }
+
+    let c_raw_tx = c_elements::CRawTransaction {
+        txid: txid.as_raw_hash().as_byte_array(),
+        inputs: raw_inputs.as_ptr(),
+        outputs: raw_outputs.as_ptr(),
+        n_inputs: raw_inputs.len().try_into().expect("sane length"),
+        n_outputs: raw_outputs.len().try_into().expect("sane length"),
+        version: tx.version,
+        locktime: tx.lock_time.to_consensus_u32(),
+    };
     unsafe {
-        let mut raw_tx = std::mem::MaybeUninit::<c_elements::CRawTransaction>::uninit();
-        c_elements::c_set_rawTransaction(
-            raw_tx.as_mut_ptr(),
-            tx.version as c_uint,
-            AsRef::<[u8]>::as_ref(&txid).as_ptr(),
-            raw_inputs.as_ptr(),
-            raw_inputs.len() as c_uint,
-            raw_outputs.as_ptr(),
-            raw_outputs.len() as c_uint,
-            tx.lock_time.to_consensus_u32() as c_uint,
-        );
-        let raw_tx = raw_tx.assume_init();
-        c_elements::simplicity_mallocTransaction(&raw_tx)
+        // SAFETY: this is a FFI call and we constructed its argument correctly.
+        c_elements::simplicity_mallocTransaction(&c_raw_tx)
     }
 }
 

@@ -113,13 +113,13 @@ pub struct CRawInput<'raw> {
 #[derive(Debug)]
 #[repr(C)]
 pub struct CRawTransaction<'raw> {
-    txid: *const c_uchar,
-    inputs: *const CRawInput<'raw>,
-    outputs: *const CRawOutput<'raw>,
-    version: u32,
-    locktime: u32,
-    n_inputs: u32,
-    n_outputs: u32,
+    pub txid: &'raw [c_uchar; 32],
+    pub inputs: *const CRawInput<'raw>,
+    pub outputs: *const CRawOutput<'raw>,
+    pub n_inputs: u32,
+    pub n_outputs: u32,
+    pub version: u32,
+    pub locktime: u32,
 }
 
 #[derive(Debug)]
@@ -173,17 +173,6 @@ extern "C" {
     #[link_name = "rustsimplicity_0_5_c_alignof_txEnv"]
     pub static c_alignof_txEnv: c_size_t;
 
-    #[link_name = "rustsimplicity_0_5_c_set_rawElementsTransaction"]
-    pub fn c_set_rawTransaction(
-        result: *mut CRawTransaction,
-        version: c_uint,
-        txid: *const c_uchar,
-        input: *const CRawInput,
-        numInputs: c_uint,
-        output: *const CRawOutput,
-        numOutputs: c_uint,
-        lockTime: c_uint,
-    );
     #[link_name = "rustsimplicity_0_5_c_set_rawElementsTapEnv"]
     pub fn c_set_rawTapEnv(
         result: *mut CRawTapEnv,

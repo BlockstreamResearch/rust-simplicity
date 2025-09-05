@@ -25,23 +25,6 @@ const size_t rustsimplicity_0_5_c_alignof_rawElementsTransaction = alignof(rawEl
 const size_t rustsimplicity_0_5_c_alignof_rawElementsTapEnv = alignof(rawElementsTapEnv);
 const size_t rustsimplicity_0_5_c_alignof_txEnv = alignof(txEnv);
 
-void rustsimplicity_0_5_c_set_rawElementsTransaction(rawElementsTransaction *result, unsigned int version,
-                          const unsigned char *txid,
-                          const rawElementsInput *input, unsigned int numInputs,
-                          const rawElementsOutput *output, unsigned int numOutputs,
-                          unsigned int lockTime)
-{
-    *result = (rawElementsTransaction){
-        .version = version,
-        .txid = txid,
-        .input = input,
-        .numInputs = numInputs,
-        .output = output,
-        .numOutputs = numOutputs,
-        .lockTime = lockTime,
-    };
-}
-
 void rustsimplicity_0_5_c_set_rawElementsTapEnv(rawElementsTapEnv *result, const unsigned char *controlBlock, unsigned char pathLen, const unsigned char *scriptCMR)
 {
     *result = (rawElementsTapEnv){.controlBlock = controlBlock, .pathLen = pathLen, .scriptCMR = scriptCMR};
