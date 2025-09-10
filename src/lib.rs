@@ -22,6 +22,8 @@ pub extern crate serde;
 pub use bitcoin::base64;
 /// Re-export of byteorder crate
 pub extern crate byteorder;
+/// Re-export of ghost_cell crate
+pub extern crate ghost_cell;
 /// Re-export of hashes crate
 pub extern crate hashes;
 /// Re-export of hex crate
