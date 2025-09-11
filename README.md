@@ -115,7 +115,7 @@ and undergoing rapid development. We especially welcome improvements in:
 
 ## Minimum Supported Rust Version
 
-The MSRV of this crate is **1.78.0**. For now we will not increase this without
+The MSRV of this crate is **1.74.0**. For now we will not increase this without
 a major version bump, though as the library matures we may change that policy.
 
 ## Updating libsimplicity
