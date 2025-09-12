@@ -616,7 +616,7 @@ impl<N: Marker> Node<N> {
     /// automatically based on the value of `inner` but requires that `cached_data`
     /// be provided.
     ///
-    /// If available, [`Constructible'] and its dependent traits will be easier to
+    /// If available, [`Constructible`] and its dependent traits will be easier to
     /// use.
     pub fn from_parts(
         inner: Inner<Arc<Self>, N::Jet, N::Disconnect, N::Witness>,
