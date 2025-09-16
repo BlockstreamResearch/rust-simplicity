@@ -103,7 +103,7 @@ static void sort_buckets(const sha256_midstate** a, uint32_t* restrict bucketSiz
          Therefore this body is executed 'sum(i < CHAR_COUNT, bucketSize[i]) = end - begin' many times.
        */
       size_t bucket = readIndex(a[start], ix);
-      rustsimplicity_0_5_assert(bucketSize[bucket]);
+      rustsimplicity_0_6_assert(bucketSize[bucket]);
       bucketSize[bucket]--;
       swap(a + start, a + bucketEdge[bucket] + bucketSize[bucket]);
     }
@@ -177,7 +177,7 @@ static void rsort_ex(const sha256_midstate** a, uint_fast32_t len, const sha256_
   while(totalBucketCount) {
     /* Find the correct "depth" of the last bucket. */
     while(0 == bucketCount[depth]) {
-      rustsimplicity_0_5_assert(depth);
+      rustsimplicity_0_6_assert(depth);
       depth--;
     }
 
@@ -204,7 +204,7 @@ static void rsort_ex(const sha256_midstate** a, uint_fast32_t len, const sha256_
            where items will end up when they are sorted by their 'depth' character.
          */
         cumulative(bucketEdge, bucketSize);
-        rustsimplicity_0_5_assert(len == bucketEdge[UCHAR_MAX] + bucketSize[UCHAR_MAX]);
+        rustsimplicity_0_6_assert(len == bucketEdge[UCHAR_MAX] + bucketSize[UCHAR_MAX]);
 
         /* Sort this bucket by their depth character, placing them into their proper buckets based on their bucketEdges. */
         sort_buckets(a, bucketSize, bucketEdge, depth);
@@ -227,7 +227,7 @@ static void rsort_ex(const sha256_midstate** a, uint_fast32_t len, const sha256_
     */
     len = stack[totalBucketCount];
   }
-  rustsimplicity_0_5_assert(0 == len);
+  rustsimplicity_0_6_assert(0 == len);
 
   if (hasDuplicates) *hasDuplicates = NULL;
 }
@@ -246,11 +246,11 @@ static void rsort_ex(const sha256_midstate** a, uint_fast32_t len, const sha256_
  *
  * Precondition: For all 0 <= i < len, NULL != a[i];
  */
-bool rustsimplicity_0_5_rsort(const sha256_midstate** a, uint_fast32_t len) {
-  uint32_t *stack = rustsimplicity_0_5_malloc(((CHAR_COUNT - 1)*(sizeof((*a)->s)) + 1) * sizeof(uint32_t));
+bool rustsimplicity_0_6_rsort(const sha256_midstate** a, uint_fast32_t len) {
+  uint32_t *stack = rustsimplicity_0_6_malloc(((CHAR_COUNT - 1)*(sizeof((*a)->s)) + 1) * sizeof(uint32_t));
   if (!stack) return false;
   rsort_ex(a, len, NULL, stack);
-  rustsimplicity_0_5_free(stack);
+  rustsimplicity_0_6_free(stack);
   return true;
 }
 
@@ -262,14 +262,14 @@ bool rustsimplicity_0_5_rsort(const sha256_midstate** a, uint_fast32_t len) {
  * Precondition: const sha256_midstate a[len];
  *               len <= DAG_LEN_MAX;
  */
-int rustsimplicity_0_5_hasDuplicates(const sha256_midstate* a, uint_fast32_t len) {
+int rustsimplicity_0_6_hasDuplicates(const sha256_midstate* a, uint_fast32_t len) {
   if (len < 2) return 0;
   static_assert(sizeof(a->s) * CHAR_BIT == 256, "sha256_midstate.s has unnamed padding.");
   static_assert(DAG_LEN_MAX <= UINT32_MAX, "DAG_LEN_MAX does not fit in uint32_t.");
   static_assert(DAG_LEN_MAX <= SIZE_MAX / sizeof(const sha256_midstate*), "perm array too large.");
-  rustsimplicity_0_5_assert((size_t)len <= SIZE_MAX / sizeof(const sha256_midstate*));
-  const sha256_midstate **perm = rustsimplicity_0_5_malloc(len * sizeof(const sha256_midstate*));
-  uint32_t *stack = rustsimplicity_0_5_malloc(((CHAR_COUNT - 1)*(sizeof((*perm)->s)) + 1) * sizeof(uint32_t));
+  rustsimplicity_0_6_assert((size_t)len <= SIZE_MAX / sizeof(const sha256_midstate*));
+  const sha256_midstate **perm = rustsimplicity_0_6_malloc(len * sizeof(const sha256_midstate*));
+  uint32_t *stack = rustsimplicity_0_6_malloc(((CHAR_COUNT - 1)*(sizeof((*perm)->s)) + 1) * sizeof(uint32_t));
   int result = perm && stack ? 0 : -1;
 
   if (0 <= result) {
@@ -282,7 +282,7 @@ int rustsimplicity_0_5_hasDuplicates(const sha256_midstate* a, uint_fast32_t len
     result = NULL != duplicate;
   }
 
-  rustsimplicity_0_5_free(perm);
-  rustsimplicity_0_5_free(stack);
+  rustsimplicity_0_6_free(perm);
+  rustsimplicity_0_6_free(stack);
   return result;
 }

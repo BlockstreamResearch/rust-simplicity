@@ -24,7 +24,7 @@
  *                      '(*bound_var)[i]' is bound to 'A' and '(*bound_var)[j]' is bound to 'B'
  *                   and, '*word256_ix < *extra_var_start' and '(*bound_var)[*word256_ix]' is bound the type 'TWO^256'
  */
-size_t rustsimplicity_0_5_elements_mallocBoundVars(unification_var** bound_var, size_t* word256_ix, size_t* extra_var_start, size_t extra_var_len);
+size_t rustsimplicity_0_6_elements_mallocBoundVars(unification_var** bound_var, size_t* word256_ix, size_t* extra_var_start, size_t extra_var_len);
 
 /* Decode an Elements specific jet from 'stream' into 'node'.
  * All jets begin with a bit prefix of '1' which needs to have already been consumed from the 'stream'.
@@ -36,6 +36,6 @@ size_t rustsimplicity_0_5_elements_mallocBoundVars(unification_var** bound_var, 
  * Precondition: NULL != node
  *               NULL != stream
  */
-simplicity_err rustsimplicity_0_5_elements_decodeJet(dag_node* node, bitstream* stream);
+simplicity_err rustsimplicity_0_6_elements_decodeJet(dag_node* node, bitstream* stream);
 
 #endif

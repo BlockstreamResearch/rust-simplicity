@@ -32,7 +32,7 @@ static sha256_midstate tmrIV(typeName kind) {
  *
  * Precondition: type type_dag[len] and 'type_dag' is well-formed.
  */
-void rustsimplicity_0_5_computeTypeAnalyses(type* type_dag, const size_t len) {
+void rustsimplicity_0_6_computeTypeAnalyses(type* type_dag, const size_t len) {
   for (size_t i = 0; i < len; ++i) {
     type_dag[i].skip = i;
     switch (type_dag[i].kind) {
@@ -61,7 +61,7 @@ void rustsimplicity_0_5_computeTypeAnalyses(type* type_dag, const size_t len) {
      case PRODUCT:
       memcpy(block, type_dag[type_dag[i].typeArg[0]].typeMerkleRoot.s, sizeof(uint32_t[8]));
       memcpy(block + 8, type_dag[type_dag[i].typeArg[1]].typeMerkleRoot.s, sizeof(uint32_t[8]));
-      rustsimplicity_0_5_sha256_compression(type_dag[i].typeMerkleRoot.s, block);
+      rustsimplicity_0_6_sha256_compression(type_dag[i].typeMerkleRoot.s, block);
     }
   }
 }

@@ -16,7 +16,7 @@
  * Precondition: NULL != node
  *               NULL != stream
  */
-typedef simplicity_err (*rustsimplicity_0_5_callback_decodeJet)(dag_node* node, bitstream* stream);
+typedef simplicity_err (*rustsimplicity_0_6_callback_decodeJet)(dag_node* node, bitstream* stream);
 
 /* Decode a length-prefixed Simplicity DAG from 'stream'.
  * Returns 'SIMPLICITY_ERR_DATA_OUT_OF_RANGE' the length prefix's value is too large.
@@ -40,6 +40,6 @@ typedef simplicity_err (*rustsimplicity_0_5_callback_decodeJet)(dag_node* node, 
  *                          of the function is positive and when NULL != census;
  *                NULL == *dag when the return value is negative.
  */
-int_fast32_t rustsimplicity_0_5_decodeMallocDag(dag_node** dag, rustsimplicity_0_5_callback_decodeJet decodeJet, combinator_counters* census, bitstream* stream);
+int_fast32_t rustsimplicity_0_6_decodeMallocDag(dag_node** dag, rustsimplicity_0_6_callback_decodeJet decodeJet, combinator_counters* census, bitstream* stream);
 
 #endif

@@ -58,17 +58,19 @@ simplicity-lang = "0.5"
 ```rust
 use simplicity::node::CoreConstructible;
 use simplicity::types::Context;
-use simplicity::{ConstructNode, Core};
+use simplicity::{ConstructNode, jet::Core};
 use std::sync::Arc;
 
 // Create a trivial Simplicity program
-let ctx = Context::new();
-let program = Arc::<ConstructNode<Core>>::unit(&ctx);
+let program = Context::with_context(|ctx| {
+    let construct = Arc::<ConstructNode<Core>>::unit(&ctx);
+    construct.finalize_types().unwrap()
+});
 
 // Encode the program to bytes
-let encoded = simplicity::bit_encoding::write_to_vec(|w| {
+let encoded: Vec<u8> = simplicity::write_to_vec(|w| {
     program.encode_without_witness(w)
-}).unwrap();
+});
 ```
 
 ## Relationship to libsimplicity
