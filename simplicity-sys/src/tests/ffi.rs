@@ -376,7 +376,7 @@ pub mod elements {
 
 pub mod eval {
     use super::*;
-    use crate::c_jets::c_env::CElementsTxEnv;
+    use crate::c_jets::c_env::elements;
     use crate::ffi::UWORD;
     use crate::tests::ffi::dag::CDagNode;
     use crate::tests::ffi::ty::CType;
@@ -399,7 +399,7 @@ pub mod eval {
             type_dag: *mut CType,
             len: c_size_t,
             budget: *const ubounded,
-            env: *const CElementsTxEnv,
+            env: *const elements::CTxEnv,
         ) -> SimplicityErr;
 
         /// Given a well-typed dag representing a Simplicity expression,
@@ -435,7 +435,7 @@ pub mod eval {
         type_dag: *mut CType,
         len: c_size_t,
         budget: *const ubounded,
-        env: *const CElementsTxEnv,
+        env: *const elements::CTxEnv,
     ) -> SimplicityErr {
         simplicity_evalTCOExpression(
             CHECK_ALL,

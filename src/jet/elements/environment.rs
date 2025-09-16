@@ -3,7 +3,7 @@
 use crate::merkle::cmr::Cmr;
 use elements::confidential;
 use elements::taproot::ControlBlock;
-use simplicity_sys::c_jets::c_env::CElementsTxEnv;
+use simplicity_sys::c_jets::c_env::elements as c_elements;
 use std::ops::Deref;
 
 use super::c_env;
@@ -39,7 +39,7 @@ impl From<elements::TxOut> for ElementsUtxo {
 #[derive(Debug)]
 pub struct ElementsEnv<T: Deref<Target = elements::Transaction>> {
     /// The CTxEnv struct
-    c_tx_env: CElementsTxEnv,
+    c_tx_env: c_elements::CTxEnv,
     /// The elements transaction
     tx: T,
     /// the current index of the input
@@ -79,7 +79,7 @@ where
     }
 
     /// Obtains the FFI compatible CTxEnv from self
-    pub fn c_tx_env(&self) -> &CElementsTxEnv {
+    pub fn c_tx_env(&self) -> &c_elements::CTxEnv {
         &self.c_tx_env
     }
 

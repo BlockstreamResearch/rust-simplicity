@@ -3,8 +3,8 @@
 //! High level APIs for creating C FFI compatible environment.
 //!
 
-use elements::secp256k1_zkp::ffi::CPtr;
-use std::os::raw::{c_uchar, c_uint};
+use hashes::Hash;
+use std::os::raw::c_uchar;
 
 use elements::{
     confidential,
@@ -12,82 +12,98 @@ use elements::{
     secp256k1_zkp::{RangeProof, SurjectionProof},
     taproot::ControlBlock,
 };
-use simplicity_sys::c_jets::c_env::{
-    c_set_rawElementsInput, c_set_rawElementsOutput, c_set_rawElementsTapEnv,
-    c_set_rawElementsTransaction, c_set_txEnv, simplicity_elements_mallocTapEnv,
-    simplicity_elements_mallocTransaction, CElementsRawBuffer, CElementsRawInput,
-    CElementsRawOutput, CElementsRawTapEnv, CElementsRawTransaction, CElementsTxEnv, CTapEnv,
-    CTransaction, RawInputData, RawOutputData, RawTransactionData,
-};
+use simplicity_sys::c_jets::c_env::elements as c_elements;
 
 use crate::merkle::cmr::Cmr;
 
 use super::ElementsUtxo;
 
-fn new_raw_output(out: &elements::TxOut, out_data: &RawOutputData) -> CElementsRawOutput {
-    unsafe {
-        let mut raw_output = std::mem::MaybeUninit::<CElementsRawOutput>::uninit();
-        c_set_rawElementsOutput(
-            raw_output.as_mut_ptr(),
-            asset_ptr(out.asset, &out_data.asset),
-            value_ptr(out.value, &out_data.value),
-            nonce_ptr(out.nonce, &out_data.nonce),
-            &script_ptr(&out.script_pubkey),
-            &surjection_proof_ptr(&out_data.surjection_proof),
-            &range_proof_ptr(&out_data.range_proof),
-        );
-        raw_output.assume_init()
+/// Holds transaction output data which needs to be re-serialized before being
+/// passed to the C FFI.
+#[derive(Debug)]
+struct RawOutputData {
+    pub asset: Option<[c_uchar; 33]>,
+    pub value: Vec<c_uchar>,
+    pub nonce: Option<[c_uchar; 33]>,
+    pub surjection_proof: Vec<c_uchar>,
+    pub range_proof: Vec<c_uchar>,
+}
+
+/// Holds transaction input data which needs to be re-serialized before being
+/// passed to the C FFI.
+#[derive(Debug)]
+struct RawInputData {
+    #[allow(dead_code)] // see FIXME below
+    pub annex: Option<Vec<c_uchar>>,
+    // pegin
+    pub genesis_hash: Option<[c_uchar; 32]>,
+    // issuance
+    pub issuance_amount: Vec<c_uchar>,
+    pub issuance_inflation_keys: Vec<c_uchar>,
+    pub amount_range_proof: Vec<c_uchar>,
+    pub inflation_keys_range_proof: Vec<c_uchar>,
+    // spent txo
+    pub asset: Option<[c_uchar; 33]>,
+    pub value: Vec<c_uchar>,
+}
+
+/// Holds transaction data which needs to be re-serialized before being
+/// passed to the C FFI.
+#[derive(Debug)]
+struct RawTransactionData {
+    pub inputs: Vec<RawInputData>,
+    pub outputs: Vec<RawOutputData>,
+}
+
+fn new_raw_output<'raw>(
+    out: &elements::TxOut,
+    out_data: &'raw RawOutputData,
+) -> c_elements::CRawOutput<'raw> {
+    c_elements::CRawOutput {
+        asset: out_data.asset.as_ref(),
+        value: value_ptr(out.value, &out_data.value),
+        nonce: out_data.nonce.as_ref(),
+        script_pubkey: c_elements::CRawBuffer::new(out.script_pubkey.as_bytes()),
+        surjection_proof: c_elements::CRawBuffer::new(&out_data.surjection_proof),
+        range_proof: c_elements::CRawBuffer::new(&out_data.range_proof),
     }
 }
 
-fn new_raw_input(
-    inp: &elements::TxIn,
-    in_utxo: &ElementsUtxo,
-    inp_data: &RawInputData,
-) -> CElementsRawInput {
-    unsafe {
-        let mut raw_input = std::mem::MaybeUninit::<CElementsRawInput>::uninit();
-
-        let (issue_nonce_ptr, issue_entropy_ptr, issue_amt_ptr, issue_infl_key_ptr) =
-            if inp.has_issuance() {
-                (
-                    inp.asset_issuance.asset_blinding_nonce.as_c_ptr(),
-                    inp.asset_issuance.asset_entropy.as_ptr(),
-                    value_ptr(inp.asset_issuance.amount, &inp_data.issuance_amount),
-                    value_ptr(
-                        inp.asset_issuance.inflation_keys,
-                        &inp_data.issuance_inflation_keys,
-                    ),
-                )
-            } else {
-                (
-                    std::ptr::null(),
-                    std::ptr::null(),
-                    std::ptr::null(),
-                    std::ptr::null(),
-                )
-            };
-        c_set_rawElementsInput(
-            raw_input.as_mut_ptr(),
-            opt_ptr(annex_ptr(&inp_data.annex).as_ref()),
-            inp.pegin_data()
-                .map(|x| AsRef::<[u8]>::as_ref(&x.genesis_hash).as_ptr())
-                .unwrap_or(std::ptr::null()),
-            &script_ptr(&inp.script_sig),
-            AsRef::<[u8]>::as_ref(&inp.previous_output.txid).as_ptr(),
-            inp.previous_output.vout as c_uint,
-            asset_ptr(in_utxo.asset, &inp_data.asset),
-            value_ptr(in_utxo.value, &inp_data.value),
-            &script_ptr(&in_utxo.script_pubkey),
-            inp.sequence.0 as c_uint,
-            issue_nonce_ptr, // FIXME: CHECK ASSET ISSUANCE IS NOT NULL. EASIER WITH NEW ELEMENTS VERSION.
-            issue_entropy_ptr,
-            issue_amt_ptr,
-            issue_infl_key_ptr,
-            &range_proof_ptr(&inp_data.amount_range_proof),
-            &range_proof_ptr(&inp_data.inflation_keys_range_proof),
-        );
-        raw_input.assume_init()
+fn new_raw_input<'raw>(
+    inp: &'raw elements::TxIn,
+    in_utxo: &'raw ElementsUtxo,
+    inp_data: &'raw RawInputData,
+) -> c_elements::CRawInput<'raw> {
+    c_elements::CRawInput {
+        // FIXME actually pass the annex in; see https://github.com/BlockstreamResearch/simplicity/issues/311 for some difficulty here.
+        annex: core::ptr::null(),
+        prev_txid: inp.previous_output.txid.as_ref(),
+        pegin: inp_data.genesis_hash.as_ref(),
+        issuance: if inp.has_issuance() {
+            c_elements::CRawInputIssuance {
+                blinding_nonce: Some(inp.asset_issuance.asset_blinding_nonce.as_ref()),
+                asset_entropy: Some(&inp.asset_issuance.asset_entropy),
+                amount: value_ptr(inp.asset_issuance.amount, &inp_data.issuance_amount),
+                inflation_keys: value_ptr(
+                    inp.asset_issuance.inflation_keys,
+                    &inp_data.issuance_inflation_keys,
+                ),
+                amount_range_proof: c_elements::CRawBuffer::new(&inp_data.amount_range_proof),
+                inflation_keys_range_proof: c_elements::CRawBuffer::new(
+                    &inp_data.inflation_keys_range_proof,
+                ),
+            }
+        } else {
+            c_elements::CRawInputIssuance::no_issuance()
+        },
+        txo: c_elements::CRawInputTxo {
+            asset: inp_data.asset.as_ref(),
+            value: value_ptr(in_utxo.value, &inp_data.value),
+            script_pubkey: c_elements::CRawBuffer::new(in_utxo.script_pubkey.as_bytes()),
+        },
+        script_sig: c_elements::CRawBuffer::new(inp.script_sig.as_bytes()),
+        prev_txout_index: inp.previous_output.vout,
+        sequence: inp.sequence.to_consensus_u32(),
     }
 }
 
@@ -99,22 +115,25 @@ fn new_tx_data(tx: &elements::Transaction, in_utxos: &[ElementsUtxo]) -> RawTran
     for (inp, in_utxo) in tx.input.iter().zip(in_utxos.iter()) {
         let inp_data = RawInputData {
             annex: None, // Actually store annex
+            genesis_hash: inp
+                .pegin_data()
+                .map(|x| x.genesis_hash.to_raw_hash().to_byte_array()),
             issuance_amount: serialize(&inp.asset_issuance.amount),
             issuance_inflation_keys: serialize(&inp.asset_issuance.inflation_keys),
             amount_range_proof: serialize_rangeproof(&inp.witness.amount_rangeproof),
             inflation_keys_range_proof: serialize_rangeproof(
                 &inp.witness.inflation_keys_rangeproof,
             ),
-            asset: serialize(&in_utxo.asset),
+            asset: asset_array(&in_utxo.asset),
             value: serialize(&in_utxo.value),
         };
         tx_data.inputs.push(inp_data);
     }
     for out in &tx.output {
         let out_data = RawOutputData {
-            asset: serialize(&out.asset),
+            asset: asset_array(&out.asset),
             value: serialize(&out.value),
-            nonce: serialize(&out.nonce),
+            nonce: nonce_array(&out.nonce),
             surjection_proof: serialize_surjection_proof(&out.witness.surjection_proof),
             range_proof: serialize_rangeproof(&out.witness.rangeproof),
         };
@@ -123,7 +142,10 @@ fn new_tx_data(tx: &elements::Transaction, in_utxos: &[ElementsUtxo]) -> RawTran
     tx_data
 }
 
-pub(super) fn new_tx(tx: &elements::Transaction, in_utxos: &[ElementsUtxo]) -> *mut CTransaction {
+pub(super) fn new_tx(
+    tx: &elements::Transaction,
+    in_utxos: &[ElementsUtxo],
+) -> *mut c_elements::CTransaction {
     let mut raw_inputs = Vec::new();
     let mut raw_outputs = Vec::new();
     let txid = tx.txid();
@@ -140,47 +162,53 @@ pub(super) fn new_tx(tx: &elements::Transaction, in_utxos: &[ElementsUtxo]) -> *
     for (out, out_data) in tx.output.iter().zip(tx_data.outputs.iter()) {
         raw_outputs.push(new_raw_output(out, out_data));
     }
+
+    let c_raw_tx = c_elements::CRawTransaction {
+        txid: txid.as_raw_hash().as_byte_array(),
+        inputs: raw_inputs.as_ptr(),
+        outputs: raw_outputs.as_ptr(),
+        n_inputs: raw_inputs.len().try_into().expect("sane length"),
+        n_outputs: raw_outputs.len().try_into().expect("sane length"),
+        version: tx.version,
+        locktime: tx.lock_time.to_consensus_u32(),
+    };
     unsafe {
-        let mut raw_tx = std::mem::MaybeUninit::<CElementsRawTransaction>::uninit();
-        c_set_rawElementsTransaction(
-            raw_tx.as_mut_ptr(),
-            tx.version as c_uint,
-            AsRef::<[u8]>::as_ref(&txid).as_ptr(),
-            raw_inputs.as_ptr(),
-            raw_inputs.len() as c_uint,
-            raw_outputs.as_ptr(),
-            raw_outputs.len() as c_uint,
-            tx.lock_time.to_consensus_u32() as c_uint,
-        );
-        let raw_tx = raw_tx.assume_init();
-        simplicity_elements_mallocTransaction(&raw_tx)
+        // SAFETY: this is a FFI call and we constructed its argument correctly.
+        c_elements::simplicity_mallocTransaction(&c_raw_tx)
     }
 }
 
-pub(super) fn new_tap_env(control_block: &ControlBlock, script_cmr: Cmr) -> *mut CTapEnv {
+pub(super) fn new_tap_env(
+    control_block: &ControlBlock,
+    script_cmr: Cmr,
+) -> *mut c_elements::CTapEnv {
+    let cb_ser = control_block.serialize();
+    let raw_tap_env = c_elements::CRawTapEnv {
+        control_block: cb_ser.as_ptr(),
+        script_cmr: script_cmr.as_ref().as_ptr(),
+        branch_len: control_block
+            .merkle_branch
+            .as_inner()
+            .len()
+            .try_into()
+            .expect("sane length"),
+    };
+
     unsafe {
-        let mut raw_tap_env = std::mem::MaybeUninit::<CElementsRawTapEnv>::uninit();
-        let cb_ser = control_block.serialize();
-        c_set_rawElementsTapEnv(
-            raw_tap_env.as_mut_ptr(),
-            cb_ser.as_ptr(),
-            control_block.merkle_branch.as_inner().len() as c_uchar,
-            script_cmr.as_ref().as_ptr(),
-        );
-        let raw_tap_env = raw_tap_env.assume_init();
-        simplicity_elements_mallocTapEnv(&raw_tap_env)
+        // SAFETY: this is a FFI call and we constructed its argument correctly.
+        c_elements::simplicity_mallocTapEnv(&raw_tap_env)
     }
 }
 
 pub(super) fn new_tx_env(
-    tx: *const CTransaction,
-    taproot: *const CTapEnv,
+    tx: *const c_elements::CTransaction,
+    taproot: *const c_elements::CTapEnv,
     genesis_hash: elements::BlockHash,
     ix: u32,
-) -> CElementsTxEnv {
+) -> c_elements::CTxEnv {
     unsafe {
-        let mut tx_env = std::mem::MaybeUninit::<CElementsTxEnv>::uninit();
-        c_set_txEnv(
+        let mut tx_env = std::mem::MaybeUninit::<c_elements::CTxEnv>::uninit();
+        c_elements::c_set_txEnv(
             tx_env.as_mut_ptr(),
             tx,
             taproot,
@@ -191,12 +219,20 @@ pub(super) fn new_tx_env(
     }
 }
 
-fn asset_ptr(asset: confidential::Asset, data: &[u8]) -> *const c_uchar {
-    if asset.is_null() {
-        std::ptr::null()
-    } else {
-        data.as_ptr()
-    }
+fn asset_array(asset: &confidential::Asset) -> Option<[u8; 33]> {
+    (!asset.is_null()).then(|| {
+        serialize(asset)
+            .try_into()
+            .expect("non-null asset is 33 bytes")
+    })
+}
+
+fn nonce_array(nonce: &confidential::Nonce) -> Option<[u8; 33]> {
+    (!nonce.is_null()).then(|| {
+        serialize(nonce)
+            .try_into()
+            .expect("non-null asset is 33 bytes")
+    })
 }
 
 fn value_ptr(value: confidential::Value, data: &[u8]) -> *const c_uchar {
@@ -205,38 +241,6 @@ fn value_ptr(value: confidential::Value, data: &[u8]) -> *const c_uchar {
     } else {
         data.as_ptr()
     }
-}
-
-fn nonce_ptr(nonce: confidential::Nonce, data: &[u8]) -> *const c_uchar {
-    if nonce.is_null() {
-        std::ptr::null()
-    } else {
-        data.as_ptr()
-    }
-}
-
-fn opt_ptr<T>(t: Option<&T>) -> *const T {
-    if let Some(t) = t {
-        t
-    } else {
-        std::ptr::null()
-    }
-}
-
-fn script_ptr(script: &elements::Script) -> CElementsRawBuffer {
-    CElementsRawBuffer::new(script.as_bytes())
-}
-
-fn annex_ptr(annex: &Option<Vec<c_uchar>>) -> Option<CElementsRawBuffer> {
-    annex.as_ref().map(|annex| CElementsRawBuffer::new(annex))
-}
-
-fn surjection_proof_ptr(surjection_proof: &[c_uchar]) -> CElementsRawBuffer {
-    CElementsRawBuffer::new(surjection_proof)
-}
-
-fn range_proof_ptr(rangeproof: &[c_uchar]) -> CElementsRawBuffer {
-    CElementsRawBuffer::new(rangeproof)
 }
 
 fn serialize_rangeproof(rangeproof: &Option<Box<RangeProof>>) -> Vec<c_uchar> {
