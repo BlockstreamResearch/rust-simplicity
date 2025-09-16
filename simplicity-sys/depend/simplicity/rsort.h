@@ -22,7 +22,7 @@
  *
  * Precondition: For all 0 <= i < len, NULL != a[i];
  */
-bool rustsimplicity_0_5_rsort(const sha256_midstate** a, uint_fast32_t len);
+bool rustsimplicity_0_6_rsort(const sha256_midstate** a, uint_fast32_t len);
 
 /* Searches for duplicates in an array of 'sha256_midstate's.
  * If malloc fails, returns -1.
@@ -32,6 +32,6 @@ bool rustsimplicity_0_5_rsort(const sha256_midstate** a, uint_fast32_t len);
  * Precondition: const sha256_midstate a[len];
  *               len <= DAG_LEN_MAX;
  */
-int rustsimplicity_0_5_hasDuplicates(const sha256_midstate* a, uint_fast32_t len);
+int rustsimplicity_0_6_hasDuplicates(const sha256_midstate* a, uint_fast32_t len);
 
 #endif

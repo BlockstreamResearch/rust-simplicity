@@ -30,7 +30,7 @@ typedef struct bitstring {
  */
 static inline bool getBit(const bitstring *s, size_t n) {
   size_t total_offset = s->offset + n;
-  rustsimplicity_0_5_assert(n < s->len);
+  rustsimplicity_0_6_assert(n < s->len);
   return 1 & (s->arr[total_offset / CHAR_BIT] >> (CHAR_BIT - 1 - (total_offset % CHAR_BIT)));
 }
 
@@ -40,8 +40,8 @@ static inline bool getBit(const bitstring *s, size_t n) {
  *               n + 8 <= s->len;
  */
 static inline uint_fast8_t getByte(const bitstring *s, size_t n) {
-  rustsimplicity_0_5_assert(8 <= s->len);
-  rustsimplicity_0_5_assert(n <= s->len - 8);
+  rustsimplicity_0_6_assert(8 <= s->len);
+  rustsimplicity_0_6_assert(n <= s->len - 8);
   size_t total_offset = s->offset + n;
   if (total_offset % CHAR_BIT <= CHAR_BIT - 8) {
     return (uint_fast8_t)(0xff & (s->arr[total_offset / CHAR_BIT] >> (CHAR_BIT - 8 - (total_offset % CHAR_BIT))));

@@ -30,7 +30,7 @@ static void writeHash(frameItem* dst, const sha256_midstate* h) {
  */
 static void prevOutpoint(frameItem* dst, const outpoint* op) {
   writeHash(dst, &op->txid);
-  rustsimplicity_0_5_write32(dst, op->ix);
+  rustsimplicity_0_6_write32(dst, op->ix);
 }
 
 /* Write an confidential asset to the 'dst' frame, advancing the cursor 258 cells.
@@ -55,7 +55,7 @@ static void asset(frameItem* dst, const confidential* asset) {
 static void amt(frameItem* dst, const confAmount* amt) {
   if (writeBit(dst, EXPLICIT == amt->prefix)) {
     skipBits(dst, 1 + 256 - 64);
-    rustsimplicity_0_5_write64(dst, amt->explicit);
+    rustsimplicity_0_6_write64(dst, amt->explicit);
   } else {
     writeBit(dst, ODD_Y == amt->prefix);
     writeHash(dst, &amt->confidential);
@@ -189,22 +189,22 @@ static uint_fast64_t lookup_fee(const sha256_midstate* assetid, const sigOutput*
 }
 
 /* version : ONE |- TWO^32 */
-bool rustsimplicity_0_5_version(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_version(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_5_write32(dst, env->tx->version);
+  rustsimplicity_0_6_write32(dst, env->tx->version);
   return true;
 }
 
 /* lock_time : ONE |- TWO^32 */
-bool rustsimplicity_0_5_lock_time(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_lock_time(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_5_write32(dst, env->tx->lockTime);
+  rustsimplicity_0_6_write32(dst, env->tx->lockTime);
   return true;
 }
 
 /* input_pegin : TWO^32 |- S (S TWO^256) */
-bool rustsimplicity_0_5_input_pegin(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_input_pegin(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     if (writeBit(dst, env->tx->input[i].isPegin)) {
       writeHash(dst, &env->tx->input[i].pegin);
@@ -218,8 +218,8 @@ bool rustsimplicity_0_5_input_pegin(frameItem* dst, frameItem src, const txEnv* 
 }
 
 /* input_prev_outpoint : TWO^32 |- S (TWO^256 * TWO^32) */
-bool rustsimplicity_0_5_input_prev_outpoint(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_input_prev_outpoint(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     prevOutpoint(dst, &env->tx->input[i].prevOutpoint);
   } else {
@@ -229,8 +229,8 @@ bool rustsimplicity_0_5_input_prev_outpoint(frameItem* dst, frameItem src, const
 }
 
 /* input_asset : TWO^32 |- S (Conf TWO^256) */
-bool rustsimplicity_0_5_input_asset(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_input_asset(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     asset(dst, &env->tx->input[i].txo.asset);
   } else {
@@ -240,8 +240,8 @@ bool rustsimplicity_0_5_input_asset(frameItem* dst, frameItem src, const txEnv* 
 }
 
 /* input_amount : TWO^32 |- S (Conf TWO^256, Conf TWO^64) */
-bool rustsimplicity_0_5_input_amount(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_input_amount(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     asset(dst, &env->tx->input[i].txo.asset);
     amt(dst, &env->tx->input[i].txo.amt);
@@ -252,8 +252,8 @@ bool rustsimplicity_0_5_input_amount(frameItem* dst, frameItem src, const txEnv*
 }
 
 /* input_script_hash : TWO^32 |- S TWO^256 */
-bool rustsimplicity_0_5_input_script_hash(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_input_script_hash(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     writeHash(dst, &env->tx->input[i].txo.scriptPubKey);
   } else {
@@ -263,10 +263,10 @@ bool rustsimplicity_0_5_input_script_hash(frameItem* dst, frameItem src, const t
 }
 
 /* input_sequence : TWO^32 |- S TWO^32 */
-bool rustsimplicity_0_5_input_sequence(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_input_sequence(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
-    rustsimplicity_0_5_write32(dst, env->tx->input[i].sequence);
+    rustsimplicity_0_6_write32(dst, env->tx->input[i].sequence);
   } else {
     skipBits(dst, 32);
   }
@@ -274,8 +274,8 @@ bool rustsimplicity_0_5_input_sequence(frameItem* dst, frameItem src, const txEn
 }
 
 /* reissuance_blinding : TWO^32 |- S (S TWO^256) */
-bool rustsimplicity_0_5_reissuance_blinding(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_reissuance_blinding(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     reissuanceBlinding(dst, &env->tx->input[i].issuance);
   } else {
@@ -285,8 +285,8 @@ bool rustsimplicity_0_5_reissuance_blinding(frameItem* dst, frameItem src, const
 }
 
 /* new_issuance_contract : TWO^32 |- S (S TWO^256) */
-bool rustsimplicity_0_5_new_issuance_contract(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_new_issuance_contract(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     newIssuanceContract(dst, &env->tx->input[i].issuance);
   } else {
@@ -296,8 +296,8 @@ bool rustsimplicity_0_5_new_issuance_contract(frameItem* dst, frameItem src, con
 }
 
 /* reissuance_entropy : TWO^32 |- S (S TWO^256) */
-bool rustsimplicity_0_5_reissuance_entropy(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_reissuance_entropy(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     reissuanceEntropy(dst, &env->tx->input[i].issuance);
   } else {
@@ -307,8 +307,8 @@ bool rustsimplicity_0_5_reissuance_entropy(frameItem* dst, frameItem src, const 
 }
 
 /* issuance_asset_amount : TWO^32 |- S (S (Conf TWO^64)) */
-bool rustsimplicity_0_5_issuance_asset_amount(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_issuance_asset_amount(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     issuanceAssetAmt(dst, &env->tx->input[i].issuance);
   } else {
@@ -318,8 +318,8 @@ bool rustsimplicity_0_5_issuance_asset_amount(frameItem* dst, frameItem src, con
 }
 
 /* issuance_token_amount : TWO^32 |- S (S (Conf TWO^64)) */
-bool rustsimplicity_0_5_issuance_token_amount(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_issuance_token_amount(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     issuanceTokenAmt(dst, &env->tx->input[i].issuance);
   } else {
@@ -329,8 +329,8 @@ bool rustsimplicity_0_5_issuance_token_amount(frameItem* dst, frameItem src, con
 }
 
 /* issuance_asset_proof : TWO^32 |- S TWO^256 */
-bool rustsimplicity_0_5_issuance_asset_proof(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_issuance_asset_proof(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     writeHash(dst, &env->tx->input[i].issuance.assetRangeProofHash);
   } else {
@@ -340,8 +340,8 @@ bool rustsimplicity_0_5_issuance_asset_proof(frameItem* dst, frameItem src, cons
 }
 
 /* issuance_token_proof : TWO^32 |- S TWO^256 */
-bool rustsimplicity_0_5_issuance_token_proof(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_issuance_token_proof(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     writeHash(dst, &env->tx->input[i].issuance.tokenRangeProofHash);
   } else {
@@ -351,8 +351,8 @@ bool rustsimplicity_0_5_issuance_token_proof(frameItem* dst, frameItem src, cons
 }
 
 /* input_annex_hash : TWO^32 |- S (S (TWO^256)) */
-bool rustsimplicity_0_5_input_annex_hash(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_input_annex_hash(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     if (writeBit(dst, env->tx->input[i].hasAnnex)) {
       writeHash(dst, &env->tx->input[i].annexHash);
@@ -366,8 +366,8 @@ bool rustsimplicity_0_5_input_annex_hash(frameItem* dst, frameItem src, const tx
 }
 
 /* input_script_sig_hash : TWO^32 |- (S (TWO^256) */
-bool rustsimplicity_0_5_input_script_sig_hash(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_input_script_sig_hash(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     writeHash(dst, &env->tx->input[i].scriptSigHash);
   } else {
@@ -377,8 +377,8 @@ bool rustsimplicity_0_5_input_script_sig_hash(frameItem* dst, frameItem src, con
 }
 
 /* output_asset : TWO^32 |- S (Conf TWO^256) */
-bool rustsimplicity_0_5_output_asset(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_output_asset(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numOutputs)) {
     asset(dst, &env->tx->output[i].asset);
   } else {
@@ -388,8 +388,8 @@ bool rustsimplicity_0_5_output_asset(frameItem* dst, frameItem src, const txEnv*
 }
 
 /* output_amount : TWO^32 |- S (Conf TWO^256, Conf TWO^64) */
-bool rustsimplicity_0_5_output_amount(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_output_amount(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numOutputs)) {
     asset(dst, &env->tx->output[i].asset);
     amt(dst, &env->tx->output[i].amt);
@@ -400,8 +400,8 @@ bool rustsimplicity_0_5_output_amount(frameItem* dst, frameItem src, const txEnv
 }
 
 /* output_nonce : TWO^32 |- S (S (Conf TWO^256)) */
-bool rustsimplicity_0_5_output_nonce(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_output_nonce(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numOutputs)) {
     nonce(dst, &env->tx->output[i].nonce);
   } else {
@@ -411,8 +411,8 @@ bool rustsimplicity_0_5_output_nonce(frameItem* dst, frameItem src, const txEnv*
 }
 
 /* output_script_hash : TWO^32 |- S TWO^256 */
-bool rustsimplicity_0_5_output_script_hash(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_output_script_hash(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numOutputs)) {
     writeHash(dst, &env->tx->output[i].scriptPubKey);
   } else {
@@ -422,10 +422,10 @@ bool rustsimplicity_0_5_output_script_hash(frameItem* dst, frameItem src, const 
 }
 
 /* output_null_datum : TWO^32 * TWO^32 |- S (S (TWO^2 * TWO^256 + (TWO + TWO^4)))  */
-bool rustsimplicity_0_5_output_null_datum(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_output_null_datum(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numOutputs && env->tx->output[i].isNullData)) {
-    uint_fast32_t j = rustsimplicity_0_5_read32(&src);
+    uint_fast32_t j = rustsimplicity_0_6_read32(&src);
     if (writeBit(dst, j < env->tx->output[i].pnd.len)) {
       if (writeBit(dst, OP_PUSHDATA4 < env->tx->output[i].pnd.op[j].code)) {
         skipBits(dst, 2 + 256 - 5);
@@ -450,7 +450,7 @@ bool rustsimplicity_0_5_output_null_datum(frameItem* dst, frameItem src, const t
             default: SIMPLICITY_UNREACHABLE;
           }
         } else {
-          rustsimplicity_0_5_debug_assert(OP_RESERVED == env->tx->output[i].pnd.op[j].code ||
+          rustsimplicity_0_6_debug_assert(OP_RESERVED == env->tx->output[i].pnd.op[j].code ||
                  OP_1NEGATE == env->tx->output[i].pnd.op[j].code);
           skipBits(dst, 3);
           writeBit(dst, OP_RESERVED == env->tx->output[i].pnd.op[j].code);
@@ -475,8 +475,8 @@ bool rustsimplicity_0_5_output_null_datum(frameItem* dst, frameItem src, const t
 }
 
 /* output_is_fee : TWO^32 |- S TWO */
-bool rustsimplicity_0_5_output_is_fee(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_output_is_fee(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numOutputs)) {
     writeBit(dst, isFee(&env->tx->output[i]));
   } else {
@@ -486,8 +486,8 @@ bool rustsimplicity_0_5_output_is_fee(frameItem* dst, frameItem src, const txEnv
 }
 
 /* output_surjection_proof : TWO^32 |- S TWO^256 */
-bool rustsimplicity_0_5_output_surjection_proof(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_output_surjection_proof(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numOutputs)) {
     writeHash(dst, &env->tx->output[i].surjectionProofHash);
   } else {
@@ -497,8 +497,8 @@ bool rustsimplicity_0_5_output_surjection_proof(frameItem* dst, frameItem src, c
 }
 
 /* output_range_proof : TWO^32 |- S TWO^256 */
-bool rustsimplicity_0_5_output_range_proof(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_output_range_proof(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numOutputs)) {
     writeHash(dst, &env->tx->output[i].rangeProofHash);
   } else {
@@ -508,43 +508,43 @@ bool rustsimplicity_0_5_output_range_proof(frameItem* dst, frameItem src, const 
 }
 
 /* total_fee : TWO^256 |- TWO^64 */
-bool rustsimplicity_0_5_total_fee(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_total_fee(frameItem* dst, frameItem src, const txEnv* env) {
   sha256_midstate assetid;
   readHash(&assetid, &src);
-  rustsimplicity_0_5_write64(dst, lookup_fee(&assetid, env->tx->feeOutputs, env->tx->numFees));
+  rustsimplicity_0_6_write64(dst, lookup_fee(&assetid, env->tx->feeOutputs, env->tx->numFees));
   return true;
 }
 
 /* genesis_block_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_genesis_block_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_genesis_block_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   write32s(dst, env->genesisHash.s, 8);
   return true;
 }
 
 /* script_cmr : ONE |- TWO^256 */
-bool rustsimplicity_0_5_script_cmr(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_script_cmr(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   write32s(dst, env->taproot->scriptCMR.s, 8);
   return true;
 }
 
 /* transaction_id : ONE |- TWO^256 */
-bool rustsimplicity_0_5_transaction_id(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_transaction_id(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   write32s(dst, env->tx->txid.s, 8);
   return true;
 }
 
 /* current_index : ONE |- TWO^32 */
-bool rustsimplicity_0_5_current_index(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_current_index(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_5_write32(dst, env->ix);
+  rustsimplicity_0_6_write32(dst, env->ix);
   return true;
 }
 
 /* current_pegin : ONE |- S TWO^256 */
-bool rustsimplicity_0_5_current_pegin(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_current_pegin(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
   if (writeBit(dst, env->tx->input[env->ix].isPegin)) {
@@ -556,7 +556,7 @@ bool rustsimplicity_0_5_current_pegin(frameItem* dst, frameItem src, const txEnv
 }
 
 /* current_prev_outpoint : ONE |- TWO^256 * TWO^32 */
-bool rustsimplicity_0_5_current_prev_outpoint(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_current_prev_outpoint(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
   prevOutpoint(dst, &env->tx->input[env->ix].prevOutpoint);
@@ -564,7 +564,7 @@ bool rustsimplicity_0_5_current_prev_outpoint(frameItem* dst, frameItem src, con
 }
 
 /* current_asset : ONE |- Conf TWO^256 */
-bool rustsimplicity_0_5_current_asset(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_current_asset(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
   asset(dst, &env->tx->input[env->ix].txo.asset);
@@ -572,7 +572,7 @@ bool rustsimplicity_0_5_current_asset(frameItem* dst, frameItem src, const txEnv
 }
 
 /* current_amount : ONE |- (Conf TWO^256, Conf TWO^64) */
-bool rustsimplicity_0_5_current_amount(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_current_amount(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
   asset(dst, &env->tx->input[env->ix].txo.asset);
@@ -581,7 +581,7 @@ bool rustsimplicity_0_5_current_amount(frameItem* dst, frameItem src, const txEn
 }
 
 /* current_script_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_current_script_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_current_script_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
   writeHash(dst, &env->tx->input[env->ix].txo.scriptPubKey);
@@ -589,15 +589,15 @@ bool rustsimplicity_0_5_current_script_hash(frameItem* dst, frameItem src, const
 }
 
 /* current_sequence : ONE |- TWO^32 */
-bool rustsimplicity_0_5_current_sequence(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_current_sequence(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
-  rustsimplicity_0_5_write32(dst, env->tx->input[env->ix].sequence);
+  rustsimplicity_0_6_write32(dst, env->tx->input[env->ix].sequence);
   return true;
 }
 
 /* current_reissuance_blinding : ONE |- S (Conf TWO^256) */
-bool rustsimplicity_0_5_current_reissuance_blinding(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_current_reissuance_blinding(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
   reissuanceBlinding(dst, &env->tx->input[env->ix].issuance);
@@ -605,7 +605,7 @@ bool rustsimplicity_0_5_current_reissuance_blinding(frameItem* dst, frameItem sr
 }
 
 /* current_new_issuance_contract : ONE |- S (Conf TWO^256) */
-bool rustsimplicity_0_5_current_new_issuance_contract(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_current_new_issuance_contract(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
   newIssuanceContract(dst, &env->tx->input[env->ix].issuance);
@@ -613,7 +613,7 @@ bool rustsimplicity_0_5_current_new_issuance_contract(frameItem* dst, frameItem 
 }
 
 /* current_reissuance_entropy : ONE |- S (Conf TWO^256) */
-bool rustsimplicity_0_5_current_reissuance_entropy(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_current_reissuance_entropy(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
   reissuanceEntropy(dst, &env->tx->input[env->ix].issuance);
@@ -621,7 +621,7 @@ bool rustsimplicity_0_5_current_reissuance_entropy(frameItem* dst, frameItem src
 }
 
 /* current_issuance_asset_amount : ONE |- S (Conf TWO^64) */
-bool rustsimplicity_0_5_current_issuance_asset_amount(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_current_issuance_asset_amount(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
   issuanceAssetAmt(dst, &env->tx->input[env->ix].issuance);
@@ -629,7 +629,7 @@ bool rustsimplicity_0_5_current_issuance_asset_amount(frameItem* dst, frameItem 
 }
 
 /* current_issuance_token_amount : ONE |- S (Conf TWO^64) */
-bool rustsimplicity_0_5_current_issuance_token_amount(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_current_issuance_token_amount(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
   issuanceTokenAmt(dst, &env->tx->input[env->ix].issuance);
@@ -637,7 +637,7 @@ bool rustsimplicity_0_5_current_issuance_token_amount(frameItem* dst, frameItem 
 }
 
 /* current_issuance_asset_proof : ONE |- TWO^256 */
-bool rustsimplicity_0_5_current_issuance_asset_proof(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_current_issuance_asset_proof(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
   writeHash(dst, &env->tx->input[env->ix].issuance.assetRangeProofHash);
@@ -645,7 +645,7 @@ bool rustsimplicity_0_5_current_issuance_asset_proof(frameItem* dst, frameItem s
 }
 
 /* current_issuance_token_proof : ONE |- TWO^256 */
-bool rustsimplicity_0_5_current_issuance_token_proof(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_current_issuance_token_proof(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
   writeHash(dst, &env->tx->input[env->ix].issuance.tokenRangeProofHash);
@@ -653,7 +653,7 @@ bool rustsimplicity_0_5_current_issuance_token_proof(frameItem* dst, frameItem s
 }
 
 /* current_script_sig_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_current_script_sig_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_current_script_sig_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
   writeHash(dst, &env->tx->input[env->ix].scriptSigHash);
@@ -661,7 +661,7 @@ bool rustsimplicity_0_5_current_script_sig_hash(frameItem* dst, frameItem src, c
 }
 
 /* current_annex_hash : ONE |- S (TWO^256) */
-bool rustsimplicity_0_5_current_annex_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_current_annex_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
   if (writeBit(dst, env->tx->input[env->ix].hasAnnex)) {
@@ -673,15 +673,15 @@ bool rustsimplicity_0_5_current_annex_hash(frameItem* dst, frameItem src, const 
 }
 
 /* tapleaf_version : ONE |- TWO^8 */
-bool rustsimplicity_0_5_tapleaf_version(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_tapleaf_version(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_5_write8(dst, env->taproot->leafVersion);
+  rustsimplicity_0_6_write8(dst, env->taproot->leafVersion);
   return true;
 }
 
 /* tappath : TWO^8 |- S (TWO^256) */
-bool rustsimplicity_0_5_tappath(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast8_t i = rustsimplicity_0_5_read8(&src);
+bool rustsimplicity_0_6_tappath(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast8_t i = rustsimplicity_0_6_read8(&src);
   if (writeBit(dst, i < env->taproot->pathLen)) {
     writeHash(dst, &env->taproot->path[i]);
   } else {
@@ -691,146 +691,146 @@ bool rustsimplicity_0_5_tappath(frameItem* dst, frameItem src, const txEnv* env)
 }
 
 /* internal_key : ONE |- TWO^256 */
-bool rustsimplicity_0_5_internal_key(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_internal_key(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->taproot->internalKey);
   return true;
 }
 
 /* num_inputs : ONE |- TWO^32 */
-bool rustsimplicity_0_5_num_inputs(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_num_inputs(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_5_write32(dst, env->tx->numInputs);
+  rustsimplicity_0_6_write32(dst, env->tx->numInputs);
   return true;
 }
 
 /* num_outputs : ONE |- TWO^32 */
-bool rustsimplicity_0_5_num_outputs(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_num_outputs(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_5_write32(dst, env->tx->numOutputs);
+  rustsimplicity_0_6_write32(dst, env->tx->numOutputs);
   return true;
 }
 
 /* tx_is_final : ONE |- TWO */
-bool rustsimplicity_0_5_tx_is_final(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_tx_is_final(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeBit(dst, env->tx->isFinal);
   return true;
 }
 
 /* tx_lock_height : ONE |- TWO^32 */
-bool rustsimplicity_0_5_tx_lock_height(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_tx_lock_height(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_5_write32(dst, lockHeight(env->tx));
+  rustsimplicity_0_6_write32(dst, lockHeight(env->tx));
   return true;
 }
 
 /* tx_lock_time : ONE |- TWO^32 */
-bool rustsimplicity_0_5_tx_lock_time(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_tx_lock_time(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_5_write32(dst, lockTime(env->tx));
+  rustsimplicity_0_6_write32(dst, lockTime(env->tx));
   return true;
 }
 
 /* tx_lock_distance : ONE |- TWO^16 */
-bool rustsimplicity_0_5_tx_lock_distance(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_tx_lock_distance(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_5_write16(dst, lockDistance(env->tx));
+  rustsimplicity_0_6_write16(dst, lockDistance(env->tx));
   return true;
 }
 
 /* tx_lock_duration : ONE |- TWO^16 */
-bool rustsimplicity_0_5_tx_lock_duration(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_tx_lock_duration(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_5_write16(dst, lockDuration(env->tx));
+  rustsimplicity_0_6_write16(dst, lockDuration(env->tx));
   return true;
 }
 
 /* check_lock_height : TWO^32 |- ONE */
-bool rustsimplicity_0_5_check_lock_height(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_check_lock_height(frameItem* dst, frameItem src, const txEnv* env) {
   (void) dst; // dst is unused;
-  uint_fast32_t x = rustsimplicity_0_5_read32(&src);
+  uint_fast32_t x = rustsimplicity_0_6_read32(&src);
   return x <= lockHeight(env->tx);
 }
 
 /* check_lock_time : TWO^32 |- ONE */
-bool rustsimplicity_0_5_check_lock_time(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_check_lock_time(frameItem* dst, frameItem src, const txEnv* env) {
   (void) dst; // dst is unused;
-  uint_fast32_t x = rustsimplicity_0_5_read32(&src);
+  uint_fast32_t x = rustsimplicity_0_6_read32(&src);
   return x <= lockTime(env->tx);
 }
 
 /* check_lock_distance : TWO^16 |- ONE */
-bool rustsimplicity_0_5_check_lock_distance(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_check_lock_distance(frameItem* dst, frameItem src, const txEnv* env) {
   (void) dst; // dst is unused;
-  uint_fast16_t x = rustsimplicity_0_5_read16(&src);
+  uint_fast16_t x = rustsimplicity_0_6_read16(&src);
   return x <= lockDistance(env->tx);
 }
 
 /* check_lock_duration : TWO^16 |- ONE */
-bool rustsimplicity_0_5_check_lock_duration(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_check_lock_duration(frameItem* dst, frameItem src, const txEnv* env) {
   (void) dst; // dst is unused;
-  uint_fast16_t x = rustsimplicity_0_5_read16(&src);
+  uint_fast16_t x = rustsimplicity_0_6_read16(&src);
   return x <= lockDuration(env->tx);
 }
 
 /* calculate_issuance_entropy : TWO^256 * TWO^32 * TWO^256 |- TWO^256 */
-bool rustsimplicity_0_5_calculate_issuance_entropy(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_calculate_issuance_entropy(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused.
   outpoint op;
   sha256_midstate contract;
   sha256_midstate result;
 
   read32s(op.txid.s, 8, &src);
-  op.ix = rustsimplicity_0_5_read32(&src);
+  op.ix = rustsimplicity_0_6_read32(&src);
   read32s(contract.s, 8, &src);
 
-  result = rustsimplicity_0_5_generateIssuanceEntropy(&op, &contract);
+  result = rustsimplicity_0_6_generateIssuanceEntropy(&op, &contract);
   writeHash(dst, &result);
   return true;
 }
 
 /* calculate_asset : TWO^256 |- TWO^256 */
-bool rustsimplicity_0_5_calculate_asset(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_calculate_asset(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused.
   sha256_midstate entropy;
   sha256_midstate result;
 
   read32s(entropy.s, 8, &src);
-  result = rustsimplicity_0_5_calculateAsset(&entropy);
+  result = rustsimplicity_0_6_calculateAsset(&entropy);
 
   writeHash(dst, &result);
   return true;
 }
 
 /* calculate_explicit_token : TWO^256 |- TWO^256 */
-bool rustsimplicity_0_5_calculate_explicit_token(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_calculate_explicit_token(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused.
   sha256_midstate entropy;
   sha256_midstate result;
 
   read32s(entropy.s, 8, &src);
-  result = rustsimplicity_0_5_calculateToken(&entropy, EXPLICIT);
+  result = rustsimplicity_0_6_calculateToken(&entropy, EXPLICIT);
 
   writeHash(dst, &result);
   return true;
 }
 
 /* calculate_confidential_token : TWO^256 |- TWO^256 */
-bool rustsimplicity_0_5_calculate_confidential_token(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_calculate_confidential_token(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused.
   sha256_midstate entropy;
   sha256_midstate result;
 
   read32s(entropy.s, 8, &src);
-  result = rustsimplicity_0_5_calculateToken(&entropy, EVEN_Y /* ODD_Y would also work. */);
+  result = rustsimplicity_0_6_calculateToken(&entropy, EVEN_Y /* ODD_Y would also work. */);
 
   writeHash(dst, &result);
   return true;
 }
 
 /* lbtc_asset : ONE |- TWO^256 */
-bool rustsimplicity_0_5_lbtc_asset(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_lbtc_asset(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused.
   (void) env; // env is unused.
   const sha256_midstate lbtc_assetid = {{
@@ -842,43 +842,43 @@ bool rustsimplicity_0_5_lbtc_asset(frameItem* dst, frameItem src, const txEnv* e
 }
 
 /* build_tapleaf_simplicity : TWO^256 |- TWO^256 */
-bool rustsimplicity_0_5_build_tapleaf_simplicity(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_build_tapleaf_simplicity(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused.
   sha256_midstate cmr;
   readHash(&cmr, &src);
-  sha256_midstate result = rustsimplicity_0_5_make_tapleaf(0xbe, &cmr);
+  sha256_midstate result = rustsimplicity_0_6_make_tapleaf(0xbe, &cmr);
   writeHash(dst, &result);
   return true;
 }
 
 /* build_tapbranch : TWO^256 * TWO^256 |- TWO^256 */
-bool rustsimplicity_0_5_build_tapbranch(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_build_tapbranch(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused.
   sha256_midstate a, b;
   readHash(&a, &src);
   readHash(&b, &src);
 
-  sha256_midstate result = rustsimplicity_0_5_make_tapbranch(&a, &b);
+  sha256_midstate result = rustsimplicity_0_6_make_tapbranch(&a, &b);
   writeHash(dst, &result);
   return true;
 }
 
 /* build_taptweak : PUBKEY * TWO^256 |- PUBKEY */
-bool rustsimplicity_0_5_build_taptweak(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_build_taptweak(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused.
   static unsigned char taptweak[] = "TapTweak/elements";
-  return rustsimplicity_0_5_generic_taptweak(dst, &src, taptweak, sizeof(taptweak)-1);
+  return rustsimplicity_0_6_generic_taptweak(dst, &src, taptweak, sizeof(taptweak)-1);
 }
 
 /* outpoint_hash : CTX8 * S TWO^256 * TWO^256 * TWO^32 |- CTX8 */
-bool rustsimplicity_0_5_outpoint_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_outpoint_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused.
   sha256_midstate midstate;
   unsigned char buf[36];
   sha256_context ctx = {.output = midstate.s};
 
   /* Read a SHA-256 context. */
-  if (!rustsimplicity_0_5_read_sha256_context(&ctx, &src)) return false;
+  if (!rustsimplicity_0_6_read_sha256_context(&ctx, &src)) return false;
 
   /* Read an optional pegin parent chain hash. */
   if (readBit(&src)) {
@@ -896,18 +896,18 @@ bool rustsimplicity_0_5_outpoint_hash(frameItem* dst, frameItem src, const txEnv
   read8s(buf, 36, &src);
   sha256_uchars(&ctx, buf, 36);
 
-  return rustsimplicity_0_5_write_sha256_context(dst, &ctx);
+  return rustsimplicity_0_6_write_sha256_context(dst, &ctx);
 }
 
 /* asset_amount_hash : CTX8 * Conf TWO^256 * Conf TWO^64 |- CTX8 */
-bool rustsimplicity_0_5_asset_amount_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_asset_amount_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused.
   sha256_midstate midstate;
   unsigned char buf[32];
   sha256_context ctx = {.output = midstate.s};
 
   /* Read a SHA-256 context. */
-  if (!rustsimplicity_0_5_read_sha256_context(&ctx, &src)) return false;
+  if (!rustsimplicity_0_6_read_sha256_context(&ctx, &src)) return false;
 
   /* Read an asset id prefix. (2 bits) */
   if (readBit(&src)) {
@@ -944,18 +944,18 @@ bool rustsimplicity_0_5_asset_amount_hash(frameItem* dst, frameItem src, const t
     sha256_uchars(&ctx, buf, 32);
   }
 
-  return rustsimplicity_0_5_write_sha256_context(dst, &ctx);
+  return rustsimplicity_0_6_write_sha256_context(dst, &ctx);
 }
 
 /* nonce_hash : CTX8 * S (Conf TWO^256) |- CTX8 */
-bool rustsimplicity_0_5_nonce_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_nonce_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused.
   sha256_midstate midstate;
   unsigned char buf[32];
   sha256_context ctx = {.output = midstate.s};
 
   /* Read a SHA-256 context. */
-  if (!rustsimplicity_0_5_read_sha256_context(&ctx, &src)) return false;
+  if (!rustsimplicity_0_6_read_sha256_context(&ctx, &src)) return false;
 
   /* Read an optional nonce. (259 bits) */
   if (readBit(&src)) {
@@ -979,18 +979,18 @@ bool rustsimplicity_0_5_nonce_hash(frameItem* dst, frameItem src, const txEnv* e
     sha256_uchar(&ctx, 0x00);
   }
 
-  return rustsimplicity_0_5_write_sha256_context(dst, &ctx);
+  return rustsimplicity_0_6_write_sha256_context(dst, &ctx);
 }
 
 /* annex_hash : CTX8 * S TWO^256 |- CTX8 */
-bool rustsimplicity_0_5_annex_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_annex_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused.
   sha256_midstate midstate;
   unsigned char buf[32];
   sha256_context ctx = {.output = midstate.s};
 
   /* Read a SHA-256 context. */
-  if (!rustsimplicity_0_5_read_sha256_context(&ctx, &src)) return false;
+  if (!rustsimplicity_0_6_read_sha256_context(&ctx, &src)) return false;
 
   /* Read an optional hash. (257 bits) */
   if (readBit(&src)) {
@@ -1003,12 +1003,12 @@ bool rustsimplicity_0_5_annex_hash(frameItem* dst, frameItem src, const txEnv* e
     sha256_uchar(&ctx, 0x00);
   }
 
-  return rustsimplicity_0_5_write_sha256_context(dst, &ctx);
+  return rustsimplicity_0_6_write_sha256_context(dst, &ctx);
 }
 
 /* issuance : TWO^256 |- S (S TWO) */
-bool rustsimplicity_0_5_issuance(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_issuance(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     const sigInput* input = &env->tx->input[i];
     if (writeBit(dst, NO_ISSUANCE != input->issuance.type)) {
@@ -1023,8 +1023,8 @@ bool rustsimplicity_0_5_issuance(frameItem* dst, frameItem src, const txEnv* env
 }
 
 /* issuance_entropy : TWO^256 |- S (S TWO^256) */
-bool rustsimplicity_0_5_issuance_entropy(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_issuance_entropy(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     const sigInput* input = &env->tx->input[i];
     if (writeBit(dst, NO_ISSUANCE != input->issuance.type)) {
@@ -1039,8 +1039,8 @@ bool rustsimplicity_0_5_issuance_entropy(frameItem* dst, frameItem src, const tx
 }
 
 /* issuance_asset : TWO^256 |- S (S TWO^256) */
-bool rustsimplicity_0_5_issuance_asset(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_issuance_asset(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     const sigInput* input = &env->tx->input[i];
     if (writeBit(dst, NO_ISSUANCE != input->issuance.type)) {
@@ -1055,8 +1055,8 @@ bool rustsimplicity_0_5_issuance_asset(frameItem* dst, frameItem src, const txEn
 }
 
 /* issuance_token : TWO^256 |- S (S TWO^256) */
-bool rustsimplicity_0_5_issuance_token(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_issuance_token(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     const sigInput* input = &env->tx->input[i];
     if (writeBit(dst, NO_ISSUANCE != input->issuance.type)) {
@@ -1071,57 +1071,57 @@ bool rustsimplicity_0_5_issuance_token(frameItem* dst, frameItem src, const txEn
 }
 
 /* output_amounts_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_output_amounts_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_output_amounts_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->outputAssetAmountsHash);
   return true;
 }
 
 /* output_nonces_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_output_nonces_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_output_nonces_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->outputNoncesHash);
   return true;
 }
 
 /* output_scripts_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_output_scripts_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_output_scripts_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->outputScriptsHash);
   return true;
 }
 
 /* output_range_proofs_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_output_range_proofs_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_output_range_proofs_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->outputRangeProofsHash);
   return true;
 }
 
 /* output_surjection_proofs_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_output_surjection_proofs_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_output_surjection_proofs_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->outputSurjectionProofsHash);
   return true;
 }
 
 /* outputs_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_outputs_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_outputs_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->outputsHash);
   return true;
 }
 
 /* output_hash : TWO^32 |- S TWO^256 */
-bool rustsimplicity_0_5_output_hash(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_output_hash(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numOutputs)) {
     const sigOutput* output = &env->tx->output[i];
     sha256_midstate midstate;
     sha256_context ctx = sha256_init(midstate.s);
-    rustsimplicity_0_5_sha256_confAsset(&ctx, &output->asset);
-    rustsimplicity_0_5_sha256_confAmt(&ctx, &output->amt);
-    rustsimplicity_0_5_sha256_confNonce(&ctx, &output->nonce);
+    rustsimplicity_0_6_sha256_confAsset(&ctx, &output->asset);
+    rustsimplicity_0_6_sha256_confAmt(&ctx, &output->amt);
+    rustsimplicity_0_6_sha256_confNonce(&ctx, &output->nonce);
     sha256_hash(&ctx, &output->scriptPubKey);
     sha256_hash(&ctx, &output->rangeProofHash);
     sha256_finalize(&ctx);
@@ -1133,42 +1133,42 @@ bool rustsimplicity_0_5_output_hash(frameItem* dst, frameItem src, const txEnv* 
 }
 
 /* input_outpoints_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_input_outpoints_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_input_outpoints_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->inputOutpointsHash);
   return true;
 }
 
 /* input_amounts_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_input_amounts_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_input_amounts_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->inputAssetAmountsHash);
   return true;
 }
 
 /* input_scripts_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_input_scripts_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_input_scripts_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->inputScriptsHash);
   return true;
 }
 
 /* input_utxos_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_input_utxos_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_input_utxos_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->inputUTXOsHash);
   return true;
 }
 
 /* input_utxo_hash : TWO^32 |- S TWO^256 */
-bool rustsimplicity_0_5_input_utxo_hash(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_input_utxo_hash(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     const utxo* txo = &env->tx->input[i].txo;
     sha256_midstate midstate;
     sha256_context ctx = sha256_init(midstate.s);
-    rustsimplicity_0_5_sha256_confAsset(&ctx, &txo->asset);
-    rustsimplicity_0_5_sha256_confAmt(&ctx, &txo->amt);
+    rustsimplicity_0_6_sha256_confAsset(&ctx, &txo->asset);
+    rustsimplicity_0_6_sha256_confAmt(&ctx, &txo->amt);
     sha256_hash(&ctx, &txo->scriptPubKey);
     sha256_finalize(&ctx);
     writeHash(dst, &midstate);
@@ -1179,36 +1179,36 @@ bool rustsimplicity_0_5_input_utxo_hash(frameItem* dst, frameItem src, const txE
 }
 
 /* input_sequences_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_input_sequences_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_input_sequences_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->inputSequencesHash);
   return true;
 }
 
 /* input_annexes_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_input_annexes_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_input_annexes_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->inputAnnexesHash);
   return true;
 }
 
 /* input_script_sigs_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_input_script_sigs_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_input_script_sigs_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->inputScriptSigsHash);
   return true;
 }
 
 /* inputs_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_inputs_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_inputs_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->inputsHash);
   return true;
 }
 
 /* input_hash : TWO^32 |- S TWO^256 */
-bool rustsimplicity_0_5_input_hash(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_input_hash(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     const sigInput* input = &env->tx->input[i];
     sha256_midstate midstate;
@@ -1237,43 +1237,43 @@ bool rustsimplicity_0_5_input_hash(frameItem* dst, frameItem src, const txEnv* e
 }
 
 /* issuance_asset_amounts_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_issuance_asset_amounts_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_issuance_asset_amounts_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->issuanceAssetAmountsHash);
   return true;
 }
 
 /* issuance_token_amounts_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_issuance_token_amounts_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_issuance_token_amounts_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->issuanceTokenAmountsHash);
   return true;
 }
 
 /* issuance_range_proofs_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_issuance_range_proofs_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_issuance_range_proofs_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->issuanceRangeProofsHash);
   return true;
 }
 
 /* issuance_blinding_entropy_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_issuance_blinding_entropy_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_issuance_blinding_entropy_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->issuanceBlindingEntropyHash);
   return true;
 }
 
 /* issuances_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_issuances_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_issuances_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->issuancesHash);
   return true;
 }
 
 /* issuance_hash : TWO^32 |- S TWO^256 */
-bool rustsimplicity_0_5_issuance_hash(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_5_read32(&src);
+bool rustsimplicity_0_6_issuance_hash(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     const assetIssuance* issuance = &env->tx->input[i].issuance;
     sha256_midstate midstate;
@@ -1287,10 +1287,10 @@ bool rustsimplicity_0_5_issuance_hash(frameItem* dst, frameItem src, const txEnv
       sha256_hash(&ctx, &issuance->tokenRangeProofHash);
       sha256_uchar(&ctx, 0);
     } else {
-      rustsimplicity_0_5_sha256_confAsset(&ctx, &(confidential){ .prefix = EXPLICIT, .data = issuance->assetId});
-      rustsimplicity_0_5_sha256_confAmt(&ctx, &issuance->assetAmt);
-      rustsimplicity_0_5_sha256_confAsset(&ctx, &(confidential){ .prefix = EXPLICIT, .data = issuance->tokenId});
-      rustsimplicity_0_5_sha256_confAmt(&ctx, NEW_ISSUANCE == issuance->type
+      rustsimplicity_0_6_sha256_confAsset(&ctx, &(confidential){ .prefix = EXPLICIT, .data = issuance->assetId});
+      rustsimplicity_0_6_sha256_confAmt(&ctx, &issuance->assetAmt);
+      rustsimplicity_0_6_sha256_confAsset(&ctx, &(confidential){ .prefix = EXPLICIT, .data = issuance->tokenId});
+      rustsimplicity_0_6_sha256_confAmt(&ctx, NEW_ISSUANCE == issuance->type
                                          ? &issuance->tokenAmt
                                          : &(confAmount){ .prefix = EXPLICIT, .explicit = 0});
       sha256_hash(&ctx, &issuance->assetRangeProofHash);
@@ -1313,35 +1313,35 @@ bool rustsimplicity_0_5_issuance_hash(frameItem* dst, frameItem src, const txEnv
 }
 
 /* tx_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_tx_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_tx_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->txHash);
   return true;
 }
 
 /* tapleaf_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_tapleaf_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_tapleaf_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->taproot->tapLeafHash);
   return true;
 }
 
 /* tappath_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_tappath_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_tappath_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->taproot->tappathHash);
   return true;
 }
 
 /* tap_env_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_tap_env_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_tap_env_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->taproot->tapEnvHash);
   return true;
 }
 
 /* sig_all_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_5_sig_all_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_sig_all_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->sigAllHash);
   return true;

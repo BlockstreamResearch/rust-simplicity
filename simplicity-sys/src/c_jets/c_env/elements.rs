@@ -107,33 +107,33 @@ pub struct CTapEnv {
 }
 
 extern "C" {
-    #[link_name = "rustsimplicity_0_5_c_sizeof_rawElementsBuffer"]
+    #[link_name = "rustsimplicity_0_6_c_sizeof_rawElementsBuffer"]
     pub static c_sizeof_rawBuffer: c_size_t;
-    #[link_name = "rustsimplicity_0_5_c_sizeof_rawElementsOutput"]
+    #[link_name = "rustsimplicity_0_6_c_sizeof_rawElementsOutput"]
     pub static c_sizeof_rawOutput: c_size_t;
-    #[link_name = "rustsimplicity_0_5_c_sizeof_rawElementsInput"]
+    #[link_name = "rustsimplicity_0_6_c_sizeof_rawElementsInput"]
     pub static c_sizeof_rawInput: c_size_t;
-    #[link_name = "rustsimplicity_0_5_c_sizeof_rawElementsTransaction"]
+    #[link_name = "rustsimplicity_0_6_c_sizeof_rawElementsTransaction"]
     pub static c_sizeof_rawTransaction: c_size_t;
-    #[link_name = "rustsimplicity_0_5_c_sizeof_rawElementsTapEnv"]
+    #[link_name = "rustsimplicity_0_6_c_sizeof_rawElementsTapEnv"]
     pub static c_sizeof_rawTapEnv: c_size_t;
-    #[link_name = "rustsimplicity_0_5_c_sizeof_txEnv"]
+    #[link_name = "rustsimplicity_0_6_c_sizeof_txEnv"]
     pub static c_sizeof_txEnv: c_size_t;
 
-    #[link_name = "rustsimplicity_0_5_c_alignof_rawElementsBuffer"]
+    #[link_name = "rustsimplicity_0_6_c_alignof_rawElementsBuffer"]
     pub static c_alignof_rawBuffer: c_size_t;
-    #[link_name = "rustsimplicity_0_5_c_alignof_rawElementsOutput"]
+    #[link_name = "rustsimplicity_0_6_c_alignof_rawElementsOutput"]
     pub static c_alignof_rawOutput: c_size_t;
-    #[link_name = "rustsimplicity_0_5_c_alignof_rawElementsInput"]
+    #[link_name = "rustsimplicity_0_6_c_alignof_rawElementsInput"]
     pub static c_alignof_rawInput: c_size_t;
-    #[link_name = "rustsimplicity_0_5_c_alignof_rawElementsTransaction"]
+    #[link_name = "rustsimplicity_0_6_c_alignof_rawElementsTransaction"]
     pub static c_alignof_rawTransaction: c_size_t;
-    #[link_name = "rustsimplicity_0_5_c_alignof_rawElementsTapEnv"]
+    #[link_name = "rustsimplicity_0_6_c_alignof_rawElementsTapEnv"]
     pub static c_alignof_rawTapEnv: c_size_t;
-    #[link_name = "rustsimplicity_0_5_c_alignof_txEnv"]
+    #[link_name = "rustsimplicity_0_6_c_alignof_txEnv"]
     pub static c_alignof_txEnv: c_size_t;
 
-    #[link_name = "rustsimplicity_0_5_c_set_txEnv"]
+    #[link_name = "rustsimplicity_0_6_c_set_txEnv"]
     pub fn c_set_txEnv(
         result: *mut CTxEnv,
         tx: *const CTransaction,
@@ -141,9 +141,9 @@ extern "C" {
         genesisHash: *const c_uchar,
         ix: c_uint,
     );
-    #[link_name = "rustsimplicity_0_5_elements_mallocTapEnv"]
+    #[link_name = "rustsimplicity_0_6_elements_mallocTapEnv"]
     pub fn simplicity_mallocTapEnv(rawEnv: *const CRawTapEnv) -> *mut CTapEnv;
-    #[link_name = "rustsimplicity_0_5_elements_mallocTransaction"]
+    #[link_name = "rustsimplicity_0_6_elements_mallocTransaction"]
     pub fn simplicity_mallocTransaction(rawTx: *const CRawTransaction) -> *mut CTransaction;
 }
 impl CTxEnv {
@@ -157,8 +157,8 @@ impl CTxEnv {
 impl Drop for CTxEnv {
     fn drop(&mut self) {
         unsafe {
-            crate::alloc::rust_0_5_free(self.tx as *mut u8);
-            crate::alloc::rust_0_5_free(self.taproot as *mut u8);
+            crate::alloc::rust_0_6_free(self.tx as *mut u8);
+            crate::alloc::rust_0_6_free(self.taproot as *mut u8);
         }
     }
 }

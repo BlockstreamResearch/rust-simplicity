@@ -97,7 +97,7 @@ static inline size_t numChildren(tag_t tag) {
  *
  * Precondition: 2^n == value->len
  */
-sha256_midstate rustsimplicity_0_5_computeWordCMR(const bitstring* value, size_t n);
+sha256_midstate rustsimplicity_0_6_computeWordCMR(const bitstring* value, size_t n);
 
 /* A node the the DAG of a Simplicity expression.
  * It consists of a 'tag' indicating the kind of expression the node represents.
@@ -138,159 +138,159 @@ typedef struct dag_node {
 /* Inline functions for accessing the type annotations of combinators */
 static inline size_t IDEN_A(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  rustsimplicity_0_5_debug_assert(IDEN == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(IDEN == dag[i].tag);
   return dag[i].sourceType;
 }
 
 static inline size_t UNIT_A(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  rustsimplicity_0_5_debug_assert(UNIT == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(UNIT == dag[i].tag);
   return dag[i].sourceType;
 }
 
 static inline size_t COMP_A(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  rustsimplicity_0_5_debug_assert(COMP == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(COMP == dag[i].tag);
   return dag[i].sourceType;
 }
 
 static inline size_t COMP_B(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  rustsimplicity_0_5_debug_assert(COMP == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(COMP == dag[i].tag);
   return dag[dag[i].child[1]].sourceType;
 }
 
 static inline size_t COMP_C(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  rustsimplicity_0_5_debug_assert(COMP == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(COMP == dag[i].tag);
   return dag[i].targetType;
 }
 
 static inline size_t CASE_A(const dag_node* dag, const type* type_dag, size_t i) {
-  rustsimplicity_0_5_debug_assert(CASE == dag[i].tag || ASSERTL == dag[i].tag || ASSERTR == dag[i].tag);
-  rustsimplicity_0_5_debug_assert(PRODUCT == type_dag[dag[i].sourceType].kind);
-  rustsimplicity_0_5_debug_assert(SUM == type_dag[type_dag[dag[i].sourceType].typeArg[0]].kind);
+  rustsimplicity_0_6_debug_assert(CASE == dag[i].tag || ASSERTL == dag[i].tag || ASSERTR == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(PRODUCT == type_dag[dag[i].sourceType].kind);
+  rustsimplicity_0_6_debug_assert(SUM == type_dag[type_dag[dag[i].sourceType].typeArg[0]].kind);
   return type_dag[type_dag[dag[i].sourceType].typeArg[0]].typeArg[0];
 }
 
 static inline size_t CASE_B(const dag_node* dag, const type* type_dag, size_t i) {
-  rustsimplicity_0_5_debug_assert(CASE == dag[i].tag || ASSERTL == dag[i].tag || ASSERTR == dag[i].tag);
-  rustsimplicity_0_5_debug_assert(PRODUCT == type_dag[dag[i].sourceType].kind);
-  rustsimplicity_0_5_debug_assert(SUM == type_dag[type_dag[dag[i].sourceType].typeArg[0]].kind);
+  rustsimplicity_0_6_debug_assert(CASE == dag[i].tag || ASSERTL == dag[i].tag || ASSERTR == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(PRODUCT == type_dag[dag[i].sourceType].kind);
+  rustsimplicity_0_6_debug_assert(SUM == type_dag[type_dag[dag[i].sourceType].typeArg[0]].kind);
   return type_dag[type_dag[dag[i].sourceType].typeArg[0]].typeArg[1];
 }
 
 static inline size_t CASE_C(const dag_node* dag, const type* type_dag, size_t i) {
-  rustsimplicity_0_5_debug_assert(CASE == dag[i].tag || ASSERTL == dag[i].tag || ASSERTR == dag[i].tag);
-  rustsimplicity_0_5_debug_assert(PRODUCT == type_dag[dag[i].sourceType].kind);
+  rustsimplicity_0_6_debug_assert(CASE == dag[i].tag || ASSERTL == dag[i].tag || ASSERTR == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(PRODUCT == type_dag[dag[i].sourceType].kind);
   return type_dag[dag[i].sourceType].typeArg[1];
 }
 
 static inline size_t CASE_D(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  rustsimplicity_0_5_debug_assert(CASE == dag[i].tag || ASSERTL == dag[i].tag || ASSERTR == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(CASE == dag[i].tag || ASSERTL == dag[i].tag || ASSERTR == dag[i].tag);
   return dag[i].targetType;
 }
 
 static inline size_t PAIR_A(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  rustsimplicity_0_5_debug_assert(PAIR == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(PAIR == dag[i].tag);
   return dag[i].sourceType;
 }
 
 static inline size_t PAIR_B(const dag_node* dag, const type* type_dag, size_t i) {
-  rustsimplicity_0_5_debug_assert(PAIR == dag[i].tag);
-  rustsimplicity_0_5_debug_assert(PRODUCT == type_dag[dag[i].targetType].kind);
+  rustsimplicity_0_6_debug_assert(PAIR == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(PRODUCT == type_dag[dag[i].targetType].kind);
   return type_dag[dag[i].targetType].typeArg[0];
 }
 
 static inline size_t PAIR_C(const dag_node* dag, const type* type_dag, size_t i) {
-  rustsimplicity_0_5_debug_assert(PAIR == dag[i].tag);
-  rustsimplicity_0_5_debug_assert(PRODUCT == type_dag[dag[i].targetType].kind);
+  rustsimplicity_0_6_debug_assert(PAIR == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(PRODUCT == type_dag[dag[i].targetType].kind);
   return type_dag[dag[i].targetType].typeArg[1];
 }
 
 static inline size_t DISCONNECT_A(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  rustsimplicity_0_5_debug_assert(DISCONNECT == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(DISCONNECT == dag[i].tag);
   return dag[i].sourceType;
 }
 
 static inline size_t DISCONNECT_B(const dag_node* dag, const type* type_dag, size_t i) {
-  rustsimplicity_0_5_debug_assert(DISCONNECT == dag[i].tag);
-  rustsimplicity_0_5_debug_assert(PRODUCT == type_dag[dag[i].targetType].kind);
+  rustsimplicity_0_6_debug_assert(DISCONNECT == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(PRODUCT == type_dag[dag[i].targetType].kind);
   return type_dag[dag[i].targetType].typeArg[0];
 }
 
 static inline size_t DISCONNECT_C(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  rustsimplicity_0_5_debug_assert(DISCONNECT == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(DISCONNECT == dag[i].tag);
   return dag[dag[i].child[1]].sourceType;
 }
 
 static inline size_t DISCONNECT_D(const dag_node* dag, const type* type_dag, size_t i) {
-  rustsimplicity_0_5_debug_assert(DISCONNECT == dag[i].tag);
-  rustsimplicity_0_5_debug_assert(PRODUCT == type_dag[dag[i].targetType].kind);
+  rustsimplicity_0_6_debug_assert(DISCONNECT == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(PRODUCT == type_dag[dag[i].targetType].kind);
   return type_dag[dag[i].targetType].typeArg[1];
 }
 
 static inline size_t DISCONNECT_W256A(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  rustsimplicity_0_5_debug_assert(DISCONNECT == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(DISCONNECT == dag[i].tag);
   return dag[dag[i].child[0]].sourceType;
 }
 
 static inline size_t DISCONNECT_BC(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  rustsimplicity_0_5_debug_assert(DISCONNECT == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(DISCONNECT == dag[i].tag);
   return dag[dag[i].child[0]].targetType;
 }
 
 static inline size_t INJ_A(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  rustsimplicity_0_5_debug_assert(INJL == dag[i].tag || INJR == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(INJL == dag[i].tag || INJR == dag[i].tag);
   return dag[i].sourceType;
 }
 
 static inline size_t INJ_B(const dag_node* dag, const type* type_dag, size_t i) {
-  rustsimplicity_0_5_debug_assert(INJL == dag[i].tag || INJR == dag[i].tag);
-  rustsimplicity_0_5_debug_assert(SUM == type_dag[dag[i].targetType].kind);
+  rustsimplicity_0_6_debug_assert(INJL == dag[i].tag || INJR == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(SUM == type_dag[dag[i].targetType].kind);
   return type_dag[dag[i].targetType].typeArg[0];
 }
 
 static inline size_t INJ_C(const dag_node* dag, const type* type_dag, size_t i) {
-  rustsimplicity_0_5_debug_assert(INJL == dag[i].tag || INJR == dag[i].tag);
-  rustsimplicity_0_5_debug_assert(SUM == type_dag[dag[i].targetType].kind);
+  rustsimplicity_0_6_debug_assert(INJL == dag[i].tag || INJR == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(SUM == type_dag[dag[i].targetType].kind);
   return type_dag[dag[i].targetType].typeArg[1];
 }
 
 static inline size_t PROJ_A(const dag_node* dag, const type* type_dag, size_t i) {
-  rustsimplicity_0_5_debug_assert(TAKE == dag[i].tag || DROP == dag[i].tag);
-  rustsimplicity_0_5_debug_assert(PRODUCT == type_dag[dag[i].sourceType].kind);
+  rustsimplicity_0_6_debug_assert(TAKE == dag[i].tag || DROP == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(PRODUCT == type_dag[dag[i].sourceType].kind);
   return type_dag[dag[i].sourceType].typeArg[0];
 }
 
 static inline size_t PROJ_B(const dag_node* dag, const type* type_dag, size_t i) {
-  rustsimplicity_0_5_debug_assert(TAKE == dag[i].tag || DROP == dag[i].tag);
-  rustsimplicity_0_5_debug_assert(PRODUCT == type_dag[dag[i].sourceType].kind);
+  rustsimplicity_0_6_debug_assert(TAKE == dag[i].tag || DROP == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(PRODUCT == type_dag[dag[i].sourceType].kind);
   return type_dag[dag[i].sourceType].typeArg[1];
 }
 
 static inline size_t PROJ_C(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  rustsimplicity_0_5_debug_assert(TAKE == dag[i].tag || DROP == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(TAKE == dag[i].tag || DROP == dag[i].tag);
   return dag[i].targetType;
 }
 
 static inline size_t WITNESS_A(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  rustsimplicity_0_5_debug_assert(WITNESS == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(WITNESS == dag[i].tag);
   return dag[i].sourceType;
 }
 
 static inline size_t WITNESS_B(const dag_node* dag, const type* type_dag, size_t i) {
   (void)type_dag;
-  rustsimplicity_0_5_debug_assert(WITNESS == dag[i].tag);
+  rustsimplicity_0_6_debug_assert(WITNESS == dag[i].tag);
   return dag[i].targetType;
 }
 
@@ -334,7 +334,7 @@ typedef struct analyses {
  * Precondition: dag_node dag[i + 1] and 'dag' is well-formed.
  *               dag[i].'tag' \notin {HIDDEN, JET, WORD}
  */
-void rustsimplicity_0_5_computeCommitmentMerkleRoot(dag_node* dag, uint_fast32_t i);
+void rustsimplicity_0_6_computeCommitmentMerkleRoot(dag_node* dag, uint_fast32_t i);
 
 /* Given a well-typed dag representing a Simplicity expression, compute the annotated Merkle roots of all subexpressions.
  * For all 'i', 0 <= 'i' < 'len', 'analysis[i].annotatedMerkleRoot' will be the AMR of the subexpression denoted by the slice
@@ -347,7 +347,7 @@ void rustsimplicity_0_5_computeCommitmentMerkleRoot(dag_node* dag, uint_fast32_t
  *               dag_node dag[len] and 'dag' has witness data and is well-typed with 'type_dag'.
  * Postconditon: analyses analysis[len] contains the annotated Merkle roots of each subexpressions of 'dag'.
  */
-void rustsimplicity_0_5_computeAnnotatedMerkleRoot(analyses* analysis, const dag_node* dag, const type* type_dag, uint_fast32_t len);
+void rustsimplicity_0_6_computeAnnotatedMerkleRoot(analyses* analysis, const dag_node* dag, const type* type_dag, uint_fast32_t len);
 
 /* Verifies that the 'dag' is in canonical order, meaning that nodes under the left branches have lower indices than nodes under
  * right branches, with the exception that nodes under right branches may (cross-)reference identical nodes that already occur under
@@ -360,7 +360,7 @@ void rustsimplicity_0_5_computeAnnotatedMerkleRoot(analyses* analysis, const dag
  *
  * Precondition: dag_node dag[len] and 'dag' is well-formed.
  */
-simplicity_err rustsimplicity_0_5_verifyCanonicalOrder(dag_node* dag, const uint_fast32_t len);
+simplicity_err rustsimplicity_0_6_verifyCanonicalOrder(dag_node* dag, const uint_fast32_t len);
 
 /* This function fills in the 'WITNESS' nodes of a 'dag' with the data from 'witness'.
  * For each 'WITNESS' : A |- B expression in 'dag', the bits from the 'witness' bitstring are decoded in turn
@@ -375,7 +375,7 @@ simplicity_err rustsimplicity_0_5_verifyCanonicalOrder(dag_node* dag, const uint
  * Postcondition: dag_node dag[len] and 'dag' has witness data and is well-typed with 'type_dag'
  *                  when the result is 'SIMPLICITY_NO_ERROR';
  */
-simplicity_err rustsimplicity_0_5_fillWitnessData(dag_node* dag, type* type_dag, const uint_fast32_t len, bitstream *witness);
+simplicity_err rustsimplicity_0_6_fillWitnessData(dag_node* dag, type* type_dag, const uint_fast32_t len, bitstream *witness);
 
 /* Verifies that identity hash of every subexpression in a well-typed 'dag' with witnesses are all unique,
  * including that each hidden root hash for every 'HIDDEN' node is unique.
@@ -388,6 +388,6 @@ simplicity_err rustsimplicity_0_5_fillWitnessData(dag_node* dag, type* type_dag,
  *
  * Precondition: dag_node dag[len] and 'dag' is well-typed with 'type_dag' and contains witnesses.
  */
-simplicity_err rustsimplicity_0_5_verifyNoDuplicateIdentityHashes(sha256_midstate* ihr, const dag_node* dag, const type* type_dag, const uint_fast32_t dag_len);
+simplicity_err rustsimplicity_0_6_verifyNoDuplicateIdentityHashes(sha256_midstate* ihr, const dag_node* dag, const type* type_dag, const uint_fast32_t dag_len);
 
 #endif
