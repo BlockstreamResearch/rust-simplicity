@@ -1,5 +1,56 @@
 // SPDX-License-Identifier: CC0-1.0
 
+//! # rust-simplicity
+//!
+//! This is the official Rust library of the [Simplicity Language](https://simplicity-lang.org/).
+//!
+//! Simplicity is a low-level, typed functional language designed to be a drop-in alternative
+//! for Bitcoin's [Tapscript](https://github.com/bitcoin/bips/blob/master/bip-0342.mediawiki).
+//! It offers static resource bounds and has a formal specification (in Rocq) which allows the
+//! creation of machine-checkable proofs of program behavior.
+//!
+//! It is currently deployed on Blockstream's Liquid, which is a sidechain resembling Bitcoin
+//! in many ways; but which differs in many Script-relevant ways (e.g. supporting multiple assets and using Confidential Transactions). We expect by the end of 2025 to directly
+//! support Bitcoin, so that Simplicity can be used on a custom regtest chain.
+//!
+//! Simplicity is a very low-level language. If you are simply looking to develop with the
+//! language, you may wish to use [SimplicityHL](https://github.com/BlockstreamResearch/simplicityhl) instead.
+//!
+//! # Nodes
+//!
+//! When creating and manipulating Simplicity programs, there are three node types that you
+//! may use when creating programs.
+//!
+//! * [`ConstructNode`] represents a program under construction. Type inference is done on
+//!   the program as it is being built, which must be done within a scope containing a
+//!   [`types::Context`].
+//! * [`CommitNode`] represents a complete program for which witness and disconnect nodes
+//!   are unpopulated. This can be used to produce a CMR, which in turn is used to generate
+//!   an address for use on-chain.
+//! * [`RedeemNode`] represents a program as it is embedded on-chain. Unused nodes must be
+//!   pruned, and any disconnect or witness nodes which remain must appear on-chain. This
+//!   is the only node type which has a canonical encoding.
+//!
+//! # Quick Start
+//!
+//! ```rust
+//! use simplicity::node::CoreConstructible;
+//! use simplicity::types::Context;
+//! use simplicity::{ConstructNode, jet::Core};
+//! use std::sync::Arc;
+//!
+//! // Create a trivial Simplicity program
+//! let program = Context::with_context(|ctx| {
+//!     let construct = Arc::<ConstructNode<Core>>::unit(&ctx);
+//!     construct.finalize_types().unwrap()
+//! });
+//!
+//! // Encode the program to bytes
+//! let encoded: Vec<u8> = simplicity::write_to_vec(|w| {
+//!     program.encode_without_witness(w)
+//! });
+//! ```
+
 #![cfg_attr(bench, feature(test))]
 #![allow(
     // we use `bool` to represent bits and frequentely assert_eq against them
