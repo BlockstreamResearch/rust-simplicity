@@ -1,3 +1,9 @@
+# 0.6.0 - 2025-09-17
+
+* Improve FFI API and fix soundness issues [#307](https://github.com/BlockstreamResearch/rust-simplicity/pull/288)
+* Decrease MSRV to 1.74.0, matching rust-bitcoin [#308](https://github.com/BlockstreamResearch/rust-simplicity/pull/308)
+* Use `ghost_cell` within `types::Context`, requiring users to construct programs within a single Rust lexical scope [#305](https://github.com/BlockstreamResearch/rust-simplicity/pull/305)
+
 # 0.5.0 - 2025-07-29
 
 * Add generic `CaseTracker` in bit machine for debugging [#288](https://github.com/BlockstreamResearch/rust-simplicity/pull/288)

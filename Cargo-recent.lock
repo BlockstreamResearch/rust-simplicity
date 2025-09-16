@@ -425,7 +425,7 @@ checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 name = "simpcli"
 version = "0.3.0"
 dependencies = [
- "simplicity-lang 0.5.0",
+ "simplicity-lang 0.6.0",
 ]
 
 [[package]]
@@ -435,7 +435,7 @@ dependencies = [
  "base64 0.22.1",
  "libfuzzer-sys",
  "simplicity-lang 0.3.1",
- "simplicity-lang 0.5.0",
+ "simplicity-lang 0.6.0",
 ]
 
 [[package]]
@@ -455,7 +455,7 @@ dependencies = [
 
 [[package]]
 name = "simplicity-lang"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "bitcoin",
  "bitcoin_hashes",
