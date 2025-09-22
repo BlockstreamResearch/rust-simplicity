@@ -6,7 +6,7 @@
  *                                                                                                                            \
  * Precondition: '*frame' is a valid read frame for bits more cells.                                                          \
  */                                                                                                                           \
-uint_fast##size##_t rustsimplicity_0_5_read##bits(frameItem* frame) {                                                                 \
+uint_fast##size##_t rustsimplicity_0_6_read##bits(frameItem* frame) {                                                                 \
   static_assert(bits <= size, "Return type too small to hold the requested number of bits.");                                 \
   uint_fast##size##_t result = 0;                                                                                             \
   /* Pointers to the UWORD of the read frame that contains the frame's cursor (or is immediately after the cursor). */        \
@@ -53,7 +53,7 @@ READ_(64,64)
  *                                                                                                                            \
  * Precondition: '*frame' is a valid write frame for bits more cells.                                                         \
  */                                                                                                                           \
-void rustsimplicity_0_5_write##bits(frameItem* frame, uint_fast##bits##_t x) {                                                        \
+void rustsimplicity_0_6_write##bits(frameItem* frame, uint_fast##bits##_t x) {                                                        \
   /* Pointers to the UWORD of the write frame that contains the frame's cursor (or is immediately after the cursor). */       \
   UWORD* frame_ptr = frame->edge + (frame->offset - 1) / UWORD_BIT;                                                           \
   /* The specific bit within the above UWORD that is immediately in front of the cursor.                                      \
@@ -101,8 +101,8 @@ WRITE_(64)
  *               '*src' is a valid read frame for 8*(2^(n+1)-1)+n+1 more cells;
  *               0 <= n < 16
  */
-void rustsimplicity_0_5_read_buffer8(unsigned char* buf, size_t* len, frameItem* src, int n) {
-  rustsimplicity_0_5_debug_assert(0 <= n && n < 16);
+void rustsimplicity_0_6_read_buffer8(unsigned char* buf, size_t* len, frameItem* src, int n) {
+  rustsimplicity_0_6_debug_assert(0 <= n && n < 16);
   *len = 0;
 
   for (size_t i = (size_t)1 << n; 0 < i; i /= 2) {
@@ -126,9 +126,9 @@ void rustsimplicity_0_5_read_buffer8(unsigned char* buf, size_t* len, frameItem*
  *               len < 2^(n+1);
  *               0 <= n < 16;
  */
-void rustsimplicity_0_5_write_buffer8(frameItem* dst, const unsigned char* buf, size_t len, int n) {
-  rustsimplicity_0_5_debug_assert(0 <= n && n < 16);
-  rustsimplicity_0_5_debug_assert(len < ((size_t)1<<(n+1)));
+void rustsimplicity_0_6_write_buffer8(frameItem* dst, const unsigned char* buf, size_t len, int n) {
+  rustsimplicity_0_6_debug_assert(0 <= n && n < 16);
+  rustsimplicity_0_6_debug_assert(len < ((size_t)1<<(n+1)));
   for (size_t i = (size_t)1 << n; 0 < i; i /= 2) {
     if (writeBit(dst, i <= len)) {
       write8s(dst, buf, i);
@@ -149,12 +149,12 @@ void rustsimplicity_0_5_write_buffer8(frameItem* dst, const unsigned char* buf, 
  * Precondition: NULL != ctx->output;
  *               '*src' is a valid read frame for 838 more cells;
  */
-bool rustsimplicity_0_5_read_sha256_context(sha256_context* ctx, frameItem* src) {
+bool rustsimplicity_0_6_read_sha256_context(sha256_context* ctx, frameItem* src) {
   size_t len;
   uint_fast64_t compressionCount;
 
-  rustsimplicity_0_5_read_buffer8(ctx->block, &len, src, 5);
-  compressionCount = rustsimplicity_0_5_read64(src);
+  rustsimplicity_0_6_read_buffer8(ctx->block, &len, src, 5);
+  compressionCount = rustsimplicity_0_6_read64(src);
   ctx->counter = ((compressionCount*1U) << 6) + len;
   read32s(ctx->output, 8, src);
   ctx->overflow = (sha256_max_counter >> 6) <= compressionCount;
@@ -172,9 +172,9 @@ bool rustsimplicity_0_5_read_sha256_context(sha256_context* ctx, frameItem* src)
  *               NULL != ctx->output;
  *               ctx->counter < 2^61;
  */
-bool rustsimplicity_0_5_write_sha256_context(frameItem* dst, const sha256_context* ctx) {
-  rustsimplicity_0_5_write_buffer8(dst, ctx->block, ctx->counter % 64, 5);
-  rustsimplicity_0_5_write64(dst, ctx->counter >> 6);
+bool rustsimplicity_0_6_write_sha256_context(frameItem* dst, const sha256_context* ctx) {
+  rustsimplicity_0_6_write_buffer8(dst, ctx->block, ctx->counter % 64, 5);
+  rustsimplicity_0_6_write64(dst, ctx->counter >> 6);
   write32s(dst, ctx->output, 8);
   return !ctx->overflow;
 }
@@ -260,7 +260,7 @@ static void copyBitsHelper(const frameItem* dst, const frameItem *src, size_t n)
  * Precondition: '*dst' is a valid write frame for 'n' more cells;
  *               '*src' is a valid read frame for 'n' more cells;
  */
-void rustsimplicity_0_5_copyBits(frameItem* dst, const frameItem* src, size_t n) {
+void rustsimplicity_0_6_copyBits(frameItem* dst, const frameItem* src, size_t n) {
   if (0 == n) return;
   copyBitsHelper(dst, src, n);
   dst->offset -= n;

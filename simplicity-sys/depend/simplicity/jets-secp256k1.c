@@ -14,7 +14,7 @@
  * However libsecp256k1 sets the point to (0, 0, 0) when the infinity flag is set See 'secp256k1_gej_set_infinity',
  * and we end up using it as a canonical representative of infinity.
  */
-static bool rustsimplicity_0_5_gej_is_valid_var(const secp256k1_gej *a) {
+static bool rustsimplicity_0_6_gej_is_valid_var(const secp256k1_gej *a) {
   secp256k1_fe x3, y2, z6;
   secp256k1_fe_sqr(&y2, &a->y);
   secp256k1_fe_sqr(&x3, &a->x); secp256k1_fe_mul(&x3, &x3, &a->x);
@@ -137,7 +137,7 @@ static inline void write_scalar(frameItem* dst, const secp256k1_scalar* r) {
   write8s(dst, buf, 32);
 }
 
-bool rustsimplicity_0_5_fe_normalize(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_fe_normalize(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_fe a;
@@ -146,7 +146,7 @@ bool rustsimplicity_0_5_fe_normalize(frameItem* dst, frameItem src, const txEnv*
   return true;
 }
 
-bool rustsimplicity_0_5_fe_negate(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_fe_negate(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_fe a;
@@ -156,7 +156,7 @@ bool rustsimplicity_0_5_fe_negate(frameItem* dst, frameItem src, const txEnv* en
   return true;
 }
 
-bool rustsimplicity_0_5_fe_add(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_fe_add(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_fe a, b;
@@ -167,7 +167,7 @@ bool rustsimplicity_0_5_fe_add(frameItem* dst, frameItem src, const txEnv* env) 
   return true;
 }
 
-bool rustsimplicity_0_5_fe_square(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_fe_square(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_fe a;
@@ -177,7 +177,7 @@ bool rustsimplicity_0_5_fe_square(frameItem* dst, frameItem src, const txEnv* en
   return true;
 }
 
-bool rustsimplicity_0_5_fe_multiply(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_fe_multiply(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_fe a, b;
@@ -188,7 +188,7 @@ bool rustsimplicity_0_5_fe_multiply(frameItem* dst, frameItem src, const txEnv* 
   return true;
 }
 
-bool rustsimplicity_0_5_fe_multiply_beta(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_fe_multiply_beta(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_fe a;
@@ -198,7 +198,7 @@ bool rustsimplicity_0_5_fe_multiply_beta(frameItem* dst, frameItem src, const tx
   return true;
 }
 
-bool rustsimplicity_0_5_fe_invert(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_fe_invert(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_fe a;
@@ -208,7 +208,7 @@ bool rustsimplicity_0_5_fe_invert(frameItem* dst, frameItem src, const txEnv* en
   return true;
 }
 
-bool rustsimplicity_0_5_fe_square_root(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_fe_square_root(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_fe r, a;
@@ -222,7 +222,7 @@ bool rustsimplicity_0_5_fe_square_root(frameItem* dst, frameItem src, const txEn
   return true;
 }
 
-bool rustsimplicity_0_5_fe_is_zero(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_fe_is_zero(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_fe a;
@@ -231,7 +231,7 @@ bool rustsimplicity_0_5_fe_is_zero(frameItem* dst, frameItem src, const txEnv* e
   return true;
 }
 
-bool rustsimplicity_0_5_fe_is_odd(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_fe_is_odd(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_fe a;
@@ -240,7 +240,7 @@ bool rustsimplicity_0_5_fe_is_odd(frameItem* dst, frameItem src, const txEnv* en
   return true;
 }
 
-bool rustsimplicity_0_5_scalar_normalize(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_scalar_normalize(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_scalar a;
@@ -249,7 +249,7 @@ bool rustsimplicity_0_5_scalar_normalize(frameItem* dst, frameItem src, const tx
   return true;
 }
 
-bool rustsimplicity_0_5_scalar_negate(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_scalar_negate(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_scalar a;
@@ -259,7 +259,7 @@ bool rustsimplicity_0_5_scalar_negate(frameItem* dst, frameItem src, const txEnv
   return true;
 }
 
-bool rustsimplicity_0_5_scalar_add(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_scalar_add(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_scalar a, b;
@@ -270,7 +270,7 @@ bool rustsimplicity_0_5_scalar_add(frameItem* dst, frameItem src, const txEnv* e
   return true;
 }
 
-bool rustsimplicity_0_5_scalar_square(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_scalar_square(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_scalar a;
@@ -280,7 +280,7 @@ bool rustsimplicity_0_5_scalar_square(frameItem* dst, frameItem src, const txEnv
   return true;
 }
 
-bool rustsimplicity_0_5_scalar_multiply(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_scalar_multiply(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_scalar a, b;
@@ -291,7 +291,7 @@ bool rustsimplicity_0_5_scalar_multiply(frameItem* dst, frameItem src, const txE
   return true;
 }
 
-bool rustsimplicity_0_5_scalar_multiply_lambda(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_scalar_multiply_lambda(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_scalar a;
@@ -301,7 +301,7 @@ bool rustsimplicity_0_5_scalar_multiply_lambda(frameItem* dst, frameItem src, co
   return true;
 }
 
-bool rustsimplicity_0_5_scalar_invert(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_scalar_invert(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_scalar a;
@@ -311,7 +311,7 @@ bool rustsimplicity_0_5_scalar_invert(frameItem* dst, frameItem src, const txEnv
   return true;
 }
 
-bool rustsimplicity_0_5_scalar_is_zero(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_scalar_is_zero(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_scalar a;
@@ -320,7 +320,7 @@ bool rustsimplicity_0_5_scalar_is_zero(frameItem* dst, frameItem src, const txEn
   return true;
 }
 
-bool rustsimplicity_0_5_gej_infinity(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_gej_infinity(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   (void) env; // env is unused;
 
@@ -330,7 +330,7 @@ bool rustsimplicity_0_5_gej_infinity(frameItem* dst, frameItem src, const txEnv*
   return true;
 }
 
-bool rustsimplicity_0_5_gej_rescale(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_gej_rescale(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_gej a;
@@ -342,7 +342,7 @@ bool rustsimplicity_0_5_gej_rescale(frameItem* dst, frameItem src, const txEnv* 
   return true;
 }
 
-bool rustsimplicity_0_5_gej_normalize(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_gej_normalize(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_gej a;
@@ -357,7 +357,7 @@ bool rustsimplicity_0_5_gej_normalize(frameItem* dst, frameItem src, const txEnv
   return true;
 }
 
-bool rustsimplicity_0_5_gej_negate(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_gej_negate(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_gej a;
@@ -367,7 +367,7 @@ bool rustsimplicity_0_5_gej_negate(frameItem* dst, frameItem src, const txEnv* e
   return true;
 }
 
-bool rustsimplicity_0_5_ge_negate(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_ge_negate(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_ge a;
@@ -377,7 +377,7 @@ bool rustsimplicity_0_5_ge_negate(frameItem* dst, frameItem src, const txEnv* en
   return true;
 }
 
-bool rustsimplicity_0_5_gej_double(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_gej_double(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_gej a;
@@ -387,7 +387,7 @@ bool rustsimplicity_0_5_gej_double(frameItem* dst, frameItem src, const txEnv* e
   return true;
 }
 
-bool rustsimplicity_0_5_gej_add(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_gej_add(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_gej a, b;
@@ -398,7 +398,7 @@ bool rustsimplicity_0_5_gej_add(frameItem* dst, frameItem src, const txEnv* env)
   return true;
 }
 
-bool rustsimplicity_0_5_gej_ge_add_ex(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_gej_ge_add_ex(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_gej a;
@@ -413,7 +413,7 @@ bool rustsimplicity_0_5_gej_ge_add_ex(frameItem* dst, frameItem src, const txEnv
   return true;
 }
 
-bool rustsimplicity_0_5_gej_ge_add(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_gej_ge_add(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_gej a;
@@ -425,7 +425,7 @@ bool rustsimplicity_0_5_gej_ge_add(frameItem* dst, frameItem src, const txEnv* e
   return true;
 }
 
-bool rustsimplicity_0_5_gej_is_infinity(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_gej_is_infinity(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_gej a;
@@ -434,7 +434,7 @@ bool rustsimplicity_0_5_gej_is_infinity(frameItem* dst, frameItem src, const txE
   return true;
 }
 
-bool rustsimplicity_0_5_gej_equiv(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_gej_equiv(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_gej a, b;
@@ -444,7 +444,7 @@ bool rustsimplicity_0_5_gej_equiv(frameItem* dst, frameItem src, const txEnv* en
   return true;
 }
 
-bool rustsimplicity_0_5_gej_ge_equiv(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_gej_ge_equiv(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_gej a;
@@ -455,7 +455,7 @@ bool rustsimplicity_0_5_gej_ge_equiv(frameItem* dst, frameItem src, const txEnv*
   return true;
 }
 
-bool rustsimplicity_0_5_gej_x_equiv(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_gej_x_equiv(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_fe x;
@@ -466,7 +466,7 @@ bool rustsimplicity_0_5_gej_x_equiv(frameItem* dst, frameItem src, const txEnv* 
   return true;
 }
 
-bool rustsimplicity_0_5_gej_y_is_odd(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_gej_y_is_odd(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_gej a;
@@ -482,16 +482,16 @@ bool rustsimplicity_0_5_gej_y_is_odd(frameItem* dst, frameItem src, const txEnv*
   return true;
 }
 
-bool rustsimplicity_0_5_gej_is_on_curve(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_gej_is_on_curve(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_gej a;
   read_gej(&a, &src);
-  writeBit(dst, rustsimplicity_0_5_gej_is_valid_var(&a));
+  writeBit(dst, rustsimplicity_0_6_gej_is_valid_var(&a));
   return true;
 }
 
-bool rustsimplicity_0_5_ge_is_on_curve(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_ge_is_on_curve(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_ge a;
@@ -500,7 +500,7 @@ bool rustsimplicity_0_5_ge_is_on_curve(frameItem* dst, frameItem src, const txEn
   return true;
 }
 
-bool rustsimplicity_0_5_off_curve_scale(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_off_curve_scale(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_gej r, a;
@@ -514,7 +514,7 @@ bool rustsimplicity_0_5_off_curve_scale(frameItem* dst, frameItem src, const txE
   return true;
 }
 
-bool rustsimplicity_0_5_scale(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_scale(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_gej r, a;
@@ -523,7 +523,7 @@ bool rustsimplicity_0_5_scale(frameItem* dst, frameItem src, const txEnv* env) {
 
   read_scalar(&na, &src);
   read_gej(&a, &src);
-  if (rustsimplicity_0_5_gej_is_valid_var(&a)) {
+  if (rustsimplicity_0_6_gej_is_valid_var(&a)) {
     secp256k1_ecmult(&r, &a, &na, &ng);
     write_gej(dst, &r);
     return true;
@@ -532,7 +532,7 @@ bool rustsimplicity_0_5_scale(frameItem* dst, frameItem src, const txEnv* env) {
   }
 }
 
-bool rustsimplicity_0_5_generate(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_generate(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_gej r;
@@ -546,7 +546,7 @@ bool rustsimplicity_0_5_generate(frameItem* dst, frameItem src, const txEnv* env
   return true;
 }
 
-bool rustsimplicity_0_5_off_curve_linear_combination_1(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_off_curve_linear_combination_1(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_gej r, a;
@@ -560,7 +560,7 @@ bool rustsimplicity_0_5_off_curve_linear_combination_1(frameItem* dst, frameItem
   return true;
 }
 
-bool rustsimplicity_0_5_linear_combination_1(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_linear_combination_1(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_gej r, a;
@@ -569,7 +569,7 @@ bool rustsimplicity_0_5_linear_combination_1(frameItem* dst, frameItem src, cons
   read_scalar(&na, &src);
   read_gej(&a, &src);
   read_scalar(&ng, &src);
-  if (rustsimplicity_0_5_gej_is_valid_var(&a)) {
+  if (rustsimplicity_0_6_gej_is_valid_var(&a)) {
     secp256k1_ecmult(&r, &a, &na, &ng);
     write_gej(dst, &r);
     return true;
@@ -578,7 +578,7 @@ bool rustsimplicity_0_5_linear_combination_1(frameItem* dst, frameItem src, cons
   }
 }
 
-bool rustsimplicity_0_5_linear_verify_1(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_linear_verify_1(frameItem* dst, frameItem src, const txEnv* env) {
   (void) dst; // dst is unused;
   (void) env; // env is unused;
 
@@ -602,7 +602,7 @@ bool rustsimplicity_0_5_linear_verify_1(frameItem* dst, frameItem src, const txE
   }
 }
 
-bool rustsimplicity_0_5_decompress(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_decompress(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
 
   secp256k1_fe x;
@@ -618,7 +618,7 @@ bool rustsimplicity_0_5_decompress(frameItem* dst, frameItem src, const txEnv* e
   return true;
 }
 
-bool rustsimplicity_0_5_point_verify_1(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_point_verify_1(frameItem* dst, frameItem src, const txEnv* env) {
   (void) dst; // dst is unused;
   (void) env; // env is unused;
 
@@ -646,7 +646,7 @@ bool rustsimplicity_0_5_point_verify_1(frameItem* dst, frameItem src, const txEn
   }
 }
 
-bool rustsimplicity_0_5_bip_0340_verify(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_bip_0340_verify(frameItem* dst, frameItem src, const txEnv* env) {
   (void) dst; // dst is unused;
   (void) env; // env is unused;
 
@@ -665,7 +665,7 @@ bool rustsimplicity_0_5_bip_0340_verify(frameItem* dst, frameItem src, const txE
 }
 
 /* check_sig_verify : TWO^256*TWO^512*TWO^512 |- ONE */
-bool rustsimplicity_0_5_check_sig_verify(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_check_sig_verify(frameItem* dst, frameItem src, const txEnv* env) {
   (void) dst; // dst is unused;
   (void) env; // env is unused;
 
@@ -691,7 +691,7 @@ bool rustsimplicity_0_5_check_sig_verify(frameItem* dst, frameItem src, const tx
 }
 
 /* swu : FE |- GE */
-bool rustsimplicity_0_5_swu(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_swu(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
   secp256k1_fe t;
   secp256k1_ge ge;
@@ -702,7 +702,7 @@ bool rustsimplicity_0_5_swu(frameItem* dst, frameItem src, const txEnv* env) {
 }
 
 /* hash_to_curve : TWO^256 |- GE */
-bool rustsimplicity_0_5_hash_to_curve(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_hash_to_curve(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused;
   unsigned char key[32];
   secp256k1_generator gen;
@@ -722,7 +722,7 @@ bool rustsimplicity_0_5_hash_to_curve(frameItem* dst, frameItem src, const txEnv
  *
  * Precondition: unsigned char[tagLen] tag
  */
-bool rustsimplicity_0_5_generic_taptweak(frameItem* dst, frameItem *src, const unsigned char *tagName, size_t tagLen) {
+bool rustsimplicity_0_6_generic_taptweak(frameItem* dst, frameItem *src, const unsigned char *tagName, size_t tagLen) {
   unsigned char buf[32];
   secp256k1_xonly_pubkey input_pubkey, output_pubkey;
   secp256k1_pubkey pubkey;

@@ -63,7 +63,7 @@ typedef struct type {
  *
  * Precondition: type type_dag[len] and 'type_dag' is well-formed.
  */
-void rustsimplicity_0_5_computeTypeAnalyses(type* type_dag, size_t len);
+void rustsimplicity_0_6_computeTypeAnalyses(type* type_dag, size_t len);
 
 /* Return the index of the largest subexpression of 'type_dag[i]' (possibly 'i' itself) that is either
  * (1) a 'SUM' type;
@@ -92,7 +92,7 @@ static inline void setTypeBack(size_t i, type* type_dag, size_t value) {
   /* .back cannot be used if .skip is in use.
      Specifically it cannot be a non-trivial 'PRODUCT' type where one of its two type arguments is a trivial type.
    */
-  rustsimplicity_0_5_assert((PRODUCT != type_dag[i].kind ||
+  rustsimplicity_0_6_assert((PRODUCT != type_dag[i].kind ||
                      0 == type_dag[i].bitSize ||
                      (0 != type_dag[type_dag[i].typeArg[0]].bitSize &&
                       0 != type_dag[type_dag[i].typeArg[1]].bitSize)));
