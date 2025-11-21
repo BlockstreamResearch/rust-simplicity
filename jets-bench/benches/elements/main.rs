@@ -11,7 +11,7 @@ use simplicity::types::Final;
 use simplicity::Value;
 use simplicity_bench::input::{
     self, EqProduct, GenericProduct, InputSample, PrefixBit, Sha256Ctx, UniformBits,
-    UniformBitsExact,
+    DivMod12864Input,
 };
 use simplicity_bench::{
     genesis_pegin, BenchSample, EnvSampling, InputSampling, JetBuffer, JetParams, SimplicityCtx8,
@@ -508,7 +508,7 @@ fn bench(c: &mut Criterion) {
         (Elements::DivMod16, &EqProduct(UniformBits)),
         (Elements::DivMod32, &EqProduct(UniformBits)),
         (Elements::DivMod64, &EqProduct(UniformBits)),
-        (Elements::DivMod128_64, &GenericProduct(UniformBitsExact::<128>, UniformBitsExact::<64>)),
+        (Elements::DivMod128_64, &DivMod12864Input),
         // divide
         (Elements::Divide8, &EqProduct(UniformBits)),
         (Elements::Divide16, &EqProduct(UniformBits)),
