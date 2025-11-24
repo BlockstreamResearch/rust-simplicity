@@ -18,7 +18,7 @@ use simplicity::{
 /// length.
 #[derive(Clone)]
 pub struct SimplicityCtx8 {
-    buffer: [u8; 512],
+    buffer: [u8; 64],
     h: [u32; 8],
     length: usize,
 }
@@ -31,7 +31,7 @@ impl Default for SimplicityCtx8 {
                 0x5be0cd19,
             ],
             length: 0,
-            buffer: [0; 512],
+            buffer: [0; 64],
         }
     }
 }
@@ -45,24 +45,26 @@ impl SimplicityCtx8 {
     }
 }
 
-/// Read bytes from a Simplicity buffer of type (TWO^8)^<2^(n+1) as [`Value`].
+/// Read bytes from a Simplicity buffer of type (TWO^8)^<2^n as [`Value`].
 /// The notation X^<2 is notation for the type (S X)
 /// The notation X^<(2*n) is notation for the type S (X^n) * X^<n
 ///
-/// Cannot represent >= 2**16 bytes 0 <= n < 16 as simplicity consensus rule.
+/// There is a precondition that 0 <= n <= 16.
 ///
 /// # Panics:
 ///
-/// Panics if the length of the slice is >= 2^(n + 1) bytes
-pub fn var_len_buf_from_slice(v: &[u8], mut n: usize) -> Result<Value, EarlyEndOfStreamError> {
-    // Simplicity consensus rule for n < 16 while reading buffers.
-    assert!(n < 16);
-    assert!(v.len() < (1 << (n + 1)));
+/// Panics if the length of the slice is >= 2^n bytes or if n > 16.
+pub fn var_len_buf_from_slice(v: &[u8], n: usize) -> Result<Value, EarlyEndOfStreamError> {
+    // This precondition can probably be removed or relaxed, though
+    // we have no need to do so and it may require changing the type
+    // of 'n' to something larger.
+    assert!(n <= 16);
+    assert!(v.len() < 1 << n);
     let mut iter = BitIter::new(v.iter().copied());
     let mut res = None;
-    while n > 0 {
-        let ty = Final::two_two_n(n);
-        let v = if v.len() >= (1 << (n + 1)) {
+    for i in (0..n).rev() {
+        let ty = Final::two_two_n(i + 3);
+        let v = if v.len() & 1 << i != 0 {
             let val = Value::from_compact_bits(&mut iter, &ty)?;
             Value::some(val)
         } else {
@@ -72,8 +74,8 @@ pub fn var_len_buf_from_slice(v: &[u8], mut n: usize) -> Result<Value, EarlyEndO
             Some(prod) => Some(Value::product(prod, v)),
             None => Some(v),
         };
-        n -= 1;
     }
+    assert_eq!(iter.next(), None);
     Ok(res.unwrap_or(Value::unit()))
 }
 
@@ -157,8 +159,8 @@ pub trait SimplicityEncode {
 
 impl SimplicityEncode for SimplicityCtx8 {
     fn value(&self) -> Value {
-        let buf_len = self.length % 512;
-        let buf = var_len_buf_from_slice(&self.buffer[..buf_len], 8).unwrap();
+        let buf_len = self.length % 64;
+        let buf = var_len_buf_from_slice(&self.buffer[..buf_len], 6).unwrap();
         let len = Value::u64(self.length as u64);
         // convert to 32 byte array
         let mut arr = [0u8; 32];
