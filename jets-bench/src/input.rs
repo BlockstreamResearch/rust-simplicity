@@ -282,7 +282,7 @@ impl FlatValue {
     }
 
     /// Creates an iterator over the bits of the value
-    pub fn bit_iter(&self) -> FlatValueBitIter {
+    pub fn bit_iter(&self) -> FlatValueBitIter<'_> {
         FlatValueBitIter {
             inner: self,
             n_read: 0,
@@ -1319,6 +1319,66 @@ impl InputSample for CheckSigSignature {
 impl InputSampleExactSize for CheckSigSignature {
     fn n_bits(&self) -> usize {
         1280
+    }
+}
+
+pub struct DivMod12864Input;
+
+impl InputSample for DivMod12864Input {
+    fn n_distributions(&self) -> usize {
+        // divmod128_64 has specific preconditions (unlike the other divmod jets).
+        // If these are not met then it does a quick shortcut error return.
+        2
+    }
+
+    fn distribution_name(&self, dist: usize) -> String {
+        if dist == 0 {
+            "uniform".into()
+        } else {
+            "divmod12864precondition".into()
+        }
+    }
+
+    fn sample(&self, dist: usize, n_bits: usize) -> FlatValue {
+        assert_eq!(
+            n_bits, 192,
+            "attempt to sample divmod128_64 input with {} bits (expected 192)",
+            n_bits
+        );
+
+        if dist == 0 {
+            UniformBits.sample(0, 192)
+        } else if dist == 1 {
+            // The input to div_mod_128_64 is a 128-bit integer `a` followed by a 64-bit integer `b`.
+            // It has two preconditions:
+            //     1. The high bit of b must be set.
+            //     2. ah (the high 64 bits of a) is strictly less than b.
+            //
+            // See the implementation of `simplicity_div_mod_128_64` in libsimplicity C/jets.c
+            // for how these are implemented.
+
+            // To implement this, we sample two random 64-bit strings, with one of them
+            // having its high bit forced to 1. The higher of the two (which will always
+            // have its high bit 1) is b, and the other one is ah.
+            let sample_1 = FlatValue::random_n_bits(63).prefix_one();
+            let sample_2 = FlatValue::random_n_bits(64);
+            for (bit1, bit2) in sample_1.bit_iter().zip(sample_2.bit_iter()) {
+                match (bit1, bit2) {
+                    (false, false) | (true, true) => {} // both equal
+                    (true, false) => return FlatValue::product(&[sample_2, UniformBits.sample(0, 64), sample_1]),
+                    (false, true) => return FlatValue::product(&[sample_1, UniformBits.sample(0, 64), sample_2]),
+                }
+            }
+            unreachable!("if we get here, two uniform 63-bit samples were exactly equal")
+        } else {
+            panic!("invalid distribution {} for div_mod_128_64", dist)
+        }
+    }
+}
+
+impl InputSampleExactSize for DivMod12864Input {
+    fn n_bits(&self) -> usize {
+        192
     }
 }
 
