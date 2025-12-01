@@ -1,0 +1,3426 @@
+{
+  "Add16": {
+    "best_name": "ufmbits_+_self_1",
+    "best_value": 104.9909396344233,
+    "median_name": "hi-bits_+_ufmbits_0",
+    "median_value": 141.92531612750486,
+    "worst_name": "hi-bits_+_lo-bits_2",
+    "worst_value": 223.96529411764718
+  },
+  "Add32": {
+    "best_name": "ufmbits_+_inv_self_2",
+    "best_value": 99.96134615273999,
+    "median_name": "hi-bits_+_ufmbits_0",
+    "median_value": 137.97453256802103,
+    "worst_name": "hi-bits_+_lo-bits_3",
+    "worst_value": 220.10294117647052
+  },
+  "Add64": {
+    "best_name": "ufmbits_+_inv_self_2",
+    "best_value": 116.34561820447358,
+    "median_name": "hi-bits_+_inv_self_0",
+    "median_value": 143.82974415783033,
+    "worst_name": "lo-bits_+_ufmbits_4",
+    "worst_value": 237.83765460562006
+  },
+  "Add8": {
+    "best_name": "ufmbits_+_inv_self_1",
+    "best_value": 96.88777070846072,
+    "median_name": "lo-bits_+_lo-bits_0",
+    "median_value": 141.9386488297463,
+    "worst_name": "hi-bits_+_hi-bits_0",
+    "worst_value": 207.16647058823526
+  },
+  "All16": {
+    "best_name": "ufmbits_0",
+    "best_value": 83.83973706495247,
+    "median_name": "lo-bits_0",
+    "median_value": 107.79462559699219,
+    "worst_name": "hi-bits_0",
+    "worst_value": 127.39047661288011
+  },
+  "All32": {
+    "best_name": "ufmbits_2",
+    "best_value": 89.48861291652356,
+    "median_name": "hi-bits_1",
+    "median_value": 109.35271452026211,
+    "worst_name": "hi-bits_0",
+    "worst_value": 124.95677772633405
+  },
+  "All64": {
+    "best_name": "ufmbits_4",
+    "best_value": 96.8427109778898,
+    "median_name": "hi-bits_2",
+    "median_value": 112.5751887263129,
+    "worst_name": "hi-bits_1",
+    "worst_value": 129.35964431954247
+  },
+  "All8": {
+    "best_name": "ufmbits_4",
+    "best_value": 86.81894208933508,
+    "median_name": "hi-bits_3",
+    "median_value": 110.94371714463749,
+    "worst_name": "lo-bits_4",
+    "worst_value": 131.3987139832746
+  },
+  "And1": {
+    "best_name": "ufmbits_+_ufmbits_3",
+    "best_value": 84.52644634121069,
+    "median_name": "lo-bits_+_lo-bits_3",
+    "median_value": 101.9914004868299,
+    "worst_name": "ufmbits_+_self_3",
+    "worst_value": 130.39884366242507
+  },
+  "And16": {
+    "best_name": "ufmbits_+_self_3",
+    "best_value": 93.14046653775785,
+    "median_name": "hi-bits_+_hi-bits_0",
+    "median_value": 132.2104448473691,
+    "worst_name": "lo-bits_+_hi-bits_3",
+    "worst_value": 208.48411764705892
+  },
+  "And32": {
+    "best_name": "ufmbits_+_self_1",
+    "best_value": 99.42398563953468,
+    "median_name": "ufmbits_+_hi-bits_3",
+    "median_value": 132.47804668963363,
+    "worst_name": "lo-bits_+_lo-bits_3",
+    "worst_value": 204.4605882352941
+  },
+  "And64": {
+    "best_name": "ufmbits_+_self_1",
+    "best_value": 100.10733042893713,
+    "median_name": "hi-bits_+_self_2",
+    "median_value": 134.85089486839627,
+    "worst_name": "lo-bits_+_hi-bits_3",
+    "worst_value": 212.6188235294117
+  },
+  "And8": {
+    "best_name": "ufmbits_+_self_2",
+    "best_value": 93.23729503732805,
+    "median_name": "hi-bits_+_ufmbits_3",
+    "median_value": 132.55190040056715,
+    "worst_name": "lo-bits_+_hi-bits_0",
+    "worst_value": 198.75352941176462
+  },
+  "AnnexHash": {
+    "best_name": "94",
+    "best_value": 951.4466666666668,
+    "median_name": "82",
+    "median_value": 1017.24,
+    "worst_name": "61",
+    "worst_value": 1096.725
+  },
+  "Bip0340Verify": {
+    "best_name": "bip340_valid_4",
+    "best_value": 53714.61056994503,
+    "median_name": "bip340_valid_1",
+    "median_value": 53894.17259006381,
+    "worst_name": "bip340_invalid_2",
+    "worst_value": 53990.320260859735
+  },
+  "BuildTapbranch": {
+    "best_name": "60",
+    "best_value": 1664.86,
+    "median_name": "93",
+    "median_value": 1711.88,
+    "worst_name": "3",
+    "worst_value": 1884.75
+  },
+  "BuildTapleafSimplicity": {
+    "best_name": "42",
+    "best_value": 1309.67,
+    "median_name": "92",
+    "median_value": 1348.57,
+    "worst_name": "95",
+    "worst_value": 1499.53
+  },
+  "BuildTaptweak": {
+    "best_name": "fe_outofrange_+_sc_hi-bits_4",
+    "best_value": 863.2779837706072,
+    "median_name": "fe_hi-bits_+_sc_lo-bits_4",
+    "median_value": 21207.23142857143,
+    "worst_name": "fe_validx_+_sc_hi-bits_2",
+    "worst_value": 42441.6
+  },
+  "Ch1": {
+    "best_name": "ufmbits_4",
+    "best_value": 85.78521357331563,
+    "median_name": "lo-bits_2",
+    "median_value": 117.18221863939698,
+    "worst_name": "lo-bits_1",
+    "worst_value": 127.55804520190134
+  },
+  "Ch16": {
+    "best_name": "ufmbits_1",
+    "best_value": 100.17486467156556,
+    "median_name": "lo-bits_1",
+    "median_value": 131.0983992112433,
+    "worst_name": "lo-bits_0",
+    "worst_value": 138.71823482189524
+  },
+  "Ch32": {
+    "best_name": "ufmbits_3",
+    "best_value": 109.11404934995322,
+    "median_name": "hi-bits_2",
+    "median_value": 115.06197481899984,
+    "worst_name": "hi-bits_3",
+    "worst_value": 137.0372641118254
+  },
+  "Ch64": {
+    "best_name": "ufmbits_0",
+    "best_value": 116.35344165696125,
+    "median_name": "lo-bits_4",
+    "median_value": 137.351618256074,
+    "worst_name": "lo-bits_2",
+    "worst_value": 141.4158239934846
+  },
+  "Ch8": {
+    "best_name": "ufmbits_3",
+    "best_value": 92.82161205719247,
+    "median_name": "hi-bits_3",
+    "median_value": 138.00219184842058,
+    "worst_name": "lo-bits_0",
+    "worst_value": 154.39834043575922
+  },
+  "CheckLockDistance": {
+    "best_name": "92",
+    "best_value": 147.46000000000004,
+    "median_name": "72",
+    "median_value": 168.02,
+    "worst_name": "78",
+    "worst_value": 225.54
+  },
+  "CheckLockDuration": {
+    "best_name": "81",
+    "best_value": 151.235,
+    "median_name": "10",
+    "median_value": 160.285,
+    "worst_name": "80",
+    "worst_value": 201.985
+  },
+  "CheckLockHeight": {
+    "best_name": "91",
+    "best_value": 165.48,
+    "median_name": "71",
+    "median_value": 212.7,
+    "worst_name": "3",
+    "worst_value": 271.16
+  },
+  "CheckLockTime": {
+    "best_name": "26",
+    "best_value": 186.48,
+    "median_name": "50",
+    "median_value": 210.79,
+    "worst_name": "53",
+    "worst_value": 238.2
+  },
+  "CheckSigVerify": {
+    "best_name": "checksig_valid_2",
+    "best_value": 47845.049862388,
+    "median_name": "checksig_invalid_1",
+    "median_value": 54408.5792742893,
+    "worst_name": "checksig_invalid_2",
+    "worst_value": 54916.09719719049
+  },
+  "Complement1": {
+    "best_name": "hi-bits_1",
+    "best_value": 82.92950965776927,
+    "median_name": "ufmbits_4",
+    "median_value": 88.72281257429113,
+    "worst_name": "lo-bits_1",
+    "worst_value": 113.00450253003245
+  },
+  "Complement16": {
+    "best_name": "ufmbits_4",
+    "best_value": 96.73948343753342,
+    "median_name": "lo-bits_2",
+    "median_value": 127.29481590099903,
+    "worst_name": "lo-bits_4",
+    "worst_value": 133.43967721694702
+  },
+  "Complement32": {
+    "best_name": "ufmbits_3",
+    "best_value": 93.17289699161573,
+    "median_name": "lo-bits_2",
+    "median_value": 126.65056450954059,
+    "worst_name": "hi-bits_3",
+    "worst_value": 131.91545865613352
+  },
+  "Complement64": {
+    "best_name": "ufmbits_3",
+    "best_value": 103.29626266687447,
+    "median_name": "lo-bits_1",
+    "median_value": 128.01936819982583,
+    "worst_name": "lo-bits_0",
+    "worst_value": 140.64038738687825
+  },
+  "Complement8": {
+    "best_name": "ufmbits_1",
+    "best_value": 79.16941576120209,
+    "median_name": "hi-bits_4",
+    "median_value": 128.28731600796314,
+    "worst_name": "hi-bits_2",
+    "worst_value": 141.1467192853844
+  },
+  "CurrentAnnexHash": {
+    "best_name": "3",
+    "best_value": 80.85933337032239,
+    "median_name": "35",
+    "median_value": 88.62758576792517,
+    "worst_name": "37",
+    "worst_value": 117.37689804946095
+  },
+  "CurrentIndex": {
+    "best_name": "51",
+    "best_value": 77.83006389477644,
+    "median_name": "54",
+    "median_value": 92.48260122961919,
+    "worst_name": "76",
+    "worst_value": 118.76373899889344
+  },
+  "CurrentPrevOutpoint": {
+    "best_name": "15",
+    "best_value": 113.80336798648655,
+    "median_name": "2",
+    "median_value": 124.53880297772248,
+    "worst_name": "74",
+    "worst_value": 167.3375997011576
+  },
+  "CurrentScriptHash": {
+    "best_name": "18",
+    "best_value": 109.12419875728621,
+    "median_name": "92",
+    "median_value": 118.80706080352884,
+    "worst_name": "5",
+    "worst_value": 172.94307044139714
+  },
+  "CurrentScriptSigHash": {
+    "best_name": "2",
+    "best_value": 108.9970779901755,
+    "median_name": "16",
+    "median_value": 121.07937602675271,
+    "worst_name": "20",
+    "worst_value": 155.02615204914176
+  },
+  "CurrentSequence": {
+    "best_name": "31",
+    "best_value": 83.39255893395466,
+    "median_name": "23",
+    "median_value": 92.59547050390047,
+    "worst_name": "30",
+    "worst_value": 122.86728144748531
+  },
+  "CurrentValue": {
+    "best_name": "32",
+    "best_value": 82.56343929204706,
+    "median_name": "87",
+    "median_value": 96.32608203419026,
+    "worst_name": "56",
+    "worst_value": 130.54345653071948
+  },
+  "Decompress": {
+    "best_name": "pt_ge_offc_fe_lo-bits_2",
+    "best_value": 5686.902582936769,
+    "median_name": "pt_ge_offc_fe_hi-bits_2",
+    "median_value": 5806.7936192086545,
+    "worst_name": "pt_ge_offc_fe_validx_2",
+    "worst_value": 6188.952916666665
+  },
+  "Decrement16": {
+    "best_name": "ufmbits_0",
+    "best_value": 90.45557949744767,
+    "median_name": "lo-bits_1",
+    "median_value": 115.65622335444523,
+    "worst_name": "hi-bits_2",
+    "worst_value": 137.56227033047745
+  },
+  "Decrement32": {
+    "best_name": "ufmbits_4",
+    "best_value": 96.51445395648139,
+    "median_name": "lo-bits_1",
+    "median_value": 116.71849360561518,
+    "worst_name": "hi-bits_3",
+    "worst_value": 136.77506398790544
+  },
+  "Decrement64": {
+    "best_name": "ufmbits_0",
+    "best_value": 98.79441866147695,
+    "median_name": "hi-bits_2",
+    "median_value": 113.69903483214634,
+    "worst_name": "hi-bits_4",
+    "worst_value": 137.16953588399528
+  },
+  "Decrement8": {
+    "best_name": "ufmbits_1",
+    "best_value": 89.17211537573762,
+    "median_name": "hi-bits_3",
+    "median_value": 112.69578464689397,
+    "worst_name": "lo-bits_1",
+    "worst_value": 136.10780442025828
+  },
+  "DivMod128_64": {
+    "best_name": "ufmbits_+_ufmbits_3",
+    "best_value": 144.95186234839494,
+    "median_name": "lo-bits_+_lo-bits_2",
+    "median_value": 223.211875,
+    "worst_name": "ufmbits_+_hi-bits_0",
+    "worst_value": 262.7372222222222
+  },
+  "DivMod16": {
+    "best_name": "ufmbits_+_self_3",
+    "best_value": 102.50939642657393,
+    "median_name": "lo-bits_+_inv_self_2",
+    "median_value": 140.16466113464577,
+    "worst_name": "hi-bits_+_lo-bits_3",
+    "worst_value": 228.3255343489246
+  },
+  "DivMod32": {
+    "best_name": "ufmbits_+_self_3",
+    "best_value": 100.3068913692734,
+    "median_name": "ufmbits_+_hi-bits_2",
+    "median_value": 140.910984141737,
+    "worst_name": "hi-bits_+_lo-bits_0",
+    "worst_value": 216.12705882352955
+  },
+  "DivMod64": {
+    "best_name": "ufmbits_+_self_1",
+    "best_value": 116.38842940419183,
+    "median_name": "lo-bits_+_lo-bits_0",
+    "median_value": 148.03695512971174,
+    "worst_name": "ufmbits_+_lo-bits_3",
+    "worst_value": 237.66500000000013
+  },
+  "DivMod8": {
+    "best_name": "ufmbits_+_ufmbits_3",
+    "best_value": 101.33869209087264,
+    "median_name": "hi-bits_+_self_3",
+    "median_value": 140.96178897989137,
+    "worst_name": "lo-bits_+_lo-bits_4",
+    "worst_value": 217.87294117647053
+  },
+  "Divide16": {
+    "best_name": "ufmbits_+_self_4",
+    "best_value": 97.39622615753069,
+    "median_name": "lo-bits_+_self_4",
+    "median_value": 138.05783226698978,
+    "worst_name": "hi-bits_+_hi-bits_1",
+    "worst_value": 208.98117647058822
+  },
+  "Divide32": {
+    "best_name": "ufmbits_+_self_1",
+    "best_value": 105.56902958378824,
+    "median_name": "lo-bits_+_self_2",
+    "median_value": 139.62853426733446,
+    "worst_name": "hi-bits_+_hi-bits_1",
+    "worst_value": 222.48529411764707
+  },
+  "Divide64": {
+    "best_name": "ufmbits_+_self_0",
+    "best_value": 112.71362604193423,
+    "median_name": "ufmbits_+_lo-bits_0",
+    "median_value": 145.04598819502556,
+    "worst_name": "lo-bits_+_ufmbits_1",
+    "worst_value": 235.83500000000006
+  },
+  "Divide8": {
+    "best_name": "ufmbits_+_inv_self_1",
+    "best_value": 98.97795447750191,
+    "median_name": "lo-bits_+_self_3",
+    "median_value": 139.57211486304269,
+    "worst_name": "lo-bits_+_hi-bits_4",
+    "worst_value": 210.8447058823529
+  },
+  "Divides16": {
+    "best_name": "ufmbits_+_self_3",
+    "best_value": 98.95412387347923,
+    "median_name": "lo-bits_+_ufmbits_4",
+    "median_value": 141.4697674985904,
+    "worst_name": "lo-bits_+_lo-bits_3",
+    "worst_value": 223.8305882352941
+  },
+  "Divides32": {
+    "best_name": "ufmbits_+_self_3",
+    "best_value": 103.62476926791165,
+    "median_name": "lo-bits_+_ufmbits_3",
+    "median_value": 145.20697875039542,
+    "worst_name": "hi-bits_+_hi-bits_0",
+    "worst_value": 238.12000000000003
+  },
+  "Divides64": {
+    "best_name": "ufmbits_+_self_2",
+    "best_value": 112.82344272993465,
+    "median_name": "lo-bits_+_hi-bits_0",
+    "median_value": 156.5737349922953,
+    "worst_name": "ufmbits_+_hi-bits_3",
+    "worst_value": 224.92050000000015
+  },
+  "Divides8": {
+    "best_name": "ufmbits_+_ufmbits_3",
+    "best_value": 91.95460112599457,
+    "median_name": "ufmbits_+_lo-bits_1",
+    "median_value": 137.17721097871183,
+    "worst_name": "hi-bits_+_lo-bits_0",
+    "worst_value": 213.56470588235294
+  },
+  "Eq1": {
+    "best_name": "ufmbits_+_inv_self_2",
+    "best_value": 86.15255004940862,
+    "median_name": "lo-bits_+_hi-bits_2",
+    "median_value": 100.05591066484907,
+    "worst_name": "ufmbits_+_ufmbits_3",
+    "worst_value": 145.98457068441905
+  },
+  "Eq16": {
+    "best_name": "ufmbits_+_ufmbits_2",
+    "best_value": 96.70104283018492,
+    "median_name": "lo-bits_+_inv_self_0",
+    "median_value": 137.26140573813325,
+    "worst_name": "lo-bits_+_lo-bits_4",
+    "worst_value": 215.98823529411777
+  },
+  "Eq256": {
+    "best_name": "ufmbits_+_inv_self_2",
+    "best_value": 174.09228804697352,
+    "median_name": "hi-bits_+_lo-bits_3",
+    "median_value": 249.66357142857137,
+    "worst_name": "ufmbits_+_self_0",
+    "worst_value": 274.00117647058835
+  },
+  "Eq32": {
+    "best_name": "ufmbits_+_self_3",
+    "best_value": 102.98965944471227,
+    "median_name": "lo-bits_+_ufmbits_3",
+    "median_value": 136.23990549676387,
+    "worst_name": "lo-bits_+_hi-bits_0",
+    "worst_value": 211.98352941176475
+  },
+  "Eq64": {
+    "best_name": "ufmbits_+_ufmbits_2",
+    "best_value": 114.68848066031664,
+    "median_name": "lo-bits_+_ufmbits_1",
+    "median_value": 140.31350225418507,
+    "worst_name": "hi-bits_+_ufmbits_2",
+    "worst_value": 222.9730000000001
+  },
+  "Eq8": {
+    "best_name": "ufmbits_+_self_2",
+    "best_value": 94.6520507332236,
+    "median_name": "ufmbits_+_hi-bits_1",
+    "median_value": 135.56571038206897,
+    "worst_name": "hi-bits_+_lo-bits_4",
+    "worst_value": 213.53941176470585
+  },
+  "FeAdd": {
+    "best_name": "fe_lo-bits_+_self_0",
+    "best_value": 459.61941420595264,
+    "median_name": "fe_lo-bits_+_fe_outofrange_2",
+    "median_value": 474.2705791457771,
+    "worst_name": "fe_validx_+_fe_validx_3",
+    "worst_value": 770.6976
+  },
+  "FeInvert": {
+    "best_name": "fe_outofrange_1",
+    "best_value": 1334.8314461228654,
+    "median_name": "fe_hi-bits_3",
+    "median_value": 1608.565186118357,
+    "worst_name": "fe_validx_4",
+    "worst_value": 2030.3993358539492
+  },
+  "FeIsOdd": {
+    "best_name": "fe_lo-bits_1",
+    "best_value": 193.49357749194544,
+    "median_name": "fe_ufmbits_2",
+    "median_value": 199.59426742054205,
+    "worst_name": "fe_validx_0",
+    "worst_value": 393.22660457686493
+  },
+  "FeIsZero": {
+    "best_name": "fe_ufmbits_0",
+    "best_value": 189.81384375955608,
+    "median_name": "fe_hi-bits_4",
+    "median_value": 200.24059121585793,
+    "worst_name": "fe_validx_1",
+    "worst_value": 385.412245701749
+  },
+  "FeMultiply": {
+    "best_name": "fe_hi-bits_+_inv_self_1",
+    "best_value": 497.50404141338464,
+    "median_name": "fe_lo-bits_+_fe_outofrange_2",
+    "median_value": 515.3119010911399,
+    "worst_name": "fe_validx_+_fe_validx_1",
+    "worst_value": 810.5959090909091
+  },
+  "FeMultiplyBeta": {
+    "best_name": "fe_ufmbits_1",
+    "best_value": 365.1724598123985,
+    "median_name": "fe_lo-bits_2",
+    "median_value": 375.1160840952486,
+    "worst_name": "fe_validx_2",
+    "worst_value": 554.9087072154043
+  },
+  "FeNegate": {
+    "best_name": "fe_ufmbits_4",
+    "best_value": 335.30193928720246,
+    "median_name": "fe_lo-bits_2",
+    "median_value": 346.52936278080364,
+    "worst_name": "fe_validx_0",
+    "worst_value": 507.97988856626057
+  },
+  "FeNormalize": {
+    "best_name": "fe_lo-bits_3",
+    "best_value": 330.67898278679553,
+    "median_name": "fe_hi-bits_0",
+    "median_value": 359.8890803398205,
+    "worst_name": "fe_validx_0",
+    "worst_value": 509.4810134284182
+  },
+  "FeSquare": {
+    "best_name": "fe_ufmbits_3",
+    "best_value": 356.97571849523956,
+    "median_name": "fe_hi-bits_0",
+    "median_value": 370.7720614229498,
+    "worst_name": "fe_validx_4",
+    "worst_value": 539.8399461334091
+  },
+  "FeSquareRoot": {
+    "best_name": "fe_ufmbits_1",
+    "best_value": 5572.418151338056,
+    "median_name": "fe_lo-bits_2",
+    "median_value": 5597.215981574355,
+    "worst_name": "fe_validx_3",
+    "worst_value": 5843.946419027051
+  },
+  "Fee": {
+    "best_name": "99",
+    "best_value": 84.15792360450445,
+    "median_name": "83",
+    "median_value": 92.88252702046562,
+    "worst_name": "18",
+    "worst_value": 123.76379736425957
+  },
+  "FullAdd16": {
+    "best_name": "0ufmbits_+_inv_self_4",
+    "best_value": 106.916020010291,
+    "median_name": "0hi-bits_+_inv_self_4",
+    "median_value": 147.1928090956386,
+    "worst_name": "0hi-bits_+_lo-bits_3",
+    "worst_value": 278.17555555555566
+  },
+  "FullAdd32": {
+    "best_name": "1ufmbits_+_inv_self_2",
+    "best_value": 104.66545681234838,
+    "median_name": "1lo-bits_+_ufmbits_0",
+    "median_value": 138.2294739427599,
+    "worst_name": "0hi-bits_+_hi-bits_2",
+    "worst_value": 223.9623529411765
+  },
+  "FullAdd64": {
+    "best_name": "0ufmbits_+_inv_self_2",
+    "best_value": 115.97311405882212,
+    "median_name": "0hi-bits_+_ufmbits_1",
+    "median_value": 143.6616568931471,
+    "worst_name": "1ufmbits_+_hi-bits_1",
+    "worst_value": 230.3600000000001
+  },
+  "FullAdd8": {
+    "best_name": "1ufmbits_+_inv_self_0",
+    "best_value": 104.91200256986835,
+    "median_name": "0ufmbits_+_lo-bits_4",
+    "median_value": 143.2130449616933,
+    "worst_name": "1hi-bits_+_lo-bits_4",
+    "worst_value": 217.69352941176462
+  },
+  "FullDecrement16": {
+    "best_name": "0ufmbits_1",
+    "best_value": 99.36978321246332,
+    "median_name": "0hi-bits_4",
+    "median_value": 130.63599622272423,
+    "worst_name": "0lo-bits_3",
+    "worst_value": 141.58374273817162
+  },
+  "FullDecrement32": {
+    "best_name": "0ufmbits_1",
+    "best_value": 94.312003689633,
+    "median_name": "1hi-bits_1",
+    "median_value": 117.74736263529952,
+    "worst_name": "1hi-bits_4",
+    "worst_value": 138.75122502778058
+  },
+  "FullDecrement64": {
+    "best_name": "1ufmbits_0",
+    "best_value": 101.25272601970799,
+    "median_name": "0lo-bits_1",
+    "median_value": 115.02354512847128,
+    "worst_name": "1hi-bits_3",
+    "worst_value": 134.5055755674382
+  },
+  "FullDecrement8": {
+    "best_name": "0ufmbits_0",
+    "best_value": 92.92524206059441,
+    "median_name": "1lo-bits_4",
+    "median_value": 131.1371060038816,
+    "worst_name": "0hi-bits_1",
+    "worst_value": 142.07235551200864
+  },
+  "FullIncrement16": {
+    "best_name": "0ufmbits_2",
+    "best_value": 94.14063180526199,
+    "median_name": "0hi-bits_1",
+    "median_value": 117.58227903578945,
+    "worst_name": "1hi-bits_3",
+    "worst_value": 145.48698829801032
+  },
+  "FullIncrement32": {
+    "best_name": "1ufmbits_0",
+    "best_value": 96.91777195990771,
+    "median_name": "1hi-bits_1",
+    "median_value": 114.28292709250651,
+    "worst_name": "0hi-bits_1",
+    "worst_value": 135.92879542716443
+  },
+  "FullIncrement64": {
+    "best_name": "0ufmbits_1",
+    "best_value": 98.98075964532836,
+    "median_name": "1lo-bits_2",
+    "median_value": 127.26287642910644,
+    "worst_name": "0lo-bits_0",
+    "worst_value": 148.20771712031126
+  },
+  "FullIncrement8": {
+    "best_name": "0ufmbits_3",
+    "best_value": 85.49934599777069,
+    "median_name": "1lo-bits_0",
+    "median_value": 110.91711593601518,
+    "worst_name": "0hi-bits_1",
+    "worst_value": 131.8370915418252
+  },
+  "FullLeftShift16_1": {
+    "best_name": "ufmbits_0",
+    "best_value": 95.29542281900183,
+    "median_name": "lo-bits_0",
+    "median_value": 107.26563523630745,
+    "worst_name": "hi-bits_0",
+    "worst_value": 128.85759655134976
+  },
+  "FullLeftShift16_2": {
+    "best_name": "ufmbits_0",
+    "best_value": 86.76533554435134,
+    "median_name": "hi-bits_0",
+    "median_value": 126.14179762501765,
+    "worst_name": "hi-bits_4",
+    "worst_value": 135.48279668677253
+  },
+  "FullLeftShift16_4": {
+    "best_name": "ufmbits_1",
+    "best_value": 86.02631505224176,
+    "median_name": "lo-bits_2",
+    "median_value": 110.56484895097383,
+    "worst_name": "lo-bits_0",
+    "worst_value": 125.19458437143962
+  },
+  "FullLeftShift16_8": {
+    "best_name": "ufmbits_1",
+    "best_value": 91.56147430214659,
+    "median_name": "lo-bits_1",
+    "median_value": 113.17101087467687,
+    "worst_name": "lo-bits_3",
+    "worst_value": 160.31140906988776
+  },
+  "FullLeftShift32_1": {
+    "best_name": "ufmbits_2",
+    "best_value": 91.4041824053399,
+    "median_name": "lo-bits_0",
+    "median_value": 124.38208407958254,
+    "worst_name": "hi-bits_4",
+    "worst_value": 128.41605240891158
+  },
+  "FullLeftShift32_16": {
+    "best_name": "ufmbits_2",
+    "best_value": 102.49102431672172,
+    "median_name": "hi-bits_1",
+    "median_value": 125.77433996976787,
+    "worst_name": "lo-bits_3",
+    "worst_value": 147.0399301522492
+  },
+  "FullLeftShift32_2": {
+    "best_name": "ufmbits_0",
+    "best_value": 90.52096096580179,
+    "median_name": "hi-bits_4",
+    "median_value": 107.01980155002393,
+    "worst_name": "hi-bits_3",
+    "worst_value": 132.49607853392817
+  },
+  "FullLeftShift32_4": {
+    "best_name": "ufmbits_3",
+    "best_value": 95.37493606551908,
+    "median_name": "ufmbits_2",
+    "median_value": 117.29871219043312,
+    "worst_name": "lo-bits_4",
+    "worst_value": 125.66715112589151
+  },
+  "FullLeftShift32_8": {
+    "best_name": "ufmbits_2",
+    "best_value": 92.2811495518349,
+    "median_name": "hi-bits_3",
+    "median_value": 124.43074317404258,
+    "worst_name": "hi-bits_2",
+    "worst_value": 126.30789627235109
+  },
+  "FullLeftShift64_1": {
+    "best_name": "ufmbits_1",
+    "best_value": 103.6954236299096,
+    "median_name": "hi-bits_3",
+    "median_value": 119.14310797384385,
+    "worst_name": "hi-bits_1",
+    "worst_value": 138.08918874568855
+  },
+  "FullLeftShift64_16": {
+    "best_name": "ufmbits_0",
+    "best_value": 106.73126887982107,
+    "median_name": "hi-bits_3",
+    "median_value": 122.8884043265428,
+    "worst_name": "lo-bits_4",
+    "worst_value": 188.55990662839534
+  },
+  "FullLeftShift64_2": {
+    "best_name": "ufmbits_4",
+    "best_value": 104.02715582869101,
+    "median_name": "ufmbits_2",
+    "median_value": 125.27254215930424,
+    "worst_name": "hi-bits_1",
+    "worst_value": 135.90714096474625
+  },
+  "FullLeftShift64_32": {
+    "best_name": "ufmbits_3",
+    "best_value": 108.8616153109993,
+    "median_name": "lo-bits_2",
+    "median_value": 112.27501756824,
+    "worst_name": "hi-bits_4",
+    "worst_value": 133.50517319625038
+  },
+  "FullLeftShift64_4": {
+    "best_name": "ufmbits_2",
+    "best_value": 101.77761268110532,
+    "median_name": "hi-bits_2",
+    "median_value": 117.49439185085674,
+    "worst_name": "lo-bits_3",
+    "worst_value": 131.1835076457855
+  },
+  "FullLeftShift64_8": {
+    "best_name": "ufmbits_0",
+    "best_value": 103.6485310622444,
+    "median_name": "hi-bits_4",
+    "median_value": 116.95214924043103,
+    "worst_name": "lo-bits_3",
+    "worst_value": 137.51339314776737
+  },
+  "FullLeftShift8_1": {
+    "best_name": "ufmbits_4",
+    "best_value": 95.37050355691221,
+    "median_name": "lo-bits_4",
+    "median_value": 108.71788844339756,
+    "worst_name": "hi-bits_4",
+    "worst_value": 132.25390910667076
+  },
+  "FullLeftShift8_2": {
+    "best_name": "ufmbits_2",
+    "best_value": 91.16787323439615,
+    "median_name": "lo-bits_3",
+    "median_value": 108.85659082896285,
+    "worst_name": "hi-bits_1",
+    "worst_value": 128.33412379390217
+  },
+  "FullLeftShift8_4": {
+    "best_name": "ufmbits_4",
+    "best_value": 86.23502792817676,
+    "median_name": "lo-bits_3",
+    "median_value": 106.63016077576212,
+    "worst_name": "hi-bits_4",
+    "worst_value": 156.3173964265444
+  },
+  "FullMultiply16": {
+    "best_name": "ufmbits_+_self_1",
+    "best_value": 100.79753526105169,
+    "median_name": "lo-bits_+_inv_self_2",
+    "median_value": 138.32733837159697,
+    "worst_name": "ufmbits_+_hi-bits_4",
+    "worst_value": 230.52584532877606
+  },
+  "FullMultiply32": {
+    "best_name": "ufmbits_+_self_3",
+    "best_value": 114.5669238274178,
+    "median_name": "lo-bits_+_ufmbits_2",
+    "median_value": 139.76737451082573,
+    "worst_name": "hi-bits_+_lo-bits_1",
+    "worst_value": 208.96578947368414
+  },
+  "FullMultiply64": {
+    "best_name": "ufmbits_+_self_2",
+    "best_value": 122.50762462150858,
+    "median_name": "lo-bits_+_ufmbits_0",
+    "median_value": 215.53055555555554,
+    "worst_name": "hi-bits_+_self_2",
+    "worst_value": 235.18200000000004
+  },
+  "FullMultiply8": {
+    "best_name": "ufmbits_+_self_0",
+    "best_value": 101.60944935680631,
+    "median_name": "lo-bits_+_lo-bits_4",
+    "median_value": 139.62811940896924,
+    "worst_name": "hi-bits_+_hi-bits_1",
+    "worst_value": 215.61999999999998
+  },
+  "FullRightShift16_1": {
+    "best_name": "ufmbits_1",
+    "best_value": 89.01733017774325,
+    "median_name": "hi-bits_4",
+    "median_value": 111.28769011607206,
+    "worst_name": "hi-bits_1",
+    "worst_value": 135.41106265314318
+  },
+  "FullRightShift16_2": {
+    "best_name": "ufmbits_3",
+    "best_value": 97.15046765890567,
+    "median_name": "hi-bits_3",
+    "median_value": 114.64332704082516,
+    "worst_name": "hi-bits_0",
+    "worst_value": 134.77161347966165
+  },
+  "FullRightShift16_4": {
+    "best_name": "ufmbits_4",
+    "best_value": 90.10506232625399,
+    "median_name": "hi-bits_4",
+    "median_value": 113.55613513317559,
+    "worst_name": "lo-bits_0",
+    "worst_value": 154.74604862433003
+  },
+  "FullRightShift16_8": {
+    "best_name": "ufmbits_2",
+    "best_value": 95.06726479322047,
+    "median_name": "hi-bits_4",
+    "median_value": 109.53767227182801,
+    "worst_name": "hi-bits_0",
+    "worst_value": 159.77283982141614
+  },
+  "FullRightShift32_1": {
+    "best_name": "ufmbits_4",
+    "best_value": 90.18156335944181,
+    "median_name": "hi-bits_0",
+    "median_value": 113.767851849223,
+    "worst_name": "hi-bits_4",
+    "worst_value": 128.94390177659432
+  },
+  "FullRightShift32_16": {
+    "best_name": "ufmbits_3",
+    "best_value": 99.01572154968854,
+    "median_name": "ufmbits_2",
+    "median_value": 122.59626410750383,
+    "worst_name": "lo-bits_0",
+    "worst_value": 171.31449851737491
+  },
+  "FullRightShift32_2": {
+    "best_name": "ufmbits_4",
+    "best_value": 93.58012034756597,
+    "median_name": "hi-bits_4",
+    "median_value": 114.7107643386501,
+    "worst_name": "hi-bits_0",
+    "worst_value": 130.61346880570753
+  },
+  "FullRightShift32_4": {
+    "best_name": "ufmbits_4",
+    "best_value": 91.61083695474554,
+    "median_name": "hi-bits_2",
+    "median_value": 115.99562443352397,
+    "worst_name": "hi-bits_1",
+    "worst_value": 138.55775831809703
+  },
+  "FullRightShift32_8": {
+    "best_name": "ufmbits_4",
+    "best_value": 92.0548988776445,
+    "median_name": "hi-bits_3",
+    "median_value": 117.45452361188187,
+    "worst_name": "ufmbits_0",
+    "worst_value": 147.99614529292646
+  },
+  "FullRightShift64_1": {
+    "best_name": "ufmbits_0",
+    "best_value": 108.09014698670978,
+    "median_name": "ufmbits_4",
+    "median_value": 117.92129208157375,
+    "worst_name": "lo-bits_3",
+    "worst_value": 139.19481030071972
+  },
+  "FullRightShift64_16": {
+    "best_name": "ufmbits_1",
+    "best_value": 104.1237862232003,
+    "median_name": "lo-bits_1",
+    "median_value": 115.19385413614131,
+    "worst_name": "hi-bits_1",
+    "worst_value": 139.00799976033036
+  },
+  "FullRightShift64_2": {
+    "best_name": "ufmbits_3",
+    "best_value": 110.41562696363424,
+    "median_name": "hi-bits_2",
+    "median_value": 117.37150896537196,
+    "worst_name": "hi-bits_3",
+    "worst_value": 135.96983175687308
+  },
+  "FullRightShift64_32": {
+    "best_name": "ufmbits_2",
+    "best_value": 102.71390130383956,
+    "median_name": "lo-bits_1",
+    "median_value": 113.76959511025501,
+    "worst_name": "hi-bits_4",
+    "worst_value": 138.7311909264512
+  },
+  "FullRightShift64_4": {
+    "best_name": "ufmbits_1",
+    "best_value": 105.76049931707297,
+    "median_name": "lo-bits_0",
+    "median_value": 134.48712760137312,
+    "worst_name": "lo-bits_2",
+    "worst_value": 140.1889432115197
+  },
+  "FullRightShift64_8": {
+    "best_name": "ufmbits_1",
+    "best_value": 112.66432211404162,
+    "median_name": "lo-bits_4",
+    "median_value": 117.06732641833452,
+    "worst_name": "hi-bits_4",
+    "worst_value": 138.32344985001137
+  },
+  "FullRightShift8_1": {
+    "best_name": "ufmbits_4",
+    "best_value": 86.93463815046711,
+    "median_name": "hi-bits_2",
+    "median_value": 109.04337079910701,
+    "worst_name": "lo-bits_1",
+    "worst_value": 131.87251706109487
+  },
+  "FullRightShift8_2": {
+    "best_name": "ufmbits_3",
+    "best_value": 88.14081587734984,
+    "median_name": "hi-bits_3",
+    "median_value": 110.9761573318848,
+    "worst_name": "hi-bits_4",
+    "worst_value": 132.214284555059
+  },
+  "FullRightShift8_4": {
+    "best_name": "ufmbits_4",
+    "best_value": 90.515564835109,
+    "median_name": "lo-bits_1",
+    "median_value": 109.38493869339568,
+    "worst_name": "lo-bits_4",
+    "worst_value": 157.27704211178968
+  },
+  "FullSubtract16": {
+    "best_name": "0ufmbits_+_self_1",
+    "best_value": 100.20583502970054,
+    "median_name": "1lo-bits_+_self_2",
+    "median_value": 141.49195244545368,
+    "worst_name": "0hi-bits_+_hi-bits_0",
+    "worst_value": 219.3129411764706
+  },
+  "FullSubtract32": {
+    "best_name": "1ufmbits_+_self_0",
+    "best_value": 101.71944698710307,
+    "median_name": "1ufmbits_+_hi-bits_2",
+    "median_value": 140.68135382188026,
+    "worst_name": "1lo-bits_+_lo-bits_1",
+    "worst_value": 222.07470588235293
+  },
+  "FullSubtract64": {
+    "best_name": "1ufmbits_+_self_4",
+    "best_value": 107.94963046978943,
+    "median_name": "0lo-bits_+_self_0",
+    "median_value": 144.11991250044818,
+    "worst_name": "1hi-bits_+_ufmbits_0",
+    "worst_value": 223.9220000000002
+  },
+  "FullSubtract8": {
+    "best_name": "0ufmbits_+_self_3",
+    "best_value": 101.40557536980745,
+    "median_name": "0lo-bits_+_inv_self_3",
+    "median_value": 144.21525419712182,
+    "worst_name": "0hi-bits_+_hi-bits_3",
+    "worst_value": 319.7029411764706
+  },
+  "GeIsOnCurve": {
+    "best_name": "ge_offc_fe_ufmbits_1",
+    "best_value": 391.23401305575396,
+    "median_name": "ge_offc_fe_outofrange_3",
+    "median_value": 415.36039872780975,
+    "worst_name": "ge_offc_fe_validx_4",
+    "worst_value": 731.8395999999999
+  },
+  "GeNegate": {
+    "best_name": "ge_offc_fe_ufmbits_3",
+    "best_value": 617.7642001103396,
+    "median_name": "ge_offc_fe_outofrange_0",
+    "median_value": 647.4705943869102,
+    "worst_name": "ge_offc_fe_validx_0",
+    "worst_value": 842.0671647923853
+  },
+  "GejAdd": {
+    "best_name": "gej_offc_fe_ufmbits_+_gej_zero_fe_ufmbits_4",
+    "best_value": 1242.3901870779825,
+    "median_name": "gej_zero_fe_validx_+_gej_zero_fe_hi-bits_0",
+    "median_value": 1532.8298507912737,
+    "worst_name": "gej_offc_fe_validx_+_self_0",
+    "worst_value": 2320.549333333333
+  },
+  "GejDouble": {
+    "best_name": "gej_zero_fe_ufmbits_0",
+    "best_value": 898.799377657456,
+    "median_name": "gej_offc_fe_ufmbits_0",
+    "median_value": 1070.9760748511305,
+    "worst_name": "gej_offc_fe_validx_2",
+    "worst_value": 1573.7453333333333
+  },
+  "GejEquiv": {
+    "best_name": "gej_offc_fe_ufmbits_+_gej_zero_fe_ufmbits_1",
+    "best_value": 807.1315558378185,
+    "median_name": "gej_zero_fe_hi-bits_+_gej_zero_fe_validx_0",
+    "median_value": 1076.631874870852,
+    "worst_name": "gej_offc_fe_validx_+_gej_offc_fe_hi-bits_3",
+    "worst_value": 1846.5266666666662
+  },
+  "GejGeAdd": {
+    "best_name": "gej_zero_fe_ufmbits_+_ge_offc_fe_lo-bits_4",
+    "best_value": 1141.0544553870072,
+    "median_name": "gej_offc_fe_outofrange_+_ge_offc_fe_ufmbits_4",
+    "median_value": 1464.833775150754,
+    "worst_name": "gej_offc_fe_validx_+_ge_offc_fe_validx_2",
+    "worst_value": 2064.0136363636357
+  },
+  "GejGeAddEx": {
+    "best_name": "gej_zero_fe_ufmbits_+_ge_offc_fe_ufmbits_4",
+    "best_value": 1229.4933250870351,
+    "median_name": "gej_offc_fe_hi-bits_+_ge_offc_fe_outofrange_1",
+    "median_value": 1610.3358713195296,
+    "worst_name": "gej_offc_fe_validx_+_ge_offc_fe_outofrange_4",
+    "worst_value": 2214.2466666666664
+  },
+  "GejGeEquiv": {
+    "best_name": "gej_zero_fe_ufmbits_+_ge_offc_fe_ufmbits_4",
+    "best_value": 701.8313683500518,
+    "median_name": "gej_offc_fe_hi-bits_+_ge_offc_fe_outofrange_2",
+    "median_value": 1026.6047476601716,
+    "worst_name": "gej_offc_fe_validx_+_ge_oncurve_2",
+    "worst_value": 1672.819166666667
+  },
+  "GejInfinity": {
+    "best_name": "unit_3",
+    "best_value": 522.5860966268488,
+    "median_name": "unit_4",
+    "median_value": 524.1670557098386,
+    "worst_name": "unit_0",
+    "worst_value": 525.1150164165094
+  },
+  "GejIsInfinity": {
+    "best_name": "gej_zero_fe_outofrange_1",
+    "best_value": 408.7439640958307,
+    "median_name": "gej_zero_fe_hi-bits_4",
+    "median_value": 420.1254650353162,
+    "worst_name": "gej_offc_fe_validx_4",
+    "worst_value": 902.5784615384623
+  },
+  "GejIsOnCurve": {
+    "best_name": "gej_zero_fe_ufmbits_3",
+    "best_value": 585.4295953201043,
+    "median_name": "gej_zero_fe_outofrange_0",
+    "median_value": 597.9536858206736,
+    "worst_name": "gej_offc_fe_validx_2",
+    "worst_value": 1075.8035000000004
+  },
+  "GejNegate": {
+    "best_name": "gej_zero_fe_ufmbits_3",
+    "best_value": 885.3752947272774,
+    "median_name": "gej_zero_fe_outofrange_1",
+    "median_value": 895.9948885587407,
+    "worst_name": "gej_offc_fe_validx_2",
+    "worst_value": 1361.2915384615385
+  },
+  "GejNormalize": {
+    "best_name": "gej_zero_fe_ufmbits_2",
+    "best_value": 440.7881513045125,
+    "median_name": "gej_offc_fe_outofrange_3",
+    "median_value": 1868.7880406227969,
+    "worst_name": "gej_offc_fe_validx_3",
+    "worst_value": 2896.1074999999987
+  },
+  "GejRescale": {
+    "best_name": "gej_offc_fe_ufmbits_+_fe_ufmbits_2",
+    "best_value": 1108.1122468091519,
+    "median_name": "gej_offc_fe_ufmbits_+_fe_ufmbits_3",
+    "median_value": 1145.9951546259806,
+    "worst_name": "gej_offc_fe_validx_+_fe_hi-bits_0",
+    "worst_value": 1705.9000000000012
+  },
+  "GejXEquiv": {
+    "best_name": "fe_lo-bits_+_gej_zero_fe_lo-bits_1",
+    "best_value": 549.898123653714,
+    "median_name": "fe_outofrange_+_gej_offc_fe_hi-bits_0",
+    "median_value": 631.7516850514564,
+    "worst_name": "fe_validx_+_gej_offc_fe_validx_4",
+    "worst_value": 1149.0061538461541
+  },
+  "GejYIsOdd": {
+    "best_name": "gej_zero_fe_lo-bits_3",
+    "best_value": 427.6243029395867,
+    "median_name": "gej_offc_fe_outofrange_3",
+    "median_value": 1563.2100312247064,
+    "worst_name": "gej_offc_fe_validx_1",
+    "worst_value": 2431.3861538461542
+  },
+  "Generate": {
+    "best_name": "sc_lo-bits_2",
+    "best_value": 15631.015390349838,
+    "median_name": "sc_hi-bits_4",
+    "median_value": 24255.02107554679,
+    "worst_name": "sc_ufmbits_0",
+    "worst_value": 27509.423721801144
+  },
+  "HashToCurve": {
+    "best_name": "hi-bits_1",
+    "best_value": 38318.8895357757,
+    "median_name": "hi-bits_4",
+    "median_value": 39048.35120403012,
+    "worst_name": "ufmbits_3",
+    "worst_value": 39300.78752323436
+  },
+  "High1": {
+    "best_name": "unit_2",
+    "best_value": 65.26187942405211,
+    "median_name": "unit_4",
+    "median_value": 68.23231317949407,
+    "worst_name": "unit_3",
+    "worst_value": 69.85968345254447
+  },
+  "High16": {
+    "best_name": "unit_0",
+    "best_value": 70.20227025995071,
+    "median_name": "unit_3",
+    "median_value": 73.35366206338216,
+    "worst_name": "unit_4",
+    "worst_value": 75.3314904452321
+  },
+  "High32": {
+    "best_name": "unit_0",
+    "best_value": 77.05934739412011,
+    "median_name": "unit_2",
+    "median_value": 79.46043280086151,
+    "worst_name": "unit_4",
+    "worst_value": 104.19264733849975
+  },
+  "High64": {
+    "best_name": "unit_4",
+    "best_value": 82.64487854106132,
+    "median_name": "unit_1",
+    "median_value": 106.3405494570201,
+    "worst_name": "unit_2",
+    "worst_value": 109.77920111489166
+  },
+  "High8": {
+    "best_name": "unit_4",
+    "best_value": 75.12110461620358,
+    "median_name": "unit_1",
+    "median_value": 79.69035464689017,
+    "worst_name": "unit_2",
+    "worst_value": 80.41583358140775
+  },
+  "Increment16": {
+    "best_name": "ufmbits_2",
+    "best_value": 96.62301605050087,
+    "median_name": "hi-bits_0",
+    "median_value": 113.87041051854585,
+    "worst_name": "hi-bits_1",
+    "worst_value": 137.94215425878284
+  },
+  "Increment32": {
+    "best_name": "ufmbits_2",
+    "best_value": 96.39545058551596,
+    "median_name": "lo-bits_4",
+    "median_value": 131.6292974133043,
+    "worst_name": "ufmbits_1",
+    "worst_value": 146.97073549423337
+  },
+  "Increment64": {
+    "best_name": "ufmbits_1",
+    "best_value": 97.2620402129454,
+    "median_name": "hi-bits_4",
+    "median_value": 120.04565241302214,
+    "worst_name": "hi-bits_3",
+    "worst_value": 143.75782366796236
+  },
+  "Increment8": {
+    "best_name": "ufmbits_3",
+    "best_value": 87.75909230102107,
+    "median_name": "lo-bits_3",
+    "median_value": 110.37104767665127,
+    "worst_name": "hi-bits_0",
+    "worst_value": 133.97175216414246
+  },
+  "InputAnnexHash": {
+    "best_name": "14",
+    "best_value": 84.89575145404784,
+    "median_name": "92",
+    "median_value": 96.4869424351665,
+    "worst_name": "94",
+    "worst_value": 119.20087753348724
+  },
+  "InputAnnexesHash": {
+    "best_name": "7",
+    "best_value": 104.76596798438588,
+    "median_name": "92",
+    "median_value": 117.74774457476789,
+    "worst_name": "98",
+    "worst_value": 154.92424329962265
+  },
+  "InputHash": {
+    "best_name": "33",
+    "best_value": 415.1427005174597,
+    "median_name": "90",
+    "median_value": 427.04039314231494,
+    "worst_name": "81",
+    "worst_value": 552.4994557584218
+  },
+  "InputOutpointsHash": {
+    "best_name": "24",
+    "best_value": 107.37900153958182,
+    "median_name": "18",
+    "median_value": 120.14491857681749,
+    "worst_name": "99",
+    "worst_value": 158.808604995405
+  },
+  "InputPrevOutpoint": {
+    "best_name": "8",
+    "best_value": 115.05931039698231,
+    "median_name": "59",
+    "median_value": 127.57575840852618,
+    "worst_name": "37",
+    "worst_value": 164.18147673040738
+  },
+  "InputScriptHash": {
+    "best_name": "17",
+    "best_value": 109.79510760636333,
+    "median_name": "15",
+    "median_value": 120.53815272283607,
+    "worst_name": "28",
+    "worst_value": 156.00604215203487
+  },
+  "InputScriptSigHash": {
+    "best_name": "39",
+    "best_value": 111.48972320972766,
+    "median_name": "42",
+    "median_value": 123.10394715269071,
+    "worst_name": "6",
+    "worst_value": 159.16273507141037
+  },
+  "InputScriptSigsHash": {
+    "best_name": "5",
+    "best_value": 108.76700537317578,
+    "median_name": "4",
+    "median_value": 120.98916188759266,
+    "worst_name": "51",
+    "worst_value": 161.46671527638566
+  },
+  "InputScriptsHash": {
+    "best_name": "14",
+    "best_value": 112.0139758316257,
+    "median_name": "66",
+    "median_value": 122.32049024849358,
+    "worst_name": "58",
+    "worst_value": 161.27038002361195
+  },
+  "InputSequence": {
+    "best_name": "18",
+    "best_value": 82.15944183097312,
+    "median_name": "33",
+    "median_value": 95.90900201785703,
+    "worst_name": "24",
+    "worst_value": 143.80783438895614
+  },
+  "InputSequencesHash": {
+    "best_name": "55",
+    "best_value": 111.6871417457207,
+    "median_name": "20",
+    "median_value": 124.93892289117976,
+    "worst_name": "34",
+    "worst_value": 165.5068534565141
+  },
+  "InputUtxoHash": {
+    "best_name": "87",
+    "best_value": 405.2544667165359,
+    "median_name": "45",
+    "median_value": 414.91887107561854,
+    "worst_name": "98",
+    "worst_value": 561.4475965287338
+  },
+  "InputUtxosHash": {
+    "best_name": "39",
+    "best_value": 108.08810986594912,
+    "median_name": "37",
+    "median_value": 120.60859734266947,
+    "worst_name": "69",
+    "worst_value": 160.73694360538894
+  },
+  "InputValue": {
+    "best_name": "52",
+    "best_value": 82.76701346554837,
+    "median_name": "15",
+    "median_value": 95.34465081717198,
+    "worst_name": "92",
+    "worst_value": 124.3335172816245
+  },
+  "InputValuesHash": {
+    "best_name": "6",
+    "best_value": 110.56830352793922,
+    "median_name": "87",
+    "median_value": 120.49416880708284,
+    "worst_name": "19",
+    "worst_value": 158.03480286735063
+  },
+  "InputsHash": {
+    "best_name": "47",
+    "best_value": 103.65371809927863,
+    "median_name": "29",
+    "median_value": 115.25748004030979,
+    "worst_name": "37",
+    "worst_value": 152.38582223949223
+  },
+  "InternalKey": {
+    "best_name": "16",
+    "best_value": 107.68246562799628,
+    "median_name": "74",
+    "median_value": 116.57018021449409,
+    "worst_name": "54",
+    "worst_value": 150.92758555160702
+  },
+  "IsOne16": {
+    "best_name": "ufmbits_2",
+    "best_value": 84.54509873312098,
+    "median_name": "lo-bits_4",
+    "median_value": 122.69184783459554,
+    "worst_name": "hi-bits_2",
+    "worst_value": 130.02690317819756
+  },
+  "IsOne32": {
+    "best_name": "ufmbits_1",
+    "best_value": 92.00165152984664,
+    "median_name": "hi-bits_1",
+    "median_value": 113.28514295919972,
+    "worst_name": "hi-bits_3",
+    "worst_value": 129.39279526865954
+  },
+  "IsOne64": {
+    "best_name": "ufmbits_1",
+    "best_value": 94.35080413089938,
+    "median_name": "lo-bits_2",
+    "median_value": 124.79307227503614,
+    "worst_name": "hi-bits_0",
+    "worst_value": 128.00257662047798
+  },
+  "IsOne8": {
+    "best_name": "ufmbits_0",
+    "best_value": 80.94683691916141,
+    "median_name": "lo-bits_3",
+    "median_value": 126.22634518671241,
+    "worst_name": "lo-bits_4",
+    "worst_value": 131.3022921357296
+  },
+  "IsZero16": {
+    "best_name": "ufmbits_2",
+    "best_value": 86.16876822459297,
+    "median_name": "hi-bits_3",
+    "median_value": 124.95579861819277,
+    "worst_name": "lo-bits_3",
+    "worst_value": 131.43006212328325
+  },
+  "IsZero32": {
+    "best_name": "ufmbits_3",
+    "best_value": 87.71072593609244,
+    "median_name": "hi-bits_4",
+    "median_value": 105.08313728118539,
+    "worst_name": "lo-bits_0",
+    "worst_value": 126.01826455115736
+  },
+  "IsZero64": {
+    "best_name": "ufmbits_1",
+    "best_value": 93.20839231202407,
+    "median_name": "ufmbits_4",
+    "median_value": 121.75759565994673,
+    "worst_name": "hi-bits_1",
+    "worst_value": 140.78104311085667
+  },
+  "IsZero8": {
+    "best_name": "ufmbits_2",
+    "best_value": 87.44737595256646,
+    "median_name": "hi-bits_1",
+    "median_value": 109.24721694938209,
+    "worst_name": "lo-bits_2",
+    "worst_value": 131.47001748935975
+  },
+  "Le16": {
+    "best_name": "ufmbits_+_self_1",
+    "best_value": 95.50727414586558,
+    "median_name": "lo-bits_+_inv_self_2",
+    "median_value": 136.84297054421953,
+    "worst_name": "hi-bits_+_hi-bits_0",
+    "worst_value": 214.31058823529412
+  },
+  "Le32": {
+    "best_name": "ufmbits_+_self_4",
+    "best_value": 105.92820949892597,
+    "median_name": "ufmbits_+_hi-bits_3",
+    "median_value": 137.6190632733823,
+    "worst_name": "hi-bits_+_hi-bits_1",
+    "worst_value": 213.32352941176472
+  },
+  "Le64": {
+    "best_name": "ufmbits_+_self_2",
+    "best_value": 107.18977429355171,
+    "median_name": "ufmbits_+_lo-bits_1",
+    "median_value": 136.31325271049056,
+    "worst_name": "ufmbits_+_hi-bits_3",
+    "worst_value": 217.40900000000016
+  },
+  "Le8": {
+    "best_name": "ufmbits_+_self_0",
+    "best_value": 98.8224210758131,
+    "median_name": "lo-bits_+_inv_self_1",
+    "median_value": 142.8347690195548,
+    "worst_name": "hi-bits_+_hi-bits_4",
+    "worst_value": 227.36764705882356
+  },
+  "LeftExtend16_32": {
+    "best_name": "ufmbits_2",
+    "best_value": 92.29541899173125,
+    "median_name": "lo-bits_1",
+    "median_value": 114.35917131850138,
+    "worst_name": "hi-bits_1",
+    "worst_value": 137.04880740970543
+  },
+  "LeftExtend16_64": {
+    "best_name": "ufmbits_0",
+    "best_value": 104.72605715083327,
+    "median_name": "lo-bits_2",
+    "median_value": 136.93503757417182,
+    "worst_name": "lo-bits_0",
+    "worst_value": 147.5589128459677
+  },
+  "LeftExtend1_16": {
+    "best_name": "ufmbits_2",
+    "best_value": 80.93398649194006,
+    "median_name": "hi-bits_4",
+    "median_value": 96.11554733069266,
+    "worst_name": "lo-bits_2",
+    "worst_value": 138.13133795144446
+  },
+  "LeftExtend1_32": {
+    "best_name": "ufmbits_1",
+    "best_value": 82.21679935099404,
+    "median_name": "ufmbits_0",
+    "median_value": 108.2514526697796,
+    "worst_name": "hi-bits_1",
+    "worst_value": 134.4694720602797
+  },
+  "LeftExtend1_64": {
+    "best_name": "lo-bits_4",
+    "best_value": 88.4986532689498,
+    "median_name": "lo-bits_3",
+    "median_value": 97.7080614986301,
+    "worst_name": "lo-bits_2",
+    "worst_value": 140.7485294559688
+  },
+  "LeftExtend1_8": {
+    "best_name": "hi-bits_3",
+    "best_value": 88.3366519493041,
+    "median_name": "hi-bits_2",
+    "median_value": 93.24086462732366,
+    "worst_name": "ufmbits_4",
+    "worst_value": 96.38710222497332
+  },
+  "LeftExtend32_64": {
+    "best_name": "ufmbits_1",
+    "best_value": 94.11736477512042,
+    "median_name": "lo-bits_4",
+    "median_value": 111.53370764413086,
+    "worst_name": "hi-bits_3",
+    "worst_value": 138.85118148941808
+  },
+  "LeftExtend8_16": {
+    "best_name": "ufmbits_1",
+    "best_value": 99.84385325034049,
+    "median_name": "ufmbits_3",
+    "median_value": 117.64922929143864,
+    "worst_name": "lo-bits_4",
+    "worst_value": 136.70401583724893
+  },
+  "LeftExtend8_32": {
+    "best_name": "ufmbits_1",
+    "best_value": 101.26425311828639,
+    "median_name": "lo-bits_0",
+    "median_value": 120.91558503443815,
+    "worst_name": "hi-bits_3",
+    "worst_value": 142.56500071794125
+  },
+  "LeftExtend8_64": {
+    "best_name": "ufmbits_0",
+    "best_value": 111.51322902655303,
+    "median_name": "lo-bits_4",
+    "median_value": 138.2478024630088,
+    "worst_name": "hi-bits_4",
+    "worst_value": 166.6212242241255
+  },
+  "LeftPadHigh16_32": {
+    "best_name": "ufmbits_1",
+    "best_value": 101.93294292809026,
+    "median_name": "hi-bits_2",
+    "median_value": 115.01035173274111,
+    "worst_name": "hi-bits_3",
+    "worst_value": 135.63342862332237
+  },
+  "LeftPadHigh16_64": {
+    "best_name": "ufmbits_1",
+    "best_value": 106.40222166126532,
+    "median_name": "lo-bits_2",
+    "median_value": 134.88846293005915,
+    "worst_name": "hi-bits_1",
+    "worst_value": 139.51785185657343
+  },
+  "LeftPadHigh1_16": {
+    "best_name": "ufmbits_3",
+    "best_value": 111.8545214955013,
+    "median_name": "hi-bits_1",
+    "median_value": 121.50839554340462,
+    "worst_name": "hi-bits_3",
+    "worst_value": 171.05622601962608
+  },
+  "LeftPadHigh1_32": {
+    "best_name": "ufmbits_0",
+    "best_value": 147.14346316990003,
+    "median_name": "hi-bits_2",
+    "median_value": 154.93955640664473,
+    "worst_name": "lo-bits_4",
+    "worst_value": 173.2598714539482
+  },
+  "LeftPadHigh1_64": {
+    "best_name": "ufmbits_3",
+    "best_value": 220.05706308550194,
+    "median_name": "lo-bits_4",
+    "median_value": 237.47870242309924,
+    "worst_name": "ufmbits_1",
+    "worst_value": 285.9424553233013
+  },
+  "LeftPadHigh1_8": {
+    "best_name": "ufmbits_3",
+    "best_value": 94.14196702878989,
+    "median_name": "ufmbits_2",
+    "median_value": 127.84424779557645,
+    "worst_name": "hi-bits_4",
+    "worst_value": 154.01591022122562
+  },
+  "LeftPadHigh32_64": {
+    "best_name": "ufmbits_2",
+    "best_value": 98.2225945379039,
+    "median_name": "hi-bits_3",
+    "median_value": 132.84003859385285,
+    "worst_name": "hi-bits_4",
+    "worst_value": 150.24580082218645
+  },
+  "LeftPadHigh8_16": {
+    "best_name": "ufmbits_4",
+    "best_value": 94.05330152477875,
+    "median_name": "lo-bits_2",
+    "median_value": 130.0654888817237,
+    "worst_name": "hi-bits_2",
+    "worst_value": 136.2050980806584
+  },
+  "LeftPadHigh8_32": {
+    "best_name": "ufmbits_1",
+    "best_value": 102.10022492405734,
+    "median_name": "lo-bits_2",
+    "median_value": 136.617921901778,
+    "worst_name": "hi-bits_4",
+    "worst_value": 140.9647153684885
+  },
+  "LeftPadHigh8_64": {
+    "best_name": "ufmbits_2",
+    "best_value": 116.19727954880982,
+    "median_name": "lo-bits_4",
+    "median_value": 151.85656926709876,
+    "worst_name": "lo-bits_2",
+    "worst_value": 159.1618578909222
+  },
+  "LeftPadLow16_32": {
+    "best_name": "ufmbits_3",
+    "best_value": 96.9527803647631,
+    "median_name": "lo-bits_2",
+    "median_value": 113.06387982648293,
+    "worst_name": "hi-bits_1",
+    "worst_value": 136.40743058469306
+  },
+  "LeftPadLow16_64": {
+    "best_name": "ufmbits_4",
+    "best_value": 100.26754915520567,
+    "median_name": "hi-bits_0",
+    "median_value": 123.36319936688596,
+    "worst_name": "hi-bits_3",
+    "worst_value": 145.47539922073796
+  },
+  "LeftPadLow1_16": {
+    "best_name": "hi-bits_1",
+    "best_value": 88.42716195023377,
+    "median_name": "lo-bits_3",
+    "median_value": 94.12362176078011,
+    "worst_name": "hi-bits_4",
+    "worst_value": 97.07045231752296
+  },
+  "LeftPadLow1_32": {
+    "best_name": "ufmbits_0",
+    "best_value": 84.49408417547967,
+    "median_name": "lo-bits_0",
+    "median_value": 95.8789806472305,
+    "worst_name": "hi-bits_4",
+    "worst_value": 100.04133677626584
+  },
+  "LeftPadLow1_64": {
+    "best_name": "ufmbits_1",
+    "best_value": 82.71370821888318,
+    "median_name": "hi-bits_4",
+    "median_value": 96.58736972645211,
+    "worst_name": "hi-bits_0",
+    "worst_value": 142.856739606085
+  },
+  "LeftPadLow1_8": {
+    "best_name": "ufmbits_1",
+    "best_value": 86.04852485117902,
+    "median_name": "ufmbits_4",
+    "median_value": 94.98168539517881,
+    "worst_name": "lo-bits_3",
+    "worst_value": 130.0691972270356
+  },
+  "LeftPadLow32_64": {
+    "best_name": "lo-bits_2",
+    "best_value": 116.2928244909056,
+    "median_name": "hi-bits_4",
+    "median_value": 133.2791221211938,
+    "worst_name": "ufmbits_2",
+    "worst_value": 150.92021617878757
+  },
+  "LeftPadLow8_16": {
+    "best_name": "ufmbits_0",
+    "best_value": 92.13317434102886,
+    "median_name": "hi-bits_3",
+    "median_value": 119.89876572273107,
+    "worst_name": "lo-bits_0",
+    "worst_value": 157.171137692703
+  },
+  "LeftPadLow8_32": {
+    "best_name": "ufmbits_4",
+    "best_value": 108.93937730042438,
+    "median_name": "hi-bits_4",
+    "median_value": 137.42350221451136,
+    "worst_name": "hi-bits_0",
+    "worst_value": 140.85157960240292
+  },
+  "LeftPadLow8_64": {
+    "best_name": "ufmbits_2",
+    "best_value": 123.1272386001735,
+    "median_name": "lo-bits_0",
+    "median_value": 139.51566614295567,
+    "worst_name": "lo-bits_4",
+    "worst_value": 159.85375011413956
+  },
+  "LeftRotate16": {
+    "best_name": "ufmbits_1",
+    "best_value": 94.50961988999076,
+    "median_name": "lo-bits_0",
+    "median_value": 120.48480766845616,
+    "worst_name": "lo-bits_1",
+    "worst_value": 147.22395907409617
+  },
+  "LeftRotate32": {
+    "best_name": "ufmbits_2",
+    "best_value": 101.18260868883706,
+    "median_name": "hi-bits_3",
+    "median_value": 113.19840432214428,
+    "worst_name": "lo-bits_1",
+    "worst_value": 142.41844903089998
+  },
+  "LeftRotate64": {
+    "best_name": "ufmbits_4",
+    "best_value": 98.36601427678525,
+    "median_name": "hi-bits_2",
+    "median_value": 129.1156686898363,
+    "worst_name": "hi-bits_3",
+    "worst_value": 140.16151548926567
+  },
+  "LeftRotate8": {
+    "best_name": "ufmbits_4",
+    "best_value": 85.66841442384151,
+    "median_name": "hi-bits_4",
+    "median_value": 111.95372336514025,
+    "worst_name": "hi-bits_1",
+    "worst_value": 162.26890019357117
+  },
+  "LeftShift16": {
+    "best_name": "ufmbits_3",
+    "best_value": 95.38769277562623,
+    "median_name": "hi-bits_1",
+    "median_value": 113.45272699717808,
+    "worst_name": "lo-bits_0",
+    "worst_value": 154.51234681452678
+  },
+  "LeftShift32": {
+    "best_name": "hi-bits_2",
+    "best_value": 113.57609623607763,
+    "median_name": "hi-bits_0",
+    "median_value": 131.02865691073444,
+    "worst_name": "ufmbits_4",
+    "worst_value": 138.68662208087954
+  },
+  "LeftShift64": {
+    "best_name": "ufmbits_2",
+    "best_value": 99.76190398848732,
+    "median_name": "hi-bits_3",
+    "median_value": 132.75511176206297,
+    "worst_name": "hi-bits_2",
+    "worst_value": 141.11226864479266
+  },
+  "LeftShift8": {
+    "best_name": "ufmbits_0",
+    "best_value": 102.38271695458289,
+    "median_name": "lo-bits_4",
+    "median_value": 134.97022509252605,
+    "worst_name": "lo-bits_0",
+    "worst_value": 148.59752086621444
+  },
+  "LeftShiftWith16": {
+    "best_name": "ufmbits_4",
+    "best_value": 109.54663811758279,
+    "median_name": "hi-bits_2",
+    "median_value": 117.65480080768668,
+    "worst_name": "hi-bits_4",
+    "worst_value": 142.17309189130657
+  },
+  "LeftShiftWith32": {
+    "best_name": "lo-bits_0",
+    "best_value": 112.45414036441201,
+    "median_name": "ufmbits_1",
+    "median_value": 119.38327771203744,
+    "worst_name": "hi-bits_1",
+    "worst_value": 140.92114427133788
+  },
+  "LeftShiftWith64": {
+    "best_name": "ufmbits_0",
+    "best_value": 110.06010674282145,
+    "median_name": "lo-bits_0",
+    "median_value": 131.65071420402055,
+    "worst_name": "hi-bits_1",
+    "worst_value": 144.65437023887407
+  },
+  "LeftShiftWith8": {
+    "best_name": "ufmbits_3",
+    "best_value": 102.910750972806,
+    "median_name": "hi-bits_1",
+    "median_value": 158.56651182530842,
+    "worst_name": "lo-bits_0",
+    "worst_value": 179.51602006810492
+  },
+  "Leftmost16_1": {
+    "best_name": "hi-bits_1",
+    "best_value": 107.93186167587211,
+    "median_name": "ufmbits_4",
+    "median_value": 119.47831854625436,
+    "worst_name": "lo-bits_4",
+    "worst_value": 144.76709012077305
+  },
+  "Leftmost16_2": {
+    "best_name": "ufmbits_0",
+    "best_value": 86.1610164994806,
+    "median_name": "ufmbits_1",
+    "median_value": 107.92054309746688,
+    "worst_name": "hi-bits_1",
+    "worst_value": 132.73109307574146
+  },
+  "Leftmost16_4": {
+    "best_name": "ufmbits_1",
+    "best_value": 92.06588993042635,
+    "median_name": "hi-bits_3",
+    "median_value": 108.60026176964456,
+    "worst_name": "hi-bits_4",
+    "worst_value": 154.93777694797842
+  },
+  "Leftmost16_8": {
+    "best_name": "ufmbits_1",
+    "best_value": 88.40228380438975,
+    "median_name": "hi-bits_0",
+    "median_value": 107.73224672379573,
+    "worst_name": "hi-bits_3",
+    "worst_value": 128.16688108416682
+  },
+  "Leftmost32_1": {
+    "best_name": "ufmbits_1",
+    "best_value": 95.15219625463791,
+    "median_name": "lo-bits_1",
+    "median_value": 109.27335964203304,
+    "worst_name": "lo-bits_4",
+    "worst_value": 137.0261049978356
+  },
+  "Leftmost32_16": {
+    "best_name": "ufmbits_3",
+    "best_value": 89.12079722248535,
+    "median_name": "hi-bits_2",
+    "median_value": 109.44594182338317,
+    "worst_name": "hi-bits_4",
+    "worst_value": 128.5622058453579
+  },
+  "Leftmost32_2": {
+    "best_name": "ufmbits_1",
+    "best_value": 91.53266860670891,
+    "median_name": "lo-bits_1",
+    "median_value": 125.16321817244003,
+    "worst_name": "hi-bits_4",
+    "worst_value": 130.21847004701615
+  },
+  "Leftmost32_4": {
+    "best_name": "ufmbits_1",
+    "best_value": 87.59785993894015,
+    "median_name": "lo-bits_3",
+    "median_value": 108.9878846702651,
+    "worst_name": "lo-bits_4",
+    "worst_value": 130.588960992228
+  },
+  "Leftmost32_8": {
+    "best_name": "ufmbits_3",
+    "best_value": 99.27403202647169,
+    "median_name": "lo-bits_2",
+    "median_value": 127.8945643082593,
+    "worst_name": "ufmbits_4",
+    "worst_value": 159.90184773113282
+  },
+  "Leftmost64_1": {
+    "best_name": "ufmbits_4",
+    "best_value": 99.53878490973331,
+    "median_name": "hi-bits_1",
+    "median_value": 127.21938834888391,
+    "worst_name": "lo-bits_0",
+    "worst_value": 136.16345413495887
+  },
+  "Leftmost64_16": {
+    "best_name": "ufmbits_2",
+    "best_value": 97.30268530034749,
+    "median_name": "hi-bits_0",
+    "median_value": 128.5383202705417,
+    "worst_name": "ufmbits_3",
+    "worst_value": 137.4656425879486
+  },
+  "Leftmost64_2": {
+    "best_name": "ufmbits_3",
+    "best_value": 96.44944557583814,
+    "median_name": "hi-bits_0",
+    "median_value": 127.42311042904034,
+    "worst_name": "hi-bits_4",
+    "worst_value": 135.00337570054506
+  },
+  "Leftmost64_32": {
+    "best_name": "ufmbits_2",
+    "best_value": 101.40172434972024,
+    "median_name": "hi-bits_4",
+    "median_value": 127.98021699948733,
+    "worst_name": "hi-bits_3",
+    "worst_value": 131.90005554860718
+  },
+  "Leftmost64_4": {
+    "best_name": "ufmbits_2",
+    "best_value": 97.58035387329056,
+    "median_name": "lo-bits_2",
+    "median_value": 127.65544206804726,
+    "worst_name": "lo-bits_4",
+    "worst_value": 141.3720026631944
+  },
+  "Leftmost64_8": {
+    "best_name": "ufmbits_0",
+    "best_value": 95.23570923592342,
+    "median_name": "lo-bits_2",
+    "median_value": 124.59125371266859,
+    "worst_name": "hi-bits_2",
+    "worst_value": 137.39813987382803
+  },
+  "Leftmost8_1": {
+    "best_name": "ufmbits_2",
+    "best_value": 91.965644735238,
+    "median_name": "hi-bits_4",
+    "median_value": 109.40735862560636,
+    "worst_name": "hi-bits_1",
+    "worst_value": 133.66965421138877
+  },
+  "Leftmost8_2": {
+    "best_name": "ufmbits_0",
+    "best_value": 93.85681096359403,
+    "median_name": "hi-bits_2",
+    "median_value": 109.03208477315385,
+    "worst_name": "hi-bits_1",
+    "worst_value": 131.47040310950075
+  },
+  "Leftmost8_4": {
+    "best_name": "ufmbits_4",
+    "best_value": 90.31878566654152,
+    "median_name": "hi-bits_3",
+    "median_value": 107.56043889871736,
+    "worst_name": "hi-bits_1",
+    "worst_value": 132.13123151699898
+  },
+  "LinearCombination1": {
+    "best_name": "sc_ufmbits_+_gej_zero_fe_ufmbits_+_scalar_outofrange_3",
+    "best_value": 838.8206085164754,
+    "median_name": "sc_hi-bits_+_gej_zero_fe_hi-bits_+_sc_ufmbits_0",
+    "median_value": 876.3061841725954,
+    "worst_name": "sc_hi-bits_+_gej_oncurve_+_sc_ufmbits_0",
+    "worst_value": 47719.18799594723
+  },
+  "LinearVerify1": {
+    "best_name": "sc_ufmbits_+_ge_offc_fe_ufmbits_+_sc_ufmbits_+_ge_offc_f_9",
+    "best_value": 873.236813130345,
+    "median_name": "scalar_outofrange_+_ge_offc_fe_ufmbits_+_sc_lo-bits_+_ge",
+    "median_value": 1117.0054630755951,
+    "worst_name": "sc_hi-bits_+_ge_oncurve_+_sc_ufmbits_+_ge_oncurve_4",
+    "worst_value": 47504.4125
+  },
+  "LockTime": {
+    "best_name": "30",
+    "best_value": 80.68614073800195,
+    "median_name": "54",
+    "median_value": 91.39611368973712,
+    "worst_name": "68",
+    "worst_value": 121.02468275728519
+  },
+  "Low1": {
+    "best_name": "unit_2",
+    "best_value": 72.24056661007384,
+    "median_name": "unit_4",
+    "median_value": 77.10226598716628,
+    "worst_name": "unit_0",
+    "worst_value": 81.33935280603518
+  },
+  "Low16": {
+    "best_name": "unit_4",
+    "best_value": 73.9328968083635,
+    "median_name": "unit_0",
+    "median_value": 74.2869468846055,
+    "worst_name": "unit_1",
+    "worst_value": 75.89826585539902
+  },
+  "Low32": {
+    "best_name": "unit_1",
+    "best_value": 81.91749695241847,
+    "median_name": "unit_2",
+    "median_value": 82.41657608396801,
+    "worst_name": "unit_3",
+    "worst_value": 82.93227421669359
+  },
+  "Low64": {
+    "best_name": "unit_4",
+    "best_value": 72.99869727339771,
+    "median_name": "unit_2",
+    "median_value": 75.1949767928168,
+    "worst_name": "unit_1",
+    "worst_value": 75.79806718556003
+  },
+  "Low8": {
+    "best_name": "unit_2",
+    "best_value": 77.56208146540882,
+    "median_name": "unit_3",
+    "median_value": 107.57588891511213,
+    "worst_name": "unit_0",
+    "worst_value": 109.85459079981949
+  },
+  "Lt16": {
+    "best_name": "ufmbits_+_self_0",
+    "best_value": 99.51048288346139,
+    "median_name": "hi-bits_+_inv_self_0",
+    "median_value": 137.3961309967293,
+    "worst_name": "lo-bits_+_lo-bits_0",
+    "worst_value": 206.7805882352941
+  },
+  "Lt32": {
+    "best_name": "ufmbits_+_self_1",
+    "best_value": 99.4264669611011,
+    "median_name": "lo-bits_+_ufmbits_2",
+    "median_value": 132.67343472872687,
+    "worst_name": "lo-bits_+_lo-bits_2",
+    "worst_value": 212.72823529411772
+  },
+  "Lt64": {
+    "best_name": "ufmbits_+_self_3",
+    "best_value": 111.95118765898206,
+    "median_name": "hi-bits_+_ufmbits_3",
+    "median_value": 137.9366208924978,
+    "worst_name": "ufmbits_+_hi-bits_4",
+    "worst_value": 218.56250000000009
+  },
+  "Lt8": {
+    "best_name": "ufmbits_+_self_1",
+    "best_value": 92.3795179086236,
+    "median_name": "ufmbits_+_hi-bits_4",
+    "median_value": 136.7263598900615,
+    "worst_name": "lo-bits_+_lo-bits_3",
+    "worst_value": 211.17705882352936
+  },
+  "Maj1": {
+    "best_name": "ufmbits_4",
+    "best_value": 84.21793989822002,
+    "median_name": "lo-bits_4",
+    "median_value": 94.63129960998856,
+    "worst_name": "lo-bits_2",
+    "worst_value": 103.09665435474807
+  },
+  "Maj16": {
+    "best_name": "ufmbits_4",
+    "best_value": 107.66662548996982,
+    "median_name": "hi-bits_3",
+    "median_value": 133.30594280239973,
+    "worst_name": "lo-bits_2",
+    "worst_value": 174.6189028168852
+  },
+  "Maj32": {
+    "best_name": "ufmbits_2",
+    "best_value": 110.6644325157774,
+    "median_name": "hi-bits_0",
+    "median_value": 117.49188487202213,
+    "worst_name": "hi-bits_3",
+    "worst_value": 135.14657039030345
+  },
+  "Maj64": {
+    "best_name": "hi-bits_2",
+    "best_value": 117.5351983178332,
+    "median_name": "ufmbits_3",
+    "median_value": 135.10851614126472,
+    "worst_name": "hi-bits_3",
+    "worst_value": 140.76322452568732
+  },
+  "Maj8": {
+    "best_name": "ufmbits_2",
+    "best_value": 94.56365888862392,
+    "median_name": "lo-bits_1",
+    "median_value": 118.89758988238657,
+    "worst_name": "lo-bits_4",
+    "worst_value": 177.59630398985647
+  },
+  "Max16": {
+    "best_name": "ufmbits_+_self_2",
+    "best_value": 96.8428414378408,
+    "median_name": "hi-bits_+_hi-bits_0",
+    "median_value": 132.93340240302499,
+    "worst_name": "lo-bits_+_hi-bits_0",
+    "worst_value": 206.28999999999994
+  },
+  "Max32": {
+    "best_name": "ufmbits_+_self_3",
+    "best_value": 103.18153077822433,
+    "median_name": "hi-bits_+_inv_self_1",
+    "median_value": 135.4992326382064,
+    "worst_name": "lo-bits_+_hi-bits_1",
+    "worst_value": 206.8605882352941
+  },
+  "Max64": {
+    "best_name": "ufmbits_+_self_2",
+    "best_value": 111.7444996708544,
+    "median_name": "hi-bits_+_hi-bits_1",
+    "median_value": 139.5481558377214,
+    "worst_name": "hi-bits_+_lo-bits_4",
+    "worst_value": 209.81529411764706
+  },
+  "Max8": {
+    "best_name": "ufmbits_+_self_4",
+    "best_value": 95.63193594071768,
+    "median_name": "lo-bits_+_ufmbits_3",
+    "median_value": 134.47685353293483,
+    "worst_name": "lo-bits_+_hi-bits_0",
+    "worst_value": 207.59117647058832
+  },
+  "Median16": {
+    "best_name": "ufmbits_4",
+    "best_value": 115.96275692739728,
+    "median_name": "hi-bits_2",
+    "median_value": 142.66548909703783,
+    "worst_name": "lo-bits_0",
+    "worst_value": 157.55266528963028
+  },
+  "Median32": {
+    "best_name": "ufmbits_0",
+    "best_value": 120.87246991216422,
+    "median_name": "hi-bits_1",
+    "median_value": 124.28339011115014,
+    "worst_name": "hi-bits_4",
+    "worst_value": 144.00172684293608
+  },
+  "Median64": {
+    "best_name": "hi-bits_3",
+    "best_value": 125.55052997885674,
+    "median_name": "ufmbits_0",
+    "median_value": 141.63516829246316,
+    "worst_name": "hi-bits_0",
+    "worst_value": 147.0439121237454
+  },
+  "Median8": {
+    "best_name": "ufmbits_3",
+    "best_value": 101.28371415715934,
+    "median_name": "lo-bits_4",
+    "median_value": 121.43911714151514,
+    "worst_name": "hi-bits_2",
+    "worst_value": 159.5085432633484
+  },
+  "Min16": {
+    "best_name": "ufmbits_+_self_2",
+    "best_value": 99.7257208664813,
+    "median_name": "ufmbits_+_hi-bits_1",
+    "median_value": 138.7351153817769,
+    "worst_name": "lo-bits_+_hi-bits_2",
+    "worst_value": 205.40058823529412
+  },
+  "Min32": {
+    "best_name": "ufmbits_+_inv_self_1",
+    "best_value": 104.18915076568521,
+    "median_name": "ufmbits_+_lo-bits_2",
+    "median_value": 133.76270867511386,
+    "worst_name": "hi-bits_+_lo-bits_4",
+    "worst_value": 212.24117647058824
+  },
+  "Min64": {
+    "best_name": "ufmbits_+_self_2",
+    "best_value": 110.22885896484466,
+    "median_name": "lo-bits_+_self_0",
+    "median_value": 138.23495863439078,
+    "worst_name": "ufmbits_+_lo-bits_3",
+    "worst_value": 224.31050000000016
+  },
+  "Min8": {
+    "best_name": "ufmbits_+_self_1",
+    "best_value": 95.93024311308804,
+    "median_name": "hi-bits_+_ufmbits_3",
+    "median_value": 140.16218296031568,
+    "worst_name": "hi-bits_+_lo-bits_4",
+    "worst_value": 217.85058823529417
+  },
+  "Modulo16": {
+    "best_name": "ufmbits_+_self_3",
+    "best_value": 92.46676981458384,
+    "median_name": "lo-bits_+_hi-bits_1",
+    "median_value": 135.37572346858104,
+    "worst_name": "lo-bits_+_hi-bits_2",
+    "worst_value": 219.63176470588226
+  },
+  "Modulo32": {
+    "best_name": "ufmbits_+_ufmbits_4",
+    "best_value": 107.89805972000882,
+    "median_name": "lo-bits_+_ufmbits_4",
+    "median_value": 136.47179777585407,
+    "worst_name": "hi-bits_+_lo-bits_2",
+    "worst_value": 207.88000000000002
+  },
+  "Modulo64": {
+    "best_name": "ufmbits_+_self_4",
+    "best_value": 103.40536103585615,
+    "median_name": "lo-bits_+_lo-bits_1",
+    "median_value": 140.46789223972763,
+    "worst_name": "hi-bits_+_lo-bits_2",
+    "worst_value": 221.13105263157894
+  },
+  "Modulo8": {
+    "best_name": "ufmbits_+_self_3",
+    "best_value": 96.05043396577847,
+    "median_name": "lo-bits_+_inv_self_0",
+    "median_value": 134.4023292683744,
+    "worst_name": "hi-bits_+_lo-bits_1",
+    "worst_value": 200.13222222222225
+  },
+  "Multiply16": {
+    "best_name": "ufmbits_+_self_4",
+    "best_value": 93.9395852923408,
+    "median_name": "lo-bits_+_self_2",
+    "median_value": 132.55234594736575,
+    "worst_name": "hi-bits_+_lo-bits_1",
+    "worst_value": 208.46705882352947
+  },
+  "Multiply32": {
+    "best_name": "ufmbits_+_self_2",
+    "best_value": 101.25478706041542,
+    "median_name": "hi-bits_+_self_4",
+    "median_value": 134.25479269183322,
+    "worst_name": "lo-bits_+_hi-bits_3",
+    "worst_value": 215.58470588235286
+  },
+  "Multiply64": {
+    "best_name": "ufmbits_+_inv_self_1",
+    "best_value": 109.9252875918783,
+    "median_name": "ufmbits_+_lo-bits_4",
+    "median_value": 142.327613473766,
+    "worst_name": "lo-bits_+_ufmbits_3",
+    "worst_value": 242.8385000000001
+  },
+  "Multiply8": {
+    "best_name": "ufmbits_+_self_0",
+    "best_value": 95.561976119008,
+    "median_name": "lo-bits_+_self_0",
+    "median_value": 131.8683377724663,
+    "worst_name": "hi-bits_+_lo-bits_1",
+    "worst_value": 197.55833333333337
+  },
+  "Negate16": {
+    "best_name": "ufmbits_0",
+    "best_value": 86.72693943046482,
+    "median_name": "hi-bits_2",
+    "median_value": 108.70742376351065,
+    "worst_name": "lo-bits_4",
+    "worst_value": 130.18811849763378
+  },
+  "Negate32": {
+    "best_name": "ufmbits_4",
+    "best_value": 90.21833760850703,
+    "median_name": "hi-bits_1",
+    "median_value": 111.22511643304317,
+    "worst_name": "lo-bits_4",
+    "worst_value": 138.9227681935332
+  },
+  "Negate64": {
+    "best_name": "ufmbits_3",
+    "best_value": 95.6410501984019,
+    "median_name": "lo-bits_1",
+    "median_value": 112.33347684473725,
+    "worst_name": "hi-bits_3",
+    "worst_value": 136.4373488967301
+  },
+  "Negate8": {
+    "best_name": "ufmbits_1",
+    "best_value": 96.53034797967648,
+    "median_name": "hi-bits_4",
+    "median_value": 110.93422162582671,
+    "worst_name": "lo-bits_3",
+    "worst_value": 134.4725017208878
+  },
+  "NumInputs": {
+    "best_name": "13",
+    "best_value": 81.89775869553043,
+    "median_name": "10",
+    "median_value": 93.903247310164,
+    "worst_name": "46",
+    "worst_value": 133.79957441338829
+  },
+  "NumOutputs": {
+    "best_name": "60",
+    "best_value": 80.12725874499864,
+    "median_name": "32",
+    "median_value": 93.67081440302645,
+    "worst_name": "47",
+    "worst_value": 121.59182613275452
+  },
+  "One16": {
+    "best_name": "unit_0",
+    "best_value": 78.53674391185079,
+    "median_name": "unit_2",
+    "median_value": 83.175514476369,
+    "worst_name": "unit_1",
+    "worst_value": 86.43969504201215
+  },
+  "One32": {
+    "best_name": "unit_3",
+    "best_value": 77.18989844417806,
+    "median_name": "unit_4",
+    "median_value": 99.52034185972087,
+    "worst_name": "unit_1",
+    "worst_value": 102.18988444905021
+  },
+  "One64": {
+    "best_name": "unit_2",
+    "best_value": 78.16982369442266,
+    "median_name": "unit_4",
+    "median_value": 82.22765069954832,
+    "worst_name": "unit_3",
+    "worst_value": 86.34961046662194
+  },
+  "One8": {
+    "best_name": "unit_1",
+    "best_value": 75.35529373457155,
+    "median_name": "unit_4",
+    "median_value": 76.31287802785485,
+    "worst_name": "unit_3",
+    "worst_value": 103.78565384238767
+  },
+  "Or1": {
+    "best_name": "ufmbits_+_ufmbits_0",
+    "best_value": 87.00240696003173,
+    "median_name": "hi-bits_+_hi-bits_1",
+    "median_value": 103.62858523819797,
+    "worst_name": "lo-bits_+_inv_self_0",
+    "worst_value": 142.26885071787038
+  },
+  "Or16": {
+    "best_name": "ufmbits_+_self_4",
+    "best_value": 95.34735550448849,
+    "median_name": "hi-bits_+_self_0",
+    "median_value": 135.65451951125655,
+    "worst_name": "hi-bits_+_lo-bits_0",
+    "worst_value": 206.75647058823546
+  },
+  "Or32": {
+    "best_name": "ufmbits_+_self_4",
+    "best_value": 99.71810718551491,
+    "median_name": "lo-bits_+_ufmbits_2",
+    "median_value": 136.32930168441888,
+    "worst_name": "hi-bits_+_lo-bits_0",
+    "worst_value": 205.78529411764706
+  },
+  "Or64": {
+    "best_name": "ufmbits_+_inv_self_3",
+    "best_value": 114.10318152164058,
+    "median_name": "lo-bits_+_ufmbits_3",
+    "median_value": 138.86090333495585,
+    "worst_name": "lo-bits_+_ufmbits_4",
+    "worst_value": 217.11050000000006
+  },
+  "Or8": {
+    "best_name": "ufmbits_+_self_3",
+    "best_value": 93.55079764281234,
+    "median_name": "ufmbits_+_hi-bits_4",
+    "median_value": 132.05767225186196,
+    "worst_name": "hi-bits_+_hi-bits_3",
+    "worst_value": 216.2070588235293
+  },
+  "OutpointHash": {
+    "best_name": "96",
+    "best_value": 1129.2800000000002,
+    "median_name": "73",
+    "median_value": 1181.37,
+    "worst_name": "6",
+    "worst_value": 1287.685
+  },
+  "OutputHash": {
+    "best_name": "23",
+    "best_value": 405.5474341506722,
+    "median_name": "50",
+    "median_value": 417.45618570962796,
+    "worst_name": "75",
+    "worst_value": 513.6727212359729
+  },
+  "OutputScriptHash": {
+    "best_name": "10",
+    "best_value": 117.287800460478,
+    "median_name": "27",
+    "median_value": 128.19476391498554,
+    "worst_name": "4",
+    "worst_value": 160.67545946120606
+  },
+  "OutputScriptsHash": {
+    "best_name": "81",
+    "best_value": 105.12886205326687,
+    "median_name": "67",
+    "median_value": 115.116591989757,
+    "worst_name": "26",
+    "worst_value": 152.04635011430352
+  },
+  "OutputValue": {
+    "best_name": "31",
+    "best_value": 84.0653881990057,
+    "median_name": "88",
+    "median_value": 95.0385922894769,
+    "worst_name": "98",
+    "worst_value": 124.8462507696548
+  },
+  "OutputValuesHash": {
+    "best_name": "57",
+    "best_value": 110.2324139382654,
+    "median_name": "82",
+    "median_value": 118.71336096527935,
+    "worst_name": "11",
+    "worst_value": 158.60094069701182
+  },
+  "OutputsHash": {
+    "best_name": "16",
+    "best_value": 105.528591936051,
+    "median_name": "5",
+    "median_value": 118.20869061347615,
+    "worst_name": "29",
+    "worst_value": 157.01569906566013
+  },
+  "ParseLock": {
+    "best_name": "ufmbits_4",
+    "best_value": 96.3287354065013,
+    "median_name": "lo-bits_0",
+    "median_value": 118.30345827051082,
+    "worst_name": "lo-bits_3",
+    "worst_value": 139.69918361480052
+  },
+  "ParseSequence": {
+    "best_name": "0ufmbits_0",
+    "best_value": 105.20857807989049,
+    "median_name": "1hi-bits_0",
+    "median_value": 115.56013906506283,
+    "worst_name": "0lo-bits_2",
+    "worst_value": 176.69896474374684
+  },
+  "PointVerify1": {
+    "best_name": "sc_lo-bits_+_pt_ge_offc_fe_lo-bits_+_sc_lo-bits_+_pt_ge__14",
+    "best_value": 14923.224077227329,
+    "median_name": "sc_lo-bits_+_pt_ge_oncurve_+_sc_hi-bits_+_pt_ge_offc_fe_",
+    "median_value": 24536.087939544486,
+    "worst_name": "sc_ufmbits_+_pt_ge_offc_fe_validx_+_sc_ufmbits_+_pt_ge_o_2",
+    "worst_value": 46742.35333333332
+  },
+  "RightExtend16_32": {
+    "best_name": "ufmbits_0",
+    "best_value": 102.92173422605403,
+    "median_name": "lo-bits_3",
+    "median_value": 131.86256765814352,
+    "worst_name": "lo-bits_1",
+    "worst_value": 139.66391130763887
+  },
+  "RightExtend16_64": {
+    "best_name": "ufmbits_3",
+    "best_value": 99.82978146335829,
+    "median_name": "lo-bits_3",
+    "median_value": 139.80992884562698,
+    "worst_name": "lo-bits_4",
+    "worst_value": 146.77633100257057
+  },
+  "RightExtend32_64": {
+    "best_name": "ufmbits_2",
+    "best_value": 92.95375976586281,
+    "median_name": "lo-bits_4",
+    "median_value": 114.27201565828764,
+    "worst_name": "hi-bits_4",
+    "worst_value": 142.69238819926778
+  },
+  "RightExtend8_16": {
+    "best_name": "ufmbits_1",
+    "best_value": 90.22555163767406,
+    "median_name": "lo-bits_0",
+    "median_value": 128.62641206759136,
+    "worst_name": "lo-bits_1",
+    "worst_value": 139.04700645633218
+  },
+  "RightExtend8_32": {
+    "best_name": "ufmbits_3",
+    "best_value": 110.08493117896136,
+    "median_name": "hi-bits_1",
+    "median_value": 125.27359026615949,
+    "worst_name": "hi-bits_3",
+    "worst_value": 148.57658366026664
+  },
+  "RightExtend8_64": {
+    "best_name": "ufmbits_2",
+    "best_value": 124.66432073416681,
+    "median_name": "hi-bits_0",
+    "median_value": 161.3105719226075,
+    "worst_name": "ufmbits_1",
+    "worst_value": 168.97422036210241
+  },
+  "RightPadHigh16_32": {
+    "best_name": "ufmbits_1",
+    "best_value": 90.95172903830958,
+    "median_name": "lo-bits_0",
+    "median_value": 114.55134098224485,
+    "worst_name": "hi-bits_2",
+    "worst_value": 133.62388484911259
+  },
+  "RightPadHigh16_64": {
+    "best_name": "ufmbits_4",
+    "best_value": 97.22570019755605,
+    "median_name": "ufmbits_3",
+    "median_value": 123.69923147160814,
+    "worst_name": "lo-bits_1",
+    "worst_value": 167.01974131804985
+  },
+  "RightPadHigh1_16": {
+    "best_name": "hi-bits_4",
+    "best_value": 113.31952627224804,
+    "median_name": "ufmbits_3",
+    "median_value": 119.73495911031456,
+    "worst_name": "hi-bits_1",
+    "worst_value": 124.70892136236907
+  },
+  "RightPadHigh1_32": {
+    "best_name": "ufmbits_2",
+    "best_value": 150.34357962309397,
+    "median_name": "hi-bits_0",
+    "median_value": 162.252822301671,
+    "worst_name": "lo-bits_2",
+    "worst_value": 206.3395125101176
+  },
+  "RightPadHigh1_64": {
+    "best_name": "ufmbits_2",
+    "best_value": 216.22430034135428,
+    "median_name": "lo-bits_3",
+    "median_value": 227.21945776064953,
+    "worst_name": "lo-bits_4",
+    "worst_value": 231.78595825145237
+  },
+  "RightPadHigh1_8": {
+    "best_name": "ufmbits_2",
+    "best_value": 95.12077665229639,
+    "median_name": "lo-bits_0",
+    "median_value": 106.22828413270773,
+    "worst_name": "hi-bits_1",
+    "worst_value": 159.2433289168752
+  },
+  "RightPadHigh32_64": {
+    "best_name": "ufmbits_1",
+    "best_value": 106.30681713461874,
+    "median_name": "hi-bits_2",
+    "median_value": 120.11415032991046,
+    "worst_name": "hi-bits_0",
+    "worst_value": 135.21787235667244
+  },
+  "RightPadHigh8_16": {
+    "best_name": "ufmbits_3",
+    "best_value": 93.2959883843199,
+    "median_name": "lo-bits_0",
+    "median_value": 128.76520804216395,
+    "worst_name": "hi-bits_0",
+    "worst_value": 137.98466274466932
+  },
+  "RightPadHigh8_32": {
+    "best_name": "hi-bits_3",
+    "best_value": 121.2211540914983,
+    "median_name": "lo-bits_3",
+    "median_value": 139.87766831835506,
+    "worst_name": "ufmbits_4",
+    "worst_value": 165.29368924965743
+  },
+  "RightPadHigh8_64": {
+    "best_name": "ufmbits_4",
+    "best_value": 113.5309664377133,
+    "median_name": "lo-bits_0",
+    "median_value": 149.51957897093152,
+    "worst_name": "hi-bits_1",
+    "worst_value": 153.73248558371026
+  },
+  "RightPadLow16_32": {
+    "best_name": "ufmbits_1",
+    "best_value": 102.84771895584237,
+    "median_name": "lo-bits_4",
+    "median_value": 132.54303521910344,
+    "worst_name": "ufmbits_3",
+    "worst_value": 154.21893724728142
+  },
+  "RightPadLow16_64": {
+    "best_name": "ufmbits_3",
+    "best_value": 102.64846968724123,
+    "median_name": "hi-bits_2",
+    "median_value": 120.54428112449575,
+    "worst_name": "hi-bits_4",
+    "worst_value": 142.67341180793014
+  },
+  "RightPadLow1_16": {
+    "best_name": "ufmbits_0",
+    "best_value": 85.8050338192804,
+    "median_name": "hi-bits_4",
+    "median_value": 95.0042837491159,
+    "worst_name": "lo-bits_1",
+    "worst_value": 116.66979357525531
+  },
+  "RightPadLow1_32": {
+    "best_name": "ufmbits_1",
+    "best_value": 84.93790272343126,
+    "median_name": "ufmbits_4",
+    "median_value": 94.96142666735761,
+    "worst_name": "hi-bits_4",
+    "worst_value": 126.98012525898092
+  },
+  "RightPadLow1_64": {
+    "best_name": "ufmbits_3",
+    "best_value": 87.25883283134439,
+    "median_name": "hi-bits_1",
+    "median_value": 96.43669016287426,
+    "worst_name": "hi-bits_0",
+    "worst_value": 100.12742455147938
+  },
+  "RightPadLow1_8": {
+    "best_name": "ufmbits_1",
+    "best_value": 83.68954132416256,
+    "median_name": "hi-bits_1",
+    "median_value": 95.9893195316674,
+    "worst_name": "lo-bits_3",
+    "worst_value": 126.00092647371544
+  },
+  "RightPadLow32_64": {
+    "best_name": "ufmbits_2",
+    "best_value": 95.98973027276708,
+    "median_name": "hi-bits_4",
+    "median_value": 121.65805580136265,
+    "worst_name": "lo-bits_2",
+    "worst_value": 138.76930929357025
+  },
+  "RightPadLow8_16": {
+    "best_name": "ufmbits_3",
+    "best_value": 100.50487829636366,
+    "median_name": "hi-bits_4",
+    "median_value": 117.59622962873863,
+    "worst_name": "hi-bits_0",
+    "worst_value": 142.34351808645192
+  },
+  "RightPadLow8_32": {
+    "best_name": "ufmbits_3",
+    "best_value": 100.69794406279198,
+    "median_name": "lo-bits_3",
+    "median_value": 118.90862682913699,
+    "worst_name": "hi-bits_3",
+    "worst_value": 144.52286667665516
+  },
+  "RightPadLow8_64": {
+    "best_name": "ufmbits_1",
+    "best_value": 114.35312918199038,
+    "median_name": "lo-bits_3",
+    "median_value": 134.1065947980437,
+    "worst_name": "hi-bits_2",
+    "worst_value": 155.42050379176922
+  },
+  "RightRotate16": {
+    "best_name": "ufmbits_2",
+    "best_value": 92.20857723644548,
+    "median_name": "hi-bits_4",
+    "median_value": 115.33564501895354,
+    "worst_name": "hi-bits_0",
+    "worst_value": 142.08636517351576
+  },
+  "RightRotate32": {
+    "best_name": "ufmbits_1",
+    "best_value": 95.51104630903085,
+    "median_name": "hi-bits_2",
+    "median_value": 117.65198009456702,
+    "worst_name": "lo-bits_1",
+    "worst_value": 145.72037944759418
+  },
+  "RightRotate64": {
+    "best_name": "ufmbits_4",
+    "best_value": 107.3048451176989,
+    "median_name": "lo-bits_3",
+    "median_value": 130.46621443348153,
+    "worst_name": "hi-bits_2",
+    "worst_value": 136.81182969482217
+  },
+  "RightRotate8": {
+    "best_name": "ufmbits_4",
+    "best_value": 89.30509824056773,
+    "median_name": "ufmbits_2",
+    "median_value": 118.01396610859521,
+    "worst_name": "hi-bits_4",
+    "worst_value": 182.4824325559196
+  },
+  "RightShift16": {
+    "best_name": "ufmbits_0",
+    "best_value": 95.39094988397355,
+    "median_name": "hi-bits_0",
+    "median_value": 112.387764211058,
+    "worst_name": "ufmbits_3",
+    "worst_value": 139.6538726838331
+  },
+  "RightShift32": {
+    "best_name": "ufmbits_0",
+    "best_value": 103.00335579248862,
+    "median_name": "lo-bits_2",
+    "median_value": 113.04363622197579,
+    "worst_name": "hi-bits_1",
+    "worst_value": 134.5820008369652
+  },
+  "RightShift64": {
+    "best_name": "ufmbits_2",
+    "best_value": 106.27063036691621,
+    "median_name": "hi-bits_2",
+    "median_value": 119.28130009770746,
+    "worst_name": "hi-bits_0",
+    "worst_value": 140.32899846516565
+  },
+  "RightShift8": {
+    "best_name": "ufmbits_4",
+    "best_value": 93.14619039163964,
+    "median_name": "lo-bits_1",
+    "median_value": 111.05583852262006,
+    "worst_name": "hi-bits_0",
+    "worst_value": 161.68380599692355
+  },
+  "RightShiftWith16": {
+    "best_name": "ufmbits_1",
+    "best_value": 105.93629286073534,
+    "median_name": "hi-bits_3",
+    "median_value": 133.78511206607718,
+    "worst_name": "lo-bits_4",
+    "worst_value": 149.31406467111978
+  },
+  "RightShiftWith32": {
+    "best_name": "lo-bits_1",
+    "best_value": 114.86148991086408,
+    "median_name": "lo-bits_3",
+    "median_value": 132.13113196897493,
+    "worst_name": "hi-bits_3",
+    "worst_value": 151.19844526862295
+  },
+  "RightShiftWith64": {
+    "best_name": "ufmbits_2",
+    "best_value": 114.89015525005522,
+    "median_name": "hi-bits_1",
+    "median_value": 123.95637295197184,
+    "worst_name": "hi-bits_0",
+    "worst_value": 138.12430342923324
+  },
+  "RightShiftWith8": {
+    "best_name": "ufmbits_2",
+    "best_value": 113.21718315395195,
+    "median_name": "lo-bits_1",
+    "median_value": 127.62227334642205,
+    "worst_name": "hi-bits_3",
+    "worst_value": 182.24110693581176
+  },
+  "Rightmost16_1": {
+    "best_name": "ufmbits_0",
+    "best_value": 94.59358767790336,
+    "median_name": "hi-bits_2",
+    "median_value": 113.85107929687929,
+    "worst_name": "lo-bits_0",
+    "worst_value": 130.75028998537783
+  },
+  "Rightmost16_2": {
+    "best_name": "ufmbits_1",
+    "best_value": 89.25132627466188,
+    "median_name": "lo-bits_4",
+    "median_value": 109.83669727196433,
+    "worst_name": "lo-bits_1",
+    "worst_value": 134.75180359602177
+  },
+  "Rightmost16_4": {
+    "best_name": "ufmbits_1",
+    "best_value": 92.41088069654201,
+    "median_name": "lo-bits_0",
+    "median_value": 129.56985437884785,
+    "worst_name": "lo-bits_2",
+    "worst_value": 135.9007359640916
+  },
+  "Rightmost16_8": {
+    "best_name": "ufmbits_1",
+    "best_value": 88.4060376772863,
+    "median_name": "lo-bits_0",
+    "median_value": 109.06548340107473,
+    "worst_name": "hi-bits_4",
+    "worst_value": 128.04510516611026
+  },
+  "Rightmost32_1": {
+    "best_name": "ufmbits_1",
+    "best_value": 92.73028477443165,
+    "median_name": "hi-bits_3",
+    "median_value": 111.58260142263576,
+    "worst_name": "lo-bits_0",
+    "worst_value": 134.68487880123257
+  },
+  "Rightmost32_16": {
+    "best_name": "ufmbits_4",
+    "best_value": 92.69033438041872,
+    "median_name": "lo-bits_1",
+    "median_value": 112.17892042630669,
+    "worst_name": "hi-bits_3",
+    "worst_value": 138.43288341657825
+  },
+  "Rightmost32_2": {
+    "best_name": "ufmbits_0",
+    "best_value": 94.74267176429078,
+    "median_name": "lo-bits_3",
+    "median_value": 110.33646167851883,
+    "worst_name": "lo-bits_4",
+    "worst_value": 134.24481389688003
+  },
+  "Rightmost32_4": {
+    "best_name": "ufmbits_0",
+    "best_value": 95.68850672633378,
+    "median_name": "lo-bits_0",
+    "median_value": 125.71915690347008,
+    "worst_name": "hi-bits_3",
+    "worst_value": 129.70128587763224
+  },
+  "Rightmost32_8": {
+    "best_name": "ufmbits_2",
+    "best_value": 99.1958607383321,
+    "median_name": "hi-bits_1",
+    "median_value": 109.16447669923075,
+    "worst_name": "hi-bits_0",
+    "worst_value": 132.477418317834
+  },
+  "Rightmost64_1": {
+    "best_name": "ufmbits_4",
+    "best_value": 95.64816823968043,
+    "median_name": "ufmbits_2",
+    "median_value": 120.58265787754627,
+    "worst_name": "hi-bits_1",
+    "worst_value": 135.37663387124695
+  },
+  "Rightmost64_16": {
+    "best_name": "ufmbits_3",
+    "best_value": 93.22775256707062,
+    "median_name": "lo-bits_0",
+    "median_value": 126.71393946445615,
+    "worst_name": "hi-bits_1",
+    "worst_value": 130.65959068323787
+  },
+  "Rightmost64_2": {
+    "best_name": "ufmbits_1",
+    "best_value": 99.16238021122761,
+    "median_name": "lo-bits_2",
+    "median_value": 112.65941980468601,
+    "worst_name": "hi-bits_4",
+    "worst_value": 133.55485733990875
+  },
+  "Rightmost64_32": {
+    "best_name": "ufmbits_2",
+    "best_value": 101.1697765794332,
+    "median_name": "lo-bits_3",
+    "median_value": 109.73390939996757,
+    "worst_name": "hi-bits_0",
+    "worst_value": 130.4401755219733
+  },
+  "Rightmost64_4": {
+    "best_name": "ufmbits_2",
+    "best_value": 97.49842797793322,
+    "median_name": "hi-bits_0",
+    "median_value": 110.73349473893981,
+    "worst_name": "hi-bits_4",
+    "worst_value": 128.0006376353571
+  },
+  "Rightmost64_8": {
+    "best_name": "ufmbits_0",
+    "best_value": 94.8140276569637,
+    "median_name": "hi-bits_4",
+    "median_value": 114.77559189243176,
+    "worst_name": "hi-bits_2",
+    "worst_value": 130.68839230237128
+  },
+  "Rightmost8_1": {
+    "best_name": "ufmbits_3",
+    "best_value": 87.94847431341255,
+    "median_name": "hi-bits_1",
+    "median_value": 108.06858403845835,
+    "worst_name": "lo-bits_3",
+    "worst_value": 132.41203486711063
+  },
+  "Rightmost8_2": {
+    "best_name": "ufmbits_3",
+    "best_value": 94.70557956782544,
+    "median_name": "lo-bits_1",
+    "median_value": 113.0320427980455,
+    "worst_name": "hi-bits_4",
+    "worst_value": 133.81828737085846
+  },
+  "Rightmost8_4": {
+    "best_name": "ufmbits_1",
+    "best_value": 87.15233527268654,
+    "median_name": "lo-bits_3",
+    "median_value": 114.08309582945249,
+    "worst_name": "hi-bits_0",
+    "worst_value": 138.7716387943359
+  },
+  "ScalarAdd": {
+    "best_name": "sc_ufmbits_+_sc_lo-bits_2",
+    "best_value": 444.49065116030454,
+    "median_name": "sc_ufmbits_+_sc_hi-bits_4",
+    "median_value": 448.2113128654107,
+    "worst_name": "sc_hi-bits_+_sc_lo-bits_0",
+    "worst_value": 464.3804618406746
+  },
+  "ScalarInvert": {
+    "best_name": "sc_lo-bits_3",
+    "best_value": 1476.116631416612,
+    "median_name": "scalar_outofrange_1",
+    "median_value": 1793.7449766745367,
+    "worst_name": "sc_ufmbits_3",
+    "worst_value": 1847.6388863595444
+  },
+  "ScalarIsZero": {
+    "best_name": "scalar_outofrange_3",
+    "best_value": 192.0707413627658,
+    "median_name": "sc_ufmbits_4",
+    "median_value": 195.9115040961728,
+    "worst_name": "sc_lo-bits_1",
+    "worst_value": 202.72659606046534
+  },
+  "ScalarMultiply": {
+    "best_name": "sc_ufmbits_+_sc_ufmbits_3",
+    "best_value": 491.5593454549711,
+    "median_name": "sc_hi-bits_+_sc_hi-bits_2",
+    "median_value": 495.13049319384913,
+    "worst_name": "sc_hi-bits_+_sc_lo-bits_1",
+    "worst_value": 512.8319682058333
+  },
+  "ScalarMultiplyLambda": {
+    "best_name": "sc_ufmbits_4",
+    "best_value": 366.6785615515697,
+    "median_name": "sc_ufmbits_1",
+    "median_value": 370.56538034711826,
+    "worst_name": "sc_hi-bits_4",
+    "worst_value": 383.8436446930056
+  },
+  "ScalarNegate": {
+    "best_name": "scalar_outofrange_3",
+    "best_value": 340.2112025134266,
+    "median_name": "sc_hi-bits_1",
+    "median_value": 342.9570899182994,
+    "worst_name": "sc_lo-bits_3",
+    "worst_value": 351.2978833930798
+  },
+  "ScalarNormalize": {
+    "best_name": "sc_ufmbits_4",
+    "best_value": 331.1959662948841,
+    "median_name": "scalar_outofrange_2",
+    "median_value": 332.4085933902071,
+    "worst_name": "sc_hi-bits_2",
+    "worst_value": 341.43894396112364
+  },
+  "ScalarSquare": {
+    "best_name": "sc_ufmbits_0",
+    "best_value": 370.47357276043755,
+    "median_name": "sc_lo-bits_4",
+    "median_value": 374.01235377065285,
+    "worst_name": "sc_lo-bits_2",
+    "worst_value": 384.0361397345802
+  },
+  "Scale": {
+    "best_name": "sc_hi-bits_+_gej_zero_fe_hi-bits_0",
+    "best_value": 712.7950399437925,
+    "median_name": "scalar_outofrange_+_gej_offc_fe_lo-bits_0",
+    "median_value": 726.7320892633685,
+    "worst_name": "sc_ufmbits_+_gej_oncurve_3",
+    "worst_value": 41147.87801870179
+  },
+  "ScriptCMR": {
+    "best_name": "30",
+    "best_value": 117.72886781381379,
+    "median_name": "81",
+    "median_value": 126.70098490732788,
+    "worst_name": "99",
+    "worst_value": 164.25171223723424
+  },
+  "Sha256Block": {
+    "best_name": "hi-bits_4",
+    "best_value": 475.12032983256046,
+    "median_name": "lo-bits_3",
+    "median_value": 478.8363675633834,
+    "worst_name": "ufmbits_3",
+    "worst_value": 484.86665961440053
+  },
+  "Sha256Ctx8Add1": {
+    "best_name": "sha256ctx_varbuf-maxlen_+_ufmbits_+_ufmbits_+_ufmbits_1",
+    "best_value": 149.72219475796064,
+    "median_name": "sha256ctx_varbuf-rndlen_+_ufmbits_+_ufmbits_+_ufmbits_4",
+    "median_value": 290.1632780400644,
+    "worst_name": "sha256ctx_varbuf-rndlen_+_lo-bits_+_ufmbits_+_hi-bits_1",
+    "worst_value": 455.0141726680153
+  },
+  "Sha256Ctx8Add128": {
+    "best_name": "sha256ctx_varbuf-maxlen_+_hi-bits_+_hi-bits_+_hi-bits_4",
+    "best_value": 147.93559196245798,
+    "median_name": "sha256ctx_varbuf-rndlen_+_ufmbits_+_ufmbits_+_lo-bits_2",
+    "median_value": 303.4952903363738,
+    "worst_name": "sha256ctx_varbuf-rndlen_+_lo-bits_+_hi-bits_+_ufmbits_3",
+    "worst_value": 1120.6502788258485
+  },
+  "Sha256Ctx8Add16": {
+    "best_name": "sha256ctx_varbuf-maxlen_+_ufmbits_+_ufmbits_+_ufmbits_0",
+    "best_value": 140.4725932822197,
+    "median_name": "sha256ctx_varbuf-rndlen_+_ufmbits_+_hi-bits_+_lo-bits_1",
+    "median_value": 285.6919987986293,
+    "worst_name": "sha256ctx_varbuf-rndlen_+_lo-bits_+_ufmbits_+_ufmbits_1",
+    "worst_value": 529.383867653727
+  },
+  "Sha256Ctx8Add2": {
+    "best_name": "sha256ctx_varbuf-maxlen_+_hi-bits_+_ufmbits_+_ufmbits_2",
+    "best_value": 146.7087349970802,
+    "median_name": "sha256ctx_varbuf-rndlen_+_ufmbits_+_ufmbits_+_ufmbits_1",
+    "median_value": 288.32732789472743,
+    "worst_name": "sha256ctx_varbuf-rndlen_+_lo-bits_+_lo-bits_+_lo-bits_2",
+    "worst_value": 472.4086530192772
+  },
+  "Sha256Ctx8Add256": {
+    "best_name": "sha256ctx_varbuf-maxlen_+_hi-bits_+_lo-bits_+_lo-bits_3",
+    "best_value": 151.39468468575257,
+    "median_name": "sha256ctx_varbuf-rndlen_+_hi-bits_+_ufmbits_+_hi-bits_0",
+    "median_value": 318.42666893588125,
+    "worst_name": "sha256ctx_varbuf-rndlen_+_lo-bits_+_hi-bits_+_lo-bits_1",
+    "worst_value": 1737.3087261553069
+  },
+  "Sha256Ctx8Add32": {
+    "best_name": "sha256ctx_varbuf-maxlen_+_hi-bits_+_hi-bits_+_hi-bits_3",
+    "best_value": 143.0809130770093,
+    "median_name": "sha256ctx_varbuf-rndlen_+_hi-bits_+_ufmbits_+_ufmbits_2",
+    "median_value": 295.1218013460624,
+    "worst_name": "sha256ctx_varbuf-rndlen_+_lo-bits_+_lo-bits_+_hi-bits_4",
+    "worst_value": 612.2593040628533
+  },
+  "Sha256Ctx8Add4": {
+    "best_name": "sha256ctx_varbuf-maxlen_+_ufmbits_+_ufmbits_+_ufmbits_0",
+    "best_value": 140.5584020691627,
+    "median_name": "sha256ctx_varbuf-rndlen_+_ufmbits_+_hi-bits_+_ufmbits_3",
+    "median_value": 282.79664620381897,
+    "worst_name": "sha256ctx_varbuf-rndlen_+_lo-bits_+_lo-bits_+_lo-bits_2",
+    "worst_value": 463.78979664032573
+  },
+  "Sha256Ctx8Add512": {
+    "best_name": "sha256ctx_varbuf-maxlen_+_hi-bits_+_hi-bits_+_hi-bits_4",
+    "best_value": 154.72523020308043,
+    "median_name": "sha256ctx_varbuf-rndlen_+_ufmbits_+_hi-bits_+_lo-bits_0",
+    "median_value": 328.9546691011346,
+    "worst_name": "sha256ctx_varbuf-rndlen_+_lo-bits_+_ufmbits_+_ufmbits_3",
+    "worst_value": 2978.7094446734154
+  },
+  "Sha256Ctx8Add64": {
+    "best_name": "sha256ctx_varbuf-maxlen_+_ufmbits_+_ufmbits_+_lo-bits_3",
+    "best_value": 144.50154332381604,
+    "median_name": "sha256ctx_varbuf-rndlen_+_hi-bits_+_lo-bits_+_hi-bits_0",
+    "median_value": 297.87795708086037,
+    "worst_name": "sha256ctx_varbuf-rndlen_+_lo-bits_+_ufmbits_+_ufmbits_4",
+    "worst_value": 766.4293623670117
+  },
+  "Sha256Ctx8Add8": {
+    "best_name": "sha256ctx_varbuf-maxlen_+_ufmbits_+_ufmbits_+_ufmbits_2",
+    "best_value": 138.90816853068108,
+    "median_name": "sha256ctx_varbuf-rndlen_+_ufmbits_+_ufmbits_+_ufmbits_1",
+    "median_value": 279.91768650482544,
+    "worst_name": "sha256ctx_varbuf-rndlen_+_lo-bits_+_hi-bits_+_ufmbits_1",
+    "worst_value": 480.8931880417629
+  },
+  "Sha256Ctx8AddBuffer511": {
+    "best_name": "sha256ctx_varbuf-maxlen_+_hi-bits_+_hi-bits_+_hi-bits_2",
+    "best_value": 156.7859024162538,
+    "median_name": "sha256ctx_varbuf-rndlen_+_hi-bits_+_lo-bits_+_hi-bits_2",
+    "median_value": 316.68079548014543,
+    "worst_name": "sha256ctx_varbuf-rndlen_+_lo-bits_+_lo-bits_+_hi-bits_1",
+    "worst_value": 2970.5863855107004
+  },
+  "Sha256Ctx8Finalize": {
+    "best_name": "sha256ctx_varbuf-maxlen_+_ufmbits_+_hi-bits_1",
+    "best_value": 143.9823540119244,
+    "median_name": "sha256ctx_varbuf-rndlen_+_hi-bits_+_hi-bits_0",
+    "median_value": 289.0083870199918,
+    "worst_name": "sha256ctx_varbuf-rndlen_+_lo-bits_+_ufmbits_0",
+    "worst_value": 531.3211214436227
+  },
+  "Sha256Ctx8Init": {
+    "best_name": "unit_0",
+    "best_value": 122.16286229800417,
+    "median_name": "unit_4",
+    "median_value": 122.74505363140483,
+    "worst_name": "unit_2",
+    "worst_value": 122.78143251790951
+  },
+  "Sha256Iv": {
+    "best_name": "unit_1",
+    "best_value": 99.99705110922129,
+    "median_name": "unit_3",
+    "median_value": 100.3840199527573,
+    "worst_name": "unit_0",
+    "worst_value": 101.08611552602599
+  },
+  "SigAllHash": {
+    "best_name": "59",
+    "best_value": 114.82541363809334,
+    "median_name": "95",
+    "median_value": 126.81855472521192,
+    "worst_name": "17",
+    "worst_value": 163.71263020644716
+  },
+  "Some1": {
+    "best_name": "lo-bits_2",
+    "best_value": 89.84392246006149,
+    "median_name": "lo-bits_3",
+    "median_value": 96.91421023431283,
+    "worst_name": "hi-bits_3",
+    "worst_value": 106.2045826369524
+  },
+  "Some16": {
+    "best_name": "ufmbits_4",
+    "best_value": 89.24404159410975,
+    "median_name": "hi-bits_0",
+    "median_value": 123.14442363458308,
+    "worst_name": "lo-bits_3",
+    "worst_value": 131.68350713106759
+  },
+  "Some32": {
+    "best_name": "ufmbits_2",
+    "best_value": 84.91311254453811,
+    "median_name": "lo-bits_4",
+    "median_value": 109.9011615774162,
+    "worst_name": "lo-bits_2",
+    "worst_value": 132.43123576281874
+  },
+  "Some64": {
+    "best_name": "ufmbits_3",
+    "best_value": 92.16398838748817,
+    "median_name": "lo-bits_4",
+    "median_value": 125.48211309359905,
+    "worst_name": "ufmbits_4",
+    "worst_value": 138.07258490515295
+  },
+  "Some8": {
+    "best_name": "ufmbits_2",
+    "best_value": 82.2026231650727,
+    "median_name": "ufmbits_3",
+    "median_value": 112.47746174250501,
+    "worst_name": "lo-bits_0",
+    "worst_value": 129.7195512259516
+  },
+  "Subtract16": {
+    "best_name": "ufmbits_+_self_0",
+    "best_value": 99.051023026591,
+    "median_name": "ufmbits_+_self_1",
+    "median_value": 140.48039886852249,
+    "worst_name": "hi-bits_+_hi-bits_4",
+    "worst_value": 219.94882352941187
+  },
+  "Subtract32": {
+    "best_name": "ufmbits_+_self_2",
+    "best_value": 101.90127364896517,
+    "median_name": "lo-bits_+_ufmbits_4",
+    "median_value": 138.5798133385097,
+    "worst_name": "lo-bits_+_lo-bits_2",
+    "worst_value": 218.0782352941177
+  },
+  "Subtract64": {
+    "best_name": "ufmbits_+_self_1",
+    "best_value": 113.78060922446925,
+    "median_name": "lo-bits_+_self_2",
+    "median_value": 141.75142019260215,
+    "worst_name": "lo-bits_+_hi-bits_2",
+    "worst_value": 232.12529411764706
+  },
+  "Subtract8": {
+    "best_name": "ufmbits_+_self_2",
+    "best_value": 102.72688074170168,
+    "median_name": "lo-bits_+_ufmbits_0",
+    "median_value": 140.34799217511392,
+    "worst_name": "hi-bits_+_hi-bits_3",
+    "worst_value": 218.2564705882352
+  },
+  "Swu": {
+    "best_name": "lo-bits_0",
+    "best_value": 18008.56563208235,
+    "median_name": "hi-bits_2",
+    "median_value": 18198.21804004326,
+    "worst_name": "ufmbits_0",
+    "worst_value": 18249.18717461421
+  },
+  "TapEnvHash": {
+    "best_name": "17",
+    "best_value": 109.58859708080308,
+    "median_name": "70",
+    "median_value": 118.28958490495663,
+    "worst_name": "1",
+    "worst_value": 154.45989225603333
+  },
+  "TapdataInit": {
+    "best_name": "54",
+    "best_value": 720.711427875018,
+    "median_name": "65",
+    "median_value": 733.0601183449887,
+    "worst_name": "88",
+    "worst_value": 968.3836520021904
+  },
+  "TapleafHash": {
+    "best_name": "84",
+    "best_value": 108.18532201032782,
+    "median_name": "40",
+    "median_value": 119.44034002207644,
+    "worst_name": "15",
+    "worst_value": 160.62426116373226
+  },
+  "TapleafVersion": {
+    "best_name": "40",
+    "best_value": 78.8264753170515,
+    "median_name": "71",
+    "median_value": 91.93543625565157,
+    "worst_name": "53",
+    "worst_value": 128.81552898280094
+  },
+  "Tappath": {
+    "best_name": "70",
+    "best_value": 79.90136641027195,
+    "median_name": "17",
+    "median_value": 87.26694008723753,
+    "worst_name": "87",
+    "worst_value": 123.13614611068431
+  },
+  "TappathHash": {
+    "best_name": "60",
+    "best_value": 107.61034753651245,
+    "median_name": "82",
+    "median_value": 116.21434053380719,
+    "worst_name": "51",
+    "worst_value": 152.64814656183933
+  },
+  "TotalInputValue": {
+    "best_name": "19",
+    "best_value": 80.63570719600722,
+    "median_name": "69",
+    "median_value": 93.50207880534265,
+    "worst_name": "72",
+    "worst_value": 128.28492632631404
+  },
+  "TotalOutputValue": {
+    "best_name": "63",
+    "best_value": 78.34404922649615,
+    "median_name": "21",
+    "median_value": 86.15324504547723,
+    "worst_name": "15",
+    "worst_value": 125.43074209414205
+  },
+  "TransactionId": {
+    "best_name": "16",
+    "best_value": 106.63962115583436,
+    "median_name": "8",
+    "median_value": 118.96420304994213,
+    "worst_name": "61",
+    "worst_value": 164.6908036238732
+  },
+  "TxHash": {
+    "best_name": "56",
+    "best_value": 106.48476276834712,
+    "median_name": "30",
+    "median_value": 119.74283836275758,
+    "worst_name": "97",
+    "worst_value": 152.16405017040293
+  },
+  "TxIsFinal": {
+    "best_name": "40",
+    "best_value": 79.24147693992984,
+    "median_name": "6",
+    "median_value": 88.38501551423086,
+    "worst_name": "0",
+    "worst_value": 116.57289548469058
+  },
+  "TxLockDistance": {
+    "best_name": "2",
+    "best_value": 76.97759656128119,
+    "median_name": "15",
+    "median_value": 86.50287524495558,
+    "worst_name": "16",
+    "worst_value": 119.77084608214174
+  },
+  "TxLockDuration": {
+    "best_name": "42",
+    "best_value": 79.77568400984481,
+    "median_name": "22",
+    "median_value": 87.48463948719986,
+    "worst_name": "90",
+    "worst_value": 113.03107714661635
+  },
+  "TxLockHeight": {
+    "best_name": "26",
+    "best_value": 79.31495935241054,
+    "median_name": "86",
+    "median_value": 87.70043552332487,
+    "worst_name": "66",
+    "worst_value": 115.64180567020573
+  },
+  "TxLockTime": {
+    "best_name": "3",
+    "best_value": 78.5063451150492,
+    "median_name": "96",
+    "median_value": 88.68339125319206,
+    "worst_name": "95",
+    "worst_value": 114.70020835923332
+  },
+  "Verify": {
+    "best_name": "ufmbits_0",
+    "best_value": 85.27428458435084,
+    "median_name": "lo-bits_3",
+    "median_value": 91.61431522788594,
+    "worst_name": "lo-bits_0",
+    "worst_value": 96.63500384723285
+  },
+  "Version": {
+    "best_name": "81",
+    "best_value": 83.02779666755299,
+    "median_name": "13",
+    "median_value": 96.17631455923501,
+    "worst_name": "1",
+    "worst_value": 126.1098020403346
+  },
+  "Xor1": {
+    "best_name": "ufmbits_+_self_0",
+    "best_value": 84.2168978060949,
+    "median_name": "ufmbits_+_hi-bits_4",
+    "median_value": 104.19479249889272,
+    "worst_name": "hi-bits_+_inv_self_1",
+    "worst_value": 137.1855864666599
+  },
+  "Xor16": {
+    "best_name": "ufmbits_+_self_0",
+    "best_value": 100.60048024993336,
+    "median_name": "hi-bits_+_hi-bits_3",
+    "median_value": 134.53813957880962,
+    "worst_name": "hi-bits_+_lo-bits_0",
+    "worst_value": 207.1817647058824
+  },
+  "Xor32": {
+    "best_name": "ufmbits_+_ufmbits_2",
+    "best_value": 100.18386993830022,
+    "median_name": "lo-bits_+_ufmbits_2",
+    "median_value": 136.32137115710165,
+    "worst_name": "hi-bits_+_lo-bits_1",
+    "worst_value": 212.2888235294118
+  },
+  "Xor64": {
+    "best_name": "ufmbits_+_self_1",
+    "best_value": 111.12076047088085,
+    "median_name": "lo-bits_+_lo-bits_0",
+    "median_value": 140.53737500210934,
+    "worst_name": "ufmbits_+_lo-bits_2",
+    "worst_value": 234.74650000000022
+  },
+  "Xor8": {
+    "best_name": "ufmbits_+_inv_self_0",
+    "best_value": 90.97243074443864,
+    "median_name": "ufmbits_+_hi-bits_2",
+    "median_value": 132.33564007056995,
+    "worst_name": "lo-bits_+_hi-bits_2",
+    "worst_value": 207.90235294117645
+  },
+  "XorXor1": {
+    "best_name": "ufmbits_3",
+    "best_value": 83.07948121760317,
+    "median_name": "lo-bits_1",
+    "median_value": 91.41084117695696,
+    "worst_name": "lo-bits_3",
+    "worst_value": 141.36924834449496
+  },
+  "XorXor16": {
+    "best_name": "ufmbits_3",
+    "best_value": 102.10122171804007,
+    "median_name": "ufmbits_0",
+    "median_value": 130.55400875925653,
+    "worst_name": "lo-bits_0",
+    "worst_value": 165.8825845644479
+  },
+  "XorXor32": {
+    "best_name": "ufmbits_3",
+    "best_value": 113.54854546136713,
+    "median_name": "hi-bits_2",
+    "median_value": 119.8651543550196,
+    "worst_name": "lo-bits_0",
+    "worst_value": 140.07073615504513
+  },
+  "XorXor64": {
+    "best_name": "ufmbits_2",
+    "best_value": 114.28645937501862,
+    "median_name": "hi-bits_1",
+    "median_value": 119.98039877447061,
+    "worst_name": "lo-bits_0",
+    "worst_value": 137.10705114836065
+  },
+  "XorXor8": {
+    "best_name": "ufmbits_2",
+    "best_value": 98.72013960579737,
+    "median_name": "lo-bits_2",
+    "median_value": 116.98158924954764,
+    "worst_name": "lo-bits_1",
+    "worst_value": 182.0483691189963
+  }
+}
