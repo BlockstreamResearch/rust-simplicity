@@ -223,26 +223,6 @@ impl BitMachine {
         self.exec_with_tracker(program, env, &mut NoTracker)
     }
 
-    /// Execute the given `program` on the Bit Machine and track executed case branches.
-    ///
-    /// If the program runs successfully, then two sets of IHRs are returned:
-    ///
-    /// 1) The IHRs of case nodes whose _left_ branch was executed.
-    /// 2) The IHRs of case nodes whose _right_ branch was executed.
-    ///
-    /// ## Precondition
-    ///
-    /// The Bit Machine is constructed via [`Self::for_program()`] to ensure enough space.
-    pub(crate) fn exec_prune<J: Jet>(
-        &mut self,
-        program: &RedeemNode<J>,
-        env: &J::Environment,
-    ) -> Result<SetTracker, ExecutionError> {
-        let mut tracker = SetTracker::default();
-        self.exec_with_tracker(program, env, &mut tracker)?;
-        Ok(tracker)
-    }
-
     /// Execute the given `program` on the Bit Machine, using the given environment and tracker.
     ///
     ///  ## Precondition
@@ -544,6 +524,12 @@ impl BitMachine {
 ///
 /// The trait enables us to turn tracking on or off depending on a generic parameter.
 pub trait ExecTracker<J: Jet> {
+    /// Check if left branch of the case node contains given `ihr`.
+    fn contains_left(&self, ihr: &Ihr) -> bool;
+
+    /// Check if right branch of the case node contains given `ihr`.
+    fn contains_right(&self, ihr: &Ihr) -> bool;
+
     /// Track the execution of the left branch of the case node with the given `ihr`.
     fn track_left(&mut self, ihr: Ihr);
 
@@ -605,6 +591,14 @@ impl<J: Jet> ExecTracker<J> for SetTracker {
     fn is_track_debug_enabled(&self) -> bool {
         false
     }
+
+    fn contains_left(&self, ihr: &Ihr) -> bool {
+        self.left.contains(ihr)
+    }
+
+    fn contains_right(&self, ihr: &Ihr) -> bool {
+        self.right.contains(ihr)
+    }
 }
 
 impl<J: Jet> ExecTracker<J> for NoTracker {
@@ -619,6 +613,14 @@ impl<J: Jet> ExecTracker<J> for NoTracker {
     fn is_track_debug_enabled(&self) -> bool {
         // Set flag to test frame decoding in unit tests
         cfg!(test)
+    }
+
+    fn contains_left(&self, _: &Ihr) -> bool {
+        false
+    }
+
+    fn contains_right(&self, _: &Ihr) -> bool {
+        false
     }
 }
 
