@@ -8,40 +8,60 @@
 //!
 //! It is a private module but all types and traits are re-exported above.
 
-use simplicity_sys::ffi::UWORD;
 use std::collections::HashSet;
 
 use crate::jet::Jet;
-use crate::{Cmr, Ihr, Value};
+use crate::node::Inner;
+use crate::{Ihr, RedeemNode, Value};
 
-/// A type that keeps track of Bit Machine execution.
+/// Write frame of a terminal (childless) Simplicity program node.
 ///
-/// The trait is implemented for [`SetTracker`], that tracks which case branches were executed,
-/// and it is implemented for [`NoTracker`], which is a dummy tracker that is
-/// optimized out by the compiler.
+/// When a terminal node of a program is encountered in the Bit Machine, it
+/// has a well-defined "output": the contents of the topmost write frame in
+/// the machine. In particular, for `witness` nodes this will be the witness
+/// data, for jets it will be the result of the jet, and so on.
 ///
-/// The trait enables us to turn tracking on or off depending on a generic parameter.
+/// For non-terminal nodes, the Bit Machine typically does some setup, then
+/// executes the nodes' children, then does some teardown. So at no point is
+/// there a well-defined "output" we can provide.
+#[derive(Debug, Clone)]
+pub enum NodeOutput<'m> {
+    /// Non-terminal node, which has no output.
+    NonTerminal,
+    /// Node was a jet which failed, i.e. aborted the program, and therefore
+    /// has no output.
+    JetFailed,
+    /// Node succeeded. This is its output frame.
+    Success(super::FrameIter<'m>),
+}
+
+/// An object which can be used to introspect the execution of the Bit Machine.
+///
+/// If this tracker records accesses to the left and right children of `Case` nodes, you
+/// may want to also implement [`PruneTracker`] so that this data can be used by
+/// [`RedeemNode::prune_with_tracker`] to prune the program. The most straightforward
+/// way to do this is to embed a [`SetTracker`] in your tracker and forward all the trait
+/// methods to that.
 pub trait ExecTracker<J: Jet> {
-    /// Track the execution of the left branch of the case node with the given `ihr`.
-    fn track_left(&mut self, ihr: Ihr);
-
-    /// Track the execution of the right branch of the case node with the given `ihr`.
-    fn track_right(&mut self, ihr: Ihr);
-
-    /// Track the execution of a `jet` call with the given `input_buffer`, `output_buffer`, and call result `success`.
-    fn track_jet_call(
-        &mut self,
-        jet: &J,
-        input_buffer: &[UWORD],
-        output_buffer: &[UWORD],
-        success: bool,
-    );
-
-    /// Track the potential execution of a `dbg!` call with the given `cmr` and `value`.
-    fn track_dbg_call(&mut self, cmr: &Cmr, value: Value);
-
-    /// Check if tracking debug calls is enabled.
-    fn is_track_debug_enabled(&self) -> bool;
+    /// Called immediately after a specific node of the program is executed, but before
+    /// its children are executed.
+    ///
+    /// More precisely, this iterates through the through the Simplicity program tree in
+    /// *pre* ordering. That is, for the program `comp iden unit` the nodes will be visited
+    /// in the order `comp`, `iden`, `unit`.
+    ///
+    /// This method can be used for logging, to track left or right accesses of the children of a
+    /// `Case` node (to do this, call `input.peek_bit()`; false means left and true means right),
+    /// to extract debug information (which may be embedded in the hidden CMR in `AssertL`
+    /// and `AssertR` nodes, depending how the program was constructed), and so on.
+    ///
+    /// The provided arguments are:
+    ///   * `node` is the node which was just visited.
+    ///   * `input` is an iterator over the read frame when the node's execution began
+    ///   * for terminal nodes (`witness`, `unit`, `iden` and jets), `output` is an iterator
+    ///     the write frame after the node has executed. See [`NodeOutput`] for more information.
+    fn visit_node(&mut self, _node: &RedeemNode<J>, _input: super::FrameIter, _output: NodeOutput) {
+    }
 }
 
 pub trait PruneTracker<J: Jet>: ExecTracker<J> {
@@ -60,20 +80,21 @@ pub struct SetTracker {
 }
 
 impl<J: Jet> ExecTracker<J> for SetTracker {
-    fn track_left(&mut self, ihr: Ihr) {
-        self.left.insert(ihr);
-    }
-
-    fn track_right(&mut self, ihr: Ihr) {
-        self.right.insert(ihr);
-    }
-
-    fn track_jet_call(&mut self, _: &J, _: &[UWORD], _: &[UWORD], _: bool) {}
-
-    fn track_dbg_call(&mut self, _: &Cmr, _: Value) {}
-
-    fn is_track_debug_enabled(&self) -> bool {
-        false
+    fn visit_node<'d>(
+        &mut self,
+        node: &RedeemNode<J>,
+        mut input: super::FrameIter,
+        _output: NodeOutput,
+    ) {
+        match (node.inner(), input.next()) {
+            (Inner::AssertL(..) | Inner::Case(..), Some(false)) => {
+                self.left.insert(node.ihr());
+            }
+            (Inner::AssertR(..) | Inner::Case(..), Some(true)) => {
+                self.right.insert(node.ihr());
+            }
+            _ => {}
+        }
     }
 }
 
@@ -92,16 +113,21 @@ impl<J: Jet> PruneTracker<J> for SetTracker {
 pub struct NoTracker;
 
 impl<J: Jet> ExecTracker<J> for NoTracker {
-    fn track_left(&mut self, _: Ihr) {}
-
-    fn track_right(&mut self, _: Ihr) {}
-
-    fn track_jet_call(&mut self, _: &J, _: &[UWORD], _: &[UWORD], _: bool) {}
-
-    fn track_dbg_call(&mut self, _: &Cmr, _: Value) {}
-
-    fn is_track_debug_enabled(&self) -> bool {
-        // Set flag to test frame decoding in unit tests
-        cfg!(test)
+    fn visit_node<'d>(
+        &mut self,
+        node: &RedeemNode<J>,
+        mut input: super::FrameIter,
+        output: NodeOutput,
+    ) {
+        if cfg!(test) {
+            // In unit tests, attempt to decode values from the frames, confirming that
+            // decoding works.
+            Value::from_padded_bits(&mut input, &node.arrow().source)
+                .expect("decoding input should work");
+            if let NodeOutput::Success(mut output) = output {
+                Value::from_padded_bits(&mut output, &node.arrow().target)
+                    .expect("decoding output should work");
+            }
+        }
     }
 }

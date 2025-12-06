@@ -43,6 +43,19 @@ impl Frame {
         self.len
     }
 
+    /// Makes a copy of the frame.
+    ///
+    /// This copies *only the indices* and none of the underlying
+    /// data. It is the caller's responsibility to make sure that
+    /// the indices are not invalidated.
+    pub(super) fn shallow_copy(&self) -> Self {
+        Self {
+            cursor: self.cursor,
+            start: self.start,
+            len: self.len,
+        }
+    }
+
     /// Reset the cursor to the start.
     pub(super) fn reset_cursor(&mut self) {
         self.cursor = self.start;

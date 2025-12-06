@@ -22,7 +22,7 @@ use crate::{Cmr, FailEntropy, Value};
 use frame::Frame;
 
 pub use self::limits::LimitError;
-pub use self::tracker::{ExecTracker, NoTracker, PruneTracker, SetTracker};
+pub use self::tracker::{ExecTracker, NoTracker, NodeOutput, PruneTracker, SetTracker};
 
 /// An iterator over the contents of a read or write frame which yields bits.
 pub type FrameIter<'a> = crate::BitIter<core::iter::Copied<core::slice::Iter<'a, u8>>>;
@@ -271,6 +271,10 @@ impl BitMachine {
         }
 
         'main_loop: loop {
+            // Make a copy of the input frame to give to the tracker.
+            let input_frame = self.read.last().map(Frame::shallow_copy);
+            let mut jet_result = Ok(());
+
             match ip.inner() {
                 node::Inner::Unit => {}
                 node::Inner::Iden => {
@@ -336,32 +340,18 @@ impl BitMachine {
                     let (sum_a_b, _c) = ip.arrow().source.as_product().unwrap();
                     let (a, b) = sum_a_b.as_sum().unwrap();
 
-                    if tracker.is_track_debug_enabled() {
-                        if let node::Inner::AssertL(_, cmr) = ip.inner() {
-                            let mut bits = in_frame.as_bit_iter(&self.data);
-                            // Skips 1 + max(a.bit_width, b.bit_width) - a.bit_width
-                            bits.nth(a.pad_left(b))
-                                .expect("AssertL: unexpected end of frame");
-                            let value = Value::from_padded_bits(&mut bits, _c)
-                                .expect("AssertL: decode `C` value");
-                            tracker.track_dbg_call(cmr, value);
-                        }
-                    }
-
                     match (ip.inner(), choice_bit) {
                         (node::Inner::Case(_, right), true)
                         | (node::Inner::AssertR(_, right), true) => {
                             self.fwd(1 + a.pad_right(b));
                             call_stack.push(CallStack::Back(1 + a.pad_right(b)));
                             call_stack.push(CallStack::Goto(right));
-                            tracker.track_right(ip.ihr());
                         }
                         (node::Inner::Case(left, _), false)
                         | (node::Inner::AssertL(left, _), false) => {
                             self.fwd(1 + a.pad_left(b));
                             call_stack.push(CallStack::Back(1 + a.pad_left(b)));
                             call_stack.push(CallStack::Goto(left));
-                            tracker.track_left(ip.ihr());
                         }
                         (node::Inner::AssertL(_, r_cmr), true) => {
                             return Err(ExecutionError::ReachedPrunedBranch(*r_cmr))
@@ -373,12 +363,42 @@ impl BitMachine {
                     }
                 }
                 node::Inner::Witness(value) => self.write_value(value),
-                node::Inner::Jet(jet) => self.exec_jet(*jet, env, tracker)?,
+                node::Inner::Jet(jet) => {
+                    jet_result = self.exec_jet(*jet, env);
+                }
                 node::Inner::Word(value) => self.write_value(value.as_value()),
                 node::Inner::Fail(entropy) => {
                     return Err(ExecutionError::ReachedFailNode(*entropy))
                 }
             }
+
+            // Notify the tracker.
+            {
+                // Notice that, because the read frame stack is only ever
+                // shortened by `drop_read_frame`, and that method was not
+                // called above, this frame is still valid and correctly
+                // describes the Bit Machine "input" to the current node,
+                // no matter the node.
+                let read_iter = input_frame
+                    .map(|frame| frame.as_bit_iter(&self.data))
+                    .unwrap_or(crate::BitIter::from([].iter().copied()));
+                // See the docs on `tracker::NodeOutput` for more information about
+                // this match.
+                let output = match (ip.inner(), &jet_result) {
+                    (node::Inner::Unit | node::Inner::Iden | node::Inner::Witness(_), _)
+                    | (node::Inner::Jet(_), Ok(_)) => NodeOutput::Success(
+                        self.write
+                            .last()
+                            .map(|r| r.as_bit_iter(&self.data))
+                            .unwrap_or(crate::BitIter::from([].iter().copied())),
+                    ),
+                    (node::Inner::Jet(_), Err(_)) => NodeOutput::JetFailed,
+                    _ => NodeOutput::NonTerminal,
+                };
+                tracker.visit_node(ip, read_iter, output);
+            }
+            // Fail if the jet failed.
+            jet_result?;
 
             ip = loop {
                 match call_stack.pop() {
@@ -410,12 +430,7 @@ impl BitMachine {
         }
     }
 
-    fn exec_jet<J: Jet, T: ExecTracker<J>>(
-        &mut self,
-        jet: J,
-        env: &J::Environment,
-        tracker: &mut T,
-    ) -> Result<(), JetFailed> {
+    fn exec_jet<J: Jet>(&mut self, jet: J, env: &J::Environment) -> Result<(), JetFailed> {
         use crate::ffi::c_jets::frame_ffi::{c_readBit, c_writeBit, CFrameItem};
         use crate::ffi::c_jets::uword_width;
         use crate::ffi::ffi::UWORD;
@@ -501,14 +516,12 @@ impl BitMachine {
         let output_width = jet.target_ty().to_bit_width();
         // Input buffer is implicitly referenced by input read frame!
         // Same goes for output buffer
-        let (input_read_frame, input_buffer) = unsafe { get_input_frame(self, input_width) };
+        let (input_read_frame, _input_buffer) = unsafe { get_input_frame(self, input_width) };
         let (mut output_write_frame, output_buffer) = unsafe { get_output_frame(output_width) };
 
         let jet_fn = jet.c_jet_ptr();
         let c_env = J::c_jet_env(env);
         let success = jet_fn(&mut output_write_frame, input_read_frame, c_env);
-
-        tracker.track_jet_call(&jet, &input_buffer, &output_buffer, success);
 
         if !success {
             Err(JetFailed)
