@@ -44,28 +44,20 @@ pub trait ExecTracker<J: Jet> {
     fn is_track_debug_enabled(&self) -> bool;
 }
 
+pub trait PruneTracker<J: Jet>: ExecTracker<J> {
+    /// Returns true if the left branch of the of the `Case` node with the IHR `ihr` was taken.
+    fn contains_left(&self, ihr: Ihr) -> bool;
+
+    /// Returns true if the right branch of the of the `Case` node with the IHR `ihr` was taken.
+    fn contains_right(&self, ihr: Ihr) -> bool;
+}
+
 /// Tracker of executed left and right branches for each case node.
 #[derive(Clone, Debug, Default)]
 pub struct SetTracker {
     left: HashSet<Ihr>,
     right: HashSet<Ihr>,
 }
-
-impl SetTracker {
-    /// Access the set of IHRs of case nodes whose left branch was executed.
-    pub fn left(&self) -> &HashSet<Ihr> {
-        &self.left
-    }
-
-    /// Access the set of IHRs of case nodes whose right branch was executed.
-    pub fn right(&self) -> &HashSet<Ihr> {
-        &self.right
-    }
-}
-
-/// Tracker that does not do anything (noop).
-#[derive(Copy, Clone, Debug)]
-pub struct NoTracker;
 
 impl<J: Jet> ExecTracker<J> for SetTracker {
     fn track_left(&mut self, ihr: Ihr) {
@@ -84,6 +76,20 @@ impl<J: Jet> ExecTracker<J> for SetTracker {
         false
     }
 }
+
+impl<J: Jet> PruneTracker<J> for SetTracker {
+    fn contains_left(&self, ihr: Ihr) -> bool {
+        self.left.contains(&ihr)
+    }
+
+    fn contains_right(&self, ihr: Ihr) -> bool {
+        self.right.contains(&ihr)
+    }
+}
+
+/// Tracker that does not do anything (noop).
+#[derive(Copy, Clone, Debug)]
+pub struct NoTracker;
 
 impl<J: Jet> ExecTracker<J> for NoTracker {
     fn track_left(&mut self, _: Ihr) {}

@@ -22,7 +22,7 @@ use crate::{Cmr, FailEntropy, Value};
 use frame::Frame;
 
 pub use self::limits::LimitError;
-pub use self::tracker::{ExecTracker, NoTracker, SetTracker};
+pub use self::tracker::{ExecTracker, NoTracker, PruneTracker, SetTracker};
 
 /// An iterator over the contents of a read or write frame which yields bits.
 pub type FrameIter<'a> = crate::BitIter<core::iter::Copied<core::slice::Iter<'a, u8>>>;
@@ -224,26 +224,6 @@ impl BitMachine {
         env: &J::Environment,
     ) -> Result<Value, ExecutionError> {
         self.exec_with_tracker(program, env, &mut NoTracker)
-    }
-
-    /// Execute the given `program` on the Bit Machine and track executed case branches.
-    ///
-    /// If the program runs successfully, then two sets of IHRs are returned:
-    ///
-    /// 1) The IHRs of case nodes whose _left_ branch was executed.
-    /// 2) The IHRs of case nodes whose _right_ branch was executed.
-    ///
-    /// ## Precondition
-    ///
-    /// The Bit Machine is constructed via [`Self::for_program()`] to ensure enough space.
-    pub(crate) fn exec_prune<J: Jet>(
-        &mut self,
-        program: &RedeemNode<J>,
-        env: &J::Environment,
-    ) -> Result<SetTracker, ExecutionError> {
-        let mut tracker = SetTracker::default();
-        self.exec_with_tracker(program, env, &mut tracker)?;
-        Ok(tracker)
     }
 
     /// Execute the given `program` on the Bit Machine, using the given environment and tracker.
