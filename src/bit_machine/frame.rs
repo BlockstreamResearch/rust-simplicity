@@ -34,12 +34,12 @@ impl Frame {
     }
 
     /// Return the start index of the frame inside the referenced data.
-    pub fn start(&self) -> usize {
+    pub(super) fn start(&self) -> usize {
         self.start
     }
 
     /// Return the bit width of the frame.
-    pub fn bit_width(&self) -> usize {
+    pub(super) fn bit_width(&self) -> usize {
         self.len
     }
 
@@ -104,7 +104,10 @@ impl Frame {
 
     /// Extend the present frame with a read-only reference the the data
     /// and return the resulting struct.
-    pub(super) fn as_bit_iter<'a>(&self, data: &'a [u8]) -> super::FrameIter<'a> {
+    pub(super) fn as_bit_iter<'a>(
+        &self,
+        data: &'a [u8],
+    ) -> BitIter<core::iter::Copied<core::slice::Iter<'a, u8>>> {
         BitIter::byte_slice_window(data, self.start, self.start + self.len)
     }
 }
