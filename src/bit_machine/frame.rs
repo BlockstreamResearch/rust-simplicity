@@ -104,7 +104,7 @@ impl Frame {
 
     /// Extend the present frame with a read-only reference the the data
     /// and return the resulting struct.
-    pub fn as_bit_iter<'a>(&self, data: &'a [u8]) -> BitIter<impl Iterator<Item = u8> + 'a> {
+    pub(super) fn as_bit_iter<'a>(&self, data: &'a [u8]) -> super::FrameIter<'a> {
         BitIter::byte_slice_window(data, self.start, self.start + self.len)
     }
 }

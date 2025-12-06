@@ -24,6 +24,9 @@ use simplicity_sys::ffi::UWORD;
 
 pub use self::limits::LimitError;
 
+/// An iterator over the contents of a read or write frame which yields bits.
+pub type FrameIter<'a> = crate::BitIter<core::iter::Copied<core::slice::Iter<'a, u8>>>;
+
 /// An execution context for a Simplicity program
 pub struct BitMachine {
     /// Space for bytes that read and write frames point to.
