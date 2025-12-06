@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 
 use crate::analysis::NodeBounds;
-use crate::bit_machine::{ExecutionError, SetTracker};
+use crate::bit_machine::{ExecTracker, ExecutionError, SetTracker};
 use crate::dag::{DagLike, InternalSharing, MaxSharing, PostOrderIterItem};
 use crate::jet::Jet;
 use crate::types::{self, arrow::FinalArrow};
@@ -290,13 +290,25 @@ impl<J: Jet> RedeemNode<J> {
     /// In this case, the witness data needs to be revised.
     /// The other pruning steps (2 & 3) never fail.
     pub fn prune(&self, env: &J::Environment) -> Result<Arc<RedeemNode<J>>, ExecutionError> {
-        struct Pruner<'brand, J> {
+        let mut tracker = SetTracker::default();
+        self.prune_with_tracker(env, &mut tracker)
+    }
+
+    /// Prune the redeem program for the given transaction environment with custom execution tracker.
+    pub fn prune_with_tracker<T: ExecTracker<J>>(
+        &self,
+        env: &J::Environment,
+        tracker: &mut T,
+    ) -> Result<Arc<RedeemNode<J>>, ExecutionError> {
+        struct Pruner<'tracker, 'brand, J, T> {
             inference_context: types::Context<'brand>,
-            tracker: SetTracker,
+            tracker: &'tracker T,
             phantom: PhantomData<J>,
         }
 
-        impl<'brand, J: Jet> Converter<Redeem<J>, Construct<'brand, J>> for Pruner<'brand, J> {
+        impl<'tracker, 'brand, J: Jet, T: ExecTracker<J>> Converter<Redeem<J>, Construct<'brand, J>>
+            for Pruner<'tracker, 'brand, J, T>
+        {
             type Error = std::convert::Infallible;
 
             fn convert_witness(
@@ -332,8 +344,8 @@ impl<J: Jet> RedeemNode<J> {
                 // but the Converter trait gives us access to the unpruned node (`data`).
                 // The Bit Machine tracked (un)used case branches based on the unpruned IHR.
                 match (
-                    self.tracker.left().contains(&data.node.ihr()),
-                    self.tracker.right().contains(&data.node.ihr()),
+                    self.tracker.contains_left(&data.node.ihr()),
+                    self.tracker.contains_right(&data.node.ihr()),
                 ) {
                     (true, true) => Ok(Hide::Neither),
                     (false, true) => Ok(Hide::Left),
@@ -418,7 +430,7 @@ impl<J: Jet> RedeemNode<J> {
         // 1) Run the Bit Machine and mark (un)used branches.
         // This is the only fallible step in the pruning process.
         let mut mac = BitMachine::for_program(self)?;
-        let tracker = mac.exec_prune(self, env)?;
+        mac.exec_with_tracker(self, env, tracker)?;
 
         // 2) Prune out unused case branches.
         // Because the types of the pruned program may change,
@@ -591,7 +603,8 @@ impl<J: Jet> RedeemNode<J> {
 mod tests {
     use super::*;
     use crate::human_encoding::Forest;
-    use crate::jet::Core;
+    use crate::jet::elements::ElementsEnv;
+    use crate::jet::{self, Core};
     use crate::node::SimpleFinalizer;
     use crate::types::Final;
     use hex::DisplayHex;
@@ -1110,6 +1123,129 @@ main := comp input comp process jet_verify : 1 -> 1"#;
             pruned_prog,
             &pruned_wit,
             &env,
+        );
+    }
+
+    #[derive(Clone, Debug)]
+    pub struct DefaultTracker<J: Jet> {
+        left: HashSet<Ihr>,
+        right: HashSet<Ihr>,
+
+        jets: Vec<J>,
+    }
+
+    impl<J: Jet> ExecTracker<J> for DefaultTracker<J> {
+        fn track_left(&mut self, ihr: Ihr) {
+            self.left.insert(ihr);
+        }
+
+        fn track_right(&mut self, ihr: Ihr) {
+            self.right.insert(ihr);
+        }
+
+        fn track_jet_call(
+            &mut self,
+            jet: &J,
+            _: &[simplicity_sys::ffi::UWORD],
+            _: &[simplicity_sys::ffi::UWORD],
+            _: bool,
+        ) {
+            self.jets.push(*jet);
+        }
+
+        fn track_dbg_call(&mut self, _: &Cmr, _: Value) {}
+
+        fn is_track_debug_enabled(&self) -> bool {
+            false
+        }
+
+        fn contains_left(&self, ihr: &Ihr) -> bool {
+            self.left.contains(ihr)
+        }
+
+        fn contains_right(&self, ihr: &Ihr) -> bool {
+            self.right.contains(ihr)
+        }
+    }
+
+    fn prune_failed_program_with_tracker<J: Jet, T: ExecTracker<J>>(
+        program_bytes: &[u8],
+        witness_bytes: &[u8],
+        env: &J::Environment,
+        tracker: &mut T,
+    ) {
+        let prog = BitIter::from(program_bytes);
+        let witness = BitIter::from(witness_bytes);
+        let prog = match RedeemNode::<J>::decode(prog, witness) {
+            Ok(prog) => prog,
+            Err(e) => panic!("program {} failed: {}", program_bytes.as_hex(), e),
+        };
+
+        let _ = prog
+            .prune_with_tracker(env, tracker)
+            .expect_err("program should fail");
+    }
+
+    #[test]
+    fn prune_with_failing() {
+        // This is a simple program equivalent to `assert!(false)`. It should fail, and
+        // the tracker should write one element to `jets` -- `jet::Elements::Verify`
+        let program_bytes: [u8; 7] = [0xcd, 0x30, 0x08, 0x40, 0x23, 0x00, 0x80];
+        let witness_bytes: [u8; 0] = [];
+        let mut tracker = DefaultTracker {
+            left: HashSet::new(),
+            right: HashSet::new(),
+            jets: Vec::new(),
+        };
+
+        prune_failed_program_with_tracker::<jet::Elements, DefaultTracker<jet::Elements>>(
+            &program_bytes,
+            &witness_bytes,
+            &ElementsEnv::dummy(),
+            &mut tracker,
+        );
+
+        assert_eq!(tracker.jets, [jet::Elements::Verify]);
+    }
+    #[test]
+    fn prune_with_failing2() {
+        // This program was compiled using the SimplicityHL compiler `simc` with the following source code:
+        // ```
+        // fn main() {
+        //     let a: u32 = 42;
+        //     let b: u32 = 50;
+        //
+        //     let (c, e): (bool, u32) = jet::subtract_32(b, a);
+        //     assert!(c);
+        //
+        //     let d: u32 = jet::current_index();
+        // }
+        // ```
+        //
+        // The tracker should record 2 jets — `Subtract32` and `Verify`, but should not record `CurrentIndex`.
+
+        let program_bytes: [u8; 50] = [
+            0xe2, 0x54, 0xd9, 0x00, 0x00, 0x00, 0x15, 0x02, 0x10, 0x28, 0x4d, 0x90, 0x00, 0x00,
+            0x01, 0x90, 0x21, 0x02, 0x84, 0x18, 0x68, 0x70, 0xab, 0x4d, 0x18, 0x82, 0x10, 0x28,
+            0x41, 0x86, 0x60, 0x10, 0x9f, 0x85, 0x04, 0x20, 0x50, 0x90, 0x40, 0xb4, 0x0f, 0xc3,
+            0x41, 0x00, 0xe0, 0x00, 0x70, 0xa0, 0x38, 0x80,
+        ];
+        let witness_bytes: [u8; 0] = [];
+        let mut tracker = DefaultTracker {
+            left: HashSet::new(),
+            right: HashSet::new(),
+            jets: Vec::new(),
+        };
+
+        prune_failed_program_with_tracker::<jet::Elements, DefaultTracker<jet::Elements>>(
+            &program_bytes,
+            &witness_bytes,
+            &ElementsEnv::dummy(),
+            &mut tracker,
+        );
+        assert_eq!(
+            tracker.jets,
+            [jet::Elements::Subtract32, jet::Elements::Verify]
         );
     }
 }
