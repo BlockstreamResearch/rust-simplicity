@@ -74,7 +74,7 @@ impl BitMachine {
     }
 
     /// Push a new frame of given size onto the write frame stack
-    fn new_frame(&mut self, len: usize) {
+    fn new_write_frame(&mut self, len: usize) {
         debug_assert!(
             self.next_frame_start + len <= self.data.len() * 8,
             "Data out of bounds: number of cells"
@@ -89,14 +89,14 @@ impl BitMachine {
     }
 
     /// Move the active write frame to the read frame stack
-    fn move_frame(&mut self) {
+    fn move_write_frame_to_read(&mut self) {
         let mut _active_write_frame = self.write.pop().unwrap();
         _active_write_frame.reset_cursor();
         self.read.push(_active_write_frame);
     }
 
     /// Drop the active read frame
-    fn drop_frame(&mut self) {
+    fn drop_read_frame(&mut self) {
         let active_read_frame = self.read.pop().unwrap();
         self.next_frame_start -= active_read_frame.bit_width();
         assert_eq!(self.next_frame_start, active_read_frame.start());
@@ -206,9 +206,9 @@ impl BitMachine {
         }
         // Unit value doesn't need extra frame
         if !input.is_empty() {
-            self.new_frame(input.padded_len());
+            self.new_write_frame(input.padded_len());
             self.write_value(input);
-            self.move_frame();
+            self.move_write_frame_to_read();
         }
         Ok(())
     }
@@ -259,8 +259,8 @@ impl BitMachine {
     ) -> Result<Value, ExecutionError> {
         enum CallStack<'a, J: Jet> {
             Goto(&'a RedeemNode<J>),
-            MoveFrame,
-            DropFrame,
+            MoveWriteFrameToRead,
+            DropReadFrame,
             CopyFwd(usize),
             Back(usize),
         }
@@ -270,8 +270,8 @@ impl BitMachine {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 match self {
                     CallStack::Goto(ins) => write!(f, "goto {}", ins.inner()),
-                    CallStack::MoveFrame => f.write_str("move frame"),
-                    CallStack::DropFrame => f.write_str("drop frame"),
+                    CallStack::MoveWriteFrameToRead => f.write_str("move frame"),
+                    CallStack::DropReadFrame => f.write_str("drop frame"),
                     CallStack::CopyFwd(n) => write!(f, "copy/fwd {}", n),
                     CallStack::Back(n) => write!(f, "back {}", n),
                 }
@@ -287,7 +287,7 @@ impl BitMachine {
 
         let output_width = ip.arrow().target.bit_width();
         if output_width > 0 {
-            self.new_frame(output_width);
+            self.new_write_frame(output_width);
         }
 
         'main_loop: loop {
@@ -316,10 +316,10 @@ impl BitMachine {
                 node::Inner::Comp(left, right) => {
                     let size_b = left.arrow().target.bit_width();
 
-                    self.new_frame(size_b);
-                    call_stack.push(CallStack::DropFrame);
+                    self.new_write_frame(size_b);
+                    call_stack.push(CallStack::DropReadFrame);
                     call_stack.push(CallStack::Goto(right));
-                    call_stack.push(CallStack::MoveFrame);
+                    call_stack.push(CallStack::MoveWriteFrameToRead);
                     call_stack.push(CallStack::Goto(left));
                 }
                 node::Inner::Disconnect(left, right) => {
@@ -328,18 +328,18 @@ impl BitMachine {
                     let size_prod_b_c = left.arrow().target.bit_width();
                     let size_b = size_prod_b_c - right.arrow().source.bit_width();
 
-                    self.new_frame(size_prod_256_a);
+                    self.new_write_frame(size_prod_256_a);
                     self.write_bytes(right.cmr().as_ref());
                     self.copy(size_a);
-                    self.move_frame();
-                    self.new_frame(size_prod_b_c);
+                    self.move_write_frame_to_read();
+                    self.new_write_frame(size_prod_b_c);
 
                     // Remember that call stack pushes are executed in reverse order
-                    call_stack.push(CallStack::DropFrame);
-                    call_stack.push(CallStack::DropFrame);
+                    call_stack.push(CallStack::DropReadFrame);
+                    call_stack.push(CallStack::DropReadFrame);
                     call_stack.push(CallStack::Goto(right));
                     call_stack.push(CallStack::CopyFwd(size_b));
-                    call_stack.push(CallStack::MoveFrame);
+                    call_stack.push(CallStack::MoveWriteFrameToRead);
                     call_stack.push(CallStack::Goto(left));
                 }
                 node::Inner::Take(left) => call_stack.push(CallStack::Goto(left)),
@@ -403,8 +403,8 @@ impl BitMachine {
             ip = loop {
                 match call_stack.pop() {
                     Some(CallStack::Goto(next)) => break next,
-                    Some(CallStack::MoveFrame) => self.move_frame(),
-                    Some(CallStack::DropFrame) => self.drop_frame(),
+                    Some(CallStack::MoveWriteFrameToRead) => self.move_write_frame_to_read(),
+                    Some(CallStack::DropReadFrame) => self.drop_read_frame(),
                     Some(CallStack::CopyFwd(n)) => {
                         self.copy(n);
                         self.fwd(n);
