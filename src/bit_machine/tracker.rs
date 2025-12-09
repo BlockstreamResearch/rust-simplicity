@@ -131,3 +131,73 @@ impl<J: Jet> ExecTracker<J> for NoTracker {
         }
     }
 }
+
+/// Tracker that just outputs all its activity to stderr.
+#[derive(Clone, Debug, Default)]
+pub struct StderrTracker {
+    exec_count: usize,
+    inner: SetTracker,
+}
+
+impl StderrTracker {
+    /// Constructs a new empty [`StderrTracker`], ready for use.
+    pub fn new() -> Self {
+        Self::default()
+    }
+}
+
+impl<J: Jet> ExecTracker<J> for StderrTracker {
+    fn visit_node(&mut self, node: &RedeemNode<J>, input: super::FrameIter, output: NodeOutput) {
+        let input_val = Value::from_padded_bits(&mut input.clone(), &node.arrow().source)
+            .expect("input from bit machine will always be well-formed");
+        eprintln!(
+            "[{:4}] exec {:10} {}",
+            self.exec_count,
+            node.inner(),
+            node.arrow()
+        );
+        eprintln!("       input {input_val}");
+        match output.clone() {
+            NodeOutput::NonTerminal => { /* don't bother describing non-terminal output */ }
+            NodeOutput::JetFailed => eprintln!("    JET FAILED"),
+            NodeOutput::Success(mut output) => {
+                let output_val = Value::from_padded_bits(&mut output, &node.arrow().target)
+                    .expect("output from bit machine will always be well-formed");
+                eprintln!("      output {output_val}");
+            }
+        }
+
+        if let crate::node::Inner::AssertL(_, cmr) = node.inner() {
+            // SimplicityHL, when compiling in "debug mode", tags nodes by inserting
+            // synthetic AssertL nodes where the "cmr" is actually a key into a lookup
+            // table of debug information. An implementation of ExecTracker within
+            // the compiler itself might do a lookup here to output more useful
+            // information to the user.
+            eprintln!("      [debug] assertL CMR {cmr}");
+        }
+
+        ExecTracker::<J>::visit_node(&mut self.inner, node, input, output);
+        self.exec_count += 1;
+        eprintln!();
+    }
+}
+
+impl<J: Jet> PruneTracker<J> for StderrTracker {
+    fn contains_left(&self, ihr: Ihr) -> bool {
+        if PruneTracker::<J>::contains_left(&self.inner, ihr) {
+            true
+        } else {
+            eprintln!("Pruning unexecuted left child of IHR {ihr}");
+            false
+        }
+    }
+
+    fn contains_right(&self, ihr: Ihr) -> bool {
+        if PruneTracker::<J>::contains_right(&self.inner, ihr) {
+            true
+        } else {
+            eprintln!("Pruning unexecuted right child of IHR {ihr}");
+            false
+        }
+    }
+}

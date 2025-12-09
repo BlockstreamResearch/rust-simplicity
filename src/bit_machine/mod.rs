@@ -22,7 +22,9 @@ use crate::{Cmr, FailEntropy, Value};
 use frame::Frame;
 
 pub use self::limits::LimitError;
-pub use self::tracker::{ExecTracker, NoTracker, NodeOutput, PruneTracker, SetTracker};
+pub use self::tracker::{
+    ExecTracker, NoTracker, NodeOutput, PruneTracker, SetTracker, StderrTracker,
+};
 
 /// An iterator over the contents of a read or write frame which yields bits.
 pub type FrameIter<'a> = crate::BitIter<core::iter::Copied<core::slice::Iter<'a, u8>>>;
@@ -227,6 +229,9 @@ impl BitMachine {
     }
 
     /// Execute the given `program` on the Bit Machine, using the given environment and tracker.
+    ///
+    /// See [`crate::bit_machine::StderrTracker`] as an example which outputs various debug
+    /// data for each node, providing a track of the bit machine's operation.
     ///
     ///  ## Precondition
     ///

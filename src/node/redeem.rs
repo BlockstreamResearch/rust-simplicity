@@ -293,6 +293,11 @@ impl<J: Jet> RedeemNode<J> {
         self.prune_with_tracker(env, &mut SetTracker::default())
     }
 
+    /// Prune the redeem program, as in [`Self::prune`], but with a custom tracker which
+    /// can introspect or control pruning.
+    ///
+    /// See [`crate::bit_machine::StderrTracker`] as an example which outputs the IHR of
+    /// each case combinator that we prune a child of.
     pub fn prune_with_tracker<T: PruneTracker<J>>(
         &self,
         env: &J::Environment,
