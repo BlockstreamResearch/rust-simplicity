@@ -194,11 +194,29 @@ impl<I: Iterator<Item = u8>> Iterator for BitIter<I> {
             self.next()
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let (lo, hi) = self.iter.size_hint();
+        let adj = |n| 8 - self.read_bits + 8 * n;
+        (adj(lo), hi.map(adj))
+    }
+}
+
+impl<I> core::iter::FusedIterator for BitIter<I> where
+    I: Iterator<Item = u8> + core::iter::FusedIterator
+{
+}
+
+impl<I> core::iter::ExactSizeIterator for BitIter<I> where
+    I: Iterator<Item = u8> + core::iter::ExactSizeIterator
+{
 }
 
 impl<'a> BitIter<std::iter::Copied<std::slice::Iter<'a, u8>>> {
-    /// Creates a new bitwise iterator from a bytewise one. Equivalent
-    /// to using `From`
+    /// Creates a new bitwise iterator from a bytewise one.
+    ///
+    /// Takes start and end indices *in bits*. If you want to use the entire slice,
+    /// `BitIter::from` is equivalent and easier to call.
     pub fn byte_slice_window(sl: &'a [u8], start: usize, end: usize) -> Self {
         assert!(start <= end);
         assert!(end <= sl.len() * 8);
@@ -423,6 +441,8 @@ mod tests {
     #[test]
     fn empty_iter() {
         let mut iter = BitIter::from([].iter().cloned());
+        assert_eq!(iter.len(), 0);
+        assert!(iter.next().is_none());
         assert!(iter.next().is_none());
         assert_eq!(iter.read_bit(), Err(EarlyEndOfStreamError));
         assert_eq!(iter.read_u2(), Err(EarlyEndOfStreamError));
@@ -434,8 +454,11 @@ mod tests {
     #[test]
     fn one_bit_iter() {
         let mut iter = BitIter::from([0x80].iter().cloned());
+        assert_eq!(iter.len(), 8);
         assert_eq!(iter.read_bit(), Ok(true));
+        assert_eq!(iter.len(), 7);
         assert_eq!(iter.read_bit(), Ok(false));
+        assert_eq!(iter.len(), 6);
         assert_eq!(iter.read_u8(), Err(EarlyEndOfStreamError));
         assert_eq!(iter.n_total_read(), 2);
     }
@@ -443,17 +466,22 @@ mod tests {
     #[test]
     fn bit_by_bit() {
         let mut iter = BitIter::from([0x0f, 0xaa].iter().cloned());
+        assert_eq!(iter.len(), 16);
         for _ in 0..4 {
             assert_eq!(iter.next(), Some(false));
         }
+        assert_eq!(iter.len(), 12);
         for _ in 0..4 {
             assert_eq!(iter.next(), Some(true));
         }
+        assert_eq!(iter.len(), 8);
         for _ in 0..4 {
             assert_eq!(iter.next(), Some(true));
             assert_eq!(iter.next(), Some(false));
         }
+        assert_eq!(iter.len(), 0);
         assert_eq!(iter.next(), None);
+        assert_eq!(iter.len(), 0);
     }
 
     #[test]
@@ -480,7 +508,9 @@ mod tests {
         let data = [0x12, 0x23, 0x34];
 
         let mut full = BitIter::byte_slice_window(&data, 0, 24);
+        assert_eq!(full.len(), 24);
         assert_eq!(full.read_u8(), Ok(0x12));
+        assert_eq!(full.len(), 16);
         assert_eq!(full.n_total_read(), 8);
         assert_eq!(full.read_u8(), Ok(0x23));
         assert_eq!(full.n_total_read(), 16);
@@ -489,7 +519,9 @@ mod tests {
         assert_eq!(full.read_u8(), Err(EarlyEndOfStreamError));
 
         let mut mid = BitIter::byte_slice_window(&data, 8, 16);
+        assert_eq!(mid.len(), 8);
         assert_eq!(mid.read_u8(), Ok(0x23));
+        assert_eq!(mid.len(), 0);
         assert_eq!(mid.read_u8(), Err(EarlyEndOfStreamError));
 
         let mut offs = BitIter::byte_slice_window(&data, 4, 20);
@@ -498,13 +530,21 @@ mod tests {
         assert_eq!(offs.read_u8(), Err(EarlyEndOfStreamError));
 
         let mut shift1 = BitIter::byte_slice_window(&data, 1, 24);
+        assert_eq!(shift1.len(), 23);
         assert_eq!(shift1.read_u8(), Ok(0x24));
+        assert_eq!(shift1.len(), 15);
         assert_eq!(shift1.read_u8(), Ok(0x46));
+        assert_eq!(shift1.len(), 7);
         assert_eq!(shift1.read_u8(), Err(EarlyEndOfStreamError));
+        assert_eq!(shift1.len(), 7);
 
         let mut shift7 = BitIter::byte_slice_window(&data, 7, 24);
+        assert_eq!(shift7.len(), 17);
         assert_eq!(shift7.read_u8(), Ok(0x11));
+        assert_eq!(shift7.len(), 9);
         assert_eq!(shift7.read_u8(), Ok(0x9a));
+        assert_eq!(shift7.len(), 1);
         assert_eq!(shift7.read_u8(), Err(EarlyEndOfStreamError));
+        assert_eq!(shift7.len(), 1);
     }
 }

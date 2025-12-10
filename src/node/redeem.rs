@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 
 use crate::analysis::NodeBounds;
-use crate::bit_machine::{ExecutionError, SetTracker};
+use crate::bit_machine::{ExecutionError, PruneTracker, SetTracker};
 use crate::dag::{DagLike, InternalSharing, MaxSharing, PostOrderIterItem};
 use crate::jet::Jet;
 use crate::types::{self, arrow::FinalArrow};
@@ -290,13 +290,30 @@ impl<J: Jet> RedeemNode<J> {
     /// In this case, the witness data needs to be revised.
     /// The other pruning steps (2 & 3) never fail.
     pub fn prune(&self, env: &J::Environment) -> Result<Arc<RedeemNode<J>>, ExecutionError> {
-        struct Pruner<'brand, J> {
+        self.prune_with_tracker(env, &mut SetTracker::default())
+    }
+
+    /// Prune the redeem program, as in [`Self::prune`], but with a custom tracker which
+    /// can introspect or control pruning.
+    ///
+    /// See [`crate::bit_machine::StderrTracker`] as an example which outputs the IHR of
+    /// each case combinator that we prune a child of.
+    pub fn prune_with_tracker<T: PruneTracker<J>>(
+        &self,
+        env: &J::Environment,
+        tracker: &mut T,
+    ) -> Result<Arc<RedeemNode<J>>, ExecutionError> {
+        struct Pruner<'brand, 't, J, T> {
             inference_context: types::Context<'brand>,
-            tracker: SetTracker,
+            tracker: &'t mut T,
             phantom: PhantomData<J>,
         }
 
-        impl<'brand, J: Jet> Converter<Redeem<J>, Construct<'brand, J>> for Pruner<'brand, J> {
+        impl<'brand, 't, J, T> Converter<Redeem<J>, Construct<'brand, J>> for Pruner<'brand, 't, J, T>
+        where
+            J: Jet,
+            T: PruneTracker<J>,
+        {
             type Error = std::convert::Infallible;
 
             fn convert_witness(
@@ -332,8 +349,8 @@ impl<J: Jet> RedeemNode<J> {
                 // but the Converter trait gives us access to the unpruned node (`data`).
                 // The Bit Machine tracked (un)used case branches based on the unpruned IHR.
                 match (
-                    self.tracker.left().contains(&data.node.ihr()),
-                    self.tracker.right().contains(&data.node.ihr()),
+                    self.tracker.contains_left(data.node.ihr()),
+                    self.tracker.contains_right(data.node.ihr()),
                 ) {
                     (true, true) => Ok(Hide::Neither),
                     (false, true) => Ok(Hide::Left),
@@ -418,7 +435,7 @@ impl<J: Jet> RedeemNode<J> {
         // 1) Run the Bit Machine and mark (un)used branches.
         // This is the only fallible step in the pruning process.
         let mut mac = BitMachine::for_program(self)?;
-        let tracker = mac.exec_prune(self, env)?;
+        mac.exec_with_tracker(self, env, tracker)?;
 
         // 2) Prune out unused case branches.
         // Because the types of the pruned program may change,

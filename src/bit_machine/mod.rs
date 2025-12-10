@@ -8,21 +8,26 @@
 
 mod frame;
 mod limits;
+mod tracker;
 
-use std::collections::HashSet;
 use std::error;
 use std::fmt;
 use std::sync::Arc;
 
+use crate::analysis;
 use crate::jet::{Jet, JetFailed};
 use crate::node::{self, RedeemNode};
 use crate::types::Final;
-use crate::{analysis, Ihr};
 use crate::{Cmr, FailEntropy, Value};
 use frame::Frame;
-use simplicity_sys::ffi::UWORD;
 
 pub use self::limits::LimitError;
+pub use self::tracker::{
+    ExecTracker, NoTracker, NodeOutput, PruneTracker, SetTracker, StderrTracker,
+};
+
+/// An iterator over the contents of a read or write frame which yields bits.
+pub type FrameIter<'a> = crate::BitIter<core::iter::Copied<core::slice::Iter<'a, u8>>>;
 
 /// An execution context for a Simplicity program
 pub struct BitMachine {
@@ -71,7 +76,7 @@ impl BitMachine {
     }
 
     /// Push a new frame of given size onto the write frame stack
-    fn new_frame(&mut self, len: usize) {
+    fn new_write_frame(&mut self, len: usize) {
         debug_assert!(
             self.next_frame_start + len <= self.data.len() * 8,
             "Data out of bounds: number of cells"
@@ -86,14 +91,14 @@ impl BitMachine {
     }
 
     /// Move the active write frame to the read frame stack
-    fn move_frame(&mut self) {
+    fn move_write_frame_to_read(&mut self) {
         let mut _active_write_frame = self.write.pop().unwrap();
         _active_write_frame.reset_cursor();
         self.read.push(_active_write_frame);
     }
 
     /// Drop the active read frame
-    fn drop_frame(&mut self) {
+    fn drop_read_frame(&mut self) {
         let active_read_frame = self.read.pop().unwrap();
         self.next_frame_start -= active_read_frame.bit_width();
         assert_eq!(self.next_frame_start, active_read_frame.start());
@@ -203,9 +208,9 @@ impl BitMachine {
         }
         // Unit value doesn't need extra frame
         if !input.is_empty() {
-            self.new_frame(input.padded_len());
+            self.new_write_frame(input.padded_len());
             self.write_value(input);
-            self.move_frame();
+            self.move_write_frame_to_read();
         }
         Ok(())
     }
@@ -223,27 +228,10 @@ impl BitMachine {
         self.exec_with_tracker(program, env, &mut NoTracker)
     }
 
-    /// Execute the given `program` on the Bit Machine and track executed case branches.
-    ///
-    /// If the program runs successfully, then two sets of IHRs are returned:
-    ///
-    /// 1) The IHRs of case nodes whose _left_ branch was executed.
-    /// 2) The IHRs of case nodes whose _right_ branch was executed.
-    ///
-    /// ## Precondition
-    ///
-    /// The Bit Machine is constructed via [`Self::for_program()`] to ensure enough space.
-    pub(crate) fn exec_prune<J: Jet>(
-        &mut self,
-        program: &RedeemNode<J>,
-        env: &J::Environment,
-    ) -> Result<SetTracker, ExecutionError> {
-        let mut tracker = SetTracker::default();
-        self.exec_with_tracker(program, env, &mut tracker)?;
-        Ok(tracker)
-    }
-
     /// Execute the given `program` on the Bit Machine, using the given environment and tracker.
+    ///
+    /// See [`crate::bit_machine::StderrTracker`] as an example which outputs various debug
+    /// data for each node, providing a track of the bit machine's operation.
     ///
     ///  ## Precondition
     ///
@@ -256,8 +244,8 @@ impl BitMachine {
     ) -> Result<Value, ExecutionError> {
         enum CallStack<'a, J: Jet> {
             Goto(&'a RedeemNode<J>),
-            MoveFrame,
-            DropFrame,
+            MoveWriteFrameToRead,
+            DropReadFrame,
             CopyFwd(usize),
             Back(usize),
         }
@@ -267,8 +255,8 @@ impl BitMachine {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 match self {
                     CallStack::Goto(ins) => write!(f, "goto {}", ins.inner()),
-                    CallStack::MoveFrame => f.write_str("move frame"),
-                    CallStack::DropFrame => f.write_str("drop frame"),
+                    CallStack::MoveWriteFrameToRead => f.write_str("move frame"),
+                    CallStack::DropReadFrame => f.write_str("drop frame"),
                     CallStack::CopyFwd(n) => write!(f, "copy/fwd {}", n),
                     CallStack::Back(n) => write!(f, "back {}", n),
                 }
@@ -284,10 +272,14 @@ impl BitMachine {
 
         let output_width = ip.arrow().target.bit_width();
         if output_width > 0 {
-            self.new_frame(output_width);
+            self.new_write_frame(output_width);
         }
 
         'main_loop: loop {
+            // Make a copy of the input frame to give to the tracker.
+            let input_frame = self.read.last().map(Frame::shallow_copy);
+            let mut jet_result = Ok(());
+
             match ip.inner() {
                 node::Inner::Unit => {}
                 node::Inner::Iden => {
@@ -313,10 +305,10 @@ impl BitMachine {
                 node::Inner::Comp(left, right) => {
                     let size_b = left.arrow().target.bit_width();
 
-                    self.new_frame(size_b);
-                    call_stack.push(CallStack::DropFrame);
+                    self.new_write_frame(size_b);
+                    call_stack.push(CallStack::DropReadFrame);
                     call_stack.push(CallStack::Goto(right));
-                    call_stack.push(CallStack::MoveFrame);
+                    call_stack.push(CallStack::MoveWriteFrameToRead);
                     call_stack.push(CallStack::Goto(left));
                 }
                 node::Inner::Disconnect(left, right) => {
@@ -325,18 +317,18 @@ impl BitMachine {
                     let size_prod_b_c = left.arrow().target.bit_width();
                     let size_b = size_prod_b_c - right.arrow().source.bit_width();
 
-                    self.new_frame(size_prod_256_a);
+                    self.new_write_frame(size_prod_256_a);
                     self.write_bytes(right.cmr().as_ref());
                     self.copy(size_a);
-                    self.move_frame();
-                    self.new_frame(size_prod_b_c);
+                    self.move_write_frame_to_read();
+                    self.new_write_frame(size_prod_b_c);
 
                     // Remember that call stack pushes are executed in reverse order
-                    call_stack.push(CallStack::DropFrame);
-                    call_stack.push(CallStack::DropFrame);
+                    call_stack.push(CallStack::DropReadFrame);
+                    call_stack.push(CallStack::DropReadFrame);
                     call_stack.push(CallStack::Goto(right));
                     call_stack.push(CallStack::CopyFwd(size_b));
-                    call_stack.push(CallStack::MoveFrame);
+                    call_stack.push(CallStack::MoveWriteFrameToRead);
                     call_stack.push(CallStack::Goto(left));
                 }
                 node::Inner::Take(left) => call_stack.push(CallStack::Goto(left)),
@@ -353,32 +345,18 @@ impl BitMachine {
                     let (sum_a_b, _c) = ip.arrow().source.as_product().unwrap();
                     let (a, b) = sum_a_b.as_sum().unwrap();
 
-                    if tracker.is_track_debug_enabled() {
-                        if let node::Inner::AssertL(_, cmr) = ip.inner() {
-                            let mut bits = in_frame.as_bit_iter(&self.data);
-                            // Skips 1 + max(a.bit_width, b.bit_width) - a.bit_width
-                            bits.nth(a.pad_left(b))
-                                .expect("AssertL: unexpected end of frame");
-                            let value = Value::from_padded_bits(&mut bits, _c)
-                                .expect("AssertL: decode `C` value");
-                            tracker.track_dbg_call(cmr, value);
-                        }
-                    }
-
                     match (ip.inner(), choice_bit) {
                         (node::Inner::Case(_, right), true)
                         | (node::Inner::AssertR(_, right), true) => {
                             self.fwd(1 + a.pad_right(b));
                             call_stack.push(CallStack::Back(1 + a.pad_right(b)));
                             call_stack.push(CallStack::Goto(right));
-                            tracker.track_right(ip.ihr());
                         }
                         (node::Inner::Case(left, _), false)
                         | (node::Inner::AssertL(left, _), false) => {
                             self.fwd(1 + a.pad_left(b));
                             call_stack.push(CallStack::Back(1 + a.pad_left(b)));
                             call_stack.push(CallStack::Goto(left));
-                            tracker.track_left(ip.ihr());
                         }
                         (node::Inner::AssertL(_, r_cmr), true) => {
                             return Err(ExecutionError::ReachedPrunedBranch(*r_cmr))
@@ -390,18 +368,48 @@ impl BitMachine {
                     }
                 }
                 node::Inner::Witness(value) => self.write_value(value),
-                node::Inner::Jet(jet) => self.exec_jet(*jet, env, tracker)?,
+                node::Inner::Jet(jet) => {
+                    jet_result = self.exec_jet(*jet, env);
+                }
                 node::Inner::Word(value) => self.write_value(value.as_value()),
                 node::Inner::Fail(entropy) => {
                     return Err(ExecutionError::ReachedFailNode(*entropy))
                 }
             }
 
+            // Notify the tracker.
+            {
+                // Notice that, because the read frame stack is only ever
+                // shortened by `drop_read_frame`, and that method was not
+                // called above, this frame is still valid and correctly
+                // describes the Bit Machine "input" to the current node,
+                // no matter the node.
+                let read_iter = input_frame
+                    .map(|frame| frame.as_bit_iter(&self.data))
+                    .unwrap_or(crate::BitIter::from([].iter().copied()));
+                // See the docs on `tracker::NodeOutput` for more information about
+                // this match.
+                let output = match (ip.inner(), &jet_result) {
+                    (node::Inner::Unit | node::Inner::Iden | node::Inner::Witness(_), _)
+                    | (node::Inner::Jet(_), Ok(_)) => NodeOutput::Success(
+                        self.write
+                            .last()
+                            .map(|r| r.as_bit_iter(&self.data))
+                            .unwrap_or(crate::BitIter::from([].iter().copied())),
+                    ),
+                    (node::Inner::Jet(_), Err(_)) => NodeOutput::JetFailed,
+                    _ => NodeOutput::NonTerminal,
+                };
+                tracker.visit_node(ip, read_iter, output);
+            }
+            // Fail if the jet failed.
+            jet_result?;
+
             ip = loop {
                 match call_stack.pop() {
                     Some(CallStack::Goto(next)) => break next,
-                    Some(CallStack::MoveFrame) => self.move_frame(),
-                    Some(CallStack::DropFrame) => self.drop_frame(),
+                    Some(CallStack::MoveWriteFrameToRead) => self.move_write_frame_to_read(),
+                    Some(CallStack::DropReadFrame) => self.drop_read_frame(),
                     Some(CallStack::CopyFwd(n)) => {
                         self.copy(n);
                         self.fwd(n);
@@ -427,12 +435,7 @@ impl BitMachine {
         }
     }
 
-    fn exec_jet<J: Jet, T: ExecTracker<J>>(
-        &mut self,
-        jet: J,
-        env: &J::Environment,
-        tracker: &mut T,
-    ) -> Result<(), JetFailed> {
+    fn exec_jet<J: Jet>(&mut self, jet: J, env: &J::Environment) -> Result<(), JetFailed> {
         use crate::ffi::c_jets::frame_ffi::{c_readBit, c_writeBit, CFrameItem};
         use crate::ffi::c_jets::uword_width;
         use crate::ffi::ffi::UWORD;
@@ -518,14 +521,12 @@ impl BitMachine {
         let output_width = jet.target_ty().to_bit_width();
         // Input buffer is implicitly referenced by input read frame!
         // Same goes for output buffer
-        let (input_read_frame, input_buffer) = unsafe { get_input_frame(self, input_width) };
+        let (input_read_frame, _input_buffer) = unsafe { get_input_frame(self, input_width) };
         let (mut output_write_frame, output_buffer) = unsafe { get_output_frame(output_width) };
 
         let jet_fn = jet.c_jet_ptr();
         let c_env = J::c_jet_env(env);
         let success = jet_fn(&mut output_write_frame, input_read_frame, c_env);
-
-        tracker.track_jet_call(&jet, &input_buffer, &output_buffer, success);
 
         if !success {
             Err(JetFailed)
@@ -533,92 +534,6 @@ impl BitMachine {
             update_active_write_frame(self, output_width, &output_buffer);
             Ok(())
         }
-    }
-}
-
-/// A type that keeps track of Bit Machine execution.
-///
-/// The trait is implemented for [`SetTracker`], that tracks which case branches were executed,
-/// and it is implemented for [`NoTracker`], which is a dummy tracker that is
-/// optimized out by the compiler.
-///
-/// The trait enables us to turn tracking on or off depending on a generic parameter.
-pub trait ExecTracker<J: Jet> {
-    /// Track the execution of the left branch of the case node with the given `ihr`.
-    fn track_left(&mut self, ihr: Ihr);
-
-    /// Track the execution of the right branch of the case node with the given `ihr`.
-    fn track_right(&mut self, ihr: Ihr);
-
-    /// Track the execution of a `jet` call with the given `input_buffer`, `output_buffer`, and call result `success`.
-    fn track_jet_call(
-        &mut self,
-        jet: &J,
-        input_buffer: &[UWORD],
-        output_buffer: &[UWORD],
-        success: bool,
-    );
-
-    /// Track the potential execution of a `dbg!` call with the given `cmr` and `value`.
-    fn track_dbg_call(&mut self, cmr: &Cmr, value: Value);
-
-    /// Check if tracking debug calls is enabled.
-    fn is_track_debug_enabled(&self) -> bool;
-}
-
-/// Tracker of executed left and right branches for each case node.
-#[derive(Clone, Debug, Default)]
-pub struct SetTracker {
-    left: HashSet<Ihr>,
-    right: HashSet<Ihr>,
-}
-
-impl SetTracker {
-    /// Access the set of IHRs of case nodes whose left branch was executed.
-    pub fn left(&self) -> &HashSet<Ihr> {
-        &self.left
-    }
-
-    /// Access the set of IHRs of case nodes whose right branch was executed.
-    pub fn right(&self) -> &HashSet<Ihr> {
-        &self.right
-    }
-}
-
-/// Tracker that does not do anything (noop).
-#[derive(Copy, Clone, Debug)]
-pub struct NoTracker;
-
-impl<J: Jet> ExecTracker<J> for SetTracker {
-    fn track_left(&mut self, ihr: Ihr) {
-        self.left.insert(ihr);
-    }
-
-    fn track_right(&mut self, ihr: Ihr) {
-        self.right.insert(ihr);
-    }
-
-    fn track_jet_call(&mut self, _: &J, _: &[UWORD], _: &[UWORD], _: bool) {}
-
-    fn track_dbg_call(&mut self, _: &Cmr, _: Value) {}
-
-    fn is_track_debug_enabled(&self) -> bool {
-        false
-    }
-}
-
-impl<J: Jet> ExecTracker<J> for NoTracker {
-    fn track_left(&mut self, _: Ihr) {}
-
-    fn track_right(&mut self, _: Ihr) {}
-
-    fn track_jet_call(&mut self, _: &J, _: &[UWORD], _: &[UWORD], _: bool) {}
-
-    fn track_dbg_call(&mut self, _: &Cmr, _: Value) {}
-
-    fn is_track_debug_enabled(&self) -> bool {
-        // Set flag to test frame decoding in unit tests
-        cfg!(test)
     }
 }
 
