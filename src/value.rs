@@ -38,7 +38,7 @@ pub struct Value {
 }
 
 /// Reference to a value, or to a sub-value of a value.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct ValueRef<'v> {
     inner: &'v Arc<[u8]>,
     bit_offset: usize,
