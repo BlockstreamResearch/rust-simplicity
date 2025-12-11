@@ -1,3 +1,9 @@
+# 0.7.0 - 2025-12-11
+
+* Improve `Display` for `Value` in several ways [#328](https://github.com/BlockstreamResearch/rust-simplicity/pull/328)
+* Replace `ExecTracker` trait with a more general API and add `PruneTracker` extension trait [#325](https://github.com/BlockstreamResearch/rust-simplicity/pull/325)
+* Add `CONTRIBUTING.md` [#321](https://github.com/BlockstreamResearch/rust-simplicity/pull/321)
+
 # 0.6.0 - 2025-09-17
 
 * Improve FFI API and fix soundness issues [#307](https://github.com/BlockstreamResearch/rust-simplicity/pull/288)
