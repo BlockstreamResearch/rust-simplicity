@@ -1,6 +1,6 @@
 [package]
 name = "simplicity-lang"
-version = "0.6.0"
+version = "0.7.0"
 authors = ["Andrew Poelstra <apoelstra@wpsoftware.net>"]
 license = "CC0-1.0"
 homepage = "https://github.com/BlockstreamResearch/rust-simplicity/"
