@@ -759,19 +759,16 @@ impl fmt::Display for Value {
         // that we handle products more explicitly.
         enum S<'v> {
             Disp(ValueRef<'v>),
-            DispUnlessUnit(ValueRef<'v>),
             DispCh(char),
         }
 
         let mut stack = Vec::with_capacity(1024);
-        // Next node to visit, and a boolean indicating whether we should
-        // display units explicitly (turned off for sums, since a sum of
-        // a unit is displayed simply as 0 or 1.
+        // Next node to visit.
         stack.push(S::Disp(self.as_ref()));
 
         'main_loop: while let Some(next) = stack.pop() {
             let value = match next {
-                S::Disp(ref value) | S::DispUnlessUnit(ref value) => value,
+                S::Disp(ref value) => value,
                 S::DispCh(ch) => {
                     write!(f, "{}", ch)?;
                     continue;
@@ -779,9 +776,7 @@ impl fmt::Display for Value {
             };
 
             if value.is_unit() {
-                if !matches!(next, S::DispUnlessUnit(..)) {
-                    f.write_str("ε")?;
-                }
+                f.write_str("ε")?;
             } else {
                 // First, write any bitstrings out
                 for tmr in &Tmr::TWO_TWO_N {
@@ -812,11 +807,13 @@ impl fmt::Display for Value {
 
                 // If we don't have a bitstring, then write out the explicit value.
                 if let Some(l_value) = value.as_left() {
-                    f.write_str("0")?;
-                    stack.push(S::DispUnlessUnit(l_value));
+                    f.write_str("L(")?;
+                    stack.push(S::DispCh(')'));
+                    stack.push(S::Disp(l_value));
                 } else if let Some(r_value) = value.as_right() {
-                    f.write_str("1")?;
-                    stack.push(S::DispUnlessUnit(r_value));
+                    f.write_str("R(")?;
+                    stack.push(S::DispCh(')'));
+                    stack.push(S::Disp(r_value));
                 } else if let Some((l_value, r_value)) = value.as_product() {
                     stack.push(S::DispCh(')'));
                     stack.push(S::Disp(r_value));
