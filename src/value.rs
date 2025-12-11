@@ -101,7 +101,7 @@ impl DagLike for ValueRef<'_> {
     }
 }
 
-impl ValueRef<'_> {
+impl<'v> ValueRef<'v> {
     /// Check if the value is a unit.
     pub fn is_unit(&self) -> bool {
         self.ty.is_unit()
@@ -195,6 +195,34 @@ impl ValueRef<'_> {
             value: self.to_value(),
             n,
         })
+    }
+
+    /// Yields an iterator over the "raw bytes" of the value.
+    ///
+    /// The returned bytes match the padded bit-encoding of the value. You
+    /// may wish to call [`Self::iter_padded`] instead to obtain the bits,
+    /// but this method is more efficient in some contexts.
+    pub fn raw_byte_iter(&self) -> RawByteIter<'v> {
+        RawByteIter {
+            value: *self,
+            yielded_bytes: 0,
+        }
+    }
+
+    /// Return an iterator over the compact bit encoding of the value.
+    ///
+    /// This encoding is used for writing witness data and for computing IHRs.
+    pub fn iter_compact(&self) -> CompactBitsIter<'v> {
+        CompactBitsIter::new(*self)
+    }
+
+    /// Return an iterator over the padded bit encoding of the value.
+    ///
+    /// This encoding is used to represent the value in the Bit Machine.
+    pub fn iter_padded(&self) -> PreOrderIter<'v> {
+        PreOrderIter {
+            inner: BitIter::new(self.raw_byte_iter()).take(self.ty.bit_width()),
+        }
     }
 }
 
@@ -591,26 +619,21 @@ impl Value {
     /// may wish to call [`Self::iter_padded`] instead to obtain the bits,
     /// but this method is more efficient in some contexts.
     pub fn raw_byte_iter(&self) -> RawByteIter<'_> {
-        RawByteIter {
-            value: self.as_ref(),
-            yielded_bytes: 0,
-        }
+        self.as_ref().raw_byte_iter()
     }
 
     /// Return an iterator over the compact bit encoding of the value.
     ///
     /// This encoding is used for writing witness data and for computing IHRs.
     pub fn iter_compact(&self) -> CompactBitsIter<'_> {
-        CompactBitsIter::new(self.as_ref())
+        self.as_ref().iter_compact()
     }
 
     /// Return an iterator over the padded bit encoding of the value.
     ///
     /// This encoding is used to represent the value in the Bit Machine.
     pub fn iter_padded(&self) -> PreOrderIter<'_> {
-        PreOrderIter {
-            inner: BitIter::new(self.raw_byte_iter()).take(self.ty.bit_width()),
-        }
+        self.as_ref().iter_padded()
     }
 
     /// Check if the value is of the given type.
