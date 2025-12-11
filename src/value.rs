@@ -199,7 +199,7 @@ impl ValueRef<'_> {
 }
 
 pub struct RawByteIter<'v> {
-    value: &'v Value,
+    value: ValueRef<'v>,
     yielded_bytes: usize,
 }
 
@@ -592,7 +592,7 @@ impl Value {
     /// but this method is more efficient in some contexts.
     pub fn raw_byte_iter(&self) -> RawByteIter<'_> {
         RawByteIter {
-            value: self,
+            value: self.as_ref(),
             yielded_bytes: 0,
         }
     }
