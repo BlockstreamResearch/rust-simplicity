@@ -7,7 +7,7 @@
 
 use crate::dag::{Dag, DagLike};
 use crate::types::{CompleteBound, Final};
-use crate::BitIter;
+use crate::{BitIter, Tmr};
 
 use crate::{BitCollector, EarlyEndOfStreamError};
 use core::{cmp, fmt, iter};
@@ -769,7 +769,7 @@ impl fmt::Display for Value {
         // a unit is displayed simply as 0 or 1.
         stack.push(S::Disp(self.as_ref()));
 
-        while let Some(next) = stack.pop() {
+        'main_loop: while let Some(next) = stack.pop() {
             let value = match next {
                 S::Disp(ref value) | S::DispUnlessUnit(ref value) => value,
                 S::DispCh(ch) => {
@@ -782,20 +782,33 @@ impl fmt::Display for Value {
                 if !matches!(next, S::DispUnlessUnit(..)) {
                     f.write_str("ε")?;
                 }
-            } else if let Some(l_value) = value.as_left() {
-                f.write_str("0")?;
-                stack.push(S::DispUnlessUnit(l_value));
-            } else if let Some(r_value) = value.as_right() {
-                f.write_str("1")?;
-                stack.push(S::DispUnlessUnit(r_value));
-            } else if let Some((l_value, r_value)) = value.as_product() {
-                stack.push(S::DispCh(')'));
-                stack.push(S::Disp(r_value));
-                stack.push(S::DispCh(','));
-                stack.push(S::Disp(l_value));
-                stack.push(S::DispCh('('));
             } else {
-                unreachable!()
+                // First, write any bitstrings out
+                for tmr in &Tmr::TWO_TWO_N {
+                    if value.ty.tmr() == *tmr {
+                        for bit in value.iter_padded() {
+                            f.write_str(if bit { "1" } else { "0" })?;
+                        }
+                        continue 'main_loop;
+                    }
+                }
+
+                // If we don't have a bitstring, then write out the explicit value.
+                if let Some(l_value) = value.as_left() {
+                    f.write_str("0")?;
+                    stack.push(S::DispUnlessUnit(l_value));
+                } else if let Some(r_value) = value.as_right() {
+                    f.write_str("1")?;
+                    stack.push(S::DispUnlessUnit(r_value));
+                } else if let Some((l_value, r_value)) = value.as_product() {
+                    stack.push(S::DispCh(')'));
+                    stack.push(S::Disp(r_value));
+                    stack.push(S::DispCh(','));
+                    stack.push(S::Disp(l_value));
+                    stack.push(S::DispCh('('));
+                } else {
+                    unreachable!()
+                }
             }
         }
         Ok(())
@@ -1095,7 +1108,7 @@ mod tests {
         // at some point and will have to redo this test.
         assert_eq!(Value::u1(0).to_string(), "0",);
         assert_eq!(Value::u1(1).to_string(), "1",);
-        assert_eq!(Value::u4(6).to_string(), "((0,1),(1,0))",);
+        assert_eq!(Value::u4(6).to_string(), "0110",);
     }
 
     #[test]
