@@ -163,7 +163,7 @@ impl<J: Jet> ExecTracker<J> for StderrTracker {
             NodeOutput::Success(mut output) => {
                 let output_val = Value::from_padded_bits(&mut output, &node.arrow().target)
                     .expect("output from bit machine will always be well-formed");
-                eprintln!("      output {output_val}");
+                eprintln!("       output {output_val}");
             }
         }
 
