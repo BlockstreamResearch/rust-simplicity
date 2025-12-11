@@ -786,8 +786,25 @@ impl fmt::Display for Value {
                 // First, write any bitstrings out
                 for tmr in &Tmr::TWO_TWO_N {
                     if value.ty.tmr() == *tmr {
-                        for bit in value.iter_padded() {
-                            f.write_str(if bit { "1" } else { "0" })?;
+                        if value.ty.bit_width() < 4 {
+                            f.write_str("0b")?;
+                            for bit in value.iter_padded() {
+                                f.write_str(if bit { "1" } else { "0" })?;
+                            }
+                        } else {
+                            f.write_str("0x")?;
+                            // Annoyingly `array_chunks` is unstable so we have to do it manually
+                            // https://github.com/rust-lang/rust/issues/100450
+                            let mut iter = value.iter_padded();
+                            while let (Some(a), Some(b), Some(c), Some(d)) =
+                                (iter.next(), iter.next(), iter.next(), iter.next())
+                            {
+                                let n = (u8::from(a) << 3)
+                                    + (u8::from(b) << 2)
+                                    + (u8::from(c) << 1)
+                                    + u8::from(d);
+                                write!(f, "{:x}", n)?;
+                            }
                         }
                         continue 'main_loop;
                     }
@@ -1106,9 +1123,9 @@ mod tests {
     fn value_display() {
         // Only test a couple values becasue we probably want to change this
         // at some point and will have to redo this test.
-        assert_eq!(Value::u1(0).to_string(), "0",);
-        assert_eq!(Value::u1(1).to_string(), "1",);
-        assert_eq!(Value::u4(6).to_string(), "0110",);
+        assert_eq!(Value::u1(0).to_string(), "0b0",);
+        assert_eq!(Value::u1(1).to_string(), "0b1",);
+        assert_eq!(Value::u4(6).to_string(), "0x6",);
     }
 
     #[test]
