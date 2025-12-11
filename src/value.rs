@@ -7,7 +7,7 @@
 
 use crate::dag::{Dag, DagLike};
 use crate::types::{CompleteBound, Final};
-use crate::BitIter;
+use crate::{BitIter, Tmr};
 
 use crate::{BitCollector, EarlyEndOfStreamError};
 use core::{cmp, fmt, iter};
@@ -38,7 +38,7 @@ pub struct Value {
 }
 
 /// Reference to a value, or to a sub-value of a value.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct ValueRef<'v> {
     inner: &'v Arc<[u8]>,
     bit_offset: usize,
@@ -101,7 +101,7 @@ impl DagLike for ValueRef<'_> {
     }
 }
 
-impl ValueRef<'_> {
+impl<'v> ValueRef<'v> {
     /// Check if the value is a unit.
     pub fn is_unit(&self) -> bool {
         self.ty.is_unit()
@@ -196,10 +196,38 @@ impl ValueRef<'_> {
             n,
         })
     }
+
+    /// Yields an iterator over the "raw bytes" of the value.
+    ///
+    /// The returned bytes match the padded bit-encoding of the value. You
+    /// may wish to call [`Self::iter_padded`] instead to obtain the bits,
+    /// but this method is more efficient in some contexts.
+    pub fn raw_byte_iter(&self) -> RawByteIter<'v> {
+        RawByteIter {
+            value: *self,
+            yielded_bytes: 0,
+        }
+    }
+
+    /// Return an iterator over the compact bit encoding of the value.
+    ///
+    /// This encoding is used for writing witness data and for computing IHRs.
+    pub fn iter_compact(&self) -> CompactBitsIter<'v> {
+        CompactBitsIter::new(*self)
+    }
+
+    /// Return an iterator over the padded bit encoding of the value.
+    ///
+    /// This encoding is used to represent the value in the Bit Machine.
+    pub fn iter_padded(&self) -> PreOrderIter<'v> {
+        PreOrderIter {
+            inner: BitIter::new(self.raw_byte_iter()).take(self.ty.bit_width()),
+        }
+    }
 }
 
 pub struct RawByteIter<'v> {
-    value: &'v Value,
+    value: ValueRef<'v>,
     yielded_bytes: usize,
 }
 
@@ -591,26 +619,21 @@ impl Value {
     /// may wish to call [`Self::iter_padded`] instead to obtain the bits,
     /// but this method is more efficient in some contexts.
     pub fn raw_byte_iter(&self) -> RawByteIter<'_> {
-        RawByteIter {
-            value: self,
-            yielded_bytes: 0,
-        }
+        self.as_ref().raw_byte_iter()
     }
 
     /// Return an iterator over the compact bit encoding of the value.
     ///
     /// This encoding is used for writing witness data and for computing IHRs.
     pub fn iter_compact(&self) -> CompactBitsIter<'_> {
-        CompactBitsIter::new(self.as_ref())
+        self.as_ref().iter_compact()
     }
 
     /// Return an iterator over the padded bit encoding of the value.
     ///
     /// This encoding is used to represent the value in the Bit Machine.
     pub fn iter_padded(&self) -> PreOrderIter<'_> {
-        PreOrderIter {
-            inner: BitIter::new(self.raw_byte_iter()).take(self.ty.bit_width()),
-        }
+        self.as_ref().iter_padded()
     }
 
     /// Check if the value is of the given type.
@@ -736,19 +759,16 @@ impl fmt::Display for Value {
         // that we handle products more explicitly.
         enum S<'v> {
             Disp(ValueRef<'v>),
-            DispUnlessUnit(ValueRef<'v>),
             DispCh(char),
         }
 
         let mut stack = Vec::with_capacity(1024);
-        // Next node to visit, and a boolean indicating whether we should
-        // display units explicitly (turned off for sums, since a sum of
-        // a unit is displayed simply as 0 or 1.
+        // Next node to visit.
         stack.push(S::Disp(self.as_ref()));
 
-        while let Some(next) = stack.pop() {
+        'main_loop: while let Some(next) = stack.pop() {
             let value = match next {
-                S::Disp(ref value) | S::DispUnlessUnit(ref value) => value,
+                S::Disp(ref value) => value,
                 S::DispCh(ch) => {
                     write!(f, "{}", ch)?;
                     continue;
@@ -756,23 +776,53 @@ impl fmt::Display for Value {
             };
 
             if value.is_unit() {
-                if !matches!(next, S::DispUnlessUnit(..)) {
-                    f.write_str("ε")?;
-                }
-            } else if let Some(l_value) = value.as_left() {
-                f.write_str("0")?;
-                stack.push(S::DispUnlessUnit(l_value));
-            } else if let Some(r_value) = value.as_right() {
-                f.write_str("1")?;
-                stack.push(S::DispUnlessUnit(r_value));
-            } else if let Some((l_value, r_value)) = value.as_product() {
-                stack.push(S::DispCh(')'));
-                stack.push(S::Disp(r_value));
-                stack.push(S::DispCh(','));
-                stack.push(S::Disp(l_value));
-                stack.push(S::DispCh('('));
+                f.write_str("ε")?;
             } else {
-                unreachable!()
+                // First, write any bitstrings out
+                for tmr in &Tmr::TWO_TWO_N {
+                    if value.ty.tmr() == *tmr {
+                        if value.ty.bit_width() < 4 {
+                            f.write_str("0b")?;
+                            for bit in value.iter_padded() {
+                                f.write_str(if bit { "1" } else { "0" })?;
+                            }
+                        } else {
+                            f.write_str("0x")?;
+                            // Annoyingly `array_chunks` is unstable so we have to do it manually
+                            // https://github.com/rust-lang/rust/issues/100450
+                            let mut iter = value.iter_padded();
+                            while let (Some(a), Some(b), Some(c), Some(d)) =
+                                (iter.next(), iter.next(), iter.next(), iter.next())
+                            {
+                                let n = (u8::from(a) << 3)
+                                    + (u8::from(b) << 2)
+                                    + (u8::from(c) << 1)
+                                    + u8::from(d);
+                                write!(f, "{:x}", n)?;
+                            }
+                        }
+                        continue 'main_loop;
+                    }
+                }
+
+                // If we don't have a bitstring, then write out the explicit value.
+                if let Some(l_value) = value.as_left() {
+                    f.write_str("L(")?;
+                    stack.push(S::DispCh(')'));
+                    stack.push(S::Disp(l_value));
+                } else if let Some(r_value) = value.as_right() {
+                    f.write_str("R(")?;
+                    stack.push(S::DispCh(')'));
+                    stack.push(S::Disp(r_value));
+                } else if let Some((l_value, r_value)) = value.as_product() {
+                    stack.push(S::DispCh(')'));
+                    stack.push(S::Disp(r_value));
+                    stack.push(S::DispCh(','));
+                    stack.push(S::Disp(l_value));
+                    stack.push(S::DispCh('('));
+                } else {
+                    unreachable!()
+                }
             }
         }
         Ok(())
@@ -1070,9 +1120,9 @@ mod tests {
     fn value_display() {
         // Only test a couple values becasue we probably want to change this
         // at some point and will have to redo this test.
-        assert_eq!(Value::u1(0).to_string(), "0",);
-        assert_eq!(Value::u1(1).to_string(), "1",);
-        assert_eq!(Value::u4(6).to_string(), "((0,1),(1,0))",);
+        assert_eq!(Value::u1(0).to_string(), "0b0",);
+        assert_eq!(Value::u1(1).to_string(), "0b1",);
+        assert_eq!(Value::u4(6).to_string(), "0x6",);
     }
 
     #[test]
