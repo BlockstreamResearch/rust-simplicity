@@ -93,7 +93,7 @@ pub trait Jet:
 
 #[cfg(test)]
 mod tests {
-    use crate::jet::Core;
+    use crate::jet::{Core, CoreEnv};
     use crate::node::{ConstructNode, CoreConstructible, JetConstructible};
     use crate::types;
     use crate::value::Word;
@@ -113,7 +113,7 @@ mod tests {
             )
             .unwrap();
             assert_eq!(
-                BitMachine::test_exec(two_words, &crate::jet::CoreEnv::EMPTY).expect("executing"),
+                BitMachine::test_exec(two_words, &CoreEnv::EMPTY).expect("executing"),
                 Value::product(
                     Value::u1(0),       // carry bit
                     Value::u32(2 + 16), // result
@@ -131,7 +131,7 @@ mod tests {
             )
             .unwrap();
             assert_eq!(
-                BitMachine::test_exec(two_words, &crate::jet::CoreEnv::EMPTY).expect("executing"),
+                BitMachine::test_exec(two_words, &CoreEnv::EMPTY).expect("executing"),
                 Value::product(Value::u32(2), Value::u16(16)),
             );
         });
