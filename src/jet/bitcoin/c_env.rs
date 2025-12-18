@@ -12,11 +12,24 @@ pub(super) fn new_tx(
 ) -> *mut c_bitcoin::CTransaction {
     let mut raw_inputs = Vec::with_capacity(tx.input.len());
     let mut raw_outputs = Vec::with_capacity(tx.output.len());
+    // Allocate space for the raw annexes. This dumb `Vec::from_iter` construction is
+    // equivalent to `vec![None; tx.input.len()]`, but that won't compile because it
+    // requires Option::<CRawBuffer>::None to be cloneable, which it's not because
+    // CRawBuffer isn't.
 
-    for (inp, utxo) in tx.input.iter().zip(in_utxos.iter()) {
+    // SAFETY: this allocation *must* live until after the `simplicity_mallocTransaction`
+    //  at the bottom of this function. We convert the vector to a boxed slice to ensure
+    //  it cannot be resized, which would potentially trigger a reallocation.
+    let mut raw_annexes = Vec::from_iter((0..tx.input.len()).map(|_| None)).into_boxed_slice();
+
+    for (n, (inp, utxo)) in tx.input.iter().zip(in_utxos.iter()).enumerate() {
+        raw_annexes[n] = inp.witness.taproot_annex().map(c_bitcoin::CRawBuffer::new);
         raw_inputs.push(c_bitcoin::CRawInput {
-            // FIXME actually pass the annex in; see https://github.com/BlockstreamResearch/simplicity/issues/311 for some difficulty here.
-            annex: core::ptr::null(),
+            // This `as_ref().map_or()` construction converts an Option<&T> to a nullable *const T.
+            // In theory it's a no-op.
+            annex: raw_annexes[n]
+                .as_ref()
+                .map_or(core::ptr::null(), |ptr| ptr as *const _), // cast should be changed to ptr::from_ref in rust 1.76
             prev_txid: inp.previous_output.txid.as_byte_array(),
             txo: c_bitcoin::CRawOutput {
                 value: utxo.value.to_sat(),
@@ -44,10 +57,16 @@ pub(super) fn new_tx(
         version: tx.version.0 as u32, // in 1.87.0 can use .cast_unsigned
         locktime: tx.lock_time.to_consensus_u32(),
     };
-    unsafe {
+    let ret = unsafe {
         // SAFETY: this is a FFI call and we constructed its argument correctly.
         c_bitcoin::simplicity_mallocTransaction(&c_raw_tx)
-    }
+    };
+    // Explicitly drop raw_annexes so Rust doesn't try any funny business dropping it early.
+    // Drop raw_inputs first since it contains pointers into raw_annexes and we don't want
+    // them to dangle. (It'd be safe since they're raw pointers, but still bad mojo.)
+    drop(raw_inputs);
+    drop(raw_annexes);
+    ret
 }
 
 pub(super) fn new_tap_env(
