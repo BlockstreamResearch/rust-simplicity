@@ -697,7 +697,7 @@ mod tests {
             for _ in 0..100 {
                 bomb = Node::pair(&bomb, &bomb).unwrap();
             }
-            let _ = bomb.finalize_pruned(&());
+            let _ = bomb.finalize_pruned(&crate::jet::CoreEnv::EMPTY);
         });
     }
 }

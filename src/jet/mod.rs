@@ -14,11 +14,13 @@
 
 #[cfg(feature = "bitcoin")]
 pub mod bitcoin;
+mod core;
 #[cfg(feature = "elements")]
 pub mod elements;
 mod init;
 pub mod type_name;
 
+pub use self::core::CoreEnv;
 #[cfg(feature = "bitcoin")]
 pub use init::bitcoin::Bitcoin;
 pub use init::core::Core;
@@ -111,7 +113,7 @@ mod tests {
             )
             .unwrap();
             assert_eq!(
-                BitMachine::test_exec(two_words, &()).expect("executing"),
+                BitMachine::test_exec(two_words, &crate::jet::CoreEnv::EMPTY).expect("executing"),
                 Value::product(
                     Value::u1(0),       // carry bit
                     Value::u32(2 + 16), // result
@@ -129,7 +131,7 @@ mod tests {
             )
             .unwrap();
             assert_eq!(
-                BitMachine::test_exec(two_words, &()).expect("executing"),
+                BitMachine::test_exec(two_words, &crate::jet::CoreEnv::EMPTY).expect("executing"),
                 Value::product(Value::u32(2), Value::u16(16)),
             );
         });

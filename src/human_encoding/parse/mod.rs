@@ -677,7 +677,7 @@ mod tests {
             "main := unit",
             "c40a10263f7436b4160acbef1c36fba4be4d95df181a968afeab5eac247adff7",
             &empty,
-            &(),
+            &crate::jet::CoreEnv::EMPTY,
         );
 
         let witness = HashMap::from([
@@ -694,7 +694,7 @@ mod tests {
             ",
             "d7969920eff9a1ed0359aaa8545b239c69969e22c304c645a7b49bcc976a40a8",
             &witness,
-            &(),
+            &crate::jet::CoreEnv::EMPTY,
         );
     }
 
