@@ -10,6 +10,7 @@ mod frame;
 mod limits;
 mod tracker;
 
+use core::borrow::Borrow;
 use std::error;
 use std::fmt;
 use std::sync::Arc;
@@ -60,9 +61,9 @@ impl BitMachine {
     }
 
     #[cfg(test)]
-    pub fn test_exec<J: Jet>(
+    pub fn test_exec<J: Jet, T: Borrow<J::Transaction>>(
         program: Arc<crate::node::ConstructNode<J>>,
-        env: &J::Environment,
+        env: &J::Environment<T>,
     ) -> Result<Value, ExecutionError> {
         use crate::node::SimpleFinalizer;
 
@@ -220,10 +221,10 @@ impl BitMachine {
     ///  ## Precondition
     ///
     /// The Bit Machine is constructed via [`Self::for_program()`] to ensure enough space.
-    pub fn exec<J: Jet>(
+    pub fn exec<J: Jet, Tx: Borrow<J::Transaction>>(
         &mut self,
         program: &RedeemNode<J>,
-        env: &J::Environment,
+        env: &J::Environment<Tx>,
     ) -> Result<Value, ExecutionError> {
         self.exec_with_tracker(program, env, &mut NoTracker)
     }
@@ -236,10 +237,10 @@ impl BitMachine {
     ///  ## Precondition
     ///
     /// The Bit Machine is constructed via [`Self::for_program()`] to ensure enough space.
-    pub fn exec_with_tracker<J: Jet, T: ExecTracker<J>>(
+    pub fn exec_with_tracker<J: Jet, T: ExecTracker<J>, Tx: Borrow<J::Transaction>>(
         &mut self,
         program: &RedeemNode<J>,
-        env: &J::Environment,
+        env: &J::Environment<Tx>,
         tracker: &mut T,
     ) -> Result<Value, ExecutionError> {
         enum CallStack<'a, J: Jet> {
@@ -435,7 +436,11 @@ impl BitMachine {
         }
     }
 
-    fn exec_jet<J: Jet>(&mut self, jet: J, env: &J::Environment) -> Result<(), JetFailed> {
+    fn exec_jet<J: Jet, T: Borrow<J::Transaction>>(
+        &mut self,
+        jet: J,
+        env: &J::Environment<T>,
+    ) -> Result<(), JetFailed> {
         use crate::ffi::c_jets::frame_ffi::{c_readBit, c_writeBit, CFrameItem};
         use crate::ffi::c_jets::uword_width;
         use crate::ffi::ffi::UWORD;
@@ -697,7 +702,7 @@ mod tests {
             for _ in 0..100 {
                 bomb = Node::pair(&bomb, &bomb).unwrap();
             }
-            let _ = bomb.finalize_pruned(&());
+            let _ = bomb.finalize_pruned(&crate::jet::CoreEnv::EMPTY);
         });
     }
 }

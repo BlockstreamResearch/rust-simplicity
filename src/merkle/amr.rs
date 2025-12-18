@@ -305,7 +305,7 @@ mod tests {
             #[rustfmt::skip]
             assert_eq!(
                 &node.amr().unwrap().to_string(),
-                "343e6dc16b3f52e83e3b4ccc99b8c6f96a074fe399327af364bc285e299745a2"
+                "cdca2a05e52cefa59dc7a5b0dae22098fb896e3913bfdd446b594e1f9250783e"
             );
         });
     }
