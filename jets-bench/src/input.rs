@@ -5,6 +5,7 @@ use rand::distributions as dist;
 use rand::rngs::ThreadRng;
 use rand::{Rng, RngCore};
 use simplicity::ffi::c_jets::frame_ffi::c_writeBit;
+use simplicity::ffi::ffi::UWORD;
 use simplicity::ffi::CFrameItem;
 use simplicity::hashes::Hash;
 use simplicity::jet::Elements;
@@ -309,8 +310,8 @@ impl FlatValue {
         unsafe {
             use simplicity::elements::hashes::Hash as _;
 
-            let mut dst_inner = [0usize; MAX_VALUE_BYTES / mem::size_of::<usize>()];
-            let mut src_inner = [0usize; MAX_VALUE_BYTES / mem::size_of::<usize>()];
+            let mut dst_inner = [UWORD::from(0u8); MAX_VALUE_BYTES / mem::size_of::<UWORD>()];
+            let mut src_inner = [UWORD::from(0u8); MAX_VALUE_BYTES / mem::size_of::<UWORD>()];
 
             let mut src_bytes = self.inner;
             // See below block comment on the write frame for justification of this
@@ -322,7 +323,7 @@ impl FlatValue {
                 MAX_VALUE_BYTES,
             );
             for us in &mut src_inner {
-                *us = usize::from_be(us.swap_bytes());
+                *us = UWORD::from_be(us.swap_bytes());
             }
 
             let src_read_frame = CFrameItem::new_read(self.len_bits, src_inner.as_ptr());
