@@ -1,6 +1,6 @@
 [package]
 name = "simplicity-sys"
-version = "0.6.0"
+version = "0.6.1"
 license = "CC0-1.0"
 homepage = "https://github.com/BlockstreamResearch/rust-simplicity/"
 repository = "https://github.com/BlockstreamResearch/rust-simplicity/"
