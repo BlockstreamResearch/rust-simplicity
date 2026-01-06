@@ -7,7 +7,7 @@ edition = "2018"
 
 [dependencies]
 # todo add lexopt for command line parsing
-simplicity-lang = { version = "0.7.0", path = "..", features = [ "base64", "serde", "elements" ] }
+simplicity-lang = { version = "0.7.1", path = "..", features = [ "base64", "serde", "elements" ] }
 
 [[bin]]
 name = "simpcli"
