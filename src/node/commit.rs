@@ -521,7 +521,7 @@ mod tests {
                     0x00,
                 ],
                 // CMR not checked against C code, since C won't give us any data without witnesses
-                "e9339a0d715c721bff752aedc02710cdf3399f3f8d86e64456e85a1bc06ecb7c",
+                "e7661630013b789c535146485c72001cad7eea92d04bc4135dc9c2d9e48093b7",
                 "3O4o5oxBCDgVxiKNtxBGAgA=",
             ),
             // Same program but with each `witness` replaced by `comp iden witness`.
@@ -543,7 +543,7 @@ mod tests {
                     0xdc, 0x41, 0x18, 0x08,
                 ],
                 // CMR not checked against C code, since C won't give us any data without witnesses
-                "d03bf350f406aef3af0d48e6533b3325ff86f18a36e0e73895a5cd6d6692b860",
+                "774105cb723e00ab3ac48452aa2dd3744999605393f0343eedc8c6387aa5b3c8",
                 "4ChwQ4MAq5oxBCDgVxiKNtxBGAg=",
             )
         ];
@@ -565,7 +565,7 @@ mod tests {
             // Execute the program to confirm that it worked
             let mut mac =
                 BitMachine::for_program(&diff1_final).expect("program has reasonable bounds");
-            mac.exec(&diff1_final, &()).unwrap();
+            mac.exec(&diff1_final, &crate::jet::CoreEnv::EMPTY).unwrap();
         }
     }
 

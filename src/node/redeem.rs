@@ -13,6 +13,7 @@ use super::{
     Converter, Hide, Inner, Marker, NoDisconnect, NoWitness, Node,
 };
 
+use core::borrow::Borrow;
 use std::collections::HashSet;
 use std::io;
 use std::marker::PhantomData;
@@ -289,7 +290,10 @@ impl<J: Jet> RedeemNode<J> {
     /// Pruning fails if the original, unpruned program fails to run on the Bit Machine (step 1).
     /// In this case, the witness data needs to be revised.
     /// The other pruning steps (2 & 3) never fail.
-    pub fn prune(&self, env: &J::Environment) -> Result<Arc<RedeemNode<J>>, ExecutionError> {
+    pub fn prune<Tx>(&self, env: &J::Environment<Tx>) -> Result<Arc<RedeemNode<J>>, ExecutionError>
+    where
+        Tx: Borrow<J::Transaction>,
+    {
         self.prune_with_tracker(env, &mut SetTracker::default())
     }
 
@@ -298,9 +302,9 @@ impl<J: Jet> RedeemNode<J> {
     ///
     /// See [`crate::bit_machine::StderrTracker`] as an example which outputs the IHR of
     /// each case combinator that we prune a child of.
-    pub fn prune_with_tracker<T: PruneTracker<J>>(
+    pub fn prune_with_tracker<T: PruneTracker<J>, Tx: Borrow<J::Transaction>>(
         &self,
-        env: &J::Environment,
+        env: &J::Environment<Tx>,
         tracker: &mut T,
     ) -> Result<Arc<RedeemNode<J>>, ExecutionError> {
         struct Pruner<'brand, 't, J, T> {
@@ -755,9 +759,9 @@ mod tests {
         assert_program_deserializable::<Core>(
             &[0xc9, 0xc4, 0x6d, 0xb8, 0x82, 0x30, 0x10],
             &[0xde, 0xad, 0xbe, 0xef],
-            "d7969920eff9a1ed0359aaa8545b239c69969e22c304c645a7b49bcc976a40a8",
-            "f7acbb077e7661a08384818bc8e3a275ed42ad446252575a35a35f71689fef78",
-            "3ce4a6390b4e4bda6330acda4800e66e5d2cae0f5a2888564c706f2b910146b8",
+            "ee2d966aeccfba7f1f1e54bc130237a6ae575db9c1132193d513aeb14b18151a",
+            "1f98ab7a78af799dc2efd3f4288a5934f288a73502b79db581eaf7342798a415",
+            "ce44dd4dfa9589ee67ad70fd1122421baf0b37b2b18d244702c93a9cf032dd17",
             "ycRtuIIwEA==",
         );
     }
@@ -963,12 +967,12 @@ mod tests {
     }
 
     #[cfg(feature = "elements")]
-    fn assert_correct_pruning<J: Jet>(
+    fn assert_correct_pruning<J: Jet, T: Borrow<J::Transaction>>(
         unpruned_prog: &str,
         unpruned_wit: &HashMap<Arc<str>, Value>,
         expected_pruned_prog: &str,
         expected_pruned_wit: &HashMap<Arc<str>, Value>,
-        env: &J::Environment,
+        env: &J::Environment<T>,
     ) {
         let unpruned_program = types::Context::with_context(|ctx| {
             Forest::<J>::parse(unpruned_prog)
@@ -1047,7 +1051,7 @@ main := comp input comp process jet_verify : 1 -> 1"#;
                 Value::product(Value::u64(0), Value::unit()),
             ),
         ]);
-        assert_correct_pruning::<crate::jet::Elements>(
+        assert_correct_pruning::<crate::jet::Elements, _>(
             unpruned_prog,
             &unpruned_wit,
             pruned_prog,
@@ -1075,7 +1079,7 @@ main := comp input comp process jet_verify : 1 -> 1"#;
                 Value::product(Value::unit(), Value::u64(0)),
             ),
         ]);
-        assert_correct_pruning::<crate::jet::Elements>(
+        assert_correct_pruning::<crate::jet::Elements, _>(
             unpruned_prog,
             &unpruned_wit,
             pruned_prog,
@@ -1100,7 +1104,7 @@ process := assertl (take jet_is_zero_64) #{take jet_is_zero_64} : (2^64 + 1) * 1
 main := comp input comp process jet_verify : 1 -> 1"#;
         let pruned_wit =
             HashMap::from([(Arc::from("wit1"), Value::left(Value::u64(0), Final::unit()))]);
-        assert_correct_pruning::<crate::jet::Elements>(
+        assert_correct_pruning::<crate::jet::Elements, _>(
             prune_sum,
             &unpruned_wit,
             pruned_prog,
@@ -1121,7 +1125,7 @@ main := comp input comp process jet_verify : 1 -> 1"#;
             Arc::from("wit1"),
             Value::right(Final::unit(), Value::u64(0)),
         )]);
-        assert_correct_pruning::<crate::jet::Elements>(
+        assert_correct_pruning::<crate::jet::Elements, _>(
             prune_sum,
             &unpruned_wit,
             pruned_prog,
