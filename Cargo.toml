@@ -30,14 +30,14 @@ ghost-cell = { version = "0.2.6", default-features = false }
 hashes = { package = "bitcoin_hashes", version = "0.14" }
 hex = { package = "hex-conservative", version = "0.2.1" }
 santiago = "1.3"
-simplicity-sys = { version = "0.6.0", path = "./simplicity-sys" }
+simplicity-sys = { version = "0.6.1", path = "./simplicity-sys" }
 serde = { version = "1.0.103", features = ["derive"], optional = true }
 
 [target.wasm32-unknown-unknown.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
-simplicity-sys = { version = "0.6.0", path = "./simplicity-sys", features = [
+simplicity-sys = { version = "0.6.1", path = "./simplicity-sys", features = [
     "test-utils",
 ] }
 
