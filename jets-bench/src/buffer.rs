@@ -17,7 +17,7 @@ use simplicity_sys::CFrameItem;
 /// and to the target_type of jet.
 pub struct JetBuffer {
     #[allow(dead_code)]
-    cells: Vec<usize>,
+    cells: Vec<UWORD>,
     src_bit_width: usize,
     dst_bit_width: usize,
     src_ptr_begin: *mut UWORD,
