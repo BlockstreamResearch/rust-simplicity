@@ -63,8 +63,8 @@ impl<'f> Extractor<'f> {
     }
 
     /// Attempt to yield a type from the fuzzer.
-    pub fn extract_final_type(&mut self) -> Option<Arc<FinalTy>> {
-        // We can costruct extremely large types by duplicating Arcs; there
+    pub fn extract_final_type(&mut self, allow_blowup: bool) -> Option<Arc<FinalTy>> {
+        // We can construct extremely large types by duplicating Arcs; there
         // is no need to have an exponential blowup in the number of tasks.
         const MAX_N_TASKS: usize = 300;
 
@@ -83,7 +83,7 @@ impl<'f> Extractor<'f> {
                         result_stack.push(FinalTy::unit());
                     } else {
                         let is_sum = self.extract_bit()?;
-                        let dupe = task_stack.len() >= MAX_N_TASKS || self.extract_bit()?;
+                        let dupe = allow_blowup && (task_stack.len() >= MAX_N_TASKS || self.extract_bit()?);
                         task_stack.push(StackElem::Binary { is_sum, dupe });
                         if !dupe {
                             task_stack.push(StackElem::NeedType)
@@ -113,7 +113,7 @@ impl<'f> Extractor<'f> {
     /// Attempt to yield a value from the fuzzer by constructing a type and then
     /// reading a bitstring of that type, in the padded value encoding.
     pub fn extract_value_padded(&mut self) -> Option<Value> {
-        let ty = self.extract_final_type()?;
+        let ty = self.extract_final_type(true)?;
         if ty.bit_width() > 64 * 1024 * 1024 {
             // little fuzzing value in producing massive values
             return None;
@@ -128,7 +128,7 @@ impl<'f> Extractor<'f> {
     /// Attempt to yield a value from the fuzzer by constructing a type and then
     /// reading a bitstring of that type, in the compact value encoding.
     pub fn extract_value_compact(&mut self) -> Option<Value> {
-        let ty = self.extract_final_type()?;
+        let ty = self.extract_final_type(true)?;
         if ty.bit_width() > 64 * 1024 * 1024 {
             // little fuzzing value in producing massive values
             return None;
@@ -184,7 +184,7 @@ impl<'f> Extractor<'f> {
                 }
                 StackElem::Left => {
                     let child = result_stack.pop().unwrap();
-                    let ty = self.extract_final_type()?;
+                    let ty = self.extract_final_type(true)?;
                     if ty.bit_width() > MAX_TY_WIDTH {
                         return None;
                     }
@@ -192,7 +192,7 @@ impl<'f> Extractor<'f> {
                 }
                 StackElem::Right => {
                     let child = result_stack.pop().unwrap();
-                    let ty = self.extract_final_type()?;
+                    let ty = self.extract_final_type(true)?;
                     if ty.bit_width() > MAX_TY_WIDTH {
                         return None;
                     }
@@ -205,7 +205,7 @@ impl<'f> Extractor<'f> {
     }
 
     /// Attempt to yield a type from the fuzzer.
-    pub fn extract_old_final_type(&mut self) -> Option<Arc<OldFinalTy>> {
+    pub fn extract_old_final_type(&mut self, allow_blowup: bool) -> Option<Arc<OldFinalTy>> {
         // We can costruct extremely large types by duplicating Arcs; there
         // is no need to have an exponential blowup in the number of tasks.
         const MAX_N_TASKS: usize = 300;
@@ -225,7 +225,7 @@ impl<'f> Extractor<'f> {
                         result_stack.push(OldFinalTy::unit());
                     } else {
                         let is_sum = self.extract_bit()?;
-                        let dupe = task_stack.len() >= MAX_N_TASKS || self.extract_bit()?;
+                        let dupe = allow_blowup && (task_stack.len() >= MAX_N_TASKS || self.extract_bit()?);
                         task_stack.push(StackElem::Binary { is_sum, dupe });
                         if !dupe {
                             task_stack.push(StackElem::NeedType)
@@ -297,7 +297,7 @@ impl<'f> Extractor<'f> {
                 }
                 StackElem::Left => {
                     let child = result_stack.pop().unwrap();
-                    let ty = self.extract_old_final_type()?;
+                    let ty = self.extract_old_final_type(true)?;
                     if ty.bit_width() > MAX_TY_WIDTH {
                         return None;
                     }
@@ -305,7 +305,7 @@ impl<'f> Extractor<'f> {
                 }
                 StackElem::Right => {
                     let child = result_stack.pop().unwrap();
-                    let ty = self.extract_old_final_type()?;
+                    let ty = self.extract_old_final_type(true)?;
                     if ty.bit_width() > MAX_TY_WIDTH {
                         return None;
                     }
