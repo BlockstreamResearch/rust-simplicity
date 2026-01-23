@@ -113,7 +113,7 @@ impl<'f> Extractor<'f> {
     /// Attempt to yield a value from the fuzzer by constructing a type and then
     /// reading a bitstring of that type, in the padded value encoding.
     pub fn extract_value_padded(&mut self) -> Option<Value> {
-        let ty = self.extract_final_type(true)?;
+        let ty = self.extract_final_type(false)?;
         if ty.bit_width() > 64 * 1024 * 1024 {
             // little fuzzing value in producing massive values
             return None;
