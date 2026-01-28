@@ -941,6 +941,106 @@ impl Value {
             }
         }
         blob.push(last);
+        
+        enum ZeroState<'a> {
+            ProcessType(&'a Final, usize), // (type, bit_offset)
+            ZeroSum(usize, usize),         // (padding_start, padding_end)
+            ZeroProduct(usize, usize),     // (padding_start, padding_end)
+        }
+
+        fn zero_bit_range(data: &mut [u8], start: usize, end: usize) {
+            debug_assert!(start <= end);
+            debug_assert!(end <= data.len() * 8);
+
+            let start_byte = start / 8;
+            let end_byte = end / 8;
+            let start_bit = start % 8;
+            let end_bit = end % 8;
+
+            if start_byte == end_byte {
+                for i in start_bit..end_bit {
+                    data[start_byte] &= !(1 << (7 - i));
+                }
+            } else {
+                for i in start_bit..8 {
+                    data[start_byte] &= !(1 << (7 - i));
+                }
+
+                for i in (start_byte + 1)..end_byte {
+                    data[i] = 0;
+                }
+
+                for i in 0..end_bit {
+                    data[end_byte] &= !(1 << (7 - i));
+                }
+            }
+        }
+
+        fn read_bit(data: &[u8], pos: usize) -> bool {
+            debug_assert!(pos < data.len() * 8);
+
+            let byte_idx = pos / 8;
+            let bit_idx = pos % 8;
+
+            (data[byte_idx] >> (7 - bit_idx)) & 1 == 1
+        }
+
+        let mut stack = vec![ZeroState::ProcessType(ty, 0)];
+
+        // Iterate over type, schedule zeroing and push it's childrens to stack
+        while let Some(state) = stack.pop() {
+            match state {
+                ZeroState::ProcessType(ty, offset) => {
+                    if ty.bit_width() == 0 {
+                        continue;
+                    }
+
+                    match &ty.bound() {
+                        CompleteBound::Unit => {
+                            // All bits are padding
+                            zero_bit_range(&mut blob, offset, offset + ty.bit_width());
+                        }
+
+                        CompleteBound::Product(left, right) => {
+                            let left_end = offset + left.bit_width();
+                            let right_end = left_end + right.bit_width();
+                            let product_end = offset + ty.bit_width();
+
+                            if right_end < product_end {
+                                stack.push(ZeroState::ZeroProduct(right_end, product_end));
+                            }
+
+                            if right.bit_width() > 0 {
+                                stack.push(ZeroState::ProcessType(right, left_end));
+                            }
+                            if left.bit_width() > 0 {
+                                stack.push(ZeroState::ProcessType(left, offset));
+                            }
+                        }
+
+                        CompleteBound::Sum(left, right) => {
+                            let tag = read_bit(&blob, offset);
+                            let variants_start = offset + 1;
+                            let sum_end = offset + ty.bit_width();
+
+                            let variant = if !tag { left } else { right };
+                            let side_end = variants_start + variant.bit_width();
+
+                            if side_end < sum_end {
+                                stack.push(ZeroState::ZeroSum(side_end, sum_end));
+                            }
+                            if variant.bit_width() > 0 {
+                                stack.push(ZeroState::ProcessType(variant, variants_start));
+                            }
+                        }
+                    }
+                }
+
+                ZeroState::ZeroProduct(start, end) | ZeroState::ZeroSum(start, end) => {
+                    zero_bit_range(&mut blob, start, end);
+                }
+            }
+        }
 
         Ok(Value {
             inner: blob.into(),
@@ -1266,7 +1366,10 @@ mod tests {
     #[test]
     fn prune_regression_337_1() {
         // Two values that differ only in padding bits are nonetheless equal
-        let ty_2x1_opt = Final::sum(Final::unit(), Final::product(Final::two_two_n(0), Final::unit()));
+        let ty_2x1_opt = Final::sum(
+            Final::unit(),
+            Final::product(Final::two_two_n(0), Final::unit()),
+        );
 
         // L(ε) as all zeros
         let mut iter = BitIter::new(Some(0b0000_0000u8).into_iter());
@@ -1280,7 +1383,10 @@ mod tests {
 
     #[test]
     fn prune_regression_337_2() {
-        let ty_2x1_opt = Final::sum(Final::unit(), Final::product(Final::two_two_n(0), Final::unit()));
+        let ty_2x1_opt = Final::sum(
+            Final::unit(),
+            Final::product(Final::two_two_n(0), Final::unit()),
+        );
         let ty_1x1_opt = Final::sum(Final::unit(), Final::product(Final::unit(), Final::unit()));
 
         // Bits [false, true] - first bit is false (left sum), second bit is true (unused padding)
