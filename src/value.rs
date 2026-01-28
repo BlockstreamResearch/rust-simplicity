@@ -309,40 +309,6 @@ fn copy_bits(src: &[u8], src_offset: usize, dst: &mut [u8], dst_offset: usize, n
     }
 }
 
-fn check_offset_bits(data: &[u8], bit_offset: usize) -> bool {
-    debug_assert!(data.len() * 8 >= bit_offset);
-    for bit in data.iter().take(bit_offset / 8) {
-        if *bit != 0 {
-            return false;
-        }
-    }
-    let rem = bit_offset % 8;
-    if rem != 0 {
-        let byte = data[bit_offset / 8];
-        let mask = 0xFF << (8 - rem);
-        if byte & mask != 0 {
-            return false;
-        }
-    }
-    true
-}
-
-fn product_copying_aux(side: Option<(&Arc<[u8]>, usize)>, bit_length: usize) -> (Arc<[u8]>, usize) {
-    if let Some((side, bit_offset)) = side {
-        if check_offset_bits(side, bit_offset) {
-            (Arc::clone(side), bit_offset)
-        } else {
-            let mut res = vec![0u8; bit_length.div_ceil(8)];
-
-            copy_bits(side, bit_offset, &mut res, 0, bit_length);
-
-            (Arc::from(res), 0)
-        }
-    } else {
-        (Arc::from(vec![0; bit_length.div_ceil(8)]), 0)
-    }
-}
-
 /// Helper function to take the product of two values (i.e. their concatenation).
 ///
 /// If either `left_inner` or `right_inner` is not provided, it is assumed to be
@@ -355,33 +321,39 @@ fn product(
     right: Option<(&Arc<[u8]>, usize)>,
     right_bit_length: usize,
 ) -> (Arc<[u8]>, usize) {
-    match (left_bit_length, right_bit_length) {
-        (0, 0) => (Arc::<[u8]>::from([]), 0),
-
-        (0, right_bit_length) => product_copying_aux(right, right_bit_length),
-
-        (left_bit_length, 0) => product_copying_aux(left, left_bit_length),
-
-        (left_bit_length, right_bit_length) => {
-            // Both left and right have nonzero lengths. This is the only "real" case
-            // in which we have to do something beyond cloning Arcs or allocating
-            // zeroed vectors. In this case we left-shift both as much as possible.
-            let mut bx =
-                Box::<[u8]>::from(vec![0; (left_bit_length + right_bit_length).div_ceil(8)]);
-            if let Some((left, left_bit_offset)) = left {
-                copy_bits(left, left_bit_offset, &mut bx, 0, left_bit_length);
-            }
-            if let Some((right, right_bit_offset)) = right {
-                copy_bits(
-                    right,
-                    right_bit_offset,
-                    &mut bx,
-                    left_bit_length,
-                    right_bit_length,
-                );
-            }
-            (bx.into(), 0)
+    if left_bit_length == 0 {
+        if let Some((right, right_bit_offset)) = right {
+            (Arc::clone(right), right_bit_offset)
+        } else if right_bit_length == 0 {
+            (Arc::new([]), 0)
+        } else {
+            (Arc::from(vec![0; right_bit_length.div_ceil(8)]), 0)
         }
+    } else if right_bit_length == 0 {
+        if let Some((lt, left_bit_offset)) = left {
+            (Arc::clone(lt), left_bit_offset)
+        } else {
+            (Arc::from(vec![0; left_bit_length.div_ceil(8)]), 0)
+        }
+    } else {
+        // Both left and right have nonzero lengths. This is the only "real" case
+        // in which we have to do something beyond cloning Arcs or allocating
+        // zeroed vectors. In this case we left-shift both as much as possible.
+        let mut bx = Box::<[u8]>::from(vec![0; (left_bit_length + right_bit_length).div_ceil(8)]);
+        if let Some((left, left_bit_offset)) = left {
+            copy_bits(left, left_bit_offset, &mut bx, 0, left_bit_length);
+        }
+        if let Some((right, right_bit_offset)) = right {
+            copy_bits(
+                right,
+                right_bit_offset,
+                &mut bx,
+                left_bit_length,
+                right_bit_length,
+            );
+        }
+
+        (bx.into(), 0)
     }
 }
 
