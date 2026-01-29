@@ -941,112 +941,114 @@ impl Value {
             }
         }
         blob.push(last);
-        
-        enum ZeroState<'a> {
-            ProcessType(&'a Final, usize), // (type, bit_offset)
-            ZeroSum(usize, usize),         // (padding_start, padding_end)
-            ZeroProduct(usize, usize),     // (padding_start, padding_end)
-        }
 
-        fn zero_bit_range(data: &mut [u8], start: usize, end: usize) {
-            debug_assert!(start <= end);
-            debug_assert!(end <= data.len() * 8);
-
-            let start_byte = start / 8;
-            let end_byte = end / 8;
-            let start_bit = start % 8;
-            let end_bit = end % 8;
-
-            if start_byte == end_byte {
-                for i in start_bit..end_bit {
-                    data[start_byte] &= !(1 << (7 - i));
-                }
-            } else {
-                for i in start_bit..8 {
-                    data[start_byte] &= !(1 << (7 - i));
-                }
-
-                for i in (start_byte + 1)..end_byte {
-                    data[i] = 0;
-                }
-
-                for i in 0..end_bit {
-                    data[end_byte] &= !(1 << (7 - i));
-                }
-            }
-        }
-
-        fn read_bit(data: &[u8], pos: usize) -> bool {
-            debug_assert!(pos < data.len() * 8);
-
-            let byte_idx = pos / 8;
-            let bit_idx = pos % 8;
-
-            (data[byte_idx] >> (7 - bit_idx)) & 1 == 1
-        }
-
-        let mut stack = vec![ZeroState::ProcessType(ty, 0)];
-
-        // Iterate over type, schedule zeroing and push it's childrens to stack
-        while let Some(state) = stack.pop() {
-            match state {
-                ZeroState::ProcessType(ty, offset) => {
-                    if ty.bit_width() == 0 {
-                        continue;
-                    }
-
-                    match &ty.bound() {
-                        CompleteBound::Unit => {
-                            // All bits are padding
-                            zero_bit_range(&mut blob, offset, offset + ty.bit_width());
-                        }
-
-                        CompleteBound::Product(left, right) => {
-                            let left_end = offset + left.bit_width();
-                            let right_end = left_end + right.bit_width();
-                            let product_end = offset + ty.bit_width();
-
-                            if right_end < product_end {
-                                stack.push(ZeroState::ZeroProduct(right_end, product_end));
-                            }
-
-                            if right.bit_width() > 0 {
-                                stack.push(ZeroState::ProcessType(right, left_end));
-                            }
-                            if left.bit_width() > 0 {
-                                stack.push(ZeroState::ProcessType(left, offset));
-                            }
-                        }
-
-                        CompleteBound::Sum(left, right) => {
-                            let tag = read_bit(&blob, offset);
-                            let variants_start = offset + 1;
-                            let sum_end = offset + ty.bit_width();
-
-                            let variant = if !tag { left } else { right };
-                            let side_end = variants_start + variant.bit_width();
-
-                            if side_end < sum_end {
-                                stack.push(ZeroState::ZeroSum(side_end, sum_end));
-                            }
-                            if variant.bit_width() > 0 {
-                                stack.push(ZeroState::ProcessType(variant, variants_start));
-                            }
-                        }
-                    }
-                }
-
-                ZeroState::ZeroProduct(start, end) | ZeroState::ZeroSum(start, end) => {
-                    zero_bit_range(&mut blob, start, end);
-                }
-            }
-        }
+        zero_padding_bits(&mut blob, ty);
 
         Ok(Value {
             inner: blob.into(),
             bit_offset: 0,
             ty: Arc::new(ty.clone()),
         })
+    }
+}
+enum ZeroState<'a> {
+    ProcessType(&'a Final, usize), // (type, bit_offset)
+    ZeroSum(usize, usize),         // (padding_start, padding_end)
+    ZeroProduct(usize, usize),     // (padding_start, padding_end)
+}
+
+fn zero_bit_range(data: &mut [u8], start: usize, end: usize) {
+    debug_assert!(start <= end);
+    debug_assert!(end <= data.len() * 8);
+
+    let start_byte = start / 8;
+    let end_byte = end / 8;
+    let start_bit = start % 8;
+    let end_bit = end % 8;
+
+    if start_byte == end_byte {
+        for i in start_bit..end_bit {
+            data[start_byte] &= !(1 << (7 - i));
+        }
+    } else {
+        for i in start_bit..8 {
+            data[start_byte] &= !(1 << (7 - i));
+        }
+
+        for i in (start_byte + 1)..end_byte {
+            data[i] = 0;
+        }
+
+        for i in 0..end_bit {
+            data[end_byte] &= !(1 << (7 - i));
+        }
+    }
+}
+
+fn read_bit(data: &[u8], pos: usize) -> bool {
+    debug_assert!(pos < data.len() * 8);
+
+    let byte_idx = pos / 8;
+    let bit_idx = pos % 8;
+
+    (data[byte_idx] >> (7 - bit_idx)) & 1 == 1
+}
+
+fn zero_padding_bits(bits: &mut [u8], ty: &Final) {
+    let mut stack = vec![ZeroState::ProcessType(ty, 0)];
+
+    // Iterate over type, schedule zeroing and push it's childrens to stack
+    while let Some(state) = stack.pop() {
+        match state {
+            ZeroState::ProcessType(ty, offset) => {
+                if ty.bit_width() == 0 {
+                    continue;
+                }
+
+                match &ty.bound() {
+                    CompleteBound::Unit => {
+                        // All bits are padding
+                        zero_bit_range(bits, offset, offset + ty.bit_width());
+                    }
+
+                    CompleteBound::Product(left, right) => {
+                        let left_end = offset + left.bit_width();
+                        let right_end = left_end + right.bit_width();
+                        let product_end = offset + ty.bit_width();
+
+                        if right_end < product_end {
+                            stack.push(ZeroState::ZeroProduct(right_end, product_end));
+                        }
+
+                        if right.bit_width() > 0 {
+                            stack.push(ZeroState::ProcessType(right, left_end));
+                        }
+                        if left.bit_width() > 0 {
+                            stack.push(ZeroState::ProcessType(left, offset));
+                        }
+                    }
+
+                    CompleteBound::Sum(left, right) => {
+                        let tag = read_bit(&bits, offset);
+                        let sum_end = offset + ty.bit_width();
+
+                        let variant = if !tag { left } else { right };
+                        let variants_start = sum_end - variant.bit_width();
+
+                        if offset + 1 < variants_start {
+                            stack.push(ZeroState::ZeroSum(offset + 1, variants_start));
+                        }
+                        if variant.bit_width() > 0 {
+                            stack.push(ZeroState::ProcessType(variant, variants_start));
+                        }
+                    }
+                }
+            }
+
+            ZeroState::ZeroProduct(start, end) | ZeroState::ZeroSum(start, end) => {
+                zero_bit_range(bits, start, end);
+            }
+        }
     }
 }
 
