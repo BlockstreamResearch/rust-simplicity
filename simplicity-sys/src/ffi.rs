@@ -21,10 +21,8 @@ pub type c_size_t = usize;
 pub type c_uint_fast8_t = u8;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 pub type c_uint_fast16_t = u16;
-#[cfg(any(target_os = "windows", target_os = "android"))]
+#[cfg(any(target_os = "windows", target_os = "android", target_arch = "wasm32"))]
 pub type c_uint_fast16_t = u32;
-#[cfg(target_arch = "wasm32")]
-pub type c_uint_fast16_t = u16;
 #[cfg(not(any(
     target_os = "macos",
     target_os = "ios",
