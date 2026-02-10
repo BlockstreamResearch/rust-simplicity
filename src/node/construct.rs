@@ -229,7 +229,7 @@ impl<'brand, J: Jet> ConstructNode<'brand, J> {
     /// or the witness is provided by other means.
     ///
     /// If the serialization contains the witness data, then use [`crate::RedeemNode::decode()`].
-    pub fn decode<I: Iterator<Item = u8>>(
+    pub fn decode<I: Iterator<Item = u8> + Clone>(
         context: &types::Context<'brand>,
         mut bits: BitIter<I>,
     ) -> Result<Arc<Self>, crate::decode::Error> {

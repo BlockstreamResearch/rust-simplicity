@@ -251,7 +251,7 @@ impl<J: Jet> CommitNode<J> {
     /// or the witness is provided by other means.
     ///
     /// If the serialization contains the witness data, then use [`RedeemNode::decode()`].
-    pub fn decode<I: Iterator<Item = u8>>(bits: BitIter<I>) -> Result<Arc<Self>, DecodeError> {
+    pub fn decode<I: Iterator<Item = u8> + Clone>(bits: BitIter<I>) -> Result<Arc<Self>, DecodeError> {
         use crate::decode;
 
         // 1. Decode program with out witnesses.

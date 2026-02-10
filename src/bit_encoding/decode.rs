@@ -153,7 +153,7 @@ impl<J: Jet> DagLike for (usize, &'_ [DecodeNode<J>]) {
     }
 }
 
-pub fn decode_expression<'brand, I: Iterator<Item = u8>, J: Jet>(
+pub fn decode_expression<'brand, I: Iterator<Item = u8> + Clone, J: Jet>(
     ctx: &types::Context<'brand>,
     bits: &mut BitIter<I>,
 ) -> Result<ArcNode<'brand, J>, Error> {
@@ -237,7 +237,7 @@ pub fn decode_expression<'brand, I: Iterator<Item = u8>, J: Jet>(
 
 /// Decode a single Simplicity node from bits and
 /// insert it into a hash map at its index for future reference by ancestor nodes.
-fn decode_node<I: Iterator<Item = u8>, J: Jet>(
+fn decode_node<I: Iterator<Item = u8> + Clone, J: Jet>(
     bits: &mut BitIter<I>,
     index: usize,
 ) -> Result<DecodeNode<J>, Error> {

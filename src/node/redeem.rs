@@ -464,8 +464,8 @@ impl<J: Jet> RedeemNode<J> {
         mut witness: BitIter<I2>,
     ) -> Result<Arc<Self>, DecodeError>
     where
-        I1: Iterator<Item = u8>,
-        I2: Iterator<Item = u8>,
+        I1: Iterator<Item = u8> + Clone,
+        I2: Iterator<Item = u8> + Clone,
     {
         // 0. Set up a type to help with the call to `convert` below
         struct DecodeFinalizer<'bits, J: Jet, I: Iterator<Item = u8>> {

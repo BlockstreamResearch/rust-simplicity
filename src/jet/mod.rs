@@ -77,7 +77,7 @@ pub trait Jet:
     fn encode<W: Write>(&self, w: &mut BitWriter<W>) -> std::io::Result<usize>;
 
     /// Decode a jet from bits.
-    fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Self, decode::Error>;
+    fn decode<I: Iterator<Item = u8> + Clone>(bits: &mut BitIter<I>) -> Result<Self, decode::Error>;
 
     /// Obtains a C FFI compatible environment for the jet.
     fn c_jet_env(env: &Self::Environment) -> &Self::CJetEnvironment;
