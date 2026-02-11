@@ -1,7 +1,9 @@
 use std::fmt;
 use std::sync::OnceLock;
 
-use crate::dag::{Dag, DagLike, InternalSharing, MaxSharing, NoSharing};
+use crate::dag::{
+    Dag, DagLike, InternalSharing, MaxSharing, NoSharing, PostOrderIterItem, SharingTracker,
+};
 use crate::encode;
 use crate::node::{Inner, Marker, Node};
 use crate::BitWriter;
@@ -197,6 +199,166 @@ where
     }
 }
 
+/// The output format for [`DisplayAsGraph`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GraphFormat {
+    /// Graphviz DOT format, renderable with `dot -Tsvg` or similar tools.
+    Dot,
+    /// Mermaid diagram format, renderable in Markdown or the Mermaid live editor.
+    Mermaid,
+}
+
+/// The node-sharing level for [`DisplayAsGraph`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SharingLevel {
+    /// No sharing: every use of a node is visited separately (may be exponentially large).
+    None,
+    /// Internal sharing: nodes shared within the expression are visited once.
+    Internal,
+    /// Maximum sharing: maximize sharing across the entire expression.
+    Max,
+}
+
+/// Display a Simplicity expression as a graph in a chosen format.
+///
+/// Construct via [`Node::display_as_dot`], [`Node::display_as_mermaid`], or
+/// [`DisplayAsGraph::new`]. The [`fmt::Display`] impl renders using the stored
+/// `format` and `sharing` fields; [`to_dot_string`](DisplayAsGraph::to_dot_string)
+/// and [`to_mermaid_string`](DisplayAsGraph::to_mermaid_string) always render in
+/// the named format using the stored sharing level.
+pub struct DisplayAsGraph<'a, M: Marker> {
+    node: &'a Node<M>,
+    /// Output format (DOT or Mermaid).
+    pub format: GraphFormat,
+    /// Node-sharing level used when rendering.
+    pub sharing: SharingLevel,
+}
+
+impl<'a, M: Marker> DisplayAsGraph<'a, M> {
+    /// Create a new `DisplayAsGraph` with the given format and sharing level.
+    pub fn new(node: &'a Node<M>, format: GraphFormat, sharing: SharingLevel) -> Self {
+        Self {
+            node,
+            format,
+            sharing,
+        }
+    }
+
+    /// Render as a Graphviz DOT string using the stored sharing level.
+    pub fn to_dot_string(&self) -> String
+    where
+        &'a Node<M>: DagLike,
+    {
+        let mut result = String::new();
+        match self.render(GraphFormat::Dot, &mut result) {
+            Ok(_) => result,
+            Err(e) => format!("Could not display as string: {}", e),
+        }
+    }
+
+    /// Render as a Mermaid string using the stored sharing level.
+    pub fn to_mermaid_string(&self) -> String
+    where
+        &'a Node<M>: DagLike,
+    {
+        let mut result = String::new();
+        match self.render(GraphFormat::Mermaid, &mut result) {
+            Ok(_) => result,
+            Err(e) => format!("Could not display as string: {}", e),
+        }
+    }
+
+    fn render<W: fmt::Write>(&self, graph_format: GraphFormat, w: &mut W) -> fmt::Result
+    where
+        &'a Node<M>: DagLike,
+    {
+        match self.sharing {
+            SharingLevel::None => self.render_with::<NoSharing, _>(graph_format, w),
+            SharingLevel::Internal => self.render_with::<InternalSharing, _>(graph_format, w),
+            SharingLevel::Max => self.render_with::<MaxSharing<M>, _>(graph_format, w),
+        }
+    }
+
+    fn render_with<S, W>(&self, graph_format: GraphFormat, w: &mut W) -> fmt::Result
+    where
+        S: SharingTracker<&'a Node<M>> + Default,
+        W: fmt::Write,
+    {
+        let node_label = |data: &PostOrderIterItem<&Node<M>>| -> String {
+            match data.node.inner() {
+                Inner::Witness(_) => format!("witness({})", data.index),
+                Inner::Word(word) => format!("word({})", shorten(word.to_string(), 12)),
+                _ => data.node.inner().to_string(),
+            }
+        };
+
+        match graph_format {
+            GraphFormat::Dot => {
+                writeln!(w, "digraph G {{")?;
+                writeln!(w, "ordering=\"out\";")?;
+                for data in self.node.post_order_iter::<S>() {
+                    writeln!(w, "  node{}[label=\"{}\"];", data.index, node_label(&data))?;
+                    if let Some(left) = data.left_index {
+                        writeln!(w, "  node{}->node{};", data.index, left)?;
+                    }
+                    if let Some(right) = data.right_index {
+                        writeln!(w, "  node{}->node{};", data.index, right)?;
+                    }
+                }
+                writeln!(w, "}}")?;
+            }
+            GraphFormat::Mermaid => {
+                writeln!(w, "flowchart TD")?;
+                for data in self.node.post_order_iter::<S>() {
+                    match data.node.inner() {
+                        Inner::Case(..) => {
+                            writeln!(w, "  node{}{{\"{}\"}}", data.index, node_label(&data))?;
+                        }
+                        _ => {
+                            writeln!(w, "  node{}[\"{}\"]", data.index, node_label(&data))?;
+                        }
+                    }
+
+                    if let Some(left) = data.left_index {
+                        writeln!(w, "  node{} --> node{}", data.index, left)?;
+                    }
+                    if let Some(right) = data.right_index {
+                        writeln!(w, "  node{} --> node{}", data.index, right)?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+impl<'a, M: Marker> fmt::Display for DisplayAsGraph<'a, M>
+where
+    &'a Node<M>: DagLike,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.render(self.format, f)
+    }
+}
+
+fn shorten<S: AsRef<str>>(s: S, max_len: usize) -> String {
+    let s = s.as_ref();
+    let chars: Vec<char> = s.chars().collect();
+    if chars.len() <= max_len {
+        s.to_string()
+    } else {
+        let dots = "...";
+        let available = max_len.saturating_sub(dots.len());
+        let start_len = available.div_ceil(2); // Slightly favor the start
+        let end_len = available / 2;
+
+        let start: String = chars[..start_len].iter().collect();
+        let end: String = chars[chars.len() - end_len..].iter().collect();
+        format!("{}{}{}", start, dots, end)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::human_encoding::Forest;
@@ -240,5 +402,55 @@ mod tests {
             "((unit & unit) & unit); ((OIH & take unit); unit)",
             program.display_expr().to_string()
         )
+    }
+
+    #[test]
+    fn display_as_dot() {
+        let s = "
+            oih := take drop iden
+            input := pair (pair unit unit) unit
+            output := unit
+            main := comp input (comp (pair oih (take unit)) output)";
+        let program = parse_program(s);
+        let str = program
+            .display_as_dot()
+            .to_string()
+            .replace(" ", "")
+            .replace("\n", "");
+        let expected = "
+        digraph G {
+ordering=\"out\";
+  node0[label=\"unit\"];
+  node1[label=\"unit\"];
+  node2[label=\"pair\"];
+  node2->node0;
+  node2->node1;
+  node3[label=\"unit\"];
+  node4[label=\"pair\"];
+  node4->node2;
+  node4->node3;
+  node5[label=\"iden\"];
+  node6[label=\"drop\"];
+  node6->node5;
+  node7[label=\"take\"];
+  node7->node6;
+  node8[label=\"unit\"];
+  node9[label=\"take\"];
+  node9->node8;
+  node10[label=\"pair\"];
+  node10->node7;
+  node10->node9;
+  node11[label=\"unit\"];
+  node12[label=\"comp\"];
+  node12->node10;
+  node12->node11;
+  node13[label=\"comp\"];
+  node13->node4;
+  node13->node12;
+}"
+        .replace(" ", "")
+        .replace("\n", "");
+
+        assert_eq!(str, expected);
     }
 }
