@@ -58,7 +58,7 @@ pub enum Hide {
 /// 4. Finally, the node's data is passed to [`Self::convert_data`], whose job
 ///    it is to compute the cached data for the new node. For `case` combinators
 ///    where one child was pruned, `convert_data` will receive an `assertl` or
-///    `assertl`, as appropriate, rather than a `case`.
+///    `assertr`, as appropriate, rather than a `case`.
 ///
 /// If any method returns an error, then iteration is aborted immediately and
 /// the error returned to the caller. If the converter would like to recover

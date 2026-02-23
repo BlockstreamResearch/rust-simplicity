@@ -64,7 +64,7 @@ impl<'f> Extractor<'f> {
 
     /// Attempt to yield a type from the fuzzer.
     pub fn extract_final_type(&mut self) -> Option<Arc<FinalTy>> {
-        // We can costruct extremely large types by duplicating Arcs; there
+        // We can construct extremely large types by duplicating Arcs; there
         // is no need to have an exponential blowup in the number of tasks.
         const MAX_N_TASKS: usize = 300;
 
@@ -206,7 +206,7 @@ impl<'f> Extractor<'f> {
 
     /// Attempt to yield a type from the fuzzer.
     pub fn extract_old_final_type(&mut self) -> Option<Arc<OldFinalTy>> {
-        // We can costruct extremely large types by duplicating Arcs; there
+        // We can construct extremely large types by duplicating Arcs; there
         // is no need to have an exponential blowup in the number of tasks.
         const MAX_N_TASKS: usize = 300;
 

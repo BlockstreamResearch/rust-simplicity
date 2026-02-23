@@ -347,7 +347,7 @@ pub trait DagLike: Sized {
 /// with the returned nodes. To correct this, you need to call
 /// [`PostOrderIterItem::unswap`].
 ///
-/// To avoid confusion, this structure cannot be directly costructed.
+/// To avoid confusion, this structure cannot be directly constructed.
 /// Instead it is implicit in the [`DagLike::rtl_post_order_iter`]
 /// method.
 #[derive(Clone, Debug)]
