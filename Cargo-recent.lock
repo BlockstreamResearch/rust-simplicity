@@ -523,7 +523,7 @@ dependencies = [
  "santiago",
  "serde",
  "serde_json",
- "simplicity-sys 0.6.1",
+ "simplicity-sys 0.6.2",
 ]
 
 [[package]]
@@ -538,7 +538,7 @@ dependencies = [
 
 [[package]]
 name = "simplicity-sys"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "bitcoin_hashes",
  "cc",
