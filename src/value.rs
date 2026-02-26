@@ -1267,6 +1267,117 @@ mod tests {
         let new_v = Value::from_padded_bits(&mut iter, &v.ty).unwrap();
         assert_eq!(v, new_v);
     }
+
+    // --- Bug regression tests for right_shift_1 when new_bit=false ---
+    //
+    // right_shift_1(inner, bit_offset > 0, new_bit=false) is supposed to insert
+    // a 0 (Left tag) at position bit_offset-1 by decrementing bit_offset.  The bug
+    // is that it clones the Arc without clearing that position, so any pre-existing
+    // 1-bit at bit_offset-1 corrupts the Left tag, causing the value to read as
+    // Right instead of Left.
+    //
+    // The dirty bit originates from product sub-value extraction: as_product()
+    // returns ValueRef children that share the parent buffer.  The right child has
+    // bit_offset = parent.bit_offset + left_bit_width, so every 1-bit encoded by
+    // the left component sits "before" the right child's logical start.  When that
+    // right child is later wrapped in Left, right_shift_1 may see a stale 1-bit.
+
+    /// Simplest direct construction: extract the right sub-value of a product
+    /// whose left component has 1-bits, then wrap the sub-value in Left.
+    ///
+    /// `product(Right(u1(1)), Right(u1(0)))` encodes as [0xE0] at bit_offset=0:
+    ///   bits 0..=1  = Right(u1(1))  = 1, 1   ← left component
+    ///   bits 2..=3  = Right(u1(0))  = 1, 0   ← right component (bit_offset=2)
+    ///
+    /// Wrapping the right sub-value (bit_offset=2 in [0xE0]) in Left calls
+    /// right_shift_1(false) which should clear bit 1.  The bug leaves bit 1 = 1,
+    /// so the result reads as Right instead of Left.
+    #[test]
+    fn left_tag_not_corrupted_by_dirty_buffer() {
+        let product_val = Value::product(
+            Value::right(Final::u1(), Value::u1(1)), // encodes bits 0,1 as 1,1
+            Value::right(Final::u1(), Value::u1(0)), // starts at bit_offset=2
+        );
+
+        let (_, right_sub) = product_val.as_product().unwrap();
+        // right_sub shares [0xE0]; bit at position 1 (before its start) is 1.
+        let right_sub_owned = right_sub.to_value();
+
+        let left_val = Value::left(right_sub_owned, Final::unit());
+
+        assert!(
+            left_val.as_left().is_some(),
+            "BUG: Left tag corrupted — right_shift_1(false) did not clear dirty bit; \
+             value reads as Right instead of Left"
+        );
+        assert!(
+            left_val.as_right().is_none(),
+            "BUG: Left tag corrupted — as_right() should return None for a Left value"
+        );
+    }
+
+    /// Verify the dirty-buffer bug at the bit level: the first padded bit of a
+    /// Left value must always be 0 (the Left discriminant).
+    #[test]
+    fn left_tag_first_padded_bit_is_zero() {
+        let product_val = Value::product(
+            Value::right(Final::u1(), Value::u1(1)),
+            Value::right(Final::u1(), Value::u1(0)),
+        );
+
+        let (_, right_sub) = product_val.as_product().unwrap();
+        let left_val = Value::left(right_sub.to_value(), Final::unit());
+
+        let first_bit = left_val.iter_padded().next();
+        assert_eq!(
+            first_bit,
+            Some(false),
+            "BUG: first padded bit of Left value is {:?}, expected Some(false)",
+            first_bit
+        );
+    }
+
+    /// End-to-end via prune: pruning can extract a sub-value via to_value() that
+    /// shares the parent buffer and has 1-bits before its logical start.  When
+    /// prune then calls Value::left() on it (Task::MakeLeft), the bug corrupts
+    /// the Left tag.
+    ///
+    /// Original:  Left(product(Right(u1(1)), Right(u1(0))))
+    ///            type: ((u1+u1) * (u1+u1)) + unit
+    ///
+    /// Pruned to: (unit * (u1+u1)) + unit
+    ///
+    /// The right component of the inner product keeps its type (u1+u1) unchanged,
+    /// so prune returns it via to_value() — sharing the same dirty buffer.
+    /// MakeLeft then wraps it, triggering the bug.
+    #[test]
+    fn prune_does_not_corrupt_left_tag_via_shared_buffer() {
+        let original = Value::left(
+            Value::product(
+                Value::right(Final::u1(), Value::u1(1)),
+                Value::right(Final::u1(), Value::u1(0)),
+            ),
+            Final::unit(),
+        );
+
+        // Shrink the left component: (u1+u1)*(u1+u1)  →  unit*(u1+u1).
+        // The right sub-value of the product keeps type u1+u1 (matches exactly),
+        // so prune returns it via to_value() with the dirty shared buffer intact.
+        let pruned_ty = Final::sum(
+            Final::product(Final::unit(), Final::sum(Final::u1(), Final::u1())),
+            Final::unit(),
+        );
+
+        let pruned = original
+            .prune(&pruned_ty)
+            .expect("prune returned None; the target type is compatible");
+
+        assert!(
+            pruned.as_left().is_some(),
+            "BUG: prune corrupted the Left tag — right_shift_1(false) did not clear \
+             a dirty bit from the shared product buffer; value reads as Right"
+        );
+    }
 }
 
 #[cfg(bench)]
