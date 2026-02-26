@@ -276,14 +276,19 @@ fn right_shift_1(inner: &Arc<[u8]>, bit_offset: usize, new_bit: bool) -> (Arc<[u
     // If the current bit offset is nonzero this is super easy: we just
     // lower the bit offset and call that a fix.
     if bit_offset > 0 {
-        if new_bit {
-            let new_bit_offset = bit_offset - 1;
+        let new_bit_offset = bit_offset - 1;
+        let mask = 1u8 << (7 - new_bit_offset % 8);
+        let current_bit = inner[new_bit_offset / 8] & mask != 0;
+        if current_bit == new_bit {
+            (Arc::clone(inner), new_bit_offset)
+        } else if new_bit {
             let mut bx: Box<[u8]> = inner.as_ref().into();
-            bx[new_bit_offset / 8] |= 1 << (7 - new_bit_offset % 8);
+            bx[new_bit_offset / 8] |= mask;
             (bx.into(), new_bit_offset)
         } else {
-            // ...and if we are inserting a 0 we don't even need to allocate a new [u8]
-            (Arc::clone(inner), bit_offset - 1)
+            let mut bx: Box<[u8]> = inner.as_ref().into();
+            bx[new_bit_offset / 8] &= !mask;
+            (bx.into(), new_bit_offset)
         }
     } else {
         // If the current bit offset is 0, we just shift everything right by 8
