@@ -28,6 +28,7 @@ fn usage(process_name: &str) {
     eprintln!("Usage:");
     eprintln!("  {} assemble <filename>", process_name);
     eprintln!("  {} disassemble <base64>", process_name);
+    eprintln!("  {} graph <base64>", process_name);
     eprintln!("  {} relabel <base64>", process_name);
     eprintln!();
     eprintln!("For commands which take an optional expression, the default value is \"main\".");
@@ -43,6 +44,7 @@ fn invalid_usage(process_name: &str) -> Result<(), String> {
 enum Command {
     Assemble,
     Disassemble,
+    Graph,
     Relabel,
     Help,
 }
@@ -53,6 +55,7 @@ impl FromStr for Command {
         match s {
             "assemble" => Ok(Command::Assemble),
             "disassemble" => Ok(Command::Disassemble),
+            "graphviz" | "dot" | "graph" => Ok(Command::Graph),
             "relabel" => Ok(Command::Relabel),
             "help" => Ok(Command::Help),
             x => Err(format!("unknown command {}", x)),
@@ -65,6 +68,7 @@ impl Command {
         match *self {
             Command::Assemble => false,
             Command::Disassemble => false,
+            Command::Graph => false,
             Command::Relabel => false,
             Command::Help => false,
         }
@@ -154,6 +158,14 @@ fn main() -> Result<(), String> {
                 CommitNode::decode(iter).map_err(|e| format!("failed to decode program: {}", e))?;
             let prog = Forest::<DefaultJet>::from_program(commit);
             println!("{}", prog.string_serialize());
+        }
+        Command::Graph => {
+            let v = simplicity::base64::Engine::decode(&STANDARD, first_arg.as_bytes())
+                .map_err(|e| format!("failed to parse base64: {}", e))?;
+            let iter = BitIter::from(v.into_iter());
+            let commit = CommitNode::<DefaultJet>::decode(iter)
+                .map_err(|e| format!("failed to decode program: {}", e))?;
+            println!("{}", commit.display_as_dot());
         }
         Command::Relabel => {
             let prog = parse_file(&first_arg)?;

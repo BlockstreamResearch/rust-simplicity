@@ -85,7 +85,7 @@ pub use commit::{Commit, CommitData, CommitNode};
 pub use construct::{Construct, ConstructData, ConstructNode};
 pub use convert::{Converter, Hide, SimpleFinalizer};
 pub use disconnect::{Disconnectable, NoDisconnect};
-pub use display::{Display, DisplayExpr};
+pub use display::{Display, DisplayAsGraph, DisplayExpr, GraphFormat, SharingLevel};
 pub use hiding::Hiding;
 pub use inner::Inner;
 pub use redeem::{Redeem, RedeemData, RedeemNode};
@@ -721,6 +721,40 @@ impl<N: Marker> Node<N> {
     /// than the originally shared expression!
     pub fn display_expr(&self) -> DisplayExpr<'_, N> {
         DisplayExpr::from(self)
+    }
+
+    /// Display the Simplicity expression as a graph in the given format and sharing level.
+    ///
+    /// This is the general form of [`display_as_dot`](Node::display_as_dot) and
+    /// [`display_as_mermaid`](Node::display_as_mermaid). Use those convenience methods for
+    /// the common case of DOT or Mermaid output with no sharing.
+    ///
+    /// The `format` field of the returned [`DisplayAsGraph`] can be changed after construction,
+    /// and the [`fmt::Display`] impl will use whatever `format` and `sharing` are set at that
+    /// point. See also [`DisplayAsGraph::to_dot_string`] and [`DisplayAsGraph::to_mermaid_string`]
+    /// to render to a specific format regardless of the stored `format` field.
+    pub fn display_as_graph(
+        &self,
+        format: GraphFormat,
+        sharing_level: SharingLevel,
+    ) -> DisplayAsGraph<'_, N> {
+        DisplayAsGraph::new(self, format, sharing_level)
+    }
+
+    /// Display the Simplicity expression as a Graphviz DOT graph.
+    ///
+    /// The DOT output can be rendered with `dot -Tsvg` or similar tools.
+    /// Shared nodes appear once in the graph with multiple incoming edges.
+    pub fn display_as_dot(&self) -> DisplayAsGraph<'_, N> {
+        DisplayAsGraph::new(self, GraphFormat::Dot, SharingLevel::None)
+    }
+
+    /// Display the Simplicity expression as a Mermaid diagram.
+    ///
+    /// The Mermaid output can be rendered in Markdown or the Mermaid live editor.
+    /// Shared nodes appear once in the diagram with multiple incoming edges.
+    pub fn display_as_mermaid(&self) -> DisplayAsGraph<'_, N> {
+        DisplayAsGraph::new(self, GraphFormat::Mermaid, SharingLevel::None)
     }
 
     /// Encode a Simplicity expression to bits without any witness data.
