@@ -96,6 +96,8 @@ mod merkle;
 pub mod node;
 #[cfg(feature = "elements")]
 pub mod policy;
+#[cfg(feature = "serde")]
+pub mod serializers;
 pub mod types;
 mod value;
 

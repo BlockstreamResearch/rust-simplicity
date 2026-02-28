@@ -347,7 +347,7 @@ mod test {
             let mut w = BitWriter::from(&mut sink);
             encode_natural(n, &mut w).expect("encoding to vector");
             w.flush_all().expect("flushing");
-            let m = BitIter::from(sink.into_iter())
+            let m: usize = BitIter::from(sink.into_iter())
                 .read_natural(None)
                 .expect("decoding from vector");
             assert_eq!(n, m);
