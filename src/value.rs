@@ -1262,6 +1262,42 @@ mod tests {
         let new_v = Value::from_padded_bits(&mut iter, &v.ty).unwrap();
         assert_eq!(v, new_v);
     }
+
+    #[test]
+    fn prune_regression_337_1() {
+        // Two values that differ only in padding bits are nonetheless equal
+        let ty_2x1_opt = Final::sum(Final::unit(), Final::product(Final::two_two_n(0), Final::unit()));
+
+        // L(ε) as all zeros
+        let mut iter = BitIter::new(Some(0b0000_0000u8).into_iter());
+        let value_1 = Value::from_padded_bits(&mut iter, &ty_2x1_opt).unwrap();
+        // L(ε) with a one in its padding bit
+        let mut iter = BitIter::new(Some(0b0100_0000u8).into_iter());
+        let value_2 = Value::from_padded_bits(&mut iter, &ty_2x1_opt).unwrap();
+
+        assert_eq!(value_1, value_2);
+    }
+
+    #[test]
+    fn prune_regression_337_2() {
+        let ty_2x1_opt = Final::sum(Final::unit(), Final::product(Final::two_two_n(0), Final::unit()));
+        let ty_1x1_opt = Final::sum(Final::unit(), Final::product(Final::unit(), Final::unit()));
+
+        // Bits [false, true] - first bit is false (left sum), second bit is true (unused padding)
+        let mut iter = BitIter::new(Some(0b0100_0000u8).into_iter());
+
+        // Parse as (2 × 1)? then prune to (1 × 1)?
+        let value = Value::from_padded_bits(&mut iter, &ty_2x1_opt).unwrap();
+        let pruned = value.prune(&ty_1x1_opt).unwrap();
+
+        // Expected: L(ε) - still in the left (unit) branch
+        let expected = Value::left(Value::unit(), Final::product(Final::unit(), Final::unit()));
+
+        // BUG: This fails because pruning incorrectly returns R((ε,ε)). We first compare string
+        //  serializations since a direct comparison might only test `prune_regression_337_1`.
+        assert_eq!(pruned.to_string(), expected.to_string());
+        assert_eq!(pruned, expected);
+    }
 }
 
 #[cfg(bench)]
