@@ -6,6 +6,8 @@ use std::{cmp, fmt};
 use crate::value::Word;
 #[cfg(feature = "elements")]
 use elements::encode::Encodable;
+#[cfg(feature = "serde")]
+use serde::Serialize;
 #[cfg(feature = "elements")]
 use std::{convert::TryFrom, io};
 
@@ -65,6 +67,7 @@ impl From<U32Weight> for bitcoin::Weight {
 /// Programs that are CPU-heavy need to be padded
 /// so that the witness stack provides a large-enough budget.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct Cost(u32);
 
 impl Cost {
@@ -215,6 +218,7 @@ impl From<Cost> for bitcoin::Weight {
 
 /// Bounds on the resources required by a node during execution on the Bit Machine
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize))]
 pub struct NodeBounds {
     /// Upper bound on the required number of cells (bits).
     /// The root additionally requires the bit width of its source and target type (input, output)
