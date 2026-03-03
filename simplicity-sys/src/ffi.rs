@@ -21,7 +21,7 @@ pub type c_size_t = usize;
 pub type c_uint_fast8_t = u8;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 pub type c_uint_fast16_t = u16;
-#[cfg(any(target_os = "windows", target_os = "android"))]
+#[cfg(target_os = "windows")]
 pub type c_uint_fast16_t = u32;
 #[cfg(target_arch = "wasm32")]
 pub type c_uint_fast16_t = u16;
@@ -29,7 +29,6 @@ pub type c_uint_fast16_t = u16;
     target_os = "macos",
     target_os = "ios",
     target_os = "windows",
-    target_os = "android",
     target_arch = "wasm32"
 )))]
 pub type c_uint_fast16_t = usize;
@@ -38,7 +37,6 @@ pub type c_uint_fast16_t = usize;
     target_os = "macos",
     target_os = "ios",
     target_os = "windows",
-    target_os = "android",
     target_arch = "wasm32"
 ))]
 pub type c_uint_fast32_t = u32;
@@ -46,14 +44,13 @@ pub type c_uint_fast32_t = u32;
     target_os = "macos",
     target_os = "ios",
     target_os = "windows",
-    target_os = "android",
     target_arch = "wasm32"
 )))]
 pub type c_uint_fast32_t = usize;
-#[cfg(target_arch = "wasm32")]
-pub type c_uint_fast64_t = u64;
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(target_pointer_width = "64")]
 pub type c_uint_fast64_t = usize;
+#[cfg(not(target_pointer_width = "64"))]
+pub type c_uint_fast64_t = u64;
 pub type c_uint_least32_t = u32;
 
 extern "C" {
