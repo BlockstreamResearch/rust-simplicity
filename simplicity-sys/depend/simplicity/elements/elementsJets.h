@@ -59,12 +59,12 @@ bool rustsimplicity_0_6_num_outputs(frameItem* dst, frameItem src, const txEnv* 
 bool rustsimplicity_0_6_tx_is_final(frameItem* dst, frameItem src, const txEnv* env);
 bool rustsimplicity_0_6_tx_lock_height(frameItem* dst, frameItem src, const txEnv* env);
 bool rustsimplicity_0_6_tx_lock_time(frameItem* dst, frameItem src, const txEnv* env);
-bool rustsimplicity_0_6_tx_lock_distance(frameItem* dst, frameItem src, const txEnv* env);
-bool rustsimplicity_0_6_tx_lock_duration(frameItem* dst, frameItem src, const txEnv* env);
+bool rustsimplicity_0_6_broken_do_not_use_tx_lock_distance(frameItem* dst, frameItem src, const txEnv* env);
+bool rustsimplicity_0_6_broken_do_not_use_tx_lock_duration(frameItem* dst, frameItem src, const txEnv* env);
 bool rustsimplicity_0_6_check_lock_height(frameItem* dst, frameItem src, const txEnv* env);
 bool rustsimplicity_0_6_check_lock_time(frameItem* dst, frameItem src, const txEnv* env);
-bool rustsimplicity_0_6_check_lock_distance(frameItem* dst, frameItem src, const txEnv* env);
-bool rustsimplicity_0_6_check_lock_duration(frameItem* dst, frameItem src, const txEnv* env);
+bool rustsimplicity_0_6_broken_do_not_use_check_lock_distance(frameItem* dst, frameItem src, const txEnv* env);
+bool rustsimplicity_0_6_broken_do_not_use_check_lock_duration(frameItem* dst, frameItem src, const txEnv* env);
 bool rustsimplicity_0_6_calculate_issuance_entropy(frameItem* dst, frameItem src, const txEnv* env);
 bool rustsimplicity_0_6_calculate_asset(frameItem* dst, frameItem src, const txEnv* env);
 bool rustsimplicity_0_6_calculate_explicit_token(frameItem* dst, frameItem src, const txEnv* env);

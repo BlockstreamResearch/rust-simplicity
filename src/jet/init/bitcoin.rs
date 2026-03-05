@@ -1,16 +1,17 @@
 /* This file has been automatically generated. */
 
+use crate::analysis::Cost;
+#[allow(unused_imports)]
+use crate::decode_bits;
+use crate::jet::bitcoin::BitcoinEnv;
 use crate::jet::type_name::TypeName;
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
-use crate::decode_bits;
 use crate::{decode, BitIter, BitWriter};
-use crate::analysis::Cost;
 use hashes::sha256::Midstate;
 use simplicity_sys::CFrameItem;
 use std::io::Write;
 use std::{fmt, str};
-use crate::jet::bitcoin::BitcoinEnv;
 
 /// The Bitcoin jet family.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
@@ -28,7 +29,11 @@ pub enum Bitcoin {
     And32,
     And64,
     And8,
+    AnnexHash,
     Bip0340Verify,
+    BuildTapbranch,
+    BuildTapleafSimplicity,
+    BuildTaptweak,
     Ch1,
     Ch16,
     Ch32,
@@ -47,6 +52,7 @@ pub enum Bitcoin {
     CurrentAnnexHash,
     CurrentIndex,
     CurrentPrevOutpoint,
+    CurrentScriptHash,
     CurrentScriptSigHash,
     CurrentSequence,
     CurrentValue,
@@ -84,6 +90,7 @@ pub enum Bitcoin {
     FeNormalize,
     FeSquare,
     FeSquareRoot,
+    Fee,
     FullAdd16,
     FullAdd32,
     FullAdd64,
@@ -168,10 +175,21 @@ pub enum Bitcoin {
     Increment64,
     Increment8,
     InputAnnexHash,
+    InputAnnexesHash,
+    InputHash,
+    InputOutpointsHash,
     InputPrevOutpoint,
+    InputScriptHash,
     InputScriptSigHash,
+    InputScriptSigsHash,
+    InputScriptsHash,
     InputSequence,
+    InputSequencesHash,
+    InputUtxoHash,
+    InputUtxosHash,
     InputValue,
+    InputValuesHash,
+    InputsHash,
     InternalKey,
     IsOne16,
     IsOne32,
@@ -297,8 +315,13 @@ pub enum Bitcoin {
     Or32,
     Or64,
     Or8,
+    OutpointHash,
+    OutputHash,
     OutputScriptHash,
+    OutputScriptsHash,
     OutputValue,
+    OutputValuesHash,
+    OutputsHash,
     ParseLock,
     ParseSequence,
     PointVerify1,
@@ -383,6 +406,7 @@ pub enum Bitcoin {
     Sha256Ctx8Finalize,
     Sha256Ctx8Init,
     Sha256Iv,
+    SigAllHash,
     Some1,
     Some16,
     Some32,
@@ -393,11 +417,16 @@ pub enum Bitcoin {
     Subtract64,
     Subtract8,
     Swu,
+    TapEnvHash,
     TapdataInit,
+    TapleafHash,
     TapleafVersion,
     Tappath,
+    TappathHash,
     TotalInputValue,
     TotalOutputValue,
+    TransactionId,
+    TxHash,
     TxIsFinal,
     TxLockDistance,
     TxLockDuration,
@@ -419,7 +448,7 @@ pub enum Bitcoin {
 
 impl Bitcoin {
     /// Array of all Bitcoin jets.
-    pub const ALL: [Self; 400] = [
+    pub const ALL: [Self; 428] = [
         Self::Add16,
         Self::Add32,
         Self::Add64,
@@ -433,7 +462,11 @@ impl Bitcoin {
         Self::And32,
         Self::And64,
         Self::And8,
+        Self::AnnexHash,
         Self::Bip0340Verify,
+        Self::BuildTapbranch,
+        Self::BuildTapleafSimplicity,
+        Self::BuildTaptweak,
         Self::Ch1,
         Self::Ch16,
         Self::Ch32,
@@ -452,6 +485,7 @@ impl Bitcoin {
         Self::CurrentAnnexHash,
         Self::CurrentIndex,
         Self::CurrentPrevOutpoint,
+        Self::CurrentScriptHash,
         Self::CurrentScriptSigHash,
         Self::CurrentSequence,
         Self::CurrentValue,
@@ -489,6 +523,7 @@ impl Bitcoin {
         Self::FeNormalize,
         Self::FeSquare,
         Self::FeSquareRoot,
+        Self::Fee,
         Self::FullAdd16,
         Self::FullAdd32,
         Self::FullAdd64,
@@ -573,10 +608,21 @@ impl Bitcoin {
         Self::Increment64,
         Self::Increment8,
         Self::InputAnnexHash,
+        Self::InputAnnexesHash,
+        Self::InputHash,
+        Self::InputOutpointsHash,
         Self::InputPrevOutpoint,
+        Self::InputScriptHash,
         Self::InputScriptSigHash,
+        Self::InputScriptSigsHash,
+        Self::InputScriptsHash,
         Self::InputSequence,
+        Self::InputSequencesHash,
+        Self::InputUtxoHash,
+        Self::InputUtxosHash,
         Self::InputValue,
+        Self::InputValuesHash,
+        Self::InputsHash,
         Self::InternalKey,
         Self::IsOne16,
         Self::IsOne32,
@@ -702,8 +748,13 @@ impl Bitcoin {
         Self::Or32,
         Self::Or64,
         Self::Or8,
+        Self::OutpointHash,
+        Self::OutputHash,
         Self::OutputScriptHash,
+        Self::OutputScriptsHash,
         Self::OutputValue,
+        Self::OutputValuesHash,
+        Self::OutputsHash,
         Self::ParseLock,
         Self::ParseSequence,
         Self::PointVerify1,
@@ -788,6 +839,7 @@ impl Bitcoin {
         Self::Sha256Ctx8Finalize,
         Self::Sha256Ctx8Init,
         Self::Sha256Iv,
+        Self::SigAllHash,
         Self::Some1,
         Self::Some16,
         Self::Some32,
@@ -798,11 +850,16 @@ impl Bitcoin {
         Self::Subtract64,
         Self::Subtract8,
         Self::Swu,
+        Self::TapEnvHash,
         Self::TapdataInit,
+        Self::TapleafHash,
         Self::TapleafVersion,
         Self::Tappath,
+        Self::TappathHash,
         Self::TotalInputValue,
         Self::TotalOutputValue,
+        Self::TransactionId,
+        Self::TxHash,
         Self::TxIsFinal,
         Self::TxLockDistance,
         Self::TxLockDuration,
@@ -824,7 +881,6 @@ impl Bitcoin {
 }
 
 impl Jet for Bitcoin {
-
     type Environment = BitcoinEnv;
     type CJetEnvironment = ();
 
@@ -851,7 +907,11 @@ impl Jet for Bitcoin {
             Bitcoin::And32 => b"l",
             Bitcoin::And64 => b"*ll",
             Bitcoin::And8 => b"****22*22**22*22***22*22**22*22",
+            Bitcoin::AnnexHash => b"***+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh+1h",
             Bitcoin::Bip0340Verify => b"**hh*hh",
+            Bitcoin::BuildTapbranch => b"*hh",
+            Bitcoin::BuildTapleafSimplicity => b"h",
+            Bitcoin::BuildTaptweak => b"*hh",
             Bitcoin::Ch1 => b"*2*22",
             Bitcoin::Ch16 => b"*****22*22**22*22***22*22**22*22i",
             Bitcoin::Ch32 => b"*il",
@@ -870,6 +930,7 @@ impl Jet for Bitcoin {
             Bitcoin::CurrentAnnexHash => b"1",
             Bitcoin::CurrentIndex => b"1",
             Bitcoin::CurrentPrevOutpoint => b"1",
+            Bitcoin::CurrentScriptHash => b"1",
             Bitcoin::CurrentScriptSigHash => b"1",
             Bitcoin::CurrentSequence => b"1",
             Bitcoin::CurrentValue => b"1",
@@ -907,6 +968,7 @@ impl Jet for Bitcoin {
             Bitcoin::FeNormalize => b"h",
             Bitcoin::FeSquare => b"h",
             Bitcoin::FeSquareRoot => b"h",
+            Bitcoin::Fee => b"1",
             Bitcoin::FullAdd16 => b"*2i",
             Bitcoin::FullAdd32 => b"*2l",
             Bitcoin::FullAdd64 => b"*2*ll",
@@ -991,10 +1053,21 @@ impl Jet for Bitcoin {
             Bitcoin::Increment64 => b"l",
             Bitcoin::Increment8 => b"***22*22**22*22",
             Bitcoin::InputAnnexHash => b"i",
+            Bitcoin::InputAnnexesHash => b"1",
+            Bitcoin::InputHash => b"i",
+            Bitcoin::InputOutpointsHash => b"1",
             Bitcoin::InputPrevOutpoint => b"i",
+            Bitcoin::InputScriptHash => b"i",
             Bitcoin::InputScriptSigHash => b"i",
+            Bitcoin::InputScriptSigsHash => b"1",
+            Bitcoin::InputScriptsHash => b"1",
             Bitcoin::InputSequence => b"i",
+            Bitcoin::InputSequencesHash => b"1",
+            Bitcoin::InputUtxoHash => b"i",
+            Bitcoin::InputUtxosHash => b"1",
             Bitcoin::InputValue => b"i",
+            Bitcoin::InputValuesHash => b"1",
+            Bitcoin::InputsHash => b"1",
             Bitcoin::InternalKey => b"1",
             Bitcoin::IsOne16 => b"****22*22**22*22***22*22**22*22",
             Bitcoin::IsOne32 => b"i",
@@ -1120,8 +1193,13 @@ impl Jet for Bitcoin {
             Bitcoin::Or32 => b"l",
             Bitcoin::Or64 => b"*ll",
             Bitcoin::Or8 => b"****22*22**22*22***22*22**22*22",
+            Bitcoin::OutpointHash => b"***+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh*hi",
+            Bitcoin::OutputHash => b"i",
             Bitcoin::OutputScriptHash => b"i",
+            Bitcoin::OutputScriptsHash => b"1",
             Bitcoin::OutputValue => b"i",
+            Bitcoin::OutputValuesHash => b"1",
+            Bitcoin::OutputsHash => b"1",
             Bitcoin::ParseLock => b"i",
             Bitcoin::ParseSequence => b"i",
             Bitcoin::PointVerify1 => b"***h*2hh*2h",
@@ -1206,6 +1284,7 @@ impl Jet for Bitcoin {
             Bitcoin::Sha256Ctx8Finalize => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
             Bitcoin::Sha256Ctx8Init => b"1",
             Bitcoin::Sha256Iv => b"1",
+            Bitcoin::SigAllHash => b"1",
             Bitcoin::Some1 => b"2",
             Bitcoin::Some16 => b"****22*22**22*22***22*22**22*22",
             Bitcoin::Some32 => b"i",
@@ -1216,11 +1295,16 @@ impl Jet for Bitcoin {
             Bitcoin::Subtract64 => b"*ll",
             Bitcoin::Subtract8 => b"****22*22**22*22***22*22**22*22",
             Bitcoin::Swu => b"h",
+            Bitcoin::TapEnvHash => b"1",
             Bitcoin::TapdataInit => b"1",
+            Bitcoin::TapleafHash => b"1",
             Bitcoin::TapleafVersion => b"1",
             Bitcoin::Tappath => b"***22*22**22*22",
+            Bitcoin::TappathHash => b"1",
             Bitcoin::TotalInputValue => b"1",
             Bitcoin::TotalOutputValue => b"1",
+            Bitcoin::TransactionId => b"1",
+            Bitcoin::TxHash => b"1",
             Bitcoin::TxIsFinal => b"1",
             Bitcoin::TxLockDistance => b"1",
             Bitcoin::TxLockDuration => b"1",
@@ -1258,7 +1342,13 @@ impl Jet for Bitcoin {
             Bitcoin::And32 => b"i",
             Bitcoin::And64 => b"l",
             Bitcoin::And8 => b"***22*22**22*22",
+            Bitcoin::AnnexHash => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
             Bitcoin::Bip0340Verify => b"1",
+            Bitcoin::BuildTapbranch => b"h",
+            Bitcoin::BuildTapleafSimplicity => b"h",
+            Bitcoin::BuildTaptweak => b"h",
             Bitcoin::Ch1 => b"2",
             Bitcoin::Ch16 => b"****22*22**22*22***22*22**22*22",
             Bitcoin::Ch32 => b"i",
@@ -1277,6 +1367,7 @@ impl Jet for Bitcoin {
             Bitcoin::CurrentAnnexHash => b"+1h",
             Bitcoin::CurrentIndex => b"i",
             Bitcoin::CurrentPrevOutpoint => b"*hi",
+            Bitcoin::CurrentScriptHash => b"h",
             Bitcoin::CurrentScriptSigHash => b"h",
             Bitcoin::CurrentSequence => b"i",
             Bitcoin::CurrentValue => b"l",
@@ -1314,6 +1405,7 @@ impl Jet for Bitcoin {
             Bitcoin::FeNormalize => b"h",
             Bitcoin::FeSquare => b"h",
             Bitcoin::FeSquareRoot => b"+1h",
+            Bitcoin::Fee => b"l",
             Bitcoin::FullAdd16 => b"*2****22*22**22*22***22*22**22*22",
             Bitcoin::FullAdd32 => b"*2i",
             Bitcoin::FullAdd64 => b"*2l",
@@ -1398,10 +1490,21 @@ impl Jet for Bitcoin {
             Bitcoin::Increment64 => b"*2l",
             Bitcoin::Increment8 => b"*2***22*22**22*22",
             Bitcoin::InputAnnexHash => b"+1+1h",
+            Bitcoin::InputAnnexesHash => b"h",
+            Bitcoin::InputHash => b"+1h",
+            Bitcoin::InputOutpointsHash => b"h",
             Bitcoin::InputPrevOutpoint => b"+1*hi",
+            Bitcoin::InputScriptHash => b"+1h",
             Bitcoin::InputScriptSigHash => b"+1h",
+            Bitcoin::InputScriptSigsHash => b"h",
+            Bitcoin::InputScriptsHash => b"h",
             Bitcoin::InputSequence => b"+1i",
+            Bitcoin::InputSequencesHash => b"h",
+            Bitcoin::InputUtxoHash => b"+1h",
+            Bitcoin::InputUtxosHash => b"h",
             Bitcoin::InputValue => b"+1l",
+            Bitcoin::InputValuesHash => b"h",
+            Bitcoin::InputsHash => b"h",
             Bitcoin::InternalKey => b"h",
             Bitcoin::IsOne16 => b"2",
             Bitcoin::IsOne32 => b"2",
@@ -1527,10 +1630,19 @@ impl Jet for Bitcoin {
             Bitcoin::Or32 => b"i",
             Bitcoin::Or64 => b"l",
             Bitcoin::Or8 => b"***22*22**22*22",
+            Bitcoin::OutpointHash => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Bitcoin::OutputHash => b"+1h",
             Bitcoin::OutputScriptHash => b"+1h",
+            Bitcoin::OutputScriptsHash => b"h",
             Bitcoin::OutputValue => b"+1l",
+            Bitcoin::OutputValuesHash => b"h",
+            Bitcoin::OutputsHash => b"h",
             Bitcoin::ParseLock => b"+ii",
-            Bitcoin::ParseSequence => b"+1+****22*22**22*22***22*22**22*22****22*22**22*22***22*22**22*22",
+            Bitcoin::ParseSequence => {
+                b"+1+****22*22**22*22***22*22**22*22****22*22**22*22***22*22**22*22"
+            }
             Bitcoin::PointVerify1 => b"1",
             Bitcoin::RightExtend16_32 => b"i",
             Bitcoin::RightExtend16_64 => b"l",
@@ -1599,20 +1711,45 @@ impl Jet for Bitcoin {
             Bitcoin::Scale => b"**hhh",
             Bitcoin::ScriptCMR => b"h",
             Bitcoin::Sha256Block => b"h",
-            Bitcoin::Sha256Ctx8Add1 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Bitcoin::Sha256Ctx8Add128 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Bitcoin::Sha256Ctx8Add16 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Bitcoin::Sha256Ctx8Add2 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Bitcoin::Sha256Ctx8Add256 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Bitcoin::Sha256Ctx8Add32 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Bitcoin::Sha256Ctx8Add4 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Bitcoin::Sha256Ctx8Add512 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Bitcoin::Sha256Ctx8Add64 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Bitcoin::Sha256Ctx8Add8 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Bitcoin::Sha256Ctx8AddBuffer511 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
+            Bitcoin::Sha256Ctx8Add1 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Bitcoin::Sha256Ctx8Add128 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Bitcoin::Sha256Ctx8Add16 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Bitcoin::Sha256Ctx8Add2 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Bitcoin::Sha256Ctx8Add256 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Bitcoin::Sha256Ctx8Add32 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Bitcoin::Sha256Ctx8Add4 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Bitcoin::Sha256Ctx8Add512 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Bitcoin::Sha256Ctx8Add64 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Bitcoin::Sha256Ctx8Add8 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Bitcoin::Sha256Ctx8AddBuffer511 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
             Bitcoin::Sha256Ctx8Finalize => b"h",
-            Bitcoin::Sha256Ctx8Init => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
+            Bitcoin::Sha256Ctx8Init => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
             Bitcoin::Sha256Iv => b"h",
+            Bitcoin::SigAllHash => b"h",
             Bitcoin::Some1 => b"2",
             Bitcoin::Some16 => b"2",
             Bitcoin::Some32 => b"2",
@@ -1623,11 +1760,18 @@ impl Jet for Bitcoin {
             Bitcoin::Subtract64 => b"*2l",
             Bitcoin::Subtract8 => b"*2***22*22**22*22",
             Bitcoin::Swu => b"*hh",
-            Bitcoin::TapdataInit => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
+            Bitcoin::TapEnvHash => b"h",
+            Bitcoin::TapdataInit => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Bitcoin::TapleafHash => b"h",
             Bitcoin::TapleafVersion => b"***22*22**22*22",
             Bitcoin::Tappath => b"+1h",
+            Bitcoin::TappathHash => b"h",
             Bitcoin::TotalInputValue => b"l",
             Bitcoin::TotalOutputValue => b"l",
+            Bitcoin::TransactionId => b"h",
+            Bitcoin::TxHash => b"h",
             Bitcoin::TxIsFinal => b"2",
             Bitcoin::TxLockDistance => b"****22*22**22*22***22*22**22*22",
             Bitcoin::TxLockDuration => b"****22*22**22*22***22*22**22*22",
@@ -2020,6 +2164,30 @@ impl Jet for Bitcoin {
             Bitcoin::ParseLock => (102, 8),
             Bitcoin::ParseSequence => (412, 10),
             Bitcoin::TapdataInit => (413, 10),
+            Bitcoin::SigAllHash => (4, 3),
+            Bitcoin::TxHash => (20, 5),
+            Bitcoin::TapEnvHash => (21, 5),
+            Bitcoin::OutputsHash => (176, 8),
+            Bitcoin::InputsHash => (177, 8),
+            Bitcoin::InputUtxosHash => (178, 8),
+            Bitcoin::OutputHash => (179, 8),
+            Bitcoin::OutputValuesHash => (360, 9),
+            Bitcoin::OutputScriptsHash => (361, 9),
+            Bitcoin::InputHash => (362, 9),
+            Bitcoin::InputOutpointsHash => (363, 9),
+            Bitcoin::InputSequencesHash => (364, 9),
+            Bitcoin::InputAnnexesHash => (365, 9),
+            Bitcoin::InputScriptSigsHash => (366, 9),
+            Bitcoin::InputUtxoHash => (367, 9),
+            Bitcoin::InputValuesHash => (5888, 13),
+            Bitcoin::InputScriptsHash => (5889, 13),
+            Bitcoin::TapleafHash => (5890, 13),
+            Bitcoin::TappathHash => (5891, 13),
+            Bitcoin::OutpointHash => (5892, 13),
+            Bitcoin::AnnexHash => (5893, 13),
+            Bitcoin::BuildTapleafSimplicity => (5894, 13),
+            Bitcoin::BuildTapbranch => (5895, 13),
+            Bitcoin::BuildTaptweak => (5896, 13),
             Bitcoin::CheckLockHeight => (24, 5),
             Bitcoin::CheckLockTime => (100, 7),
             Bitcoin::CheckLockDistance => (101, 7),
@@ -2035,16 +2203,19 @@ impl Jet for Bitcoin {
             Bitcoin::NumInputs => (880, 10),
             Bitcoin::NumOutputs => (881, 10),
             Bitcoin::LockTime => (882, 10),
+            Bitcoin::Fee => (883, 10),
             Bitcoin::OutputValue => (1768, 11),
             Bitcoin::OutputScriptHash => (1769, 11),
             Bitcoin::TotalOutputValue => (1770, 11),
             Bitcoin::CurrentPrevOutpoint => (1771, 11),
             Bitcoin::CurrentValue => (1772, 11),
+            Bitcoin::CurrentScriptHash => (1773, 11),
             Bitcoin::CurrentSequence => (1774, 11),
             Bitcoin::CurrentAnnexHash => (1775, 11),
             Bitcoin::CurrentScriptSigHash => (28416, 15),
             Bitcoin::InputPrevOutpoint => (28417, 15),
             Bitcoin::InputValue => (28418, 15),
+            Bitcoin::InputScriptHash => (28419, 15),
             Bitcoin::InputSequence => (28420, 15),
             Bitcoin::InputAnnexHash => (28421, 15),
             Bitcoin::InputScriptSigHash => (28422, 15),
@@ -2052,6 +2223,7 @@ impl Jet for Bitcoin {
             Bitcoin::TapleafVersion => (28424, 15),
             Bitcoin::Tappath => (28425, 15),
             Bitcoin::Version => (28426, 15),
+            Bitcoin::TransactionId => (28427, 15),
         };
 
         w.write_bits_be(n, len)
@@ -4338,7 +4510,97 @@ impl Jet for Bitcoin {
                 }
             },
             1 => {
-                0 => {},
+                0 => {
+                    0 => {Bitcoin::SigAllHash},
+                    1 => {
+                        0 => {
+                            0 => {Bitcoin::TxHash},
+                            1 => {Bitcoin::TapEnvHash}
+                        },
+                        1 => {
+                            0 => {
+                                0 => {
+                                    0 => {
+                                        0 => {Bitcoin::OutputsHash},
+                                        1 => {Bitcoin::InputsHash}
+                                    },
+                                    1 => {
+                                        0 => {Bitcoin::InputUtxosHash},
+                                        1 => {Bitcoin::OutputHash}
+                                    }
+                                },
+                                1 => {
+                                    0 => {
+                                        0 => {
+                                            0 => {Bitcoin::OutputValuesHash},
+                                            1 => {Bitcoin::OutputScriptsHash}
+                                        },
+                                        1 => {
+                                            0 => {Bitcoin::InputHash},
+                                            1 => {Bitcoin::InputOutpointsHash}
+                                        }
+                                    },
+                                    1 => {
+                                        0 => {
+                                            0 => {Bitcoin::InputSequencesHash},
+                                            1 => {Bitcoin::InputAnnexesHash}
+                                        },
+                                        1 => {
+                                            0 => {Bitcoin::InputScriptSigsHash},
+                                            1 => {Bitcoin::InputUtxoHash}
+                                        }
+                                    }
+                                }
+                            },
+                            1 => {
+                                0 => {
+                                    0 => {
+                                        0 => {
+                                            0 => {
+                                                0 => {
+                                                    0 => {
+                                                        0 => {
+                                                            0 => {Bitcoin::InputValuesHash},
+                                                            1 => {Bitcoin::InputScriptsHash}
+                                                        },
+                                                        1 => {
+                                                            0 => {Bitcoin::TapleafHash},
+                                                            1 => {Bitcoin::TappathHash}
+                                                        }
+                                                    },
+                                                    1 => {
+                                                        0 => {
+                                                            0 => {Bitcoin::OutpointHash},
+                                                            1 => {Bitcoin::AnnexHash}
+                                                        },
+                                                        1 => {
+                                                            0 => {Bitcoin::BuildTapleafSimplicity},
+                                                            1 => {Bitcoin::BuildTapbranch}
+                                                        }
+                                                    }
+                                                },
+                                                1 => {
+                                                    0 => {
+                                                        0 => {
+                                                            0 => {Bitcoin::BuildTaptweak},
+                                                            1 => {}
+                                                        },
+                                                        1 => {}
+                                                    },
+                                                    1 => {}
+                                                }
+                                            },
+                                            1 => {}
+                                        },
+                                        1 => {}
+                                    },
+                                    1 => {}
+                                },
+                                1 => {}
+                            }
+                        }
+                    }
+                },
                 1 => {
                     0 => {
                         0 => {
@@ -4391,7 +4653,7 @@ impl Jet for Bitcoin {
                                             },
                                             1 => {
                                                 0 => {Bitcoin::LockTime},
-                                                1 => {}
+                                                1 => {Bitcoin::Fee}
                                             }
                                         },
                                         1 => {
@@ -4408,7 +4670,7 @@ impl Jet for Bitcoin {
                                             1 => {
                                                 0 => {
                                                     0 => {Bitcoin::CurrentValue},
-                                                    1 => {}
+                                                    1 => {Bitcoin::CurrentScriptHash}
                                                 },
                                                 1 => {
                                                     0 => {Bitcoin::CurrentSequence},
@@ -4430,7 +4692,7 @@ impl Jet for Bitcoin {
                                                                 },
                                                                 1 => {
                                                                     0 => {Bitcoin::InputValue},
-                                                                    1 => {}
+                                                                    1 => {Bitcoin::InputScriptHash}
                                                                 }
                                                             },
                                                             1 => {
@@ -4452,7 +4714,7 @@ impl Jet for Bitcoin {
                                                                 },
                                                                 1 => {
                                                                     0 => {Bitcoin::Version},
-                                                                    1 => {}
+                                                                    1 => {Bitcoin::TransactionId}
                                                                 }
                                                             },
                                                             1 => {}
@@ -4483,6 +4745,16 @@ impl Jet for Bitcoin {
     fn cost(&self) -> Cost {
         unimplemented!("Unspecified cost of Bitcoin jets")
     }
+
+    fn is_deprecated(&self) -> bool {
+        match self {
+            Bitcoin::CheckLockDistance => true,
+            Bitcoin::CheckLockDuration => true,
+            Bitcoin::TxLockDistance => true,
+            Bitcoin::TxLockDuration => true,
+            _ => false,
+        }
+    }
 }
 
 impl fmt::Display for Bitcoin {
@@ -4501,7 +4773,11 @@ impl fmt::Display for Bitcoin {
             Bitcoin::And32 => f.write_str("and_32"),
             Bitcoin::And64 => f.write_str("and_64"),
             Bitcoin::And8 => f.write_str("and_8"),
+            Bitcoin::AnnexHash => f.write_str("annex_hash"),
             Bitcoin::Bip0340Verify => f.write_str("bip_0340_verify"),
+            Bitcoin::BuildTapbranch => f.write_str("build_tapbranch"),
+            Bitcoin::BuildTapleafSimplicity => f.write_str("build_tapleaf_simplicity"),
+            Bitcoin::BuildTaptweak => f.write_str("build_taptweak"),
             Bitcoin::Ch1 => f.write_str("ch_1"),
             Bitcoin::Ch16 => f.write_str("ch_16"),
             Bitcoin::Ch32 => f.write_str("ch_32"),
@@ -4520,6 +4796,7 @@ impl fmt::Display for Bitcoin {
             Bitcoin::CurrentAnnexHash => f.write_str("current_annex_hash"),
             Bitcoin::CurrentIndex => f.write_str("current_index"),
             Bitcoin::CurrentPrevOutpoint => f.write_str("current_prev_outpoint"),
+            Bitcoin::CurrentScriptHash => f.write_str("current_script_hash"),
             Bitcoin::CurrentScriptSigHash => f.write_str("current_script_sig_hash"),
             Bitcoin::CurrentSequence => f.write_str("current_sequence"),
             Bitcoin::CurrentValue => f.write_str("current_value"),
@@ -4557,6 +4834,7 @@ impl fmt::Display for Bitcoin {
             Bitcoin::FeNormalize => f.write_str("fe_normalize"),
             Bitcoin::FeSquare => f.write_str("fe_square"),
             Bitcoin::FeSquareRoot => f.write_str("fe_square_root"),
+            Bitcoin::Fee => f.write_str("fee"),
             Bitcoin::FullAdd16 => f.write_str("full_add_16"),
             Bitcoin::FullAdd32 => f.write_str("full_add_32"),
             Bitcoin::FullAdd64 => f.write_str("full_add_64"),
@@ -4641,10 +4919,21 @@ impl fmt::Display for Bitcoin {
             Bitcoin::Increment64 => f.write_str("increment_64"),
             Bitcoin::Increment8 => f.write_str("increment_8"),
             Bitcoin::InputAnnexHash => f.write_str("input_annex_hash"),
+            Bitcoin::InputAnnexesHash => f.write_str("input_annexes_hash"),
+            Bitcoin::InputHash => f.write_str("input_hash"),
+            Bitcoin::InputOutpointsHash => f.write_str("input_outpoints_hash"),
             Bitcoin::InputPrevOutpoint => f.write_str("input_prev_outpoint"),
+            Bitcoin::InputScriptHash => f.write_str("input_script_hash"),
             Bitcoin::InputScriptSigHash => f.write_str("input_script_sig_hash"),
+            Bitcoin::InputScriptSigsHash => f.write_str("input_script_sigs_hash"),
+            Bitcoin::InputScriptsHash => f.write_str("input_scripts_hash"),
             Bitcoin::InputSequence => f.write_str("input_sequence"),
+            Bitcoin::InputSequencesHash => f.write_str("input_sequences_hash"),
+            Bitcoin::InputUtxoHash => f.write_str("input_utxo_hash"),
+            Bitcoin::InputUtxosHash => f.write_str("input_utxos_hash"),
             Bitcoin::InputValue => f.write_str("input_value"),
+            Bitcoin::InputValuesHash => f.write_str("input_values_hash"),
+            Bitcoin::InputsHash => f.write_str("inputs_hash"),
             Bitcoin::InternalKey => f.write_str("internal_key"),
             Bitcoin::IsOne16 => f.write_str("is_one_16"),
             Bitcoin::IsOne32 => f.write_str("is_one_32"),
@@ -4770,8 +5059,13 @@ impl fmt::Display for Bitcoin {
             Bitcoin::Or32 => f.write_str("or_32"),
             Bitcoin::Or64 => f.write_str("or_64"),
             Bitcoin::Or8 => f.write_str("or_8"),
+            Bitcoin::OutpointHash => f.write_str("outpoint_hash"),
+            Bitcoin::OutputHash => f.write_str("output_hash"),
             Bitcoin::OutputScriptHash => f.write_str("output_script_hash"),
+            Bitcoin::OutputScriptsHash => f.write_str("output_scripts_hash"),
             Bitcoin::OutputValue => f.write_str("output_value"),
+            Bitcoin::OutputValuesHash => f.write_str("output_values_hash"),
+            Bitcoin::OutputsHash => f.write_str("outputs_hash"),
             Bitcoin::ParseLock => f.write_str("parse_lock"),
             Bitcoin::ParseSequence => f.write_str("parse_sequence"),
             Bitcoin::PointVerify1 => f.write_str("point_verify_1"),
@@ -4856,6 +5150,7 @@ impl fmt::Display for Bitcoin {
             Bitcoin::Sha256Ctx8Finalize => f.write_str("sha_256_ctx_8_finalize"),
             Bitcoin::Sha256Ctx8Init => f.write_str("sha_256_ctx_8_init"),
             Bitcoin::Sha256Iv => f.write_str("sha_256_iv"),
+            Bitcoin::SigAllHash => f.write_str("sig_all_hash"),
             Bitcoin::Some1 => f.write_str("some_1"),
             Bitcoin::Some16 => f.write_str("some_16"),
             Bitcoin::Some32 => f.write_str("some_32"),
@@ -4866,11 +5161,16 @@ impl fmt::Display for Bitcoin {
             Bitcoin::Subtract64 => f.write_str("subtract_64"),
             Bitcoin::Subtract8 => f.write_str("subtract_8"),
             Bitcoin::Swu => f.write_str("swu"),
+            Bitcoin::TapEnvHash => f.write_str("tap_env_hash"),
             Bitcoin::TapdataInit => f.write_str("tapdata_init"),
+            Bitcoin::TapleafHash => f.write_str("tapleaf_hash"),
             Bitcoin::TapleafVersion => f.write_str("tapleaf_version"),
             Bitcoin::Tappath => f.write_str("tappath"),
+            Bitcoin::TappathHash => f.write_str("tappath_hash"),
             Bitcoin::TotalInputValue => f.write_str("total_input_value"),
             Bitcoin::TotalOutputValue => f.write_str("total_output_value"),
+            Bitcoin::TransactionId => f.write_str("transaction_id"),
+            Bitcoin::TxHash => f.write_str("tx_hash"),
             Bitcoin::TxIsFinal => f.write_str("tx_is_final"),
             Bitcoin::TxLockDistance => f.write_str("tx_lock_distance"),
             Bitcoin::TxLockDuration => f.write_str("tx_lock_duration"),
@@ -4910,7 +5210,11 @@ impl str::FromStr for Bitcoin {
             "and_32" => Ok(Bitcoin::And32),
             "and_64" => Ok(Bitcoin::And64),
             "and_8" => Ok(Bitcoin::And8),
+            "annex_hash" => Ok(Bitcoin::AnnexHash),
             "bip_0340_verify" => Ok(Bitcoin::Bip0340Verify),
+            "build_tapbranch" => Ok(Bitcoin::BuildTapbranch),
+            "build_tapleaf_simplicity" => Ok(Bitcoin::BuildTapleafSimplicity),
+            "build_taptweak" => Ok(Bitcoin::BuildTaptweak),
             "ch_1" => Ok(Bitcoin::Ch1),
             "ch_16" => Ok(Bitcoin::Ch16),
             "ch_32" => Ok(Bitcoin::Ch32),
@@ -4929,6 +5233,7 @@ impl str::FromStr for Bitcoin {
             "current_annex_hash" => Ok(Bitcoin::CurrentAnnexHash),
             "current_index" => Ok(Bitcoin::CurrentIndex),
             "current_prev_outpoint" => Ok(Bitcoin::CurrentPrevOutpoint),
+            "current_script_hash" => Ok(Bitcoin::CurrentScriptHash),
             "current_script_sig_hash" => Ok(Bitcoin::CurrentScriptSigHash),
             "current_sequence" => Ok(Bitcoin::CurrentSequence),
             "current_value" => Ok(Bitcoin::CurrentValue),
@@ -4966,6 +5271,7 @@ impl str::FromStr for Bitcoin {
             "fe_normalize" => Ok(Bitcoin::FeNormalize),
             "fe_square" => Ok(Bitcoin::FeSquare),
             "fe_square_root" => Ok(Bitcoin::FeSquareRoot),
+            "fee" => Ok(Bitcoin::Fee),
             "full_add_16" => Ok(Bitcoin::FullAdd16),
             "full_add_32" => Ok(Bitcoin::FullAdd32),
             "full_add_64" => Ok(Bitcoin::FullAdd64),
@@ -5050,10 +5356,21 @@ impl str::FromStr for Bitcoin {
             "increment_64" => Ok(Bitcoin::Increment64),
             "increment_8" => Ok(Bitcoin::Increment8),
             "input_annex_hash" => Ok(Bitcoin::InputAnnexHash),
+            "input_annexes_hash" => Ok(Bitcoin::InputAnnexesHash),
+            "input_hash" => Ok(Bitcoin::InputHash),
+            "input_outpoints_hash" => Ok(Bitcoin::InputOutpointsHash),
             "input_prev_outpoint" => Ok(Bitcoin::InputPrevOutpoint),
+            "input_script_hash" => Ok(Bitcoin::InputScriptHash),
             "input_script_sig_hash" => Ok(Bitcoin::InputScriptSigHash),
+            "input_script_sigs_hash" => Ok(Bitcoin::InputScriptSigsHash),
+            "input_scripts_hash" => Ok(Bitcoin::InputScriptsHash),
             "input_sequence" => Ok(Bitcoin::InputSequence),
+            "input_sequences_hash" => Ok(Bitcoin::InputSequencesHash),
+            "input_utxo_hash" => Ok(Bitcoin::InputUtxoHash),
+            "input_utxos_hash" => Ok(Bitcoin::InputUtxosHash),
             "input_value" => Ok(Bitcoin::InputValue),
+            "input_values_hash" => Ok(Bitcoin::InputValuesHash),
+            "inputs_hash" => Ok(Bitcoin::InputsHash),
             "internal_key" => Ok(Bitcoin::InternalKey),
             "is_one_16" => Ok(Bitcoin::IsOne16),
             "is_one_32" => Ok(Bitcoin::IsOne32),
@@ -5179,8 +5496,13 @@ impl str::FromStr for Bitcoin {
             "or_32" => Ok(Bitcoin::Or32),
             "or_64" => Ok(Bitcoin::Or64),
             "or_8" => Ok(Bitcoin::Or8),
+            "outpoint_hash" => Ok(Bitcoin::OutpointHash),
+            "output_hash" => Ok(Bitcoin::OutputHash),
             "output_script_hash" => Ok(Bitcoin::OutputScriptHash),
+            "output_scripts_hash" => Ok(Bitcoin::OutputScriptsHash),
             "output_value" => Ok(Bitcoin::OutputValue),
+            "output_values_hash" => Ok(Bitcoin::OutputValuesHash),
+            "outputs_hash" => Ok(Bitcoin::OutputsHash),
             "parse_lock" => Ok(Bitcoin::ParseLock),
             "parse_sequence" => Ok(Bitcoin::ParseSequence),
             "point_verify_1" => Ok(Bitcoin::PointVerify1),
@@ -5265,6 +5587,7 @@ impl str::FromStr for Bitcoin {
             "sha_256_ctx_8_finalize" => Ok(Bitcoin::Sha256Ctx8Finalize),
             "sha_256_ctx_8_init" => Ok(Bitcoin::Sha256Ctx8Init),
             "sha_256_iv" => Ok(Bitcoin::Sha256Iv),
+            "sig_all_hash" => Ok(Bitcoin::SigAllHash),
             "some_1" => Ok(Bitcoin::Some1),
             "some_16" => Ok(Bitcoin::Some16),
             "some_32" => Ok(Bitcoin::Some32),
@@ -5275,11 +5598,16 @@ impl str::FromStr for Bitcoin {
             "subtract_64" => Ok(Bitcoin::Subtract64),
             "subtract_8" => Ok(Bitcoin::Subtract8),
             "swu" => Ok(Bitcoin::Swu),
+            "tap_env_hash" => Ok(Bitcoin::TapEnvHash),
             "tapdata_init" => Ok(Bitcoin::TapdataInit),
+            "tapleaf_hash" => Ok(Bitcoin::TapleafHash),
             "tapleaf_version" => Ok(Bitcoin::TapleafVersion),
             "tappath" => Ok(Bitcoin::Tappath),
+            "tappath_hash" => Ok(Bitcoin::TappathHash),
             "total_input_value" => Ok(Bitcoin::TotalInputValue),
             "total_output_value" => Ok(Bitcoin::TotalOutputValue),
+            "transaction_id" => Ok(Bitcoin::TransactionId),
+            "tx_hash" => Ok(Bitcoin::TxHash),
             "tx_is_final" => Ok(Bitcoin::TxIsFinal),
             "tx_lock_distance" => Ok(Bitcoin::TxLockDistance),
             "tx_lock_duration" => Ok(Bitcoin::TxLockDuration),

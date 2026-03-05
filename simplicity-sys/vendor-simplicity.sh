@@ -69,14 +69,37 @@ echo "$HEAD" >> "$DEPEND_PATH/simplicity-HEAD-revision.txt"
 # Use rsync to copy only files tracked by git
 git ls-files | rsync -av --files-from=- . "$VENDORED_SIM_DIR"
 
+# Ensure directories are writable (rsync may preserve restrictive source permissions)
+chmod -R u+w "$VENDORED_SIM_DIR"
+
+# Normalize line endings in case source files came from a Windows mount.
+find "$VENDORED_SIM_DIR" -type f \( -name "*.[ch]" -o -name "*.inc" -o -name "Makefile" \) | while IFS= read -r f; do
+    tmp=$(mktemp)
+    tr -d '\r' < "$f" > "$tmp" && cat "$tmp" > "$f"
+    rm "$tmp"
+done
+
 popd
 
 ## 3. Patch things to include versions
 
+# Helper: in-place sed that works on Windows bind mounts (avoids rename).
+# Usage: ised [sed-flags] pattern file
+ised() {
+    local file="${*: -1}"
+    local args=("${@:1:$#-1}")
+    local tmp
+    tmp=$(mktemp)
+    sed "${args[@]}" < "$file" > "$tmp" && cat "$tmp" > "$file"
+    rm -f "$tmp"
+}
+
 # a. patch our own drop/new functions for C structures.
-find "$DEPEND_PATH/.." -name "*.rs" -type f -exec sed -i "s/rust_[0-9_]*_free/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_free/" {} \;
-find "$DEPEND_PATH/.." -name "*.rs" -type f -exec sed -i "s/rust_[0-9_]*_malloc/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_malloc/" {} \;
-find "$DEPEND_PATH/.." -name "*.rs" -type f -exec sed -i "s/rust_[0-9_]*_calloc/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_calloc/" {} \;
+find "$DEPEND_PATH/.." -name "*.rs" -type f | while IFS= read -r f; do
+    ised "s/rust_[0-9_]*_free/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_free/" "$f"
+    ised "s/rust_[0-9_]*_malloc/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_malloc/" "$f"
+    ised "s/rust_[0-9_]*_calloc/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_calloc/" "$f"
+done
 
 # b. patch the rust_{malloc,calloc,free} functions in simplicity_alloc.h
 sed "s/rust_/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_/" \
@@ -85,19 +108,21 @@ sed "s/rust_/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_/" \
 
 # c. patch every single simplicity_* symbol in the library (every instance except
 #    those in #includes, which is overkill but doesn't hurt anything)
-find "$DEPEND_PATH/simplicity" \( -name "*.[ch]" -o -name '*.inc' \) -type f -print0 | xargs -0 \
-    sed -i "/^#include/! s/simplicity_/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_/g"
+find "$DEPEND_PATH/simplicity" \( -name "*.[ch]" -o -name '*.inc' \) -type f | while IFS= read -r f; do
+    ised "/^#include/! s/simplicity_/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_/g" "$f"
+done
 # ...ok, actually we didn't want to replace simplicity_err
-find "$DEPEND_PATH/simplicity" \( -name "*.[ch]" -o -name '*.inc' \) -type f -print0 | xargs -0 \
-    sed -i "s/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_err/simplicity_err/g"
+find "$DEPEND_PATH/simplicity" \( -name "*.[ch]" -o -name '*.inc' \) -type f | while IFS= read -r f; do
+    ised "s/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_err/simplicity_err/g" "$f"
+done
 # Special-case calls in depend/env.c and depend/warpper.h
-sed -i -r "s/rustsimplicity_[0-9]+_[0-9]+_/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_/" \
-    "$DEPEND_PATH/env.c" \
-    "$DEPEND_PATH/wrapper.h"
+ised -r "s/rustsimplicity_[0-9]+_[0-9]+_/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_/" "$DEPEND_PATH/env.c"
+ised -r "s/rustsimplicity_[0-9]+_[0-9]+_/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_/" "$DEPEND_PATH/wrapper.h"
 
 # d. ...also update the corresponding link_name= entries in the Rust source code
-find "./src/" -name "*.rs" -type f -print0 | xargs -0 \
-     sed -i -r "s/rustsimplicity_[0-9]+_[0-9]+_(.*)([\"\(])/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_\1\2/g"
+find "./src/" -name "*.rs" -type f | while IFS= read -r f; do
+    ised -r "s/rustsimplicity_[0-9]+_[0-9]+_(.*)([\"\(])/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_\1\2/g" "$f"
+done
 # e. ...and the links= field in the manifest file
-sed -i -r "s/^links = \".*\"$/links = \"rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}\"/" Cargo.toml
+ised -r "s/^links = \".*\"$/links = \"rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}\"/" Cargo.toml
 

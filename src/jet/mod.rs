@@ -87,6 +87,9 @@ pub trait Jet:
 
     /// Return the cost of the jet.
     fn cost(&self) -> Cost;
+
+    /// Return if the jet has been deprecated.
+    fn is_deprecated(&self) -> bool;
 }
 
 #[cfg(test)]

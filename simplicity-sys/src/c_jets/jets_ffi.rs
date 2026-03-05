@@ -36,6 +36,14 @@ extern "C" {
     pub fn asset_amount_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "rustsimplicity_0_6_c_bip_0340_verify"]
     pub fn bip_0340_verify(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
+    #[link_name = "rustsimplicity_0_6_c_broken_do_not_use_check_lock_distance"]
+    pub fn broken_do_not_use_check_lock_distance(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_6_c_broken_do_not_use_check_lock_duration"]
+    pub fn broken_do_not_use_check_lock_duration(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_6_c_broken_do_not_use_tx_lock_distance"]
+    pub fn broken_do_not_use_tx_lock_distance(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_6_c_broken_do_not_use_tx_lock_duration"]
+    pub fn broken_do_not_use_tx_lock_duration(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "rustsimplicity_0_6_c_build_tapbranch"]
     pub fn build_tapbranch(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "rustsimplicity_0_6_c_build_tapleaf_simplicity"]
@@ -60,10 +68,6 @@ extern "C" {
     pub fn ch_64(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
     #[link_name = "rustsimplicity_0_6_c_ch_8"]
     pub fn ch_8(dst: *mut CFrameItem, src: *const CFrameItem, env: *const c_void) -> bool;
-    #[link_name = "rustsimplicity_0_6_c_check_lock_distance"]
-    pub fn check_lock_distance(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
-    #[link_name = "rustsimplicity_0_6_c_check_lock_duration"]
-    pub fn check_lock_duration(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "rustsimplicity_0_6_c_check_lock_height"]
     pub fn check_lock_height(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "rustsimplicity_0_6_c_check_lock_time"]
@@ -914,10 +918,6 @@ extern "C" {
     pub fn tx_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "rustsimplicity_0_6_c_tx_is_final"]
     pub fn tx_is_final(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
-    #[link_name = "rustsimplicity_0_6_c_tx_lock_distance"]
-    pub fn tx_lock_distance(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
-    #[link_name = "rustsimplicity_0_6_c_tx_lock_duration"]
-    pub fn tx_lock_duration(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "rustsimplicity_0_6_c_tx_lock_height"]
     pub fn tx_lock_height(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "rustsimplicity_0_6_c_tx_lock_time"]
