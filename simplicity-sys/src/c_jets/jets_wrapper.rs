@@ -1,7 +1,7 @@
 /* This file has been automatically generated. */
 
-use crate::{CElementsTxEnv, CFrameItem};
 use super::elements_ffi;
+use crate::{CElementsTxEnv, CFrameItem};
 
 pub fn add_16<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
     unsafe { elements_ffi::add_16(dst, &src, std::ptr::null()) }
@@ -67,11 +67,47 @@ pub fn bip_0340_verify<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bo
     unsafe { elements_ffi::bip_0340_verify(dst, &src, std::ptr::null()) }
 }
 
+pub fn broken_do_not_use_check_lock_distance(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
+    unsafe { elements_ffi::broken_do_not_use_check_lock_distance(dst, &src, env) }
+}
+
+pub fn broken_do_not_use_check_lock_duration(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
+    unsafe { elements_ffi::broken_do_not_use_check_lock_duration(dst, &src, env) }
+}
+
+pub fn broken_do_not_use_tx_lock_distance(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
+    unsafe { elements_ffi::broken_do_not_use_tx_lock_distance(dst, &src, env) }
+}
+
+pub fn broken_do_not_use_tx_lock_duration(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
+    unsafe { elements_ffi::broken_do_not_use_tx_lock_duration(dst, &src, env) }
+}
+
 pub fn build_tapbranch(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
     unsafe { elements_ffi::build_tapbranch(dst, &src, env) }
 }
 
-pub fn build_tapleaf_simplicity(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+pub fn build_tapleaf_simplicity(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
     unsafe { elements_ffi::build_tapleaf_simplicity(dst, &src, env) }
 }
 
@@ -83,15 +119,27 @@ pub fn calculate_asset(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxE
     unsafe { elements_ffi::calculate_asset(dst, &src, env) }
 }
 
-pub fn calculate_confidential_token(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+pub fn calculate_confidential_token(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
     unsafe { elements_ffi::calculate_confidential_token(dst, &src, env) }
 }
 
-pub fn calculate_explicit_token(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+pub fn calculate_explicit_token(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
     unsafe { elements_ffi::calculate_explicit_token(dst, &src, env) }
 }
 
-pub fn calculate_issuance_entropy(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+pub fn calculate_issuance_entropy(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
     unsafe { elements_ffi::calculate_issuance_entropy(dst, &src, env) }
 }
 
@@ -113,14 +161,6 @@ pub fn ch_64<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
 
 pub fn ch_8<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
     unsafe { elements_ffi::ch_8(dst, &src, std::ptr::null()) }
-}
-
-pub fn check_lock_distance(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
-    unsafe { elements_ffi::check_lock_distance(dst, &src, env) }
-}
-
-pub fn check_lock_duration(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
-    unsafe { elements_ffi::check_lock_duration(dst, &src, env) }
 }
 
 pub fn check_lock_height(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
@@ -171,23 +211,43 @@ pub fn current_index(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv
     unsafe { elements_ffi::current_index(dst, &src, env) }
 }
 
-pub fn current_issuance_asset_amount(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+pub fn current_issuance_asset_amount(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
     unsafe { elements_ffi::current_issuance_asset_amount(dst, &src, env) }
 }
 
-pub fn current_issuance_asset_proof(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+pub fn current_issuance_asset_proof(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
     unsafe { elements_ffi::current_issuance_asset_proof(dst, &src, env) }
 }
 
-pub fn current_issuance_token_amount(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+pub fn current_issuance_token_amount(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
     unsafe { elements_ffi::current_issuance_token_amount(dst, &src, env) }
 }
 
-pub fn current_issuance_token_proof(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+pub fn current_issuance_token_proof(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
     unsafe { elements_ffi::current_issuance_token_proof(dst, &src, env) }
 }
 
-pub fn current_new_issuance_contract(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+pub fn current_new_issuance_contract(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
     unsafe { elements_ffi::current_new_issuance_contract(dst, &src, env) }
 }
 
@@ -199,11 +259,19 @@ pub fn current_prev_outpoint(dst: &mut CFrameItem, src: CFrameItem, env: &CEleme
     unsafe { elements_ffi::current_prev_outpoint(dst, &src, env) }
 }
 
-pub fn current_reissuance_blinding(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+pub fn current_reissuance_blinding(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
     unsafe { elements_ffi::current_reissuance_blinding(dst, &src, env) }
 }
 
-pub fn current_reissuance_entropy(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+pub fn current_reissuance_entropy(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
     unsafe { elements_ffi::current_reissuance_entropy(dst, &src, env) }
 }
 
@@ -211,7 +279,11 @@ pub fn current_script_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElement
     unsafe { elements_ffi::current_script_hash(dst, &src, env) }
 }
 
-pub fn current_script_sig_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+pub fn current_script_sig_hash(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
     unsafe { elements_ffi::current_script_sig_hash(dst, &src, env) }
 }
 
@@ -811,7 +883,11 @@ pub fn issuance_asset_amount(dst: &mut CFrameItem, src: CFrameItem, env: &CEleme
     unsafe { elements_ffi::issuance_asset_amount(dst, &src, env) }
 }
 
-pub fn issuance_asset_amounts_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+pub fn issuance_asset_amounts_hash(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
     unsafe { elements_ffi::issuance_asset_amounts_hash(dst, &src, env) }
 }
 
@@ -819,7 +895,11 @@ pub fn issuance_asset_proof(dst: &mut CFrameItem, src: CFrameItem, env: &CElemen
     unsafe { elements_ffi::issuance_asset_proof(dst, &src, env) }
 }
 
-pub fn issuance_blinding_entropy_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+pub fn issuance_blinding_entropy_hash(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
     unsafe { elements_ffi::issuance_blinding_entropy_hash(dst, &src, env) }
 }
 
@@ -831,7 +911,11 @@ pub fn issuance_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv
     unsafe { elements_ffi::issuance_hash(dst, &src, env) }
 }
 
-pub fn issuance_range_proofs_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+pub fn issuance_range_proofs_hash(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
     unsafe { elements_ffi::issuance_range_proofs_hash(dst, &src, env) }
 }
 
@@ -843,7 +927,11 @@ pub fn issuance_token_amount(dst: &mut CFrameItem, src: CFrameItem, env: &CEleme
     unsafe { elements_ffi::issuance_token_amount(dst, &src, env) }
 }
 
-pub fn issuance_token_amounts_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+pub fn issuance_token_amounts_hash(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
     unsafe { elements_ffi::issuance_token_amounts_hash(dst, &src, env) }
 }
 
@@ -1371,7 +1459,11 @@ pub fn output_range_proof(dst: &mut CFrameItem, src: CFrameItem, env: &CElements
     unsafe { elements_ffi::output_range_proof(dst, &src, env) }
 }
 
-pub fn output_range_proofs_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+pub fn output_range_proofs_hash(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
     unsafe { elements_ffi::output_range_proofs_hash(dst, &src, env) }
 }
 
@@ -1383,11 +1475,19 @@ pub fn output_scripts_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElement
     unsafe { elements_ffi::output_scripts_hash(dst, &src, env) }
 }
 
-pub fn output_surjection_proof(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+pub fn output_surjection_proof(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
     unsafe { elements_ffi::output_surjection_proof(dst, &src, env) }
 }
 
-pub fn output_surjection_proofs_hash(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+pub fn output_surjection_proofs_hash(
+    dst: &mut CFrameItem,
+    src: CFrameItem,
+    env: &CElementsTxEnv,
+) -> bool {
     unsafe { elements_ffi::output_surjection_proofs_hash(dst, &src, env) }
 }
 
@@ -1823,14 +1923,6 @@ pub fn tx_is_final(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) 
     unsafe { elements_ffi::tx_is_final(dst, &src, env) }
 }
 
-pub fn tx_lock_distance(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
-    unsafe { elements_ffi::tx_lock_distance(dst, &src, env) }
-}
-
-pub fn tx_lock_duration(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
-    unsafe { elements_ffi::tx_lock_duration(dst, &src, env) }
-}
-
 pub fn tx_lock_height(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
     unsafe { elements_ffi::tx_lock_height(dst, &src, env) }
 }
@@ -1886,4 +1978,3 @@ pub fn xor_xor_64<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
 pub fn xor_xor_8<T>(dst: &mut CFrameItem, src: CFrameItem, _env: &T) -> bool {
     unsafe { elements_ffi::xor_xor_8(dst, &src, std::ptr::null()) }
 }
-

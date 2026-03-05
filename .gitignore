@@ -24,3 +24,6 @@ fuzz/corpus
 *.o
 *.a
 *.lib
+
+# local devcontainer for testing
+.devcontainer/local

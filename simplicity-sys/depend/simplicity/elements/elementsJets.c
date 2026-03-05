@@ -153,12 +153,12 @@ static uint_fast32_t lockTime(const elementsTransaction* tx) {
   return !tx->isFinal && 500000000U <= tx->lockTime ? tx->lockTime : 0;
 }
 
-static uint_fast16_t lockDistance(const elementsTransaction* tx) {
-  return 2 <= tx->version ? tx->lockDistance : 0;
+static uint_fast16_t obsolete_lockDistance(const elementsTransaction* tx) {
+  return 2 <= tx->version ? tx->obsolete_lockDistance : 0;
 }
 
-static uint_fast16_t lockDuration(const elementsTransaction* tx) {
-  return 2 <= tx->version ? tx->lockDuration : 0;
+static uint_fast16_t obsolete_lockDuration(const elementsTransaction* tx) {
+  return 2 <= tx->version ? tx->obsolete_lockDuration : 0;
 }
 
 static bool isFee(const sigOutput* output) {
@@ -733,16 +733,16 @@ bool rustsimplicity_0_6_tx_lock_time(frameItem* dst, frameItem src, const txEnv*
 }
 
 /* tx_lock_distance : ONE |- TWO^16 */
-bool rustsimplicity_0_6_tx_lock_distance(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_broken_do_not_use_tx_lock_distance(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_6_write16(dst, lockDistance(env->tx));
+  rustsimplicity_0_6_write16(dst, obsolete_lockDistance(env->tx));
   return true;
 }
 
 /* tx_lock_duration : ONE |- TWO^16 */
-bool rustsimplicity_0_6_tx_lock_duration(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_broken_do_not_use_tx_lock_duration(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_6_write16(dst, lockDuration(env->tx));
+  rustsimplicity_0_6_write16(dst, obsolete_lockDuration(env->tx));
   return true;
 }
 
@@ -761,17 +761,17 @@ bool rustsimplicity_0_6_check_lock_time(frameItem* dst, frameItem src, const txE
 }
 
 /* check_lock_distance : TWO^16 |- ONE */
-bool rustsimplicity_0_6_check_lock_distance(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_broken_do_not_use_check_lock_distance(frameItem* dst, frameItem src, const txEnv* env) {
   (void) dst; // dst is unused;
   uint_fast16_t x = rustsimplicity_0_6_read16(&src);
-  return x <= lockDistance(env->tx);
+  return x <= obsolete_lockDistance(env->tx);
 }
 
 /* check_lock_duration : TWO^16 |- ONE */
-bool rustsimplicity_0_6_check_lock_duration(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_6_broken_do_not_use_check_lock_duration(frameItem* dst, frameItem src, const txEnv* env) {
   (void) dst; // dst is unused;
   uint_fast16_t x = rustsimplicity_0_6_read16(&src);
-  return x <= lockDuration(env->tx);
+  return x <= obsolete_lockDuration(env->tx);
 }
 
 /* calculate_issuance_entropy : TWO^256 * TWO^32 * TWO^256 |- TWO^256 */
