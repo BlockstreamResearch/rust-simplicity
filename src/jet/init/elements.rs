@@ -1,17 +1,17 @@
 /* This file has been automatically generated. */
 
-use crate::jet::type_name::TypeName;
-use crate::jet::Jet;
-use crate::merkle::cmr::Cmr;
-use crate::decode_bits;
-use crate::{decode, BitIter, BitWriter};
 use crate::analysis::Cost;
+use crate::decode_bits;
+use crate::jet::elements::ElementsEnv;
+use crate::jet::type_name::TypeName;
+use crate::jet::{Jet, JetEnvironment};
+use crate::merkle::cmr::Cmr;
+use crate::{decode, BitIter, BitWriter};
 use hashes::sha256::Midstate;
+use simplicity_sys::CElementsTxEnv;
 use simplicity_sys::CFrameItem;
 use std::io::Write;
 use std::{fmt, str};
-use crate::jet::elements::ElementsEnv;
-use simplicity_sys::CElementsTxEnv;
 
 /// The Elements jet family.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
@@ -967,14 +967,6 @@ impl Elements {
 }
 
 impl Jet for Elements {
-
-    type Environment = ElementsEnv<std::sync::Arc<elements::Transaction>>;
-    type CJetEnvironment = CElementsTxEnv;
-
-    fn c_jet_env(env: &Self::Environment) -> &Self::CJetEnvironment {
-        env.c_tx_env()
-    }
-
     fn cmr(&self) -> Cmr {
         let bytes = match self {
             Elements::Add16 => [
@@ -3830,8 +3822,12 @@ impl Jet for Elements {
             Elements::And32 => b"i",
             Elements::And64 => b"l",
             Elements::And8 => b"***22*22**22*22",
-            Elements::AnnexHash => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Elements::AssetAmountHash => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
+            Elements::AnnexHash => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Elements::AssetAmountHash => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
             Elements::Bip0340Verify => b"1",
             Elements::BuildTapbranch => b"h",
             Elements::BuildTapleafSimplicity => b"h",
@@ -4137,7 +4133,9 @@ impl Jet for Elements {
             Elements::Negate64 => b"*2l",
             Elements::Negate8 => b"*2***22*22**22*22",
             Elements::NewIssuanceContract => b"+1+1h",
-            Elements::NonceHash => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
+            Elements::NonceHash => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
             Elements::NumInputs => b"i",
             Elements::NumOutputs => b"i",
             Elements::One16 => b"****22*22**22*22***22*22**22*22",
@@ -4149,7 +4147,9 @@ impl Jet for Elements {
             Elements::Or32 => b"i",
             Elements::Or64 => b"l",
             Elements::Or8 => b"***22*22**22*22",
-            Elements::OutpointHash => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
+            Elements::OutpointHash => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
             Elements::OutputAmount => b"+1*+*2hh+*2hl",
             Elements::OutputAmountsHash => b"h",
             Elements::OutputAsset => b"+1+*2hh",
@@ -4166,7 +4166,9 @@ impl Jet for Elements {
             Elements::OutputSurjectionProofsHash => b"h",
             Elements::OutputsHash => b"h",
             Elements::ParseLock => b"+ii",
-            Elements::ParseSequence => b"+1+****22*22**22*22***22*22**22*22****22*22**22*22***22*22**22*22",
+            Elements::ParseSequence => {
+                b"+1+****22*22**22*22***22*22**22*22****22*22**22*22***22*22**22*22"
+            }
             Elements::PointVerify1 => b"1",
             Elements::ReissuanceBlinding => b"+1+1h",
             Elements::ReissuanceEntropy => b"+1+1h",
@@ -4237,19 +4239,43 @@ impl Jet for Elements {
             Elements::Scale => b"**hhh",
             Elements::ScriptCMR => b"h",
             Elements::Sha256Block => b"h",
-            Elements::Sha256Ctx8Add1 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Elements::Sha256Ctx8Add128 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Elements::Sha256Ctx8Add16 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Elements::Sha256Ctx8Add2 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Elements::Sha256Ctx8Add256 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Elements::Sha256Ctx8Add32 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Elements::Sha256Ctx8Add4 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Elements::Sha256Ctx8Add512 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Elements::Sha256Ctx8Add64 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Elements::Sha256Ctx8Add8 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Elements::Sha256Ctx8AddBuffer511 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
+            Elements::Sha256Ctx8Add1 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Elements::Sha256Ctx8Add128 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Elements::Sha256Ctx8Add16 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Elements::Sha256Ctx8Add2 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Elements::Sha256Ctx8Add256 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Elements::Sha256Ctx8Add32 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Elements::Sha256Ctx8Add4 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Elements::Sha256Ctx8Add512 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Elements::Sha256Ctx8Add64 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Elements::Sha256Ctx8Add8 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Elements::Sha256Ctx8AddBuffer511 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
             Elements::Sha256Ctx8Finalize => b"h",
-            Elements::Sha256Ctx8Init => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
+            Elements::Sha256Ctx8Init => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
             Elements::Sha256Iv => b"h",
             Elements::SigAllHash => b"h",
             Elements::Some1 => b"2",
@@ -4263,7 +4289,9 @@ impl Jet for Elements {
             Elements::Subtract8 => b"*2***22*22**22*22",
             Elements::Swu => b"*hh",
             Elements::TapEnvHash => b"h",
-            Elements::TapdataInit => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
+            Elements::TapdataInit => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
             Elements::TapleafHash => b"h",
             Elements::TapleafVersion => b"***22*22**22*22",
             Elements::Tappath => b"+1h",
@@ -7427,482 +7455,6 @@ impl Jet for Elements {
         })
     }
 
-    fn c_jet_ptr(&self) -> &dyn Fn(&mut CFrameItem, CFrameItem, &Self::CJetEnvironment) -> bool {
-        match self {
-            Elements::Add16 => &simplicity_sys::c_jets::jets_wrapper::add_16,
-            Elements::Add32 => &simplicity_sys::c_jets::jets_wrapper::add_32,
-            Elements::Add64 => &simplicity_sys::c_jets::jets_wrapper::add_64,
-            Elements::Add8 => &simplicity_sys::c_jets::jets_wrapper::add_8,
-            Elements::All16 => &simplicity_sys::c_jets::jets_wrapper::all_16,
-            Elements::All32 => &simplicity_sys::c_jets::jets_wrapper::all_32,
-            Elements::All64 => &simplicity_sys::c_jets::jets_wrapper::all_64,
-            Elements::All8 => &simplicity_sys::c_jets::jets_wrapper::all_8,
-            Elements::And1 => &simplicity_sys::c_jets::jets_wrapper::and_1,
-            Elements::And16 => &simplicity_sys::c_jets::jets_wrapper::and_16,
-            Elements::And32 => &simplicity_sys::c_jets::jets_wrapper::and_32,
-            Elements::And64 => &simplicity_sys::c_jets::jets_wrapper::and_64,
-            Elements::And8 => &simplicity_sys::c_jets::jets_wrapper::and_8,
-            Elements::AnnexHash => &simplicity_sys::c_jets::jets_wrapper::annex_hash,
-            Elements::AssetAmountHash => &simplicity_sys::c_jets::jets_wrapper::asset_amount_hash,
-            Elements::Bip0340Verify => &simplicity_sys::c_jets::jets_wrapper::bip_0340_verify,
-            Elements::BuildTapbranch => &simplicity_sys::c_jets::jets_wrapper::build_tapbranch,
-            Elements::BuildTapleafSimplicity => &simplicity_sys::c_jets::jets_wrapper::build_tapleaf_simplicity,
-            Elements::BuildTaptweak => &simplicity_sys::c_jets::jets_wrapper::build_taptweak,
-            Elements::CalculateAsset => &simplicity_sys::c_jets::jets_wrapper::calculate_asset,
-            Elements::CalculateConfidentialToken => &simplicity_sys::c_jets::jets_wrapper::calculate_confidential_token,
-            Elements::CalculateExplicitToken => &simplicity_sys::c_jets::jets_wrapper::calculate_explicit_token,
-            Elements::CalculateIssuanceEntropy => &simplicity_sys::c_jets::jets_wrapper::calculate_issuance_entropy,
-            Elements::Ch1 => &simplicity_sys::c_jets::jets_wrapper::ch_1,
-            Elements::Ch16 => &simplicity_sys::c_jets::jets_wrapper::ch_16,
-            Elements::Ch32 => &simplicity_sys::c_jets::jets_wrapper::ch_32,
-            Elements::Ch64 => &simplicity_sys::c_jets::jets_wrapper::ch_64,
-            Elements::Ch8 => &simplicity_sys::c_jets::jets_wrapper::ch_8,
-            Elements::CheckLockDistance => &simplicity_sys::c_jets::jets_wrapper::check_lock_distance,
-            Elements::CheckLockDuration => &simplicity_sys::c_jets::jets_wrapper::check_lock_duration,
-            Elements::CheckLockHeight => &simplicity_sys::c_jets::jets_wrapper::check_lock_height,
-            Elements::CheckLockTime => &simplicity_sys::c_jets::jets_wrapper::check_lock_time,
-            Elements::CheckSigVerify => &simplicity_sys::c_jets::jets_wrapper::check_sig_verify,
-            Elements::Complement1 => &simplicity_sys::c_jets::jets_wrapper::complement_1,
-            Elements::Complement16 => &simplicity_sys::c_jets::jets_wrapper::complement_16,
-            Elements::Complement32 => &simplicity_sys::c_jets::jets_wrapper::complement_32,
-            Elements::Complement64 => &simplicity_sys::c_jets::jets_wrapper::complement_64,
-            Elements::Complement8 => &simplicity_sys::c_jets::jets_wrapper::complement_8,
-            Elements::CurrentAmount => &simplicity_sys::c_jets::jets_wrapper::current_amount,
-            Elements::CurrentAnnexHash => &simplicity_sys::c_jets::jets_wrapper::current_annex_hash,
-            Elements::CurrentAsset => &simplicity_sys::c_jets::jets_wrapper::current_asset,
-            Elements::CurrentIndex => &simplicity_sys::c_jets::jets_wrapper::current_index,
-            Elements::CurrentIssuanceAssetAmount => &simplicity_sys::c_jets::jets_wrapper::current_issuance_asset_amount,
-            Elements::CurrentIssuanceAssetProof => &simplicity_sys::c_jets::jets_wrapper::current_issuance_asset_proof,
-            Elements::CurrentIssuanceTokenAmount => &simplicity_sys::c_jets::jets_wrapper::current_issuance_token_amount,
-            Elements::CurrentIssuanceTokenProof => &simplicity_sys::c_jets::jets_wrapper::current_issuance_token_proof,
-            Elements::CurrentNewIssuanceContract => &simplicity_sys::c_jets::jets_wrapper::current_new_issuance_contract,
-            Elements::CurrentPegin => &simplicity_sys::c_jets::jets_wrapper::current_pegin,
-            Elements::CurrentPrevOutpoint => &simplicity_sys::c_jets::jets_wrapper::current_prev_outpoint,
-            Elements::CurrentReissuanceBlinding => &simplicity_sys::c_jets::jets_wrapper::current_reissuance_blinding,
-            Elements::CurrentReissuanceEntropy => &simplicity_sys::c_jets::jets_wrapper::current_reissuance_entropy,
-            Elements::CurrentScriptHash => &simplicity_sys::c_jets::jets_wrapper::current_script_hash,
-            Elements::CurrentScriptSigHash => &simplicity_sys::c_jets::jets_wrapper::current_script_sig_hash,
-            Elements::CurrentSequence => &simplicity_sys::c_jets::jets_wrapper::current_sequence,
-            Elements::Decompress => &simplicity_sys::c_jets::jets_wrapper::decompress,
-            Elements::Decrement16 => &simplicity_sys::c_jets::jets_wrapper::decrement_16,
-            Elements::Decrement32 => &simplicity_sys::c_jets::jets_wrapper::decrement_32,
-            Elements::Decrement64 => &simplicity_sys::c_jets::jets_wrapper::decrement_64,
-            Elements::Decrement8 => &simplicity_sys::c_jets::jets_wrapper::decrement_8,
-            Elements::DivMod128_64 => &simplicity_sys::c_jets::jets_wrapper::div_mod_128_64,
-            Elements::DivMod16 => &simplicity_sys::c_jets::jets_wrapper::div_mod_16,
-            Elements::DivMod32 => &simplicity_sys::c_jets::jets_wrapper::div_mod_32,
-            Elements::DivMod64 => &simplicity_sys::c_jets::jets_wrapper::div_mod_64,
-            Elements::DivMod8 => &simplicity_sys::c_jets::jets_wrapper::div_mod_8,
-            Elements::Divide16 => &simplicity_sys::c_jets::jets_wrapper::divide_16,
-            Elements::Divide32 => &simplicity_sys::c_jets::jets_wrapper::divide_32,
-            Elements::Divide64 => &simplicity_sys::c_jets::jets_wrapper::divide_64,
-            Elements::Divide8 => &simplicity_sys::c_jets::jets_wrapper::divide_8,
-            Elements::Divides16 => &simplicity_sys::c_jets::jets_wrapper::divides_16,
-            Elements::Divides32 => &simplicity_sys::c_jets::jets_wrapper::divides_32,
-            Elements::Divides64 => &simplicity_sys::c_jets::jets_wrapper::divides_64,
-            Elements::Divides8 => &simplicity_sys::c_jets::jets_wrapper::divides_8,
-            Elements::Eq1 => &simplicity_sys::c_jets::jets_wrapper::eq_1,
-            Elements::Eq16 => &simplicity_sys::c_jets::jets_wrapper::eq_16,
-            Elements::Eq256 => &simplicity_sys::c_jets::jets_wrapper::eq_256,
-            Elements::Eq32 => &simplicity_sys::c_jets::jets_wrapper::eq_32,
-            Elements::Eq64 => &simplicity_sys::c_jets::jets_wrapper::eq_64,
-            Elements::Eq8 => &simplicity_sys::c_jets::jets_wrapper::eq_8,
-            Elements::FeAdd => &simplicity_sys::c_jets::jets_wrapper::fe_add,
-            Elements::FeInvert => &simplicity_sys::c_jets::jets_wrapper::fe_invert,
-            Elements::FeIsOdd => &simplicity_sys::c_jets::jets_wrapper::fe_is_odd,
-            Elements::FeIsZero => &simplicity_sys::c_jets::jets_wrapper::fe_is_zero,
-            Elements::FeMultiply => &simplicity_sys::c_jets::jets_wrapper::fe_multiply,
-            Elements::FeMultiplyBeta => &simplicity_sys::c_jets::jets_wrapper::fe_multiply_beta,
-            Elements::FeNegate => &simplicity_sys::c_jets::jets_wrapper::fe_negate,
-            Elements::FeNormalize => &simplicity_sys::c_jets::jets_wrapper::fe_normalize,
-            Elements::FeSquare => &simplicity_sys::c_jets::jets_wrapper::fe_square,
-            Elements::FeSquareRoot => &simplicity_sys::c_jets::jets_wrapper::fe_square_root,
-            Elements::FullAdd16 => &simplicity_sys::c_jets::jets_wrapper::full_add_16,
-            Elements::FullAdd32 => &simplicity_sys::c_jets::jets_wrapper::full_add_32,
-            Elements::FullAdd64 => &simplicity_sys::c_jets::jets_wrapper::full_add_64,
-            Elements::FullAdd8 => &simplicity_sys::c_jets::jets_wrapper::full_add_8,
-            Elements::FullDecrement16 => &simplicity_sys::c_jets::jets_wrapper::full_decrement_16,
-            Elements::FullDecrement32 => &simplicity_sys::c_jets::jets_wrapper::full_decrement_32,
-            Elements::FullDecrement64 => &simplicity_sys::c_jets::jets_wrapper::full_decrement_64,
-            Elements::FullDecrement8 => &simplicity_sys::c_jets::jets_wrapper::full_decrement_8,
-            Elements::FullIncrement16 => &simplicity_sys::c_jets::jets_wrapper::full_increment_16,
-            Elements::FullIncrement32 => &simplicity_sys::c_jets::jets_wrapper::full_increment_32,
-            Elements::FullIncrement64 => &simplicity_sys::c_jets::jets_wrapper::full_increment_64,
-            Elements::FullIncrement8 => &simplicity_sys::c_jets::jets_wrapper::full_increment_8,
-            Elements::FullLeftShift16_1 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_16_1,
-            Elements::FullLeftShift16_2 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_16_2,
-            Elements::FullLeftShift16_4 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_16_4,
-            Elements::FullLeftShift16_8 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_16_8,
-            Elements::FullLeftShift32_1 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_32_1,
-            Elements::FullLeftShift32_16 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_32_16,
-            Elements::FullLeftShift32_2 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_32_2,
-            Elements::FullLeftShift32_4 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_32_4,
-            Elements::FullLeftShift32_8 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_32_8,
-            Elements::FullLeftShift64_1 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_1,
-            Elements::FullLeftShift64_16 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_16,
-            Elements::FullLeftShift64_2 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_2,
-            Elements::FullLeftShift64_32 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_32,
-            Elements::FullLeftShift64_4 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_4,
-            Elements::FullLeftShift64_8 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_8,
-            Elements::FullLeftShift8_1 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_8_1,
-            Elements::FullLeftShift8_2 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_8_2,
-            Elements::FullLeftShift8_4 => &simplicity_sys::c_jets::jets_wrapper::full_left_shift_8_4,
-            Elements::FullMultiply16 => &simplicity_sys::c_jets::jets_wrapper::full_multiply_16,
-            Elements::FullMultiply32 => &simplicity_sys::c_jets::jets_wrapper::full_multiply_32,
-            Elements::FullMultiply64 => &simplicity_sys::c_jets::jets_wrapper::full_multiply_64,
-            Elements::FullMultiply8 => &simplicity_sys::c_jets::jets_wrapper::full_multiply_8,
-            Elements::FullRightShift16_1 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_16_1,
-            Elements::FullRightShift16_2 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_16_2,
-            Elements::FullRightShift16_4 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_16_4,
-            Elements::FullRightShift16_8 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_16_8,
-            Elements::FullRightShift32_1 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_32_1,
-            Elements::FullRightShift32_16 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_32_16,
-            Elements::FullRightShift32_2 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_32_2,
-            Elements::FullRightShift32_4 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_32_4,
-            Elements::FullRightShift32_8 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_32_8,
-            Elements::FullRightShift64_1 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_1,
-            Elements::FullRightShift64_16 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_16,
-            Elements::FullRightShift64_2 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_2,
-            Elements::FullRightShift64_32 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_32,
-            Elements::FullRightShift64_4 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_4,
-            Elements::FullRightShift64_8 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_8,
-            Elements::FullRightShift8_1 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_8_1,
-            Elements::FullRightShift8_2 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_8_2,
-            Elements::FullRightShift8_4 => &simplicity_sys::c_jets::jets_wrapper::full_right_shift_8_4,
-            Elements::FullSubtract16 => &simplicity_sys::c_jets::jets_wrapper::full_subtract_16,
-            Elements::FullSubtract32 => &simplicity_sys::c_jets::jets_wrapper::full_subtract_32,
-            Elements::FullSubtract64 => &simplicity_sys::c_jets::jets_wrapper::full_subtract_64,
-            Elements::FullSubtract8 => &simplicity_sys::c_jets::jets_wrapper::full_subtract_8,
-            Elements::GeIsOnCurve => &simplicity_sys::c_jets::jets_wrapper::ge_is_on_curve,
-            Elements::GeNegate => &simplicity_sys::c_jets::jets_wrapper::ge_negate,
-            Elements::GejAdd => &simplicity_sys::c_jets::jets_wrapper::gej_add,
-            Elements::GejDouble => &simplicity_sys::c_jets::jets_wrapper::gej_double,
-            Elements::GejEquiv => &simplicity_sys::c_jets::jets_wrapper::gej_equiv,
-            Elements::GejGeAdd => &simplicity_sys::c_jets::jets_wrapper::gej_ge_add,
-            Elements::GejGeAddEx => &simplicity_sys::c_jets::jets_wrapper::gej_ge_add_ex,
-            Elements::GejGeEquiv => &simplicity_sys::c_jets::jets_wrapper::gej_ge_equiv,
-            Elements::GejInfinity => &simplicity_sys::c_jets::jets_wrapper::gej_infinity,
-            Elements::GejIsInfinity => &simplicity_sys::c_jets::jets_wrapper::gej_is_infinity,
-            Elements::GejIsOnCurve => &simplicity_sys::c_jets::jets_wrapper::gej_is_on_curve,
-            Elements::GejNegate => &simplicity_sys::c_jets::jets_wrapper::gej_negate,
-            Elements::GejNormalize => &simplicity_sys::c_jets::jets_wrapper::gej_normalize,
-            Elements::GejRescale => &simplicity_sys::c_jets::jets_wrapper::gej_rescale,
-            Elements::GejXEquiv => &simplicity_sys::c_jets::jets_wrapper::gej_x_equiv,
-            Elements::GejYIsOdd => &simplicity_sys::c_jets::jets_wrapper::gej_y_is_odd,
-            Elements::Generate => &simplicity_sys::c_jets::jets_wrapper::generate,
-            Elements::GenesisBlockHash => &simplicity_sys::c_jets::jets_wrapper::genesis_block_hash,
-            Elements::HashToCurve => &simplicity_sys::c_jets::jets_wrapper::hash_to_curve,
-            Elements::High1 => &simplicity_sys::c_jets::jets_wrapper::high_1,
-            Elements::High16 => &simplicity_sys::c_jets::jets_wrapper::high_16,
-            Elements::High32 => &simplicity_sys::c_jets::jets_wrapper::high_32,
-            Elements::High64 => &simplicity_sys::c_jets::jets_wrapper::high_64,
-            Elements::High8 => &simplicity_sys::c_jets::jets_wrapper::high_8,
-            Elements::Increment16 => &simplicity_sys::c_jets::jets_wrapper::increment_16,
-            Elements::Increment32 => &simplicity_sys::c_jets::jets_wrapper::increment_32,
-            Elements::Increment64 => &simplicity_sys::c_jets::jets_wrapper::increment_64,
-            Elements::Increment8 => &simplicity_sys::c_jets::jets_wrapper::increment_8,
-            Elements::InputAmount => &simplicity_sys::c_jets::jets_wrapper::input_amount,
-            Elements::InputAmountsHash => &simplicity_sys::c_jets::jets_wrapper::input_amounts_hash,
-            Elements::InputAnnexHash => &simplicity_sys::c_jets::jets_wrapper::input_annex_hash,
-            Elements::InputAnnexesHash => &simplicity_sys::c_jets::jets_wrapper::input_annexes_hash,
-            Elements::InputAsset => &simplicity_sys::c_jets::jets_wrapper::input_asset,
-            Elements::InputHash => &simplicity_sys::c_jets::jets_wrapper::input_hash,
-            Elements::InputOutpointsHash => &simplicity_sys::c_jets::jets_wrapper::input_outpoints_hash,
-            Elements::InputPegin => &simplicity_sys::c_jets::jets_wrapper::input_pegin,
-            Elements::InputPrevOutpoint => &simplicity_sys::c_jets::jets_wrapper::input_prev_outpoint,
-            Elements::InputScriptHash => &simplicity_sys::c_jets::jets_wrapper::input_script_hash,
-            Elements::InputScriptSigHash => &simplicity_sys::c_jets::jets_wrapper::input_script_sig_hash,
-            Elements::InputScriptSigsHash => &simplicity_sys::c_jets::jets_wrapper::input_script_sigs_hash,
-            Elements::InputScriptsHash => &simplicity_sys::c_jets::jets_wrapper::input_scripts_hash,
-            Elements::InputSequence => &simplicity_sys::c_jets::jets_wrapper::input_sequence,
-            Elements::InputSequencesHash => &simplicity_sys::c_jets::jets_wrapper::input_sequences_hash,
-            Elements::InputUtxoHash => &simplicity_sys::c_jets::jets_wrapper::input_utxo_hash,
-            Elements::InputUtxosHash => &simplicity_sys::c_jets::jets_wrapper::input_utxos_hash,
-            Elements::InputsHash => &simplicity_sys::c_jets::jets_wrapper::inputs_hash,
-            Elements::InternalKey => &simplicity_sys::c_jets::jets_wrapper::internal_key,
-            Elements::IsOne16 => &simplicity_sys::c_jets::jets_wrapper::is_one_16,
-            Elements::IsOne32 => &simplicity_sys::c_jets::jets_wrapper::is_one_32,
-            Elements::IsOne64 => &simplicity_sys::c_jets::jets_wrapper::is_one_64,
-            Elements::IsOne8 => &simplicity_sys::c_jets::jets_wrapper::is_one_8,
-            Elements::IsZero16 => &simplicity_sys::c_jets::jets_wrapper::is_zero_16,
-            Elements::IsZero32 => &simplicity_sys::c_jets::jets_wrapper::is_zero_32,
-            Elements::IsZero64 => &simplicity_sys::c_jets::jets_wrapper::is_zero_64,
-            Elements::IsZero8 => &simplicity_sys::c_jets::jets_wrapper::is_zero_8,
-            Elements::Issuance => &simplicity_sys::c_jets::jets_wrapper::issuance,
-            Elements::IssuanceAsset => &simplicity_sys::c_jets::jets_wrapper::issuance_asset,
-            Elements::IssuanceAssetAmount => &simplicity_sys::c_jets::jets_wrapper::issuance_asset_amount,
-            Elements::IssuanceAssetAmountsHash => &simplicity_sys::c_jets::jets_wrapper::issuance_asset_amounts_hash,
-            Elements::IssuanceAssetProof => &simplicity_sys::c_jets::jets_wrapper::issuance_asset_proof,
-            Elements::IssuanceBlindingEntropyHash => &simplicity_sys::c_jets::jets_wrapper::issuance_blinding_entropy_hash,
-            Elements::IssuanceEntropy => &simplicity_sys::c_jets::jets_wrapper::issuance_entropy,
-            Elements::IssuanceHash => &simplicity_sys::c_jets::jets_wrapper::issuance_hash,
-            Elements::IssuanceRangeProofsHash => &simplicity_sys::c_jets::jets_wrapper::issuance_range_proofs_hash,
-            Elements::IssuanceToken => &simplicity_sys::c_jets::jets_wrapper::issuance_token,
-            Elements::IssuanceTokenAmount => &simplicity_sys::c_jets::jets_wrapper::issuance_token_amount,
-            Elements::IssuanceTokenAmountsHash => &simplicity_sys::c_jets::jets_wrapper::issuance_token_amounts_hash,
-            Elements::IssuanceTokenProof => &simplicity_sys::c_jets::jets_wrapper::issuance_token_proof,
-            Elements::IssuancesHash => &simplicity_sys::c_jets::jets_wrapper::issuances_hash,
-            Elements::LbtcAsset => &simplicity_sys::c_jets::jets_wrapper::lbtc_asset,
-            Elements::Le16 => &simplicity_sys::c_jets::jets_wrapper::le_16,
-            Elements::Le32 => &simplicity_sys::c_jets::jets_wrapper::le_32,
-            Elements::Le64 => &simplicity_sys::c_jets::jets_wrapper::le_64,
-            Elements::Le8 => &simplicity_sys::c_jets::jets_wrapper::le_8,
-            Elements::LeftExtend16_32 => &simplicity_sys::c_jets::jets_wrapper::left_extend_16_32,
-            Elements::LeftExtend16_64 => &simplicity_sys::c_jets::jets_wrapper::left_extend_16_64,
-            Elements::LeftExtend1_16 => &simplicity_sys::c_jets::jets_wrapper::left_extend_1_16,
-            Elements::LeftExtend1_32 => &simplicity_sys::c_jets::jets_wrapper::left_extend_1_32,
-            Elements::LeftExtend1_64 => &simplicity_sys::c_jets::jets_wrapper::left_extend_1_64,
-            Elements::LeftExtend1_8 => &simplicity_sys::c_jets::jets_wrapper::left_extend_1_8,
-            Elements::LeftExtend32_64 => &simplicity_sys::c_jets::jets_wrapper::left_extend_32_64,
-            Elements::LeftExtend8_16 => &simplicity_sys::c_jets::jets_wrapper::left_extend_8_16,
-            Elements::LeftExtend8_32 => &simplicity_sys::c_jets::jets_wrapper::left_extend_8_32,
-            Elements::LeftExtend8_64 => &simplicity_sys::c_jets::jets_wrapper::left_extend_8_64,
-            Elements::LeftPadHigh16_32 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_16_32,
-            Elements::LeftPadHigh16_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_16_64,
-            Elements::LeftPadHigh1_16 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_1_16,
-            Elements::LeftPadHigh1_32 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_1_32,
-            Elements::LeftPadHigh1_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_1_64,
-            Elements::LeftPadHigh1_8 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_1_8,
-            Elements::LeftPadHigh32_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_32_64,
-            Elements::LeftPadHigh8_16 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_8_16,
-            Elements::LeftPadHigh8_32 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_8_32,
-            Elements::LeftPadHigh8_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_high_8_64,
-            Elements::LeftPadLow16_32 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_16_32,
-            Elements::LeftPadLow16_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_16_64,
-            Elements::LeftPadLow1_16 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_1_16,
-            Elements::LeftPadLow1_32 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_1_32,
-            Elements::LeftPadLow1_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_1_64,
-            Elements::LeftPadLow1_8 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_1_8,
-            Elements::LeftPadLow32_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_32_64,
-            Elements::LeftPadLow8_16 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_8_16,
-            Elements::LeftPadLow8_32 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_8_32,
-            Elements::LeftPadLow8_64 => &simplicity_sys::c_jets::jets_wrapper::left_pad_low_8_64,
-            Elements::LeftRotate16 => &simplicity_sys::c_jets::jets_wrapper::left_rotate_16,
-            Elements::LeftRotate32 => &simplicity_sys::c_jets::jets_wrapper::left_rotate_32,
-            Elements::LeftRotate64 => &simplicity_sys::c_jets::jets_wrapper::left_rotate_64,
-            Elements::LeftRotate8 => &simplicity_sys::c_jets::jets_wrapper::left_rotate_8,
-            Elements::LeftShift16 => &simplicity_sys::c_jets::jets_wrapper::left_shift_16,
-            Elements::LeftShift32 => &simplicity_sys::c_jets::jets_wrapper::left_shift_32,
-            Elements::LeftShift64 => &simplicity_sys::c_jets::jets_wrapper::left_shift_64,
-            Elements::LeftShift8 => &simplicity_sys::c_jets::jets_wrapper::left_shift_8,
-            Elements::LeftShiftWith16 => &simplicity_sys::c_jets::jets_wrapper::left_shift_with_16,
-            Elements::LeftShiftWith32 => &simplicity_sys::c_jets::jets_wrapper::left_shift_with_32,
-            Elements::LeftShiftWith64 => &simplicity_sys::c_jets::jets_wrapper::left_shift_with_64,
-            Elements::LeftShiftWith8 => &simplicity_sys::c_jets::jets_wrapper::left_shift_with_8,
-            Elements::Leftmost16_1 => &simplicity_sys::c_jets::jets_wrapper::leftmost_16_1,
-            Elements::Leftmost16_2 => &simplicity_sys::c_jets::jets_wrapper::leftmost_16_2,
-            Elements::Leftmost16_4 => &simplicity_sys::c_jets::jets_wrapper::leftmost_16_4,
-            Elements::Leftmost16_8 => &simplicity_sys::c_jets::jets_wrapper::leftmost_16_8,
-            Elements::Leftmost32_1 => &simplicity_sys::c_jets::jets_wrapper::leftmost_32_1,
-            Elements::Leftmost32_16 => &simplicity_sys::c_jets::jets_wrapper::leftmost_32_16,
-            Elements::Leftmost32_2 => &simplicity_sys::c_jets::jets_wrapper::leftmost_32_2,
-            Elements::Leftmost32_4 => &simplicity_sys::c_jets::jets_wrapper::leftmost_32_4,
-            Elements::Leftmost32_8 => &simplicity_sys::c_jets::jets_wrapper::leftmost_32_8,
-            Elements::Leftmost64_1 => &simplicity_sys::c_jets::jets_wrapper::leftmost_64_1,
-            Elements::Leftmost64_16 => &simplicity_sys::c_jets::jets_wrapper::leftmost_64_16,
-            Elements::Leftmost64_2 => &simplicity_sys::c_jets::jets_wrapper::leftmost_64_2,
-            Elements::Leftmost64_32 => &simplicity_sys::c_jets::jets_wrapper::leftmost_64_32,
-            Elements::Leftmost64_4 => &simplicity_sys::c_jets::jets_wrapper::leftmost_64_4,
-            Elements::Leftmost64_8 => &simplicity_sys::c_jets::jets_wrapper::leftmost_64_8,
-            Elements::Leftmost8_1 => &simplicity_sys::c_jets::jets_wrapper::leftmost_8_1,
-            Elements::Leftmost8_2 => &simplicity_sys::c_jets::jets_wrapper::leftmost_8_2,
-            Elements::Leftmost8_4 => &simplicity_sys::c_jets::jets_wrapper::leftmost_8_4,
-            Elements::LinearCombination1 => &simplicity_sys::c_jets::jets_wrapper::linear_combination_1,
-            Elements::LinearVerify1 => &simplicity_sys::c_jets::jets_wrapper::linear_verify_1,
-            Elements::LockTime => &simplicity_sys::c_jets::jets_wrapper::lock_time,
-            Elements::Low1 => &simplicity_sys::c_jets::jets_wrapper::low_1,
-            Elements::Low16 => &simplicity_sys::c_jets::jets_wrapper::low_16,
-            Elements::Low32 => &simplicity_sys::c_jets::jets_wrapper::low_32,
-            Elements::Low64 => &simplicity_sys::c_jets::jets_wrapper::low_64,
-            Elements::Low8 => &simplicity_sys::c_jets::jets_wrapper::low_8,
-            Elements::Lt16 => &simplicity_sys::c_jets::jets_wrapper::lt_16,
-            Elements::Lt32 => &simplicity_sys::c_jets::jets_wrapper::lt_32,
-            Elements::Lt64 => &simplicity_sys::c_jets::jets_wrapper::lt_64,
-            Elements::Lt8 => &simplicity_sys::c_jets::jets_wrapper::lt_8,
-            Elements::Maj1 => &simplicity_sys::c_jets::jets_wrapper::maj_1,
-            Elements::Maj16 => &simplicity_sys::c_jets::jets_wrapper::maj_16,
-            Elements::Maj32 => &simplicity_sys::c_jets::jets_wrapper::maj_32,
-            Elements::Maj64 => &simplicity_sys::c_jets::jets_wrapper::maj_64,
-            Elements::Maj8 => &simplicity_sys::c_jets::jets_wrapper::maj_8,
-            Elements::Max16 => &simplicity_sys::c_jets::jets_wrapper::max_16,
-            Elements::Max32 => &simplicity_sys::c_jets::jets_wrapper::max_32,
-            Elements::Max64 => &simplicity_sys::c_jets::jets_wrapper::max_64,
-            Elements::Max8 => &simplicity_sys::c_jets::jets_wrapper::max_8,
-            Elements::Median16 => &simplicity_sys::c_jets::jets_wrapper::median_16,
-            Elements::Median32 => &simplicity_sys::c_jets::jets_wrapper::median_32,
-            Elements::Median64 => &simplicity_sys::c_jets::jets_wrapper::median_64,
-            Elements::Median8 => &simplicity_sys::c_jets::jets_wrapper::median_8,
-            Elements::Min16 => &simplicity_sys::c_jets::jets_wrapper::min_16,
-            Elements::Min32 => &simplicity_sys::c_jets::jets_wrapper::min_32,
-            Elements::Min64 => &simplicity_sys::c_jets::jets_wrapper::min_64,
-            Elements::Min8 => &simplicity_sys::c_jets::jets_wrapper::min_8,
-            Elements::Modulo16 => &simplicity_sys::c_jets::jets_wrapper::modulo_16,
-            Elements::Modulo32 => &simplicity_sys::c_jets::jets_wrapper::modulo_32,
-            Elements::Modulo64 => &simplicity_sys::c_jets::jets_wrapper::modulo_64,
-            Elements::Modulo8 => &simplicity_sys::c_jets::jets_wrapper::modulo_8,
-            Elements::Multiply16 => &simplicity_sys::c_jets::jets_wrapper::multiply_16,
-            Elements::Multiply32 => &simplicity_sys::c_jets::jets_wrapper::multiply_32,
-            Elements::Multiply64 => &simplicity_sys::c_jets::jets_wrapper::multiply_64,
-            Elements::Multiply8 => &simplicity_sys::c_jets::jets_wrapper::multiply_8,
-            Elements::Negate16 => &simplicity_sys::c_jets::jets_wrapper::negate_16,
-            Elements::Negate32 => &simplicity_sys::c_jets::jets_wrapper::negate_32,
-            Elements::Negate64 => &simplicity_sys::c_jets::jets_wrapper::negate_64,
-            Elements::Negate8 => &simplicity_sys::c_jets::jets_wrapper::negate_8,
-            Elements::NewIssuanceContract => &simplicity_sys::c_jets::jets_wrapper::new_issuance_contract,
-            Elements::NonceHash => &simplicity_sys::c_jets::jets_wrapper::nonce_hash,
-            Elements::NumInputs => &simplicity_sys::c_jets::jets_wrapper::num_inputs,
-            Elements::NumOutputs => &simplicity_sys::c_jets::jets_wrapper::num_outputs,
-            Elements::One16 => &simplicity_sys::c_jets::jets_wrapper::one_16,
-            Elements::One32 => &simplicity_sys::c_jets::jets_wrapper::one_32,
-            Elements::One64 => &simplicity_sys::c_jets::jets_wrapper::one_64,
-            Elements::One8 => &simplicity_sys::c_jets::jets_wrapper::one_8,
-            Elements::Or1 => &simplicity_sys::c_jets::jets_wrapper::or_1,
-            Elements::Or16 => &simplicity_sys::c_jets::jets_wrapper::or_16,
-            Elements::Or32 => &simplicity_sys::c_jets::jets_wrapper::or_32,
-            Elements::Or64 => &simplicity_sys::c_jets::jets_wrapper::or_64,
-            Elements::Or8 => &simplicity_sys::c_jets::jets_wrapper::or_8,
-            Elements::OutpointHash => &simplicity_sys::c_jets::jets_wrapper::outpoint_hash,
-            Elements::OutputAmount => &simplicity_sys::c_jets::jets_wrapper::output_amount,
-            Elements::OutputAmountsHash => &simplicity_sys::c_jets::jets_wrapper::output_amounts_hash,
-            Elements::OutputAsset => &simplicity_sys::c_jets::jets_wrapper::output_asset,
-            Elements::OutputHash => &simplicity_sys::c_jets::jets_wrapper::output_hash,
-            Elements::OutputIsFee => &simplicity_sys::c_jets::jets_wrapper::output_is_fee,
-            Elements::OutputNonce => &simplicity_sys::c_jets::jets_wrapper::output_nonce,
-            Elements::OutputNoncesHash => &simplicity_sys::c_jets::jets_wrapper::output_nonces_hash,
-            Elements::OutputNullDatum => &simplicity_sys::c_jets::jets_wrapper::output_null_datum,
-            Elements::OutputRangeProof => &simplicity_sys::c_jets::jets_wrapper::output_range_proof,
-            Elements::OutputRangeProofsHash => &simplicity_sys::c_jets::jets_wrapper::output_range_proofs_hash,
-            Elements::OutputScriptHash => &simplicity_sys::c_jets::jets_wrapper::output_script_hash,
-            Elements::OutputScriptsHash => &simplicity_sys::c_jets::jets_wrapper::output_scripts_hash,
-            Elements::OutputSurjectionProof => &simplicity_sys::c_jets::jets_wrapper::output_surjection_proof,
-            Elements::OutputSurjectionProofsHash => &simplicity_sys::c_jets::jets_wrapper::output_surjection_proofs_hash,
-            Elements::OutputsHash => &simplicity_sys::c_jets::jets_wrapper::outputs_hash,
-            Elements::ParseLock => &simplicity_sys::c_jets::jets_wrapper::parse_lock,
-            Elements::ParseSequence => &simplicity_sys::c_jets::jets_wrapper::parse_sequence,
-            Elements::PointVerify1 => &simplicity_sys::c_jets::jets_wrapper::point_verify_1,
-            Elements::ReissuanceBlinding => &simplicity_sys::c_jets::jets_wrapper::reissuance_blinding,
-            Elements::ReissuanceEntropy => &simplicity_sys::c_jets::jets_wrapper::reissuance_entropy,
-            Elements::RightExtend16_32 => &simplicity_sys::c_jets::jets_wrapper::right_extend_16_32,
-            Elements::RightExtend16_64 => &simplicity_sys::c_jets::jets_wrapper::right_extend_16_64,
-            Elements::RightExtend32_64 => &simplicity_sys::c_jets::jets_wrapper::right_extend_32_64,
-            Elements::RightExtend8_16 => &simplicity_sys::c_jets::jets_wrapper::right_extend_8_16,
-            Elements::RightExtend8_32 => &simplicity_sys::c_jets::jets_wrapper::right_extend_8_32,
-            Elements::RightExtend8_64 => &simplicity_sys::c_jets::jets_wrapper::right_extend_8_64,
-            Elements::RightPadHigh16_32 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_16_32,
-            Elements::RightPadHigh16_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_16_64,
-            Elements::RightPadHigh1_16 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_1_16,
-            Elements::RightPadHigh1_32 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_1_32,
-            Elements::RightPadHigh1_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_1_64,
-            Elements::RightPadHigh1_8 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_1_8,
-            Elements::RightPadHigh32_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_32_64,
-            Elements::RightPadHigh8_16 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_8_16,
-            Elements::RightPadHigh8_32 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_8_32,
-            Elements::RightPadHigh8_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_high_8_64,
-            Elements::RightPadLow16_32 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_16_32,
-            Elements::RightPadLow16_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_16_64,
-            Elements::RightPadLow1_16 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_1_16,
-            Elements::RightPadLow1_32 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_1_32,
-            Elements::RightPadLow1_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_1_64,
-            Elements::RightPadLow1_8 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_1_8,
-            Elements::RightPadLow32_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_32_64,
-            Elements::RightPadLow8_16 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_8_16,
-            Elements::RightPadLow8_32 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_8_32,
-            Elements::RightPadLow8_64 => &simplicity_sys::c_jets::jets_wrapper::right_pad_low_8_64,
-            Elements::RightRotate16 => &simplicity_sys::c_jets::jets_wrapper::right_rotate_16,
-            Elements::RightRotate32 => &simplicity_sys::c_jets::jets_wrapper::right_rotate_32,
-            Elements::RightRotate64 => &simplicity_sys::c_jets::jets_wrapper::right_rotate_64,
-            Elements::RightRotate8 => &simplicity_sys::c_jets::jets_wrapper::right_rotate_8,
-            Elements::RightShift16 => &simplicity_sys::c_jets::jets_wrapper::right_shift_16,
-            Elements::RightShift32 => &simplicity_sys::c_jets::jets_wrapper::right_shift_32,
-            Elements::RightShift64 => &simplicity_sys::c_jets::jets_wrapper::right_shift_64,
-            Elements::RightShift8 => &simplicity_sys::c_jets::jets_wrapper::right_shift_8,
-            Elements::RightShiftWith16 => &simplicity_sys::c_jets::jets_wrapper::right_shift_with_16,
-            Elements::RightShiftWith32 => &simplicity_sys::c_jets::jets_wrapper::right_shift_with_32,
-            Elements::RightShiftWith64 => &simplicity_sys::c_jets::jets_wrapper::right_shift_with_64,
-            Elements::RightShiftWith8 => &simplicity_sys::c_jets::jets_wrapper::right_shift_with_8,
-            Elements::Rightmost16_1 => &simplicity_sys::c_jets::jets_wrapper::rightmost_16_1,
-            Elements::Rightmost16_2 => &simplicity_sys::c_jets::jets_wrapper::rightmost_16_2,
-            Elements::Rightmost16_4 => &simplicity_sys::c_jets::jets_wrapper::rightmost_16_4,
-            Elements::Rightmost16_8 => &simplicity_sys::c_jets::jets_wrapper::rightmost_16_8,
-            Elements::Rightmost32_1 => &simplicity_sys::c_jets::jets_wrapper::rightmost_32_1,
-            Elements::Rightmost32_16 => &simplicity_sys::c_jets::jets_wrapper::rightmost_32_16,
-            Elements::Rightmost32_2 => &simplicity_sys::c_jets::jets_wrapper::rightmost_32_2,
-            Elements::Rightmost32_4 => &simplicity_sys::c_jets::jets_wrapper::rightmost_32_4,
-            Elements::Rightmost32_8 => &simplicity_sys::c_jets::jets_wrapper::rightmost_32_8,
-            Elements::Rightmost64_1 => &simplicity_sys::c_jets::jets_wrapper::rightmost_64_1,
-            Elements::Rightmost64_16 => &simplicity_sys::c_jets::jets_wrapper::rightmost_64_16,
-            Elements::Rightmost64_2 => &simplicity_sys::c_jets::jets_wrapper::rightmost_64_2,
-            Elements::Rightmost64_32 => &simplicity_sys::c_jets::jets_wrapper::rightmost_64_32,
-            Elements::Rightmost64_4 => &simplicity_sys::c_jets::jets_wrapper::rightmost_64_4,
-            Elements::Rightmost64_8 => &simplicity_sys::c_jets::jets_wrapper::rightmost_64_8,
-            Elements::Rightmost8_1 => &simplicity_sys::c_jets::jets_wrapper::rightmost_8_1,
-            Elements::Rightmost8_2 => &simplicity_sys::c_jets::jets_wrapper::rightmost_8_2,
-            Elements::Rightmost8_4 => &simplicity_sys::c_jets::jets_wrapper::rightmost_8_4,
-            Elements::ScalarAdd => &simplicity_sys::c_jets::jets_wrapper::scalar_add,
-            Elements::ScalarInvert => &simplicity_sys::c_jets::jets_wrapper::scalar_invert,
-            Elements::ScalarIsZero => &simplicity_sys::c_jets::jets_wrapper::scalar_is_zero,
-            Elements::ScalarMultiply => &simplicity_sys::c_jets::jets_wrapper::scalar_multiply,
-            Elements::ScalarMultiplyLambda => &simplicity_sys::c_jets::jets_wrapper::scalar_multiply_lambda,
-            Elements::ScalarNegate => &simplicity_sys::c_jets::jets_wrapper::scalar_negate,
-            Elements::ScalarNormalize => &simplicity_sys::c_jets::jets_wrapper::scalar_normalize,
-            Elements::ScalarSquare => &simplicity_sys::c_jets::jets_wrapper::scalar_square,
-            Elements::Scale => &simplicity_sys::c_jets::jets_wrapper::scale,
-            Elements::ScriptCMR => &simplicity_sys::c_jets::jets_wrapper::script_cmr,
-            Elements::Sha256Block => &simplicity_sys::c_jets::jets_wrapper::sha_256_block,
-            Elements::Sha256Ctx8Add1 => &simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_1,
-            Elements::Sha256Ctx8Add128 => &simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_128,
-            Elements::Sha256Ctx8Add16 => &simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_16,
-            Elements::Sha256Ctx8Add2 => &simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_2,
-            Elements::Sha256Ctx8Add256 => &simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_256,
-            Elements::Sha256Ctx8Add32 => &simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_32,
-            Elements::Sha256Ctx8Add4 => &simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_4,
-            Elements::Sha256Ctx8Add512 => &simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_512,
-            Elements::Sha256Ctx8Add64 => &simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_64,
-            Elements::Sha256Ctx8Add8 => &simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_8,
-            Elements::Sha256Ctx8AddBuffer511 => &simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_buffer_511,
-            Elements::Sha256Ctx8Finalize => &simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_finalize,
-            Elements::Sha256Ctx8Init => &simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_init,
-            Elements::Sha256Iv => &simplicity_sys::c_jets::jets_wrapper::sha_256_iv,
-            Elements::SigAllHash => &simplicity_sys::c_jets::jets_wrapper::sig_all_hash,
-            Elements::Some1 => &simplicity_sys::c_jets::jets_wrapper::some_1,
-            Elements::Some16 => &simplicity_sys::c_jets::jets_wrapper::some_16,
-            Elements::Some32 => &simplicity_sys::c_jets::jets_wrapper::some_32,
-            Elements::Some64 => &simplicity_sys::c_jets::jets_wrapper::some_64,
-            Elements::Some8 => &simplicity_sys::c_jets::jets_wrapper::some_8,
-            Elements::Subtract16 => &simplicity_sys::c_jets::jets_wrapper::subtract_16,
-            Elements::Subtract32 => &simplicity_sys::c_jets::jets_wrapper::subtract_32,
-            Elements::Subtract64 => &simplicity_sys::c_jets::jets_wrapper::subtract_64,
-            Elements::Subtract8 => &simplicity_sys::c_jets::jets_wrapper::subtract_8,
-            Elements::Swu => &simplicity_sys::c_jets::jets_wrapper::swu,
-            Elements::TapEnvHash => &simplicity_sys::c_jets::jets_wrapper::tap_env_hash,
-            Elements::TapdataInit => &simplicity_sys::c_jets::jets_wrapper::tapdata_init,
-            Elements::TapleafHash => &simplicity_sys::c_jets::jets_wrapper::tapleaf_hash,
-            Elements::TapleafVersion => &simplicity_sys::c_jets::jets_wrapper::tapleaf_version,
-            Elements::Tappath => &simplicity_sys::c_jets::jets_wrapper::tappath,
-            Elements::TappathHash => &simplicity_sys::c_jets::jets_wrapper::tappath_hash,
-            Elements::TotalFee => &simplicity_sys::c_jets::jets_wrapper::total_fee,
-            Elements::TransactionId => &simplicity_sys::c_jets::jets_wrapper::transaction_id,
-            Elements::TxHash => &simplicity_sys::c_jets::jets_wrapper::tx_hash,
-            Elements::TxIsFinal => &simplicity_sys::c_jets::jets_wrapper::tx_is_final,
-            Elements::TxLockDistance => &simplicity_sys::c_jets::jets_wrapper::tx_lock_distance,
-            Elements::TxLockDuration => &simplicity_sys::c_jets::jets_wrapper::tx_lock_duration,
-            Elements::TxLockHeight => &simplicity_sys::c_jets::jets_wrapper::tx_lock_height,
-            Elements::TxLockTime => &simplicity_sys::c_jets::jets_wrapper::tx_lock_time,
-            Elements::Verify => &simplicity_sys::c_jets::jets_wrapper::verify,
-            Elements::Version => &simplicity_sys::c_jets::jets_wrapper::version,
-            Elements::Xor1 => &simplicity_sys::c_jets::jets_wrapper::xor_1,
-            Elements::Xor16 => &simplicity_sys::c_jets::jets_wrapper::xor_16,
-            Elements::Xor32 => &simplicity_sys::c_jets::jets_wrapper::xor_32,
-            Elements::Xor64 => &simplicity_sys::c_jets::jets_wrapper::xor_64,
-            Elements::Xor8 => &simplicity_sys::c_jets::jets_wrapper::xor_8,
-            Elements::XorXor1 => &simplicity_sys::c_jets::jets_wrapper::xor_xor_1,
-            Elements::XorXor16 => &simplicity_sys::c_jets::jets_wrapper::xor_xor_16,
-            Elements::XorXor32 => &simplicity_sys::c_jets::jets_wrapper::xor_xor_32,
-            Elements::XorXor64 => &simplicity_sys::c_jets::jets_wrapper::xor_xor_64,
-            Elements::XorXor8 => &simplicity_sys::c_jets::jets_wrapper::xor_xor_8,
-        }
-    }
-
     fn cost(&self) -> Cost {
         match self {
             Elements::Add16 => Cost::from_milliweight(108),
@@ -9335,6 +8887,653 @@ impl str::FromStr for Elements {
             "xor_xor_64" => Ok(Elements::XorXor64),
             "xor_xor_8" => Ok(Elements::XorXor8),
             x => Err(crate::Error::InvalidJetName(x.to_owned())),
+        }
+    }
+}
+
+pub type ElementsTxEnv = ElementsEnv<std::sync::Arc<elements::Transaction>>;
+
+impl JetEnvironment for ElementsTxEnv {
+    type Jet = Elements;
+    type CJetEnvironment = CElementsTxEnv;
+
+    fn c_jet_env(&self) -> &Self::CJetEnvironment {
+        self.c_tx_env()
+    }
+
+    fn c_jet_ptr(
+        jet: &Self::Jet,
+    ) -> fn(&mut CFrameItem, CFrameItem, &Self::CJetEnvironment) -> bool {
+        match jet {
+            Elements::Add16 => simplicity_sys::c_jets::jets_wrapper::add_16,
+            Elements::Add32 => simplicity_sys::c_jets::jets_wrapper::add_32,
+            Elements::Add64 => simplicity_sys::c_jets::jets_wrapper::add_64,
+            Elements::Add8 => simplicity_sys::c_jets::jets_wrapper::add_8,
+            Elements::All16 => simplicity_sys::c_jets::jets_wrapper::all_16,
+            Elements::All32 => simplicity_sys::c_jets::jets_wrapper::all_32,
+            Elements::All64 => simplicity_sys::c_jets::jets_wrapper::all_64,
+            Elements::All8 => simplicity_sys::c_jets::jets_wrapper::all_8,
+            Elements::And1 => simplicity_sys::c_jets::jets_wrapper::and_1,
+            Elements::And16 => simplicity_sys::c_jets::jets_wrapper::and_16,
+            Elements::And32 => simplicity_sys::c_jets::jets_wrapper::and_32,
+            Elements::And64 => simplicity_sys::c_jets::jets_wrapper::and_64,
+            Elements::And8 => simplicity_sys::c_jets::jets_wrapper::and_8,
+            Elements::AnnexHash => simplicity_sys::c_jets::jets_wrapper::annex_hash,
+            Elements::AssetAmountHash => simplicity_sys::c_jets::jets_wrapper::asset_amount_hash,
+            Elements::Bip0340Verify => simplicity_sys::c_jets::jets_wrapper::bip_0340_verify,
+            Elements::BuildTapbranch => simplicity_sys::c_jets::jets_wrapper::build_tapbranch,
+            Elements::BuildTapleafSimplicity => {
+                simplicity_sys::c_jets::jets_wrapper::build_tapleaf_simplicity
+            }
+            Elements::BuildTaptweak => simplicity_sys::c_jets::jets_wrapper::build_taptweak,
+            Elements::CalculateAsset => simplicity_sys::c_jets::jets_wrapper::calculate_asset,
+            Elements::CalculateConfidentialToken => {
+                simplicity_sys::c_jets::jets_wrapper::calculate_confidential_token
+            }
+            Elements::CalculateExplicitToken => {
+                simplicity_sys::c_jets::jets_wrapper::calculate_explicit_token
+            }
+            Elements::CalculateIssuanceEntropy => {
+                simplicity_sys::c_jets::jets_wrapper::calculate_issuance_entropy
+            }
+            Elements::Ch1 => simplicity_sys::c_jets::jets_wrapper::ch_1,
+            Elements::Ch16 => simplicity_sys::c_jets::jets_wrapper::ch_16,
+            Elements::Ch32 => simplicity_sys::c_jets::jets_wrapper::ch_32,
+            Elements::Ch64 => simplicity_sys::c_jets::jets_wrapper::ch_64,
+            Elements::Ch8 => simplicity_sys::c_jets::jets_wrapper::ch_8,
+            Elements::CheckLockDistance => {
+                simplicity_sys::c_jets::jets_wrapper::check_lock_distance
+            }
+            Elements::CheckLockDuration => {
+                simplicity_sys::c_jets::jets_wrapper::check_lock_duration
+            }
+            Elements::CheckLockHeight => simplicity_sys::c_jets::jets_wrapper::check_lock_height,
+            Elements::CheckLockTime => simplicity_sys::c_jets::jets_wrapper::check_lock_time,
+            Elements::CheckSigVerify => simplicity_sys::c_jets::jets_wrapper::check_sig_verify,
+            Elements::Complement1 => simplicity_sys::c_jets::jets_wrapper::complement_1,
+            Elements::Complement16 => simplicity_sys::c_jets::jets_wrapper::complement_16,
+            Elements::Complement32 => simplicity_sys::c_jets::jets_wrapper::complement_32,
+            Elements::Complement64 => simplicity_sys::c_jets::jets_wrapper::complement_64,
+            Elements::Complement8 => simplicity_sys::c_jets::jets_wrapper::complement_8,
+            Elements::CurrentAmount => simplicity_sys::c_jets::jets_wrapper::current_amount,
+            Elements::CurrentAnnexHash => simplicity_sys::c_jets::jets_wrapper::current_annex_hash,
+            Elements::CurrentAsset => simplicity_sys::c_jets::jets_wrapper::current_asset,
+            Elements::CurrentIndex => simplicity_sys::c_jets::jets_wrapper::current_index,
+            Elements::CurrentIssuanceAssetAmount => {
+                simplicity_sys::c_jets::jets_wrapper::current_issuance_asset_amount
+            }
+            Elements::CurrentIssuanceAssetProof => {
+                simplicity_sys::c_jets::jets_wrapper::current_issuance_asset_proof
+            }
+            Elements::CurrentIssuanceTokenAmount => {
+                simplicity_sys::c_jets::jets_wrapper::current_issuance_token_amount
+            }
+            Elements::CurrentIssuanceTokenProof => {
+                simplicity_sys::c_jets::jets_wrapper::current_issuance_token_proof
+            }
+            Elements::CurrentNewIssuanceContract => {
+                simplicity_sys::c_jets::jets_wrapper::current_new_issuance_contract
+            }
+            Elements::CurrentPegin => simplicity_sys::c_jets::jets_wrapper::current_pegin,
+            Elements::CurrentPrevOutpoint => {
+                simplicity_sys::c_jets::jets_wrapper::current_prev_outpoint
+            }
+            Elements::CurrentReissuanceBlinding => {
+                simplicity_sys::c_jets::jets_wrapper::current_reissuance_blinding
+            }
+            Elements::CurrentReissuanceEntropy => {
+                simplicity_sys::c_jets::jets_wrapper::current_reissuance_entropy
+            }
+            Elements::CurrentScriptHash => {
+                simplicity_sys::c_jets::jets_wrapper::current_script_hash
+            }
+            Elements::CurrentScriptSigHash => {
+                simplicity_sys::c_jets::jets_wrapper::current_script_sig_hash
+            }
+            Elements::CurrentSequence => simplicity_sys::c_jets::jets_wrapper::current_sequence,
+            Elements::Decompress => simplicity_sys::c_jets::jets_wrapper::decompress,
+            Elements::Decrement16 => simplicity_sys::c_jets::jets_wrapper::decrement_16,
+            Elements::Decrement32 => simplicity_sys::c_jets::jets_wrapper::decrement_32,
+            Elements::Decrement64 => simplicity_sys::c_jets::jets_wrapper::decrement_64,
+            Elements::Decrement8 => simplicity_sys::c_jets::jets_wrapper::decrement_8,
+            Elements::DivMod128_64 => simplicity_sys::c_jets::jets_wrapper::div_mod_128_64,
+            Elements::DivMod16 => simplicity_sys::c_jets::jets_wrapper::div_mod_16,
+            Elements::DivMod32 => simplicity_sys::c_jets::jets_wrapper::div_mod_32,
+            Elements::DivMod64 => simplicity_sys::c_jets::jets_wrapper::div_mod_64,
+            Elements::DivMod8 => simplicity_sys::c_jets::jets_wrapper::div_mod_8,
+            Elements::Divide16 => simplicity_sys::c_jets::jets_wrapper::divide_16,
+            Elements::Divide32 => simplicity_sys::c_jets::jets_wrapper::divide_32,
+            Elements::Divide64 => simplicity_sys::c_jets::jets_wrapper::divide_64,
+            Elements::Divide8 => simplicity_sys::c_jets::jets_wrapper::divide_8,
+            Elements::Divides16 => simplicity_sys::c_jets::jets_wrapper::divides_16,
+            Elements::Divides32 => simplicity_sys::c_jets::jets_wrapper::divides_32,
+            Elements::Divides64 => simplicity_sys::c_jets::jets_wrapper::divides_64,
+            Elements::Divides8 => simplicity_sys::c_jets::jets_wrapper::divides_8,
+            Elements::Eq1 => simplicity_sys::c_jets::jets_wrapper::eq_1,
+            Elements::Eq16 => simplicity_sys::c_jets::jets_wrapper::eq_16,
+            Elements::Eq256 => simplicity_sys::c_jets::jets_wrapper::eq_256,
+            Elements::Eq32 => simplicity_sys::c_jets::jets_wrapper::eq_32,
+            Elements::Eq64 => simplicity_sys::c_jets::jets_wrapper::eq_64,
+            Elements::Eq8 => simplicity_sys::c_jets::jets_wrapper::eq_8,
+            Elements::FeAdd => simplicity_sys::c_jets::jets_wrapper::fe_add,
+            Elements::FeInvert => simplicity_sys::c_jets::jets_wrapper::fe_invert,
+            Elements::FeIsOdd => simplicity_sys::c_jets::jets_wrapper::fe_is_odd,
+            Elements::FeIsZero => simplicity_sys::c_jets::jets_wrapper::fe_is_zero,
+            Elements::FeMultiply => simplicity_sys::c_jets::jets_wrapper::fe_multiply,
+            Elements::FeMultiplyBeta => simplicity_sys::c_jets::jets_wrapper::fe_multiply_beta,
+            Elements::FeNegate => simplicity_sys::c_jets::jets_wrapper::fe_negate,
+            Elements::FeNormalize => simplicity_sys::c_jets::jets_wrapper::fe_normalize,
+            Elements::FeSquare => simplicity_sys::c_jets::jets_wrapper::fe_square,
+            Elements::FeSquareRoot => simplicity_sys::c_jets::jets_wrapper::fe_square_root,
+            Elements::FullAdd16 => simplicity_sys::c_jets::jets_wrapper::full_add_16,
+            Elements::FullAdd32 => simplicity_sys::c_jets::jets_wrapper::full_add_32,
+            Elements::FullAdd64 => simplicity_sys::c_jets::jets_wrapper::full_add_64,
+            Elements::FullAdd8 => simplicity_sys::c_jets::jets_wrapper::full_add_8,
+            Elements::FullDecrement16 => simplicity_sys::c_jets::jets_wrapper::full_decrement_16,
+            Elements::FullDecrement32 => simplicity_sys::c_jets::jets_wrapper::full_decrement_32,
+            Elements::FullDecrement64 => simplicity_sys::c_jets::jets_wrapper::full_decrement_64,
+            Elements::FullDecrement8 => simplicity_sys::c_jets::jets_wrapper::full_decrement_8,
+            Elements::FullIncrement16 => simplicity_sys::c_jets::jets_wrapper::full_increment_16,
+            Elements::FullIncrement32 => simplicity_sys::c_jets::jets_wrapper::full_increment_32,
+            Elements::FullIncrement64 => simplicity_sys::c_jets::jets_wrapper::full_increment_64,
+            Elements::FullIncrement8 => simplicity_sys::c_jets::jets_wrapper::full_increment_8,
+            Elements::FullLeftShift16_1 => {
+                simplicity_sys::c_jets::jets_wrapper::full_left_shift_16_1
+            }
+            Elements::FullLeftShift16_2 => {
+                simplicity_sys::c_jets::jets_wrapper::full_left_shift_16_2
+            }
+            Elements::FullLeftShift16_4 => {
+                simplicity_sys::c_jets::jets_wrapper::full_left_shift_16_4
+            }
+            Elements::FullLeftShift16_8 => {
+                simplicity_sys::c_jets::jets_wrapper::full_left_shift_16_8
+            }
+            Elements::FullLeftShift32_1 => {
+                simplicity_sys::c_jets::jets_wrapper::full_left_shift_32_1
+            }
+            Elements::FullLeftShift32_16 => {
+                simplicity_sys::c_jets::jets_wrapper::full_left_shift_32_16
+            }
+            Elements::FullLeftShift32_2 => {
+                simplicity_sys::c_jets::jets_wrapper::full_left_shift_32_2
+            }
+            Elements::FullLeftShift32_4 => {
+                simplicity_sys::c_jets::jets_wrapper::full_left_shift_32_4
+            }
+            Elements::FullLeftShift32_8 => {
+                simplicity_sys::c_jets::jets_wrapper::full_left_shift_32_8
+            }
+            Elements::FullLeftShift64_1 => {
+                simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_1
+            }
+            Elements::FullLeftShift64_16 => {
+                simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_16
+            }
+            Elements::FullLeftShift64_2 => {
+                simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_2
+            }
+            Elements::FullLeftShift64_32 => {
+                simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_32
+            }
+            Elements::FullLeftShift64_4 => {
+                simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_4
+            }
+            Elements::FullLeftShift64_8 => {
+                simplicity_sys::c_jets::jets_wrapper::full_left_shift_64_8
+            }
+            Elements::FullLeftShift8_1 => simplicity_sys::c_jets::jets_wrapper::full_left_shift_8_1,
+            Elements::FullLeftShift8_2 => simplicity_sys::c_jets::jets_wrapper::full_left_shift_8_2,
+            Elements::FullLeftShift8_4 => simplicity_sys::c_jets::jets_wrapper::full_left_shift_8_4,
+            Elements::FullMultiply16 => simplicity_sys::c_jets::jets_wrapper::full_multiply_16,
+            Elements::FullMultiply32 => simplicity_sys::c_jets::jets_wrapper::full_multiply_32,
+            Elements::FullMultiply64 => simplicity_sys::c_jets::jets_wrapper::full_multiply_64,
+            Elements::FullMultiply8 => simplicity_sys::c_jets::jets_wrapper::full_multiply_8,
+            Elements::FullRightShift16_1 => {
+                simplicity_sys::c_jets::jets_wrapper::full_right_shift_16_1
+            }
+            Elements::FullRightShift16_2 => {
+                simplicity_sys::c_jets::jets_wrapper::full_right_shift_16_2
+            }
+            Elements::FullRightShift16_4 => {
+                simplicity_sys::c_jets::jets_wrapper::full_right_shift_16_4
+            }
+            Elements::FullRightShift16_8 => {
+                simplicity_sys::c_jets::jets_wrapper::full_right_shift_16_8
+            }
+            Elements::FullRightShift32_1 => {
+                simplicity_sys::c_jets::jets_wrapper::full_right_shift_32_1
+            }
+            Elements::FullRightShift32_16 => {
+                simplicity_sys::c_jets::jets_wrapper::full_right_shift_32_16
+            }
+            Elements::FullRightShift32_2 => {
+                simplicity_sys::c_jets::jets_wrapper::full_right_shift_32_2
+            }
+            Elements::FullRightShift32_4 => {
+                simplicity_sys::c_jets::jets_wrapper::full_right_shift_32_4
+            }
+            Elements::FullRightShift32_8 => {
+                simplicity_sys::c_jets::jets_wrapper::full_right_shift_32_8
+            }
+            Elements::FullRightShift64_1 => {
+                simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_1
+            }
+            Elements::FullRightShift64_16 => {
+                simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_16
+            }
+            Elements::FullRightShift64_2 => {
+                simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_2
+            }
+            Elements::FullRightShift64_32 => {
+                simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_32
+            }
+            Elements::FullRightShift64_4 => {
+                simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_4
+            }
+            Elements::FullRightShift64_8 => {
+                simplicity_sys::c_jets::jets_wrapper::full_right_shift_64_8
+            }
+            Elements::FullRightShift8_1 => {
+                simplicity_sys::c_jets::jets_wrapper::full_right_shift_8_1
+            }
+            Elements::FullRightShift8_2 => {
+                simplicity_sys::c_jets::jets_wrapper::full_right_shift_8_2
+            }
+            Elements::FullRightShift8_4 => {
+                simplicity_sys::c_jets::jets_wrapper::full_right_shift_8_4
+            }
+            Elements::FullSubtract16 => simplicity_sys::c_jets::jets_wrapper::full_subtract_16,
+            Elements::FullSubtract32 => simplicity_sys::c_jets::jets_wrapper::full_subtract_32,
+            Elements::FullSubtract64 => simplicity_sys::c_jets::jets_wrapper::full_subtract_64,
+            Elements::FullSubtract8 => simplicity_sys::c_jets::jets_wrapper::full_subtract_8,
+            Elements::GeIsOnCurve => simplicity_sys::c_jets::jets_wrapper::ge_is_on_curve,
+            Elements::GeNegate => simplicity_sys::c_jets::jets_wrapper::ge_negate,
+            Elements::GejAdd => simplicity_sys::c_jets::jets_wrapper::gej_add,
+            Elements::GejDouble => simplicity_sys::c_jets::jets_wrapper::gej_double,
+            Elements::GejEquiv => simplicity_sys::c_jets::jets_wrapper::gej_equiv,
+            Elements::GejGeAdd => simplicity_sys::c_jets::jets_wrapper::gej_ge_add,
+            Elements::GejGeAddEx => simplicity_sys::c_jets::jets_wrapper::gej_ge_add_ex,
+            Elements::GejGeEquiv => simplicity_sys::c_jets::jets_wrapper::gej_ge_equiv,
+            Elements::GejInfinity => simplicity_sys::c_jets::jets_wrapper::gej_infinity,
+            Elements::GejIsInfinity => simplicity_sys::c_jets::jets_wrapper::gej_is_infinity,
+            Elements::GejIsOnCurve => simplicity_sys::c_jets::jets_wrapper::gej_is_on_curve,
+            Elements::GejNegate => simplicity_sys::c_jets::jets_wrapper::gej_negate,
+            Elements::GejNormalize => simplicity_sys::c_jets::jets_wrapper::gej_normalize,
+            Elements::GejRescale => simplicity_sys::c_jets::jets_wrapper::gej_rescale,
+            Elements::GejXEquiv => simplicity_sys::c_jets::jets_wrapper::gej_x_equiv,
+            Elements::GejYIsOdd => simplicity_sys::c_jets::jets_wrapper::gej_y_is_odd,
+            Elements::Generate => simplicity_sys::c_jets::jets_wrapper::generate,
+            Elements::GenesisBlockHash => simplicity_sys::c_jets::jets_wrapper::genesis_block_hash,
+            Elements::HashToCurve => simplicity_sys::c_jets::jets_wrapper::hash_to_curve,
+            Elements::High1 => simplicity_sys::c_jets::jets_wrapper::high_1,
+            Elements::High16 => simplicity_sys::c_jets::jets_wrapper::high_16,
+            Elements::High32 => simplicity_sys::c_jets::jets_wrapper::high_32,
+            Elements::High64 => simplicity_sys::c_jets::jets_wrapper::high_64,
+            Elements::High8 => simplicity_sys::c_jets::jets_wrapper::high_8,
+            Elements::Increment16 => simplicity_sys::c_jets::jets_wrapper::increment_16,
+            Elements::Increment32 => simplicity_sys::c_jets::jets_wrapper::increment_32,
+            Elements::Increment64 => simplicity_sys::c_jets::jets_wrapper::increment_64,
+            Elements::Increment8 => simplicity_sys::c_jets::jets_wrapper::increment_8,
+            Elements::InputAmount => simplicity_sys::c_jets::jets_wrapper::input_amount,
+            Elements::InputAmountsHash => simplicity_sys::c_jets::jets_wrapper::input_amounts_hash,
+            Elements::InputAnnexHash => simplicity_sys::c_jets::jets_wrapper::input_annex_hash,
+            Elements::InputAnnexesHash => simplicity_sys::c_jets::jets_wrapper::input_annexes_hash,
+            Elements::InputAsset => simplicity_sys::c_jets::jets_wrapper::input_asset,
+            Elements::InputHash => simplicity_sys::c_jets::jets_wrapper::input_hash,
+            Elements::InputOutpointsHash => {
+                simplicity_sys::c_jets::jets_wrapper::input_outpoints_hash
+            }
+            Elements::InputPegin => simplicity_sys::c_jets::jets_wrapper::input_pegin,
+            Elements::InputPrevOutpoint => {
+                simplicity_sys::c_jets::jets_wrapper::input_prev_outpoint
+            }
+            Elements::InputScriptHash => simplicity_sys::c_jets::jets_wrapper::input_script_hash,
+            Elements::InputScriptSigHash => {
+                simplicity_sys::c_jets::jets_wrapper::input_script_sig_hash
+            }
+            Elements::InputScriptSigsHash => {
+                simplicity_sys::c_jets::jets_wrapper::input_script_sigs_hash
+            }
+            Elements::InputScriptsHash => simplicity_sys::c_jets::jets_wrapper::input_scripts_hash,
+            Elements::InputSequence => simplicity_sys::c_jets::jets_wrapper::input_sequence,
+            Elements::InputSequencesHash => {
+                simplicity_sys::c_jets::jets_wrapper::input_sequences_hash
+            }
+            Elements::InputUtxoHash => simplicity_sys::c_jets::jets_wrapper::input_utxo_hash,
+            Elements::InputUtxosHash => simplicity_sys::c_jets::jets_wrapper::input_utxos_hash,
+            Elements::InputsHash => simplicity_sys::c_jets::jets_wrapper::inputs_hash,
+            Elements::InternalKey => simplicity_sys::c_jets::jets_wrapper::internal_key,
+            Elements::IsOne16 => simplicity_sys::c_jets::jets_wrapper::is_one_16,
+            Elements::IsOne32 => simplicity_sys::c_jets::jets_wrapper::is_one_32,
+            Elements::IsOne64 => simplicity_sys::c_jets::jets_wrapper::is_one_64,
+            Elements::IsOne8 => simplicity_sys::c_jets::jets_wrapper::is_one_8,
+            Elements::IsZero16 => simplicity_sys::c_jets::jets_wrapper::is_zero_16,
+            Elements::IsZero32 => simplicity_sys::c_jets::jets_wrapper::is_zero_32,
+            Elements::IsZero64 => simplicity_sys::c_jets::jets_wrapper::is_zero_64,
+            Elements::IsZero8 => simplicity_sys::c_jets::jets_wrapper::is_zero_8,
+            Elements::Issuance => simplicity_sys::c_jets::jets_wrapper::issuance,
+            Elements::IssuanceAsset => simplicity_sys::c_jets::jets_wrapper::issuance_asset,
+            Elements::IssuanceAssetAmount => {
+                simplicity_sys::c_jets::jets_wrapper::issuance_asset_amount
+            }
+            Elements::IssuanceAssetAmountsHash => {
+                simplicity_sys::c_jets::jets_wrapper::issuance_asset_amounts_hash
+            }
+            Elements::IssuanceAssetProof => {
+                simplicity_sys::c_jets::jets_wrapper::issuance_asset_proof
+            }
+            Elements::IssuanceBlindingEntropyHash => {
+                simplicity_sys::c_jets::jets_wrapper::issuance_blinding_entropy_hash
+            }
+            Elements::IssuanceEntropy => simplicity_sys::c_jets::jets_wrapper::issuance_entropy,
+            Elements::IssuanceHash => simplicity_sys::c_jets::jets_wrapper::issuance_hash,
+            Elements::IssuanceRangeProofsHash => {
+                simplicity_sys::c_jets::jets_wrapper::issuance_range_proofs_hash
+            }
+            Elements::IssuanceToken => simplicity_sys::c_jets::jets_wrapper::issuance_token,
+            Elements::IssuanceTokenAmount => {
+                simplicity_sys::c_jets::jets_wrapper::issuance_token_amount
+            }
+            Elements::IssuanceTokenAmountsHash => {
+                simplicity_sys::c_jets::jets_wrapper::issuance_token_amounts_hash
+            }
+            Elements::IssuanceTokenProof => {
+                simplicity_sys::c_jets::jets_wrapper::issuance_token_proof
+            }
+            Elements::IssuancesHash => simplicity_sys::c_jets::jets_wrapper::issuances_hash,
+            Elements::LbtcAsset => simplicity_sys::c_jets::jets_wrapper::lbtc_asset,
+            Elements::Le16 => simplicity_sys::c_jets::jets_wrapper::le_16,
+            Elements::Le32 => simplicity_sys::c_jets::jets_wrapper::le_32,
+            Elements::Le64 => simplicity_sys::c_jets::jets_wrapper::le_64,
+            Elements::Le8 => simplicity_sys::c_jets::jets_wrapper::le_8,
+            Elements::LeftExtend16_32 => simplicity_sys::c_jets::jets_wrapper::left_extend_16_32,
+            Elements::LeftExtend16_64 => simplicity_sys::c_jets::jets_wrapper::left_extend_16_64,
+            Elements::LeftExtend1_16 => simplicity_sys::c_jets::jets_wrapper::left_extend_1_16,
+            Elements::LeftExtend1_32 => simplicity_sys::c_jets::jets_wrapper::left_extend_1_32,
+            Elements::LeftExtend1_64 => simplicity_sys::c_jets::jets_wrapper::left_extend_1_64,
+            Elements::LeftExtend1_8 => simplicity_sys::c_jets::jets_wrapper::left_extend_1_8,
+            Elements::LeftExtend32_64 => simplicity_sys::c_jets::jets_wrapper::left_extend_32_64,
+            Elements::LeftExtend8_16 => simplicity_sys::c_jets::jets_wrapper::left_extend_8_16,
+            Elements::LeftExtend8_32 => simplicity_sys::c_jets::jets_wrapper::left_extend_8_32,
+            Elements::LeftExtend8_64 => simplicity_sys::c_jets::jets_wrapper::left_extend_8_64,
+            Elements::LeftPadHigh16_32 => simplicity_sys::c_jets::jets_wrapper::left_pad_high_16_32,
+            Elements::LeftPadHigh16_64 => simplicity_sys::c_jets::jets_wrapper::left_pad_high_16_64,
+            Elements::LeftPadHigh1_16 => simplicity_sys::c_jets::jets_wrapper::left_pad_high_1_16,
+            Elements::LeftPadHigh1_32 => simplicity_sys::c_jets::jets_wrapper::left_pad_high_1_32,
+            Elements::LeftPadHigh1_64 => simplicity_sys::c_jets::jets_wrapper::left_pad_high_1_64,
+            Elements::LeftPadHigh1_8 => simplicity_sys::c_jets::jets_wrapper::left_pad_high_1_8,
+            Elements::LeftPadHigh32_64 => simplicity_sys::c_jets::jets_wrapper::left_pad_high_32_64,
+            Elements::LeftPadHigh8_16 => simplicity_sys::c_jets::jets_wrapper::left_pad_high_8_16,
+            Elements::LeftPadHigh8_32 => simplicity_sys::c_jets::jets_wrapper::left_pad_high_8_32,
+            Elements::LeftPadHigh8_64 => simplicity_sys::c_jets::jets_wrapper::left_pad_high_8_64,
+            Elements::LeftPadLow16_32 => simplicity_sys::c_jets::jets_wrapper::left_pad_low_16_32,
+            Elements::LeftPadLow16_64 => simplicity_sys::c_jets::jets_wrapper::left_pad_low_16_64,
+            Elements::LeftPadLow1_16 => simplicity_sys::c_jets::jets_wrapper::left_pad_low_1_16,
+            Elements::LeftPadLow1_32 => simplicity_sys::c_jets::jets_wrapper::left_pad_low_1_32,
+            Elements::LeftPadLow1_64 => simplicity_sys::c_jets::jets_wrapper::left_pad_low_1_64,
+            Elements::LeftPadLow1_8 => simplicity_sys::c_jets::jets_wrapper::left_pad_low_1_8,
+            Elements::LeftPadLow32_64 => simplicity_sys::c_jets::jets_wrapper::left_pad_low_32_64,
+            Elements::LeftPadLow8_16 => simplicity_sys::c_jets::jets_wrapper::left_pad_low_8_16,
+            Elements::LeftPadLow8_32 => simplicity_sys::c_jets::jets_wrapper::left_pad_low_8_32,
+            Elements::LeftPadLow8_64 => simplicity_sys::c_jets::jets_wrapper::left_pad_low_8_64,
+            Elements::LeftRotate16 => simplicity_sys::c_jets::jets_wrapper::left_rotate_16,
+            Elements::LeftRotate32 => simplicity_sys::c_jets::jets_wrapper::left_rotate_32,
+            Elements::LeftRotate64 => simplicity_sys::c_jets::jets_wrapper::left_rotate_64,
+            Elements::LeftRotate8 => simplicity_sys::c_jets::jets_wrapper::left_rotate_8,
+            Elements::LeftShift16 => simplicity_sys::c_jets::jets_wrapper::left_shift_16,
+            Elements::LeftShift32 => simplicity_sys::c_jets::jets_wrapper::left_shift_32,
+            Elements::LeftShift64 => simplicity_sys::c_jets::jets_wrapper::left_shift_64,
+            Elements::LeftShift8 => simplicity_sys::c_jets::jets_wrapper::left_shift_8,
+            Elements::LeftShiftWith16 => simplicity_sys::c_jets::jets_wrapper::left_shift_with_16,
+            Elements::LeftShiftWith32 => simplicity_sys::c_jets::jets_wrapper::left_shift_with_32,
+            Elements::LeftShiftWith64 => simplicity_sys::c_jets::jets_wrapper::left_shift_with_64,
+            Elements::LeftShiftWith8 => simplicity_sys::c_jets::jets_wrapper::left_shift_with_8,
+            Elements::Leftmost16_1 => simplicity_sys::c_jets::jets_wrapper::leftmost_16_1,
+            Elements::Leftmost16_2 => simplicity_sys::c_jets::jets_wrapper::leftmost_16_2,
+            Elements::Leftmost16_4 => simplicity_sys::c_jets::jets_wrapper::leftmost_16_4,
+            Elements::Leftmost16_8 => simplicity_sys::c_jets::jets_wrapper::leftmost_16_8,
+            Elements::Leftmost32_1 => simplicity_sys::c_jets::jets_wrapper::leftmost_32_1,
+            Elements::Leftmost32_16 => simplicity_sys::c_jets::jets_wrapper::leftmost_32_16,
+            Elements::Leftmost32_2 => simplicity_sys::c_jets::jets_wrapper::leftmost_32_2,
+            Elements::Leftmost32_4 => simplicity_sys::c_jets::jets_wrapper::leftmost_32_4,
+            Elements::Leftmost32_8 => simplicity_sys::c_jets::jets_wrapper::leftmost_32_8,
+            Elements::Leftmost64_1 => simplicity_sys::c_jets::jets_wrapper::leftmost_64_1,
+            Elements::Leftmost64_16 => simplicity_sys::c_jets::jets_wrapper::leftmost_64_16,
+            Elements::Leftmost64_2 => simplicity_sys::c_jets::jets_wrapper::leftmost_64_2,
+            Elements::Leftmost64_32 => simplicity_sys::c_jets::jets_wrapper::leftmost_64_32,
+            Elements::Leftmost64_4 => simplicity_sys::c_jets::jets_wrapper::leftmost_64_4,
+            Elements::Leftmost64_8 => simplicity_sys::c_jets::jets_wrapper::leftmost_64_8,
+            Elements::Leftmost8_1 => simplicity_sys::c_jets::jets_wrapper::leftmost_8_1,
+            Elements::Leftmost8_2 => simplicity_sys::c_jets::jets_wrapper::leftmost_8_2,
+            Elements::Leftmost8_4 => simplicity_sys::c_jets::jets_wrapper::leftmost_8_4,
+            Elements::LinearCombination1 => {
+                simplicity_sys::c_jets::jets_wrapper::linear_combination_1
+            }
+            Elements::LinearVerify1 => simplicity_sys::c_jets::jets_wrapper::linear_verify_1,
+            Elements::LockTime => simplicity_sys::c_jets::jets_wrapper::lock_time,
+            Elements::Low1 => simplicity_sys::c_jets::jets_wrapper::low_1,
+            Elements::Low16 => simplicity_sys::c_jets::jets_wrapper::low_16,
+            Elements::Low32 => simplicity_sys::c_jets::jets_wrapper::low_32,
+            Elements::Low64 => simplicity_sys::c_jets::jets_wrapper::low_64,
+            Elements::Low8 => simplicity_sys::c_jets::jets_wrapper::low_8,
+            Elements::Lt16 => simplicity_sys::c_jets::jets_wrapper::lt_16,
+            Elements::Lt32 => simplicity_sys::c_jets::jets_wrapper::lt_32,
+            Elements::Lt64 => simplicity_sys::c_jets::jets_wrapper::lt_64,
+            Elements::Lt8 => simplicity_sys::c_jets::jets_wrapper::lt_8,
+            Elements::Maj1 => simplicity_sys::c_jets::jets_wrapper::maj_1,
+            Elements::Maj16 => simplicity_sys::c_jets::jets_wrapper::maj_16,
+            Elements::Maj32 => simplicity_sys::c_jets::jets_wrapper::maj_32,
+            Elements::Maj64 => simplicity_sys::c_jets::jets_wrapper::maj_64,
+            Elements::Maj8 => simplicity_sys::c_jets::jets_wrapper::maj_8,
+            Elements::Max16 => simplicity_sys::c_jets::jets_wrapper::max_16,
+            Elements::Max32 => simplicity_sys::c_jets::jets_wrapper::max_32,
+            Elements::Max64 => simplicity_sys::c_jets::jets_wrapper::max_64,
+            Elements::Max8 => simplicity_sys::c_jets::jets_wrapper::max_8,
+            Elements::Median16 => simplicity_sys::c_jets::jets_wrapper::median_16,
+            Elements::Median32 => simplicity_sys::c_jets::jets_wrapper::median_32,
+            Elements::Median64 => simplicity_sys::c_jets::jets_wrapper::median_64,
+            Elements::Median8 => simplicity_sys::c_jets::jets_wrapper::median_8,
+            Elements::Min16 => simplicity_sys::c_jets::jets_wrapper::min_16,
+            Elements::Min32 => simplicity_sys::c_jets::jets_wrapper::min_32,
+            Elements::Min64 => simplicity_sys::c_jets::jets_wrapper::min_64,
+            Elements::Min8 => simplicity_sys::c_jets::jets_wrapper::min_8,
+            Elements::Modulo16 => simplicity_sys::c_jets::jets_wrapper::modulo_16,
+            Elements::Modulo32 => simplicity_sys::c_jets::jets_wrapper::modulo_32,
+            Elements::Modulo64 => simplicity_sys::c_jets::jets_wrapper::modulo_64,
+            Elements::Modulo8 => simplicity_sys::c_jets::jets_wrapper::modulo_8,
+            Elements::Multiply16 => simplicity_sys::c_jets::jets_wrapper::multiply_16,
+            Elements::Multiply32 => simplicity_sys::c_jets::jets_wrapper::multiply_32,
+            Elements::Multiply64 => simplicity_sys::c_jets::jets_wrapper::multiply_64,
+            Elements::Multiply8 => simplicity_sys::c_jets::jets_wrapper::multiply_8,
+            Elements::Negate16 => simplicity_sys::c_jets::jets_wrapper::negate_16,
+            Elements::Negate32 => simplicity_sys::c_jets::jets_wrapper::negate_32,
+            Elements::Negate64 => simplicity_sys::c_jets::jets_wrapper::negate_64,
+            Elements::Negate8 => simplicity_sys::c_jets::jets_wrapper::negate_8,
+            Elements::NewIssuanceContract => {
+                simplicity_sys::c_jets::jets_wrapper::new_issuance_contract
+            }
+            Elements::NonceHash => simplicity_sys::c_jets::jets_wrapper::nonce_hash,
+            Elements::NumInputs => simplicity_sys::c_jets::jets_wrapper::num_inputs,
+            Elements::NumOutputs => simplicity_sys::c_jets::jets_wrapper::num_outputs,
+            Elements::One16 => simplicity_sys::c_jets::jets_wrapper::one_16,
+            Elements::One32 => simplicity_sys::c_jets::jets_wrapper::one_32,
+            Elements::One64 => simplicity_sys::c_jets::jets_wrapper::one_64,
+            Elements::One8 => simplicity_sys::c_jets::jets_wrapper::one_8,
+            Elements::Or1 => simplicity_sys::c_jets::jets_wrapper::or_1,
+            Elements::Or16 => simplicity_sys::c_jets::jets_wrapper::or_16,
+            Elements::Or32 => simplicity_sys::c_jets::jets_wrapper::or_32,
+            Elements::Or64 => simplicity_sys::c_jets::jets_wrapper::or_64,
+            Elements::Or8 => simplicity_sys::c_jets::jets_wrapper::or_8,
+            Elements::OutpointHash => simplicity_sys::c_jets::jets_wrapper::outpoint_hash,
+            Elements::OutputAmount => simplicity_sys::c_jets::jets_wrapper::output_amount,
+            Elements::OutputAmountsHash => {
+                simplicity_sys::c_jets::jets_wrapper::output_amounts_hash
+            }
+            Elements::OutputAsset => simplicity_sys::c_jets::jets_wrapper::output_asset,
+            Elements::OutputHash => simplicity_sys::c_jets::jets_wrapper::output_hash,
+            Elements::OutputIsFee => simplicity_sys::c_jets::jets_wrapper::output_is_fee,
+            Elements::OutputNonce => simplicity_sys::c_jets::jets_wrapper::output_nonce,
+            Elements::OutputNoncesHash => simplicity_sys::c_jets::jets_wrapper::output_nonces_hash,
+            Elements::OutputNullDatum => simplicity_sys::c_jets::jets_wrapper::output_null_datum,
+            Elements::OutputRangeProof => simplicity_sys::c_jets::jets_wrapper::output_range_proof,
+            Elements::OutputRangeProofsHash => {
+                simplicity_sys::c_jets::jets_wrapper::output_range_proofs_hash
+            }
+            Elements::OutputScriptHash => simplicity_sys::c_jets::jets_wrapper::output_script_hash,
+            Elements::OutputScriptsHash => {
+                simplicity_sys::c_jets::jets_wrapper::output_scripts_hash
+            }
+            Elements::OutputSurjectionProof => {
+                simplicity_sys::c_jets::jets_wrapper::output_surjection_proof
+            }
+            Elements::OutputSurjectionProofsHash => {
+                simplicity_sys::c_jets::jets_wrapper::output_surjection_proofs_hash
+            }
+            Elements::OutputsHash => simplicity_sys::c_jets::jets_wrapper::outputs_hash,
+            Elements::ParseLock => simplicity_sys::c_jets::jets_wrapper::parse_lock,
+            Elements::ParseSequence => simplicity_sys::c_jets::jets_wrapper::parse_sequence,
+            Elements::PointVerify1 => simplicity_sys::c_jets::jets_wrapper::point_verify_1,
+            Elements::ReissuanceBlinding => {
+                simplicity_sys::c_jets::jets_wrapper::reissuance_blinding
+            }
+            Elements::ReissuanceEntropy => simplicity_sys::c_jets::jets_wrapper::reissuance_entropy,
+            Elements::RightExtend16_32 => simplicity_sys::c_jets::jets_wrapper::right_extend_16_32,
+            Elements::RightExtend16_64 => simplicity_sys::c_jets::jets_wrapper::right_extend_16_64,
+            Elements::RightExtend32_64 => simplicity_sys::c_jets::jets_wrapper::right_extend_32_64,
+            Elements::RightExtend8_16 => simplicity_sys::c_jets::jets_wrapper::right_extend_8_16,
+            Elements::RightExtend8_32 => simplicity_sys::c_jets::jets_wrapper::right_extend_8_32,
+            Elements::RightExtend8_64 => simplicity_sys::c_jets::jets_wrapper::right_extend_8_64,
+            Elements::RightPadHigh16_32 => {
+                simplicity_sys::c_jets::jets_wrapper::right_pad_high_16_32
+            }
+            Elements::RightPadHigh16_64 => {
+                simplicity_sys::c_jets::jets_wrapper::right_pad_high_16_64
+            }
+            Elements::RightPadHigh1_16 => simplicity_sys::c_jets::jets_wrapper::right_pad_high_1_16,
+            Elements::RightPadHigh1_32 => simplicity_sys::c_jets::jets_wrapper::right_pad_high_1_32,
+            Elements::RightPadHigh1_64 => simplicity_sys::c_jets::jets_wrapper::right_pad_high_1_64,
+            Elements::RightPadHigh1_8 => simplicity_sys::c_jets::jets_wrapper::right_pad_high_1_8,
+            Elements::RightPadHigh32_64 => {
+                simplicity_sys::c_jets::jets_wrapper::right_pad_high_32_64
+            }
+            Elements::RightPadHigh8_16 => simplicity_sys::c_jets::jets_wrapper::right_pad_high_8_16,
+            Elements::RightPadHigh8_32 => simplicity_sys::c_jets::jets_wrapper::right_pad_high_8_32,
+            Elements::RightPadHigh8_64 => simplicity_sys::c_jets::jets_wrapper::right_pad_high_8_64,
+            Elements::RightPadLow16_32 => simplicity_sys::c_jets::jets_wrapper::right_pad_low_16_32,
+            Elements::RightPadLow16_64 => simplicity_sys::c_jets::jets_wrapper::right_pad_low_16_64,
+            Elements::RightPadLow1_16 => simplicity_sys::c_jets::jets_wrapper::right_pad_low_1_16,
+            Elements::RightPadLow1_32 => simplicity_sys::c_jets::jets_wrapper::right_pad_low_1_32,
+            Elements::RightPadLow1_64 => simplicity_sys::c_jets::jets_wrapper::right_pad_low_1_64,
+            Elements::RightPadLow1_8 => simplicity_sys::c_jets::jets_wrapper::right_pad_low_1_8,
+            Elements::RightPadLow32_64 => simplicity_sys::c_jets::jets_wrapper::right_pad_low_32_64,
+            Elements::RightPadLow8_16 => simplicity_sys::c_jets::jets_wrapper::right_pad_low_8_16,
+            Elements::RightPadLow8_32 => simplicity_sys::c_jets::jets_wrapper::right_pad_low_8_32,
+            Elements::RightPadLow8_64 => simplicity_sys::c_jets::jets_wrapper::right_pad_low_8_64,
+            Elements::RightRotate16 => simplicity_sys::c_jets::jets_wrapper::right_rotate_16,
+            Elements::RightRotate32 => simplicity_sys::c_jets::jets_wrapper::right_rotate_32,
+            Elements::RightRotate64 => simplicity_sys::c_jets::jets_wrapper::right_rotate_64,
+            Elements::RightRotate8 => simplicity_sys::c_jets::jets_wrapper::right_rotate_8,
+            Elements::RightShift16 => simplicity_sys::c_jets::jets_wrapper::right_shift_16,
+            Elements::RightShift32 => simplicity_sys::c_jets::jets_wrapper::right_shift_32,
+            Elements::RightShift64 => simplicity_sys::c_jets::jets_wrapper::right_shift_64,
+            Elements::RightShift8 => simplicity_sys::c_jets::jets_wrapper::right_shift_8,
+            Elements::RightShiftWith16 => simplicity_sys::c_jets::jets_wrapper::right_shift_with_16,
+            Elements::RightShiftWith32 => simplicity_sys::c_jets::jets_wrapper::right_shift_with_32,
+            Elements::RightShiftWith64 => simplicity_sys::c_jets::jets_wrapper::right_shift_with_64,
+            Elements::RightShiftWith8 => simplicity_sys::c_jets::jets_wrapper::right_shift_with_8,
+            Elements::Rightmost16_1 => simplicity_sys::c_jets::jets_wrapper::rightmost_16_1,
+            Elements::Rightmost16_2 => simplicity_sys::c_jets::jets_wrapper::rightmost_16_2,
+            Elements::Rightmost16_4 => simplicity_sys::c_jets::jets_wrapper::rightmost_16_4,
+            Elements::Rightmost16_8 => simplicity_sys::c_jets::jets_wrapper::rightmost_16_8,
+            Elements::Rightmost32_1 => simplicity_sys::c_jets::jets_wrapper::rightmost_32_1,
+            Elements::Rightmost32_16 => simplicity_sys::c_jets::jets_wrapper::rightmost_32_16,
+            Elements::Rightmost32_2 => simplicity_sys::c_jets::jets_wrapper::rightmost_32_2,
+            Elements::Rightmost32_4 => simplicity_sys::c_jets::jets_wrapper::rightmost_32_4,
+            Elements::Rightmost32_8 => simplicity_sys::c_jets::jets_wrapper::rightmost_32_8,
+            Elements::Rightmost64_1 => simplicity_sys::c_jets::jets_wrapper::rightmost_64_1,
+            Elements::Rightmost64_16 => simplicity_sys::c_jets::jets_wrapper::rightmost_64_16,
+            Elements::Rightmost64_2 => simplicity_sys::c_jets::jets_wrapper::rightmost_64_2,
+            Elements::Rightmost64_32 => simplicity_sys::c_jets::jets_wrapper::rightmost_64_32,
+            Elements::Rightmost64_4 => simplicity_sys::c_jets::jets_wrapper::rightmost_64_4,
+            Elements::Rightmost64_8 => simplicity_sys::c_jets::jets_wrapper::rightmost_64_8,
+            Elements::Rightmost8_1 => simplicity_sys::c_jets::jets_wrapper::rightmost_8_1,
+            Elements::Rightmost8_2 => simplicity_sys::c_jets::jets_wrapper::rightmost_8_2,
+            Elements::Rightmost8_4 => simplicity_sys::c_jets::jets_wrapper::rightmost_8_4,
+            Elements::ScalarAdd => simplicity_sys::c_jets::jets_wrapper::scalar_add,
+            Elements::ScalarInvert => simplicity_sys::c_jets::jets_wrapper::scalar_invert,
+            Elements::ScalarIsZero => simplicity_sys::c_jets::jets_wrapper::scalar_is_zero,
+            Elements::ScalarMultiply => simplicity_sys::c_jets::jets_wrapper::scalar_multiply,
+            Elements::ScalarMultiplyLambda => {
+                simplicity_sys::c_jets::jets_wrapper::scalar_multiply_lambda
+            }
+            Elements::ScalarNegate => simplicity_sys::c_jets::jets_wrapper::scalar_negate,
+            Elements::ScalarNormalize => simplicity_sys::c_jets::jets_wrapper::scalar_normalize,
+            Elements::ScalarSquare => simplicity_sys::c_jets::jets_wrapper::scalar_square,
+            Elements::Scale => simplicity_sys::c_jets::jets_wrapper::scale,
+            Elements::ScriptCMR => simplicity_sys::c_jets::jets_wrapper::script_cmr,
+            Elements::Sha256Block => simplicity_sys::c_jets::jets_wrapper::sha_256_block,
+            Elements::Sha256Ctx8Add1 => simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_1,
+            Elements::Sha256Ctx8Add128 => {
+                simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_128
+            }
+            Elements::Sha256Ctx8Add16 => simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_16,
+            Elements::Sha256Ctx8Add2 => simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_2,
+            Elements::Sha256Ctx8Add256 => {
+                simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_256
+            }
+            Elements::Sha256Ctx8Add32 => simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_32,
+            Elements::Sha256Ctx8Add4 => simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_4,
+            Elements::Sha256Ctx8Add512 => {
+                simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_512
+            }
+            Elements::Sha256Ctx8Add64 => simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_64,
+            Elements::Sha256Ctx8Add8 => simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_8,
+            Elements::Sha256Ctx8AddBuffer511 => {
+                simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_buffer_511
+            }
+            Elements::Sha256Ctx8Finalize => {
+                simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_finalize
+            }
+            Elements::Sha256Ctx8Init => simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_init,
+            Elements::Sha256Iv => simplicity_sys::c_jets::jets_wrapper::sha_256_iv,
+            Elements::SigAllHash => simplicity_sys::c_jets::jets_wrapper::sig_all_hash,
+            Elements::Some1 => simplicity_sys::c_jets::jets_wrapper::some_1,
+            Elements::Some16 => simplicity_sys::c_jets::jets_wrapper::some_16,
+            Elements::Some32 => simplicity_sys::c_jets::jets_wrapper::some_32,
+            Elements::Some64 => simplicity_sys::c_jets::jets_wrapper::some_64,
+            Elements::Some8 => simplicity_sys::c_jets::jets_wrapper::some_8,
+            Elements::Subtract16 => simplicity_sys::c_jets::jets_wrapper::subtract_16,
+            Elements::Subtract32 => simplicity_sys::c_jets::jets_wrapper::subtract_32,
+            Elements::Subtract64 => simplicity_sys::c_jets::jets_wrapper::subtract_64,
+            Elements::Subtract8 => simplicity_sys::c_jets::jets_wrapper::subtract_8,
+            Elements::Swu => simplicity_sys::c_jets::jets_wrapper::swu,
+            Elements::TapEnvHash => simplicity_sys::c_jets::jets_wrapper::tap_env_hash,
+            Elements::TapdataInit => simplicity_sys::c_jets::jets_wrapper::tapdata_init,
+            Elements::TapleafHash => simplicity_sys::c_jets::jets_wrapper::tapleaf_hash,
+            Elements::TapleafVersion => simplicity_sys::c_jets::jets_wrapper::tapleaf_version,
+            Elements::Tappath => simplicity_sys::c_jets::jets_wrapper::tappath,
+            Elements::TappathHash => simplicity_sys::c_jets::jets_wrapper::tappath_hash,
+            Elements::TotalFee => simplicity_sys::c_jets::jets_wrapper::total_fee,
+            Elements::TransactionId => simplicity_sys::c_jets::jets_wrapper::transaction_id,
+            Elements::TxHash => simplicity_sys::c_jets::jets_wrapper::tx_hash,
+            Elements::TxIsFinal => simplicity_sys::c_jets::jets_wrapper::tx_is_final,
+            Elements::TxLockDistance => simplicity_sys::c_jets::jets_wrapper::tx_lock_distance,
+            Elements::TxLockDuration => simplicity_sys::c_jets::jets_wrapper::tx_lock_duration,
+            Elements::TxLockHeight => simplicity_sys::c_jets::jets_wrapper::tx_lock_height,
+            Elements::TxLockTime => simplicity_sys::c_jets::jets_wrapper::tx_lock_time,
+            Elements::Verify => simplicity_sys::c_jets::jets_wrapper::verify,
+            Elements::Version => simplicity_sys::c_jets::jets_wrapper::version,
+            Elements::Xor1 => simplicity_sys::c_jets::jets_wrapper::xor_1,
+            Elements::Xor16 => simplicity_sys::c_jets::jets_wrapper::xor_16,
+            Elements::Xor32 => simplicity_sys::c_jets::jets_wrapper::xor_32,
+            Elements::Xor64 => simplicity_sys::c_jets::jets_wrapper::xor_64,
+            Elements::Xor8 => simplicity_sys::c_jets::jets_wrapper::xor_8,
+            Elements::XorXor1 => simplicity_sys::c_jets::jets_wrapper::xor_xor_1,
+            Elements::XorXor16 => simplicity_sys::c_jets::jets_wrapper::xor_xor_16,
+            Elements::XorXor32 => simplicity_sys::c_jets::jets_wrapper::xor_xor_32,
+            Elements::XorXor64 => simplicity_sys::c_jets::jets_wrapper::xor_xor_64,
+            Elements::XorXor8 => simplicity_sys::c_jets::jets_wrapper::xor_xor_8,
         }
     }
 }
