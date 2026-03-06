@@ -20,10 +20,12 @@ mod init;
 pub mod type_name;
 
 #[cfg(feature = "bitcoin")]
+pub use crate::jet::bitcoin::BitcoinEnv;
+#[cfg(feature = "bitcoin")]
 pub use init::bitcoin::Bitcoin;
-pub use init::core::Core;
+pub use init::core::{Core, CoreEnv};
 #[cfg(feature = "elements")]
-pub use init::elements::Elements;
+pub use init::elements::{Elements, ElementsTxEnv};
 use simplicity_sys::c_jets::frame_ffi::CFrameItem;
 
 use crate::analysis::Cost;
@@ -48,6 +50,23 @@ impl std::fmt::Display for JetFailed {
 
 impl std::error::Error for JetFailed {}
 
+/// An environment for jets to read.
+pub trait JetEnvironment {
+    /// The type of jet that this environment supports.
+    type Jet: Jet;
+
+    /// CJetEnvironment to interact with C FFI.
+    type CJetEnvironment;
+
+    /// Obtains a C FFI compatible environment for the jet.
+    fn c_jet_env(&self) -> &Self::CJetEnvironment;
+
+    /// Obtain the FFI C pointer for the jet.
+    fn c_jet_ptr(
+        jet: &Self::Jet,
+    ) -> fn(&mut CFrameItem, CFrameItem, &Self::CJetEnvironment) -> bool;
+}
+
 /// Family of jets that share an encoding scheme and execution environment.
 ///
 /// Jets are single nodes that read an input,
@@ -59,11 +78,6 @@ impl std::error::Error for JetFailed {}
 pub trait Jet:
     Copy + Eq + Ord + Hash + std::fmt::Debug + std::fmt::Display + std::str::FromStr + 'static
 {
-    /// Environment for jet to read from
-    type Environment;
-    /// CJetEnvironment to interact with C FFI.
-    type CJetEnvironment;
-
     /// Return the CMR of the jet.
     fn cmr(&self) -> Cmr;
 
@@ -78,12 +92,6 @@ pub trait Jet:
 
     /// Decode a jet from bits.
     fn decode<I: Iterator<Item = u8>>(bits: &mut BitIter<I>) -> Result<Self, decode::Error>;
-
-    /// Obtains a C FFI compatible environment for the jet.
-    fn c_jet_env(env: &Self::Environment) -> &Self::CJetEnvironment;
-
-    /// Obtain the FFI C pointer for the jet.
-    fn c_jet_ptr(&self) -> &dyn Fn(&mut CFrameItem, CFrameItem, &Self::CJetEnvironment) -> bool;
 
     /// Return the cost of the jet.
     fn cost(&self) -> Cost;

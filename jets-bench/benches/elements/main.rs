@@ -5,13 +5,13 @@ use elements::confidential;
 use rand::rngs::ThreadRng;
 use simplicity::elements;
 use simplicity::jet::elements::ElementsEnv;
-use simplicity::jet::{Elements, Jet};
+use simplicity::jet::{Elements, ElementsTxEnv, Jet, JetEnvironment};
 use simplicity::types;
 use simplicity::types::Final;
 use simplicity::Value;
 use simplicity_bench::input::{
-    self, EqProduct, GenericProduct, InputSample, PrefixBit, Sha256Ctx, UniformBits,
-    DivMod12864Input,
+    self, DivMod12864Input, EqProduct, GenericProduct, InputSample, PrefixBit, Sha256Ctx,
+    UniformBits,
 };
 use simplicity_bench::{
     genesis_pegin, BenchSample, EnvSampling, InputSampling, JetBuffer, JetParams, SimplicityCtx8,
@@ -625,7 +625,7 @@ fn bench(c: &mut Criterion) {
                             let (src, dst) = buffer.write(&src_ty, params, &mut rng);
                             (dst, src, &env, buffer)
                         },
-                        |(mut dst, src, env, _buffer)| jet.c_jet_ptr()(&mut dst, src, env.c_tx_env()),
+                        |(mut dst, src, env, _buffer)| ElementsTxEnv::c_jet_ptr(&jet)(&mut dst, src, env.c_tx_env()),
                         BatchSize::SmallInput,
                     )
                 });
@@ -743,7 +743,7 @@ fn bench(c: &mut Criterion) {
                         let (src, dst) = buffer.write(&src_ty, params, &mut rng);
                         (dst, src, buffer)
                     },
-                    |(mut dst, src, _buffer)| jet.c_jet_ptr()(&mut dst, src, env.c_tx_env()),
+                    |(mut dst, src, _buffer)| ElementsTxEnv::c_jet_ptr(&jet)(&mut dst, src, env.c_tx_env()),
                     BatchSize::SmallInput,
                 )
             });
@@ -806,7 +806,7 @@ fn bench(c: &mut Criterion) {
                         let (src, dst) = buffer.write(&src_ty, params, &mut rng);
                         (dst, src, buffer)
                     },
-                    |(mut dst, src, _buffer)| jet.c_jet_ptr()(&mut dst, src, env.c_tx_env()),
+                    |(mut dst, src, _buffer)| ElementsTxEnv::c_jet_ptr(&jet)(&mut dst, src, env.c_tx_env()),
                     BatchSize::SmallInput,
                 )
             });
@@ -903,7 +903,7 @@ fn bench(c: &mut Criterion) {
                         let (src, dst) = buffer.write(&src_ty, params, &mut rng);
                         (dst, src, buffer)
                     },
-                    |(mut dst, src, _buffer)| jet.c_jet_ptr()(&mut dst, src, env.c_tx_env()),
+                    |(mut dst, src, _buffer)| ElementsTxEnv::c_jet_ptr(&jet)(&mut dst, src, env.c_tx_env()),
                     BatchSize::SmallInput,
                 )
             });

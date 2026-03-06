@@ -15,6 +15,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use crate::analysis;
+use crate::jet::JetEnvironment;
 use crate::jet::{Jet, JetFailed};
 use crate::node::{self, RedeemNode};
 use crate::types::Final;
@@ -60,9 +61,9 @@ impl BitMachine {
     }
 
     #[cfg(test)]
-    pub fn test_exec<J: Jet>(
-        program: Arc<crate::node::ConstructNode<J>>,
-        env: &J::Environment,
+    pub fn test_exec<JE: JetEnvironment>(
+        program: Arc<crate::node::ConstructNode<JE::Jet>>,
+        env: &JE,
     ) -> Result<Value, ExecutionError> {
         use crate::node::SimpleFinalizer;
 
@@ -220,10 +221,10 @@ impl BitMachine {
     ///  ## Precondition
     ///
     /// The Bit Machine is constructed via [`Self::for_program()`] to ensure enough space.
-    pub fn exec<J: Jet>(
+    pub fn exec<JE: JetEnvironment>(
         &mut self,
-        program: &RedeemNode<J>,
-        env: &J::Environment,
+        program: &RedeemNode<JE::Jet>,
+        env: &JE,
     ) -> Result<Value, ExecutionError> {
         self.exec_with_tracker(program, env, &mut NoTracker)
     }
@@ -236,14 +237,14 @@ impl BitMachine {
     ///  ## Precondition
     ///
     /// The Bit Machine is constructed via [`Self::for_program()`] to ensure enough space.
-    pub fn exec_with_tracker<J: Jet, T: ExecTracker<J>>(
+    pub fn exec_with_tracker<JE: JetEnvironment, T: ExecTracker<JE::Jet>>(
         &mut self,
-        program: &RedeemNode<J>,
-        env: &J::Environment,
+        program: &RedeemNode<JE::Jet>,
+        env: &JE,
         tracker: &mut T,
     ) -> Result<Value, ExecutionError> {
-        enum CallStack<'a, J: Jet> {
-            Goto(&'a RedeemNode<J>),
+        enum CallStack<'a, JE: JetEnvironment> {
+            Goto(&'a RedeemNode<JE::Jet>),
             MoveWriteFrameToRead,
             DropReadFrame,
             CopyFwd(usize),
@@ -251,7 +252,7 @@ impl BitMachine {
         }
 
         // Not used, but useful for debugging, so keep it around
-        impl<J: Jet> fmt::Debug for CallStack<'_, J> {
+        impl<JE: JetEnvironment> fmt::Debug for CallStack<'_, JE> {
             fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
                 match self {
                     CallStack::Goto(ins) => write!(f, "goto {}", ins.inner()),
@@ -268,7 +269,7 @@ impl BitMachine {
         }
 
         let mut ip = program;
-        let mut call_stack = vec![];
+        let mut call_stack: Vec<CallStack<'_, JE>> = vec![];
 
         let output_width = ip.arrow().target.bit_width();
         if output_width > 0 {
@@ -435,7 +436,7 @@ impl BitMachine {
         }
     }
 
-    fn exec_jet<J: Jet>(&mut self, jet: J, env: &J::Environment) -> Result<(), JetFailed> {
+    fn exec_jet<JE: JetEnvironment>(&mut self, jet: JE::Jet, env: &JE) -> Result<(), JetFailed> {
         use crate::ffi::c_jets::frame_ffi::{c_readBit, c_writeBit, CFrameItem};
         use crate::ffi::c_jets::uword_width;
         use crate::ffi::ffi::UWORD;
@@ -524,8 +525,8 @@ impl BitMachine {
         let (input_read_frame, _input_buffer) = unsafe { get_input_frame(self, input_width) };
         let (mut output_write_frame, output_buffer) = unsafe { get_output_frame(output_width) };
 
-        let jet_fn = jet.c_jet_ptr();
-        let c_env = J::c_jet_env(env);
+        let jet_fn = JE::c_jet_ptr(&jet);
+        let c_env = env.c_jet_env();
         let success = jet_fn(&mut output_write_frame, input_read_frame, c_env);
 
         if !success {

@@ -1,16 +1,16 @@
 /* This file has been automatically generated. */
 
-use crate::jet::type_name::TypeName;
-use crate::jet::Jet;
-use crate::merkle::cmr::Cmr;
-use crate::decode_bits;
-use crate::{decode, BitIter, BitWriter};
 use crate::analysis::Cost;
+use crate::decode_bits;
+use crate::jet::bitcoin::BitcoinEnv;
+use crate::jet::type_name::TypeName;
+use crate::jet::{Jet, JetEnvironment};
+use crate::merkle::cmr::Cmr;
+use crate::{decode, BitIter, BitWriter};
 use hashes::sha256::Midstate;
 use simplicity_sys::CFrameItem;
 use std::io::Write;
 use std::{fmt, str};
-use crate::jet::bitcoin::BitcoinEnv;
 
 /// The Bitcoin jet family.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
@@ -824,14 +824,6 @@ impl Bitcoin {
 }
 
 impl Jet for Bitcoin {
-
-    type Environment = BitcoinEnv;
-    type CJetEnvironment = ();
-
-    fn c_jet_env(_env: &Self::Environment) -> &Self::CJetEnvironment {
-        unimplemented!("Unspecified CJetEnvironment for Bitcoin jets")
-    }
-
     fn cmr(&self) -> Cmr {
         unimplemented!("Bitcoin jet CMRs weights have not yet been implemented.")
     }
@@ -1530,7 +1522,9 @@ impl Jet for Bitcoin {
             Bitcoin::OutputScriptHash => b"+1h",
             Bitcoin::OutputValue => b"+1l",
             Bitcoin::ParseLock => b"+ii",
-            Bitcoin::ParseSequence => b"+1+****22*22**22*22***22*22**22*22****22*22**22*22***22*22**22*22",
+            Bitcoin::ParseSequence => {
+                b"+1+****22*22**22*22***22*22**22*22****22*22**22*22***22*22**22*22"
+            }
             Bitcoin::PointVerify1 => b"1",
             Bitcoin::RightExtend16_32 => b"i",
             Bitcoin::RightExtend16_64 => b"l",
@@ -1599,19 +1593,43 @@ impl Jet for Bitcoin {
             Bitcoin::Scale => b"**hhh",
             Bitcoin::ScriptCMR => b"h",
             Bitcoin::Sha256Block => b"h",
-            Bitcoin::Sha256Ctx8Add1 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Bitcoin::Sha256Ctx8Add128 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Bitcoin::Sha256Ctx8Add16 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Bitcoin::Sha256Ctx8Add2 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Bitcoin::Sha256Ctx8Add256 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Bitcoin::Sha256Ctx8Add32 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Bitcoin::Sha256Ctx8Add4 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Bitcoin::Sha256Ctx8Add512 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Bitcoin::Sha256Ctx8Add64 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Bitcoin::Sha256Ctx8Add8 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
-            Bitcoin::Sha256Ctx8AddBuffer511 => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
+            Bitcoin::Sha256Ctx8Add1 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Bitcoin::Sha256Ctx8Add128 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Bitcoin::Sha256Ctx8Add16 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Bitcoin::Sha256Ctx8Add2 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Bitcoin::Sha256Ctx8Add256 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Bitcoin::Sha256Ctx8Add32 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Bitcoin::Sha256Ctx8Add4 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Bitcoin::Sha256Ctx8Add512 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Bitcoin::Sha256Ctx8Add64 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Bitcoin::Sha256Ctx8Add8 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
+            Bitcoin::Sha256Ctx8AddBuffer511 => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
             Bitcoin::Sha256Ctx8Finalize => b"h",
-            Bitcoin::Sha256Ctx8Init => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
+            Bitcoin::Sha256Ctx8Init => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
             Bitcoin::Sha256Iv => b"h",
             Bitcoin::Some1 => b"2",
             Bitcoin::Some16 => b"2",
@@ -1623,7 +1641,9 @@ impl Jet for Bitcoin {
             Bitcoin::Subtract64 => b"*2l",
             Bitcoin::Subtract8 => b"*2***22*22**22*22",
             Bitcoin::Swu => b"*hh",
-            Bitcoin::TapdataInit => b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh",
+            Bitcoin::TapdataInit => {
+                b"**+1h*+1*ll*+1l*+1i*+1****22*22**22*22***22*22**22*22+1***22*22**22*22*lh"
+            }
             Bitcoin::TapleafVersion => b"***22*22**22*22",
             Bitcoin::Tappath => b"+1h",
             Bitcoin::TotalInputValue => b"l",
@@ -4476,10 +4496,6 @@ impl Jet for Bitcoin {
         })
     }
 
-    fn c_jet_ptr(&self) -> &dyn Fn(&mut CFrameItem, CFrameItem, &Self::CJetEnvironment) -> bool {
-        unimplemented!("Bitcoin jets have not yet been implemented.")
-    }
-
     fn cost(&self) -> Cost {
         unimplemented!("Unspecified cost of Bitcoin jets")
     }
@@ -5299,5 +5315,20 @@ impl str::FromStr for Bitcoin {
             "xor_xor_8" => Ok(Bitcoin::XorXor8),
             x => Err(crate::Error::InvalidJetName(x.to_owned())),
         }
+    }
+}
+
+impl JetEnvironment for BitcoinEnv {
+    type Jet = Bitcoin;
+    type CJetEnvironment = ();
+
+    fn c_jet_env(&self) -> &Self::CJetEnvironment {
+        &()
+    }
+
+    fn c_jet_ptr(
+        _jet: &Self::Jet,
+    ) -> fn(&mut CFrameItem, CFrameItem, &Self::CJetEnvironment) -> bool {
+        unimplemented!("Bitcoin jets have not yet been implemented.")
     }
 }

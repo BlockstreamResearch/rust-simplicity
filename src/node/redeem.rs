@@ -3,7 +3,7 @@
 use crate::analysis::NodeBounds;
 use crate::bit_machine::{ExecutionError, PruneTracker, SetTracker};
 use crate::dag::{DagLike, InternalSharing, MaxSharing, PostOrderIterItem};
-use crate::jet::Jet;
+use crate::jet::{Jet, JetEnvironment};
 use crate::types::{self, arrow::FinalArrow};
 use crate::{encode, BitMachine};
 use crate::{Amr, BitIter, BitWriter, Cmr, DecodeError, Ihr, Imr, Value};
@@ -289,7 +289,10 @@ impl<J: Jet> RedeemNode<J> {
     /// Pruning fails if the original, unpruned program fails to run on the Bit Machine (step 1).
     /// In this case, the witness data needs to be revised.
     /// The other pruning steps (2 & 3) never fail.
-    pub fn prune(&self, env: &J::Environment) -> Result<Arc<RedeemNode<J>>, ExecutionError> {
+    pub fn prune<JE: JetEnvironment<Jet = J>>(
+        &self,
+        env: &JE,
+    ) -> Result<Arc<RedeemNode<JE::Jet>>, ExecutionError> {
         self.prune_with_tracker(env, &mut SetTracker::default())
     }
 
@@ -298,9 +301,9 @@ impl<J: Jet> RedeemNode<J> {
     ///
     /// See [`crate::bit_machine::StderrTracker`] as an example which outputs the IHR of
     /// each case combinator that we prune a child of.
-    pub fn prune_with_tracker<T: PruneTracker<J>>(
+    pub fn prune_with_tracker<JE: JetEnvironment<Jet = J>, T: PruneTracker<JE::Jet>>(
         &self,
-        env: &J::Environment,
+        env: &JE,
         tracker: &mut T,
     ) -> Result<Arc<RedeemNode<J>>, ExecutionError> {
         struct Pruner<'brand, 't, J, T> {
@@ -963,15 +966,15 @@ mod tests {
     }
 
     #[cfg(feature = "elements")]
-    fn assert_correct_pruning<J: Jet>(
+    fn assert_correct_pruning<JE: JetEnvironment>(
         unpruned_prog: &str,
         unpruned_wit: &HashMap<Arc<str>, Value>,
         expected_pruned_prog: &str,
         expected_pruned_wit: &HashMap<Arc<str>, Value>,
-        env: &J::Environment,
+        env: &JE,
     ) {
         let unpruned_program = types::Context::with_context(|ctx| {
-            Forest::<J>::parse(unpruned_prog)
+            Forest::<JE::Jet>::parse(unpruned_prog)
                 .expect("unpruned program should parse")
                 .to_witness_node(&ctx, unpruned_wit)
                 .expect("unpruned program should have main")
@@ -979,7 +982,7 @@ mod tests {
                 .expect("unpruned program should finalize")
         });
         let expected_unpruned_program = types::Context::with_context(|ctx| {
-            Forest::<J>::parse(expected_pruned_prog)
+            Forest::<JE::Jet>::parse(expected_pruned_prog)
                 .expect("expected pruned program should parse")
                 .to_witness_node(&ctx, expected_pruned_wit)
                 .expect("expected pruned program should have main")
@@ -1016,6 +1019,8 @@ mod tests {
     #[test]
     #[cfg(feature = "elements")]
     fn prune() {
+        use crate::jet::ElementsTxEnv;
+
         let env = crate::jet::elements::ElementsEnv::dummy();
 
         /*
@@ -1047,7 +1052,7 @@ main := comp input comp process jet_verify : 1 -> 1"#;
                 Value::product(Value::u64(0), Value::unit()),
             ),
         ]);
-        assert_correct_pruning::<crate::jet::Elements>(
+        assert_correct_pruning::<ElementsTxEnv>(
             unpruned_prog,
             &unpruned_wit,
             pruned_prog,
@@ -1075,7 +1080,7 @@ main := comp input comp process jet_verify : 1 -> 1"#;
                 Value::product(Value::unit(), Value::u64(0)),
             ),
         ]);
-        assert_correct_pruning::<crate::jet::Elements>(
+        assert_correct_pruning::<ElementsTxEnv>(
             unpruned_prog,
             &unpruned_wit,
             pruned_prog,
@@ -1100,7 +1105,7 @@ process := assertl (take jet_is_zero_64) #{take jet_is_zero_64} : (2^64 + 1) * 1
 main := comp input comp process jet_verify : 1 -> 1"#;
         let pruned_wit =
             HashMap::from([(Arc::from("wit1"), Value::left(Value::u64(0), Final::unit()))]);
-        assert_correct_pruning::<crate::jet::Elements>(
+        assert_correct_pruning::<ElementsTxEnv>(
             prune_sum,
             &unpruned_wit,
             pruned_prog,
@@ -1121,7 +1126,7 @@ main := comp input comp process jet_verify : 1 -> 1"#;
             Arc::from("wit1"),
             Value::right(Final::unit(), Value::u64(0)),
         )]);
-        assert_correct_pruning::<crate::jet::Elements>(
+        assert_correct_pruning::<ElementsTxEnv>(
             prune_sum,
             &unpruned_wit,
             pruned_prog,
