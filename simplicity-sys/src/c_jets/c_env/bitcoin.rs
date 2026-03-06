@@ -14,43 +14,8 @@ pub struct CRawBuffer {
 
 #[derive(Debug)]
 #[repr(C)]
-pub struct CRawOutput<'raw> {
-    pub asset: Option<&'raw [c_uchar; 33]>,
-    pub value: *const c_uchar,
-    pub nonce: Option<&'raw [c_uchar; 33]>,
-    pub script_pubkey: CRawBuffer,
-    pub surjection_proof: CRawBuffer,
-    pub range_proof: CRawBuffer,
-}
-
-#[repr(C)]
-pub struct CRawInputIssuance<'raw> {
-    pub blinding_nonce: Option<&'raw [c_uchar; 32]>,
-    pub asset_entropy: Option<&'raw [c_uchar; 32]>,
-    pub amount: *const c_uchar,
-    pub inflation_keys: *const c_uchar,
-    pub amount_range_proof: CRawBuffer,
-    pub inflation_keys_range_proof: CRawBuffer,
-}
-
-impl<'raw> CRawInputIssuance<'raw> {
-    /// Constructs a raw input issuance structure corresponding to "no issuance".
-    pub fn no_issuance() -> Self {
-        Self {
-            blinding_nonce: None,
-            asset_entropy: None,
-            amount: core::ptr::null(),
-            inflation_keys: core::ptr::null(),
-            amount_range_proof: CRawBuffer::new(&[]),
-            inflation_keys_range_proof: CRawBuffer::new(&[]),
-        }
-    }
-}
-
-#[repr(C)]
-pub struct CRawInputTxo<'raw> {
-    pub asset: Option<&'raw [c_uchar; 33]>,
-    pub value: *const c_uchar,
+pub struct CRawOutput {
+    pub value: u64,
     pub script_pubkey: CRawBuffer,
 }
 
@@ -58,9 +23,7 @@ pub struct CRawInputTxo<'raw> {
 pub struct CRawInput<'raw> {
     pub annex: *const CRawBuffer,
     pub prev_txid: &'raw [c_uchar; 32],
-    pub pegin: Option<&'raw [c_uchar; 32]>,
-    pub issuance: CRawInputIssuance<'raw>,
-    pub txo: CRawInputTxo<'raw>,
+    pub txo: CRawOutput,
     pub script_sig: CRawBuffer,
     pub prev_txout_index: u32,
     pub sequence: u32,
@@ -71,7 +34,7 @@ pub struct CRawInput<'raw> {
 pub struct CRawTransaction<'raw> {
     pub txid: &'raw [c_uchar; 32],
     pub inputs: *const CRawInput<'raw>,
-    pub outputs: *const CRawOutput<'raw>,
+    pub outputs: *const CRawOutput,
     pub n_inputs: u32,
     pub n_outputs: u32,
     pub version: u32,
@@ -96,7 +59,6 @@ pub struct CTransaction {
 pub struct CTxEnv {
     tx: *const CTransaction,
     taproot: *const CTapEnv,
-    genesis_hash: CSha256Midstate,
     sighash_all: CSha256Midstate,
     ix: c_uint_fast32_t,
 }
@@ -106,46 +68,48 @@ pub struct CTapEnv {
     _data: (),
 }
 
+// Will uncomment in a later commit; need to update libsimplicity first so these
+// symbols have something to link against.
 extern "C" {
-    #[link_name = "rustsimplicity_0_6_c_sizeof_rawElementsBuffer"]
+    #[link_name = "rustsimplicity_0_6_c_sizeof_rawBitcoinBuffer"]
     pub static c_sizeof_rawBuffer: c_size_t;
-    #[link_name = "rustsimplicity_0_6_c_sizeof_rawElementsOutput"]
+    #[link_name = "rustsimplicity_0_6_c_sizeof_rawBitcoinOutput"]
     pub static c_sizeof_rawOutput: c_size_t;
-    #[link_name = "rustsimplicity_0_6_c_sizeof_rawElementsInput"]
+    #[link_name = "rustsimplicity_0_6_c_sizeof_rawBitcoinInput"]
     pub static c_sizeof_rawInput: c_size_t;
-    #[link_name = "rustsimplicity_0_6_c_sizeof_rawElementsTransaction"]
+    #[link_name = "rustsimplicity_0_6_c_sizeof_rawBitcoinTransaction"]
     pub static c_sizeof_rawTransaction: c_size_t;
-    #[link_name = "rustsimplicity_0_6_c_sizeof_rawElementsTapEnv"]
+    #[link_name = "rustsimplicity_0_6_c_sizeof_rawBitcoinTapEnv"]
     pub static c_sizeof_rawTapEnv: c_size_t;
-    #[link_name = "rustsimplicity_0_6_c_sizeof_elementsTxEnv"]
+    #[link_name = "rustsimplicity_0_6_c_sizeof_bitcoinTxEnv"]
     pub static c_sizeof_txEnv: c_size_t;
 
-    #[link_name = "rustsimplicity_0_6_c_alignof_rawElementsBuffer"]
+    #[link_name = "rustsimplicity_0_6_c_alignof_rawBitcoinBuffer"]
     pub static c_alignof_rawBuffer: c_size_t;
-    #[link_name = "rustsimplicity_0_6_c_alignof_rawElementsOutput"]
+    #[link_name = "rustsimplicity_0_6_c_alignof_rawBitcoinOutput"]
     pub static c_alignof_rawOutput: c_size_t;
-    #[link_name = "rustsimplicity_0_6_c_alignof_rawElementsInput"]
+    #[link_name = "rustsimplicity_0_6_c_alignof_rawBitcoinInput"]
     pub static c_alignof_rawInput: c_size_t;
-    #[link_name = "rustsimplicity_0_6_c_alignof_rawElementsTransaction"]
+    #[link_name = "rustsimplicity_0_6_c_alignof_rawBitcoinTransaction"]
     pub static c_alignof_rawTransaction: c_size_t;
-    #[link_name = "rustsimplicity_0_6_c_alignof_rawElementsTapEnv"]
+    #[link_name = "rustsimplicity_0_6_c_alignof_rawBitcoinTapEnv"]
     pub static c_alignof_rawTapEnv: c_size_t;
-    #[link_name = "rustsimplicity_0_6_c_alignof_elementsTxEnv"]
+    #[link_name = "rustsimplicity_0_6_c_alignof_bitcoinTxEnv"]
     pub static c_alignof_txEnv: c_size_t;
 
-    #[link_name = "rustsimplicity_0_6_c_elements_set_txEnv"]
+    #[link_name = "rustsimplicity_0_6_c_bitcoin_set_txEnv"]
     pub fn c_set_txEnv(
         result: *mut CTxEnv,
         tx: *const CTransaction,
         taproot: *const CTapEnv,
-        genesisHash: *const c_uchar,
         ix: c_uint,
     );
-    #[link_name = "rustsimplicity_0_6_elements_mallocTapEnv"]
+    #[link_name = "rustsimplicity_0_6_bitcoin_mallocTapEnv"]
     pub fn simplicity_mallocTapEnv(rawEnv: *const CRawTapEnv) -> *mut CTapEnv;
-    #[link_name = "rustsimplicity_0_6_elements_mallocTransaction"]
+    #[link_name = "rustsimplicity_0_6_bitcoin_mallocTransaction"]
     pub fn simplicity_mallocTransaction(rawTx: *const CRawTransaction) -> *mut CTransaction;
 }
+
 impl CTxEnv {
     pub fn sighash_all(&self) -> sha256::Hash {
         let midstate: sha256::Midstate = self.sighash_all.into();
@@ -172,6 +136,7 @@ impl CRawBuffer {
     }
 }
 
+// Will uncomment in a later commit; need to update libsimplicity first.
 #[cfg(test)]
 mod tests {
     use core::mem::{align_of, size_of};
