@@ -28,36 +28,83 @@ pub mod exec_ffi;
 ///
 /// This will also us detect whenever there is a change in the underlying C representation
 pub fn sanity_checks() -> bool {
-    unsafe {
-        if std::mem::size_of::<crate::ffi::UWORD>() != crate::ffi::c_sizeof_UWORD
-            || std::mem::align_of::<crate::ffi::UWORD>() != crate::ffi::c_alignof_UWORD
-        {
-            return false;
-        }
+    sanity_check_report().is_empty()
+}
 
-        if std::mem::size_of::<CFrameItem>() != frame_ffi::c_sizeof_frameItem
-            || std::mem::size_of::<elements::CRawBuffer>() != c_env::elements::c_sizeof_rawBuffer
-            || std::mem::size_of::<elements::CRawInput>() != c_env::elements::c_sizeof_rawInput
-            || std::mem::size_of::<elements::CRawOutput>() != c_env::elements::c_sizeof_rawOutput
-            || std::mem::size_of::<elements::CRawTransaction>()
-                != c_env::elements::c_sizeof_rawTransaction
-            || std::mem::size_of::<elements::CTxEnv>() != c_env::elements::c_sizeof_txEnv
-            || std::mem::size_of::<elements::CRawTapEnv>() != c_env::elements::c_sizeof_rawTapEnv
-        {
-            return false;
-        }
+#[must_use]
+pub fn sanity_check_report() -> Vec<String> {
+    let mut issues = Vec::new();
 
-        if std::mem::align_of::<CFrameItem>() != frame_ffi::c_alignof_frameItem
-            || std::mem::align_of::<elements::CRawBuffer>() != c_env::elements::c_alignof_rawBuffer
-            || std::mem::align_of::<elements::CRawInput>() != c_env::elements::c_alignof_rawInput
-            || std::mem::align_of::<elements::CRawOutput>() != c_env::elements::c_alignof_rawOutput
-            || std::mem::align_of::<elements::CRawTransaction>()
-                != c_env::elements::c_alignof_rawTransaction
-            || std::mem::align_of::<elements::CTxEnv>() != c_env::elements::c_alignof_txEnv
-            || std::mem::align_of::<elements::CRawTapEnv>() != c_env::elements::c_alignof_rawTapEnv
-        {
-            return false;
-        }
+    macro_rules! check_layout {
+        ($ty:ty, $c_size:path, $c_align:path, $name:expr) => {{
+            let rust_size = std::mem::size_of::<$ty>();
+            let rust_align = std::mem::align_of::<$ty>();
+            let (c_size, c_align) = unsafe { ($c_size, $c_align) };
+
+            if rust_size != c_size {
+                issues.push(format!(
+                    "{name}: size mismatch (rust={rust_size}, c={c_size})",
+                    name = $name
+                ));
+            }
+
+            if rust_align != c_align {
+                issues.push(format!(
+                    "{name}: align mismatch (rust={rust_align}, c={c_align})",
+                    name = $name
+                ));
+            }
+        }};
     }
-    true
+
+    check_layout!(
+        crate::ffi::UWORD,
+        crate::ffi::c_sizeof_UWORD,
+        crate::ffi::c_alignof_UWORD,
+        "UWORD"
+    );
+    check_layout!(
+        CFrameItem,
+        frame_ffi::c_sizeof_frameItem,
+        frame_ffi::c_alignof_frameItem,
+        "CFrameItem"
+    );
+    check_layout!(
+        elements::CRawBuffer,
+        elements::c_sizeof_rawBuffer,
+        elements::c_alignof_rawBuffer,
+        "CRawBuffer"
+    );
+    check_layout!(
+        elements::CRawInput,
+        elements::c_sizeof_rawInput,
+        elements::c_alignof_rawInput,
+        "CRawInput"
+    );
+    check_layout!(
+        elements::CRawOutput,
+        elements::c_sizeof_rawOutput,
+        elements::c_alignof_rawOutput,
+        "CRawOutput"
+    );
+    check_layout!(
+        elements::CRawTransaction,
+        elements::c_sizeof_rawTransaction,
+        elements::c_alignof_rawTransaction,
+        "CRawTransaction"
+    );
+    check_layout!(
+        elements::CTxEnv,
+        elements::c_sizeof_txEnv,
+        elements::c_alignof_txEnv,
+        "CTxEnv"
+    );
+    check_layout!(
+        elements::CRawTapEnv,
+        elements::c_sizeof_rawTapEnv,
+        elements::c_alignof_rawTapEnv,
+        "CRawTapEnv"
+    );
+
+    issues
 }
