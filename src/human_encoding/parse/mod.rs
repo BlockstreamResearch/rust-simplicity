@@ -586,18 +586,18 @@ mod tests {
 
     use crate::dag::MaxSharing;
     use crate::human_encoding::Forest;
-    use crate::jet::{Core, Jet};
+    use crate::jet::{Core, CoreEnv, Jet, JetEnvironment};
     use crate::node::Inner;
     use crate::value::Word;
     use crate::{BitMachine, Value};
 
-    fn assert_cmr_witness<J: Jet>(
+    fn assert_cmr_witness<JE: JetEnvironment>(
         s: &str,
         cmr: &str,
         witness: &HashMap<Arc<str>, Value>,
-        env: &J::Environment,
+        env: &JE,
     ) {
-        match parse::<J>(s) {
+        match parse::<JE::Jet>(s) {
             Ok(forest) => {
                 assert_eq!(forest.len(), 1);
                 let main = &forest["main"];
@@ -673,7 +673,7 @@ mod tests {
     #[test]
     fn simple_program() {
         let empty = HashMap::new();
-        assert_cmr_witness::<Core>(
+        assert_cmr_witness::<CoreEnv>(
             "main := unit",
             "c40a10263f7436b4160acbef1c36fba4be4d95df181a968afeab5eac247adff7",
             &empty,
@@ -684,7 +684,7 @@ mod tests {
             (Arc::from("wit1"), Value::u32(0x00010203)),
             (Arc::from("wit2"), Value::u32(0x00010203)),
         ]);
-        assert_cmr_witness::<Core>(
+        assert_cmr_witness::<CoreEnv>(
             "
                 wit1 := witness : 1 -> 2^32
                 wit2 := witness : 1 -> 2^32
@@ -716,11 +716,11 @@ mod tests {
     #[cfg(feature = "elements")]
     fn bip340_program() {
         use crate::jet::elements::ElementsEnv;
-        use crate::jet::Elements;
+        use crate::jet::ElementsTxEnv;
 
         let empty = HashMap::new();
         let dummy = ElementsEnv::dummy();
-        assert_cmr_witness::<Elements>(
+        assert_cmr_witness::<ElementsTxEnv>(
             "main := unit",
             "c40a10263f7436b4160acbef1c36fba4be4d95df181a968afeab5eac247adff7",
             &empty,
@@ -737,7 +737,7 @@ mod tests {
         ];
 
         let signature = HashMap::from([(Arc::from("wit1"), Value::u512(sig))]);
-        assert_cmr_witness::<Elements>(
+        assert_cmr_witness::<ElementsTxEnv>(
             "
                 -- Witnesses
                 wit1 := witness : 1 -> 2^512

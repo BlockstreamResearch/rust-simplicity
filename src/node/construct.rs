@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 
 use crate::dag::{InternalSharing, PostOrderIterItem};
-use crate::jet::Jet;
+use crate::jet::{Jet, JetEnvironment};
 use crate::types::{self, arrow::Arrow};
 use crate::{encode, BitIter, BitWriter, Cmr, FailEntropy, FinalizeError, RedeemNode, Value, Word};
 
@@ -212,10 +212,10 @@ impl<'brand, J: Jet> ConstructNode<'brand, J> {
     /// ## See
     ///
     /// [`RedeemNode::prune`]
-    pub fn finalize_pruned(
+    pub fn finalize_pruned<JE: JetEnvironment<Jet = J>>(
         &self,
-        env: &J::Environment,
-    ) -> Result<Arc<RedeemNode<J>>, FinalizeError> {
+        env: &JE,
+    ) -> Result<Arc<RedeemNode<JE::Jet>>, FinalizeError> {
         let unpruned = self.finalize_unpruned()?;
         unpruned.prune(env).map_err(FinalizeError::Execution)
     }

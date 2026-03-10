@@ -8,7 +8,7 @@ use simplicity::ffi::c_jets::frame_ffi::c_writeBit;
 use simplicity::ffi::ffi::UWORD;
 use simplicity::ffi::CFrameItem;
 use simplicity::hashes::Hash;
-use simplicity::jet::Elements;
+use simplicity::jet::{Elements, ElementsTxEnv, JetEnvironment};
 use simplicity::types::{self, CompleteBound};
 use simplicity::Value;
 
@@ -296,7 +296,6 @@ impl FlatValue {
     fn call_jet(&self, jet: Elements, dest_bits: usize) -> Self {
         use core::{mem, ptr};
         use simplicity::ffi::c_jets::uword_width;
-        use simplicity::jet::Jet as _;
 
         assert!(dest_bits <= 8 * MAX_VALUE_BYTES);
         let mut ret = Self::zero_n_bits(dest_bits);
@@ -354,10 +353,11 @@ impl FlatValue {
 
             // We can assert this because in our sampling code jets should never
             // fail. In the benchmarking code they might.
-            assert!(jet.c_jet_ptr()(
+
+            assert!(ElementsTxEnv::c_jet_ptr(&jet)(
                 &mut dst_write_frame,
                 src_read_frame,
-                Elements::c_jet_env(&env)
+                env.c_tx_env()
             ));
             // The write frame winds up as an array of usizes with all bytes in
             // reverse order. (The bytes of the usizes are in reverse order due
@@ -1366,8 +1366,12 @@ impl InputSample for DivMod12864Input {
             for (bit1, bit2) in sample_1.bit_iter().zip(sample_2.bit_iter()) {
                 match (bit1, bit2) {
                     (false, false) | (true, true) => {} // both equal
-                    (true, false) => return FlatValue::product(&[sample_2, UniformBits.sample(0, 64), sample_1]),
-                    (false, true) => return FlatValue::product(&[sample_1, UniformBits.sample(0, 64), sample_2]),
+                    (true, false) => {
+                        return FlatValue::product(&[sample_2, UniformBits.sample(0, 64), sample_1])
+                    }
+                    (false, true) => {
+                        return FlatValue::product(&[sample_1, UniformBits.sample(0, 64), sample_2])
+                    }
                 }
             }
             unreachable!("if we get here, two uniform 63-bit samples were exactly equal")
@@ -1428,7 +1432,7 @@ mod tests {
 
         let (src, mut dst) = buffer.write(&src_ty, &params, &mut rand::thread_rng());
 
-        jet.c_jet_ptr()(&mut dst, src, env.c_tx_env());
+        ElementsTxEnv::c_jet_ptr(&jet)(&mut dst, src, env.c_tx_env());
     }
 
     #[test]
