@@ -504,7 +504,7 @@ pub struct Namer {
 }
 
 impl Namer {
-    /// Costruct a new `Namer`. Will assign the name `main` to the node with
+    /// Construct a new `Namer`. Will assign the name `main` to the node with
     /// the given CMR.
     pub fn new_rooted(root_cmr: Cmr) -> Self {
         Namer {
@@ -515,7 +515,7 @@ impl Namer {
         }
     }
 
-    /// Costruct a new `Namer`.
+    /// Construct a new `Namer`.
     pub fn new() -> Self {
         Namer {
             const_idx: 0,
