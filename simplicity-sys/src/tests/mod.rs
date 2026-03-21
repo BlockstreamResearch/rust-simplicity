@@ -321,9 +321,11 @@ pub fn run_program(
         }
 
         // 9. Run the program
-        let budget_ptr = budget.map(|b| b as *const _).unwrap_or(ptr::null());
-        let env_ptr = env.map(|e| e as *const _).unwrap_or(ptr::null());
-        result.eval_result = simplicity_evalTCOProgram(dag, type_dag, len, budget_ptr, env_ptr);
+        let budget_ptr = budget
+            .as_ref()
+            .map_or(ptr::null(), |b| b as *const ubounded);
+        let env_ptr = env.map_or(ptr::null(), |e| e as *const _);
+        result.eval_result = simplicity_evalTCOProgram(dag, type_dag, len, 0, budget_ptr, env_ptr);
     }
 
     Ok(result)
@@ -486,6 +488,25 @@ mod test_code {
                 ffi::schnorr0_cost,
             );
         }
+    }
+
+    #[test]
+    fn schnorr0_budget() {
+        // The budget is in WU, while the cost is in milliWU.
+        let budget = unsafe { ffi::schnorr0_cost }.div_ceil(1000);
+        let run = |budget| unsafe {
+            run_program(
+                &ffi::schnorr0,
+                &ffi::schnorr0_witness,
+                TestUpTo::Everything,
+                Some(budget),
+                None,
+            )
+            .expect("running program")
+            .eval_result
+        };
+        assert_eq!(run(budget), SimplicityErr::NoError);
+        assert_eq!(run(budget - 1), SimplicityErr::ExecBudget);
     }
 
     #[test]
