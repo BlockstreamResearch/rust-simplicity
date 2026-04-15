@@ -12,6 +12,19 @@ use std::io::Write;
 use std::{fmt, str};
 use crate::jet::bitcoin::BitcoinEnv;
 
+fn num_inputs_ptr(dst: &mut CFrameItem, src: CFrameItem, env: &BitcoinEnv) -> bool {
+    crate::jet::bitcoin::execute::num_inputs(dst, src, env)
+}
+fn num_outputs_ptr(dst: &mut CFrameItem, src: CFrameItem, env: &BitcoinEnv) -> bool {
+    crate::jet::bitcoin::execute::num_outputs(dst, src, env)
+}
+fn input_value_ptr(dst: &mut CFrameItem, src: CFrameItem, env: &BitcoinEnv) -> bool {
+    crate::jet::bitcoin::execute::input_value(dst, src, env)
+}
+fn input_utxos_hash_ptr(dst: &mut CFrameItem, src: CFrameItem, env: &BitcoinEnv) -> bool {
+    crate::jet::bitcoin::execute::input_utxos_hash(dst, src, env)
+}
+
 /// The Bitcoin jet family.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
 pub enum Bitcoin {
@@ -882,14 +895,36 @@ impl Bitcoin {
 impl Jet for Bitcoin {
 
     type Environment = BitcoinEnv;
-    type CJetEnvironment = ();
+    type CJetEnvironment = BitcoinEnv;
 
-    fn c_jet_env(_env: &Self::Environment) -> &Self::CJetEnvironment {
-        unimplemented!("Unspecified CJetEnvironment for Bitcoin jets")
+    fn c_jet_env(env: &Self::Environment) -> &Self::CJetEnvironment {
+        env
     }
 
     fn cmr(&self) -> Cmr {
-        unimplemented!("Bitcoin jet CMRs weights have not yet been implemented.")
+        match self {
+            Bitcoin::NumInputs => Cmr::from_byte_array([
+                0x5c, 0x5a, 0xc4, 0xff, 0x6d, 0xa5, 0x6c, 0xb3, 0x72, 0xb2, 0x32, 0x66, 0x6e, 0x83,
+                0x34, 0xb9, 0xe2, 0xcf, 0xb0, 0xdc, 0xb4, 0x18, 0xf1, 0x61, 0xbf, 0xf1, 0x49, 0xe8,
+                0x4e, 0xc9, 0x2c, 0x3e,
+            ]),
+            Bitcoin::NumOutputs => Cmr::from_byte_array([
+                0x98, 0xa1, 0xcc, 0xa7, 0x05, 0xdf, 0xcf, 0xaf, 0xd3, 0xa6, 0x9e, 0x9a, 0xdc, 0x05,
+                0xba, 0x47, 0xe1, 0xfe, 0xfa, 0x6a, 0x29, 0xf3, 0x42, 0x86, 0x20, 0x48, 0xe4, 0x96,
+                0x86, 0x48, 0xc3, 0xd7,
+            ]),
+            Bitcoin::InputValue => Cmr::from_byte_array([
+                0x7d, 0x3c, 0x3f, 0x95, 0x5b, 0x2c, 0xf0, 0xd0, 0xd1, 0x28, 0x0a, 0x1b, 0xb1, 0x20,
+                0x46, 0x92, 0x92, 0xd1, 0x32, 0x9c, 0x83, 0xa9, 0xc2, 0xff, 0x7e, 0x7e, 0x1e, 0xb3,
+                0xf6, 0x97, 0x83, 0xa3,
+            ]),
+            Bitcoin::InputUtxosHash => Cmr::from_byte_array([
+                0xd6, 0xf9, 0x0c, 0xd1, 0x04, 0xe1, 0xa5, 0xc6, 0x1a, 0x4b, 0x50, 0x00, 0xad, 0x9a,
+                0xba, 0x8d, 0x43, 0x00, 0x4b, 0xf9, 0x43, 0xdf, 0x32, 0x5f, 0xa6, 0x36, 0xd1, 0xa2,
+                0x2b, 0xec, 0xa0, 0xcb,
+            ]),
+            _ => unimplemented!("Bitcoin jet CMRs weights have not yet been implemented for {:?}", self),
+        }
     }
 
     fn source_ty(&self) -> TypeName {
@@ -4707,11 +4742,23 @@ impl Jet for Bitcoin {
     }
 
     fn c_jet_ptr(&self) -> &dyn Fn(&mut CFrameItem, CFrameItem, &Self::CJetEnvironment) -> bool {
-        unimplemented!("Bitcoin jets have not yet been implemented.")
+        match self {
+            Bitcoin::NumInputs => &(num_inputs_ptr as fn(&mut CFrameItem, CFrameItem, &BitcoinEnv) -> bool),
+            Bitcoin::NumOutputs => &(num_outputs_ptr as fn(&mut CFrameItem, CFrameItem, &BitcoinEnv) -> bool),
+            Bitcoin::InputValue => &(input_value_ptr as fn(&mut CFrameItem, CFrameItem, &BitcoinEnv) -> bool),
+            Bitcoin::InputUtxosHash => &(input_utxos_hash_ptr as fn(&mut CFrameItem, CFrameItem, &BitcoinEnv) -> bool),
+            _ => unimplemented!("Bitcoin jets have not yet been implemented."),
+        }
     }
 
     fn cost(&self) -> Cost {
-        unimplemented!("Unspecified cost of Bitcoin jets")
+        match self {
+            Bitcoin::NumInputs => Cost::from_milliweight(74),
+            Bitcoin::NumOutputs => Cost::from_milliweight(68),
+            Bitcoin::InputValue => Cost::from_milliweight(81),
+            Bitcoin::InputUtxosHash => Cost::from_milliweight(122),
+            _ => Cost::from_milliweight(1000), // Default cost for not yet implemented jets
+        }
     }
 }
 
