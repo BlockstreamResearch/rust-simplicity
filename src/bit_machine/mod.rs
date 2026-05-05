@@ -277,8 +277,11 @@ impl BitMachine {
         }
 
         'main_loop: loop {
-            // Make a copy of the input frame to give to the tracker.
+            // Capture read and write frames before the node action, to give to the tracker.
+            // The read frame cursor is where the node's input begins.
+            // The write frame cursor is where the node's output begins.
             let input_frame = self.read.last().map(Frame::shallow_copy);
+            let output_frame = self.write.last().map(Frame::shallow_copy);
             let mut jet_result = Ok(());
 
             match ip.inner() {
@@ -391,16 +394,15 @@ impl BitMachine {
                 // describes the Bit Machine "input" to the current node,
                 // no matter the node.
                 let read_iter = input_frame
-                    .map(|frame| frame.as_bit_iter(&self.data))
+                    .map(|frame| frame.as_bit_iter_from_cursor(&self.data))
                     .unwrap_or(crate::BitIter::from([].iter().copied()));
                 // See the docs on `tracker::NodeOutput` for more information about
                 // this match.
                 let output = match (ip.inner(), &jet_result) {
                     (node::Inner::Unit | node::Inner::Iden | node::Inner::Witness(_), _)
                     | (node::Inner::Jet(_), Ok(_)) => NodeOutput::Success(
-                        self.write
-                            .last()
-                            .map(|r| r.as_bit_iter(&self.data))
+                        output_frame
+                            .map(|frame| frame.as_bit_iter_from_cursor(&self.data))
                             .unwrap_or(crate::BitIter::from([].iter().copied())),
                     ),
                     (node::Inner::Jet(_), Err(_)) => NodeOutput::JetFailed,
@@ -430,7 +432,7 @@ impl BitMachine {
             let out_frame = self.write.last_mut().unwrap();
             out_frame.reset_cursor();
             let value = Value::from_padded_bits(
-                &mut out_frame.as_bit_iter(&self.data),
+                &mut out_frame.as_bit_iter_from_cursor(&self.data),
                 &program.arrow().target,
             )
             .expect("Decode value of output frame");
@@ -667,6 +669,37 @@ mod tests {
         BitMachine::for_program(&prog)
             .expect("program has reasonable bounds")
             .exec(&prog, &env)
+    }
+
+    #[test]
+    #[cfg(feature = "human_encoding")]
+    fn set_tracker_cursor_regression() {
+        // When a `case` node executes inside another `case` or `drop`, the read frame cursor
+        // is no longer at the frame's start. Before this fix, `exec_with_tracker` passed an
+        // iterator starting at frame.start to the tracker, so `SetTracker` read the wrong bit
+        // and recorded the wrong branch, leading to an assertl/assertr mismatch after pruning.
+        //
+        // Program: comp (pair (injl (injr unit)) unit) (case (case unit unit) unit)
+        // Intermediate frame bits: [0=L-tag of outer, 1=R-tag of inner]
+        // Outer case: peek bit 0 = 0 (LEFT), fwd(1), cursor moves to bit 1.
+        // Inner case: should read bit 1 = 1 (RIGHT).
+        // Bug: tracker received iterator from bit 0, read 0 (LEFT) → pruned wrong branch.
+        use crate::human_encoding::Forest;
+        use crate::types;
+        use std::collections::HashMap;
+
+        types::Context::with_context(|ctx| {
+            let s = "main := comp (pair (injl (injr unit)) unit) (case (case unit unit) unit)";
+            let program = Forest::parse::<crate::jet::Core>(s)
+                .expect("parse")
+                .to_witness_node(&ctx, &HashMap::new())
+                .expect("main root")
+                .finalize_pruned(&CoreEnv::new())
+                .expect("finalize and prune");
+            let mut mac = BitMachine::for_program(&program).expect("for_program");
+            mac.exec(&program, &CoreEnv::new())
+                .expect("pruned execution should succeed");
+        });
     }
 
     #[test]
