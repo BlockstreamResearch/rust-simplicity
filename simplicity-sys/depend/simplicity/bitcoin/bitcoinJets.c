@@ -30,7 +30,7 @@ static void writeHash(frameItem* dst, const sha256_midstate* h) {
  */
 static void prevOutpoint(frameItem* dst, const outpoint* op) {
   writeHash(dst, &op->txid);
-  rustsimplicity_0_6_write32(dst, op->ix);
+  rustsimplicity_0_7_write32(dst, op->ix);
 }
 
 static uint_fast32_t lockHeight(const bitcoinTransaction* tx) {
@@ -42,7 +42,7 @@ static uint_fast32_t lockTime(const bitcoinTransaction* tx) {
 }
 
 static uint_fast16_t lockDistance(const bitcoinTransaction* tx, uint_fast32_t ix) {
-  rustsimplicity_0_6_assert(ix < tx->numInputs);
+  rustsimplicity_0_7_assert(ix < tx->numInputs);
   if (2 <= tx->version &&
       tx->input[ix].sequence < 0x80000000 &&
       !(tx->input[ix].sequence & ((uint_fast32_t)1 << 22))) {
@@ -53,7 +53,7 @@ static uint_fast16_t lockDistance(const bitcoinTransaction* tx, uint_fast32_t ix
 }
 
 static uint_fast16_t lockDuration(const bitcoinTransaction* tx, uint_fast32_t ix) {
-  rustsimplicity_0_6_assert(ix < tx->numInputs);
+  rustsimplicity_0_7_assert(ix < tx->numInputs);
   if (2 <= tx->version &&
       tx->input[ix].sequence < 0x80000000 &&
       !!(tx->input[ix].sequence & ((uint_fast32_t)1 << 22))) {
@@ -64,22 +64,22 @@ static uint_fast16_t lockDuration(const bitcoinTransaction* tx, uint_fast32_t ix
 }
 
 /* version : ONE |- TWO^32 */
-bool rustsimplicity_0_6_bitcoin_version(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_version(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_6_write32(dst, env->tx->version);
+  rustsimplicity_0_7_write32(dst, env->tx->version);
   return true;
 }
 
 /* lock_time : ONE |- TWO^32 */
-bool rustsimplicity_0_6_bitcoin_lock_time(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_lock_time(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_6_write32(dst, env->tx->lockTime);
+  rustsimplicity_0_7_write32(dst, env->tx->lockTime);
   return true;
 }
 
 /* input_prev_outpoint : TWO^32 |- S (TWO^256 * TWO^32) */
-bool rustsimplicity_0_6_bitcoin_input_prev_outpoint(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
+bool rustsimplicity_0_7_bitcoin_input_prev_outpoint(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_7_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     prevOutpoint(dst, &env->tx->input[i].prevOutpoint);
   } else {
@@ -89,10 +89,10 @@ bool rustsimplicity_0_6_bitcoin_input_prev_outpoint(frameItem* dst, frameItem sr
 }
 
 /* input_value : TWO^32 |- S TWO^64 */
-bool rustsimplicity_0_6_bitcoin_input_value(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
+bool rustsimplicity_0_7_bitcoin_input_value(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_7_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
-    rustsimplicity_0_6_write64(dst, env->tx->input[i].txo.value);
+    rustsimplicity_0_7_write64(dst, env->tx->input[i].txo.value);
   } else {
     skipBits(dst, 64);
   }
@@ -100,8 +100,8 @@ bool rustsimplicity_0_6_bitcoin_input_value(frameItem* dst, frameItem src, const
 }
 
 /* input_script_hash : TWO^32 |- S TWO^256 */
-bool rustsimplicity_0_6_bitcoin_input_script_hash(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
+bool rustsimplicity_0_7_bitcoin_input_script_hash(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_7_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     writeHash(dst, &env->tx->input[i].txo.scriptPubKey);
   } else {
@@ -111,10 +111,10 @@ bool rustsimplicity_0_6_bitcoin_input_script_hash(frameItem* dst, frameItem src,
 }
 
 /* input_sequence : TWO^32 |- S TWO^32 */
-bool rustsimplicity_0_6_bitcoin_input_sequence(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
+bool rustsimplicity_0_7_bitcoin_input_sequence(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_7_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
-    rustsimplicity_0_6_write32(dst, env->tx->input[i].sequence);
+    rustsimplicity_0_7_write32(dst, env->tx->input[i].sequence);
   } else {
     skipBits(dst, 32);
   }
@@ -122,8 +122,8 @@ bool rustsimplicity_0_6_bitcoin_input_sequence(frameItem* dst, frameItem src, co
 }
 
 /* input_annex_hash : TWO^32 |- S (S (TWO^256)) */
-bool rustsimplicity_0_6_bitcoin_input_annex_hash(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
+bool rustsimplicity_0_7_bitcoin_input_annex_hash(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_7_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     if (writeBit(dst, env->tx->input[i].hasAnnex)) {
       writeHash(dst, &env->tx->input[i].annexHash);
@@ -137,8 +137,8 @@ bool rustsimplicity_0_6_bitcoin_input_annex_hash(frameItem* dst, frameItem src, 
 }
 
 /* input_script_sig_hash : TWO^32 |- (S (TWO^256) */
-bool rustsimplicity_0_6_bitcoin_input_script_sig_hash(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
+bool rustsimplicity_0_7_bitcoin_input_script_sig_hash(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_7_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     writeHash(dst, &env->tx->input[i].scriptSigHash);
   } else {
@@ -148,10 +148,10 @@ bool rustsimplicity_0_6_bitcoin_input_script_sig_hash(frameItem* dst, frameItem 
 }
 
 /* output_value : TWO^32 |- S (TWO^64) */
-bool rustsimplicity_0_6_bitcoin_output_value(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
+bool rustsimplicity_0_7_bitcoin_output_value(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_7_read32(&src);
   if (writeBit(dst, i < env->tx->numOutputs)) {
-    rustsimplicity_0_6_write64(dst, env->tx->output[i].value);
+    rustsimplicity_0_7_write64(dst, env->tx->output[i].value);
   } else {
     skipBits(dst, 64);
   }
@@ -159,8 +159,8 @@ bool rustsimplicity_0_6_bitcoin_output_value(frameItem* dst, frameItem src, cons
 }
 
 /* output_script_hash : TWO^32 |- S TWO^256 */
-bool rustsimplicity_0_6_bitcoin_output_script_hash(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
+bool rustsimplicity_0_7_bitcoin_output_script_hash(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_7_read32(&src);
   if (writeBit(dst, i < env->tx->numOutputs)) {
     writeHash(dst, &env->tx->output[i].scriptPubKey);
   } else {
@@ -170,49 +170,49 @@ bool rustsimplicity_0_6_bitcoin_output_script_hash(frameItem* dst, frameItem src
 }
 
 /* fee : ONE |- TWO^64 */
-bool rustsimplicity_0_6_bitcoin_fee(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_fee(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_6_write64(dst, env->tx->totalInputValue - env->tx->totalOutputValue);
+  rustsimplicity_0_7_write64(dst, env->tx->totalInputValue - env->tx->totalOutputValue);
   return true;
 }
 
 /* total_input_value : ONE |- TWO^64 */
-bool rustsimplicity_0_6_bitcoin_total_input_value(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_total_input_value(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_6_write64(dst, env->tx->totalInputValue);
+  rustsimplicity_0_7_write64(dst, env->tx->totalInputValue);
   return true;
 }
 
 /* total_output_value : ONE |- TWO^64 */
-bool rustsimplicity_0_6_bitcoin_total_output_value(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_total_output_value(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_6_write64(dst, env->tx->totalOutputValue);
+  rustsimplicity_0_7_write64(dst, env->tx->totalOutputValue);
   return true;
 }
 
 /* script_cmr : ONE |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_script_cmr(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_script_cmr(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   write32s(dst, env->taproot->scriptCMR.s, 8);
   return true;
 }
 
 /* transaction_id : ONE |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_transaction_id(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_transaction_id(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   write32s(dst, env->tx->txid.s, 8);
   return true;
 }
 
 /* current_index : ONE |- TWO^32 */
-bool rustsimplicity_0_6_bitcoin_current_index(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_current_index(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_6_write32(dst, env->ix);
+  rustsimplicity_0_7_write32(dst, env->ix);
   return true;
 }
 
 /* current_prev_outpoint : ONE |- TWO^256 * TWO^32 */
-bool rustsimplicity_0_6_bitcoin_current_prev_outpoint(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_current_prev_outpoint(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
   prevOutpoint(dst, &env->tx->input[env->ix].prevOutpoint);
@@ -220,15 +220,15 @@ bool rustsimplicity_0_6_bitcoin_current_prev_outpoint(frameItem* dst, frameItem 
 }
 
 /* current_value : ONE |- (TWO^64) */
-bool rustsimplicity_0_6_bitcoin_current_value(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_current_value(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
-  rustsimplicity_0_6_write64(dst, env->tx->input[env->ix].txo.value);
+  rustsimplicity_0_7_write64(dst, env->tx->input[env->ix].txo.value);
   return true;
 }
 
 /* current_script_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_current_script_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_current_script_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
   writeHash(dst, &env->tx->input[env->ix].txo.scriptPubKey);
@@ -236,15 +236,15 @@ bool rustsimplicity_0_6_bitcoin_current_script_hash(frameItem* dst, frameItem sr
 }
 
 /* current_sequence : ONE |- TWO^32 */
-bool rustsimplicity_0_6_bitcoin_current_sequence(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_current_sequence(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
-  rustsimplicity_0_6_write32(dst, env->tx->input[env->ix].sequence);
+  rustsimplicity_0_7_write32(dst, env->tx->input[env->ix].sequence);
   return true;
 }
 
 /* current_script_sig_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_current_script_sig_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_current_script_sig_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
   writeHash(dst, &env->tx->input[env->ix].scriptSigHash);
@@ -252,7 +252,7 @@ bool rustsimplicity_0_6_bitcoin_current_script_sig_hash(frameItem* dst, frameIte
 }
 
 /* current_annex_hash : ONE |- S (TWO^256) */
-bool rustsimplicity_0_6_bitcoin_current_annex_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_current_annex_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
   if (writeBit(dst, env->tx->input[env->ix].hasAnnex)) {
@@ -264,15 +264,15 @@ bool rustsimplicity_0_6_bitcoin_current_annex_hash(frameItem* dst, frameItem src
 }
 
 /* tapleaf_version : ONE |- TWO^8 */
-bool rustsimplicity_0_6_bitcoin_tapleaf_version(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_tapleaf_version(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_6_write8(dst, env->taproot->leafVersion);
+  rustsimplicity_0_7_write8(dst, env->taproot->leafVersion);
   return true;
 }
 
 /* tappath : TWO^8 |- S (TWO^256) */
-bool rustsimplicity_0_6_bitcoin_tappath(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast8_t i = rustsimplicity_0_6_read8(&src);
+bool rustsimplicity_0_7_bitcoin_tappath(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast8_t i = rustsimplicity_0_7_read8(&src);
   if (writeBit(dst, i < env->taproot->pathLen)) {
     writeHash(dst, &env->taproot->path[i]);
   } else {
@@ -282,148 +282,148 @@ bool rustsimplicity_0_6_bitcoin_tappath(frameItem* dst, frameItem src, const txE
 }
 
 /* internal_key : ONE |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_internal_key(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_internal_key(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->taproot->internalKey);
   return true;
 }
 
 /* num_inputs : ONE |- TWO^32 */
-bool rustsimplicity_0_6_bitcoin_num_inputs(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_num_inputs(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_6_write32(dst, env->tx->numInputs);
+  rustsimplicity_0_7_write32(dst, env->tx->numInputs);
   return true;
 }
 
 /* num_outputs : ONE |- TWO^32 */
-bool rustsimplicity_0_6_bitcoin_num_outputs(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_num_outputs(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_6_write32(dst, env->tx->numOutputs);
+  rustsimplicity_0_7_write32(dst, env->tx->numOutputs);
   return true;
 }
 
 /* tx_is_final : ONE |- TWO */
-bool rustsimplicity_0_6_bitcoin_tx_is_final(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_tx_is_final(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeBit(dst, env->tx->isFinal);
   return true;
 }
 
 /* tx_lock_height : ONE |- TWO^32 */
-bool rustsimplicity_0_6_bitcoin_tx_lock_height(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_tx_lock_height(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_6_write32(dst, lockHeight(env->tx));
+  rustsimplicity_0_7_write32(dst, lockHeight(env->tx));
   return true;
 }
 
 /* tx_lock_time : ONE |- TWO^32 */
-bool rustsimplicity_0_6_bitcoin_tx_lock_time(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_tx_lock_time(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
-  rustsimplicity_0_6_write32(dst, lockTime(env->tx));
+  rustsimplicity_0_7_write32(dst, lockTime(env->tx));
   return true;
 }
 
 /* tx_lock_distance : ONE |- TWO^16 */
-bool rustsimplicity_0_6_bitcoin_tx_lock_distance(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_tx_lock_distance(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
-  rustsimplicity_0_6_write16(dst, lockDistance(env->tx, env->ix));
+  rustsimplicity_0_7_write16(dst, lockDistance(env->tx, env->ix));
   return true;
 }
 
 /* tx_lock_duration : ONE |- TWO^16 */
-bool rustsimplicity_0_6_bitcoin_tx_lock_duration(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_tx_lock_duration(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   if (env->tx->numInputs <= env->ix) return false;
-  rustsimplicity_0_6_write16(dst, lockDuration(env->tx, env->ix));
+  rustsimplicity_0_7_write16(dst, lockDuration(env->tx, env->ix));
   return true;
 }
 
 /* check_lock_height : TWO^32 |- ONE */
-bool rustsimplicity_0_6_bitcoin_check_lock_height(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_check_lock_height(frameItem* dst, frameItem src, const txEnv* env) {
   (void) dst; // dst is unused;
-  uint_fast32_t x = rustsimplicity_0_6_read32(&src);
+  uint_fast32_t x = rustsimplicity_0_7_read32(&src);
   return x <= lockHeight(env->tx);
 }
 
 /* check_lock_time : TWO^32 |- ONE */
-bool rustsimplicity_0_6_bitcoin_check_lock_time(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_check_lock_time(frameItem* dst, frameItem src, const txEnv* env) {
   (void) dst; // dst is unused;
-  uint_fast32_t x = rustsimplicity_0_6_read32(&src);
+  uint_fast32_t x = rustsimplicity_0_7_read32(&src);
   return x <= lockTime(env->tx);
 }
 
 /* check_lock_distance : TWO^16 |- ONE */
-bool rustsimplicity_0_6_bitcoin_check_lock_distance(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_check_lock_distance(frameItem* dst, frameItem src, const txEnv* env) {
   (void) dst; // dst is unused;
   if (env->tx->numInputs <= env->ix) return false;
-  uint_fast16_t x = rustsimplicity_0_6_read16(&src);
+  uint_fast16_t x = rustsimplicity_0_7_read16(&src);
   return x <= lockDistance(env->tx, env->ix);
 }
 
 /* check_lock_duration : TWO^16 |- ONE */
-bool rustsimplicity_0_6_bitcoin_check_lock_duration(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_check_lock_duration(frameItem* dst, frameItem src, const txEnv* env) {
   (void) dst; // dst is unused;
   if (env->tx->numInputs <= env->ix) return false;
-  uint_fast16_t x = rustsimplicity_0_6_read16(&src);
+  uint_fast16_t x = rustsimplicity_0_7_read16(&src);
   return x <= lockDuration(env->tx, env->ix);
 }
 
 /* build_tapleaf_simplicity : TWO^256 |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_build_tapleaf_simplicity(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_build_tapleaf_simplicity(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused.
   sha256_midstate cmr;
   readHash(&cmr, &src);
-  sha256_midstate result = rustsimplicity_0_6_bitcoin_make_tapleaf(0xbe, &cmr);
+  sha256_midstate result = rustsimplicity_0_7_bitcoin_make_tapleaf(0xbe, &cmr);
   writeHash(dst, &result);
   return true;
 }
 
 /* build_tapbranch : TWO^256 * TWO^256 |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_build_tapbranch(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_build_tapbranch(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused.
   sha256_midstate a, b;
   readHash(&a, &src);
   readHash(&b, &src);
 
-  sha256_midstate result = rustsimplicity_0_6_bitcoin_make_tapbranch(&a, &b);
+  sha256_midstate result = rustsimplicity_0_7_bitcoin_make_tapbranch(&a, &b);
   writeHash(dst, &result);
   return true;
 }
 
 /* build_taptweak : PUBKEY * TWO^256 |- PUBKEY */
-bool rustsimplicity_0_6_bitcoin_build_taptweak(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_build_taptweak(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused.
   static unsigned char taptweak[] = "TapTweak";
-  return rustsimplicity_0_6_generic_taptweak(dst, &src, taptweak, sizeof(taptweak)-1);
+  return rustsimplicity_0_7_generic_taptweak(dst, &src, taptweak, sizeof(taptweak)-1);
 }
 
 /* outpoint_hash : CTX8 * TWO^256 * TWO^32 |- CTX8 */
-bool rustsimplicity_0_6_bitcoin_outpoint_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_outpoint_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused.
   sha256_midstate midstate;
   unsigned char buf[36];
   sha256_context ctx = {.output = midstate.s};
 
   /* Read a SHA-256 context. */
-  if (!rustsimplicity_0_6_read_sha256_context(&ctx, &src)) return false;
+  if (!rustsimplicity_0_7_read_sha256_context(&ctx, &src)) return false;
 
   /* Read an outpoint (hash and index). */
   read8s(buf, 36, &src);
   sha256_uchars(&ctx, buf, 36);
 
-  return rustsimplicity_0_6_write_sha256_context(dst, &ctx);
+  return rustsimplicity_0_7_write_sha256_context(dst, &ctx);
 }
 
 /* annex_hash : CTX8 * S TWO^256 |- CTX8 */
-bool rustsimplicity_0_6_bitcoin_annex_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_annex_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) env; // env is unused.
   sha256_midstate midstate;
   unsigned char buf[32];
   sha256_context ctx = {.output = midstate.s};
 
   /* Read a SHA-256 context. */
-  if (!rustsimplicity_0_6_read_sha256_context(&ctx, &src)) return false;
+  if (!rustsimplicity_0_7_read_sha256_context(&ctx, &src)) return false;
 
   /* Read an optional hash. (257 bits) */
   if (readBit(&src)) {
@@ -436,33 +436,33 @@ bool rustsimplicity_0_6_bitcoin_annex_hash(frameItem* dst, frameItem src, const 
     sha256_uchar(&ctx, 0x00);
   }
 
-  return rustsimplicity_0_6_write_sha256_context(dst, &ctx);
+  return rustsimplicity_0_7_write_sha256_context(dst, &ctx);
 }
 
 /* output_amounts_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_output_values_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_output_values_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->outputValuesHash);
   return true;
 }
 
 /* output_scripts_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_output_scripts_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_output_scripts_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->outputScriptsHash);
   return true;
 }
 
 /* outputs_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_outputs_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_outputs_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->outputsHash);
   return true;
 }
 
 /* output_hash : TWO^32 |- S TWO^256 */
-bool rustsimplicity_0_6_bitcoin_output_hash(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
+bool rustsimplicity_0_7_bitcoin_output_hash(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_7_read32(&src);
   if (writeBit(dst, i < env->tx->numOutputs)) {
     const sigOutput* output = &env->tx->output[i];
     sha256_midstate midstate;
@@ -478,36 +478,36 @@ bool rustsimplicity_0_6_bitcoin_output_hash(frameItem* dst, frameItem src, const
 }
 
 /* input_outpoints_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_input_outpoints_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_input_outpoints_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->inputOutpointsHash);
   return true;
 }
 
 /* input_values_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_input_values_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_input_values_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->inputValuesHash);
   return true;
 }
 
 /* input_scripts_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_input_scripts_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_input_scripts_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->inputScriptsHash);
   return true;
 }
 
 /* input_utxos_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_input_utxos_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_input_utxos_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->inputUTXOsHash);
   return true;
 }
 
 /* input_utxo_hash : TWO^32 |- S TWO^256 */
-bool rustsimplicity_0_6_bitcoin_input_utxo_hash(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
+bool rustsimplicity_0_7_bitcoin_input_utxo_hash(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_7_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     const sigOutput* txo = &env->tx->input[i].txo;
     sha256_midstate midstate;
@@ -523,36 +523,36 @@ bool rustsimplicity_0_6_bitcoin_input_utxo_hash(frameItem* dst, frameItem src, c
 }
 
 /* input_sequences_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_input_sequences_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_input_sequences_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->inputSequencesHash);
   return true;
 }
 
 /* input_annexes_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_input_annexes_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_input_annexes_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->inputAnnexesHash);
   return true;
 }
 
 /* input_script_sigs_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_input_script_sigs_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_input_script_sigs_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->inputScriptSigsHash);
   return true;
 }
 
 /* inputs_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_inputs_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_inputs_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->inputsHash);
   return true;
 }
 
 /* input_hash : TWO^32 |- S TWO^256 */
-bool rustsimplicity_0_6_bitcoin_input_hash(frameItem* dst, frameItem src, const txEnv* env) {
-  uint_fast32_t i = rustsimplicity_0_6_read32(&src);
+bool rustsimplicity_0_7_bitcoin_input_hash(frameItem* dst, frameItem src, const txEnv* env) {
+  uint_fast32_t i = rustsimplicity_0_7_read32(&src);
   if (writeBit(dst, i < env->tx->numInputs)) {
     const sigInput* input = &env->tx->input[i];
     sha256_midstate midstate;
@@ -575,35 +575,35 @@ bool rustsimplicity_0_6_bitcoin_input_hash(frameItem* dst, frameItem src, const 
 }
 
 /* tx_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_tx_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_tx_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->tx->txHash);
   return true;
 }
 
 /* tapleaf_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_tapleaf_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_tapleaf_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->taproot->tapLeafHash);
   return true;
 }
 
 /* tappath_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_tappath_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_tappath_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->taproot->tappathHash);
   return true;
 }
 
 /* tap_env_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_tap_env_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_tap_env_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->taproot->tapEnvHash);
   return true;
 }
 
 /* sig_all_hash : ONE |- TWO^256 */
-bool rustsimplicity_0_6_bitcoin_sig_all_hash(frameItem* dst, frameItem src, const txEnv* env) {
+bool rustsimplicity_0_7_bitcoin_sig_all_hash(frameItem* dst, frameItem src, const txEnv* env) {
   (void) src; // src is unused;
   writeHash(dst, &env->sigAllHash);
   return true;

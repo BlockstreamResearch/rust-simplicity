@@ -54,7 +54,7 @@ static void copyInput(sigInput* result, const rawBitcoinInput* input) {
  *
  * Precondition: NULL != rawTx
  */
-extern bitcoinTransaction* rustsimplicity_0_6_bitcoin_mallocTransaction(const rawBitcoinTransaction* rawTx) {
+extern bitcoinTransaction* rustsimplicity_0_7_bitcoin_mallocTransaction(const rawBitcoinTransaction* rawTx) {
   if (!rawTx) return NULL;
 
   size_t allocationSize = sizeof(bitcoinTransaction);
@@ -77,7 +77,7 @@ extern bitcoinTransaction* rustsimplicity_0_6_bitcoin_mallocTransaction(const ra
   if (SIZE_MAX - allocationSize < rawTx->numOutputs * sizeof(sigOutput)) return NULL;
   allocationSize += rawTx->numOutputs * sizeof(sigOutput);
 
-  char *allocation = rustsimplicity_0_6_malloc(allocationSize);
+  char *allocation = rustsimplicity_0_7_malloc(allocationSize);
   if (!allocation) return NULL;
 
   /* Casting through void* to avoid warning about pointer alignment.
@@ -178,8 +178,8 @@ extern bitcoinTransaction* rustsimplicity_0_6_bitcoin_mallocTransaction(const ra
 
 /* Free a pointer to 'bitcoinTransaction'.
  */
-extern void rustsimplicity_0_6_bitcoin_freeTransaction(bitcoinTransaction* tx) {
-  rustsimplicity_0_6_free(tx);
+extern void rustsimplicity_0_7_bitcoin_freeTransaction(bitcoinTransaction* tx) {
+  rustsimplicity_0_7_free(tx);
 }
 
 /* Allocate and initialize a 'bitcoinTapEnv' from a 'rawBitcoinTapEnv', copying or hashing the data as needed.
@@ -187,7 +187,7 @@ extern void rustsimplicity_0_6_bitcoin_freeTransaction(bitcoinTransaction* tx) {
  *
  * Precondition: *rawEnv is well-formed (i.e. rawEnv->pathLen <= 128.)
  */
-extern bitcoinTapEnv* rustsimplicity_0_6_bitcoin_mallocTapEnv(const rawBitcoinTapEnv* rawEnv) {
+extern bitcoinTapEnv* rustsimplicity_0_7_bitcoin_mallocTapEnv(const rawBitcoinTapEnv* rawEnv) {
   if (!rawEnv) return NULL;
   if (128 < rawEnv->pathLen) return NULL;
 
@@ -205,7 +205,7 @@ extern bitcoinTapEnv* rustsimplicity_0_6_bitcoin_mallocTapEnv(const rawBitcoinTa
     allocationSize += numMidstate * sizeof(sha256_midstate);
   }
 
-  char *allocation = rustsimplicity_0_6_malloc(allocationSize);
+  char *allocation = rustsimplicity_0_7_malloc(allocationSize);
   if (!allocation) return NULL;
 
   /* Casting through void* to avoid warning about pointer alignment.
@@ -241,7 +241,7 @@ extern bitcoinTapEnv* rustsimplicity_0_6_bitcoin_mallocTapEnv(const rawBitcoinTa
     sha256_finalize(&ctx);
   }
 
-  env->tapLeafHash = rustsimplicity_0_6_bitcoin_make_tapleaf(env->leafVersion, &env->scriptCMR);
+  env->tapLeafHash = rustsimplicity_0_7_bitcoin_make_tapleaf(env->leafVersion, &env->scriptCMR);
 
   {
     sha256_context ctx = sha256_init(env->tapEnvHash.s);
@@ -255,6 +255,6 @@ extern bitcoinTapEnv* rustsimplicity_0_6_bitcoin_mallocTapEnv(const rawBitcoinTa
 
 /* Free a pointer to 'bitcoinTapEnv'.
  */
-extern void rustsimplicity_0_6_bitcoin_freeTapEnv(bitcoinTapEnv* env) {
-  rustsimplicity_0_6_free(env);
+extern void rustsimplicity_0_7_bitcoin_freeTapEnv(bitcoinTapEnv* env) {
+  rustsimplicity_0_7_free(env);
 }

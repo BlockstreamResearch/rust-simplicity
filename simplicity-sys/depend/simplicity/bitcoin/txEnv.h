@@ -99,6 +99,6 @@ typedef struct txEnv {
  *               NULL != taproot
  *               ix < tx->numInputs
  */
-txEnv rustsimplicity_0_6_bitcoin_build_txEnv(const bitcoinTransaction* tx, const bitcoinTapEnv* taproot, uint_fast32_t ix);
+txEnv rustsimplicity_0_7_bitcoin_build_txEnv(const bitcoinTransaction* tx, const bitcoinTapEnv* taproot, uint_fast32_t ix);
 
 #endif
