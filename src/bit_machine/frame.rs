@@ -115,13 +115,12 @@ impl Frame {
         }
     }
 
-    /// Extend the present frame with a read-only reference the the data
-    /// and return the resulting struct.
-    pub(super) fn as_bit_iter<'a>(
+    /// Return an iterator over the frame's remaining bits, starting at the current cursor position.
+    pub(super) fn as_bit_iter_from_cursor<'a>(
         &self,
         data: &'a [u8],
     ) -> BitIter<core::iter::Copied<core::slice::Iter<'a, u8>>> {
-        BitIter::byte_slice_window(data, self.start, self.start + self.len)
+        BitIter::byte_slice_window(data, self.cursor, self.start + self.len)
     }
 }
 
