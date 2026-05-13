@@ -28,6 +28,13 @@ bool rustsimplicity_0_7_output_amount(frameItem* dst, frameItem src, const txEnv
 bool rustsimplicity_0_7_output_nonce(frameItem* dst, frameItem src, const txEnv* env);
 bool rustsimplicity_0_7_output_script_hash(frameItem* dst, frameItem src, const txEnv* env);
 bool rustsimplicity_0_7_output_null_datum(frameItem* dst, frameItem src, const txEnv* env);
+bool rustsimplicity_0_7_output_null_get_bytes_1(frameItem* dst, frameItem src, const txEnv* env);
+bool rustsimplicity_0_7_output_null_get_bytes_2(frameItem* dst, frameItem src, const txEnv* env);
+bool rustsimplicity_0_7_output_null_get_bytes_4(frameItem* dst, frameItem src, const txEnv* env);
+bool rustsimplicity_0_7_output_null_get_bytes_8(frameItem* dst, frameItem src, const txEnv* env);
+bool rustsimplicity_0_7_output_null_get_bytes_16(frameItem* dst, frameItem src, const txEnv* env);
+bool rustsimplicity_0_7_output_null_get_bytes_32(frameItem* dst, frameItem src, const txEnv* env);
+bool rustsimplicity_0_7_output_null_get_bytes_64(frameItem* dst, frameItem src, const txEnv* env);
 bool rustsimplicity_0_7_output_is_fee(frameItem* dst, frameItem src, const txEnv* env);
 bool rustsimplicity_0_7_output_surjection_proof(frameItem* dst, frameItem src, const txEnv* env);
 bool rustsimplicity_0_7_output_range_proof(frameItem* dst, frameItem src, const txEnv* env);

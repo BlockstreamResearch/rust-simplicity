@@ -1375,6 +1375,34 @@ pub fn output_null_datum(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsT
     unsafe { elements_ffi::output_null_datum(dst, &src, env) }
 }
 
+pub fn output_null_get_bytes_1(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+    unsafe { elements_ffi::output_null_get_bytes_1(dst, &src, env) }
+}
+
+pub fn output_null_get_bytes_16(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+    unsafe { elements_ffi::output_null_get_bytes_16(dst, &src, env) }
+}
+
+pub fn output_null_get_bytes_2(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+    unsafe { elements_ffi::output_null_get_bytes_2(dst, &src, env) }
+}
+
+pub fn output_null_get_bytes_32(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+    unsafe { elements_ffi::output_null_get_bytes_32(dst, &src, env) }
+}
+
+pub fn output_null_get_bytes_4(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+    unsafe { elements_ffi::output_null_get_bytes_4(dst, &src, env) }
+}
+
+pub fn output_null_get_bytes_64(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+    unsafe { elements_ffi::output_null_get_bytes_64(dst, &src, env) }
+}
+
+pub fn output_null_get_bytes_8(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
+    unsafe { elements_ffi::output_null_get_bytes_8(dst, &src, env) }
+}
+
 pub fn output_range_proof(dst: &mut CFrameItem, src: CFrameItem, env: &CElementsTxEnv) -> bool {
     unsafe { elements_ffi::output_range_proof(dst, &src, env) }
 }

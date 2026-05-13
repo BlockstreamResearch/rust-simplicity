@@ -37,24 +37,12 @@ if [ ! -d "$LIBSIM_PATH" ]; then
     exit 1
 fi
 
-if [ -d "$VENDORED_SIM_DIR" ]; then
-    while true; do
-        read -r -p "$VENDORED_SIM_DIR will be deleted [yn]: " yn
-        case $yn in
-            [Yy]* ) break;;
-            [Nn]* ) exit;;
-            * ) echo "Please answer y or n.";;
-        esac
-    done
+## 2. Set up output directory on Linux filesystem (avoids all NTFS permission issues)
+OUT_DIR=/tmp/simplicity_vendor_out
+rm -rf "$OUT_DIR"
+mkdir -p "$OUT_DIR/depend" "$OUT_DIR/src"
 
-    rm -rf "$VENDORED_SIM_DIR"
-elif [ -e "$VENDORED_SIM_DIR" ]; then
-    echo "'simplicity' inside depend directory exists but appears not to be a directory."
-    echo "Please move or delete this file."
-    exit 1
-fi
-
-## 2. Copy files from libsimplicity
+## 3. Copy files from libsimplicity into output dir
 pushd "$LIBSIM_PATH/C"
 
 if test -n "$(git status --porcelain)"; then
@@ -62,41 +50,72 @@ if test -n "$(git status --porcelain)"; then
 fi
 
 HEAD=$(git rev-parse HEAD)
-echo "# This file has been automatically generated." > "$DEPEND_PATH/simplicity-HEAD-revision.txt"
-echo "$HEAD" >> "$DEPEND_PATH/simplicity-HEAD-revision.txt"
+{
+    echo "# This file has been automatically generated."
+    echo "$HEAD"
+} > "$OUT_DIR/depend/simplicity-HEAD-revision.txt"
 
-# Copy C folder to simplicity-sys/depend/simplicity
-# Use rsync to copy only files tracked by git
-git ls-files | rsync -av --files-from=- . "$VENDORED_SIM_DIR"
+git ls-files | rsync -av --files-from=- . "$OUT_DIR/depend/simplicity"
 
 popd
 
-## 3. Patch things to include versions
+## 4. Patch things to include versions (all on Linux fs, no NTFS issues)
 
-# a. patch our own drop/new functions for C structures.
-find "$DEPEND_PATH/.." -name "*.rs" -type f -exec sed -i "s/rust_[0-9_]*_free/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_free/" {} \;
-find "$DEPEND_PATH/.." -name "*.rs" -type f -exec sed -i "s/rust_[0-9_]*_malloc/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_malloc/" {} \;
-find "$DEPEND_PATH/.." -name "*.rs" -type f -exec sed -i "s/rust_[0-9_]*_calloc/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_calloc/" {} \;
+# a. patch rust alloc function names in .rs files
+find "$DEPEND_PATH/.." -name "*.rs" -type f | while IFS= read -r src; do
+    # compute destination path relative to simplicity-sys root
+    rel="${src#$DEPEND_PATH/../}"
+    dest="$OUT_DIR/$rel"
+    mkdir -p "$(dirname "$dest")"
+    sed "s/rust_[0-9_]*_free/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_free/;
+         s/rust_[0-9_]*_malloc/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_malloc/;
+         s/rust_[0-9_]*_calloc/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_calloc/" "$src" > "$dest"
+done
 
 # b. patch the rust_{malloc,calloc,free} functions in simplicity_alloc.h
 sed "s/rust_/rust_${SIMPLICITY_ALLOC_VERSION_CODE}_/" \
     < "$DEPEND_PATH/simplicity_alloc.h.patch" \
-    | patch "$VENDORED_SIM_DIR/simplicity_alloc.h"
+    | patch "$OUT_DIR/depend/simplicity/simplicity_alloc.h"
 
-# c. patch every single simplicity_* symbol in the library (every instance except
-#    those in #includes, which is overkill but doesn't hurt anything)
-find "$DEPEND_PATH/simplicity" \( -name "*.[ch]" -o -name '*.inc' \) -type f -print0 | xargs -0 \
-    sed -i "/^#include/! s/simplicity_/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_/g"
+# c. patch every single simplicity_* symbol in the library
+find "$OUT_DIR/depend/simplicity" -not -path "*/secp256k1/*" \( -name "*.[ch]" -o -name '*.inc' \) -type f | while IFS= read -r f; do
+    sed "/^#include/! s/simplicity_/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_/g" "$f" > /tmp/_sv_tmp && mv /tmp/_sv_tmp "$f"
+done
 # ...ok, actually we didn't want to replace simplicity_err
-find "$DEPEND_PATH/simplicity" \( -name "*.[ch]" -o -name '*.inc' \) -type f -print0 | xargs -0 \
-    sed -i "s/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_err/simplicity_err/g"
-# Special-case calls in depend/env.c and depend/warpper.h
-sed -i -r "s/rustsimplicity_[0-9]+_[0-9]+_/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_/" \
-    "$DEPEND_PATH/env.c" \
-    "$DEPEND_PATH/wrapper.h"
+find "$OUT_DIR/depend/simplicity" -not -path "*/secp256k1/*" \( -name "*.[ch]" -o -name '*.inc' \) -type f | while IFS= read -r f; do
+    sed "s/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_err/simplicity_err/g" "$f" > /tmp/_sv_tmp && mv /tmp/_sv_tmp "$f"
+done
 
-# d. ...also update the corresponding link_name= entries in the Rust source code
-find "./src/" -name "*.rs" -type f -print0 | xargs -0 \
-     sed -i -r "s/rustsimplicity_[0-9]+_[0-9]+_(.*)([\"\(])/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_\1\2/g"
-# e. ...and the links= field in the manifest file
-sed -i -r "s/^links = \".*\"$/links = \"rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}\"/" Cargo.toml
+# Special-case calls in depend/env.c and depend/wrapper.h
+sed "s/rustsimplicity_[0-9]\+_[0-9]\+_/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_/" \
+    "$DEPEND_PATH/env.c" > "$OUT_DIR/depend/env.c"
+sed "s/rustsimplicity_[0-9]\+_[0-9]\+_/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_/" \
+    "$DEPEND_PATH/wrapper.h" > "$OUT_DIR/depend/wrapper.h"
+
+# d. update link_name= entries in Rust source code
+find "$DEPEND_PATH/../src" -name "*.rs" -type f | while IFS= read -r src; do
+    rel="${src#$DEPEND_PATH/../}"
+    dest="$OUT_DIR/$rel"
+    mkdir -p "$(dirname "$dest")"
+    sed "s/rustsimplicity_[0-9]\+_[0-9]\+_\(.*\)\([\"(]\)/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_\1\2/g" "$src" > "$dest"
+done
+
+# e. update the links= field in the manifest file
+sed "s/^links = \".*\"$/links = \"rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}\"/" \
+    "$DEPEND_PATH/../Cargo.toml" > "$OUT_DIR/Cargo.toml"
+
+## 5. Copy results back to NTFS destination
+if [ -d "$VENDORED_SIM_DIR" ]; then
+    rm -rf "$VENDORED_SIM_DIR"
+fi
+cp -r "$OUT_DIR/depend/simplicity" "$VENDORED_SIM_DIR"
+cp "$OUT_DIR/depend/simplicity-HEAD-revision.txt" "$DEPEND_PATH/simplicity-HEAD-revision.txt"
+cp "$OUT_DIR/depend/env.c" "$DEPEND_PATH/env.c"
+cp "$OUT_DIR/depend/wrapper.h" "$DEPEND_PATH/wrapper.h"
+cp "$OUT_DIR/Cargo.toml" "$DEPEND_PATH/../Cargo.toml"
+find "$OUT_DIR/src" -name "*.rs" -type f | while IFS= read -r f; do
+    rel="${f#$OUT_DIR/}"
+    cp "$f" "$DEPEND_PATH/../$rel"
+done
+
+echo "Done."

@@ -358,6 +358,13 @@ pub enum Elements {
     OutputNonce,
     OutputNoncesHash,
     OutputNullDatum,
+    OutputNullGetBytes1,
+    OutputNullGetBytes16,
+    OutputNullGetBytes2,
+    OutputNullGetBytes32,
+    OutputNullGetBytes4,
+    OutputNullGetBytes64,
+    OutputNullGetBytes8,
     OutputRangeProof,
     OutputRangeProofsHash,
     OutputScriptHash,
@@ -490,7 +497,7 @@ pub enum Elements {
 
 impl Elements {
     /// Array of all Elements jets.
-    pub const ALL: [Self; 471] = [
+    pub const ALL: [Self; 478] = [
         Self::Add16,
         Self::Add32,
         Self::Add64,
@@ -834,6 +841,13 @@ impl Elements {
         Self::OutputNonce,
         Self::OutputNoncesHash,
         Self::OutputNullDatum,
+        Self::OutputNullGetBytes1,
+        Self::OutputNullGetBytes16,
+        Self::OutputNullGetBytes2,
+        Self::OutputNullGetBytes32,
+        Self::OutputNullGetBytes4,
+        Self::OutputNullGetBytes64,
+        Self::OutputNullGetBytes8,
         Self::OutputRangeProof,
         Self::OutputRangeProofsHash,
         Self::OutputScriptHash,
@@ -2684,6 +2698,41 @@ impl Jet for Elements {
                 0xc8, 0x62, 0x8b, 0x7f, 0xd3, 0xb4, 0xcf, 0x8e, 0x7b, 0xce, 0x70, 0x75, 0x8f, 0xa6,
                 0xf6, 0xf1, 0x47, 0xbf,
             ],
+            Elements::OutputNullGetBytes1 => [
+                0x8b, 0xf2, 0x33, 0x36, 0xd4, 0x7f, 0x9e, 0x5e, 0x06, 0xdd, 0xd1, 0x29, 0xf8, 0x5a,
+                0xbd, 0xe1, 0xbd, 0x3c, 0x73, 0x48, 0x6f, 0x67, 0x49, 0x2e, 0x4f, 0x9a, 0x75, 0xe0,
+                0xdc, 0x49, 0xda, 0xb3,
+            ],
+            Elements::OutputNullGetBytes16 => [
+                0x6e, 0x87, 0x28, 0xa5, 0x5a, 0xea, 0x21, 0x52, 0x7c, 0x65, 0xdf, 0x6c, 0x72, 0x3f,
+                0x18, 0x3f, 0xdc, 0xf2, 0x17, 0x55, 0x4f, 0x1e, 0xc0, 0x23, 0x35, 0x1b, 0xd9, 0x96,
+                0xd8, 0x67, 0xf8, 0x65,
+            ],
+            Elements::OutputNullGetBytes2 => [
+                0x40, 0x7b, 0x4a, 0x04, 0x15, 0x18, 0x32, 0xc0, 0x01, 0x15, 0x5e, 0x4b, 0xd5, 0xd1,
+                0xba, 0x1f, 0xc2, 0x81, 0xbe, 0x56, 0x7a, 0x6c, 0x48, 0x54, 0x15, 0xa0, 0x8c, 0x88,
+                0x44, 0xfa, 0x46, 0x9c,
+            ],
+            Elements::OutputNullGetBytes32 => [
+                0x8f, 0x86, 0xb4, 0xe8, 0x74, 0x19, 0x23, 0x18, 0x0f, 0x76, 0xe1, 0x5d, 0xc2, 0x53,
+                0xab, 0x5d, 0x1d, 0x47, 0x89, 0xf5, 0x92, 0xbd, 0x89, 0xde, 0xde, 0x5f, 0xa4, 0x8e,
+                0xbf, 0x36, 0xa7, 0xb0,
+            ],
+            Elements::OutputNullGetBytes4 => [
+                0xf3, 0x49, 0x06, 0x72, 0x71, 0x08, 0x71, 0x29, 0xe3, 0x23, 0x17, 0xa4, 0x84, 0x37,
+                0xcd, 0xfa, 0x73, 0xea, 0x39, 0x1f, 0x2b, 0xbd, 0xdc, 0xf2, 0xc6, 0x48, 0x1f, 0x57,
+                0xd3, 0xbf, 0x07, 0x61,
+            ],
+            Elements::OutputNullGetBytes64 => [
+                0x2d, 0x47, 0x2c, 0x26, 0xb6, 0x38, 0x2d, 0xda, 0x0f, 0x0b, 0xbd, 0x8a, 0x7b, 0x3e,
+                0x24, 0x45, 0xd0, 0xff, 0x1b, 0x81, 0x0c, 0xeb, 0x23, 0x17, 0x0a, 0x22, 0xc0, 0x13,
+                0xd2, 0x1f, 0x48, 0x38,
+            ],
+            Elements::OutputNullGetBytes8 => [
+                0xeb, 0x1c, 0x3a, 0x7f, 0xc1, 0xa7, 0x13, 0x50, 0x9c, 0x59, 0x7e, 0xbc, 0x67, 0x66,
+                0x1b, 0xdb, 0x48, 0xe8, 0x11, 0x05, 0x69, 0x00, 0x99, 0x69, 0xe2, 0x4f, 0xcf, 0x2c,
+                0x45, 0x8d, 0x66, 0xa7,
+            ],
             Elements::OutputRangeProof => [
                 0x6f, 0xf9, 0xef, 0x3d, 0xac, 0x50, 0x43, 0x10, 0xdf, 0xbc, 0x60, 0x56, 0x1d, 0x2a,
                 0xdd, 0xeb, 0x44, 0x93, 0x2f, 0x77, 0x7e, 0x7f, 0x13, 0xad, 0xf0, 0x77, 0x4e, 0xb6,
@@ -3674,6 +3723,13 @@ impl Jet for Elements {
             Elements::OutputNonce => b"i",
             Elements::OutputNoncesHash => b"1",
             Elements::OutputNullDatum => b"l",
+            Elements::OutputNullGetBytes1 => b"l",
+            Elements::OutputNullGetBytes16 => b"l",
+            Elements::OutputNullGetBytes2 => b"l",
+            Elements::OutputNullGetBytes32 => b"l",
+            Elements::OutputNullGetBytes4 => b"l",
+            Elements::OutputNullGetBytes64 => b"l",
+            Elements::OutputNullGetBytes8 => b"l",
             Elements::OutputRangeProof => b"i",
             Elements::OutputRangeProofsHash => b"1",
             Elements::OutputScriptHash => b"i",
@@ -4152,6 +4208,13 @@ impl Jet for Elements {
             Elements::OutputNonce => b"+1+1+*2hh",
             Elements::OutputNoncesHash => b"h",
             Elements::OutputNullDatum => b"+1+1+**22h+2**22*22",
+            Elements::OutputNullGetBytes1 => b"+1+1***22*22**22*22",
+            Elements::OutputNullGetBytes16 => b"+1+1*ll",
+            Elements::OutputNullGetBytes2 => b"+1+1****22*22**22*22***22*22**22*22",
+            Elements::OutputNullGetBytes32 => b"+1+1h",
+            Elements::OutputNullGetBytes4 => b"+1+1i",
+            Elements::OutputNullGetBytes64 => b"+1+1*hh",
+            Elements::OutputNullGetBytes8 => b"+1+1l",
             Elements::OutputRangeProof => b"+1h",
             Elements::OutputRangeProofsHash => b"h",
             Elements::OutputScriptHash => b"+1h",
@@ -4758,6 +4821,13 @@ impl Jet for Elements {
             Elements::Version => (462384, 19),
             Elements::GenesisBlockHash => (462385, 19),
             Elements::TransactionId => (462386, 19),
+            Elements::OutputNullGetBytes1 => (462387, 19),
+            Elements::OutputNullGetBytes2 => (462388, 19),
+            Elements::OutputNullGetBytes4 => (462389, 19),
+            Elements::OutputNullGetBytes8 => (462390, 19),
+            Elements::OutputNullGetBytes16 => (462391, 19),
+            Elements::OutputNullGetBytes32 => (462392, 19),
+            Elements::OutputNullGetBytes64 => (462393, 19),
         };
 
         w.write_bits_be(n, len)
@@ -7388,12 +7458,30 @@ impl Jet for Elements {
                                                                                 },
                                                                                 1 => {
                                                                                     0 => {Elements::TransactionId},
-                                                                                    1 => {}
+                                                                                    1 => {Elements::OutputNullGetBytes1}
                                                                                 }
                                                                             },
-                                                                            1 => {}
+                                                                            1 => {
+                                                                                0 => {
+                                                                                    0 => {Elements::OutputNullGetBytes2},
+                                                                                    1 => {Elements::OutputNullGetBytes4}
+                                                                                },
+                                                                                1 => {
+                                                                                    0 => {Elements::OutputNullGetBytes8},
+                                                                                    1 => {Elements::OutputNullGetBytes16}
+                                                                                }
+                                                                            }
                                                                         },
-                                                                        1 => {}
+                                                                        1 => {
+                                                                            0 => {
+                                                                                0 => {
+                                                                                    0 => {Elements::OutputNullGetBytes32},
+                                                                                    1 => {Elements::OutputNullGetBytes64}
+                                                                                },
+                                                                                1 => {}
+                                                                            },
+                                                                            1 => {}
+                                                                        }
                                                                     }
                                                                 }
                                                             },
@@ -7764,6 +7852,13 @@ impl Jet for Elements {
             Elements::OutputNonce => Cost::from_milliweight(196),
             Elements::OutputNoncesHash => Cost::from_milliweight(151),
             Elements::OutputNullDatum => Cost::from_milliweight(87),
+            Elements::OutputNullGetBytes1 => Cost::from_milliweight(87),
+            Elements::OutputNullGetBytes16 => Cost::from_milliweight(87),
+            Elements::OutputNullGetBytes2 => Cost::from_milliweight(87),
+            Elements::OutputNullGetBytes32 => Cost::from_milliweight(87),
+            Elements::OutputNullGetBytes4 => Cost::from_milliweight(87),
+            Elements::OutputNullGetBytes64 => Cost::from_milliweight(87),
+            Elements::OutputNullGetBytes8 => Cost::from_milliweight(87),
             Elements::OutputRangeProof => Cost::from_milliweight(154),
             Elements::OutputRangeProofsHash => Cost::from_milliweight(136),
             Elements::OutputScriptHash => Cost::from_milliweight(151),
@@ -8246,6 +8341,13 @@ impl fmt::Display for Elements {
             Elements::OutputNonce => f.write_str("output_nonce"),
             Elements::OutputNoncesHash => f.write_str("output_nonces_hash"),
             Elements::OutputNullDatum => f.write_str("output_null_datum"),
+            Elements::OutputNullGetBytes1 => f.write_str("output_null_get_bytes_1"),
+            Elements::OutputNullGetBytes16 => f.write_str("output_null_get_bytes_16"),
+            Elements::OutputNullGetBytes2 => f.write_str("output_null_get_bytes_2"),
+            Elements::OutputNullGetBytes32 => f.write_str("output_null_get_bytes_32"),
+            Elements::OutputNullGetBytes4 => f.write_str("output_null_get_bytes_4"),
+            Elements::OutputNullGetBytes64 => f.write_str("output_null_get_bytes_64"),
+            Elements::OutputNullGetBytes8 => f.write_str("output_null_get_bytes_8"),
             Elements::OutputRangeProof => f.write_str("output_range_proof"),
             Elements::OutputRangeProofsHash => f.write_str("output_range_proofs_hash"),
             Elements::OutputScriptHash => f.write_str("output_script_hash"),
@@ -8726,6 +8828,13 @@ impl str::FromStr for Elements {
             "output_nonce" => Ok(Elements::OutputNonce),
             "output_nonces_hash" => Ok(Elements::OutputNoncesHash),
             "output_null_datum" => Ok(Elements::OutputNullDatum),
+            "output_null_get_bytes_1" => Ok(Elements::OutputNullGetBytes1),
+            "output_null_get_bytes_16" => Ok(Elements::OutputNullGetBytes16),
+            "output_null_get_bytes_2" => Ok(Elements::OutputNullGetBytes2),
+            "output_null_get_bytes_32" => Ok(Elements::OutputNullGetBytes32),
+            "output_null_get_bytes_4" => Ok(Elements::OutputNullGetBytes4),
+            "output_null_get_bytes_64" => Ok(Elements::OutputNullGetBytes64),
+            "output_null_get_bytes_8" => Ok(Elements::OutputNullGetBytes8),
             "output_range_proof" => Ok(Elements::OutputRangeProof),
             "output_range_proofs_hash" => Ok(Elements::OutputRangeProofsHash),
             "output_script_hash" => Ok(Elements::OutputScriptHash),
@@ -9204,6 +9313,13 @@ pub(crate) fn c_jet_ptr(jet: &Elements) -> fn(&mut CFrameItem, CFrameItem, &CEle
         Elements::OutputNonce => simplicity_sys::c_jets::jets_wrapper::output_nonce,
         Elements::OutputNoncesHash => simplicity_sys::c_jets::jets_wrapper::output_nonces_hash,
         Elements::OutputNullDatum => simplicity_sys::c_jets::jets_wrapper::output_null_datum,
+        Elements::OutputNullGetBytes1 => simplicity_sys::c_jets::jets_wrapper::output_null_get_bytes_1,
+        Elements::OutputNullGetBytes16 => simplicity_sys::c_jets::jets_wrapper::output_null_get_bytes_16,
+        Elements::OutputNullGetBytes2 => simplicity_sys::c_jets::jets_wrapper::output_null_get_bytes_2,
+        Elements::OutputNullGetBytes32 => simplicity_sys::c_jets::jets_wrapper::output_null_get_bytes_32,
+        Elements::OutputNullGetBytes4 => simplicity_sys::c_jets::jets_wrapper::output_null_get_bytes_4,
+        Elements::OutputNullGetBytes64 => simplicity_sys::c_jets::jets_wrapper::output_null_get_bytes_64,
+        Elements::OutputNullGetBytes8 => simplicity_sys::c_jets::jets_wrapper::output_null_get_bytes_8,
         Elements::OutputRangeProof => simplicity_sys::c_jets::jets_wrapper::output_range_proof,
         Elements::OutputRangeProofsHash => simplicity_sys::c_jets::jets_wrapper::output_range_proofs_hash,
         Elements::OutputScriptHash => simplicity_sys::c_jets::jets_wrapper::output_script_hash,
