@@ -64,11 +64,11 @@ typedef struct bitcoinTransaction bitcoinTransaction;
  *
  * Precondition: NULL != rawTx
  */
-extern bitcoinTransaction* rustsimplicity_0_6_bitcoin_mallocTransaction(const rawBitcoinTransaction* rawTx);
+extern bitcoinTransaction* rustsimplicity_0_7_bitcoin_mallocTransaction(const rawBitcoinTransaction* rawTx);
 
 /* Free a pointer to 'bitcoinTransaction'.
  */
-extern void rustsimplicity_0_6_bitcoin_freeTransaction(bitcoinTransaction* tx);
+extern void rustsimplicity_0_7_bitcoin_freeTransaction(bitcoinTransaction* tx);
 
 /* A structure representing taproot spending data for a Bitcoin transaction.
  *
@@ -90,9 +90,9 @@ typedef struct bitcoinTapEnv bitcoinTapEnv;
  *
  * Precondition: *rawEnv is well-formed (i.e. rawEnv->pathLen <= 128.)
  */
-extern bitcoinTapEnv* rustsimplicity_0_6_bitcoin_mallocTapEnv(const rawBitcoinTapEnv* rawEnv);
+extern bitcoinTapEnv* rustsimplicity_0_7_bitcoin_mallocTapEnv(const rawBitcoinTapEnv* rawEnv);
 
 /* Free a pointer to 'bitcoinTapEnv'.
  */
-extern void rustsimplicity_0_6_bitcoin_freeTapEnv(bitcoinTapEnv* env);
+extern void rustsimplicity_0_7_bitcoin_freeTapEnv(bitcoinTapEnv* env);
 #endif

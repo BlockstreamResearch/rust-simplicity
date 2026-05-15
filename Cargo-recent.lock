@@ -590,7 +590,7 @@ dependencies = [
  "miniscript",
  "serde",
  "serde_json",
- "simplicity-sys 0.6.2",
+ "simplicity-sys 0.7.0",
 ]
 
 [[package]]
@@ -605,7 +605,7 @@ dependencies = [
 
 [[package]]
 name = "simplicity-sys"
-version = "0.6.2"
+version = "0.7.0"
 dependencies = [
  "bitcoin_hashes",
  "cc",

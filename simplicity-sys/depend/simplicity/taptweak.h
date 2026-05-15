@@ -10,6 +10,6 @@
  *
  * Precondition: unsigned char[tagLen] tag
  */
-bool rustsimplicity_0_6_generic_taptweak(frameItem* dst, frameItem *src, const unsigned char *tag, size_t tagLen);
+bool rustsimplicity_0_7_generic_taptweak(frameItem* dst, frameItem *src, const unsigned char *tag, size_t tagLen);
 
 #endif

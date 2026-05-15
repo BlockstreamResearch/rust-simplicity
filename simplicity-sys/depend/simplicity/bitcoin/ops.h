@@ -11,13 +11,13 @@
  *
  * Precondition: NULL != cmr;
  */
-sha256_midstate rustsimplicity_0_6_bitcoin_make_tapleaf(unsigned char version, const sha256_midstate* cmr);
+sha256_midstate rustsimplicity_0_7_bitcoin_make_tapleaf(unsigned char version, const sha256_midstate* cmr);
 
 /* Compute an Bitcoin's tapbrach hash from two branches.
  *
  * Precondition: NULL != a;
  *               NULL != b;
  */
-sha256_midstate rustsimplicity_0_6_bitcoin_make_tapbranch(const sha256_midstate* a, const sha256_midstate* b);
+sha256_midstate rustsimplicity_0_7_bitcoin_make_tapbranch(const sha256_midstate* a, const sha256_midstate* b);
 
 #endif
