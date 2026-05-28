@@ -1,4 +1,4 @@
-# 0.7.1 - 2026-05-06
+# 0.8.0 - 2026-05-28
 
 * Add runtime jet type check in `Context` [#361](https://github.com/BlockstreamResearch/rust-simplicity/pull/361)
 * Migrate execution to dynamic dispatch [#360](https://github.com/BlockstreamResearch/rust-simplicity/pull/360)
