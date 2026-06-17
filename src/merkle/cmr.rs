@@ -280,7 +280,7 @@ impl<'brand> CoreConstructible<'brand> for ConstructibleCmr<'brand> {
 
     fn injr(child: &Self) -> Self {
         ConstructibleCmr {
-            cmr: Cmr::injl(child.cmr),
+            cmr: Cmr::injr(child.cmr),
             inference_context: child.inference_context.shallow_clone(),
         }
     }
