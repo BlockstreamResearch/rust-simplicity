@@ -87,7 +87,7 @@ pub unsafe extern "C" fn rust_0_7_malloc(size_bytes: usize) -> *mut u8 {
 /// Allocated bytes must be freed using [`rust_0_7_free`].
 #[no_mangle]
 pub unsafe extern "C" fn rust_0_7_calloc(num: usize, size: usize) -> *mut u8 {
-    let size_bytes = num * size;
+    let size_bytes = num.saturating_mul(size);
     // SAFETY: Allocator is `alloc_alloc_zeroed`.
     allocate(size_bytes, alloc::alloc_zeroed)
 }
