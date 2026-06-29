@@ -40,6 +40,8 @@ mv "${C_DIR}/jets_wrapper.c" "./simplicity-sys/depend/jets_wrapper.c"
 # Tweak the c_ prefixes in the wrappers
 sed -i -r "s/\"c_/\"rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_c_/" \
     "./simplicity-sys/src/c_jets/jets_ffi.rs"
+
+# Update version prefix in wrapper.h if the version changed
 sed -i -r "s/ rustsimplicity_[0-9]+_[0-9]+_/ rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_/" \
     "./simplicity-sys/depend/wrapper.h"
 

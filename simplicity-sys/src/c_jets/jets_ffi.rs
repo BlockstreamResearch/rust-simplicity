@@ -690,6 +690,20 @@ extern "C" {
     pub fn output_nonces_hash(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "rustsimplicity_0_7_c_output_null_datum"]
     pub fn output_null_datum(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_7_c_output_null_get_bytes_1"]
+    pub fn output_null_get_bytes_1(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_7_c_output_null_get_bytes_16"]
+    pub fn output_null_get_bytes_16(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_7_c_output_null_get_bytes_2"]
+    pub fn output_null_get_bytes_2(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_7_c_output_null_get_bytes_32"]
+    pub fn output_null_get_bytes_32(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_7_c_output_null_get_bytes_4"]
+    pub fn output_null_get_bytes_4(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_7_c_output_null_get_bytes_64"]
+    pub fn output_null_get_bytes_64(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_7_c_output_null_get_bytes_8"]
+    pub fn output_null_get_bytes_8(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "rustsimplicity_0_7_c_output_range_proof"]
     pub fn output_range_proof(dst: *mut CFrameItem, src: *const CFrameItem, env: *const CElementsTxEnv) -> bool;
     #[link_name = "rustsimplicity_0_7_c_output_range_proofs_hash"]
