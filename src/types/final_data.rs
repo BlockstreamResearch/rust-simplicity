@@ -175,6 +175,14 @@ impl Final {
         })
     }
 
+    /// Computes the successor of the type.
+    ///
+    /// Given a type `X`, we define its successor `S X` as `1 + X`.
+    /// In Rust notation this would be `Option<X>`.
+    pub fn successor(self: Arc<Self>) -> Arc<Self> {
+        Self::sum(Self::unit(), self)
+    }
+
     /// Create the type `2^(2^n)` for the given `n`.
     ///
     /// The type is precomputed and fast to access.
@@ -207,6 +215,33 @@ impl Final {
         let () = Hack::<N>::IS_IN_RANGE;
 
         super::precomputed::nth_power_of_2(N)
+    }
+
+    /// Create the type `(TWO^8)^<2^(n+1)` for the given `n`.
+    ///
+    /// Here
+    /// * The notation X^<2 is notation for the type (S X)
+    /// * The notation X^<(2*n) is notation for the type S (X^n) * X^<n
+    ///
+    /// And `S X` is the successor of `X`, i.e. `Option<X>`
+    ///
+    /// The type is precomputed and fast to access.
+    #[inline]
+    pub fn buffer8_two_n_plus_one(n: usize) -> Result<Arc<Self>, TypeTooLargeError> {
+        let maximum = Tmr::BUFFER8_TWO_N_PLUS_ONE.len();
+        if n < maximum {
+            Ok(super::precomputed::buffer8_two_n_plus_one(n))
+        } else {
+            // This is arguably a programming error and a panic would be justified, but it's
+            // hard to say how SimplicityHL will use this. I also think the current maximum
+            // may be too small and we could bump into this with real code, so better to let
+            // the caller decide how to handle that.
+            Err(TypeTooLargeError {
+                ty: "(TWO^8)^<2^(n+1)",
+                n,
+                maximum,
+            })
+        }
     }
 
     construct_final_two_two_n!(u1, 0, "1-bit");

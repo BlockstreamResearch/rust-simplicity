@@ -22,8 +22,15 @@ use std::sync::Arc;
 // Directly use the size of the precomputed TMR table to make sure they're in sync.
 const N_POWERS: usize = Tmr::TWO_TWO_N.len();
 
+// Directly use the size of the precomputed TMR table to make sure they're in sync.
+const N_BUFFERS: usize = Tmr::BUFFER8_TWO_N_PLUS_ONE.len();
+
 thread_local! {
+    /// Types of the form 2^(2^n) for several small `n`.
     static TWO_TWO_N: RefCell<Option<[Arc<Final>; N_POWERS]>> = const { RefCell::new(None) };
+
+    /// The "variable-length buffer" typed used by sha256 and other jets.
+    static BUFFER8_TWO_N_PLUS_ONE: RefCell<Option<[Arc<Final>; N_BUFFERS]>> = const { RefCell::new(None) };
 }
 
 fn initialize(write: &mut Option<[Arc<Final>; N_POWERS]>) {
@@ -43,11 +50,49 @@ fn initialize(write: &mut Option<[Arc<Final>; N_POWERS]>) {
 ///
 /// # Panics
 ///
-/// Panics if you request a number `n` greater than or equal to [`Tmr::TWO_TWO_N`].
+/// Panics if you request a number `n` greater than or equal to the length
+/// of [`Tmr::TWO_TWO_N`].
 pub fn nth_power_of_2(n: usize) -> Arc<Final> {
     TWO_TWO_N.with(|arr| {
         if arr.borrow().is_none() {
             initialize(&mut arr.borrow_mut());
+        }
+        debug_assert!(arr.borrow().is_some());
+        Arc::clone(&arr.borrow().as_ref().unwrap()[n])
+    })
+}
+
+fn initialize_buffers(write: &mut Option<[Arc<Final>; N_BUFFERS]>) {
+    // (TWO^8)^<2 = S(TWO^8)
+    let mut buf = nth_power_of_2(3).successor();
+    *write = Some(core::array::from_fn(|i| {
+        if i > 0 {
+            buf = Final::product(
+                Final::two_two_n(i + 3).unwrap().successor(),
+                Arc::clone(&buf),
+            );
+        }
+        Arc::clone(&buf)
+    }));
+}
+
+/// Obtain a precomputed copy of a "variable-length buffer" type.
+///
+/// Precisely, this type is `(TWO^8)^<2^(n+1)`, where
+///
+/// * The notation X^<2 is notation for the type (S X)
+/// * The notation X^<(2*n) is notation for the type S (X^n) * X^<n
+///
+/// And `S X` is the successor of `X`, i.e. `Option<X>`
+///
+/// # Panics
+///
+/// Panics if you request a number `n` greater than or equal to the length
+/// of [`Tmr::BUFFER8_TWO_N_PLUS_ONE`].
+pub fn buffer8_two_n_plus_one(n: usize) -> Arc<Final> {
+    BUFFER8_TWO_N_PLUS_ONE.with(|arr| {
+        if arr.borrow().is_none() {
+            initialize_buffers(&mut arr.borrow_mut());
         }
         debug_assert!(arr.borrow().is_some());
         Arc::clone(&arr.borrow().as_ref().unwrap()[n])
