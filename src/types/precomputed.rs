@@ -31,6 +31,9 @@ thread_local! {
 
     /// The "variable-length buffer" typed used by sha256 and other jets.
     static BUFFER8_TWO_N_PLUS_ONE: RefCell<Option<[Arc<Final>; N_BUFFERS]>> = const { RefCell::new(None) };
+
+    /// The sha256 Ctx8 type.
+    static CTX8: RefCell<Option<Arc<Final>>> = const { RefCell::new(None) };
 }
 
 fn initialize(write: &mut Option<[Arc<Final>; N_POWERS]>) {
@@ -96,5 +99,22 @@ pub fn buffer8_two_n_plus_one(n: usize) -> Arc<Final> {
         }
         debug_assert!(arr.borrow().is_some());
         Arc::clone(&arr.borrow().as_ref().unwrap()[n])
+    })
+}
+
+/// Obtain a precomputed copy of the `SHA256` `Ctx8` type.
+pub fn ctx8() -> Arc<Final> {
+    CTX8.with(|opt| {
+        if opt.borrow().is_none() {
+            *opt.borrow_mut() = Some(Final::product(
+                buffer8_two_n_plus_one(5),
+                Final::product(
+                    Final::two_two_n_fixed::<6>(), // 2^64
+                    Final::two_two_n_fixed::<8>(), // 2^256
+                ),
+            ));
+        }
+        debug_assert!(opt.borrow().is_some());
+        Arc::clone(opt.borrow().as_ref().unwrap())
     })
 }

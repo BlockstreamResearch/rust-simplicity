@@ -337,6 +337,15 @@ impl Tmr {
         ])),
     ];
 
+    /// The TMR of the `Ctx8` type used by the SHA256 jets.
+    #[rustfmt::skip]
+    pub const CTX8: Tmr = Tmr(Midstate([
+        0x8d, 0x5c, 0xe5, 0xf6, 0xeb, 0xfc, 0x70, 0x61,
+        0xe7, 0x91, 0x16, 0xbd, 0xf6, 0x6f, 0xb4, 0xe4,
+        0xc6, 0xca, 0x32, 0xa0, 0x1c, 0xda, 0x48, 0xf6,
+        0xed, 0xc1, 0x0a, 0xee, 0xfd, 0x31, 0x0e, 0x8c,
+    ]));
+
     /// The TMR for the unit type
     pub const fn unit() -> Tmr {
         Self::UNIT_IV
@@ -465,6 +474,8 @@ mod tests {
                 let synthetic_ctx_ty = Final::product(Arc::clone(&fin), extra_ctx_stuff);
                 let actual_ctx_ty = crate::jet::Core::Sha256Ctx8Init.target_ty().to_final();
                 assert_eq!(synthetic_ctx_ty, actual_ctx_ty,);
+                assert_eq!(synthetic_ctx_ty, Final::ctx8());
+                assert_eq!(synthetic_ctx_ty.tmr(), Tmr::CTX8);
             }
         }
     }

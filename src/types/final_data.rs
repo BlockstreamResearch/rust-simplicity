@@ -244,6 +244,13 @@ impl Final {
         }
     }
 
+    /// Create the `Ctx8` type used by the SHA256 jets.
+    ///
+    /// The type is precomputed and fast to access.
+    pub fn ctx8() -> Arc<Self> {
+        super::precomputed::ctx8()
+    }
+
     construct_final_two_two_n!(u1, 0, "1-bit");
     construct_final_two_two_n!(u2, 1, "2-bit");
     construct_final_two_two_n!(u4, 2, "4-bit");
