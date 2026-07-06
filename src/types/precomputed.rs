@@ -17,7 +17,6 @@ use crate::Tmr;
 use super::Final;
 
 use std::cell::RefCell;
-use std::convert::TryInto;
 use std::sync::Arc;
 
 // Directly use the size of the precomputed TMR table to make sure they're in sync.
@@ -29,20 +28,15 @@ thread_local! {
 
 fn initialize(write: &mut Option<[Arc<Final>; N_POWERS]>) {
     let one = Final::unit();
-    let mut powers = Vec::with_capacity(N_POWERS);
 
     // Two^(2^0) = Two = (One + One)
     let mut power = Final::sum(Arc::clone(&one), one);
-    powers.push(Arc::clone(&power));
-
-    // Two^(2^(i + 1)) = (Two^(2^i) * Two^(2^i))
-    for _ in 1..N_POWERS {
-        power = Final::product(Arc::clone(&power), power);
-        powers.push(Arc::clone(&power));
-    }
-
-    let powers: [Arc<Final>; N_POWERS] = powers.try_into().unwrap();
-    *write = Some(powers);
+    *write = Some(core::array::from_fn(|i| {
+        if i > 0 {
+            power = Final::product(Arc::clone(&power), Arc::clone(&power));
+        }
+        Arc::clone(&power)
+    }));
 }
 
 /// Obtain a precomputed copy of the nth power of two
