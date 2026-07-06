@@ -446,6 +446,57 @@ impl Value {
         Self::right(Final::unit(), inner)
     }
 
+    /// Create a value of the type `(TWO^8)^<2^(n+1)` for the given `n`, populated
+    /// with the given slice's data.
+    ///
+    /// This type represents "a variable-length buffer of maximum length `2^(n+1) - 1`".
+    /// So for example, setting `n = 5`, the buffer can hold up to 63 bytes.
+    pub fn buffer8_two_n_plus_one(mut n: usize, mut data: &[u8]) -> Result<Self, Buffer8Error> {
+        // This line serves as a sanity check on `n`. After this we can assume that
+        // `1 << n` will not overflow (otherwise would would ty.bit_width be set to?)
+        // Similarly we repeatedly add 1, multiply by 8, etc. But all the values we
+        // compute will be <= ty.bit_width() and therefore not overflow.
+        let ty = Final::buffer8_two_n_plus_one(n).map_err(Buffer8Error::NTooLarge)?;
+
+        debug_assert!(
+            ty.bit_width() > (2 << n) - 1,
+            "sanity check to prove that the below line won't overflow",
+        );
+        if data.len() > (2 << n) - 1 {
+            return Err(Buffer8Error::SliceTooLarge {
+                length: data.len(),
+                n,
+            });
+        }
+
+        let mut dest = vec![0; ty.bit_width().div_ceil(8)];
+        let mut dest_offset = 0;
+        loop {
+            let n_bytes = 1 << n;
+
+            if data.len() & n_bytes != 0 {
+                // split_at will not panic due to SliceTooLarge check above the loop.
+                let (first, rest) = data.split_at(n_bytes);
+                copy_bits(&[0x80], 0, &mut dest, dest_offset, 1);
+                copy_bits(first, 0, &mut dest, dest_offset + 1, 8 * n_bytes);
+                data = rest;
+            };
+            dest_offset += 1 + 8 * n_bytes;
+
+            n = match n.checked_sub(1) {
+                Some(n) => n,
+                None => break,
+            };
+        }
+        debug_assert_eq!(dest_offset, ty.bit_width());
+
+        Ok(Self {
+            inner: Arc::from(dest),
+            bit_offset: 0,
+            ty,
+        })
+    }
+
     /// Return the bit length of the value in compact encoding.
     pub fn compact_len(&self) -> usize {
         self.iter_compact().count()
@@ -1103,6 +1154,37 @@ impl fmt::Display for Word {
     }
 }
 
+/// Slice exceeded the maximum capacity of the buffer type in [`Value::buffer8_two_n_plus_one`].
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Buffer8Error {
+    NTooLarge(crate::types::TypeTooLargeError),
+    SliceTooLarge { length: usize, n: usize },
+}
+
+impl fmt::Display for Buffer8Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            Self::NTooLarge(_) => f.write_str("failed to construct (sub)type of buffer"),
+            Self::SliceTooLarge { length, n } => write!(
+                f,
+                "slice of length {} too long for type (TWO^8)^<2^({}+1) (maximum {})",
+                length,
+                n,
+                (1 << (n + 1)) - 1,
+            ),
+        }
+    }
+}
+
+impl std::error::Error for Buffer8Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match *self {
+            Self::NTooLarge(ref e) => Some(e),
+            Self::SliceTooLarge { .. } => None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1378,6 +1460,72 @@ mod tests {
             pruned.as_left().is_some(),
             "BUG: prune corrupted the Left tag — right_shift_1(false) did not clear \
              a dirty bit from the shared product buffer; value reads as Right"
+        );
+    }
+
+    #[test]
+    fn buffer8_two_n_plus_one() {
+        // n = 0 is just Option<u8>
+        assert_eq!(
+            Value::buffer8_two_n_plus_one(0, &[]).unwrap(),
+            Value::none(Final::two_two_n_fixed::<3>()),
+        );
+        assert_eq!(
+            Value::buffer8_two_n_plus_one(0, &[3]).unwrap(),
+            Value::some(Value::u8(3)),
+        );
+        // n = 1 is Option<[u8; 2]> x Option<u8>
+        assert_eq!(
+            Value::buffer8_two_n_plus_one(1, &[]).unwrap(),
+            Value::product(
+                Value::none(Final::two_two_n_fixed::<4>()),
+                Value::none(Final::two_two_n_fixed::<3>()),
+            ),
+        );
+        assert_eq!(
+            Value::buffer8_two_n_plus_one(1, &[0x99]).unwrap(),
+            Value::product(
+                Value::none(Final::two_two_n_fixed::<4>()),
+                Value::some(Value::u8(0x99)),
+            ),
+        );
+        assert_eq!(
+            Value::buffer8_two_n_plus_one(1, &[0x12, 0x34]).unwrap(),
+            Value::product(
+                Value::some(Value::u16(0x1234)),
+                Value::none(Final::two_two_n_fixed::<3>()),
+            ),
+        );
+        assert_eq!(
+            Value::buffer8_two_n_plus_one(1, &[0x12, 0x34, 0xff]).unwrap(),
+            Value::product(
+                Value::some(Value::u16(0x1234)),
+                Value::some(Value::u8(0xff)),
+            ),
+        );
+
+        // Then let's do a "big" one.
+        let sample: [u8; 49] = *b"there are strange things done in the midnight sun";
+        Value::buffer8_two_n_plus_one(0, &sample).unwrap_err();
+        Value::buffer8_two_n_plus_one(4, &sample).unwrap_err();
+        assert_eq!(
+            Value::buffer8_two_n_plus_one(5, &sample).unwrap(),
+            Value::product(
+                Value::some(Value::from_byte_array(*b"there are strange things done in")),
+                Value::product(
+                    Value::some(Value::from_byte_array(*b" the midnight su")),
+                    Value::product(
+                        Value::none(Final::two_two_n_fixed::<6>()),
+                        Value::product(
+                            Value::none(Final::two_two_n_fixed::<5>()),
+                            Value::product(
+                                Value::none(Final::two_two_n_fixed::<4>()),
+                                Value::some(Value::u8(b'n')),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
         );
     }
 }
