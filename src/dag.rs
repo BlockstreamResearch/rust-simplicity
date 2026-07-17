@@ -549,113 +549,109 @@ impl<D: DagLike, S: SharingTracker<D>> Iterator for PostOrderIter<D, S> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            // Look at the current top item on the stack
-            if let Some(mut current) = self.stack.pop() {
-                if !current.processed {
-                    current.processed = true;
-                    // When we first encounter an item, it is completely unknown; it is
-                    // nominally the next item to be yielded, but it might have children,
-                    // and if so, they come first
-                    match (
-                        current.left_child(&self.tracker),
-                        current.right_child(&self.tracker),
-                    ) {
-                        // No children is easy, just mark it processed and iterate.
-                        // (We match _ for the right child but we know that if the left one
-                        // is Child::None, then the right one will be Child::None as well.)
-                        (Child::None, _) => {
-                            self.stack.push(current);
-                        }
-                        // Only a left child, already yielded
-                        (Child::Repeat { idx }, Child::None) => {
-                            current.left_idx = Some(idx);
-                            self.stack.push(current);
-                        }
-                        // Only a left child, new
-                        (Child::New(child), Child::None) => {
-                            self.stack.push(current);
-                            self.stack
-                                .push(IterStackItem::unprocessed(child, Previous::ParentLeft));
-                        }
-                        // Two children, both already yielded
-                        (Child::Repeat { idx: lidx }, Child::Repeat { idx: ridx }) => {
-                            current.left_idx = Some(lidx);
-                            current.right_idx = Some(ridx);
-                            self.stack.push(current);
-                        }
-                        // Two children, one yielded already
-                        (Child::New(child), Child::Repeat { idx }) => {
-                            current.right_idx = Some(idx);
-                            self.stack.push(current);
-                            self.stack
-                                .push(IterStackItem::unprocessed(child, Previous::ParentLeft));
-                        }
-                        (Child::Repeat { idx }, Child::New(child)) => {
-                            current.left_idx = Some(idx);
-                            self.stack.push(current);
-                            self.stack
-                                .push(IterStackItem::unprocessed(child, Previous::ParentRight));
-                        }
-                        // Two children, neither yielded already
-                        (Child::New(lchild), Child::New(rchild)) => {
-                            self.stack.push(current);
-                            self.stack
-                                .push(IterStackItem::unprocessed(rchild, Previous::ParentRight));
-                            self.stack
-                                .push(IterStackItem::unprocessed(lchild, Previous::SiblingLeft));
-                        }
+            // Look at the current top item on the stack. If nothing, we are done.
+            let mut current = self.stack.pop()?;
+            if !current.processed {
+                current.processed = true;
+                // When we first encounter an item, it is completely unknown; it is
+                // nominally the next item to be yielded, but it might have children,
+                // and if so, they come first
+                match (
+                    current.left_child(&self.tracker),
+                    current.right_child(&self.tracker),
+                ) {
+                    // No children is easy, just mark it processed and iterate.
+                    // (We match _ for the right child but we know that if the left one
+                    // is Child::None, then the right one will be Child::None as well.)
+                    (Child::None, _) => {
+                        self.stack.push(current);
                     }
-                } else {
-                    // The second time we encounter an item, we have dealt with its children,
-                    // updated the child indices for this item, and are now ready to yield it
-                    // rather than putting it back in the stack. However, while dealing with
-                    // its children, we may have already yielded it (which can happen because
-                    // this is a DAG, not a tree). In this case we want to skip it.
-                    //
-                    // Check whether this is the case, and record the item's new index if not.
-                    let current_index = self.tracker.record(&current.elem, self.index);
-                    let already_yielded = current_index.is_some();
-                    let current_index = current_index.unwrap_or(self.index);
-
-                    // Then, update the item's parents and/or sibling, to make sure that its
-                    // parent has the correct child index. We need to do this whether or not
-                    // we're going to skip the element.
-                    let stack_len = self.stack.len();
-                    match current.previous {
-                        Previous::Root => {
-                            assert_eq!(stack_len, 0);
-                        }
-                        Previous::ParentLeft => {
-                            assert!(self.stack[stack_len - 1].processed);
-                            self.stack[stack_len - 1].left_idx = Some(current_index);
-                        }
-                        Previous::ParentRight => {
-                            assert!(self.stack[stack_len - 1].processed);
-                            self.stack[stack_len - 1].right_idx = Some(current_index);
-                        }
-                        Previous::SiblingLeft => {
-                            assert!(self.stack[stack_len - 2].processed);
-                            self.stack[stack_len - 2].left_idx = Some(current_index);
-                        }
+                    // Only a left child, already yielded
+                    (Child::Repeat { idx }, Child::None) => {
+                        current.left_idx = Some(idx);
+                        self.stack.push(current);
                     }
-                    // Having updated the parent indices, so that our iterator is in a
-                    // consistent state, we can safely skip here if the current item is
-                    // already yielded.
-                    if already_yielded {
-                        continue;
+                    // Only a left child, new
+                    (Child::New(child), Child::None) => {
+                        self.stack.push(current);
+                        self.stack
+                            .push(IterStackItem::unprocessed(child, Previous::ParentLeft));
                     }
-
-                    self.index += 1;
-                    return Some(PostOrderIterItem {
-                        node: current.elem,
-                        index: current_index,
-                        left_index: current.left_idx,
-                        right_index: current.right_idx,
-                    });
+                    // Two children, both already yielded
+                    (Child::Repeat { idx: lidx }, Child::Repeat { idx: ridx }) => {
+                        current.left_idx = Some(lidx);
+                        current.right_idx = Some(ridx);
+                        self.stack.push(current);
+                    }
+                    // Two children, one yielded already
+                    (Child::New(child), Child::Repeat { idx }) => {
+                        current.right_idx = Some(idx);
+                        self.stack.push(current);
+                        self.stack
+                            .push(IterStackItem::unprocessed(child, Previous::ParentLeft));
+                    }
+                    (Child::Repeat { idx }, Child::New(child)) => {
+                        current.left_idx = Some(idx);
+                        self.stack.push(current);
+                        self.stack
+                            .push(IterStackItem::unprocessed(child, Previous::ParentRight));
+                    }
+                    // Two children, neither yielded already
+                    (Child::New(lchild), Child::New(rchild)) => {
+                        self.stack.push(current);
+                        self.stack
+                            .push(IterStackItem::unprocessed(rchild, Previous::ParentRight));
+                        self.stack
+                            .push(IterStackItem::unprocessed(lchild, Previous::SiblingLeft));
+                    }
                 }
             } else {
-                // If there is nothing on the stack we are done.
-                return None;
+                // The second time we encounter an item, we have dealt with its children,
+                // updated the child indices for this item, and are now ready to yield it
+                // rather than putting it back in the stack. However, while dealing with
+                // its children, we may have already yielded it (which can happen because
+                // this is a DAG, not a tree). In this case we want to skip it.
+                //
+                // Check whether this is the case, and record the item's new index if not.
+                let current_index = self.tracker.record(&current.elem, self.index);
+                let already_yielded = current_index.is_some();
+                let current_index = current_index.unwrap_or(self.index);
+
+                // Then, update the item's parents and/or sibling, to make sure that its
+                // parent has the correct child index. We need to do this whether or not
+                // we're going to skip the element.
+                let stack_len = self.stack.len();
+                match current.previous {
+                    Previous::Root => {
+                        assert_eq!(stack_len, 0);
+                    }
+                    Previous::ParentLeft => {
+                        assert!(self.stack[stack_len - 1].processed);
+                        self.stack[stack_len - 1].left_idx = Some(current_index);
+                    }
+                    Previous::ParentRight => {
+                        assert!(self.stack[stack_len - 1].processed);
+                        self.stack[stack_len - 1].right_idx = Some(current_index);
+                    }
+                    Previous::SiblingLeft => {
+                        assert!(self.stack[stack_len - 2].processed);
+                        self.stack[stack_len - 2].left_idx = Some(current_index);
+                    }
+                }
+                // Having updated the parent indices, so that our iterator is in a
+                // consistent state, we can safely skip here if the current item is
+                // already yielded.
+                if already_yielded {
+                    continue;
+                }
+
+                self.index += 1;
+                return Some(PostOrderIterItem {
+                    node: current.elem,
+                    index: current_index,
+                    left_index: current.left_idx,
+                    right_index: current.right_idx,
+                });
             }
         }
     }

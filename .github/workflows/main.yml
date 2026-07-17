@@ -159,4 +159,4 @@ jobs:
       - name: Check that documentation builds without errors
         env:
           RUSTDOCFLAGS: "--cfg docsrs -D warnings -D rustdoc::broken-intra-doc-links"
-        run: cargo doc -j1 --all-features
+        run: cargo doc --no-deps -j1 --all-features
