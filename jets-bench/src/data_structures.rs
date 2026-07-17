@@ -5,7 +5,8 @@ use bitcoin::secp256k1;
 use elements::Txid;
 use rand::{thread_rng, RngCore};
 use simplicity::{
-    bitcoin, elements, hashes::Hash, types::Final, BitIter, EarlyEndOfStreamError, Value,
+    bitcoin, elements, elements::hashes::Hash as _, types::Final, BitIter, EarlyEndOfStreamError,
+    Value,
 };
 
 /// Engine to compute SHA256 hash function.

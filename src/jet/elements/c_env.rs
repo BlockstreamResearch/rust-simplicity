@@ -4,7 +4,7 @@
 //!
 
 use bitcoin::taproot::TAPROOT_ANNEX_PREFIX;
-use hashes::Hash;
+use elements::hashes::Hash as _;
 use std::os::raw::c_uchar;
 
 use elements::{

@@ -7,7 +7,6 @@ use rand::{Rng, RngCore};
 use simplicity::ffi::c_jets::frame_ffi::c_writeBit;
 use simplicity::ffi::ffi::UWORD;
 use simplicity::ffi::CFrameItem;
-use simplicity::hashes::Hash;
 use simplicity::jet::{Elements, ElementsTxEnv, JetEnvironment};
 use simplicity::types::{self, CompleteBound};
 use simplicity::Value;
@@ -1274,15 +1273,12 @@ impl InputSample for CheckSigSignature {
         use simplicity::{bitcoin, hashes};
 
         fn tagged_hash(tag: &[u8], msg_block: [u8; 64]) -> hashes::sha256::Hash {
-            use simplicity::hashes::{Hash as _, HashEngine as _};
+            use hashes::HashEngine as _;
 
-            let tag_hash = hashes::sha256::Hash::hash(tag);
-            let block = [tag_hash.to_byte_array(), tag_hash.to_byte_array()].concat();
-            let mut engine = hashes::sha256::Hash::engine();
-            engine.input(&block);
-            engine.input(&msg_block);
-
-            hashes::sha256::Hash::from_engine(engine)
+            hashes::sha256::Midstate::hash_tag(tag)
+                .to_engine()
+                .with_input(&msg_block)
+                .finalize()
         }
 
         assert_eq!(

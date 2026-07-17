@@ -9,7 +9,6 @@ use crate::{Cmr, Policy, Value};
 use elements::bitcoin;
 use elements::locktime::Height;
 use elements::taproot::TapLeafHash;
-use hashes::Hash;
 
 use crate::jet::elements::ElementsEnv;
 use std::convert::TryFrom;
@@ -153,6 +152,8 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
             }
             Policy::Trivial => super::serialize::trivial(inference_context),
             Policy::Key(ref key) => {
+                use elements::hashes::Hash as _;
+
                 let signature = satisfier
                     .lookup_tap_leaf_script_sig(key, &TapLeafHash::all_zeros())
                     .map(|sig| sig.sig.serialize())
@@ -298,8 +299,8 @@ mod tests {
     use crate::policy::serialize;
     use crate::{BitMachine, FailEntropy, SimplicityKey};
     use elements::bitcoin::key::{Keypair, XOnlyPublicKey};
+    use elements::hashes::{sha256, Hash};
     use elements::secp256k1_zkp;
-    use hashes::{sha256, Hash};
     use std::collections::HashMap;
     use std::sync::Arc;
 

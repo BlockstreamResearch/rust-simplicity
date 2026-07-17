@@ -123,14 +123,14 @@ pub mod sha256 {
             for (idx, chunk) in c_midstate.s.iter().enumerate() {
                 inner[idx * 4..(idx + 1) * 4].copy_from_slice(&chunk.to_be_bytes());
             }
-            Midstate(inner)
+            Midstate::new(inner, 0)
         }
     }
 
     impl From<Midstate> for CSha256Midstate {
         fn from(midstate: Midstate) -> CSha256Midstate {
             let mut s = [0; 8];
-            for (idx, chunk) in midstate.0.chunks(4).enumerate() {
+            for (idx, chunk) in midstate.to_parts().0.chunks(4).enumerate() {
                 s[idx] = u32::from_be_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
             }
             CSha256Midstate { s }

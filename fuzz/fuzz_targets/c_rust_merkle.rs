@@ -53,9 +53,18 @@ fn do_test(data: &[u8]) {
             println!("{}", rust_data.amr());
             println!("{}", rust_data.ihr());
             */
-            assert_eq!(&Midstate::from(c_data.cmr)[..], rust_data.cmr().as_ref(),);
-            assert_eq!(&Midstate::from(c_data.amr)[..], rust_data.amr().as_ref(),);
-            assert_eq!(&Midstate::from(c_data.ihr)[..], rust_data.ihr().as_ref(),);
+            assert_eq!(
+                &Midstate::from(c_data.cmr).to_parts().0,
+                rust_data.cmr().as_ref(),
+            );
+            assert_eq!(
+                &Midstate::from(c_data.amr).to_parts().0,
+                rust_data.amr().as_ref(),
+            );
+            assert_eq!(
+                &Midstate::from(c_data.ihr).to_parts().0,
+                rust_data.ihr().as_ref(),
+            );
         }
     }
 }

@@ -15,7 +15,7 @@ pub mod tmr;
 use self::midstate::MidstateExt;
 use crate::bit_encoding::BitCollector;
 use crate::Value;
-use hashes::{sha256, Hash, HashEngine};
+use hashes::{sha256, HashEngine};
 use std::fmt;
 
 /// Trait for types that have a Commitment Merkle Root.
@@ -94,15 +94,15 @@ fn compact_value(value: &Value) -> [u8; 32] {
         consumed += 16;
     }
     debug_assert!(consumed == bytes.len());
-    engine.midstate().to_byte_array()
+    engine
+        .midstate()
+        .expect("hash input length was a multiple of 64")
+        .to_parts()
+        .0
 }
 
 fn bip340_iv(tag: &[u8]) -> sha256::Midstate {
-    let tag_hash = sha256::Hash::hash(tag);
-    let mut engine = sha256::Hash::engine();
-    engine.input(tag_hash.as_ref());
-    engine.input(tag_hash.as_ref());
-    engine.midstate()
+    sha256::Midstate::hash_tag(tag)
 }
 
 /// Convenience macro for wrappers of `[u8; 32]`.

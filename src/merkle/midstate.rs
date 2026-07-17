@@ -121,22 +121,22 @@ pub trait MidstateExt: Sized {
 impl MidstateExt for Midstate {
     #[inline]
     fn zz_update_2x32<MR1: ByteArrayExt, MR2: ByteArrayExt>(self, left: MR1, right: MR2) -> Self {
-        let mut engine = HashEngine::from_midstate(self, 0);
+        let mut engine = HashEngine::from_midstate(self);
         engine.input(&left.to_byte_array());
         engine.input(&right.to_byte_array());
-        engine.midstate()
+        engine.midstate().expect("hashed exactly 64 bytes")
     }
 
     #[inline]
     fn zz_update_64(self, bytes: [u8; 64]) -> Self {
-        let mut engine = HashEngine::from_midstate(self, 0);
+        let mut engine = HashEngine::from_midstate(self);
         engine.input(bytes.as_ref());
-        engine.midstate()
+        engine.midstate().expect("hashed exactly 64 bytes")
     }
 
     /// Reinterpret the bytes of the midstate as an AMR.
     #[inline]
     fn into_merkle_root<MR: ByteArrayExt>(self) -> MR {
-        MR::from_byte_array(self.to_byte_array())
+        MR::from_byte_array(self.to_parts().0)
     }
 }

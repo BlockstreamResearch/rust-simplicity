@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 
-use hashes::{sha256, Hash};
+use hashes::sha256;
 
 use crate::ffi::sha256::CSha256Midstate;
 use crate::ffi::{c_size_t, c_uchar, c_uint, c_uint_fast32_t};
@@ -148,8 +148,11 @@ extern "C" {
 }
 impl CTxEnv {
     pub fn sighash_all(&self) -> sha256::Hash {
+        // This is a little bit sketchy, directly interpreting a midstate as a sha256 hash. Bit
+        // it is okay because sighash data is public and unambiguously encoded, so there is no
+        // risk of length-extension attacks.
         let midstate: sha256::Midstate = self.sighash_all.into();
-        sha256::Hash::from_byte_array(midstate.to_byte_array())
+        sha256::Hash::from_byte_array(midstate.to_parts().0)
     }
 }
 
