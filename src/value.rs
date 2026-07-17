@@ -501,7 +501,7 @@ impl Value {
         Self {
             inner: Arc::new([value]),
             bit_offset: 7,
-            ty: Final::two_two_n(0),
+            ty: Final::two_two_n_fixed::<0>(),
         }
     }
 
@@ -515,7 +515,7 @@ impl Value {
         Self {
             inner: Arc::new([value]),
             bit_offset: 6,
-            ty: Final::two_two_n(1),
+            ty: Final::two_two_n_fixed::<1>(),
         }
     }
 
@@ -529,7 +529,7 @@ impl Value {
         Self {
             inner: Arc::new([value]),
             bit_offset: 4,
-            ty: Final::two_two_n(2),
+            ty: Final::two_two_n_fixed::<2>(),
         }
     }
 
@@ -538,7 +538,7 @@ impl Value {
         Self {
             inner: Arc::new([value]),
             bit_offset: 0,
-            ty: Final::two_two_n(3),
+            ty: Final::two_two_n_fixed::<3>(),
         }
     }
 
@@ -547,7 +547,7 @@ impl Value {
         Self {
             inner: Arc::new(bytes.to_be_bytes()),
             bit_offset: 0,
-            ty: Final::two_two_n(4),
+            ty: Final::two_two_n_fixed::<4>(),
         }
     }
 
@@ -556,7 +556,7 @@ impl Value {
         Self {
             inner: Arc::new(bytes.to_be_bytes()),
             bit_offset: 0,
-            ty: Final::two_two_n(5),
+            ty: Final::two_two_n_fixed::<5>(),
         }
     }
 
@@ -565,7 +565,7 @@ impl Value {
         Self {
             inner: Arc::new(bytes.to_be_bytes()),
             bit_offset: 0,
-            ty: Final::two_two_n(6),
+            ty: Final::two_two_n_fixed::<6>(),
         }
     }
 
@@ -574,7 +574,7 @@ impl Value {
         Self {
             inner: Arc::new(bytes.to_be_bytes()),
             bit_offset: 0,
-            ty: Final::two_two_n(7),
+            ty: Final::two_two_n_fixed::<7>(),
         }
     }
 
@@ -583,7 +583,7 @@ impl Value {
         Self {
             inner: Arc::new(bytes),
             bit_offset: 0,
-            ty: Final::two_two_n(8),
+            ty: Final::two_two_n_fixed::<8>(),
         }
     }
 
@@ -592,7 +592,7 @@ impl Value {
         Self {
             inner: Arc::new(bytes),
             bit_offset: 0,
-            ty: Final::two_two_n(9),
+            ty: Final::two_two_n_fixed::<9>(),
         }
     }
 
@@ -1069,8 +1069,10 @@ impl Word {
         bits: &mut BitIter<I>,
         n: u32,
     ) -> Result<Self, EarlyEndOfStreamError> {
-        assert!(n < 32, "TWO^(2^{n}) is not supported as a word type");
-        let ty = Final::two_two_n(n as usize); // cast safety: 32-bit machine or higher
+        let nsize = usize::try_from(n).unwrap_or(usize::MAX); // usize::MAX will error on next line
+        let Ok(ty) = Final::two_two_n(nsize) else {
+            panic!("TWO^(2^{n}) is not supported as a word type");
+        };
         let value = Value::from_compact_bits(bits, &ty)?;
         Ok(Self { value, n })
     }
@@ -1111,7 +1113,7 @@ mod tests {
     fn value_len() {
         let v = Value::u4(6);
         let s_v = Value::some(v.shallow_clone());
-        let n_v = Value::none(Final::two_two_n(2));
+        let n_v = Value::none(Final::two_two_n_fixed::<2>());
 
         assert_eq!(v.compact_len(), 4);
         assert_eq!(v.padded_len(), 4);
@@ -1137,11 +1139,11 @@ mod tests {
             (Value::left(Value::unit(), Final::unit()), TypeName(b"+11")),
             (Value::right(Final::unit(), Value::unit()), TypeName(b"+11")),
             (
-                Value::left(Value::unit(), Final::two_two_n(8)),
+                Value::left(Value::unit(), Final::two_two_n_fixed::<8>()),
                 TypeName(b"+1h"),
             ),
             (
-                Value::right(Final::two_two_n(8), Value::unit()),
+                Value::right(Final::two_two_n_fixed::<8>(), Value::unit()),
                 TypeName(b"+h1"),
             ),
             (
@@ -1162,7 +1164,7 @@ mod tests {
     fn prune_regression_1() {
         // Found this when fuzzing Elements; unsure how to reduce it further.
         let nontrivial_sum = Value::product(
-            Value::right(Final::two_two_n(4), Value::u16(0)),
+            Value::right(Final::two_two_n_fixed::<4>(), Value::u16(0)),
             Value::u8(0),
         );
         // Formatting should succeed and have no effect.

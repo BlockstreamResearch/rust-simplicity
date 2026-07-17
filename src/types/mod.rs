@@ -87,7 +87,7 @@ mod union_bound;
 mod variable;
 
 pub use context::{BoundRef, Context};
-pub use final_data::{CompleteBound, Final};
+pub use final_data::{CompleteBound, Final, TypeTooLargeError};
 pub use incomplete::Incomplete;
 
 /// Error type for simplicity

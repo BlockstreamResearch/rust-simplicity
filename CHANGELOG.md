@@ -1,3 +1,10 @@
+# Unreleased
+
+* Add `Value` and `Type` constructors for variable-length buffers and SHA256 `Ctx8` contexts;
+  change the signature of `Final::two_two_n` to return a result rather than panicking when `n`
+  is too large; add infallible `Final::two_two_n_fixed` for when `n` is known at compile-time
+  [#372][https://github.com/BlockstreamResearch/rust-simplicity/pull/372)
+
 # 0.8.0 - 2026-05-28
 
 * Add runtime jet type check in `Context` [#361](https://github.com/BlockstreamResearch/rust-simplicity/pull/361)
