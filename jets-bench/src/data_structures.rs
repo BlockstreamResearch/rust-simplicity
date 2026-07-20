@@ -63,7 +63,7 @@ pub fn var_len_buf_from_slice(v: &[u8], n: usize) -> Result<Value, EarlyEndOfStr
     let mut iter = BitIter::new(v.iter().copied());
     let mut res = None;
     for i in (0..n).rev() {
-        let ty = Final::two_two_n(i + 3);
+        let ty = Final::two_two_n(i + 3).unwrap();
         let v = if v.len() & 1 << i != 0 {
             let val = Value::from_compact_bits(&mut iter, &ty)?;
             Value::some(val)
@@ -414,7 +414,7 @@ impl BenchSample for SimplicityPoint {
 // Sample genesis pegin with 50% probability
 pub fn genesis_pegin() -> Value {
     if rand::random() {
-        Value::none(Final::two_two_n(8))
+        Value::none(Final::two_two_n_fixed::<8>())
     } else {
         let genesis_hash = rand::random::<[u8; 32]>();
         Value::some(Value::u256(genesis_hash))

@@ -43,12 +43,12 @@ impl TypeName {
         for c in self.0.iter().rev() {
             match c {
                 b'1' => stack.push(Final::unit()),
-                b'2' => stack.push(Final::two_two_n(0)),
-                b'c' => stack.push(Final::two_two_n(3)),
-                b's' => stack.push(Final::two_two_n(4)),
-                b'i' => stack.push(Final::two_two_n(5)),
-                b'l' => stack.push(Final::two_two_n(6)),
-                b'h' => stack.push(Final::two_two_n(8)),
+                b'2' => stack.push(Final::two_two_n_fixed::<0>()),
+                b'c' => stack.push(Final::two_two_n_fixed::<3>()),
+                b's' => stack.push(Final::two_two_n_fixed::<4>()),
+                b'i' => stack.push(Final::two_two_n_fixed::<5>()),
+                b'l' => stack.push(Final::two_two_n_fixed::<6>()),
+                b'h' => stack.push(Final::two_two_n_fixed::<8>()),
                 b'+' | b'*' => {
                     let left = stack.pop().expect("Illegal type name syntax!");
                     let right = stack.pop().expect("Illegal type name syntax!");

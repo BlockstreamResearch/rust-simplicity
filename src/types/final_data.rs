@@ -157,6 +157,7 @@ macro_rules! construct_final_two_two_n {
         #[doc = "Create the type of"]
         #[doc = $text]
         #[doc = "words.\n\nThe type is precomputed and fast to access."]
+        #[inline]
         pub fn $name() -> Arc<Self> {
             super::precomputed::nth_power_of_2($n)
         }
@@ -174,11 +175,80 @@ impl Final {
         })
     }
 
+    /// Computes the successor of the type.
+    ///
+    /// Given a type `X`, we define its successor `S X` as `1 + X`.
+    /// In Rust notation this would be `Option<X>`.
+    pub fn successor(self: Arc<Self>) -> Arc<Self> {
+        Self::sum(Self::unit(), self)
+    }
+
     /// Create the type `2^(2^n)` for the given `n`.
     ///
     /// The type is precomputed and fast to access.
-    pub fn two_two_n(n: usize) -> Arc<Self> {
-        super::precomputed::nth_power_of_2(n)
+    #[inline]
+    pub fn two_two_n(n: usize) -> Result<Arc<Self>, TypeTooLargeError> {
+        let maximum = Tmr::TWO_TWO_N.len();
+        if n < maximum {
+            Ok(super::precomputed::nth_power_of_2(n))
+        } else {
+            Err(TypeTooLargeError {
+                ty: "2^(2^n)",
+                n,
+                maximum,
+            })
+        }
+    }
+
+    /// Create the type `2^(2^N)` for the compile-time constant `N`.
+    ///
+    /// Will fail to compile if `N` exceeds 31.
+    #[inline]
+    pub fn two_two_n_fixed<const N: usize>() -> Arc<Self> {
+        // This crazy construction amounts to a compile-time assertion that N is less than the max.
+        struct Hack<const N: usize>;
+        impl<const N: usize> Hack<N> {
+            const IS_IN_RANGE: () = {
+                assert!(N < Tmr::TWO_TWO_N.len());
+            };
+        }
+        let () = Hack::<N>::IS_IN_RANGE;
+
+        super::precomputed::nth_power_of_2(N)
+    }
+
+    /// Create the type `(TWO^8)^<2^(n+1)` for the given `n`.
+    ///
+    /// Here
+    /// * The notation X^<2 is notation for the type (S X)
+    /// * The notation X^<(2*n) is notation for the type S (X^n) * X^<n
+    ///
+    /// And `S X` is the successor of `X`, i.e. `Option<X>`
+    ///
+    /// The type is precomputed and fast to access.
+    #[inline]
+    pub fn buffer8_two_n_plus_one(n: usize) -> Result<Arc<Self>, TypeTooLargeError> {
+        let maximum = Tmr::BUFFER8_TWO_N_PLUS_ONE.len();
+        if n < maximum {
+            Ok(super::precomputed::buffer8_two_n_plus_one(n))
+        } else {
+            // This is arguably a programming error and a panic would be justified, but it's
+            // hard to say how SimplicityHL will use this. I also think the current maximum
+            // may be too small and we could bump into this with real code, so better to let
+            // the caller decide how to handle that.
+            Err(TypeTooLargeError {
+                ty: "(TWO^8)^<2^(n+1)",
+                n,
+                maximum,
+            })
+        }
+    }
+
+    /// Create the `Ctx8` type used by the SHA256 jets.
+    ///
+    /// The type is precomputed and fast to access.
+    pub fn ctx8() -> Arc<Self> {
+        super::precomputed::ctx8()
     }
 
     construct_final_two_two_n!(u1, 0, "1-bit");
@@ -289,25 +359,70 @@ impl Final {
     }
 }
 
+/// Attempted to produce a `(TWO^8)^(2^(n+1))` type exceeding the maximum size.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct TypeTooLargeError {
+    ty: &'static str,
+    n: usize,
+    maximum: usize,
+}
+
+impl fmt::Display for TypeTooLargeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "maximum n for {} is {}; got {}",
+            self.ty, self.maximum, self.n
+        )
+    }
+}
+
+impl std::error::Error for TypeTooLargeError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        let Self {
+            ty: _,
+            n: _,
+            maximum: _,
+        } = self;
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
+    fn two_two_n_consistent() {
+        // This test probably does not need to be exhaustive.
+        assert_eq!(Final::two_two_n_fixed::<0>(), Final::two_two_n(0).unwrap());
+        assert_eq!(Final::two_two_n_fixed::<1>(), Final::two_two_n(1).unwrap());
+        assert_eq!(Final::two_two_n_fixed::<2>(), Final::two_two_n(2).unwrap());
+        assert_eq!(Final::two_two_n_fixed::<3>(), Final::two_two_n(3).unwrap());
+        assert_eq!(Final::two_two_n_fixed::<4>(), Final::two_two_n(4).unwrap());
+        assert_eq!(Final::two_two_n_fixed::<5>(), Final::two_two_n(5).unwrap());
+        assert_eq!(Final::two_two_n_fixed::<6>(), Final::two_two_n(6).unwrap());
+        assert_eq!(Final::two_two_n_fixed::<7>(), Final::two_two_n(7).unwrap());
+    }
+
+    #[test]
     fn final_stringify() {
-        let ty1 = Final::two_two_n(10);
+        let ty1 = Final::two_two_n_fixed::<10>();
         assert_eq!(ty1.to_string(), "2^1024");
 
-        let sum = Final::sum(Final::two_two_n(5), Final::two_two_n(10));
+        let sum = Final::sum(Final::two_two_n_fixed::<5>(), Final::two_two_n(10).unwrap());
         assert_eq!(sum.to_string(), "2^32 + 2^1024");
 
-        let prod = Final::product(Final::two_two_n(5), Final::two_two_n(10));
+        let prod = Final::product(
+            Final::two_two_n_fixed::<5>(),
+            Final::two_two_n_fixed::<10>(),
+        );
         assert_eq!(prod.to_string(), "2^32 × 2^1024");
 
-        let ty1 = Final::two_two_n(0);
+        let ty1 = Final::two_two_n_fixed::<0>();
         assert_eq!(ty1.to_string(), "2");
 
-        let ty1 = Final::sum(Final::unit(), Final::two_two_n(2));
+        let ty1 = Final::sum(Final::unit(), Final::two_two_n_fixed::<2>());
         assert_eq!(ty1.to_string(), "2^4?");
     }
 }
