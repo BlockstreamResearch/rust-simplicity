@@ -7,9 +7,11 @@
 
 use crate::dag::{Dag, DagLike};
 use crate::types::{CompleteBound, Final};
+use crate::{BitCollector, EarlyEndOfStreamError};
 use crate::{BitIter, Tmr};
 
-use crate::{BitCollector, EarlyEndOfStreamError};
+use hashes::sha256;
+
 use core::{cmp, fmt, iter};
 use std::collections::VecDeque;
 use std::hash::Hash;
@@ -495,6 +497,48 @@ impl Value {
             bit_offset: 0,
             ty,
         })
+    }
+
+    /// Constructs a `Ctx8` from raw parts.
+    ///
+    /// Bear in mind that the count is a count of **bytes**, not a count of **bits**. For the
+    /// context to be valid (i.e. something that could be obtained by a sequence of hashing
+    /// operations), `bytes_hashed % 64` must equal `buffer.len()`.
+    ///
+    /// You may want to obtain a hash engine and call [`Self::ctx8_from_hash_engine`] instead.
+    ///
+    /// # Errors
+    ///
+    /// Errors if the `buffer` exceeds the maximum length of a sha256 buffer (63 bytes).
+    pub fn ctx8(
+        midstate: [u8; 32],
+        bytes_hashed: u64,
+        buffer: &[u8],
+    ) -> Result<Self, Buffer8Error> {
+        Ok(Self::product(
+            Self::buffer8_two_n_plus_one(5, buffer)?,
+            Self::product(Self::u64(bytes_hashed), Self::u256(midstate)),
+        ))
+    }
+
+    /// Converts a SHA256 midstate into a Simplicity value.
+    pub fn ctx8_from_midstate(midstate: sha256::Midstate) -> Self {
+        let (hash, n) = midstate.to_parts();
+        Self::ctx8(hash, n, &[]).expect("0 < 64")
+    }
+
+    /// Converts a SHA256 engine into a Simplicity value.
+    pub fn ctx8_from_hash_engine(engine: &sha256::HashEngine) -> Self {
+        match engine.midstate() {
+            Ok(midstate) => {
+                let (hash, n) = midstate.to_parts();
+                Self::ctx8(hash, n, &[]).expect("0 < 64")
+            }
+            Err(midstate_err) => {
+                let (hash, n) = midstate_err.midstate().to_parts();
+                Self::ctx8(hash, n, midstate_err.unprocessed_bytes()).expect("< 64")
+            }
+        }
     }
 
     /// Return the bit length of the value in compact encoding.
