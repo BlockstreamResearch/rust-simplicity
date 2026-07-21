@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: CC0-1.0
 
-use crate::{impl_midstate_wrapper, merkle::midstate::MidstateExt};
+use crate::merkle::midstate::MidstateExt;
 use hashes::sha256::Midstate;
 
-/// Type Merkle root
-///
-/// A Merkle root that commits to a type's primitive (unit, sum, product)
-/// and recursively its sub-types.
-///
-/// Uniquely identifies a type.
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Tmr(pub(crate) Midstate);
-
-impl_midstate_wrapper!(Tmr);
+super::impl_mr_type! {
+    /// Type Merkle root
+    ///
+    /// A Merkle root that commits to a type's primitive (unit, sum, product)
+    /// and recursively its sub-types.
+    ///
+    /// Uniquely identifies a type.
+    #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+    pub struct Tmr(Midstate);
+}
 
 impl Tmr {
     #[rustfmt::skip]

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: CC0-1.0
 
-use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
 use crate::node::{
     CoreConstructible, DisconnectConstructible, JetConstructible, WitnessConstructible,
@@ -10,21 +9,20 @@ use crate::value::Word;
 use crate::{FailEntropy, Tmr};
 use hashes::sha256::Midstate;
 
-use super::bip340_iv;
-use super::MidstateExt as _;
+use super::{bip340_iv, impl_mr_type, MidstateExt as _};
 
-/// Commitment Merkle root
-///
-/// A Merkle root that commits to a node's combinator and recursively its children.
-///
-/// Importantly, witness data and right disconnect branches are _not_ included in the hash.
-/// This makes these elements malleable while preserving program identity (SegWit, delegation).
-///
-/// Uniquely identifies a program's structure in terms of combinators at commitment time.
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Cmr(pub(crate) Midstate);
-
-impl_midstate_wrapper!(Cmr);
+impl_mr_type! {
+    /// Commitment Merkle root
+    ///
+    /// A Merkle root that commits to a node's combinator and recursively its children.
+    ///
+    /// Importantly, witness data and right disconnect branches are _not_ included in the hash.
+    /// This makes these elements malleable while preserving program identity (SegWit, delegation).
+    ///
+    /// Uniquely identifies a program's structure in terms of combinators at commitment time.
+    #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+    pub struct Cmr(Midstate);
+}
 
 impl From<Tmr> for Cmr {
     fn from(tmr: Tmr) -> Self {

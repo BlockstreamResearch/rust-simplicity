@@ -1,34 +1,33 @@
 // SPDX-License-Identifier: CC0-1.0
 
-use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
 use crate::types::arrow::FinalArrow;
 use crate::value::Word;
 use crate::{Cmr, Tmr, Value};
 use hashes::sha256::Midstate;
 
-use super::{bip340_iv, compact_value, FailEntropy, MidstateExt as _};
+use super::{bip340_iv, compact_value, impl_mr_type, FailEntropy, MidstateExt as _};
 
-/// Identity Merkle Root
-///
-/// A Merkle root that commits to a node's combinator, its witness data (if present),
-/// and recursively its children. Used as input to the [`Ihr`] type which is probably
-/// actually what you want.
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Imr(Midstate);
+impl_mr_type! {
+    /// Identity Merkle Root
+    ///
+    /// A Merkle root that commits to a node's combinator, its witness data (if present),
+    /// and recursively its children. Used as input to the [`Ihr`] type which is probably
+    /// actually what you want.
+    #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+    pub struct Imr(Midstate);
+}
 
-impl_midstate_wrapper!(Imr);
-
-/// Identity Hash Root
-///
-/// A Merkle root that commits to a node's [`Imr`] (which recursively commits to its
-/// childrens' [`Imr`]s) as well as its source and target types.
-///
-/// Uniquely identifies a program's structure in terms of combinators at redemption time.
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Ihr(Midstate);
-
-impl_midstate_wrapper!(Ihr);
+impl_mr_type! {
+    /// Identity Hash Root
+    ///
+    /// A Merkle root that commits to a node's [`Imr`] (which recursively commits to its
+    /// childrens' [`Imr`]s) as well as its source and target types.
+    ///
+    /// Uniquely identifies a program's structure in terms of combinators at redemption time.
+    #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+    pub struct Ihr(Midstate);
+}
 
 impl From<Cmr> for Imr {
     fn from(cmr: Cmr) -> Self {

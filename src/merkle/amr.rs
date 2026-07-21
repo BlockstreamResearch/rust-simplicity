@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: CC0-1.0
 
-use crate::impl_midstate_wrapper;
 use crate::jet::Jet;
 use crate::merkle::compact_value;
 use crate::types::arrow::FinalArrow;
@@ -8,19 +7,18 @@ use crate::value::Word;
 use crate::{Cmr, Tmr, Value};
 use hashes::sha256::Midstate;
 
-use super::FailEntropy;
-use super::MidstateExt as _;
+use super::{impl_mr_type, FailEntropy, MidstateExt as _};
 
-/// Annotated Merkle root
-///
-/// A Merkle root that commits to a node's combinator, its source and target type,
-/// its witness data (if present), and recursively its children.
-///
-/// Uniquely identifies a program's structure in terms of types at redemption time.
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct Amr(Midstate);
-
-impl_midstate_wrapper!(Amr);
+impl_mr_type! {
+    /// Annotated Merkle root
+    ///
+    /// A Merkle root that commits to a node's combinator, its source and target type,
+    /// its witness data (if present), and recursively its children.
+    ///
+    /// Uniquely identifies a program's structure in terms of types at redemption time.
+    #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+    pub struct Amr(Midstate);
+}
 
 impl From<Cmr> for Amr {
     fn from(cmr: Cmr) -> Self {
