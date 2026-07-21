@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 
-use crate::impl_midstate_wrapper;
+use crate::{impl_midstate_wrapper, merkle::midstate::MidstateExt};
 use hashes::sha256::Midstate;
 
 /// Type Merkle root
@@ -16,28 +16,28 @@ impl_midstate_wrapper!(Tmr);
 
 impl Tmr {
     #[rustfmt::skip]
-    const UNIT_IV: Tmr = Tmr(Midstate([
+    const UNIT_IV: Midstate = Midstate([
         0x50, 0xb3, 0x8c, 0xd7, 0x64, 0x75, 0xff, 0x89,
         0x29, 0x28, 0x8b, 0xfc, 0xd0, 0xd9, 0xdf, 0x0e,
         0x4a, 0x24, 0x1c, 0x0a, 0x57, 0x08, 0x57, 0x2a,
         0xd2, 0x64, 0x19, 0x2a, 0x4f, 0xe6, 0x7b, 0xee,
-    ]));
+    ]);
 
     #[rustfmt::skip]
-    const SUM_IV: Tmr = Tmr(Midstate([
+    const SUM_IV: Midstate = Midstate([
         0x92, 0x0c, 0xfd, 0x83, 0xcf, 0x96, 0xbb, 0x32,
         0x73, 0x17, 0x36, 0x0f, 0x6d, 0x3a, 0xd7, 0x60,
         0x1e, 0xef, 0x0a, 0x16, 0xdd, 0x53, 0x14, 0x6c,
         0x2e, 0x5d, 0xe3, 0x5f, 0x51, 0xef, 0x8d, 0xa4,
-    ]));
+    ]);
 
     #[rustfmt::skip]
-    const PROD_IV: Tmr = Tmr(Midstate([
+    const PROD_IV: Midstate = Midstate([
         0xae, 0x99, 0x2a, 0x3e, 0xe0, 0x71, 0x3b, 0xf6,
         0x19, 0x5d, 0x3b, 0xac, 0x1a, 0xf5, 0x05, 0xa7,
         0x29, 0xc1, 0x4d, 0x47, 0x95, 0x58, 0xf0, 0xd6,
         0x29, 0x96, 0x30, 0xf7, 0xfa, 0x97, 0x2e, 0xf8,
-    ]));
+    ]);
 
     /// The TMRs of the types TWO^(2^n) for small values of n
     #[rustfmt::skip]
@@ -347,8 +347,8 @@ impl Tmr {
     ]));
 
     /// The TMR for the unit type
-    pub const fn unit() -> Tmr {
-        Self::UNIT_IV
+    pub fn unit() -> Tmr {
+        Self::UNIT_IV.into_merkle_root()
     }
 
     /// The TMR for the successor of a type.
@@ -356,17 +356,19 @@ impl Tmr {
     /// Given a type `X`, we define its successor `S X` as `1 + X`.
     /// In Rust notation this would be `Option<X>`.
     pub fn successor(self) -> Tmr {
-        Self::SUM_IV.update(Tmr::unit(), self)
+        Self::SUM_IV
+            .zz_update_2x32(Tmr::unit(), self)
+            .into_merkle_root()
     }
 
     /// The TMR for the sum of two types, whose TMRs are given
     pub fn sum(tmr1: Tmr, tmr2: Tmr) -> Tmr {
-        Self::SUM_IV.update(tmr1, tmr2)
+        Self::SUM_IV.zz_update_2x32(tmr1, tmr2).into_merkle_root()
     }
 
     /// The TMR for the product of two types, whose TMRs are given
     pub fn product(tmr1: Tmr, tmr2: Tmr) -> Tmr {
-        Self::PROD_IV.update(tmr1, tmr2)
+        Self::PROD_IV.zz_update_2x32(tmr1, tmr2).into_merkle_root()
     }
 }
 
@@ -380,23 +382,23 @@ mod tests {
 
     #[test]
     fn ivs() {
-        fn check_iv(target: Tmr, s: &'static str) {
+        fn check_iv(target: Midstate, s: &'static str) {
             let name = s.trim_start_matches("Simplicity\x1fType\x1f");
             // Uncomment this if the IVs ever change
             /*
             let target = Tmr(bip340_iv(s.as_bytes()));
             println!("    #[rustfmt::skip]");
-            println!("    const {}_IV: Tmr = Tmr(Midstate([", name.to_ascii_uppercase());
+            println!("    const {}_IV: Midstate = Midstate([", name.to_ascii_uppercase());
             print!("       "); for ch in &target.0[0..8] { print!(" 0x{:02x},", ch); }; println!();
             print!("       "); for ch in &target.0[8..16] { print!(" 0x{:02x},", ch); }; println!();
             print!("       "); for ch in &target.0[16..24] { print!(" 0x{:02x},", ch); }; println!();
             print!("       "); for ch in &target.0[24..32] { print!(" 0x{:02x},", ch); }; println!();
-            println!("    ]));");
+            println!("    ]);");
             println!();
             */
             assert_eq!(
                 target,
-                Tmr(bip340_iv(s.as_bytes())),
+                bip340_iv(s.as_bytes()),
                 "mismatch on IV for {}",
                 name
             );

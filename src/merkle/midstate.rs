@@ -36,6 +36,39 @@ impl ByteArrayExt for super::amr::Amr {
     }
 }
 
+impl ByteArrayExt for super::cmr::Cmr {
+    #[inline]
+    fn to_byte_array(self) -> [u8; 32] {
+        self.to_byte_array()
+    }
+    #[inline]
+    fn from_byte_array(bytes: [u8; 32]) -> Self {
+        Self::from_byte_array(bytes)
+    }
+}
+
+impl ByteArrayExt for super::ihr::Ihr {
+    #[inline]
+    fn to_byte_array(self) -> [u8; 32] {
+        self.to_byte_array()
+    }
+    #[inline]
+    fn from_byte_array(bytes: [u8; 32]) -> Self {
+        Self::from_byte_array(bytes)
+    }
+}
+
+impl ByteArrayExt for super::ihr::Imr {
+    #[inline]
+    fn to_byte_array(self) -> [u8; 32] {
+        self.to_byte_array()
+    }
+    #[inline]
+    fn from_byte_array(bytes: [u8; 32]) -> Self {
+        Self::from_byte_array(bytes)
+    }
+}
+
 impl ByteArrayExt for super::tmr::Tmr {
     #[inline]
     fn to_byte_array(self) -> [u8; 32] {
@@ -69,7 +102,6 @@ pub trait MidstateExt: Sized {
     /// Input a 24-byte block of zeros, a big-endian 64-bit number, then a 32-byte block to produce
     /// a new midstate.
     #[inline]
-    #[allow(unused)] // will be used in next commit
     fn update_weight_then_32<MR: ByteArrayExt>(self, left_weight: u64, right: MR) -> Self {
         let mut left = [0; 32];
         left[24..].copy_from_slice(&left_weight.to_be_bytes());
