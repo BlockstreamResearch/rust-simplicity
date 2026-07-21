@@ -15,7 +15,7 @@ impl_mr_type! {
     /// and recursively its children. Used as input to the [`Ihr`] type which is probably
     /// actually what you want.
     #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-    pub struct Imr(Midstate);
+    pub struct Imr([u8; 32]);
 }
 
 impl_mr_type! {
@@ -26,7 +26,7 @@ impl_mr_type! {
     ///
     /// Uniquely identifies a program's structure in terms of combinators at redemption time.
     #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-    pub struct Ihr(Midstate);
+    pub struct Ihr([u8; 32]);
 }
 
 impl From<Cmr> for Imr {

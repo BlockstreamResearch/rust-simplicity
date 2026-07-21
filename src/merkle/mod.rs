@@ -105,17 +105,17 @@ fn bip340_iv(tag: &[u8]) -> sha256::Midstate {
     engine.midstate()
 }
 
-/// Convenience macro for wrappers of `Midstate`.
+/// Convenience macro for wrappers of `[u8; 32]`.
 ///
 /// Implements `From` to and from `[u8; 32]`,
 /// `MerkleRoot`, `AsRef<[u8]>`, `Debug` and `Display`
 macro_rules! impl_mr_type {
     {
         $(#[$($struct_attr:tt)*])*
-        pub struct $wrapper:ident(Midstate);
+        pub struct $wrapper:ident([u8; 32]);
     } => {
         $(#[$($struct_attr)*])*
-        pub struct $wrapper(Midstate);
+        pub struct $wrapper([u8; 32]);
 
         impl AsRef<[u8]> for $wrapper {
             fn as_ref(&self) -> &[u8] {
@@ -140,19 +140,19 @@ macro_rules! impl_mr_type {
 
             fn from_str(s: &str) -> Result<Self, Self::Err> {
                 let x: [u8; 32] = hashes::hex::FromHex::from_hex(s)?;
-                Ok($wrapper(Midstate::from_byte_array(x)))
+                Ok($wrapper(x))
             }
         }
 
         impl $wrapper {
             /// Converts the given tagged hash into a byte array
             pub fn from_byte_array(data: [u8; 32]) -> Self {
-                $wrapper(Midstate::from_byte_array(data))
+                $wrapper(data)
             }
 
             /// Converts the given tagged hash into a byte array
             pub fn to_byte_array(self) -> [u8; 32] {
-                self.0.to_byte_array()
+                self.0
             }
         }
 

@@ -17,7 +17,7 @@ impl_mr_type! {
     ///
     /// Uniquely identifies a program's structure in terms of types at redemption time.
     #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-    pub struct Amr(Midstate);
+    pub struct Amr([u8; 32]);
 }
 
 impl From<Cmr> for Amr {
