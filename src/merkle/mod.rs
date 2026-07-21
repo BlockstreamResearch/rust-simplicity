@@ -5,11 +5,14 @@
 //! Tools for creating Merkle roots.
 //! There exist different Merkle roots for commitment and for redemption.
 
+mod midstate;
+
 pub mod amr;
 pub mod cmr;
 pub mod ihr;
 pub mod tmr;
 
+use self::midstate::MidstateExt;
 use crate::bit_encoding::BitCollector;
 use crate::Value;
 use hashes::{sha256, Hash, HashEngine};
@@ -32,6 +35,11 @@ impl FailEntropy {
     /// Construct a [`FailEntropy`] from raw data
     pub fn from_byte_array(data: [u8; 64]) -> Self {
         FailEntropy(data)
+    }
+
+    /// Extract the raw bytes from a [`FailEntropy`].
+    pub fn to_byte_array(self) -> [u8; 64] {
+        self.0
     }
 }
 
