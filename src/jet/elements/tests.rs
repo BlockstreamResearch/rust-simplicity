@@ -110,6 +110,6 @@ fn test_ffi_env() {
 }
 
 fn hex_script(s: &str) -> elements::Script {
-    let v: Vec<u8> = hashes::hex::FromHex::from_hex(s).unwrap();
+    let v = hex::decode_to_vec(s).unwrap();
     elements::Script::from(v)
 }

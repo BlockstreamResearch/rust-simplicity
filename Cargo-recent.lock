@@ -219,6 +219,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hex-conservative"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35431185f361ccf3ffc58254628af5f1f5d5f28531da2e02e5d6c82bbc282a10"
+dependencies = [
+ "arrayvec",
+]
+
+[[package]]
 name = "hex_lit"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -585,7 +594,7 @@ dependencies = [
  "elements",
  "getrandom 0.2.16",
  "ghost-cell",
- "hex-conservative 0.2.2",
+ "hex-conservative 1.2.0",
  "logos",
  "miniscript",
  "serde",

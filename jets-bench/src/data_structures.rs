@@ -5,11 +5,7 @@ use bitcoin::secp256k1;
 use elements::Txid;
 use rand::{thread_rng, RngCore};
 use simplicity::{
-    bitcoin, elements,
-    hashes::Hash,
-    hex::FromHex,
-    types::Final,
-    BitIter, EarlyEndOfStreamError, Value,
+    bitcoin, elements, hashes::Hash, types::Final, BitIter, EarlyEndOfStreamError, Value,
 };
 
 /// Engine to compute SHA256 hash function.
@@ -206,7 +202,7 @@ impl SimplicityEncode for elements::confidential::Value {
             elements::confidential::Value::Explicit(v) => {
                 let left = Final::product(Final::u1(), Final::u256());
                 Value::right(left, Value::u64(*v))
-            },
+            }
             elements::confidential::Value::Confidential(v) => {
                 let ser = v.serialize();
                 let x_bytes = (&ser[1..33]).try_into().unwrap();
@@ -331,7 +327,7 @@ impl BenchSample for elements::confidential::Asset {
             elements::confidential::Asset::Explicit(asset)
         } else {
             let asset_str = "0abb0d5d5843b9378c7f245fd7329d6fcef6926554f0c95f7cf0316239178f743c";
-            let asset_bytes = Vec::<u8>::from_hex(asset_str).unwrap();
+            let asset_bytes = simplicity::hex::decode_to_vec(asset_str).unwrap();
             elements::confidential::Asset::from_commitment(&asset_bytes).unwrap()
         }
     }
@@ -345,7 +341,7 @@ impl BenchSample for elements::confidential::Value {
             elements::confidential::Value::Explicit(value)
         } else {
             let value_str = "09bb0d5d5843b9378c7f245fd7329d6fcef6926554f0c95f7cf0316239178f743c";
-            let value_bytes = Vec::<u8>::from_hex(value_str).unwrap();
+            let value_bytes = simplicity::hex::decode_to_vec(value_str).unwrap();
             elements::confidential::Value::from_commitment(&value_bytes).unwrap()
         }
     }
@@ -357,7 +353,7 @@ impl BenchSample for elements::confidential::Nonce {
             elements::confidential::Nonce::Null
         } else {
             let nonce_str = "03bb0d5d5843b9378c7f245fd7329d6fcef6926554f0c95f7cf0316239178f743c";
-            let nonce_bytes = Vec::<u8>::from_hex(nonce_str).unwrap();
+            let nonce_bytes = simplicity::hex::decode_to_vec(nonce_str).unwrap();
             elements::confidential::Nonce::from_commitment(&nonce_bytes).unwrap()
         }
     }

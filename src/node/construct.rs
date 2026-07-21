@@ -549,7 +549,7 @@ mod tests {
             let prog = finalized.to_vec_without_witness();
             // In #286 we are encoding correctly...
             assert_eq!(
-                hex::DisplayHex::as_hex(&prog).to_string(),
+                hex::DisplayHex::as_hex(&prog[..]).to_string(),
                 "dc920a28812b6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f243090e00b10e00680",
             );
 

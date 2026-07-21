@@ -179,7 +179,7 @@ pub enum ParseError {
     #[cfg(feature = "base64")]
     Base64(base64::DecodeError),
     /// Hex decoding error
-    Hex(hex::error::HexToBytesError),
+    Hex(hex::error::DecodeVariableLengthBytesError),
 }
 
 impl fmt::Display for ParseError {

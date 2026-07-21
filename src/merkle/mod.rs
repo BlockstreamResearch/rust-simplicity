@@ -45,7 +45,7 @@ impl FailEntropy {
 
 impl fmt::Display for FailEntropy {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&hex::DisplayHex::as_hex(&self.0), f)
+        fmt::Display::fmt(&hex::DisplayHex::as_hex(&self.0[..]), f)
     }
 }
 
@@ -136,10 +136,10 @@ macro_rules! impl_mr_type {
         }
 
         impl std::str::FromStr for $wrapper {
-            type Err = hashes::hex::HexToArrayError;
+            type Err = hex::error::DecodeFixedLengthBytesError;
 
             fn from_str(s: &str) -> Result<Self, Self::Err> {
-                let x: [u8; 32] = hashes::hex::FromHex::from_hex(s)?;
+                let x: [u8; 32] = hex::decode_to_array(s)?;
                 Ok($wrapper(x))
             }
         }
