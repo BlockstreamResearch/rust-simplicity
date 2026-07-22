@@ -105,7 +105,7 @@ impl Cmr {
     /// This is equal to the IHR of the equivalent scribe, converted to a CMR in
     /// the usual way for jets.
     pub fn const_word(word: &Word) -> Self {
-        let w = 1 + word.n() as usize;
+        let w = 1 + word.n();
 
         let mut cmr_stack = Vec::with_capacity(33);
         // 1. Compute the CMR for the `scribe` corresponding to this word jet

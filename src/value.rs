@@ -1056,7 +1056,7 @@ pub struct Word {
     /// Value of type `TWO^(2^n)`.
     value: Value,
     /// 0 ≤ n < 32.
-    n: u32,
+    n: u8,
 }
 
 macro_rules! construct_word_fallible {
@@ -1135,8 +1135,8 @@ impl Word {
     }
 
     /// The word is of type `TWO^(2^n)`. Return `n`.
-    pub fn n(&self) -> u32 {
-        self.n
+    pub fn n(&self) -> usize {
+        usize::from(self.n)
     }
 
     /// Return the bit length of the word.
@@ -1144,7 +1144,7 @@ impl Word {
     /// The word is of type `TWO^(2^n)`. Return `2^n`.
     #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
-        2usize.pow(self.n)
+        2usize.pow(u32::from(self.n))
     }
 
     /// Return an iterator over the bit encoding of the word.
@@ -1164,12 +1164,12 @@ impl Word {
         bits: &mut BitIter<I>,
         n: u32,
     ) -> Result<Self, EarlyEndOfStreamError> {
-        let nsize = usize::try_from(n).unwrap_or(usize::MAX); // usize::MAX will error on next line
-        let Ok(ty) = Final::two_two_n(nsize) else {
+        let n8 = u8::try_from(n).unwrap_or(u8::MAX); // u8::MAX will error on next line
+        let Ok(ty) = Final::two_two_n(usize::from(n8)) else {
             panic!("TWO^(2^{n}) is not supported as a word type");
         };
         let value = Value::from_compact_bits(bits, &ty)?;
-        Ok(Self { value, n })
+        Ok(Self { value, n: n8 })
     }
 }
 

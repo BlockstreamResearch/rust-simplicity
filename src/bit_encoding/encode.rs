@@ -258,7 +258,7 @@ fn encode_node<N: node::Marker>(
             node::Inner::Word(word) => {
                 w.write_bit(true)?; // jet or word
                 w.write_bit(false)?; // word
-                encode_natural(1 + word.n() as usize, w)?;
+                encode_natural(1 + word.n(), w)?;
                 encode_value(word.as_value(), w)?;
             }
             _ => unreachable!(),

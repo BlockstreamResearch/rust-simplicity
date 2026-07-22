@@ -342,10 +342,8 @@ impl Final {
     /// ## Post condition
     ///
     /// 0 ≤ n < 32.
-    pub fn as_word(&self) -> Option<u32> {
-        (0..32u32).find(|&n| {
-            self.tmr == Tmr::TWO_TWO_N[n as usize] // cast safety: 32-bit machine or higher
-        })
+    pub fn as_word(&self) -> Option<u8> {
+        (0u8..32).find(|&n| self.tmr == Tmr::TWO_TWO_N[usize::from(n)])
     }
 
     /// Compute the padding of left values of the sum type `Self + Other`.
