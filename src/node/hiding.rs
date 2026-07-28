@@ -1,7 +1,5 @@
 use crate::jet::Jet;
-use crate::node::{
-    CoreConstructible, DisconnectConstructible, JetConstructible, WitnessConstructible,
-};
+use crate::node::{CoreConstructible, DisconnectConstructible, WitnessConstructible};
 use crate::types::{Context, Error};
 use crate::{Cmr, FailEntropy, HasCmr, Word};
 
@@ -212,17 +210,12 @@ impl<'brand, N: CoreConstructible<'brand> + HasCmr> CoreConstructible<'brand>
         N::const_word(inference_context, word).into()
     }
 
-    fn inference_context(&self) -> &Context<'brand> {
-        &self.ctx
-    }
-}
-
-impl<'brand, N> JetConstructible<'brand> for Hiding<'brand, N>
-where
-    N: JetConstructible<'brand> + CoreConstructible<'brand>,
-{
     fn jet(inference_context: &Context<'brand>, jet: &dyn Jet) -> Self {
         N::jet(inference_context, jet).into()
+    }
+
+    fn inference_context(&self) -> &Context<'brand> {
+        &self.ctx
     }
 }
 

@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 
 use crate::jet::Jet;
-use crate::node::{
-    CoreConstructible, DisconnectConstructible, JetConstructible, WitnessConstructible,
-};
+use crate::node::{CoreConstructible, DisconnectConstructible, WitnessConstructible};
 use crate::types::{self, Error};
 use crate::value::Word;
 use crate::{FailEntropy, Tmr};
@@ -356,6 +354,13 @@ impl<'brand> CoreConstructible<'brand> for ConstructibleCmr<'brand> {
         }
     }
 
+    fn jet(inference_context: &types::Context<'brand>, jet: &dyn Jet) -> Self {
+        ConstructibleCmr {
+            cmr: jet.cmr(),
+            inference_context: inference_context.shallow_clone(),
+        }
+    }
+
     fn inference_context(&self) -> &types::Context<'brand> {
         &self.inference_context
     }
@@ -378,15 +383,6 @@ impl<'brand, W> WitnessConstructible<'brand, W> for ConstructibleCmr<'brand> {
     fn witness(inference_context: &types::Context<'brand>, _witness: W) -> Self {
         ConstructibleCmr {
             cmr: Cmr::witness(),
-            inference_context: inference_context.shallow_clone(),
-        }
-    }
-}
-
-impl<'brand> JetConstructible<'brand> for ConstructibleCmr<'brand> {
-    fn jet(inference_context: &types::Context<'brand>, jet: &dyn Jet) -> Self {
-        ConstructibleCmr {
-            cmr: jet.cmr(),
             inference_context: inference_context.shallow_clone(),
         }
     }

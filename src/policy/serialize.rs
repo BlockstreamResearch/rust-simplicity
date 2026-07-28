@@ -4,7 +4,7 @@
 
 use crate::jet::Elements;
 use crate::merkle::cmr::ConstructibleCmr;
-use crate::node::{CoreConstructible, JetConstructible, WitnessConstructible};
+use crate::node::{CoreConstructible, WitnessConstructible};
 use crate::types;
 use crate::FailEntropy;
 use crate::{Cmr, ConstructNode, ToXOnlyPubkey};
@@ -56,7 +56,7 @@ where
 pub fn key<'brand, Pk, N, W>(inference_context: &types::Context<'brand>, key: &Pk, witness: W) -> N
 where
     Pk: ToXOnlyPubkey,
-    N: CoreConstructible<'brand> + JetConstructible<'brand> + WitnessConstructible<'brand, W>,
+    N: CoreConstructible<'brand> + WitnessConstructible<'brand, W>,
 {
     let key_value = Word::u256(key.to_x_only_pubkey().serialize());
     let const_key = N::const_word(inference_context, key_value);
@@ -71,7 +71,7 @@ where
 
 pub fn after<'brand, N>(inference_context: &types::Context<'brand>, n: u32) -> N
 where
-    N: CoreConstructible<'brand> + JetConstructible<'brand>,
+    N: CoreConstructible<'brand>,
 {
     let n_value = Word::u32(n);
     let const_n = N::const_word(inference_context, n_value);
@@ -82,7 +82,7 @@ where
 
 pub fn older<'brand, N>(inference_context: &types::Context<'brand>, n: u16) -> N
 where
-    N: CoreConstructible<'brand> + JetConstructible<'brand>,
+    N: CoreConstructible<'brand>,
 {
     let n_value = Word::u16(n);
     let const_n = N::const_word(inference_context, n_value);
@@ -96,7 +96,7 @@ where
 
 pub fn compute_sha256<'brand, N>(witness256: &N) -> N
 where
-    N: CoreConstructible<'brand> + JetConstructible<'brand>,
+    N: CoreConstructible<'brand>,
 {
     let ctx = N::jet(witness256.inference_context(), &Elements::Sha256Ctx8Init);
     let pair_ctx_witness = N::pair(&ctx, witness256).expect("consistent types");
@@ -111,7 +111,7 @@ where
 
 pub fn verify_bexp<'brand, N>(input: &N, bexp: &N) -> N
 where
-    N: CoreConstructible<'brand> + JetConstructible<'brand>,
+    N: CoreConstructible<'brand>,
 {
     assert_eq!(
         input.inference_context(),
@@ -130,7 +130,7 @@ pub fn sha256<'brand, Pk, N, W>(
 ) -> N
 where
     Pk: ToXOnlyPubkey,
-    N: CoreConstructible<'brand> + JetConstructible<'brand> + WitnessConstructible<'brand, W>,
+    N: CoreConstructible<'brand> + WitnessConstructible<'brand, W>,
 {
     use bitcoin_miniscript::bitcoin::hashes::Hash as _;
 
@@ -210,7 +210,7 @@ where
 /// add(sum, summand): 1 → 2^32
 pub fn thresh_add<'brand, N>(sum: &N, summand: &N) -> N
 where
-    N: CoreConstructible<'brand> + JetConstructible<'brand>,
+    N: CoreConstructible<'brand>,
 {
     assert_eq!(
         sum.inference_context(),
@@ -237,7 +237,7 @@ where
 /// verify(sum): 1 → 1
 pub fn thresh_verify<'brand, N>(sum: &N, k: u32) -> N
 where
-    N: CoreConstructible<'brand> + JetConstructible<'brand>,
+    N: CoreConstructible<'brand>,
 {
     // 1 → 2^32
     let const_k = N::const_word(sum.inference_context(), Word::u32(k));
@@ -252,7 +252,7 @@ where
 
 pub fn threshold<'brand, N, W>(k: u32, subs: &[N], witness_bits: &[W]) -> N
 where
-    N: CoreConstructible<'brand> + JetConstructible<'brand> + WitnessConstructible<'brand, W>,
+    N: CoreConstructible<'brand> + WitnessConstructible<'brand, W>,
     W: Clone,
 {
     let n = u32::try_from(subs.len()).expect("can have at most 2^32 children in a threshold");

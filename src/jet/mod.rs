@@ -181,7 +181,7 @@ impl Hash for Box<dyn Jet> {
 #[cfg(test)]
 mod tests {
     use crate::jet::{Core, CoreEnv};
-    use crate::node::{ConstructNode, CoreConstructible, JetConstructible};
+    use crate::node::{ConstructNode, CoreConstructible as _};
     use crate::types;
     use crate::value::Word;
     use crate::{BitMachine, Value};

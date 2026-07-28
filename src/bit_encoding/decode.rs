@@ -9,8 +9,7 @@ use crate::dag::{Dag, DagLike, InternalSharing};
 use crate::jet::Jet;
 use crate::merkle::cmr::Cmr;
 use crate::node::{
-    ConstructNode, CoreConstructible, DisconnectConstructible, JetConstructible,
-    WitnessConstructible,
+    ConstructNode, CoreConstructible, DisconnectConstructible, WitnessConstructible,
 };
 use crate::types;
 use crate::value::Word;

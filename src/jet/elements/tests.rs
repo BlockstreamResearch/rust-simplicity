@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::jet::elements::{ElementsEnv, ElementsUtxo};
 use crate::jet::Elements;
-use crate::node::{ConstructNode, JetConstructible};
+use crate::node::{ConstructNode, CoreConstructible as _};
 use crate::types;
 use crate::{BitMachine, Cmr, Value};
 use elements::taproot::ControlBlock;

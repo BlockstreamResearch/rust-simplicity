@@ -12,7 +12,7 @@ use std::convert::TryFrom;
 use std::sync::Arc;
 use std::{fmt, iter, mem};
 
-use crate::node::{ConstructNode, CoreConstructible, JetConstructible, WitnessConstructible};
+use crate::node::{ConstructNode, CoreConstructible, WitnessConstructible};
 use crate::policy::serialize::{self, AssemblyConstructible};
 use crate::{types, Value};
 use crate::{Cmr, CommitNode, FailEntropy};
@@ -62,7 +62,6 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
     ) -> Option<N>
     where
         N: CoreConstructible<'brand>
-            + JetConstructible<'brand>
             + WitnessConstructible<'brand, Option<Value>>
             + AssemblyConstructible<'brand>,
     {

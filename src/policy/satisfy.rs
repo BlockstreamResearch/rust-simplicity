@@ -293,7 +293,7 @@ mod tests {
     use crate::dag::{DagLike, NoSharing};
     use crate::jet::elements::ElementsEnv;
     use crate::jet::Elements;
-    use crate::node::{CoreConstructible, JetConstructible, SimpleFinalizer, WitnessConstructible};
+    use crate::node::{CoreConstructible as _, SimpleFinalizer, WitnessConstructible};
     use crate::policy::serialize;
     use crate::{BitMachine, FailEntropy, SimplicityKey};
     use elements::bitcoin::hashes::{sha256, Hash};

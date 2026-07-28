@@ -301,7 +301,7 @@ mod tests {
     use super::*;
 
     use crate::jet::Core;
-    use crate::node::{ConstructNode, JetConstructible};
+    use crate::node::{ConstructNode, CoreConstructible as _};
     use crate::types;
     use std::sync::Arc;
 

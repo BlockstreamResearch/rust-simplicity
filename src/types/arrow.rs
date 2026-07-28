@@ -15,10 +15,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use crate::jet::Jet;
-use crate::node::{
-    CoreConstructible, DisconnectConstructible, JetConstructible, NoDisconnect,
-    WitnessConstructible,
-};
+use crate::node::{CoreConstructible, DisconnectConstructible, NoDisconnect, WitnessConstructible};
 use crate::types::{Context, Error, Final, Type};
 use crate::value::Word;
 
@@ -319,6 +316,16 @@ impl<'brand> CoreConstructible<'brand> for Arrow<'brand> {
         }
     }
 
+    fn jet(inference_context: &Context<'brand>, jet: &dyn Jet) -> Self {
+        inference_context.check_jet(jet);
+
+        Arrow {
+            source: jet.source_ty().to_type(inference_context),
+            target: jet.target_ty().to_type(inference_context),
+            inference_context: inference_context.shallow_clone(),
+        }
+    }
+
     fn inference_context(&self) -> &Context<'brand> {
         &self.inference_context
     }
@@ -350,18 +357,6 @@ impl<'brand> DisconnectConstructible<'brand, Option<&Arrow<'brand>>> for Arrow<'
         match *right {
             Some(right) => Self::disconnect(left, right),
             None => Self::disconnect(left, &NoDisconnect),
-        }
-    }
-}
-
-impl<'brand> JetConstructible<'brand> for Arrow<'brand> {
-    fn jet(inference_context: &Context<'brand>, jet: &dyn Jet) -> Self {
-        inference_context.check_jet(jet);
-
-        Arrow {
-            source: jet.source_ty().to_type(inference_context),
-            target: jet.target_ty().to_type(inference_context),
-            inference_context: inference_context.shallow_clone(),
         }
     }
 }
