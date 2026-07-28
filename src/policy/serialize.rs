@@ -9,8 +9,6 @@ use crate::types;
 use crate::FailEntropy;
 use crate::{Cmr, ConstructNode, ToXOnlyPubkey};
 
-use hashes::Hash;
-
 use crate::value::Word;
 use std::convert::TryFrom;
 use std::sync::Arc;
@@ -134,6 +132,8 @@ where
     Pk: ToXOnlyPubkey,
     N: CoreConstructible<'brand> + JetConstructible<'brand> + WitnessConstructible<'brand, W>,
 {
+    use bitcoin_miniscript::bitcoin::hashes::Hash as _;
+
     let hash_value = Word::u256(Pk::to_sha256(hash).to_byte_array());
     let const_hash = N::const_word(inference_context, hash_value);
     let witness256 = N::witness(inference_context, witness);
@@ -274,10 +274,10 @@ mod tests {
     use crate::node::SimpleFinalizer;
     use crate::policy::Policy;
     use crate::{BitMachine, CommitNode, FailEntropy, Value};
+    use bitcoin_miniscript::bitcoin::hashes::{sha256, Hash};
     use elements::bitcoin::key::XOnlyPublicKey;
     use elements::locktime::Height;
     use elements::secp256k1_zkp;
-    use hashes::{sha256, Hash};
     use std::sync::Arc;
 
     fn compile(

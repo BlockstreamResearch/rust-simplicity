@@ -7,14 +7,14 @@ use crate::jet::Elements;
 use crate::node::{ConstructNode, JetConstructible};
 use crate::types;
 use crate::{BitMachine, Cmr, Value};
+use elements::hashes::sha256::Midstate;
+use elements::hashes::Hash as _;
 use elements::secp256k1_zkp::Tweak;
 use elements::taproot::ControlBlock;
 use elements::{
     confidential, AssetId, AssetIssuance, BlockHash, OutPoint, Sequence, Transaction, TxIn,
     TxInWitness, TxOut, TxOutWitness,
 };
-use hashes::sha256::Midstate;
-use hashes::Hash;
 
 #[test]
 fn test_ffi_env() {
@@ -110,6 +110,6 @@ fn test_ffi_env() {
 }
 
 fn hex_script(s: &str) -> elements::Script {
-    let v: Vec<u8> = hashes::hex::FromHex::from_hex(s).unwrap();
+    let v = hex::decode_to_vec(s).unwrap();
     elements::Script::from(v)
 }

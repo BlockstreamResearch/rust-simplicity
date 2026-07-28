@@ -544,14 +544,13 @@ impl RedeemNode {
     pub fn from_str<J: Jet>(prog: &str, wit: &str) -> Result<Arc<Self>, crate::ParseError> {
         use crate::base64::engine::general_purpose;
         use crate::base64::Engine as _;
-        use crate::hex::FromHex as _;
 
         let v = general_purpose::STANDARD
             .decode(prog)
             .map_err(crate::ParseError::Base64)?;
         let prog_iter = crate::BitIter::new(v.into_iter());
 
-        let v = Vec::from_hex(wit).map_err(crate::ParseError::Hex)?;
+        let v = hex::decode_to_vec(wit).map_err(crate::ParseError::Hex)?;
         let wit_iter = crate::BitIter::new(v.into_iter());
         Self::decode::<_, _, J>(prog_iter, wit_iter).map_err(crate::ParseError::Decode)
     }

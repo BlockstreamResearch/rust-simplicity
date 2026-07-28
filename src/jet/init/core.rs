@@ -6,7 +6,6 @@ use crate::merkle::cmr::Cmr;
 use crate::decode_bits;
 use crate::{decode, BitIter, BitWriter};
 use crate::analysis::Cost;
-use hashes::sha256::Midstate;
 use simplicity_sys::CFrameItem;
 use std::io::Write;
 use std::{fmt, str};
@@ -2604,7 +2603,7 @@ impl Jet for Core {
             ],
         };
 
-        Cmr(Midstate(bytes))
+        Cmr::from_byte_array(bytes)
     }
 
     fn source_ty(&self) -> TypeName {

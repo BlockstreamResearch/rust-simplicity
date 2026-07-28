@@ -5,14 +5,17 @@
 //! Tools for creating Merkle roots.
 //! There exist different Merkle roots for commitment and for redemption.
 
+mod midstate;
+
 pub mod amr;
 pub mod cmr;
 pub mod ihr;
 pub mod tmr;
 
+use self::midstate::MidstateExt;
 use crate::bit_encoding::BitCollector;
 use crate::Value;
-use hashes::{sha256, Hash, HashEngine};
+use hashes::{sha256, HashEngine};
 use std::fmt;
 
 /// Trait for types that have a Commitment Merkle Root.
@@ -33,11 +36,16 @@ impl FailEntropy {
     pub fn from_byte_array(data: [u8; 64]) -> Self {
         FailEntropy(data)
     }
+
+    /// Extract the raw bytes from a [`FailEntropy`].
+    pub fn to_byte_array(self) -> [u8; 64] {
+        self.0
+    }
 }
 
 impl fmt::Display for FailEntropy {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&hex::DisplayHex::as_hex(&self.0), f)
+        fmt::Display::fmt(&hex::DisplayHex::as_hex(&self.0[..]), f)
     }
 }
 
@@ -86,24 +94,29 @@ fn compact_value(value: &Value) -> [u8; 32] {
         consumed += 16;
     }
     debug_assert!(consumed == bytes.len());
-    engine.midstate().to_byte_array()
+    engine
+        .midstate()
+        .expect("hash input length was a multiple of 64")
+        .to_parts()
+        .0
 }
 
 fn bip340_iv(tag: &[u8]) -> sha256::Midstate {
-    let tag_hash = sha256::Hash::hash(tag);
-    let mut engine = sha256::Hash::engine();
-    engine.input(tag_hash.as_ref());
-    engine.input(tag_hash.as_ref());
-    engine.midstate()
+    sha256::Midstate::hash_tag(tag)
 }
 
-/// Convenience macro for wrappers of `Midstate`.
+/// Convenience macro for wrappers of `[u8; 32]`.
 ///
 /// Implements `From` to and from `[u8; 32]`,
 /// `MerkleRoot`, `AsRef<[u8]>`, `Debug` and `Display`
-#[macro_export]
-macro_rules! impl_midstate_wrapper {
-    ($wrapper:ident) => {
+macro_rules! impl_mr_type {
+    {
+        $(#[$($struct_attr:tt)*])*
+        pub struct $wrapper:ident([u8; 32]);
+    } => {
+        $(#[$($struct_attr)*])*
+        pub struct $wrapper([u8; 32]);
+
         impl AsRef<[u8]> for $wrapper {
             fn as_ref(&self) -> &[u8] {
                 self.0.as_ref()
@@ -123,76 +136,27 @@ macro_rules! impl_midstate_wrapper {
         }
 
         impl std::str::FromStr for $wrapper {
-            type Err = hashes::hex::HexToArrayError;
+            type Err = hex::error::DecodeFixedLengthBytesError;
 
             fn from_str(s: &str) -> Result<Self, Self::Err> {
-                let x: [u8; 32] = hashes::hex::FromHex::from_hex(s)?;
-                Ok($wrapper(Midstate::from_byte_array(x)))
+                let x: [u8; 32] = hex::decode_to_array(s)?;
+                Ok($wrapper(x))
             }
         }
 
         impl $wrapper {
-            /// Extend the given tagged hash by the given `left` and `right` hashes.
-            ///
-            /// The hash `self` is taken as initial value,
-            /// `left` and `right` hash are combined to create a 512-bit block,
-            /// and the compression function is run once
-            pub fn update(self, left: Self, right: Self) -> Self {
-                use $crate::hashes::{sha256, HashEngine};
-
-                let mut engine = sha256::HashEngine::from_midstate(self.0, 0);
-                engine.input(left.as_ref());
-                engine.input(right.as_ref());
-                $wrapper(engine.midstate())
-            }
-
-            /// Extend the given tagged hash by 256 bits of zeroes and the `right` hash.
-            ///
-            /// The hash `self` is taken as initial value,
-            /// 256 bits of zeroes and `right` hash are combined to create a 512-bit block,
-            /// and the compression function is run once
-            pub fn update_1(self, right: Self) -> Self {
-                use $crate::hashes::{sha256, HashEngine};
-
-                let mut engine = sha256::HashEngine::from_midstate(self.0, 0);
-                engine.input(&[0; 32]);
-                engine.input(&right.as_ref());
-                $wrapper(engine.midstate())
-            }
-
-            /// Updates the given tagged hash with given `left` cost and `right` hash.
-            ///
-            /// The cost is serialized as the last 64 bits in the left block
-            pub fn update_with_weight(self, left_weight: u64, right: Self) -> Self {
-                use $crate::hashes::{sha256, HashEngine};
-
-                let mut engine = sha256::HashEngine::from_midstate(self.0, 0);
-                let mut left_blk = [0; 32];
-                left_blk[24..].copy_from_slice(&left_weight.to_be_bytes());
-                engine.input(&left_blk);
-                engine.input(right.as_ref());
-                $wrapper(engine.midstate())
-            }
-
-            pub fn update_fail_entropy(self, entropy: $crate::FailEntropy) -> Self {
-                use $crate::hashes::{sha256, HashEngine};
-
-                let mut engine = sha256::HashEngine::from_midstate(self.0, 0);
-                engine.input(entropy.as_ref());
-                $wrapper(engine.midstate())
-            }
-
             /// Converts the given tagged hash into a byte array
             pub fn from_byte_array(data: [u8; 32]) -> Self {
-                $wrapper(Midstate::from_byte_array(data))
+                $wrapper(data)
             }
 
             /// Converts the given tagged hash into a byte array
             pub fn to_byte_array(self) -> [u8; 32] {
-                self.0.to_byte_array()
+                self.0
             }
         }
 
         impl_serde_string!($wrapper);
     };
 }
+use impl_mr_type;
