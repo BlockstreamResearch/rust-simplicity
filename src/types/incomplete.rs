@@ -11,6 +11,7 @@
 use crate::dag::{Dag, DagLike, NoSharing};
 use crate::types::union_bound::PointerLike;
 
+use super::context::BoundRefSharing;
 use super::{Bound, BoundRef, Context};
 
 use std::fmt;
@@ -168,7 +169,7 @@ impl Incomplete {
         // Now that we know our bound has finite size, we can safely use a
         // post-order iterator on it.
         let mut finalized = vec![];
-        for data in (ctx, bound_ref).post_order_iter::<NoSharing>() {
+        for data in (ctx, bound_ref).post_order_iter::<BoundRefSharing<'_>>() {
             let bound_get = data.node.0.get(&data.node.1);
             let final_data = match bound_get {
                 Bound::Free(s) => Incomplete::Free(s),
