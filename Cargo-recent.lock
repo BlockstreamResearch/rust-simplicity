@@ -77,9 +77,9 @@ dependencies = [
 
 [[package]]
 name = "bitcoin-consensus-encoding"
-version = "1.1.0"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "207311705279250ba465076a1bac4b1ac982855fff73fc5f67e22158ac58cdc9"
+checksum = "6712f9c6fd6785b3b270884e57c441c403dc5d7e19ca45368c97c7a1de3000ec"
 dependencies = [
  "bitcoin-internals",
  "hex-conservative 1.2.0",
@@ -130,9 +130,9 @@ dependencies = [
 
 [[package]]
 name = "bitcoin_hashes"
-version = "1.1.0"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a67800fcf7f3ca52f7796d4466948a424326b225950c79d1e76d0458760bb25d"
+checksum = "5304e53726dbe5f93141535e102ed97b5bf4714fbecefdda8f9fb98d7fdaff0e"
 dependencies = [
  "bitcoin-consensus-encoding",
  "bitcoin-internals",
@@ -180,7 +180,7 @@ dependencies = [
  "bitcoin",
  "bitcoin-consensus-encoding",
  "bitcoin-internals",
- "bitcoin_hashes 1.1.0",
+ "bitcoin_hashes 1.2.0",
  "hex-conservative 1.2.0",
  "secp256k1-zkp",
  "serde",
@@ -615,7 +615,7 @@ name = "simplicity-lang"
 version = "0.8.0"
 dependencies = [
  "bitcoin",
- "bitcoin_hashes 1.1.0",
+ "bitcoin_hashes 1.2.0",
  "byteorder",
  "elements",
  "getrandom 0.2.16",
@@ -642,7 +642,7 @@ dependencies = [
 name = "simplicity-sys"
 version = "0.7.0"
 dependencies = [
- "bitcoin_hashes 1.1.0",
+ "bitcoin_hashes 1.2.0",
  "cc",
 ]
 
