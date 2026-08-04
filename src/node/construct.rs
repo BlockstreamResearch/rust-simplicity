@@ -2,7 +2,7 @@
 
 use crate::dag::{InternalSharing, PostOrderIterItem};
 use crate::jet::{Jet, JetEnvironment};
-use crate::types::{self, arrow::Arrow};
+use crate::types::{self, Arrow};
 use crate::{encode, BitIter, BitWriter, Cmr, FailEntropy, FinalizeError, RedeemNode, Value, Word};
 
 use std::io;

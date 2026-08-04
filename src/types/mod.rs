@@ -86,6 +86,7 @@ mod precomputed;
 mod union_bound;
 mod variable;
 
+pub use arrow::{Arrow, FinalArrow};
 pub use context::{BoundRef, Context};
 pub use final_data::{CompleteBound, Final, TypeTooLargeError};
 pub use incomplete::Incomplete;

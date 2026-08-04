@@ -2,7 +2,7 @@
 
 use crate::dag::{DagLike, MaxSharing, NoSharing, PostOrderIterItem};
 use crate::jet::Jet;
-use crate::types::arrow::{Arrow, FinalArrow};
+use crate::types::{Arrow, FinalArrow};
 use crate::{encode, types, Value};
 use crate::{Amr, BitIter, BitWriter, Cmr, DecodeError, Ihr, Imr};
 
