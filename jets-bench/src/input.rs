@@ -306,8 +306,6 @@ impl FlatValue {
         );
 
         unsafe {
-            use simplicity::elements::hashes::Hash as _;
-
             let mut dst_inner = [UWORD::from(0u8); MAX_VALUE_BYTES / mem::size_of::<UWORD>()];
             let mut src_inner = [UWORD::from(0u8); MAX_VALUE_BYTES / mem::size_of::<UWORD>()];
 
@@ -347,7 +345,7 @@ impl FlatValue {
                 simplicity::Cmr::unit(),
                 simplicity::elements::taproot::ControlBlock::from_slice(&ctrl_blk).unwrap(),
                 None,
-                simplicity::elements::BlockHash::all_zeros(),
+                simplicity::elements::BlockHash::GENESIS_PREVIOUS_BLOCK_HASH,
             );
 
             // We can assert this because in our sampling code jets should never

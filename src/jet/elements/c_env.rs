@@ -4,15 +4,9 @@
 //!
 
 use bitcoin::taproot::TAPROOT_ANNEX_PREFIX;
-use elements::hashes::Hash as _;
 use std::os::raw::c_uchar;
 
-use elements::{
-    confidential,
-    encode::serialize,
-    secp256k1_zkp::{RangeProof, SurjectionProof},
-    taproot::ControlBlock,
-};
+use elements::{confidential, encode::serialize, taproot::ControlBlock};
 use simplicity_sys::c_jets::c_env::elements as c_elements;
 
 use crate::merkle::cmr::Cmr;
@@ -81,8 +75,8 @@ fn new_raw_input<'raw>(
         pegin: inp_data.genesis_hash.as_ref(),
         issuance: if inp.has_issuance() {
             c_elements::CRawInputIssuance {
-                blinding_nonce: Some(inp.asset_issuance.asset_blinding_nonce.as_ref()),
-                asset_entropy: Some(&inp.asset_issuance.asset_entropy),
+                blinding_nonce: Some(inp.asset_issuance.asset_blinding_nonce.as_byte_array()),
+                asset_entropy: Some(inp.asset_issuance.asset_entropy.as_byte_array()),
                 amount: value_ptr(inp.asset_issuance.amount, &inp_data.issuance_amount),
                 inflation_keys: value_ptr(
                     inp.asset_issuance.inflation_keys,
@@ -108,6 +102,8 @@ fn new_raw_input<'raw>(
 }
 
 fn new_tx_data(tx: &elements::Transaction, in_utxos: &[ElementsUtxo]) -> RawTransactionData {
+    use bitcoin::hashes::Hash as _;
+
     let mut tx_data = RawTransactionData {
         inputs: Vec::with_capacity(tx.input.len()),
         outputs: Vec::with_capacity(tx.output.len()),
@@ -120,10 +116,8 @@ fn new_tx_data(tx: &elements::Transaction, in_utxos: &[ElementsUtxo]) -> RawTran
                 .map(|x| x.genesis_hash.to_raw_hash().to_byte_array()),
             issuance_amount: serialize(&inp.asset_issuance.amount),
             issuance_inflation_keys: serialize(&inp.asset_issuance.inflation_keys),
-            amount_range_proof: serialize_rangeproof(&inp.witness.amount_rangeproof),
-            inflation_keys_range_proof: serialize_rangeproof(
-                &inp.witness.inflation_keys_rangeproof,
-            ),
+            amount_range_proof: inp.witness.amount_rangeproof.to_vec(),
+            inflation_keys_range_proof: inp.witness.inflation_keys_rangeproof.to_vec(),
             asset: asset_array(&in_utxo.asset),
             value: serialize(&in_utxo.value),
         };
@@ -134,8 +128,8 @@ fn new_tx_data(tx: &elements::Transaction, in_utxos: &[ElementsUtxo]) -> RawTran
             asset: asset_array(&out.asset),
             value: serialize(&out.value),
             nonce: nonce_array(&out.nonce),
-            surjection_proof: serialize_surjection_proof(&out.witness.surjection_proof),
-            range_proof: serialize_rangeproof(&out.witness.rangeproof),
+            surjection_proof: out.witness.surjection_proof.to_vec(),
+            range_proof: out.witness.rangeproof.to_vec(),
         };
         tx_data.outputs.push(out_data);
     }
@@ -177,7 +171,7 @@ pub(super) fn new_tx(
     }
 
     let c_raw_tx = c_elements::CRawTransaction {
-        txid: txid.as_raw_hash().as_byte_array(),
+        txid: txid.as_byte_array(),
         inputs: raw_inputs.as_ptr(),
         outputs: raw_outputs.as_ptr(),
         n_inputs: raw_inputs.len().try_into().expect("sane length"),
@@ -260,20 +254,6 @@ fn value_ptr(value: confidential::Value, data: &[u8]) -> *const c_uchar {
     } else {
         data.as_ptr()
     }
-}
-
-fn serialize_rangeproof(rangeproof: &Option<Box<RangeProof>>) -> Vec<c_uchar> {
-    rangeproof
-        .as_ref()
-        .map(|x| x.serialize())
-        .unwrap_or_default()
-}
-
-fn serialize_surjection_proof(surjection_proof: &Option<Box<SurjectionProof>>) -> Vec<c_uchar> {
-    surjection_proof
-        .as_ref()
-        .map(|x| x.serialize())
-        .unwrap_or_default()
 }
 
 /// If the last item in the witness stack is an annex, return the data following the 0x50 byte.

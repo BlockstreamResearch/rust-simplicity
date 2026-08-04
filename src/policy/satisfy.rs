@@ -296,8 +296,8 @@ mod tests {
     use crate::node::{CoreConstructible, JetConstructible, SimpleFinalizer, WitnessConstructible};
     use crate::policy::serialize;
     use crate::{BitMachine, FailEntropy, SimplicityKey};
+    use elements::bitcoin::hashes::{sha256, Hash};
     use elements::bitcoin::key::{Keypair, XOnlyPublicKey};
-    use elements::hashes::{sha256, Hash};
     use elements::secp256k1_zkp;
     use std::collections::HashMap;
     use std::sync::Arc;
