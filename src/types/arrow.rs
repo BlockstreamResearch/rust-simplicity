@@ -15,7 +15,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use crate::jet::Jet;
-use crate::node::{CoreConstructible, DisconnectConstructible, NoDisconnect, WitnessConstructible};
+use crate::node::{DisconnectConstructible, NoDisconnect};
 use crate::types::{Context, Error, Final, Type};
 use crate::value::Word;
 
@@ -183,10 +183,8 @@ impl<'brand> Arrow<'brand> {
             inference_context: lchild_arrow.inference_context.shallow_clone(),
         })
     }
-}
 
-impl<'brand> CoreConstructible<'brand> for Arrow<'brand> {
-    fn iden(inference_context: &Context<'brand>) -> Self {
+    pub fn iden(inference_context: &Context<'brand>) -> Self {
         // Throughout this module, when two types are the same, we reuse a
         // pointer to them rather than creating distinct types and unifying
         // them. This theoretically could lead to more confusing errors for
@@ -200,7 +198,7 @@ impl<'brand> CoreConstructible<'brand> for Arrow<'brand> {
         }
     }
 
-    fn unit(inference_context: &Context<'brand>) -> Self {
+    pub fn unit(inference_context: &Context<'brand>) -> Self {
         Arrow {
             source: Type::free(inference_context, new_name("unit_src_")),
             target: Type::unit(inference_context),
@@ -208,7 +206,7 @@ impl<'brand> CoreConstructible<'brand> for Arrow<'brand> {
         }
     }
 
-    fn injl(child: &Self) -> Self {
+    pub fn injl(child: &Self) -> Self {
         Arrow {
             source: child.source.shallow_clone(),
             target: Type::sum(
@@ -220,7 +218,7 @@ impl<'brand> CoreConstructible<'brand> for Arrow<'brand> {
         }
     }
 
-    fn injr(child: &Self) -> Self {
+    pub fn injr(child: &Self) -> Self {
         Arrow {
             source: child.source.shallow_clone(),
             target: Type::sum(
@@ -232,7 +230,7 @@ impl<'brand> CoreConstructible<'brand> for Arrow<'brand> {
         }
     }
 
-    fn take(child: &Self) -> Self {
+    pub fn take(child: &Self) -> Self {
         Arrow {
             source: Type::product(
                 &child.inference_context,
@@ -244,7 +242,7 @@ impl<'brand> CoreConstructible<'brand> for Arrow<'brand> {
         }
     }
 
-    fn drop_(child: &Self) -> Self {
+    pub fn drop_(child: &Self) -> Self {
         Arrow {
             source: Type::product(
                 &child.inference_context,
@@ -256,7 +254,7 @@ impl<'brand> CoreConstructible<'brand> for Arrow<'brand> {
         }
     }
 
-    fn comp(left: &Self, right: &Self) -> Result<Self, Error> {
+    pub fn comp(left: &Self, right: &Self) -> Result<Self, Error> {
         left.inference_context.check_eq(&right.inference_context)?;
         left.inference_context.unify(
             &left.target,
@@ -270,19 +268,19 @@ impl<'brand> CoreConstructible<'brand> for Arrow<'brand> {
         })
     }
 
-    fn case(left: &Self, right: &Self) -> Result<Self, Error> {
+    pub fn case(left: &Self, right: &Self) -> Result<Self, Error> {
         Self::for_case(Some(left), Some(right))
     }
 
-    fn assertl(left: &Self, _: crate::Cmr) -> Result<Self, Error> {
+    pub fn assertl(left: &Self) -> Result<Self, Error> {
         Self::for_case(Some(left), None)
     }
 
-    fn assertr(_: crate::Cmr, right: &Self) -> Result<Self, Error> {
+    pub fn assertr(right: &Self) -> Result<Self, Error> {
         Self::for_case(None, Some(right))
     }
 
-    fn pair(left: &Self, right: &Self) -> Result<Self, Error> {
+    pub fn pair(left: &Self, right: &Self) -> Result<Self, Error> {
         left.inference_context.check_eq(&right.inference_context)?;
         left.inference_context.unify(
             &left.source,
@@ -300,7 +298,7 @@ impl<'brand> CoreConstructible<'brand> for Arrow<'brand> {
         })
     }
 
-    fn fail(inference_context: &Context<'brand>, _: crate::FailEntropy) -> Self {
+    pub fn fail(inference_context: &Context<'brand>) -> Self {
         Arrow {
             source: Type::free(inference_context, new_name("fail_src_")),
             target: Type::free(inference_context, new_name("fail_tgt_")),
@@ -308,7 +306,7 @@ impl<'brand> CoreConstructible<'brand> for Arrow<'brand> {
         }
     }
 
-    fn const_word(inference_context: &Context<'brand>, word: Word) -> Self {
+    pub fn const_word(inference_context: &Context<'brand>, word: &Word) -> Self {
         Arrow {
             source: Type::unit(inference_context),
             target: Type::two_two_n(inference_context, word.n()),
@@ -316,7 +314,7 @@ impl<'brand> CoreConstructible<'brand> for Arrow<'brand> {
         }
     }
 
-    fn jet(inference_context: &Context<'brand>, jet: &dyn Jet) -> Self {
+    pub fn jet(inference_context: &Context<'brand>, jet: &dyn Jet) -> Self {
         inference_context.check_jet(jet);
 
         Arrow {
@@ -326,7 +324,15 @@ impl<'brand> CoreConstructible<'brand> for Arrow<'brand> {
         }
     }
 
-    fn inference_context(&self) -> &Context<'brand> {
+    pub fn witness(inference_context: &Context<'brand>) -> Self {
+        Arrow {
+            source: Type::free(inference_context, new_name("witness_src_")),
+            target: Type::free(inference_context, new_name("witness_tgt_")),
+            inference_context: inference_context.shallow_clone(),
+        }
+    }
+
+    pub fn inference_context(&self) -> &Context<'brand> {
         &self.inference_context
     }
 }
@@ -357,16 +363,6 @@ impl<'brand> DisconnectConstructible<'brand, Option<&Arrow<'brand>>> for Arrow<'
         match *right {
             Some(right) => Self::disconnect(left, right),
             None => Self::disconnect(left, &NoDisconnect),
-        }
-    }
-}
-
-impl<'brand, W> WitnessConstructible<'brand, W> for Arrow<'brand> {
-    fn witness(inference_context: &Context<'brand>, _: W) -> Self {
-        Arrow {
-            source: Type::free(inference_context, new_name("witness_src_")),
-            target: Type::free(inference_context, new_name("witness_tgt_")),
-            inference_context: inference_context.shallow_clone(),
         }
     }
 }
