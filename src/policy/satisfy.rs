@@ -8,7 +8,6 @@ use crate::{Cmr, Policy, Value};
 
 use elements::bitcoin;
 use elements::locktime::Height;
-use elements::taproot::TapLeafHash;
 
 use crate::jet::elements::ElementsEnv;
 use std::convert::TryFrom;
@@ -23,8 +22,9 @@ pub type Preimage32 = [u8; 32];
 /// on every query. Users are expected to override the methods that they
 /// have data for.
 pub trait Satisfier<'brand, Pk: ToXOnlyPubkey> {
-    /// Given a public key, look up a Schnorr signature with that key.
-    fn lookup_tap_leaf_script_sig(&self, _: &Pk, _: &TapLeafHash) -> Option<elements::SchnorrSig> {
+    /// Given the external Taproot public key, look up a Schnorr signature (for the sighash_all
+    /// sighash mode for the program's Tapbranch) with that key.
+    fn lookup_signature(&self, _: &Pk) -> Option<elements::SchnorrSig> {
         None
     }
 
@@ -152,10 +152,8 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
             }
             Policy::Trivial => super::serialize::trivial(inference_context),
             Policy::Key(ref key) => {
-                use elements::hashes::Hash as _;
-
                 let signature = satisfier
-                    .lookup_tap_leaf_script_sig(key, &TapLeafHash::all_zeros())
+                    .lookup_signature(key)
                     .map(|sig| sig.sig.serialize())
                     .map(Value::u512);
                 ok_if(
@@ -318,11 +316,7 @@ mod tests {
             &self.context
         }
 
-        fn lookup_tap_leaf_script_sig(
-            &self,
-            pk: &Pk,
-            _: &TapLeafHash,
-        ) -> Option<elements::SchnorrSig> {
+        fn lookup_signature(&self, pk: &Pk) -> Option<elements::SchnorrSig> {
             self.signatures.get(pk).copied()
         }
 
