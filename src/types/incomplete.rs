@@ -33,6 +33,59 @@ pub enum Incomplete {
     Final(Arc<super::Final>),
 }
 
+impl Incomplete {
+    /// Private helper function for `Incomplete::drop`. See `node::Inner::into_dag` which is
+    /// similar but doesn't require unsafe code.
+    fn into_dag(mut self) -> Dag<Arc<Self>> {
+        use core::{mem, ptr};
+        let ret = match &mut self {
+            Incomplete::Sum(ref mut left, ref mut right)
+            | Incomplete::Product(ref mut left, ref mut right) => {
+                // Because Rust is stupid, we cannot just move 'left' and 'right' out of 'self'.
+                // We get the error "cannot move out of type that implements Drop". This message
+                // dates to before Rust 1.0, before mem::forget was marked safe, and has no
+                // justification that stands up to any scrutiny. There have been mulitple RFCs to
+                // remove it but for some reason they have never gone anywhere. See for example
+                //
+                // https://internals.rust-lang.org/t/destructuring-droppable-structs/20993/41
+                //
+                // Anyway, instead we have to use unsafe code here to do this obviously-safe
+                // operation in an overcomplicated and hard-to-review way.
+                unsafe {
+                    // SAFETY we are calling `ptr::read` on valid pointers (they come directly
+                    // from references, which are always valid), and we will mem::forget their old
+                    // locations before any early returns or panics.
+
+                    let left = ptr::read(left);
+                    let right = ptr::read(right);
+                    Dag::Binary(left, right)
+                }
+            }
+            Incomplete::Cycle => Dag::Nullary,
+            Incomplete::Free(s) => {
+                // SAFETY: see above. We are manually dropping `s` here, which we have to do
+                // by reading it out of &mut self, because Rust is stupid.
+                unsafe {
+                    ptr::read(s);
+                }
+                Dag::Nullary
+            }
+            Incomplete::Final(fin) => {
+                // SAFETY: see above
+                unsafe {
+                    ptr::read(fin);
+                }
+                Dag::Nullary
+            }
+        };
+        // Because `Incomplete::drop` calls this method, we cannot allow `self` to be dropped
+        // under any circumstances, or else we will infinitely recurse and stack-overflow. (This
+        // is why we had to do ptr::read in every branch above).
+        mem::forget(self);
+        ret
+    }
+}
+
 impl DagLike for &'_ Incomplete {
     type Node = Incomplete;
     fn data(&self) -> &Incomplete {
@@ -102,6 +155,31 @@ impl fmt::Display for Incomplete {
             }
         }
         Ok(())
+    }
+}
+
+impl Drop for Incomplete {
+    fn drop(&mut self) {
+        // Note: this is basically identical to the drop impl for node::Node.
+        fn push_children(stack: &mut Vec<Arc<Incomplete>>, inner: Incomplete) {
+            use crate::dag::Dag;
+            match inner.into_dag() {
+                Dag::Nullary => {}
+                Dag::Unary(child) => stack.push(child),
+                Dag::Binary(left, right) => {
+                    stack.push(left);
+                    stack.push(right);
+                }
+            }
+        }
+
+        let mut stack = Vec::new();
+        push_children(&mut stack, std::mem::replace(self, Incomplete::Cycle));
+        while let Some(child) = stack.pop() {
+            if let Some(mut child) = Arc::into_inner(child) {
+                push_children(&mut stack, std::mem::replace(&mut child, Incomplete::Cycle));
+            }
+        }
     }
 }
 

@@ -804,6 +804,7 @@ impl<N: Marker<Witness = Value>> Node<N> {
 
 impl<N: Marker> Drop for Node<N> {
     fn drop(&mut self) {
+        // Note: this is basically identical to the drop impl for types::Incomplete.
         fn push_children<N: Marker>(
             stack: &mut Vec<Arc<Node<N>>>,
             inner: Inner<Arc<Node<N>>, N::Disconnect, N::Witness>,
