@@ -13,6 +13,7 @@ use crate::types::union_bound::PointerLike;
 
 use super::context::BoundRefSharing;
 use super::{Bound, BoundRef, Context};
+use super::{MAX_DISPLAY_DEPTH, MAX_DISPLAY_LENGTH};
 
 use std::fmt;
 use std::sync::Arc;
@@ -56,7 +57,18 @@ impl fmt::Debug for Incomplete {
 impl fmt::Display for Incomplete {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut skip_next = false;
-        for data in self.verbose_pre_order_iter::<NoSharing>(None) {
+        for data in self.verbose_pre_order_iter::<NoSharing>(Some(MAX_DISPLAY_DEPTH)) {
+            if data.index > MAX_DISPLAY_LENGTH {
+                write!(f, "... [truncated type after {} nodes]", MAX_DISPLAY_LENGTH)?;
+                return Ok(());
+            }
+            if data.depth == MAX_DISPLAY_DEPTH {
+                if data.n_children_yielded == 0 {
+                    f.write_str("...")?;
+                }
+                continue;
+            }
+
             if skip_next {
                 skip_next = false;
                 continue;
