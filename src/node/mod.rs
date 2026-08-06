@@ -802,6 +802,33 @@ impl<N: Marker<Witness = Value>> Node<N> {
     }
 }
 
+impl<N: Marker> Drop for Node<N> {
+    fn drop(&mut self) {
+        fn push_children<N: Marker>(
+            stack: &mut Vec<Arc<Node<N>>>,
+            inner: Inner<Arc<Node<N>>, N::Disconnect, N::Witness>,
+        ) {
+            use crate::dag::Dag;
+            match inner.into_dag() {
+                Dag::Nullary => {}
+                Dag::Unary(child) => stack.push(child),
+                Dag::Binary(left, right) => {
+                    stack.push(left);
+                    stack.push(right);
+                }
+            }
+        }
+
+        let mut stack = Vec::new();
+        push_children(&mut stack, std::mem::replace(&mut self.inner, Inner::Unit));
+        while let Some(child) = stack.pop() {
+            if let Some(mut child) = Arc::into_inner(child) {
+                push_children(&mut stack, std::mem::replace(&mut child.inner, Inner::Unit));
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 #[cfg(all(feature = "test-utils", feature = "elements"))]
 mod tests {

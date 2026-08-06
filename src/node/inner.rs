@@ -299,6 +299,26 @@ impl<C, X, W> Inner<C, X, W> {
 
 impl<C, X: Disconnectable<C>, W> Inner<Arc<C>, X, W> {
     /// Collapse the node information to a `Dag`
+    pub fn into_dag(self) -> Dag<Arc<C>> {
+        match self {
+            Inner::Iden
+            | Inner::Unit
+            | Inner::Witness(_)
+            | Inner::Fail(_)
+            | Inner::Jet(_)
+            | Inner::Word(_) => Dag::Nullary,
+            Inner::InjL(c)
+            | Inner::InjR(c)
+            | Inner::Take(c)
+            | Inner::Drop(c)
+            | Inner::AssertL(c, _)
+            | Inner::AssertR(_, c) => Dag::Unary(c),
+            Inner::Comp(cl, cr) | Inner::Case(cl, cr) | Inner::Pair(cl, cr) => Dag::Binary(cl, cr),
+            Inner::Disconnect(cl, cr) => cr.disconnect_dag_arc(cl),
+        }
+    }
+
+    /// Collapse the node information to a `Dag`
     pub fn as_dag(&self) -> Dag<&C> {
         match self {
             Inner::Iden
