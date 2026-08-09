@@ -314,7 +314,7 @@ impl<'brand> CoreConstructible<'brand> for Arrow<'brand> {
     fn const_word(inference_context: &Context<'brand>, word: Word) -> Self {
         Arrow {
             source: Type::unit(inference_context),
-            target: Type::two_two_n(inference_context, word.n() as usize), // cast safety: 32-bit machine or higher
+            target: Type::two_two_n(inference_context, word.n()),
             inference_context: inference_context.shallow_clone(),
         }
     }

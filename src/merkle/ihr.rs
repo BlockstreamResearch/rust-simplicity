@@ -49,13 +49,13 @@ impl From<Tmr> for Ihr {
 
 impl Imr {
     /// Produce a CMR for an iden combinator
-    pub fn iden() -> Self {
-        Self::IDEN_IV.into_merkle_root()
+    pub const fn iden() -> Self {
+        Self::from_byte_array(Self::IDEN_IV.to_parts().0)
     }
 
     /// Produce a CMR for a unit combinator
-    pub fn unit() -> Self {
-        Self::UNIT_IV.into_merkle_root()
+    pub const fn unit() -> Self {
+        Self::from_byte_array(Self::UNIT_IV.to_parts().0)
     }
 
     /// Produce a CMR for an injl combinator

@@ -32,13 +32,13 @@ impl From<Tmr> for Cmr {
 
 impl Cmr {
     /// Produce a CMR for an iden combinator
-    pub fn iden() -> Self {
-        Self::IDEN_IV.into_merkle_root()
+    pub const fn iden() -> Self {
+        Self::from_byte_array(Self::IDEN_IV.to_parts().0)
     }
 
     /// Produce a CMR for a unit combinator
-    pub fn unit() -> Self {
-        Self::UNIT_IV.into_merkle_root()
+    pub const fn unit() -> Self {
+        Self::from_byte_array(Self::UNIT_IV.to_parts().0)
     }
 
     /// Produce a CMR for an injl combinator
@@ -84,8 +84,8 @@ impl Cmr {
     }
 
     /// Produce a CMR for a witness combinator
-    pub fn witness() -> Self {
-        Self::WITNESS_IV.into_merkle_root()
+    pub const fn witness() -> Self {
+        Self::from_byte_array(Self::WITNESS_IV.to_parts().0)
     }
 
     /// Produce a CMR for a fail combinator
@@ -105,7 +105,7 @@ impl Cmr {
     /// This is equal to the IHR of the equivalent scribe, converted to a CMR in
     /// the usual way for jets.
     pub fn const_word(word: &Word) -> Self {
-        let w = 1 + word.n() as usize;
+        let w = 1 + word.n();
 
         let mut cmr_stack = Vec::with_capacity(33);
         // 1. Compute the CMR for the `scribe` corresponding to this word jet

@@ -33,12 +33,12 @@ impl FailEntropy {
     pub const ZERO: Self = FailEntropy([0; 64]);
 
     /// Construct a [`FailEntropy`] from raw data
-    pub fn from_byte_array(data: [u8; 64]) -> Self {
+    pub const fn from_byte_array(data: [u8; 64]) -> Self {
         FailEntropy(data)
     }
 
     /// Extract the raw bytes from a [`FailEntropy`].
-    pub fn to_byte_array(self) -> [u8; 64] {
+    pub const fn to_byte_array(self) -> [u8; 64] {
         self.0
     }
 }
@@ -101,7 +101,7 @@ fn compact_value(value: &Value) -> [u8; 32] {
         .0
 }
 
-fn bip340_iv(tag: &[u8]) -> sha256::Midstate {
+const fn bip340_iv(tag: &[u8]) -> sha256::Midstate {
     sha256::Midstate::hash_tag(tag)
 }
 
@@ -146,13 +146,18 @@ macro_rules! impl_mr_type {
 
         impl $wrapper {
             /// Converts the given tagged hash into a byte array
-            pub fn from_byte_array(data: [u8; 32]) -> Self {
+            pub const fn from_byte_array(data: [u8; 32]) -> Self {
                 $wrapper(data)
             }
 
             /// Converts the given tagged hash into a byte array
-            pub fn to_byte_array(self) -> [u8; 32] {
+            pub const fn to_byte_array(self) -> [u8; 32] {
                 self.0
+            }
+
+            /// Converts the given tagged hash into a byte array
+            pub const fn as_byte_array(&self) -> &[u8; 32] {
+                &self.0
             }
         }
 

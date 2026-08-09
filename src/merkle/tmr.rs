@@ -347,8 +347,8 @@ impl Tmr {
     ]);
 
     /// The TMR for the unit type
-    pub fn unit() -> Tmr {
-        Self::UNIT_IV.into_merkle_root()
+    pub const fn unit() -> Tmr {
+        Self::from_byte_array(Self::UNIT_IV.to_parts().0)
     }
 
     /// The TMR for the successor of a type.
