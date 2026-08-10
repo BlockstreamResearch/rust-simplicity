@@ -54,58 +54,52 @@ pub enum Policy<Pk: SimplicityKey> {
 
 impl<Pk: ToXOnlyPubkey> Policy<Pk> {
     /// Serializes the policy as a Simplicity fragment, with all witness nodes unpopulated.
-    fn serialize_no_witness<'brand, N>(
-        &self,
-        inference_context: &types::Context<'brand>,
-    ) -> Option<N>
+    fn serialize_no_witness<'brand, N>(&self, inference_context: &types::Context<'brand>) -> N
     where
         N: CoreConstructible<'brand> + WitnessConstructible<'brand, Option<Value>>,
     {
         match *self {
-            Policy::Unsatisfiable(entropy) => {
-                Some(serialize::unsatisfiable(inference_context, entropy))
-            }
-            Policy::Trivial => Some(serialize::trivial(inference_context)),
-            Policy::After(n) => Some(serialize::after(inference_context, n)),
-            Policy::Older(n) => Some(serialize::older(inference_context, n)),
-            Policy::Key(ref key) => Some(serialize::key(inference_context, key, None)),
+            Policy::Unsatisfiable(entropy) => serialize::unsatisfiable(inference_context, entropy),
+            Policy::Trivial => serialize::trivial(inference_context),
+            Policy::After(n) => serialize::after(inference_context, n),
+            Policy::Older(n) => serialize::older(inference_context, n),
+            Policy::Key(ref key) => serialize::key(inference_context, key, None),
             Policy::Sha256(ref hash) => {
-                Some(serialize::sha256::<Pk, _, _>(inference_context, hash, None))
+                serialize::sha256::<Pk, _, _>(inference_context, hash, None)
             }
             Policy::And {
                 ref left,
                 ref right,
             } => {
-                let left = left.serialize_no_witness(inference_context)?;
-                let right = right.serialize_no_witness(inference_context)?;
-                Some(serialize::and(&left, &right))
+                let left = left.serialize_no_witness(inference_context);
+                let right = right.serialize_no_witness(inference_context);
+                serialize::and(&left, &right)
             }
             Policy::Or {
                 ref left,
                 ref right,
             } => {
-                let left = left.serialize_no_witness(inference_context)?;
-                let right = right.serialize_no_witness(inference_context)?;
-                Some(serialize::or(&left, &right, None))
+                let left = left.serialize_no_witness(inference_context);
+                let right = right.serialize_no_witness(inference_context);
+                serialize::or(&left, &right, None)
             }
             Policy::Threshold(k, ref subs) => {
                 let k = u32::try_from(k).expect("can have k at most 2^32 in a threshold");
                 let subs = subs
                     .iter()
                     .map(|sub| sub.serialize_no_witness(inference_context))
-                    .collect::<Option<Vec<N>>>()?;
+                    .collect::<Vec<N>>();
                 let wits = iter::repeat(None).take(subs.len()).collect::<Vec<_>>();
-                Some(serialize::threshold(k, &subs, &wits))
+                serialize::threshold(k, &subs, &wits)
             }
         }
     }
 
     /// Return the program commitment of the policy.
-    pub fn commit(&self) -> Option<Arc<CommitNode>> {
+    pub fn commit(&self) -> Arc<CommitNode> {
         types::Context::with_context(|ctx| {
-            let construct: Arc<ConstructNode> = self.serialize_no_witness(&ctx)?;
-            let commit = construct.finalize_types().expect("policy has sound types");
-            Some(commit)
+            let construct: Arc<ConstructNode> = self.serialize_no_witness(&ctx);
+            construct.finalize_types().expect("policy has sound types")
         })
     }
 
@@ -113,7 +107,6 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
     pub fn cmr(&self) -> Cmr {
         types::Context::with_context(|ctx| {
             self.serialize_no_witness::<crate::merkle::cmr::ConstructibleCmr>(&ctx)
-                .expect("CMR is defined for asm fragment")
                 .cmr
         })
     }

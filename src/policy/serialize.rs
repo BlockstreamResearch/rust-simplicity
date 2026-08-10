@@ -258,7 +258,7 @@ mod tests {
     fn compile(
         policy: Policy<XOnlyPublicKey>,
     ) -> (Arc<CommitNode>, ElementsEnv<Arc<elements::Transaction>>) {
-        let commit = policy.commit().expect("no asm");
+        let commit = policy.commit();
         let env = ElementsEnv::dummy();
 
         (commit, env)
@@ -306,7 +306,7 @@ mod tests {
         let signature = keypair.sign_schnorr(message);
 
         let (xonly, _) = keypair.x_only_public_key();
-        let commit = Policy::Key(xonly).commit().expect("no asm");
+        let commit = Policy::Key(xonly).commit();
 
         assert!(execute_successful(
             &commit,
@@ -321,19 +321,13 @@ mod tests {
         let env =
             ElementsEnv::dummy_with(elements::LockTime::Blocks(height), elements::Sequence::ZERO);
 
-        let commit = Policy::<XOnlyPublicKey>::After(41)
-            .commit()
-            .expect("no asm");
+        let commit = Policy::<XOnlyPublicKey>::After(41).commit();
         assert!(execute_successful(&commit, vec![], &env));
 
-        let commit = Policy::<XOnlyPublicKey>::After(42)
-            .commit()
-            .expect("no asm");
+        let commit = Policy::<XOnlyPublicKey>::After(42).commit();
         assert!(execute_successful(&commit, vec![], &env));
 
-        let commit = Policy::<XOnlyPublicKey>::After(43)
-            .commit()
-            .expect("no asm");
+        let commit = Policy::<XOnlyPublicKey>::After(43).commit();
         assert!(!execute_successful(&commit, vec![], &env));
     }
 
@@ -344,19 +338,13 @@ mod tests {
             elements::Sequence::from_consensus(42),
         );
 
-        let commit = Policy::<XOnlyPublicKey>::Older(41)
-            .commit()
-            .expect("no asm");
+        let commit = Policy::<XOnlyPublicKey>::Older(41).commit();
         assert!(execute_successful(&commit, vec![], &env));
 
-        let commit = Policy::<XOnlyPublicKey>::Older(42)
-            .commit()
-            .expect("no asm");
+        let commit = Policy::<XOnlyPublicKey>::Older(42).commit();
         assert!(execute_successful(&commit, vec![], &env));
 
-        let commit = Policy::<XOnlyPublicKey>::Older(43)
-            .commit()
-            .expect("no asm");
+        let commit = Policy::<XOnlyPublicKey>::Older(43).commit();
         assert!(!execute_successful(&commit, vec![], &env));
     }
 

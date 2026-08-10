@@ -401,7 +401,7 @@ mod tests {
 
             assert!(policy.satisfy(&satisfier, &env).is_err());
 
-            let commit = policy.commit().expect("no asm");
+            let commit = policy.commit();
             let program = commit
                 .finalize(&mut SimpleFinalizer::new(std::iter::empty()))
                 .expect("finalize");
