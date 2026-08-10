@@ -4,7 +4,7 @@ use crate::jet::Jet;
 #[cfg(feature = "elements")]
 use crate::node::{CoreConstructible, DisconnectConstructible, WitnessConstructible};
 #[cfg(feature = "elements")]
-use crate::types::{self, Error};
+use crate::types::{self, Arrow, Error};
 use crate::value::Word;
 use crate::{FailEntropy, Tmr};
 use hashes::sha256::Midstate;
@@ -259,7 +259,7 @@ impl Cmr {
 #[cfg(feature = "elements")] // only used by policy module
 pub struct ConstructibleCmr<'brand> {
     pub cmr: Cmr,
-    pub inference_context: types::Context<'brand>,
+    pub arrow: Arrow<'brand>,
 }
 
 #[cfg(feature = "elements")] // only used by policy module
@@ -267,106 +267,103 @@ impl<'brand> CoreConstructible<'brand> for ConstructibleCmr<'brand> {
     fn iden(inference_context: &types::Context<'brand>) -> Self {
         ConstructibleCmr {
             cmr: Cmr::iden(),
-            inference_context: inference_context.shallow_clone(),
+            arrow: Arrow::iden(inference_context),
         }
     }
 
     fn unit(inference_context: &types::Context<'brand>) -> Self {
         ConstructibleCmr {
             cmr: Cmr::unit(),
-            inference_context: inference_context.shallow_clone(),
+            arrow: Arrow::unit(inference_context),
         }
     }
 
     fn injl(child: &Self) -> Self {
         ConstructibleCmr {
             cmr: Cmr::injl(child.cmr),
-            inference_context: child.inference_context.shallow_clone(),
+            arrow: Arrow::injl(child.arrow()),
         }
     }
 
     fn injr(child: &Self) -> Self {
         ConstructibleCmr {
             cmr: Cmr::injr(child.cmr),
-            inference_context: child.inference_context.shallow_clone(),
+            arrow: Arrow::injr(child.arrow()),
         }
     }
 
     fn take(child: &Self) -> Self {
         ConstructibleCmr {
             cmr: Cmr::take(child.cmr),
-            inference_context: child.inference_context.shallow_clone(),
+            arrow: Arrow::take(child.arrow()),
         }
     }
 
     fn drop_(child: &Self) -> Self {
         ConstructibleCmr {
             cmr: Cmr::drop(child.cmr),
-            inference_context: child.inference_context.shallow_clone(),
+            arrow: Arrow::drop_(child.arrow()),
         }
     }
 
     fn comp(left: &Self, right: &Self) -> Result<Self, Error> {
-        left.inference_context.check_eq(&right.inference_context)?;
         Ok(ConstructibleCmr {
             cmr: Cmr::comp(left.cmr, right.cmr),
-            inference_context: left.inference_context.shallow_clone(),
+            arrow: Arrow::comp(left.arrow(), right.arrow())?,
         })
     }
 
     fn case(left: &Self, right: &Self) -> Result<Self, Error> {
-        left.inference_context.check_eq(&right.inference_context)?;
         Ok(ConstructibleCmr {
             cmr: Cmr::case(left.cmr, right.cmr),
-            inference_context: left.inference_context.shallow_clone(),
+            arrow: Arrow::case(left.arrow(), right.arrow())?,
         })
     }
 
     fn assertl(left: &Self, right: Cmr) -> Result<Self, Error> {
         Ok(ConstructibleCmr {
             cmr: Cmr::case(left.cmr, right),
-            inference_context: left.inference_context.shallow_clone(),
+            arrow: Arrow::assertl(left.arrow())?,
         })
     }
 
     fn assertr(left: Cmr, right: &Self) -> Result<Self, Error> {
         Ok(ConstructibleCmr {
             cmr: Cmr::case(left, right.cmr),
-            inference_context: right.inference_context.shallow_clone(),
+            arrow: Arrow::assertr(right.arrow())?,
         })
     }
 
     fn pair(left: &Self, right: &Self) -> Result<Self, Error> {
-        left.inference_context.check_eq(&right.inference_context)?;
         Ok(ConstructibleCmr {
             cmr: Cmr::pair(left.cmr, right.cmr),
-            inference_context: left.inference_context.shallow_clone(),
+            arrow: Arrow::pair(left.arrow(), right.arrow())?,
         })
     }
 
     fn fail(inference_context: &types::Context<'brand>, entropy: FailEntropy) -> Self {
         ConstructibleCmr {
             cmr: Cmr::fail(entropy),
-            inference_context: inference_context.shallow_clone(),
+            arrow: Arrow::fail(inference_context),
         }
     }
 
     fn const_word(inference_context: &types::Context<'brand>, word: Word) -> Self {
         ConstructibleCmr {
             cmr: Cmr::const_word(&word),
-            inference_context: inference_context.shallow_clone(),
+            arrow: Arrow::const_word(inference_context, &word),
         }
     }
 
     fn jet(inference_context: &types::Context<'brand>, jet: &dyn Jet) -> Self {
         ConstructibleCmr {
             cmr: jet.cmr(),
-            inference_context: inference_context.shallow_clone(),
+            arrow: Arrow::jet(inference_context, jet),
         }
     }
 
-    fn inference_context(&self) -> &types::Context<'brand> {
-        &self.inference_context
+    fn arrow(&self) -> &Arrow<'brand> {
+        &self.arrow
     }
 }
 
@@ -379,7 +376,7 @@ impl<'brand, X> DisconnectConstructible<'brand, X> for ConstructibleCmr<'brand> 
     fn disconnect(left: &Self, _right: &X) -> Result<Self, Error> {
         Ok(ConstructibleCmr {
             cmr: Cmr::disconnect(left.cmr),
-            inference_context: left.inference_context.shallow_clone(),
+            arrow: left.arrow.shallow_clone(),
         })
     }
 }
@@ -388,8 +385,8 @@ impl<'brand, X> DisconnectConstructible<'brand, X> for ConstructibleCmr<'brand> 
 impl<'brand, W> WitnessConstructible<'brand, W> for ConstructibleCmr<'brand> {
     fn witness(inference_context: &types::Context<'brand>, _witness: W) -> Self {
         ConstructibleCmr {
+            arrow: Arrow::witness(inference_context),
             cmr: Cmr::witness(),
-            inference_context: inference_context.shallow_clone(),
         }
     }
 }
