@@ -184,6 +184,27 @@ impl<'brand> Arrow<'brand> {
         })
     }
 
+    /// A type arrow where both source and target types are new free variables.
+    ///
+    /// This should be used for hidden nodes or other nodes where nothing about
+    /// the node is known.
+    pub fn hidden(inference_context: &Context<'brand>) -> Self {
+        Self {
+            source: Type::free(inference_context, new_name("hidden_src_")),
+            target: Type::free(inference_context, new_name("hidden_tgt_")),
+            inference_context: inference_context.shallow_clone(),
+        }
+    }
+
+    /// A type arrow where both source and target types fixed to the unit type.
+    pub fn program(inference_context: &Context<'brand>) -> Self {
+        Self {
+            source: Type::unit(inference_context),
+            target: Type::unit(inference_context),
+            inference_context: inference_context.shallow_clone(),
+        }
+    }
+
     pub fn iden(inference_context: &Context<'brand>) -> Self {
         // Throughout this module, when two types are the same, we reuse a
         // pointer to them rather than creating distinct types and unifying
