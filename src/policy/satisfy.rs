@@ -271,7 +271,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
         env: &ElementsEnv<Arc<elements::Transaction>>,
     ) -> Result<Arc<RedeemNode>, SatisfierError> {
         let result = self.satisfy_internal(satisfier)?;
-        match result.get_node() {
+        match result.into_node() {
             Some(program) => program
                 .finalize_unpruned()
                 .expect("serialization should be sound")
