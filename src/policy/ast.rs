@@ -13,7 +13,7 @@ use std::sync::Arc;
 use std::{fmt, iter, mem};
 
 use crate::node::{ConstructNode, CoreConstructible, WitnessConstructible};
-use crate::policy::serialize::{self, AssemblyConstructible};
+use crate::policy::serialize;
 use crate::{types, Value};
 use crate::{Cmr, CommitNode, FailEntropy};
 use crate::{SimplicityKey, ToXOnlyPubkey, Translator};
@@ -50,8 +50,6 @@ pub enum Policy<Pk: SimplicityKey> {
     },
     /// Satisfy exactly `k` of the given sub-policies
     Threshold(usize, Vec<Policy<Pk>>),
-    /// Satisfy the program with the given CMR
-    Assembly(Cmr),
 }
 
 impl<Pk: ToXOnlyPubkey> Policy<Pk> {
@@ -61,9 +59,7 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
         inference_context: &types::Context<'brand>,
     ) -> Option<N>
     where
-        N: CoreConstructible<'brand>
-            + WitnessConstructible<'brand, Option<Value>>
-            + AssemblyConstructible<'brand>,
+        N: CoreConstructible<'brand> + WitnessConstructible<'brand, Option<Value>>,
     {
         match *self {
             Policy::Unsatisfiable(entropy) => {
@@ -101,7 +97,6 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                 let wits = iter::repeat(None).take(subs.len()).collect::<Vec<_>>();
                 Some(serialize::threshold(k, &subs, &wits))
             }
-            Policy::Assembly(cmr) => N::assembly(inference_context, cmr),
         }
     }
 
@@ -158,7 +153,6 @@ impl<Pk: SimplicityKey> Policy<Pk> {
                 left: Arc::new(left.translate(translator)?),
                 right: Arc::new(right.translate(translator)?),
             }),
-            Policy::Assembly(cmr) => Ok(Policy::Assembly(cmr)),
         }
     }
 
@@ -267,7 +261,6 @@ impl<Pk: SimplicityKey> fmt::Debug for Policy<Pk> {
                 }
                 f.write_str(")")
             }
-            Policy::Assembly(cmr) => write!(f, "asm({})", cmr),
         }
     }
 }

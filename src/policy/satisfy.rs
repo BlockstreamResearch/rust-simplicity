@@ -257,10 +257,6 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                     super::serialize::threshold(k, &subs_res, &witness_bits),
                 )
             }
-            Policy::Assembly(cmr) => match satisfier.lookup_asm_program(cmr) {
-                Some(program) => Hiding::from(program),
-                None => Hiding::hidden(cmr, inference_context.shallow_clone()),
-            },
         };
         Ok(node)
     }
@@ -292,9 +288,7 @@ mod tests {
     use crate::bit_encoding::BitCollector;
     use crate::dag::{DagLike, NoSharing};
     use crate::jet::elements::ElementsEnv;
-    use crate::jet::Elements;
-    use crate::node::{CoreConstructible as _, SimpleFinalizer, WitnessConstructible};
-    use crate::policy::serialize;
+    use crate::node::SimpleFinalizer;
     use crate::{BitMachine, FailEntropy, SimplicityKey};
     use elements::bitcoin::hashes::{sha256, Hash};
     use elements::bitcoin::key::{Keypair, XOnlyPublicKey};
@@ -717,101 +711,6 @@ mod tests {
                             _ => assert!(policy.satisfy(&satisfier, &env).is_err()),
                         }
                     }
-                }
-            }
-        });
-    }
-
-    #[test]
-    fn satisfy_asm() {
-        types::Context::with_context(|ctx| {
-            let env = ElementsEnv::dummy();
-            let mut satisfier = get_satisfier(ctx, &env);
-
-            let mut assert_branch = |witness0: Value, witness1: Value| {
-                let ctx = &satisfier.context;
-                let asm_program = serialize::verify_bexp(
-                    &Arc::<ConstructNode>::pair(
-                        &Arc::<ConstructNode>::witness(ctx, Some(witness0.clone())),
-                        &Arc::<ConstructNode>::witness(ctx, Some(witness1.clone())),
-                    )
-                    .expect("sound types"),
-                    &Arc::<ConstructNode>::jet(ctx, &Elements::Eq8),
-                );
-                let cmr = asm_program.cmr();
-                satisfier.assembly.insert(cmr, asm_program);
-
-                let policy = Policy::Assembly(cmr);
-                let result = policy.satisfy(&satisfier, &env);
-
-                if witness0 == witness1 {
-                    let program = result.expect("policy should be satisfiable");
-                    let witness = to_witness(&program);
-
-                    assert_eq!(2, witness.len());
-                    assert_eq!(&witness0, witness[0]);
-                    assert_eq!(&witness1, witness[1]);
-
-                    execute_successful(program, &env);
-                } else {
-                    assert!(matches!(result, Err(SatisfierError::AssemblyFailed(..))));
-                }
-            };
-
-            for a in 0..2 {
-                for b in 0..2 {
-                    assert_branch(Value::u8(a), Value::u8(b))
-                }
-            }
-        });
-    }
-
-    #[test]
-    #[ignore]
-    fn satisfy_asm_and_older() {
-        types::Context::with_context(|ctx| {
-            let env = ElementsEnv::dummy_with(
-                elements::LockTime::ZERO,
-                elements::Sequence::from_consensus(42),
-            );
-            let mut satisfier = get_satisfier(ctx, &env);
-
-            let mut assert_branch = |witness0: Value, witness1: Value| {
-                let ctx = &satisfier.context;
-                let asm_program = serialize::verify_bexp(
-                    &Arc::<ConstructNode>::pair(
-                        &Arc::<ConstructNode>::witness(ctx, Some(witness0.clone())),
-                        &Arc::<ConstructNode>::witness(ctx, Some(witness1.clone())),
-                    )
-                    .expect("sound types"),
-                    &Arc::<ConstructNode>::jet(ctx, &Elements::Eq8),
-                );
-                let cmr = asm_program.cmr();
-                satisfier.assembly.insert(cmr, asm_program);
-
-                let policy = Policy::And {
-                    left: Arc::new(Policy::Assembly(cmr)),
-                    right: Arc::new(Policy::Older(41)),
-                };
-                let result = policy.satisfy(&satisfier, &env);
-
-                if witness0 == witness1 {
-                    let program = result.expect("policy should be satisfiable");
-                    let witness = to_witness(&program);
-
-                    assert_eq!(2, witness.len());
-                    assert_eq!(&witness0, witness[0]);
-                    assert_eq!(&witness1, witness[1]);
-
-                    execute_successful(program, &env);
-                } else {
-                    assert!(matches!(result, Err(SatisfierError::AssemblyFailed(..))));
-                }
-            };
-
-            for a in 0..2 {
-                for b in 0..2 {
-                    assert_branch(Value::u8(a), Value::u8(b))
                 }
             }
         });

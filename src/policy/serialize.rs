@@ -3,38 +3,13 @@
 //! Serialization of Policy as Simplicity
 
 use crate::jet::Elements;
-use crate::merkle::cmr::ConstructibleCmr;
 use crate::node::{CoreConstructible, WitnessConstructible};
 use crate::types;
 use crate::FailEntropy;
-use crate::{Cmr, ConstructNode, ToXOnlyPubkey};
+use crate::ToXOnlyPubkey;
 
 use crate::value::Word;
 use std::convert::TryFrom;
-use std::sync::Arc;
-
-/// Constructors for the assembly fragment.
-pub trait AssemblyConstructible<'brand>: Sized {
-    /// Construct the assembly fragment with the given CMR.
-    ///
-    /// The construction fails if the CMR alone is not enough information to construct the object.
-    fn assembly(inference_context: &types::Context<'brand>, cmr: Cmr) -> Option<Self>;
-}
-
-impl<'brand> AssemblyConstructible<'brand> for ConstructibleCmr<'brand> {
-    fn assembly(inference_context: &types::Context<'brand>, cmr: Cmr) -> Option<Self> {
-        Some(ConstructibleCmr {
-            cmr,
-            inference_context: inference_context.shallow_clone(),
-        })
-    }
-}
-
-impl<'brand> AssemblyConstructible<'brand> for Arc<ConstructNode<'brand>> {
-    fn assembly(_: &types::Context, _cmr: Cmr) -> Option<Self> {
-        None
-    }
-}
 
 pub fn unsatisfiable<'brand, N>(
     inference_context: &types::Context<'brand>,
