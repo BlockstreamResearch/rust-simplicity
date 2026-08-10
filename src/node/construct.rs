@@ -366,8 +366,8 @@ impl<'brand> CoreConstructible<'brand> for ConstructData<'brand> {
         }
     }
 
-    fn inference_context(&self) -> &types::Context<'brand> {
-        self.arrow.inference_context()
+    fn arrow(&self) -> &Arrow<'brand> {
+        &self.arrow
     }
 }
 

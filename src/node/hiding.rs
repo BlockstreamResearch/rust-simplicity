@@ -255,10 +255,10 @@ impl<'brand, N: HasCmr + CoreConstructible<'brand>> CoreConstructible<'brand>
         N::jet(inference_context, jet).into()
     }
 
-    fn inference_context(&self) -> &Context<'brand> {
+    fn arrow(&self) -> &Arrow<'brand> {
         match self.inner {
-            HidingInner::Node(ref node) => node.inference_context(),
-            HidingInner::Hidden { ref arrow, .. } => arrow.inference_context(),
+            HidingInner::Node(ref node) => node.arrow(),
+            HidingInner::Hidden { ref arrow, .. } => arrow,
         }
     }
 }
