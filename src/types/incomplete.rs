@@ -11,7 +11,9 @@
 use crate::dag::{Dag, DagLike, NoSharing};
 use crate::types::union_bound::PointerLike;
 
+use super::context::BoundRefSharing;
 use super::{Bound, BoundRef, Context};
+use super::{MAX_DISPLAY_DEPTH, MAX_DISPLAY_LENGTH};
 
 use std::fmt;
 use std::sync::Arc;
@@ -29,6 +31,59 @@ pub enum Incomplete {
     Product(Arc<Incomplete>, Arc<Incomplete>),
     /// A complete type (including unit)
     Final(Arc<super::Final>),
+}
+
+impl Incomplete {
+    /// Private helper function for `Incomplete::drop`. See `node::Inner::into_dag` which is
+    /// similar but doesn't require unsafe code.
+    fn into_dag(mut self) -> Dag<Arc<Self>> {
+        use core::{mem, ptr};
+        let ret = match &mut self {
+            Incomplete::Sum(ref mut left, ref mut right)
+            | Incomplete::Product(ref mut left, ref mut right) => {
+                // Because Rust is stupid, we cannot just move 'left' and 'right' out of 'self'.
+                // We get the error "cannot move out of type that implements Drop". This message
+                // dates to before Rust 1.0, before mem::forget was marked safe, and has no
+                // justification that stands up to any scrutiny. There have been mulitple RFCs to
+                // remove it but for some reason they have never gone anywhere. See for example
+                //
+                // https://internals.rust-lang.org/t/destructuring-droppable-structs/20993/41
+                //
+                // Anyway, instead we have to use unsafe code here to do this obviously-safe
+                // operation in an overcomplicated and hard-to-review way.
+                unsafe {
+                    // SAFETY we are calling `ptr::read` on valid pointers (they come directly
+                    // from references, which are always valid), and we will mem::forget their old
+                    // locations before any early returns or panics.
+
+                    let left = ptr::read(left);
+                    let right = ptr::read(right);
+                    Dag::Binary(left, right)
+                }
+            }
+            Incomplete::Cycle => Dag::Nullary,
+            Incomplete::Free(s) => {
+                // SAFETY: see above. We are manually dropping `s` here, which we have to do
+                // by reading it out of &mut self, because Rust is stupid.
+                unsafe {
+                    ptr::read(s);
+                }
+                Dag::Nullary
+            }
+            Incomplete::Final(fin) => {
+                // SAFETY: see above
+                unsafe {
+                    ptr::read(fin);
+                }
+                Dag::Nullary
+            }
+        };
+        // Because `Incomplete::drop` calls this method, we cannot allow `self` to be dropped
+        // under any circumstances, or else we will infinitely recurse and stack-overflow. (This
+        // is why we had to do ptr::read in every branch above).
+        mem::forget(self);
+        ret
+    }
 }
 
 impl DagLike for &'_ Incomplete {
@@ -55,7 +110,18 @@ impl fmt::Debug for Incomplete {
 impl fmt::Display for Incomplete {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut skip_next = false;
-        for data in self.verbose_pre_order_iter::<NoSharing>(None) {
+        for data in self.verbose_pre_order_iter::<NoSharing>(Some(MAX_DISPLAY_DEPTH)) {
+            if data.index > MAX_DISPLAY_LENGTH {
+                write!(f, "... [truncated type after {} nodes]", MAX_DISPLAY_LENGTH)?;
+                return Ok(());
+            }
+            if data.depth == MAX_DISPLAY_DEPTH {
+                if data.n_children_yielded == 0 {
+                    f.write_str("...")?;
+                }
+                continue;
+            }
+
             if skip_next {
                 skip_next = false;
                 continue;
@@ -89,6 +155,31 @@ impl fmt::Display for Incomplete {
             }
         }
         Ok(())
+    }
+}
+
+impl Drop for Incomplete {
+    fn drop(&mut self) {
+        // Note: this is basically identical to the drop impl for node::Node.
+        fn push_children(stack: &mut Vec<Arc<Incomplete>>, inner: Incomplete) {
+            use crate::dag::Dag;
+            match inner.into_dag() {
+                Dag::Nullary => {}
+                Dag::Unary(child) => stack.push(child),
+                Dag::Binary(left, right) => {
+                    stack.push(left);
+                    stack.push(right);
+                }
+            }
+        }
+
+        let mut stack = Vec::new();
+        push_children(&mut stack, std::mem::replace(self, Incomplete::Cycle));
+        while let Some(child) = stack.pop() {
+            if let Some(mut child) = Arc::into_inner(child) {
+                push_children(&mut stack, std::mem::replace(&mut child, Incomplete::Cycle));
+            }
+        }
     }
 }
 
@@ -168,7 +259,7 @@ impl Incomplete {
         // Now that we know our bound has finite size, we can safely use a
         // post-order iterator on it.
         let mut finalized = vec![];
-        for data in (ctx, bound_ref).post_order_iter::<NoSharing>() {
+        for data in (ctx, bound_ref).post_order_iter::<BoundRefSharing<'_>>() {
             let bound_get = data.node.0.get(&data.node.1);
             let final_data = match bound_get {
                 Bound::Free(s) => Incomplete::Free(s),

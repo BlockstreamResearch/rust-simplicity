@@ -15,13 +15,14 @@
 //!
 
 use std::any::TypeId;
+use std::collections::HashMap;
 use std::fmt;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex, MutexGuard};
 
 use ghost_cell::GhostToken;
 
-use crate::dag::{Dag, DagLike};
+use crate::dag::{Dag, DagLike, SharingTracker};
 use crate::jet::Jet;
 
 use super::{
@@ -254,7 +255,7 @@ impl<'brand> Context<'brand> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BoundRef<'brand> {
     phantom: InvariantLifetime<'brand>,
     index: usize,
@@ -285,7 +286,9 @@ impl super::PointerLike for BoundRef<'_> {
     }
 }
 
-impl<'brand> DagLike for (&'_ Context<'brand>, BoundRef<'brand>) {
+pub type CtxAndBoundRef<'ctx, 'brand> = (&'ctx Context<'brand>, BoundRef<'brand>);
+
+impl<'brand> DagLike for CtxAndBoundRef<'_, 'brand> {
     type Node = BoundRef<'brand>;
     fn data(&self) -> &BoundRef<'brand> {
         &self.1
@@ -300,6 +303,27 @@ impl<'brand> DagLike for (&'_ Context<'brand>, BoundRef<'brand>) {
                 Dag::Binary((self.0, root1), (self.0, root2))
             }
         }
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct BoundRefSharing<'brand> {
+    map: HashMap<BoundRef<'brand>, usize>,
+}
+
+impl<'brand> SharingTracker<CtxAndBoundRef<'_, 'brand>> for BoundRefSharing<'brand> {
+    fn record(&mut self, d: &CtxAndBoundRef<'_, 'brand>, index: usize) -> Option<usize> {
+        use std::collections::hash_map::Entry;
+        match self.map.entry(d.1.clone()) {
+            Entry::Occupied(occ) => Some(*occ.get()),
+            Entry::Vacant(vac) => {
+                vac.insert(index);
+                None
+            }
+        }
+    }
+    fn seen_before(&self, d: &CtxAndBoundRef<'_, 'brand>) -> Option<usize> {
+        self.map.get(&d.1).copied()
     }
 }
 
