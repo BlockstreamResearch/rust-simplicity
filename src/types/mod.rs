@@ -416,8 +416,7 @@ mod tests {
     use super::*;
 
     use crate::jet::Core;
-    use crate::node::JetConstructible;
-    use crate::node::{ConstructNode, CoreConstructible};
+    use crate::node::{ConstructNode, CoreConstructible as _};
 
     #[test]
     fn inference_failure() {

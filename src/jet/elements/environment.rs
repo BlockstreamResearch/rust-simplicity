@@ -118,7 +118,6 @@ impl ElementsEnv<std::sync::Arc<elements::Transaction>> {
 
     /// Return a dummy Elements environment with given locktime
     pub fn dummy_with(lock_time: elements::LockTime, sequence: elements::Sequence) -> Self {
-        use elements::hashes::Hash as _;
         use elements::AssetIssuance;
 
         let ctrl_blk: [u8; 33] = [
@@ -151,7 +150,7 @@ impl ElementsEnv<std::sync::Arc<elements::Transaction>> {
             Cmr::from_byte_array([0; 32]),
             ControlBlock::from_slice(&ctrl_blk).unwrap(),
             None,
-            elements::BlockHash::all_zeros(),
+            elements::BlockHash::GENESIS_PREVIOUS_BLOCK_HASH,
         )
     }
 }

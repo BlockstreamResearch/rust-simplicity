@@ -8,7 +8,6 @@ use crate::{Cmr, Policy, Value};
 
 use elements::bitcoin;
 use elements::locktime::Height;
-use elements::taproot::TapLeafHash;
 
 use crate::jet::elements::ElementsEnv;
 use std::convert::TryFrom;
@@ -23,8 +22,9 @@ pub type Preimage32 = [u8; 32];
 /// on every query. Users are expected to override the methods that they
 /// have data for.
 pub trait Satisfier<'brand, Pk: ToXOnlyPubkey> {
-    /// Given a public key, look up a Schnorr signature with that key.
-    fn lookup_tap_leaf_script_sig(&self, _: &Pk, _: &TapLeafHash) -> Option<elements::SchnorrSig> {
+    /// Given the external Taproot public key, look up a Schnorr signature (for the sighash_all
+    /// sighash mode for the program's Tapbranch) with that key.
+    fn lookup_signature(&self, _: &Pk) -> Option<elements::SchnorrSig> {
         None
     }
 
@@ -152,10 +152,8 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
             }
             Policy::Trivial => super::serialize::trivial(inference_context),
             Policy::Key(ref key) => {
-                use elements::hashes::Hash as _;
-
                 let signature = satisfier
-                    .lookup_tap_leaf_script_sig(key, &TapLeafHash::all_zeros())
+                    .lookup_signature(key)
                     .map(|sig| sig.sig.serialize())
                     .map(Value::u512);
                 ok_if(
@@ -259,10 +257,6 @@ impl<Pk: ToXOnlyPubkey> Policy<Pk> {
                     super::serialize::threshold(k, &subs_res, &witness_bits),
                 )
             }
-            Policy::Assembly(cmr) => match satisfier.lookup_asm_program(cmr) {
-                Some(program) => Hiding::from(program),
-                None => Hiding::hidden(cmr, inference_context.shallow_clone()),
-            },
         };
         Ok(node)
     }
@@ -294,12 +288,10 @@ mod tests {
     use crate::bit_encoding::BitCollector;
     use crate::dag::{DagLike, NoSharing};
     use crate::jet::elements::ElementsEnv;
-    use crate::jet::Elements;
-    use crate::node::{CoreConstructible, JetConstructible, SimpleFinalizer, WitnessConstructible};
-    use crate::policy::serialize;
+    use crate::node::SimpleFinalizer;
     use crate::{BitMachine, FailEntropy, SimplicityKey};
+    use elements::bitcoin::hashes::{sha256, Hash};
     use elements::bitcoin::key::{Keypair, XOnlyPublicKey};
-    use elements::hashes::{sha256, Hash};
     use elements::secp256k1_zkp;
     use std::collections::HashMap;
     use std::sync::Arc;
@@ -318,11 +310,7 @@ mod tests {
             &self.context
         }
 
-        fn lookup_tap_leaf_script_sig(
-            &self,
-            pk: &Pk,
-            _: &TapLeafHash,
-        ) -> Option<elements::SchnorrSig> {
+        fn lookup_signature(&self, pk: &Pk) -> Option<elements::SchnorrSig> {
             self.signatures.get(pk).copied()
         }
 
@@ -413,7 +401,7 @@ mod tests {
 
             assert!(policy.satisfy(&satisfier, &env).is_err());
 
-            let commit = policy.commit().expect("no asm");
+            let commit = policy.commit();
             let program = commit
                 .finalize(&mut SimpleFinalizer::new(std::iter::empty()))
                 .expect("finalize");
@@ -723,101 +711,6 @@ mod tests {
                             _ => assert!(policy.satisfy(&satisfier, &env).is_err()),
                         }
                     }
-                }
-            }
-        });
-    }
-
-    #[test]
-    fn satisfy_asm() {
-        types::Context::with_context(|ctx| {
-            let env = ElementsEnv::dummy();
-            let mut satisfier = get_satisfier(ctx, &env);
-
-            let mut assert_branch = |witness0: Value, witness1: Value| {
-                let ctx = &satisfier.context;
-                let asm_program = serialize::verify_bexp(
-                    &Arc::<ConstructNode>::pair(
-                        &Arc::<ConstructNode>::witness(ctx, Some(witness0.clone())),
-                        &Arc::<ConstructNode>::witness(ctx, Some(witness1.clone())),
-                    )
-                    .expect("sound types"),
-                    &Arc::<ConstructNode>::jet(ctx, &Elements::Eq8),
-                );
-                let cmr = asm_program.cmr();
-                satisfier.assembly.insert(cmr, asm_program);
-
-                let policy = Policy::Assembly(cmr);
-                let result = policy.satisfy(&satisfier, &env);
-
-                if witness0 == witness1 {
-                    let program = result.expect("policy should be satisfiable");
-                    let witness = to_witness(&program);
-
-                    assert_eq!(2, witness.len());
-                    assert_eq!(&witness0, witness[0]);
-                    assert_eq!(&witness1, witness[1]);
-
-                    execute_successful(program, &env);
-                } else {
-                    assert!(matches!(result, Err(SatisfierError::AssemblyFailed(..))));
-                }
-            };
-
-            for a in 0..2 {
-                for b in 0..2 {
-                    assert_branch(Value::u8(a), Value::u8(b))
-                }
-            }
-        });
-    }
-
-    #[test]
-    #[ignore]
-    fn satisfy_asm_and_older() {
-        types::Context::with_context(|ctx| {
-            let env = ElementsEnv::dummy_with(
-                elements::LockTime::ZERO,
-                elements::Sequence::from_consensus(42),
-            );
-            let mut satisfier = get_satisfier(ctx, &env);
-
-            let mut assert_branch = |witness0: Value, witness1: Value| {
-                let ctx = &satisfier.context;
-                let asm_program = serialize::verify_bexp(
-                    &Arc::<ConstructNode>::pair(
-                        &Arc::<ConstructNode>::witness(ctx, Some(witness0.clone())),
-                        &Arc::<ConstructNode>::witness(ctx, Some(witness1.clone())),
-                    )
-                    .expect("sound types"),
-                    &Arc::<ConstructNode>::jet(ctx, &Elements::Eq8),
-                );
-                let cmr = asm_program.cmr();
-                satisfier.assembly.insert(cmr, asm_program);
-
-                let policy = Policy::And {
-                    left: Arc::new(Policy::Assembly(cmr)),
-                    right: Arc::new(Policy::Older(41)),
-                };
-                let result = policy.satisfy(&satisfier, &env);
-
-                if witness0 == witness1 {
-                    let program = result.expect("policy should be satisfiable");
-                    let witness = to_witness(&program);
-
-                    assert_eq!(2, witness.len());
-                    assert_eq!(&witness0, witness[0]);
-                    assert_eq!(&witness1, witness[1]);
-
-                    execute_successful(program, &env);
-                } else {
-                    assert!(matches!(result, Err(SatisfierError::AssemblyFailed(..))));
-                }
-            };
-
-            for a in 0..2 {
-                for b in 0..2 {
-                    assert_branch(Value::u8(a), Value::u8(b))
                 }
             }
         });

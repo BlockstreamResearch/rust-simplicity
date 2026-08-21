@@ -363,12 +363,40 @@ impl Tmr {
 
     /// The TMR for the sum of two types, whose TMRs are given
     pub fn sum(tmr1: Tmr, tmr2: Tmr) -> Tmr {
-        Self::SUM_IV.zz_update_2x32(tmr1, tmr2).into_merkle_root()
+        Self::SUM_IV
+            .update_64(&super::concat(tmr1, tmr2))
+            .into_merkle_root()
+    }
+
+    /// The TMR for the sum of two types, whose TMRs are given
+    ///
+    /// This function is slow but can be used in a const context. If you do not
+    /// need to run in a const context, use [`Self::sum`] instead.
+    pub const fn sum_unoptimized(tmr1: Tmr, tmr2: Tmr) -> Tmr {
+        Self::from_byte_array(
+            Self::SUM_IV
+                .update_2x32_unoptimized(tmr1.as_byte_array(), tmr2.as_byte_array())
+                .to_parts()
+                .0,
+        )
     }
 
     /// The TMR for the product of two types, whose TMRs are given
     pub fn product(tmr1: Tmr, tmr2: Tmr) -> Tmr {
         Self::PROD_IV.zz_update_2x32(tmr1, tmr2).into_merkle_root()
+    }
+
+    /// The TMR for the product of two types, whose TMRs are given
+    ///
+    /// This function is slow but can be used in a const context. If you do not
+    /// need to run in a const context, use [`Self::product`] instead.
+    pub const fn product_unoptimized(tmr1: Tmr, tmr2: Tmr) -> Tmr {
+        Self::from_byte_array(
+            Self::PROD_IV
+                .update_2x32_unoptimized(tmr1.as_byte_array(), tmr2.as_byte_array())
+                .to_parts()
+                .0,
+        )
     }
 }
 
@@ -437,6 +465,20 @@ mod tests {
                 check_pow(Tmr::TWO_TWO_N[i], i, &tmrs);
             }
         });
+    }
+
+    #[test]
+    fn direct_constructors() {
+        let unit = Tmr::unit();
+        let bit1 = Tmr::sum(unit, unit);
+        let bit2 = Tmr::sum_unoptimized(unit, unit);
+        assert_eq!(bit1, bit2);
+        assert_eq!(bit1, Tmr::TWO_TWO_N[0]);
+
+        let dbit1 = Tmr::product(bit1, bit1);
+        let dbit2 = Tmr::product_unoptimized(bit1, bit1);
+        assert_eq!(dbit1, dbit2);
+        assert_eq!(dbit1, Tmr::TWO_TWO_N[1]);
     }
 
     #[test]

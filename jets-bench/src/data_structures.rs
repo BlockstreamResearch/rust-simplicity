@@ -4,10 +4,7 @@
 use bitcoin::secp256k1;
 use elements::Txid;
 use rand::{thread_rng, RngCore};
-use simplicity::{
-    bitcoin, elements, elements::hashes::Hash as _, types::Final, BitIter, EarlyEndOfStreamError,
-    Value,
-};
+use simplicity::{bitcoin, elements, types::Final, BitIter, EarlyEndOfStreamError, Value};
 
 /// Engine to compute SHA256 hash function.
 /// We can't use hashes::sha256::HashEngine because it does not accept
@@ -182,7 +179,7 @@ impl SimplicityEncode for elements::confidential::Asset {
         match self {
             elements::confidential::Asset::Explicit(a) => {
                 let left = Final::product(Final::u1(), Final::u256());
-                Value::right(left, Value::u256(a.into_inner().to_byte_array()))
+                Value::right(left, Value::u256(a.to_byte_array()))
             }
             elements::confidential::Asset::Confidential(gen) => {
                 let ser = gen.serialize();
@@ -324,7 +321,7 @@ impl BenchSample for elements::confidential::Asset {
             let mut rng = rand::thread_rng();
             let mut asset = [0u8; 32];
             rng.fill_bytes(&mut asset);
-            let asset = elements::AssetId::from_slice(&asset).unwrap();
+            let asset = elements::AssetId::from_byte_array(asset);
             elements::confidential::Asset::Explicit(asset)
         } else {
             let asset_str = "0abb0d5d5843b9378c7f245fd7329d6fcef6926554f0c95f7cf0316239178f743c";

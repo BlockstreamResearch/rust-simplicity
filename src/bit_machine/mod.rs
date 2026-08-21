@@ -731,7 +731,7 @@ mod tests {
 
     #[test]
     fn crash_regression2() {
-        use crate::node::{CoreConstructible as _, JetConstructible as _};
+        use crate::node::CoreConstructible as _;
 
         type Node<'brand> = Arc<crate::ConstructNode<'brand>>;
 

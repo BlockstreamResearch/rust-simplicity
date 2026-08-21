@@ -90,6 +90,14 @@ pub use hiding::Hiding;
 pub use inner::Inner;
 pub use redeem::{Redeem, RedeemData, RedeemNode};
 
+/// Lots of existing code imports [`JetConstructible`] just to get the `jet` method.
+/// Almost all such code also imports [`CoreConstructible`], which now gives them
+/// this method, so this code will continue to work as long as there is something
+/// called [`JetConstructible`] to import.
+#[doc(hidden)]
+#[deprecated(note = "subsumed by CoreConstructible")]
+pub enum JetConstructible {}
+
 // This trait should only be implemented on empty types, so we can demand
 // every trait bound under the sun. Doing so will make #[derive]s easier
 // for downstream users.
@@ -129,8 +137,7 @@ impl From<NoWitness> for Option<Value> {
 }
 
 pub trait Constructible<'brand, X, W>:
-    JetConstructible<'brand>
-    + DisconnectConstructible<'brand, X>
+    DisconnectConstructible<'brand, X>
     + WitnessConstructible<'brand, W>
     + CoreConstructible<'brand>
     + Sized
@@ -162,7 +169,6 @@ pub trait Constructible<'brand, X, W>:
 
 impl<'brand, X, W, T> Constructible<'brand, X, W> for T where
     T: DisconnectConstructible<'brand, X>
-        + JetConstructible<'brand>
         + WitnessConstructible<'brand, W>
         + CoreConstructible<'brand>
         + Sized
@@ -183,6 +189,7 @@ pub trait CoreConstructible<'brand>: Sized {
     fn pair(left: &Self, right: &Self) -> Result<Self, types::Error>;
     fn fail(inference_context: &types::Context<'brand>, entropy: FailEntropy) -> Self;
     fn const_word(inference_context: &types::Context<'brand>, word: Word) -> Self;
+    fn jet(inference_context: &types::Context<'brand>, jet: &dyn Jet) -> Self;
 
     /// Accessor for the type inference context used to create the object.
     fn inference_context(&self) -> &types::Context<'brand>;
@@ -342,10 +349,6 @@ pub trait CoreConstructible<'brand>: Sized {
 
 pub trait DisconnectConstructible<'brand, X>: Sized {
     fn disconnect(left: &Self, right: &X) -> Result<Self, types::Error>;
-}
-
-pub trait JetConstructible<'brand>: Sized {
-    fn jet(inference_context: &types::Context<'brand>, jet: &dyn Jet) -> Self;
 }
 
 pub trait WitnessConstructible<'brand, W>: Sized {
@@ -539,6 +542,14 @@ where
         })
     }
 
+    fn jet(inference_context: &types::Context<'brand>, jet: &dyn Jet) -> Self {
+        Arc::new(Node {
+            cmr: Cmr::jet(jet),
+            data: N::CachedData::jet(inference_context, jet),
+            inner: Inner::Jet(jet.dyn_clone()),
+        })
+    }
+
     fn inference_context(&self) -> &types::Context<'brand> {
         self.data.inference_context()
     }
@@ -568,20 +579,6 @@ where
             cmr: Cmr::witness(),
             data: N::CachedData::witness(inference_context, value.clone()),
             inner: Inner::Witness(value),
-        })
-    }
-}
-
-impl<'brand, N> JetConstructible<'brand> for Arc<Node<N>>
-where
-    N: Marker,
-    N::CachedData: JetConstructible<'brand>,
-{
-    fn jet(inference_context: &types::Context<'brand>, jet: &dyn Jet) -> Self {
-        Arc::new(Node {
-            cmr: Cmr::jet(jet),
-            data: N::CachedData::jet(inference_context, jet),
-            inner: Inner::Jet(jet.dyn_clone()),
         })
     }
 }

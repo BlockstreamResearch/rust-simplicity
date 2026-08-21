@@ -4,16 +4,14 @@ use std::sync::Arc;
 
 use crate::jet::elements::{ElementsEnv, ElementsUtxo};
 use crate::jet::Elements;
-use crate::node::{ConstructNode, JetConstructible};
+use crate::node::{ConstructNode, CoreConstructible as _};
 use crate::types;
 use crate::{BitMachine, Cmr, Value};
-use elements::hashes::sha256::Midstate;
-use elements::hashes::Hash as _;
-use elements::secp256k1_zkp::Tweak;
 use elements::taproot::ControlBlock;
 use elements::{
-    confidential, AssetId, AssetIssuance, BlockHash, OutPoint, Sequence, Transaction, TxIn,
-    TxInWitness, TxOut, TxOutWitness,
+    confidential, AssetBlindingNonce, AssetEntropy, AssetId, AssetIssuance, BlockHash, OutPoint,
+    PeginWitness, RangeProof, Sequence, SurjectionProof, Transaction, TxIn, TxInWitness, TxOut,
+    TxOutWitness, Witness,
 };
 
 #[test]
@@ -33,8 +31,7 @@ fn test_ffi_env() {
         0x33, 0x2f, 0xb7, 0x1d, 0xda, 0x90, 0xff, 0x4b, 0xef, 0x53, 0x70, 0xf2, 0x52, 0x26, 0xd3,
         0xbc, 0x09, 0xfc,
     ];
-    let asset =
-        confidential::Asset::Explicit(AssetId::from_inner(Midstate::from_byte_array(asset)));
+    let asset = confidential::Asset::Explicit(AssetId::from_byte_array(asset));
     let tx = Transaction {
         version: 2,
         lock_time: elements::LockTime::from_consensus(100),
@@ -47,17 +44,17 @@ fn test_ffi_env() {
             is_pegin: false,
             // perhaps make this an option in elements upstream?
             asset_issuance: AssetIssuance {
-                asset_blinding_nonce: Tweak::from_inner([0; 32]).expect("tweak from inner"),
-                asset_entropy: [0; 32],
+                asset_blinding_nonce: AssetBlindingNonce::NEW_ISSUANCE,
+                asset_entropy: AssetEntropy::NEW_ISSUANCE,
                 amount: confidential::Value::Null,
                 inflation_keys: confidential::Value::Null,
             },
             script_sig: elements::Script::new(),
             witness: TxInWitness {
-                amount_rangeproof: None,
-                inflation_keys_rangeproof: None,
-                script_witness: vec![ctrl_blk.to_vec()],
-                pegin_witness: vec![],
+                amount_rangeproof: RangeProof::EMPTY,
+                inflation_keys_rangeproof: RangeProof::EMPTY,
+                script_witness: Witness::from(vec![ctrl_blk.to_vec()]),
+                pegin_witness: PeginWitness::EMPTY,
             },
         }],
         output: vec![
@@ -67,8 +64,8 @@ fn test_ffi_env() {
                 nonce: confidential::Nonce::Null,
                 script_pubkey: hex_script("1976a91448633e2c0ee9495dd3f9c43732c47f4702a362c888ac"),
                 witness: TxOutWitness {
-                    surjection_proof: None,
-                    rangeproof: None,
+                    surjection_proof: SurjectionProof::EMPTY,
+                    rangeproof: RangeProof::EMPTY,
                 },
             },
             TxOut {
@@ -77,8 +74,8 @@ fn test_ffi_env() {
                 nonce: confidential::Nonce::Null,
                 script_pubkey: elements::Script::new(),
                 witness: TxOutWitness {
-                    surjection_proof: None,
-                    rangeproof: None,
+                    surjection_proof: SurjectionProof::EMPTY,
+                    rangeproof: RangeProof::EMPTY,
                 },
             },
         ],
@@ -97,7 +94,7 @@ fn test_ffi_env() {
         script_cmr,
         ctrl_block,
         None,
-        BlockHash::all_zeros(),
+        BlockHash::GENESIS_PREVIOUS_BLOCK_HASH,
     );
 
     types::Context::with_context(|ctx| {

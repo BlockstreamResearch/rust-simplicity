@@ -13,7 +13,7 @@ use super::{
     Commit, CommitData, CommitNode, Converter, Inner, Marker, NoDisconnect, NoWitness, Node,
     Redeem, RedeemData,
 };
-use super::{CoreConstructible, DisconnectConstructible, JetConstructible, WitnessConstructible};
+use super::{CoreConstructible, DisconnectConstructible, WitnessConstructible};
 
 /// ID used to share [`ConstructNode`]s.
 ///
@@ -360,6 +360,12 @@ impl<'brand> CoreConstructible<'brand> for ConstructData<'brand> {
         }
     }
 
+    fn jet(inference_context: &types::Context<'brand>, jet: &dyn Jet) -> Self {
+        ConstructData {
+            arrow: Arrow::jet(inference_context, jet),
+        }
+    }
+
     fn inference_context(&self) -> &types::Context<'brand> {
         self.arrow.inference_context()
     }
@@ -383,14 +389,6 @@ impl<'brand> WitnessConstructible<'brand, Option<Value>> for ConstructData<'bran
     fn witness(inference_context: &types::Context<'brand>, _witness: Option<Value>) -> Self {
         ConstructData {
             arrow: Arrow::witness(inference_context, NoWitness),
-        }
-    }
-}
-
-impl<'brand> JetConstructible<'brand> for ConstructData<'brand> {
-    fn jet(inference_context: &types::Context<'brand>, jet: &dyn Jet) -> Self {
-        ConstructData {
-            arrow: Arrow::jet(inference_context, jet),
         }
     }
 }

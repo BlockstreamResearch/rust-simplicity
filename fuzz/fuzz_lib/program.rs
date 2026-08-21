@@ -4,8 +4,7 @@ use std::sync::Arc;
 
 use super::Extractor;
 use simplicity::node::{
-    CoreConstructible as _, DisconnectConstructible as _, JetConstructible as _,
-    WitnessConstructible as _,
+    CoreConstructible as _, DisconnectConstructible as _, WitnessConstructible as _,
 };
 use simplicity::types;
 use simplicity::{jet::Core, Cmr, ConstructNode, FailEntropy};

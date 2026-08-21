@@ -101,6 +101,18 @@ fn compact_value(value: &Value) -> [u8; 32] {
         .0
 }
 
+/// Helper function to concatenate two 32-byte arrays into one 64-byte one.
+#[inline]
+fn concat<MR: AsRef<[u8]>>(mr1: MR, mr2: MR) -> [u8; 64] {
+    core::array::from_fn(|i| {
+        if i < 32 {
+            mr1.as_ref()[i]
+        } else {
+            mr2.as_ref()[i - 32]
+        }
+    })
+}
+
 const fn bip340_iv(tag: &[u8]) -> sha256::Midstate {
     sha256::Midstate::hash_tag(tag)
 }
