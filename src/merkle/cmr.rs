@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: CC0-1.0
 
 use crate::jet::Jet;
+#[cfg(feature = "elements")]
 use crate::node::{CoreConstructible, DisconnectConstructible, WitnessConstructible};
+#[cfg(feature = "elements")]
 use crate::types::{self, Error};
 use crate::value::Word;
 use crate::{FailEntropy, Tmr};
@@ -254,11 +256,13 @@ impl Cmr {
 /// Wrapper around a CMR which allows it to be constructed with the
 /// `*Constructible*` traits, allowing CMRs to be computed using the
 /// same generic construction code that nodes are.
+#[cfg(feature = "elements")] // only used by policy module
 pub struct ConstructibleCmr<'brand> {
     pub cmr: Cmr,
     pub inference_context: types::Context<'brand>,
 }
 
+#[cfg(feature = "elements")] // only used by policy module
 impl<'brand> CoreConstructible<'brand> for ConstructibleCmr<'brand> {
     fn iden(inference_context: &types::Context<'brand>) -> Self {
         ConstructibleCmr {
@@ -366,6 +370,7 @@ impl<'brand> CoreConstructible<'brand> for ConstructibleCmr<'brand> {
     }
 }
 
+#[cfg(feature = "elements")] // only used by policy module
 impl<'brand, X> DisconnectConstructible<'brand, X> for ConstructibleCmr<'brand> {
     // Specifically with disconnect we don't check for consistency between the
     // type inference context of the disconnected node, if any, and that of
@@ -379,6 +384,7 @@ impl<'brand, X> DisconnectConstructible<'brand, X> for ConstructibleCmr<'brand> 
     }
 }
 
+#[cfg(feature = "elements")] // only used by policy module
 impl<'brand, W> WitnessConstructible<'brand, W> for ConstructibleCmr<'brand> {
     fn witness(inference_context: &types::Context<'brand>, _witness: W) -> Self {
         ConstructibleCmr {
@@ -393,6 +399,7 @@ mod tests {
     use super::*;
 
     use crate::node::{ConstructNode, CoreConstructible};
+    use crate::types;
 
     use std::str::FromStr;
     use std::sync::Arc;
