@@ -428,9 +428,12 @@ impl RedeemNode {
         // 2) Prune out unused case branches.
         // Because the types of the pruned program may change,
         // we construct a temporary witness program with unfinalized types.
+        // Convert with `MaxSharing`: the tracker keys branch usage by IHR, so
+        // converting IHR-equal nodes separately makes each copy keep the branches
+        // that only its twins executed.
         types::Context::with_context(|inference_context| {
             let pruned_witness_program = self
-                .convert::<InternalSharing, _, _>(&mut Pruner {
+                .convert::<MaxSharing<Redeem>, _, _>(&mut Pruner {
                     inference_context,
                     tracker,
                 })
@@ -989,6 +992,58 @@ mod tests {
         assert_eq!(
             unpruned_output, pruned_output,
             "pruned program should return same output as unpruned program"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "human_encoding")]
+    fn prune_respects_ihr_sharing() {
+        // `case unit unit` is written out twice, so the program holds two
+        // pointer-distinct nodes with one IHR. The first is fed a left-tagged input
+        // and the second a right-tagged one, so each executes only one branch.
+        use crate::dag::{DagLike, InternalSharing, MaxSharing};
+        use crate::human_encoding::Forest;
+        use crate::jet::CoreEnv;
+        use std::collections::HashMap;
+
+        let s = "main := comp (pair (pair (injl unit) unit) (pair (injr unit) unit)) \
+                 (comp (pair (take (case unit unit)) (drop (case unit unit))) unit)";
+        let env = CoreEnv::new();
+        let unpruned = types::Context::with_context(|ctx| {
+            Forest::parse::<Core>(s)
+                .expect("program should parse")
+                .to_witness_node(&ctx, &HashMap::new())
+                .expect("program should have main")
+                .finalize_unpruned()
+                .expect("program should finalize")
+        });
+        assert!(
+            !unpruned.as_ref().is_shared_as::<MaxSharing<Redeem>>(),
+            "test setup is stale: the unpruned program is already maximally shared"
+        );
+
+        let pruned = unpruned.prune(&env).expect("pruning should succeed");
+
+        let by_pointer = pruned.as_ref().post_order_iter::<InternalSharing>().count();
+        let by_ihr = pruned
+            .as_ref()
+            .post_order_iter::<MaxSharing<Redeem>>()
+            .count();
+        assert_eq!(
+            by_pointer, by_ihr,
+            "pruned program has {} nodes but only {} distinct IHRs, so it kept \
+             branches that were only executed by an identical node elsewhere",
+            by_pointer, by_ihr,
+        );
+        assert!(pruned.as_ref().is_shared_as::<MaxSharing<Redeem>>());
+
+        // Compared by encoding, not IHR: the IHR is invariant under the hiding of
+        // case branches, so two differently pruned programs share one.
+        let twice = pruned.prune(&env).expect("pruning should succeed");
+        assert_eq!(
+            twice.to_vec_with_witness(),
+            pruned.to_vec_with_witness(),
+            "pruning was not idempotent, so the first pass left work undone"
         );
     }
 
