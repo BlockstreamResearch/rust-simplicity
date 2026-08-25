@@ -428,9 +428,12 @@ impl RedeemNode {
         // 2) Prune out unused case branches.
         // Because the types of the pruned program may change,
         // we construct a temporary witness program with unfinalized types.
+        // Convert with `MaxSharing`: the tracker keys branch usage by IHR, so
+        // converting IHR-equal nodes separately makes each copy keep the branches
+        // that only its twins executed.
         types::Context::with_context(|inference_context| {
             let pruned_witness_program = self
-                .convert::<InternalSharing, _, _>(&mut Pruner {
+                .convert::<MaxSharing<Redeem>, _, _>(&mut Pruner {
                     inference_context,
                     tracker,
                 })
