@@ -1,9 +1,21 @@
-# Unreleased
+# 0.9.0 - 2026-08-26
 
-* Add `Value` and `Type` constructors for variable-length buffers and SHA256 `Ctx8` contexts;
-  change the signature of `Final::two_two_n` to return a result rather than panicking when `n`
-  is too large; add infallible `Final::two_two_n_fixed` for when `n` is known at compile-time
-  [#372][https://github.com/BlockstreamResearch/rust-simplicity/pull/372)
+* Fix `ConstructibleCmr::injr` computing an `injl` CMR [#369](https://github.com/BlockstreamResearch/rust-simplicity/pull/369)
+* Prevent integer overflow when computing allocation sizes in `simplicity-sys` [#370](https://github.com/BlockstreamResearch/rust-simplicity/pull/370)
+* Add `Value` and `Type` constructors for variable-length buffers and SHA256 `Ctx8` contexts [#372](https://github.com/BlockstreamResearch/rust-simplicity/pull/372)
+  * Change the signature of `Final::two_two_n` to return a result rather than panicking when `n`
+    is too large.
+  * Add infallible `Final::two_two_n_fixed` for when `n` is known at compile-time.
+* Modernize Merkle root internals and upgrade `bitcoin_hashes` and `hex-conservative`
+  [#373](https://github.com/BlockstreamResearch/rust-simplicity/pull/373)
+* Add a `Value` constructor from a SHA256 engine, expose more TMR functionality, and make more
+  Merkle root operations `const` [#374](https://github.com/BlockstreamResearch/rust-simplicity/pull/374)
+* Avoid exponential work during type finalization and stack overflows when dropping deeply nested
+  nodes and incomplete types [#375](https://github.com/BlockstreamResearch/rust-simplicity/pull/375)
+* Upgrade `elements` to 0.27 and `bitcoin_hashes` to 1.2, requiring `simplicity-sys` 0.7.1 [#376](https://github.com/BlockstreamResearch/rust-simplicity/pull/376)
+  * Remove the policy `Assembly` fragment and make policy serialization infallible.
+  * Fold `JetConstructible` into `CoreConstructible`.
+  * Remove the unused tapleaf hash argument from policy signature lookup.
 
 # 0.8.0 - 2026-05-28
 
@@ -37,4 +49,3 @@
 * Add debugging support to `ExecTracker` [#293](https://github.com/BlockstreamResearch/rust-simplicity/pull/293)
 * Separate linker symbols to allow multiple simplicity-sys versions in same tree [#297](https://github.com/BlockstreamResearch/rust-simplicity/pull/297)
 * Add base64 encoding and decoding support to programs [#299](https://github.com/BlockstreamResearch/rust-simplicity/pull/299)
-
