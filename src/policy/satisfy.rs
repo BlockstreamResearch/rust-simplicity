@@ -715,4 +715,34 @@ mod tests {
             }
         });
     }
+
+    #[test]
+    fn satisfy_hidden_branch_cmr_matches_commit() {
+        // Regression test: when a policy branch is unsatisfiable it becomes a
+        // "hidden" node during satisfaction. That hidden node flows through
+        // `drop_` (in `policy::serialize::or`) and then a `case` that becomes an
+        // assertion. The hidden node's CMR must be wrapped as it passes through
+        // the `drop_` combinator, otherwise the satisfied program's Merkle root
+        // no longer matches the committed policy's Merkle root.
+        types::Context::with_context(|ctx| {
+            let env = ElementsEnv::dummy();
+            let satisfier = get_satisfier(ctx, &env);
+            let images: Vec<_> = satisfier.preimages.keys().copied().collect();
+
+            // Left branch is unsatisfiable (unknown preimage) => hidden.
+            let policy = Policy::Or {
+                left: Arc::new(Policy::Sha256(sha256::Hash::from_byte_array([9; 32]))),
+                right: Arc::new(Policy::Sha256(images[0])),
+            };
+
+            let committed_cmr = policy.commit().cmr();
+            let program = policy.satisfy(&satisfier, &env).expect("satisfiable");
+            let satisfied_cmr = program.cmr();
+
+            assert_eq!(
+                committed_cmr, satisfied_cmr,
+                "satisfied program CMR ({satisfied_cmr}) must equal committed policy CMR ({committed_cmr})",
+            );
+        });
+    }
 }
