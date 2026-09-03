@@ -15,7 +15,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use crate::jet::Jet;
-use crate::node::{CoreConstructible, DisconnectConstructible, NoDisconnect, WitnessConstructible};
+use crate::node::{DisconnectConstructible, NoDisconnect};
 use crate::types::{Context, Error, Final, Type};
 use crate::value::Word;
 
@@ -67,7 +67,7 @@ impl fmt::Display for FinalArrow {
 impl FinalArrow {
     /// Same as [`Self::clone`] but named to make it clearer that this is cheap
     pub fn shallow_clone(&self) -> Self {
-        FinalArrow {
+        Self {
             source: Arc::clone(&self.source),
             target: Arc::clone(&self.target),
         }
@@ -85,7 +85,7 @@ impl<'brand> Arrow<'brand> {
 
     /// Same as [`Self::clone`] but named to make it clearer that this is cheap
     pub fn shallow_clone(&self) -> Self {
-        Arrow {
+        Self {
             source: self.source.shallow_clone(),
             target: self.target.shallow_clone(),
             inference_context: self.inference_context.shallow_clone(),
@@ -143,7 +143,7 @@ impl<'brand> Arrow<'brand> {
             )?;
         }
 
-        Ok(Arrow {
+        Ok(Self {
             source: prod_sum_a_b_c,
             target,
             inference_context: ctx,
@@ -177,39 +177,58 @@ impl<'brand> Arrow<'brand> {
 
         let prod_b_d = Type::product(ctx, b, d);
 
-        Ok(Arrow {
+        Ok(Self {
             source: a,
             target: prod_b_d,
             inference_context: lchild_arrow.inference_context.shallow_clone(),
         })
     }
-}
 
-impl<'brand> CoreConstructible<'brand> for Arrow<'brand> {
-    fn iden(inference_context: &Context<'brand>) -> Self {
+    /// A type arrow where both source and target types are new free variables.
+    ///
+    /// This should be used for hidden nodes or other nodes where nothing about
+    /// the node is known.
+    pub fn hidden(inference_context: &Context<'brand>) -> Self {
+        Self {
+            source: Type::free(inference_context, new_name("hidden_src_")),
+            target: Type::free(inference_context, new_name("hidden_tgt_")),
+            inference_context: inference_context.shallow_clone(),
+        }
+    }
+
+    /// A type arrow where both source and target types fixed to the unit type.
+    pub fn program(inference_context: &Context<'brand>) -> Self {
+        Self {
+            source: Type::unit(inference_context),
+            target: Type::unit(inference_context),
+            inference_context: inference_context.shallow_clone(),
+        }
+    }
+
+    pub fn iden(inference_context: &Context<'brand>) -> Self {
         // Throughout this module, when two types are the same, we reuse a
         // pointer to them rather than creating distinct types and unifying
         // them. This theoretically could lead to more confusing errors for
         // the user during type inference, but in practice type inference
         // is completely opaque and there's no harm in making it moreso.
         let new = Type::free(inference_context, new_name("iden_src_"));
-        Arrow {
+        Self {
             source: new.shallow_clone(),
             target: new,
             inference_context: inference_context.shallow_clone(),
         }
     }
 
-    fn unit(inference_context: &Context<'brand>) -> Self {
-        Arrow {
+    pub fn unit(inference_context: &Context<'brand>) -> Self {
+        Self {
             source: Type::free(inference_context, new_name("unit_src_")),
             target: Type::unit(inference_context),
             inference_context: inference_context.shallow_clone(),
         }
     }
 
-    fn injl(child: &Self) -> Self {
-        Arrow {
+    pub fn injl(child: &Self) -> Self {
+        Self {
             source: child.source.shallow_clone(),
             target: Type::sum(
                 &child.inference_context,
@@ -220,8 +239,8 @@ impl<'brand> CoreConstructible<'brand> for Arrow<'brand> {
         }
     }
 
-    fn injr(child: &Self) -> Self {
-        Arrow {
+    pub fn injr(child: &Self) -> Self {
+        Self {
             source: child.source.shallow_clone(),
             target: Type::sum(
                 &child.inference_context,
@@ -232,8 +251,8 @@ impl<'brand> CoreConstructible<'brand> for Arrow<'brand> {
         }
     }
 
-    fn take(child: &Self) -> Self {
-        Arrow {
+    pub fn take(child: &Self) -> Self {
+        Self {
             source: Type::product(
                 &child.inference_context,
                 child.source.shallow_clone(),
@@ -244,8 +263,8 @@ impl<'brand> CoreConstructible<'brand> for Arrow<'brand> {
         }
     }
 
-    fn drop_(child: &Self) -> Self {
-        Arrow {
+    pub fn drop_(child: &Self) -> Self {
+        Self {
             source: Type::product(
                 &child.inference_context,
                 Type::free(&child.inference_context, new_name("drop_src_")),
@@ -256,40 +275,40 @@ impl<'brand> CoreConstructible<'brand> for Arrow<'brand> {
         }
     }
 
-    fn comp(left: &Self, right: &Self) -> Result<Self, Error> {
+    pub fn comp(left: &Self, right: &Self) -> Result<Self, Error> {
         left.inference_context.check_eq(&right.inference_context)?;
         left.inference_context.unify(
             &left.target,
             &right.source,
             "comp combinator: left target = right source",
         )?;
-        Ok(Arrow {
+        Ok(Self {
             source: left.source.shallow_clone(),
             target: right.target.shallow_clone(),
             inference_context: left.inference_context.shallow_clone(),
         })
     }
 
-    fn case(left: &Self, right: &Self) -> Result<Self, Error> {
+    pub fn case(left: &Self, right: &Self) -> Result<Self, Error> {
         Self::for_case(Some(left), Some(right))
     }
 
-    fn assertl(left: &Self, _: crate::Cmr) -> Result<Self, Error> {
+    pub fn assertl(left: &Self) -> Result<Self, Error> {
         Self::for_case(Some(left), None)
     }
 
-    fn assertr(_: crate::Cmr, right: &Self) -> Result<Self, Error> {
+    pub fn assertr(right: &Self) -> Result<Self, Error> {
         Self::for_case(None, Some(right))
     }
 
-    fn pair(left: &Self, right: &Self) -> Result<Self, Error> {
+    pub fn pair(left: &Self, right: &Self) -> Result<Self, Error> {
         left.inference_context.check_eq(&right.inference_context)?;
         left.inference_context.unify(
             &left.source,
             &right.source,
             "pair combinator: left source = right source",
         )?;
-        Ok(Arrow {
+        Ok(Self {
             source: left.source.shallow_clone(),
             target: Type::product(
                 &left.inference_context,
@@ -300,38 +319,46 @@ impl<'brand> CoreConstructible<'brand> for Arrow<'brand> {
         })
     }
 
-    fn fail(inference_context: &Context<'brand>, _: crate::FailEntropy) -> Self {
-        Arrow {
+    pub fn fail(inference_context: &Context<'brand>) -> Self {
+        Self {
             source: Type::free(inference_context, new_name("fail_src_")),
             target: Type::free(inference_context, new_name("fail_tgt_")),
             inference_context: inference_context.shallow_clone(),
         }
     }
 
-    fn const_word(inference_context: &Context<'brand>, word: Word) -> Self {
-        Arrow {
+    pub fn const_word(inference_context: &Context<'brand>, word: &Word) -> Self {
+        Self {
             source: Type::unit(inference_context),
             target: Type::two_two_n(inference_context, word.n()),
             inference_context: inference_context.shallow_clone(),
         }
     }
 
-    fn jet(inference_context: &Context<'brand>, jet: &dyn Jet) -> Self {
+    pub fn jet(inference_context: &Context<'brand>, jet: &dyn Jet) -> Self {
         inference_context.check_jet(jet);
 
-        Arrow {
+        Self {
             source: jet.source_ty().to_type(inference_context),
             target: jet.target_ty().to_type(inference_context),
             inference_context: inference_context.shallow_clone(),
         }
     }
 
-    fn inference_context(&self) -> &Context<'brand> {
+    pub fn witness(inference_context: &Context<'brand>) -> Self {
+        Self {
+            source: Type::free(inference_context, new_name("witness_src_")),
+            target: Type::free(inference_context, new_name("witness_tgt_")),
+            inference_context: inference_context.shallow_clone(),
+        }
+    }
+
+    pub fn inference_context(&self) -> &Context<'brand> {
         &self.inference_context
     }
 }
 
-impl<'brand> DisconnectConstructible<'brand, Arrow<'brand>> for Arrow<'brand> {
+impl<'brand> DisconnectConstructible<'brand, Self> for Arrow<'brand> {
     fn disconnect(left: &Self, right: &Self) -> Result<Self, Error> {
         Self::for_disconnect(left, right)
     }
@@ -343,7 +370,7 @@ impl<'brand> DisconnectConstructible<'brand, NoDisconnect> for Arrow<'brand> {
         let target = Type::free(&left.inference_context, "disc_tgt".into());
         Self::for_disconnect(
             left,
-            &Arrow {
+            &Self {
                 source,
                 target,
                 inference_context: left.inference_context.shallow_clone(),
@@ -352,21 +379,11 @@ impl<'brand> DisconnectConstructible<'brand, NoDisconnect> for Arrow<'brand> {
     }
 }
 
-impl<'brand> DisconnectConstructible<'brand, Option<&Arrow<'brand>>> for Arrow<'brand> {
+impl<'brand> DisconnectConstructible<'brand, Option<&Self>> for Arrow<'brand> {
     fn disconnect(left: &Self, right: &Option<&Self>) -> Result<Self, Error> {
         match *right {
             Some(right) => Self::disconnect(left, right),
             None => Self::disconnect(left, &NoDisconnect),
-        }
-    }
-}
-
-impl<'brand, W> WitnessConstructible<'brand, W> for Arrow<'brand> {
-    fn witness(inference_context: &Context<'brand>, _: W) -> Self {
-        Arrow {
-            source: Type::free(inference_context, new_name("witness_src_")),
-            target: Type::free(inference_context, new_name("witness_tgt_")),
-            inference_context: inference_context.shallow_clone(),
         }
     }
 }

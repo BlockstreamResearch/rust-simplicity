@@ -2,7 +2,7 @@
 
 use crate::jet::Jet;
 use crate::merkle::compact_value;
-use crate::types::arrow::FinalArrow;
+use crate::types::FinalArrow;
 use crate::value::Word;
 use crate::{Cmr, Tmr, Value};
 use hashes::sha256::Midstate;

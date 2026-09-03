@@ -2,13 +2,13 @@
 
 use crate::dag::{DagLike, MaxSharing, NoSharing, PostOrderIterItem};
 use crate::jet::Jet;
-use crate::types::arrow::{Arrow, FinalArrow};
+use crate::types::{Arrow, FinalArrow};
 use crate::{encode, types, Value};
 use crate::{Amr, BitIter, BitWriter, Cmr, DecodeError, Ihr, Imr};
 
 use super::{
-    Construct, ConstructData, ConstructNode, Constructible, Converter, Inner, Marker, NoDisconnect,
-    NoWitness, Node, Redeem, RedeemNode,
+    Construct, ConstructData, ConstructNode, Converter, Inner, Marker, NoDisconnect, NoWitness,
+    Node, Redeem, RedeemNode,
 };
 
 use std::io;
@@ -213,14 +213,30 @@ impl CommitNode {
                     &Option<Value>,
                 >,
             ) -> Result<ConstructData<'brand>, Self::Error> {
-                let inner = inner
-                    .map(|node| node.arrow())
-                    .map_disconnect(|maybe_node| maybe_node.as_ref().map(|node| node.arrow()));
-                let inner = inner.disconnect_as_ref(); // lol sigh rust
-                Ok(ConstructData::new(Arrow::from_inner(
-                    self.inference_context,
-                    inner,
-                )?))
+                use crate::node::DisconnectConstructible as _;
+
+                let new_arrow = match inner {
+                    Inner::Iden => Arrow::iden(self.inference_context),
+                    Inner::Unit => Arrow::unit(self.inference_context),
+                    Inner::InjL(child) => Arrow::injl(child.arrow()),
+                    Inner::InjR(child) => Arrow::injr(child.arrow()),
+                    Inner::Take(child) => Arrow::take(child.arrow()),
+                    Inner::Drop(child) => Arrow::drop_(child.arrow()),
+                    Inner::Comp(lft, rgt) => Arrow::comp(lft.arrow(), rgt.arrow())?,
+                    Inner::Case(lft, rgt) => Arrow::case(lft.arrow(), rgt.arrow())?,
+                    Inner::Pair(lft, rgt) => Arrow::pair(lft.arrow(), rgt.arrow())?,
+                    Inner::Disconnect(lft, rgt) => {
+                        Arrow::disconnect(lft.arrow(), &rgt.as_ref().map(|node| node.arrow()))?
+                    }
+                    Inner::AssertL(lft, _) => Arrow::assertl(lft.arrow())?,
+                    Inner::AssertR(_, rgt) => Arrow::assertr(rgt.arrow())?,
+                    Inner::Witness(_) => Arrow::witness(self.inference_context),
+                    Inner::Fail(_) => Arrow::fail(self.inference_context),
+                    Inner::Jet(ref jet) => Arrow::jet(self.inference_context, jet.as_ref()),
+                    Inner::Word(ref word) => Arrow::const_word(self.inference_context, word),
+                };
+
+                Ok(ConstructData::new(new_arrow))
             }
         }
 

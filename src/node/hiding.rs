@@ -1,7 +1,13 @@
 use crate::jet::Jet;
 use crate::node::{CoreConstructible, DisconnectConstructible, WitnessConstructible};
-use crate::types::{Context, Error};
+use crate::types::{Arrow, Context, Error};
 use crate::{Cmr, FailEntropy, HasCmr, Word};
+
+#[derive(Clone, Debug)]
+enum HidingInner<'brand, N> {
+    Node(N),
+    Hidden { cmr: Cmr, arrow: Arrow<'brand> },
+}
 
 /// Wrapper that allows a node to be "hidden" during program construction.
 ///
@@ -30,103 +36,147 @@ use crate::{Cmr, FailEntropy, HasCmr, Word};
 /// The wrapper merely _simulates_ hidden nodes.
 /// At no point are actual hidden nodes created.
 /// To stress this fact, I write "hidden" in quotation marks.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct Hiding<'brand, N> {
-    result: HidingResult<N>,
-    /// Inference context for program construction.
-    ///
-    /// Even a "hidden" node needs an inference context
-    /// because the context may be queried via [`CoreConstructible::inference_context`].
-    /// When a "hidden" node is converted into an assertion via the
-    /// [`CoreConstructible::case`] constructor, this context is required to build the case node.
-    /// For soundness, the same context should be returned for all nodes of the same program.
-    ctx: Context<'brand>,
+    inner: HidingInner<'brand, N>,
 }
-
-type HidingResult<N> = Result<N, Cmr>;
 
 impl<'brand, N> Hiding<'brand, N> {
     /// Create a "hidden" node with the given CMR.
     ///
     /// To enable the construction of possible parent nodes,
     /// the inference context of the current program must be passed.
-    pub const fn hidden(cmr: Cmr, ctx: Context<'brand>) -> Self {
-        // # Soundness
-        // The hidden node introduces no type variables.
+    pub fn hidden(cmr: Cmr, ctx: &Context<'brand>) -> Self {
         Self {
-            result: Err(cmr),
-            ctx,
+            inner: HidingInner::Hidden {
+                cmr,
+                arrow: Arrow::hidden(ctx),
+            },
         }
     }
 
-    fn hidden_cloned_ctx(&self, cmr: Cmr) -> Self {
-        Self {
-            result: Err(cmr),
-            ctx: self.ctx.shallow_clone(),
+    /// If the node is not hidden, apply a function to the underlying node. If it is hidden,
+    /// apply a function to its CMR.
+    #[inline]
+    pub fn map_ref<M>(
+        &self,
+        mapfn: impl FnOnce(&N) -> M,
+        cmrfn: impl FnOnce(Cmr) -> Cmr,
+    ) -> Hiding<'brand, M> {
+        use core::convert::Infallible;
+        match self.map_ref_result::<_, Infallible>(|node| Ok(mapfn(node)), cmrfn) {
+            Ok(res) => res,
+            Err(inf) => match inf {},
         }
+    }
+
+    /// If the node is not hidden, apply a function to the underlying node. If it is hidden,
+    /// do nothing.
+    #[inline]
+    pub fn map_ref_result<M, Err>(
+        &self,
+        mapfn: impl FnOnce(&N) -> Result<M, Err>,
+        cmrfn: impl FnOnce(Cmr) -> Cmr,
+    ) -> Result<Hiding<'brand, M>, Err> {
+        Ok(Hiding {
+            inner: match self.inner {
+                HidingInner::Node(ref n) => HidingInner::Node(mapfn(n)?),
+                HidingInner::Hidden { cmr, ref arrow } => HidingInner::Hidden {
+                    cmr: cmrfn(cmr),
+                    arrow: arrow.shallow_clone(),
+                },
+            },
+        })
     }
 
     /// Access the non-hidden node inside in the wrapper.
     ///
     /// Return `None` if the wrapped node is "hidden".
     pub fn as_node(&self) -> Option<&N> {
-        self.result.as_ref().ok()
+        match self.inner {
+            HidingInner::Node(ref n) => Some(n),
+            HidingInner::Hidden { .. } => None,
+        }
     }
 
     /// Consume the wrapper and return the non-hidden node that was inside.
     ///
     /// Return `None` if the wrapped node is "hidden".
-    pub fn get_node(self) -> Option<N> {
-        self.result.ok()
+    pub fn into_node(self) -> Option<N> {
+        match self.inner {
+            HidingInner::Node(n) => Some(n),
+            HidingInner::Hidden { .. } => None,
+        }
     }
 }
 
-impl<N: HasCmr> Hiding<'_, N> {
-    /// Ensure that the wrapped node is "hidden".
-    /// Convert non-hidden nodes into "hidden" nodes with the same CMR.
+impl<'brand, N: HasCmr + CoreConstructible<'brand>> Hiding<'brand, N> {
+    /// If neither node is hidden, apply a function to the underlying nodes to produce a new
+    /// non-hidden node. If either node is hidden, apply an alternate function to the CMRs
+    /// to produce a new CMR.
+    ///
+    /// Non-public since the API is kinda messy.
+    fn zip_ref<M: CoreConstructible<'brand>>(
+        &self,
+        other: &Self,
+        node_zipfn: impl FnOnce(&N, &N) -> Result<M, Error>,
+        cmr_zipfn: impl FnOnce(Cmr, Cmr) -> Cmr,
+    ) -> Result<Hiding<'brand, M>, Error> {
+        Ok(Hiding {
+            inner: match (&self.inner, &other.inner) {
+                (HidingInner::Node(ref left), HidingInner::Node(ref right)) => {
+                    node_zipfn(left, right).map(HidingInner::Node)?
+                }
+                _ => {
+                    self.inference_context()
+                        .check_eq(other.inference_context())?;
+                    HidingInner::Hidden {
+                        cmr: cmr_zipfn(self.cmr(), other.cmr()),
+                        arrow: Arrow::hidden(self.inference_context()),
+                    }
+                }
+            },
+        })
+    }
+
+    /// Replace the node, if any, with its CMR; replace its type arrow with a new free arrow.
+    ///
+    /// Once hidden, a node's original type arrow loses its original bounds. In effect, a
+    /// hidden node is a completely separate node from its "original" node and is typechecked
+    /// and shared independently.
     pub fn hide(self) -> Self {
-        // # Soundness
-        // Hiding a node means converting it into its CMR.
-        // The node's type variables remain in the inference context.
-        //
-        // The type variables of a "hidden" child don't influence the construction of a parent,
-        // because merely the child's CMR is passed to the parent constructor.
-        // A CMR has no connection to any type variables.
-        //
-        // Hiding a node creates a CMR that is independent from the original node.
-        // The CMR can be used in one part of the program
-        // while the node itself is used in a different part.
-        match self.result {
-            Ok(node) => Self::hidden(node.cmr(), self.ctx),
-            Err(..) => self,
+        match self.inner {
+            HidingInner::Node(node) => Self {
+                inner: HidingInner::Hidden {
+                    cmr: node.cmr(),
+                    arrow: Arrow::hidden(node.inference_context()),
+                },
+            },
+            HidingInner::Hidden { .. } => self,
         }
     }
 }
 
 impl<N: HasCmr> HasCmr for Hiding<'_, N> {
     fn cmr(&self) -> Cmr {
-        match &self.result {
-            Ok(node) => node.cmr(),
-            Err(cmr) => *cmr,
+        match self.inner {
+            HidingInner::Node(ref node) => node.cmr(),
+            HidingInner::Hidden { cmr, .. } => cmr,
         }
     }
 }
 
-// We need `N: CoreConstructible` to access the inference context.
-// Because of this, implementations of `{Jet, Disconnect, Witness}Constructible`
-// for `Hiding<N>` require `N: CoreConstructible`.
-impl<'brand, N: CoreConstructible<'brand>> From<N> for Hiding<'brand, N> {
+impl<'brand, N> From<N> for Hiding<'brand, N> {
     fn from(node: N) -> Self {
         Self {
-            ctx: node.inference_context().shallow_clone(),
-            result: Ok(node),
+            inner: HidingInner::Node(node),
         }
     }
 }
 
 // # Soundness
 // See [`Hiding::hide`].
-impl<'brand, N: CoreConstructible<'brand> + HasCmr> CoreConstructible<'brand>
+impl<'brand, N: HasCmr + CoreConstructible<'brand>> CoreConstructible<'brand>
     for Hiding<'brand, N>
 {
     fn iden(inference_context: &Context<'brand>) -> Self {
@@ -138,68 +188,59 @@ impl<'brand, N: CoreConstructible<'brand> + HasCmr> CoreConstructible<'brand>
     }
 
     fn injl(child: &Self) -> Self {
-        match &child.result {
-            Ok(child) => N::injl(child).into(),
-            Err(cmr) => child.hidden_cloned_ctx(Cmr::injl(*cmr)),
-        }
+        child.map_ref(N::injl, Cmr::injl)
     }
 
     fn injr(child: &Self) -> Self {
-        match &child.result {
-            Ok(child) => N::injr(child).into(),
-            Err(cmr) => child.hidden_cloned_ctx(Cmr::injr(*cmr)),
-        }
+        child.map_ref(N::injr, Cmr::injr)
     }
 
     fn take(child: &Self) -> Self {
-        match &child.result {
-            Ok(child) => N::take(child).into(),
-            Err(cmr) => child.hidden_cloned_ctx(Cmr::take(*cmr)),
-        }
+        child.map_ref(N::take, Cmr::take)
     }
 
     fn drop_(child: &Self) -> Self {
-        match &child.result {
-            Ok(child) => N::drop_(child).into(),
-            Err(cmr) => child.hidden_cloned_ctx(Cmr::drop(*cmr)),
-        }
+        child.map_ref(N::drop_, Cmr::drop)
     }
 
     fn comp(left: &Self, right: &Self) -> Result<Self, Error> {
-        match (&left.result, &right.result) {
-            (Ok(left), Ok(right)) => N::comp(left, right).map(Self::from),
-            _ => Ok(left.hidden_cloned_ctx(Cmr::comp(left.cmr(), right.cmr()))),
-        }
+        left.zip_ref(right, N::comp, Cmr::comp)
     }
 
     fn case(left: &Self, right: &Self) -> Result<Self, Error> {
-        match (&left.result, &right.result) {
-            (Ok(left), Ok(right)) => N::case(left, right).map(Self::from),
-            (Err(left), Ok(right)) => N::assertr(*left, right).map(Self::from),
-            (Ok(left), Err(right)) => N::assertl(left, *right).map(Self::from),
-            _ => Ok(left.hidden_cloned_ctx(Cmr::case(left.cmr(), right.cmr()))),
-        }
+        use HidingInner as I;
+
+        left.inference_context()
+            .check_eq(right.inference_context())?;
+        let inner = match (&left.inner, &right.inner) {
+            (I::Node(left), I::Node(right)) => I::Node(N::case(left, right)?),
+            (I::Hidden { cmr, .. }, I::Node(right)) => I::Node(N::assertr(*cmr, right)?),
+            (I::Node(left), I::Hidden { cmr, .. }) => I::Node(N::assertl(left, *cmr)?),
+            (I::Hidden { cmr: l_cmr, .. }, I::Hidden { cmr: r_cmr, .. }) => I::Hidden {
+                cmr: Cmr::case(*l_cmr, *r_cmr),
+                arrow: Arrow::hidden(left.inference_context()),
+            },
+        };
+
+        Ok(Self { inner })
     }
 
     fn assertl(left: &Self, right: Cmr) -> Result<Self, Error> {
-        match &left.result {
-            Ok(left) => N::assertl(left, right).map(Self::from),
-            _ => Ok(left.hidden_cloned_ctx(Cmr::case(left.cmr(), right))),
-        }
+        left.map_ref_result(
+            |left| N::assertl(left, right),
+            |lcmr| Cmr::case(lcmr, right),
+        )
     }
 
     fn assertr(left: Cmr, right: &Self) -> Result<Self, Error> {
-        match &right.result {
-            Ok(right) => N::assertr(left, right).map(Self::from),
-            _ => Ok(right.hidden_cloned_ctx(Cmr::case(left, right.cmr()))),
-        }
+        right.map_ref_result(
+            |right| N::assertr(left, right),
+            |rcmr| Cmr::case(left, rcmr),
+        )
     }
 
     fn pair(left: &Self, right: &Self) -> Result<Self, Error> {
-        match (&left.result, &right.result) {
-            (Ok(left), Ok(right)) => N::pair(left, right).map(Self::from),
-            _ => Ok(left.hidden_cloned_ctx(Cmr::pair(left.cmr(), right.cmr()))),
-        }
+        left.zip_ref(right, N::pair, Cmr::pair)
     }
 
     fn fail(inference_context: &Context<'brand>, entropy: FailEntropy) -> Self {
@@ -214,8 +255,11 @@ impl<'brand, N: CoreConstructible<'brand> + HasCmr> CoreConstructible<'brand>
         N::jet(inference_context, jet).into()
     }
 
-    fn inference_context(&self) -> &Context<'brand> {
-        &self.ctx
+    fn arrow(&self) -> &Arrow<'brand> {
+        match self.inner {
+            HidingInner::Node(ref node) => node.arrow(),
+            HidingInner::Hidden { ref arrow, .. } => arrow,
+        }
     }
 }
 
@@ -224,10 +268,7 @@ where
     N: DisconnectConstructible<'brand, Option<X>> + CoreConstructible<'brand> + HasCmr,
 {
     fn disconnect(left: &Self, right: &Option<X>) -> Result<Self, Error> {
-        match &left.result {
-            Ok(left) => N::disconnect(left, right).map(Self::from),
-            Err(..) => Ok(left.hidden_cloned_ctx(Cmr::disconnect(left.cmr()))),
-        }
+        left.map_ref_result(|left| N::disconnect(left, right), Cmr::disconnect)
     }
 }
 
