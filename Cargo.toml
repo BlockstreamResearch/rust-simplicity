@@ -1,6 +1,6 @@
 [package]
 name = "simplicity-lang"
-version = "0.8.0"
+version = "0.9.0"
 authors = ["Andrew Poelstra <apoelstra@wpsoftware.net>"]
 license = "CC0-1.0"
 homepage = "https://github.com/BlockstreamResearch/rust-simplicity/"
@@ -31,14 +31,14 @@ ghost-cell = { version = "0.2.6", default-features = false }
 hashes = { package = "bitcoin_hashes", version = "1.2.0" }
 hex = { package = "hex-conservative", version = "1.2.0" }
 logos = { version = "0.15", optional = true }
-simplicity-sys = { version = "0.7.0", path = "./simplicity-sys" }
+simplicity-sys = { version = "0.7.1", path = "./simplicity-sys" }
 serde = { version = "1.0.103", features = ["derive"], optional = true }
 
 [target.wasm32-unknown-unknown.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
-simplicity-sys = { version = "0.7.0", path = "./simplicity-sys", features = [
+simplicity-sys = { version = "0.7.1", path = "./simplicity-sys", features = [
     "test-utils",
 ] }
 serde_json = "1.0.149"
@@ -69,4 +69,3 @@ cast_possible_wrap = "allow" # Same as above re code comment.
 cast_precision_loss = "warn"
 cast_ptr_alignment = "warn"
 cast_sign_loss = "allow" # All casts should include a code comment (except in test code).
-
