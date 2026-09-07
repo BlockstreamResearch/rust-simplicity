@@ -2,6 +2,7 @@
 
 use hashes::sha256;
 
+use crate::c_jets::frame_ffi::CFrameItem;
 use crate::ffi::sha256::CSha256Midstate;
 use crate::ffi::{c_size_t, c_uchar, c_uint, c_uint_fast32_t};
 
@@ -108,6 +109,39 @@ extern "C" {
     pub fn simplicity_mallocTapEnv(rawEnv: *const CRawTapEnv) -> *mut CTapEnv;
     #[link_name = "rustsimplicity_0_8_bitcoin_mallocTransaction"]
     pub fn simplicity_mallocTransaction(rawTx: *const CRawTransaction) -> *mut CTransaction;
+
+    // Bitcoin jets whose C implementations read the transaction environment.
+    // Each has signature `bool f(frameItem* dst, frameItem src, const txEnv* env)`
+    // (note `src` is passed *by value*, matching the C definitions in bitcoinJets.c).
+    #[link_name = "rustsimplicity_0_8_bitcoin_sig_all_hash"]
+    pub fn bitcoin_sig_all_hash(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_check_lock_height"]
+    pub fn bitcoin_check_lock_height(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_check_lock_distance"]
+    pub fn bitcoin_check_lock_distance(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_check_lock_duration"]
+    pub fn bitcoin_check_lock_duration(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_current_index"]
+    pub fn bitcoin_current_index(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv)
+        -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_num_inputs"]
+    pub fn bitcoin_num_inputs(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_tx_hash"]
+    pub fn bitcoin_tx_hash(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_tap_env_hash"]
+    pub fn bitcoin_tap_env_hash(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
 }
 
 impl CTxEnv {
@@ -135,6 +169,33 @@ impl CRawBuffer {
         }
     }
 }
+
+// Safe wrappers around the bitcoin environment jets above. These expose a
+// Rust-safe signature (`&mut CFrameItem`, `&CTxEnv`) that can be used directly
+// as a `JetEnvironment::c_jet_ptr` function pointer, mirroring how the
+// elements backend exposes its jets via the `jets_wrapper` module. We cannot
+// hand out the raw `extern "C"` functions as fn pointers because `c_jet_ptr`
+// returns a safe (non-extern) function pointer.
+macro_rules! bitcoin_env_jet_wrapper {
+    ($name:ident, $ffi:ident) => {
+        pub fn $name(dst: &mut CFrameItem, src: CFrameItem, env: &CTxEnv) -> bool {
+            // SAFETY: we pass valid references through as pointers to a C
+            // function that treats them as borrowed (`frameItem* dst`,
+            // `const txEnv* env`) and `src` is forwarded by value exactly as
+            // the C `frameItem src` parameter expects.
+            unsafe { $ffi(dst, src, env) }
+        }
+    };
+}
+
+bitcoin_env_jet_wrapper!(sig_all_hash, bitcoin_sig_all_hash);
+bitcoin_env_jet_wrapper!(check_lock_height, bitcoin_check_lock_height);
+bitcoin_env_jet_wrapper!(check_lock_distance, bitcoin_check_lock_distance);
+bitcoin_env_jet_wrapper!(check_lock_duration, bitcoin_check_lock_duration);
+bitcoin_env_jet_wrapper!(current_index, bitcoin_current_index);
+bitcoin_env_jet_wrapper!(num_inputs, bitcoin_num_inputs);
+bitcoin_env_jet_wrapper!(tx_hash, bitcoin_tx_hash);
+bitcoin_env_jet_wrapper!(tap_env_hash, bitcoin_tap_env_hash);
 
 // Will uncomment in a later commit; need to update libsimplicity first.
 #[cfg(test)]

@@ -7,6 +7,7 @@ use crate::decode_bits;
 use crate::{decode, BitIter, BitWriter};
 use crate::analysis::Cost;
 use simplicity_sys::CFrameItem;
+use simplicity_sys::c_jets::c_env::bitcoin as c_bitcoin;
 use std::io::Write;
 use std::{fmt, str};
 
@@ -8151,7 +8152,7 @@ impl str::FromStr for Bitcoin {
     }
 }
 
-pub(crate) fn c_jet_ptr(jet: &Bitcoin) -> fn(&mut CFrameItem, CFrameItem, &()) -> bool {
+pub(crate) fn c_jet_ptr(jet: &Bitcoin) -> fn(&mut CFrameItem, CFrameItem, &c_bitcoin::CTxEnv) -> bool {
     match jet {
         Bitcoin::All8 => simplicity_sys::c_jets::jets_wrapper::all_8,
         Bitcoin::Eq256 => simplicity_sys::c_jets::jets_wrapper::eq_256,
@@ -8170,10 +8171,26 @@ pub(crate) fn c_jet_ptr(jet: &Bitcoin) -> fn(&mut CFrameItem, CFrameItem, &()) -
         Bitcoin::Sha256Iv => simplicity_sys::c_jets::jets_wrapper::sha_256_iv,
         Bitcoin::Sha256Block => simplicity_sys::c_jets::jets_wrapper::sha_256_block,
         Bitcoin::Verify => simplicity_sys::c_jets::jets_wrapper::verify,
+        // bip_0340_verify ignores its environment (the C implementation lives
+        // in the env-free jets-secp256k1.c), so it can use the shared wrapper
+        // that passes a null environment, exactly like the elements backend.
+        Bitcoin::Bip0340Verify => simplicity_sys::c_jets::jets_wrapper::bip_0340_verify,
+        // Bitcoin jets whose C implementations read the transaction
+        // environment (`const txEnv* env`). The wrappers in the bitcoin c_env
+        // module forward the Rust `CTxEnv` reference to the C functions.
+        Bitcoin::SigAllHash => c_bitcoin::sig_all_hash,
+        Bitcoin::CheckLockHeight => c_bitcoin::check_lock_height,
+        Bitcoin::CheckLockDistance => c_bitcoin::check_lock_distance,
+        Bitcoin::CheckLockDuration => c_bitcoin::check_lock_duration,
+        Bitcoin::CurrentIndex => c_bitcoin::current_index,
+        Bitcoin::NumInputs => c_bitcoin::num_inputs,
+        Bitcoin::TxHash => c_bitcoin::tx_hash,
+        Bitcoin::TapEnvHash => c_bitcoin::tap_env_hash,
         // Fallback for Jets that have not yet been wired up to their C
-        // implementations. This covers the tx-context / crypto jets whose C
-        // functions need a real transaction environment (not the `&()` this
-        // build passes); those cannot be executed by the Rust Bit Machine yet.
+        // implementations. This covers the remaining tx-context / crypto jets
+        // whose C functions need a real transaction environment; they cannot be
+        // executed by the Rust Bit Machine until their FFI is declared and
+        // wrapped in simplicity-sys/src/c_jets/c_env/bitcoin.rs.
         _ => unimplemented!("Bitcoin jet {:?} has no wired C implementation in this build", jet),
     }
 }
