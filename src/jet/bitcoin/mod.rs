@@ -2,6 +2,8 @@
 
 mod c_env;
 mod environment;
+#[cfg(test)]
+mod tests;
 
 pub use environment::BitcoinEnv;
 
