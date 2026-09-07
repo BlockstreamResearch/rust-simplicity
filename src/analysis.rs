@@ -4,12 +4,10 @@ use crate::jet::Jet;
 use std::{cmp, fmt};
 
 use crate::value::Word;
-#[cfg(feature = "elements")]
-use elements::encode::Encodable;
+#[cfg(feature = "bitcoin")]
+use bitcoin::VarInt;
 #[cfg(feature = "serde")]
 use serde::Serialize;
-#[cfg(feature = "elements")]
-use std::{convert::TryFrom, io};
 
 /// Copy of [`bitcoin::Weight`] that uses [`u32`] instead of [`u64`].
 ///
@@ -115,40 +113,41 @@ impl Cost {
         self <= Self::CONSENSUS_MAX
     }
 
-    /// Return the budget of the given script witness of a transaction output.
+    /// Return the budget of the given script witness of a transaction input.
     ///
-    /// The script witness is passed as `&Vec<Vec<u8>>` in order to use
-    /// the consensus encoding implemented for this type.
-    #[cfg(feature = "elements")]
-    fn get_budget(script_witness: &Vec<Vec<u8>>) -> U32Weight {
-        let mut sink = io::sink();
-        let witness_stack_serialized_len = script_witness
-            .consensus_encode(&mut sink)
-            .expect("writing to sink never fails");
-        let budget = u32::try_from(witness_stack_serialized_len)
-            .expect("Serialized witness stack must be shorter than 2^32 elements")
+    /// The budget is the serialized size of the witness stack, in weight units, plus 50 weight units.
+    /// Bitcoin and Elements serialize a witness stack the same way.
+    /// A CompactSize item count, then each item with a CompactSize length prefix.
+    #[cfg(feature = "bitcoin")]
+    fn get_budget(script_witness: &[Vec<u8>]) -> U32Weight {
+        let mut serialized_len = VarInt::from(script_witness.len()).size();
+        for item in script_witness {
+            serialized_len += VarInt::from(item.len()).size() + item.len();
+        }
+
+        // A witness longer than u32::MAX bytes covers any `Cost`, so saturate
+        let budget = u32::try_from(serialized_len)
+            .unwrap_or(u32::MAX)
             .saturating_add(50);
+
         U32Weight(budget)
     }
 
     /// Return whether the cost is within the budget of
     /// the given script witness of a transaction input.
-    ///
-    /// The script witness is passed as `&Vec<Vec<u8>>` in order to use
-    /// the consensus encoding implemented for this type.
-    #[cfg(feature = "elements")]
-    pub fn is_budget_valid(self, script_witness: &Vec<Vec<u8>>) -> bool {
+    #[cfg(feature = "bitcoin")]
+    pub fn is_budget_valid(self, script_witness: &[Vec<u8>]) -> bool {
         let budget = Self::get_budget(script_witness);
         self.0 <= budget.0.saturating_mul(1000)
     }
 
-    /// Return the annex bytes that are required as padding
-    /// so the transaction input has enough budget to cover the cost.
+    /// Return the length of the shortest annex that, appended to the given script witness,
+    /// gives the transaction input enough budget for the cost.
     ///
-    /// The first annex byte is 0x50, as defined in BIP 341.
-    /// The following padding bytes are 0x00.
-    #[cfg(feature = "elements")]
-    pub fn get_padding(self, script_witness: &Vec<Vec<u8>>) -> Option<Vec<u8>> {
+    /// Returns `None` if the cost already fits.
+    /// Otherwise the length is at least 1, because an annex starts with the `0x50` tag (BIP 341).
+    #[cfg(feature = "bitcoin")]
+    pub fn get_annex_padding_size(self, script_witness: &[Vec<u8>]) -> Option<usize> {
         let weight = U32Weight::from(self);
         let budget = Self::get_budget(script_witness);
         if weight <= budget {
@@ -165,7 +164,15 @@ impl Cost {
         // for the actual CompactSize encoding length of the resulting annex.
         let deficit = (weight - budget).0 as usize; // cast safety: 32-bit machine or higher
 
-        // overhead = compact_size_len + 1 (for 0x50 tag)
+        // The annex is one more stack item.
+        // If that takes the item count past 252 or 65 535, its CompactSize grows by 2 bytes,
+        // which also count towards the budget, so take them off the deficit first.
+        let count_prefix_growth = VarInt::from(script_witness.len() + 1).size()
+            - VarInt::from(script_witness.len()).size();
+        let deficit = deficit.saturating_sub(count_prefix_growth);
+
+        // `padding_len` counts the zero bytes after the 0x50 tag, so
+        // overhead = the CompactSize length of annex_len + 1 (for the tag).
         let padding_len = match deficit {
             // annex_len <= 252, compact_size uses 1 byte, overhead = 2
             0..=253 => deficit.saturating_sub(2),
@@ -182,11 +189,23 @@ impl Cost {
             // is unreachable because Cost uses u32 milliweight, limiting the
             // maximum deficit to ~4_294_968 weight units.
         };
-        let annex_bytes: Vec<u8> = std::iter::once(0x50)
-            .chain(std::iter::repeat(0x00).take(padding_len))
-            .collect();
 
-        Some(annex_bytes)
+        Some(padding_len + 1)
+    }
+
+    /// Return the annex bytes that are required as padding so the transaction input
+    /// has enough budget to cover the cost.
+    ///
+    /// The first annex byte is 0x50, as defined in BIP 341.
+    /// The following padding bytes are 0x00.
+    /// The length is [`Self::get_annex_padding_size`].
+    #[cfg(feature = "elements")]
+    pub fn get_padding(self, script_witness: &[Vec<u8>]) -> Option<Vec<u8>> {
+        self.get_annex_padding_size(script_witness).map(|len| {
+            let mut annex = vec![0x00; len];
+            annex[0] = 0x50;
+            annex
+        })
     }
 }
 
@@ -214,10 +233,8 @@ impl From<U32Weight> for Cost {
 #[cfg(feature = "bitcoin")]
 impl From<Cost> for U32Weight {
     fn from(value: Cost) -> Self {
-        // Saturating addition to avoid panic at numeric bounds
-        // This results in a slightly different rounding for cost values close to u32::MAX.
-        // These values are strictly larger than CONSENSUS_MAX and are of no significance.
-        Self(value.0.saturating_add(999) / 1000)
+        // Round up, because part of a weight unit still needs a whole unit of budget
+        Self(value.0.div_ceil(1000))
     }
 }
 
@@ -428,6 +445,9 @@ mod tests {
             (Cost::from_milliweight(1_999), 2),
             (Cost::from_milliweight(2_000), 2),
             (Cost::CONSENSUS_MAX, 4_000_050),
+            (Cost::from_milliweight(4_294_967_000), 4_294_967),
+            (Cost::from_milliweight(4_294_967_001), 4_294_968),
+            (Cost::from_milliweight(u32::MAX), 4_294_968),
         ];
 
         for (cost, expected_weight) in test_vectors {
@@ -437,43 +457,40 @@ mod tests {
         }
     }
 
-    #[test]
-    #[cfg(feature = "elements")]
-    fn test_get_padding() {
-        // The budget of the empty witness stack is 51 WU:
-        //
-        // 1. 50 WU of free signature operations
-        // 2. 1 WU for the length byte of the witness stack
+    #[cfg(feature = "bitcoin")]
+    fn padding_vectors() -> Vec<(Cost, Vec<Vec<u8>>, Option<usize>)> {
+        // An empty witness has a budget of 51 WU: 50 WU plus its 1-byte item count.
         let empty = 51_000;
 
-        // The encoded annex starts with a length byte, so remove one padding byte from the annex
-        let test_vectors = vec![
+        // 252 empty items have a budget of 1 + 252 + 50 WU.
+        // A 253rd item grows the item count from 1 byte to 3.
+        let items_252 = (1 + 252 + 50) * 1000;
+
+        vec![
             (Cost::from_milliweight(0), vec![], None),
             (Cost::from_milliweight(empty), vec![], None),
+            // 1 WU short: the 1-byte annex [0x50] adds 2 bytes.
             (Cost::from_milliweight(empty + 1), vec![], Some(1)),
-            (Cost::from_milliweight(empty + 2_000), vec![], Some(1)),
-            (Cost::from_milliweight(empty + 2_001), vec![], Some(2)),
-            (Cost::from_milliweight(empty + 3_000), vec![], Some(2)),
-            (Cost::from_milliweight(empty + 3_001), vec![], Some(3)),
-            (Cost::from_milliweight(empty + 4_000), vec![], Some(3)),
-            (Cost::from_milliweight(empty + 4_001), vec![], Some(4)),
             (Cost::from_milliweight(empty + 50_000), vec![], Some(49)),
-            // Test around CompactSize boundary (annex_len crossing 252 -> 253)
-            // deficit = 253: annex_len = 252, compact_size = 1 byte, overhead = 2
+            // Annex lengths around the 1 -> 3 byte CompactSize boundary.
             (Cost::from_milliweight(empty + 253_000), vec![], Some(252)),
-            // deficit = 254: annex_len must be 253 (3-byte compact_size), overhead = 4
             (Cost::from_milliweight(empty + 254_000), vec![], Some(253)),
-            // deficit = 255: same boundary case
-            (Cost::from_milliweight(empty + 255_000), vec![], Some(253)),
-            // deficit = 256: annex_len = 253, compact_size = 3, exact fit
-            (Cost::from_milliweight(empty + 256_000), vec![], Some(253)),
-            // deficit = 257: annex_len = 254
-            (Cost::from_milliweight(empty + 257_000), vec![], Some(254)),
-            // Large annex (exercises the 3-byte compact_size path)
+            // Annex lengths around the 3 -> 5 byte CompactSize boundary.
             (
-                Cost::from_milliweight(empty + 7_424_000),
+                Cost::from_milliweight(empty + 65_538_000),
                 vec![],
-                Some(7_421),
+                Some(65_535),
+            ),
+            (
+                Cost::from_milliweight(empty + 65_539_000),
+                vec![],
+                Some(65_536),
+            ),
+            // The growth of the item count counts towards the budget.
+            (
+                Cost::from_milliweight(items_252 + 10_000),
+                vec![vec![]; 252],
+                Some(7),
             ),
             // Hash loop example
             (
@@ -483,25 +500,51 @@ mod tests {
             ),
             // Max
             (Cost::CONSENSUS_MAX, vec![], Some(3_999_994)),
-        ];
+        ]
+    }
 
-        for (cost, mut witness, maybe_padding) in test_vectors {
-            match maybe_padding {
-                None => {
-                    assert!(cost.is_budget_valid(&witness));
-                    assert!(cost.get_padding(&witness).is_none());
-                }
-                Some(expected_annex_len) => {
-                    assert!(!cost.is_budget_valid(&witness));
+    #[test]
+    #[cfg(feature = "bitcoin")]
+    fn test_get_annex_padding_size() {
+        for (cost, mut witness, expected) in padding_vectors() {
+            let size = cost.get_annex_padding_size(&witness);
+            assert_eq!(size, expected, "cost {cost}");
 
-                    let annex_bytes = cost.get_padding(&witness).expect("not enough budget");
-                    assert_eq!(expected_annex_len, annex_bytes.len());
-                    witness.extend(std::iter::once(annex_bytes));
-                    assert!(cost.is_budget_valid(&witness));
+            let Some(size) = size else {
+                assert!(cost.is_budget_valid(&witness));
+                continue;
+            };
+            assert!(!cost.is_budget_valid(&witness));
 
-                    witness.pop();
-                    assert!(!cost.is_budget_valid(&witness), "Padding must be minimal");
-                }
+            // Only the length of the annex affects the budget.
+            witness.push(vec![0x00; size]);
+            assert!(
+                cost.is_budget_valid(&witness),
+                "{size} bytes do not cover cost {cost}"
+            );
+
+            // The annex must be minimal. One byte shorter must not suffice.
+            // A 1-byte annex is only the tag and cannot be shorter.
+            if size > 1 {
+                witness.last_mut().expect("non-empty").pop();
+                assert!(
+                    !cost.is_budget_valid(&witness),
+                    "{size} bytes are not minimal for cost {cost}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "elements")]
+    fn test_get_padding() {
+        for (cost, witness, expected) in padding_vectors() {
+            let annex = cost.get_padding(&witness);
+            assert_eq!(annex.as_ref().map(Vec::len), expected);
+
+            if let Some(annex) = annex {
+                assert_eq!(annex[0], 0x50);
+                assert!(annex[1..].iter().all(|&b| b == 0x00));
             }
         }
     }
