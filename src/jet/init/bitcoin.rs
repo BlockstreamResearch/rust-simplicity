@@ -8152,7 +8152,30 @@ impl str::FromStr for Bitcoin {
 }
 
 pub(crate) fn c_jet_ptr(jet: &Bitcoin) -> fn(&mut CFrameItem, CFrameItem, &()) -> bool {
-        unimplemented!("Bitcoin jets have not yet been implemented.")
+    match jet {
+        Bitcoin::All8 => simplicity_sys::c_jets::jets_wrapper::all_8,
+        Bitcoin::Eq256 => simplicity_sys::c_jets::jets_wrapper::eq_256,
+        Bitcoin::Sha256Ctx8Add1 => simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_1,
+        Bitcoin::Sha256Ctx8Add2 => simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_2,
+        Bitcoin::Sha256Ctx8Add4 => simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_4,
+        Bitcoin::Sha256Ctx8Add8 => simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_8,
+        Bitcoin::Sha256Ctx8Add16 => simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_16,
+        Bitcoin::Sha256Ctx8Add32 => simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_32,
+        Bitcoin::Sha256Ctx8Add64 => simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_64,
+        Bitcoin::Sha256Ctx8Add128 => simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_128,
+        Bitcoin::Sha256Ctx8Add256 => simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_256,
+        Bitcoin::Sha256Ctx8AddBuffer511 => simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_add_buffer_511,
+        Bitcoin::Sha256Ctx8Finalize => simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_finalize,
+        Bitcoin::Sha256Ctx8Init => simplicity_sys::c_jets::jets_wrapper::sha_256_ctx_8_init,
+        Bitcoin::Sha256Iv => simplicity_sys::c_jets::jets_wrapper::sha_256_iv,
+        Bitcoin::Sha256Block => simplicity_sys::c_jets::jets_wrapper::sha_256_block,
+        Bitcoin::Verify => simplicity_sys::c_jets::jets_wrapper::verify,
+        // Fallback for Jets that have not yet been wired up to their C
+        // implementations. This covers the tx-context / crypto jets whose C
+        // functions need a real transaction environment (not the `&()` this
+        // build passes); those cannot be executed by the Rust Bit Machine yet.
+        _ => unimplemented!("Bitcoin jet {:?} has no wired C implementation in this build", jet),
+    }
 }
 
 
