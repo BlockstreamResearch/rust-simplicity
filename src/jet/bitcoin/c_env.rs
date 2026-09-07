@@ -3,7 +3,7 @@
 use crate::Cmr;
 
 use bitcoin::hashes::Hash as _;
-use bitcoin::taproot::ControlBlock;
+use bitcoin::taproot::{ControlBlock, TAPROOT_ANNEX_PREFIX};
 use simplicity_sys::c_jets::c_env::bitcoin as c_bitcoin;
 
 pub(super) fn new_tx(
@@ -23,7 +23,7 @@ pub(super) fn new_tx(
     let mut raw_annexes = Vec::from_iter((0..tx.input.len()).map(|_| None)).into_boxed_slice();
 
     for (n, (inp, utxo)) in tx.input.iter().zip(in_utxos.iter()).enumerate() {
-        raw_annexes[n] = inp.witness.taproot_annex().map(c_bitcoin::CRawBuffer::new);
+        raw_annexes[n] = get_annex(&inp.witness).map(c_bitcoin::CRawBuffer::new);
         raw_inputs.push(c_bitcoin::CRawInput {
             // This `as_ref().map_or()` construction converts an Option<&T> to a nullable *const T.
             // In theory it's a no-op.
@@ -99,5 +99,17 @@ pub(super) fn new_tx_env(
         let mut tx_env = std::mem::MaybeUninit::<c_bitcoin::CTxEnv>::uninit();
         c_bitcoin::c_set_txEnv(tx_env.as_mut_ptr(), tx, taproot, ix);
         tx_env.assume_init()
+    }
+}
+
+/// Extracts the annex from a taproot witness stack per BIP341: if there are at
+/// least two witness elements and the last one starts with 0x50, it is the annex.
+/// (rust-bitcoin 0.32 removed `Witness::taproot_annex`.)
+fn get_annex(in_witness: &bitcoin::Witness) -> Option<&[u8]> {
+    let last_item = in_witness.last()?;
+    if *last_item.first()? == TAPROOT_ANNEX_PREFIX {
+        Some(last_item)
+    } else {
+        None
     }
 }
