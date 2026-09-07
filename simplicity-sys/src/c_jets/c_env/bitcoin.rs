@@ -142,6 +142,240 @@ extern "C" {
     pub fn bitcoin_tx_hash(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
     #[link_name = "rustsimplicity_0_8_bitcoin_tap_env_hash"]
     pub fn bitcoin_tap_env_hash(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_annex_hash"]
+    pub fn bitcoin_annex_hash(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_build_tapbranch"]
+    pub fn bitcoin_build_tapbranch(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_build_tapleaf_simplicity"]
+    pub fn bitcoin_build_tapleaf_simplicity(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_build_taptweak"]
+    pub fn bitcoin_build_taptweak(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_check_lock_time"]
+    pub fn bitcoin_check_lock_time(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_current_annex_hash"]
+    pub fn bitcoin_current_annex_hash(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_current_prev_outpoint"]
+    pub fn bitcoin_current_prev_outpoint(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_current_script_hash"]
+    pub fn bitcoin_current_script_hash(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_current_script_sig_hash"]
+    pub fn bitcoin_current_script_sig_hash(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_current_sequence"]
+    pub fn bitcoin_current_sequence(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_current_value"]
+    pub fn bitcoin_current_value(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv)
+        -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_fee"]
+    pub fn bitcoin_fee(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_input_annex_hash"]
+    pub fn bitcoin_input_annex_hash(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_input_annexes_hash"]
+    pub fn bitcoin_input_annexes_hash(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_input_hash"]
+    pub fn bitcoin_input_hash(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_input_outpoints_hash"]
+    pub fn bitcoin_input_outpoints_hash(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_input_prev_outpoint"]
+    pub fn bitcoin_input_prev_outpoint(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_input_script_hash"]
+    pub fn bitcoin_input_script_hash(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_input_script_sig_hash"]
+    pub fn bitcoin_input_script_sig_hash(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_input_script_sigs_hash"]
+    pub fn bitcoin_input_script_sigs_hash(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_input_scripts_hash"]
+    pub fn bitcoin_input_scripts_hash(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_input_sequence"]
+    pub fn bitcoin_input_sequence(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_input_sequences_hash"]
+    pub fn bitcoin_input_sequences_hash(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_input_utxo_hash"]
+    pub fn bitcoin_input_utxo_hash(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_input_utxos_hash"]
+    pub fn bitcoin_input_utxos_hash(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_input_value"]
+    pub fn bitcoin_input_value(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_input_values_hash"]
+    pub fn bitcoin_input_values_hash(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_inputs_hash"]
+    pub fn bitcoin_inputs_hash(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_internal_key"]
+    pub fn bitcoin_internal_key(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_lock_time"]
+    pub fn bitcoin_lock_time(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_num_outputs"]
+    pub fn bitcoin_num_outputs(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_outpoint_hash"]
+    pub fn bitcoin_outpoint_hash(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv)
+        -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_output_hash"]
+    pub fn bitcoin_output_hash(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_output_script_hash"]
+    pub fn bitcoin_output_script_hash(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_output_scripts_hash"]
+    pub fn bitcoin_output_scripts_hash(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_output_value"]
+    pub fn bitcoin_output_value(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_output_values_hash"]
+    pub fn bitcoin_output_values_hash(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_outputs_hash"]
+    pub fn bitcoin_outputs_hash(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_script_cmr"]
+    pub fn bitcoin_script_cmr(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_tapleaf_hash"]
+    pub fn bitcoin_tapleaf_hash(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_tapleaf_version"]
+    pub fn bitcoin_tapleaf_version(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_tappath"]
+    pub fn bitcoin_tappath(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_tappath_hash"]
+    pub fn bitcoin_tappath_hash(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_total_input_value"]
+    pub fn bitcoin_total_input_value(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_total_output_value"]
+    pub fn bitcoin_total_output_value(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_transaction_id"]
+    pub fn bitcoin_transaction_id(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_tx_is_final"]
+    pub fn bitcoin_tx_is_final(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_tx_lock_distance"]
+    pub fn bitcoin_tx_lock_distance(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_tx_lock_duration"]
+    pub fn bitcoin_tx_lock_duration(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_tx_lock_height"]
+    pub fn bitcoin_tx_lock_height(
+        dst: *mut CFrameItem,
+        src: CFrameItem,
+        env: *const CTxEnv,
+    ) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_tx_lock_time"]
+    pub fn bitcoin_tx_lock_time(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
+    #[link_name = "rustsimplicity_0_8_bitcoin_version"]
+    pub fn bitcoin_version(dst: *mut CFrameItem, src: CFrameItem, env: *const CTxEnv) -> bool;
 }
 
 impl CTxEnv {
@@ -196,6 +430,58 @@ bitcoin_env_jet_wrapper!(current_index, bitcoin_current_index);
 bitcoin_env_jet_wrapper!(num_inputs, bitcoin_num_inputs);
 bitcoin_env_jet_wrapper!(tx_hash, bitcoin_tx_hash);
 bitcoin_env_jet_wrapper!(tap_env_hash, bitcoin_tap_env_hash);
+bitcoin_env_jet_wrapper!(annex_hash, bitcoin_annex_hash);
+bitcoin_env_jet_wrapper!(build_tapbranch, bitcoin_build_tapbranch);
+bitcoin_env_jet_wrapper!(build_tapleaf_simplicity, bitcoin_build_tapleaf_simplicity);
+bitcoin_env_jet_wrapper!(build_taptweak, bitcoin_build_taptweak);
+bitcoin_env_jet_wrapper!(check_lock_time, bitcoin_check_lock_time);
+bitcoin_env_jet_wrapper!(current_annex_hash, bitcoin_current_annex_hash);
+bitcoin_env_jet_wrapper!(current_prev_outpoint, bitcoin_current_prev_outpoint);
+bitcoin_env_jet_wrapper!(current_script_hash, bitcoin_current_script_hash);
+bitcoin_env_jet_wrapper!(current_script_sig_hash, bitcoin_current_script_sig_hash);
+bitcoin_env_jet_wrapper!(current_sequence, bitcoin_current_sequence);
+bitcoin_env_jet_wrapper!(current_value, bitcoin_current_value);
+bitcoin_env_jet_wrapper!(fee, bitcoin_fee);
+bitcoin_env_jet_wrapper!(input_annex_hash, bitcoin_input_annex_hash);
+bitcoin_env_jet_wrapper!(input_annexes_hash, bitcoin_input_annexes_hash);
+bitcoin_env_jet_wrapper!(input_hash, bitcoin_input_hash);
+bitcoin_env_jet_wrapper!(input_outpoints_hash, bitcoin_input_outpoints_hash);
+bitcoin_env_jet_wrapper!(input_prev_outpoint, bitcoin_input_prev_outpoint);
+bitcoin_env_jet_wrapper!(input_script_hash, bitcoin_input_script_hash);
+bitcoin_env_jet_wrapper!(input_script_sig_hash, bitcoin_input_script_sig_hash);
+bitcoin_env_jet_wrapper!(input_script_sigs_hash, bitcoin_input_script_sigs_hash);
+bitcoin_env_jet_wrapper!(input_scripts_hash, bitcoin_input_scripts_hash);
+bitcoin_env_jet_wrapper!(input_sequence, bitcoin_input_sequence);
+bitcoin_env_jet_wrapper!(input_sequences_hash, bitcoin_input_sequences_hash);
+bitcoin_env_jet_wrapper!(input_utxo_hash, bitcoin_input_utxo_hash);
+bitcoin_env_jet_wrapper!(input_utxos_hash, bitcoin_input_utxos_hash);
+bitcoin_env_jet_wrapper!(input_value, bitcoin_input_value);
+bitcoin_env_jet_wrapper!(input_values_hash, bitcoin_input_values_hash);
+bitcoin_env_jet_wrapper!(inputs_hash, bitcoin_inputs_hash);
+bitcoin_env_jet_wrapper!(internal_key, bitcoin_internal_key);
+bitcoin_env_jet_wrapper!(lock_time, bitcoin_lock_time);
+bitcoin_env_jet_wrapper!(num_outputs, bitcoin_num_outputs);
+bitcoin_env_jet_wrapper!(outpoint_hash, bitcoin_outpoint_hash);
+bitcoin_env_jet_wrapper!(output_hash, bitcoin_output_hash);
+bitcoin_env_jet_wrapper!(output_script_hash, bitcoin_output_script_hash);
+bitcoin_env_jet_wrapper!(output_scripts_hash, bitcoin_output_scripts_hash);
+bitcoin_env_jet_wrapper!(output_value, bitcoin_output_value);
+bitcoin_env_jet_wrapper!(output_values_hash, bitcoin_output_values_hash);
+bitcoin_env_jet_wrapper!(outputs_hash, bitcoin_outputs_hash);
+bitcoin_env_jet_wrapper!(script_cmr, bitcoin_script_cmr);
+bitcoin_env_jet_wrapper!(tapleaf_hash, bitcoin_tapleaf_hash);
+bitcoin_env_jet_wrapper!(tapleaf_version, bitcoin_tapleaf_version);
+bitcoin_env_jet_wrapper!(tappath, bitcoin_tappath);
+bitcoin_env_jet_wrapper!(tappath_hash, bitcoin_tappath_hash);
+bitcoin_env_jet_wrapper!(total_input_value, bitcoin_total_input_value);
+bitcoin_env_jet_wrapper!(total_output_value, bitcoin_total_output_value);
+bitcoin_env_jet_wrapper!(transaction_id, bitcoin_transaction_id);
+bitcoin_env_jet_wrapper!(tx_is_final, bitcoin_tx_is_final);
+bitcoin_env_jet_wrapper!(tx_lock_distance, bitcoin_tx_lock_distance);
+bitcoin_env_jet_wrapper!(tx_lock_duration, bitcoin_tx_lock_duration);
+bitcoin_env_jet_wrapper!(tx_lock_height, bitcoin_tx_lock_height);
+bitcoin_env_jet_wrapper!(tx_lock_time, bitcoin_tx_lock_time);
+bitcoin_env_jet_wrapper!(version, bitcoin_version);
 
 // Will uncomment in a later commit; need to update libsimplicity first.
 #[cfg(test)]
