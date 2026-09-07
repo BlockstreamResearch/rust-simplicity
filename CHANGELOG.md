@@ -1,5 +1,14 @@
 # Unreleased
 
+* Add `Cost::get_padding_size`, returning the chain-agnostic length of the padding witness
+  stack item needed to bring a cost within the witness budget, and `Cost::get_padding_bytes`,
+  returning the chain-specific bytes that fill it (an all-zero item on Bitcoin, an annex on
+  Elements). Deprecate `Cost::get_padding` in favour of these.
+* `Cost::get_budget` and `Cost::is_budget_valid` now take `&[Vec<u8>]` instead of `&Vec<Vec<u8>>`
+  and compute the serialized witness length directly rather than via the Elements consensus
+  encoder, making them available under the `bitcoin` feature (which `elements` implies) as
+  well as `elements`.
+
 # 0.9.0 - 2026-09-16
 
 * Update `elements` to `0.27.0`, `bitcoin_hashes` to `1.2.0`, and `hex-conservative` to `1.2.0` [#368](https://github.com/BlockstreamResearch/rust-simplicity/pull/368), [#373](https://github.com/BlockstreamResearch/rust-simplicity/pull/373), [#376](https://github.com/BlockstreamResearch/rust-simplicity/pull/376).
