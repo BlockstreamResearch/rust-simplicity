@@ -46,11 +46,11 @@ from one node type to the next.
 
 ## Installation
 
-To use rust-simplicity, this to your Cargo.toml:
+To use rust-simplicity, add this to your Cargo.toml:
 
 ```toml
 [dependencies]
-simplicity-lang = "0.6"
+simplicity-lang = "0.9"
 ```
 
 ## Quick Start
@@ -58,19 +58,17 @@ simplicity-lang = "0.6"
 ```rust
 use simplicity::node::CoreConstructible;
 use simplicity::types::Context;
-use simplicity::{ConstructNode, jet::Core};
+use simplicity::ConstructNode;
 use std::sync::Arc;
 
 // Create a trivial Simplicity program
 let program = Context::with_context(|ctx| {
-    let construct = Arc::<ConstructNode<Core>>::unit(&ctx);
+    let construct = Arc::<ConstructNode>::unit(&ctx);
     construct.finalize_types().unwrap()
 });
 
 // Encode the program to bytes
-let encoded: Vec<u8> = simplicity::write_to_vec(|w| {
-    program.encode_without_witness(w)
-});
+let encoded: Vec<u8> = program.to_vec_without_witness();
 ```
 
 ## Relationship to libsimplicity
