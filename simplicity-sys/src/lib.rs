@@ -7,6 +7,8 @@ pub use c_jets::CFrameItem;
 // Temporary to keep the Haskell-generated code compiling
 pub use c_jets::elements::CTxEnv as CElementsTxEnv;
 
+pub use hashes;
+
 pub mod alloc;
 pub mod ffi;
 #[cfg(feature = "test-utils")]
