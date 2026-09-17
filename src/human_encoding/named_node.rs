@@ -8,8 +8,7 @@ use crate::node::{
     self, Commit, CommitData, CommitNode, Construct, ConstructData, Constructible as _, Converter,
     CoreConstructible as _, Inner, NoDisconnect, NoWitness, Node,
 };
-use crate::types;
-use crate::types::arrow::{Arrow, FinalArrow};
+use crate::types::{self, Arrow, FinalArrow};
 use crate::{encode, ConstructNode, Value};
 use crate::{BitWriter, Cmr, Ihr};
 

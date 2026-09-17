@@ -2,7 +2,7 @@
 
 use crate::dag::{InternalSharing, PostOrderIterItem};
 use crate::jet::{Jet, JetEnvironment};
-use crate::types::{self, arrow::Arrow};
+use crate::types::{self, Arrow};
 use crate::{encode, BitIter, BitWriter, Cmr, FailEntropy, FinalizeError, RedeemNode, Value, Word};
 
 use std::io;
@@ -330,15 +330,15 @@ impl<'brand> CoreConstructible<'brand> for ConstructData<'brand> {
         })
     }
 
-    fn assertl(left: &Self, right: Cmr) -> Result<Self, types::Error> {
+    fn assertl(left: &Self, _: Cmr) -> Result<Self, types::Error> {
         Ok(ConstructData {
-            arrow: Arrow::assertl(&left.arrow, right)?,
+            arrow: Arrow::assertl(&left.arrow)?,
         })
     }
 
-    fn assertr(left: Cmr, right: &Self) -> Result<Self, types::Error> {
+    fn assertr(_: Cmr, right: &Self) -> Result<Self, types::Error> {
         Ok(ConstructData {
-            arrow: Arrow::assertr(left, &right.arrow)?,
+            arrow: Arrow::assertr(&right.arrow)?,
         })
     }
 
@@ -348,15 +348,15 @@ impl<'brand> CoreConstructible<'brand> for ConstructData<'brand> {
         })
     }
 
-    fn fail(inference_context: &types::Context<'brand>, entropy: FailEntropy) -> Self {
+    fn fail(inference_context: &types::Context<'brand>, _: FailEntropy) -> Self {
         ConstructData {
-            arrow: Arrow::fail(inference_context, entropy),
+            arrow: Arrow::fail(inference_context),
         }
     }
 
     fn const_word(inference_context: &types::Context<'brand>, word: Word) -> Self {
         ConstructData {
-            arrow: Arrow::const_word(inference_context, word),
+            arrow: Arrow::const_word(inference_context, &word),
         }
     }
 
@@ -366,8 +366,8 @@ impl<'brand> CoreConstructible<'brand> for ConstructData<'brand> {
         }
     }
 
-    fn inference_context(&self) -> &types::Context<'brand> {
-        self.arrow.inference_context()
+    fn arrow(&self) -> &Arrow<'brand> {
+        &self.arrow
     }
 }
 
@@ -388,7 +388,7 @@ impl<'brand> DisconnectConstructible<'brand, Option<Arc<ConstructNode<'brand>>>>
 impl<'brand> WitnessConstructible<'brand, Option<Value>> for ConstructData<'brand> {
     fn witness(inference_context: &types::Context<'brand>, _witness: Option<Value>) -> Self {
         ConstructData {
-            arrow: Arrow::witness(inference_context, NoWitness),
+            arrow: Arrow::witness(inference_context),
         }
     }
 }

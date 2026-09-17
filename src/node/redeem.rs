@@ -4,7 +4,7 @@ use crate::analysis::NodeBounds;
 use crate::bit_machine::{ExecutionError, PruneTracker, SetTracker};
 use crate::dag::{DagLike, InternalSharing, MaxSharing, PostOrderIterItem};
 use crate::jet::{Jet, JetEnvironment};
-use crate::types::{self, arrow::FinalArrow};
+use crate::types::{self, FinalArrow};
 use crate::{encode, BitMachine};
 use crate::{Amr, BitIter, BitWriter, Cmr, DecodeError, Ihr, Imr, Value};
 

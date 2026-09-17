@@ -192,7 +192,11 @@ pub trait CoreConstructible<'brand>: Sized {
     fn jet(inference_context: &types::Context<'brand>, jet: &dyn Jet) -> Self;
 
     /// Accessor for the type inference context used to create the object.
-    fn inference_context(&self) -> &types::Context<'brand>;
+    #[inline]
+    fn inference_context(&self) -> &types::Context<'brand> {
+        &self.arrow().inference_context
+    }
+    fn arrow(&self) -> &types::Arrow<'brand>;
 
     /// Create an expression that produces the given `value`.
     ///
@@ -550,8 +554,8 @@ where
         })
     }
 
-    fn inference_context(&self) -> &types::Context<'brand> {
-        self.data.inference_context()
+    fn arrow(&self) -> &types::Arrow<'brand> {
+        self.data.arrow()
     }
 }
 

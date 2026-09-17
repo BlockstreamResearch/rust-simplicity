@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: CC0-1.0
 
 use crate::jet::Jet;
-use crate::types::arrow::FinalArrow;
+use crate::types::FinalArrow;
 use crate::value::Word;
 use crate::{Cmr, Tmr, Value};
 use hashes::sha256::Midstate;
