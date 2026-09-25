@@ -5,7 +5,7 @@
 #[cfg(any(fuzzing, test))]
 fn do_test(data: &[u8]) {
     let mut extractor = simplicity_fuzz::Extractor::new(data);
-    let _ = extractor.extract_final_type();
+    let _ = extractor.extract_final_type(true);
 }
 
 #[cfg(fuzzing)]
