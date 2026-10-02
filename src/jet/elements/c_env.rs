@@ -256,9 +256,16 @@ fn value_ptr(value: confidential::Value, data: &[u8]) -> *const c_uchar {
     }
 }
 
-/// If the last item in the witness stack is an annex, return the data following the 0x50 byte.
+/// If the witness stack has at least two items and the last one starts with 0x50, return the
+/// data following the 0x50 byte.
+///
+/// This is the BIP-341 annex rule. Elements applies it to every input, whatever its script type.
 fn get_annex(in_witness: &elements::TxInWitness) -> Option<&[u8]> {
-    let last_item = in_witness.script_witness.last()?;
+    let stack = &in_witness.script_witness;
+    if stack.len() < 2 {
+        return None;
+    }
+    let last_item = stack.last()?;
     if *last_item.first()? == TAPROOT_ANNEX_PREFIX {
         Some(&last_item[1..])
     } else {
