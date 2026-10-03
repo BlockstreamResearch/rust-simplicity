@@ -110,3 +110,88 @@ fn hex_script(s: &str) -> elements::Script {
     let v = hex::decode_to_vec(s).unwrap();
     elements::Script::from(v)
 }
+
+/// Build a two-input environment for input 0, where input 1 has the given witness stack.
+fn annex_test_env(witness_1: Vec<Vec<u8>>) -> ElementsEnv<Arc<Transaction>> {
+    let asset = confidential::Asset::Explicit(AssetId::from_byte_array([0x23; 32]));
+    let ctrl_blk = [0xc0; 33];
+    let input = |vout: u32, witness: Vec<Vec<u8>>| TxIn {
+        previous_output: OutPoint {
+            txid: elements::Txid::from_byte_array([0xeb; 32]),
+            vout,
+        },
+        sequence: Sequence::ENABLE_LOCKTIME_NO_RBF,
+        is_pegin: false,
+        asset_issuance: AssetIssuance {
+            asset_blinding_nonce: AssetBlindingNonce::NEW_ISSUANCE,
+            asset_entropy: AssetEntropy::NEW_ISSUANCE,
+            amount: confidential::Value::Null,
+            inflation_keys: confidential::Value::Null,
+        },
+        script_sig: elements::Script::new(),
+        witness: TxInWitness {
+            amount_rangeproof: RangeProof::EMPTY,
+            inflation_keys_rangeproof: RangeProof::EMPTY,
+            script_witness: Witness::from(witness),
+            pegin_witness: PeginWitness::EMPTY,
+        },
+    };
+    let tx = Transaction {
+        version: 2,
+        lock_time: elements::LockTime::ZERO,
+        input: vec![
+            input(0, vec![vec![0xaa], vec![0xbb], ctrl_blk.to_vec()]),
+            input(1, witness_1),
+        ],
+        output: vec![TxOut {
+            asset,
+            value: confidential::Value::Explicit(1000),
+            nonce: confidential::Nonce::Null,
+            script_pubkey: elements::Script::new(),
+            witness: TxOutWitness {
+                surjection_proof: SurjectionProof::EMPTY,
+                rangeproof: RangeProof::EMPTY,
+            },
+        }],
+    };
+    let utxo = ElementsUtxo {
+        script_pubkey: elements::Script::new(),
+        asset,
+        value: confidential::Value::Explicit(1000),
+    };
+    ElementsEnv::new(
+        Arc::new(tx),
+        vec![utxo.clone(), utxo],
+        0,
+        Cmr::from_byte_array([0; 32]),
+        ControlBlock::from_slice(&ctrl_blk).expect("ctrl block from slice"),
+        None,
+        BlockHash::GENESIS_PREVIOUS_BLOCK_HASH,
+    )
+}
+
+#[test]
+fn annex_requires_two_witness_items() {
+    let exec = |jet: Elements, env: &ElementsEnv<Arc<Transaction>>| {
+        types::Context::with_context(|ctx| {
+            let prog = Arc::<ConstructNode>::jet(&ctx, &jet);
+            BitMachine::test_exec(prog, env).expect("executing")
+        })
+    };
+
+    // A taproot key-path signature which happens to start with 0x50.
+    let mut sig = vec![0x50];
+    sig.extend([0x11; 63]);
+
+    let no_annex = annex_test_env(vec![]);
+    let one_item = annex_test_env(vec![sig.clone()]);
+    let two_items = annex_test_env(vec![vec![0x22], sig]);
+
+    for jet in [Elements::InputAnnexesHash, Elements::SigAllHash] {
+        let expected = exec(jet, &no_annex);
+        // A single witness item is never an annex (BIP-341).
+        assert_eq!(exec(jet, &one_item), expected, "{jet}");
+        // With two or more items, a last item starting with 0x50 is an annex.
+        assert_ne!(exec(jet, &two_items), expected, "{jet}");
+    }
+}
