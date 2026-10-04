@@ -98,6 +98,25 @@ jobs:
           echo "No default features" && cargo test --locked --no-default-features
           echo "All features" && cargo test --locked --all-features
 
+  feature_matrix:
+    name: Feature Matrix (cargo hack)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Crate
+        uses: actions/checkout@v4
+      - name: Checkout Toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-hack
+        run: cargo install cargo-hack --locked
+      - name: Set dependencies
+        run: cp Cargo-recent.lock Cargo.lock
+      - name: Running cargo hack over the feature powerset
+        env:
+          RUSTFLAGS: "-D warnings"
+        run: |
+          cargo hack check --locked --workspace --exclude simplicity-fuzz \
+            --all-targets --feature-powerset
+
   ignored:
     name: Ignored Tests
     runs-on: ubuntu-latest
