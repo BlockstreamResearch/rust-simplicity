@@ -713,11 +713,10 @@ mod tests {
     #[cfg(feature = "elements")]
     fn bip340_program() {
         use crate::jet::elements::ElementsEnv;
-        use crate::jet::ElementsTxEnv;
 
         let empty = HashMap::new();
         let dummy = ElementsEnv::dummy();
-        assert_cmr_witness::<ElementsTxEnv>(
+        assert_cmr_witness::<ElementsEnv<elements::Transaction>>(
             "main := unit",
             "c40a10263f7436b4160acbef1c36fba4be4d95df181a968afeab5eac247adff7",
             &empty,
@@ -734,7 +733,7 @@ mod tests {
         ];
 
         let signature = HashMap::from([(Arc::from("wit1"), Value::u512(sig))]);
-        assert_cmr_witness::<ElementsTxEnv>(
+        assert_cmr_witness::<ElementsEnv<elements::Transaction>>(
             "
                 -- Witnesses
                 wit1 := witness : 1 -> 2^512
