@@ -257,7 +257,7 @@ mod tests {
 
     fn compile(
         policy: Policy<XOnlyPublicKey>,
-    ) -> (Arc<CommitNode>, ElementsEnv<Arc<elements::Transaction>>) {
+    ) -> (Arc<CommitNode>, ElementsEnv<elements::Transaction>) {
         let commit = policy.commit();
         let env = ElementsEnv::dummy();
 
@@ -267,7 +267,7 @@ mod tests {
     fn execute_successful(
         commit: &CommitNode,
         witness: Vec<Value>,
-        env: &ElementsEnv<Arc<elements::Transaction>>,
+        env: &ElementsEnv<elements::Transaction>,
     ) -> bool {
         let finalized = commit
             .finalize(&mut SimpleFinalizer::new(witness.into_iter()))
