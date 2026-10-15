@@ -2,6 +2,9 @@ on: [push, pull_request]
 
 name: Continuous integration
 
+permissions:
+  contents: read
+
 jobs:
   Prepare:
     runs-on: ubuntu-24.04
@@ -36,6 +39,47 @@ jobs:
           components: rustfmt
       - name: Running cargo fmt
         run: cargo fmt --all -- --check
+
+  symbol_versions:
+    name: Symbol Version Prefixes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Crate
+        uses: actions/checkout@v4
+      - name: Check simplicity-sys symbol prefixes match its version
+        run: ./simplicity-sys/check-symbol-versions.sh
+
+  vendored_libsimplicity:
+    name: Vendored libsimplicity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Crate
+        uses: actions/checkout@v4
+      - name: Read vendored libsimplicity revision
+        id: libsimplicity
+        run: |
+          set -euo pipefail
+          echo "rev=$(sed -n '2p' simplicity-sys/depend/simplicity-HEAD-revision.txt)" >> "$GITHUB_OUTPUT"
+      - name: Checkout libsimplicity
+        uses: actions/checkout@v4
+        with:
+          repository: BlockstreamResearch/simplicity
+          ref: ${{ steps.libsimplicity.outputs.rev }}
+          path: libsimplicity
+      - name: Re-vendor libsimplicity and check for differences
+        env:
+          LIBSIMPLICITY_REV: ${{ steps.libsimplicity.outputs.rev }}
+        run: |
+          set -euo pipefail
+          cd simplicity-sys
+          # vendor-simplicity.sh asks before deleting the existing vendored copy.
+          echo y | ./vendor-simplicity.sh depend ../libsimplicity
+          if [ -n "$(git status --porcelain --untracked-files=all -- .)" ]; then
+            echo "simplicity-sys does not match libsimplicity $LIBSIMPLICITY_REV re-vendored with vendor-simplicity.sh:"
+            git status --short --untracked-files=all -- .
+            git diff --stat -- .
+            exit 1
+          fi
 
   simpcli_test:
     name: SimpCLI Tests
