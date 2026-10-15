@@ -37,6 +37,15 @@ jobs:
       - name: Running cargo fmt
         run: cargo fmt --all -- --check
 
+  symbol_versions:
+    name: Symbol Version Prefixes
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Crate
+        uses: actions/checkout@v4
+      - name: Check simplicity-sys symbol prefixes match its version
+        run: ./simplicity-sys/check-symbol-versions.sh
+
   simpcli_test:
     name: SimpCLI Tests
     runs-on: ubuntu-latest
