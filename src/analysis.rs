@@ -4,12 +4,8 @@ use crate::jet::Jet;
 use std::{cmp, fmt};
 
 use crate::value::Word;
-#[cfg(feature = "elements")]
-use elements::encode::Encodable;
 #[cfg(feature = "serde")]
 use serde::Serialize;
-#[cfg(feature = "elements")]
-use std::{convert::TryFrom, io};
 
 /// Copy of [`bitcoin::Weight`] that uses [`u32`] instead of [`u64`].
 ///
@@ -115,78 +111,159 @@ impl Cost {
         self <= Self::CONSENSUS_MAX
     }
 
-    /// Return the budget of the given script witness of a transaction output.
+    /// Return the budget of the given script witness of a transaction input.
     ///
-    /// The script witness is passed as `&Vec<Vec<u8>>` in order to use
-    /// the consensus encoding implemented for this type.
-    #[cfg(feature = "elements")]
-    fn get_budget(script_witness: &Vec<Vec<u8>>) -> U32Weight {
-        let mut sink = io::sink();
-        let witness_stack_serialized_len = script_witness
-            .consensus_encode(&mut sink)
-            .expect("writing to sink never fails");
-        let budget = u32::try_from(witness_stack_serialized_len)
-            .expect("Serialized witness stack must be shorter than 2^32 elements")
-            .saturating_add(50);
+    /// The budget is the serialized size of the witness stack (in weight
+    /// units) plus the 50 free weight units of validation weight.
+    ///
+    /// The witness stack is passed as `&[Vec<u8>]`, where each inner `Vec<u8>`
+    /// is one stack item. Both Bitcoin and Elements serialize the witness stack
+    /// identically: a CompactSize item count, followed by each item as a
+    /// CompactSize length prefix and its bytes. The math is therefore
+    /// chain-agnostic, and this method is available under the `bitcoin` feature
+    /// (which `elements` implies) so it can be shared by both.
+    #[cfg(feature = "bitcoin")]
+    fn get_budget(script_witness: &[Vec<u8>]) -> U32Weight {
+        // Serialized witness stack size, in bytes.
+        let mut serialized_len = compact_size_len(script_witness.len());
+        for item in script_witness {
+            serialized_len += compact_size_len(item.len()) + item.len();
+        }
+        let budget = serialized_len.saturating_add(50);
+        let budget =
+            u32::try_from(budget).expect("Serialized witness stack must be shorter than 2^32");
         U32Weight(budget)
     }
 
     /// Return whether the cost is within the budget of
     /// the given script witness of a transaction input.
     ///
-    /// The script witness is passed as `&Vec<Vec<u8>>` in order to use
-    /// the consensus encoding implemented for this type.
-    #[cfg(feature = "elements")]
-    pub fn is_budget_valid(self, script_witness: &Vec<Vec<u8>>) -> bool {
+    /// The script witness is passed as `&[Vec<u8>]`, where each inner `Vec<u8>`
+    /// is one witness stack item.
+    #[cfg(feature = "bitcoin")]
+    pub fn is_budget_valid(self, script_witness: &[Vec<u8>]) -> bool {
         let budget = Self::get_budget(script_witness);
         self.0 <= budget.0.saturating_mul(1000)
     }
 
-    /// Return the annex bytes that are required as padding
+    /// Return the length, in bytes, of the padding witness stack item required
     /// so the transaction input has enough budget to cover the cost.
     ///
-    /// The first annex byte is 0x50, as defined in BIP 341.
-    /// The following padding bytes are 0x00.
-    #[cfg(feature = "elements")]
-    pub fn get_padding(self, script_witness: &Vec<Vec<u8>>) -> Option<Vec<u8>> {
+    /// The returned length is chain-agnostic: adding a stack item of length `L`
+    /// increases the serialized witness-stack budget by `CompactSize(L) + L`,
+    /// which depends only on the item's length, not its content. Bitcoin and
+    /// Elements therefore require the same padding *length*; only the bytes
+    /// that fill it differ (see [`Self::get_padding_bytes`]).
+    ///
+    /// The script witness is passed as `&[Vec<u8>]`, where each inner `Vec<u8>`
+    /// is one witness stack item (the padding item is *not* yet included).
+    ///
+    /// Returns `None` if no padding is required, i.e. the cost already fits
+    /// within the budget of the given witness stack.
+    #[cfg(feature = "bitcoin")]
+    pub fn get_padding_size(self, script_witness: &[Vec<u8>]) -> Option<usize> {
         let weight = U32Weight::from(self);
         let budget = Self::get_budget(script_witness);
         if weight <= budget {
             return None;
         }
 
-        // Adding the annex to the witness stack increases the serialized size by:
+        // Adding the padding item to the witness stack increases the serialized
+        // size by:
         //
-        // 1. CompactSize(annex_len): the length prefix of the annex item
-        // 2. annex_len: the annex bytes themselves (0x50 tag + zero padding)
+        // 1. CompactSize(item_len): the length prefix of the padding item
+        // 2. item_len: the padding item bytes themselves
         //
         // CompactSize uses 1 byte for values <= 252, 3 bytes for <= 65535,
         // and 5 bytes for larger values. The overhead subtracted must account
-        // for the actual CompactSize encoding length of the resulting annex.
+        // for the actual CompactSize encoding length of the resulting item.
         let deficit = (weight - budget).0 as usize; // cast safety: 32-bit machine or higher
 
-        // overhead = compact_size_len + 1 (for 0x50 tag)
+        // overhead = compact_size_len + 1 (for the 0x50 annex tag, when an
+        // Elements annex is used; for a plain Bitcoin zero item there is no
+        // tag, but the deficit accounting is identical because what matters is
+        // only the total serialized item length).
         let padding_len = match deficit {
-            // annex_len <= 252, compact_size uses 1 byte, overhead = 2
+            // item_len <= 252, compact_size uses 1 byte, overhead = 2
             0..=253 => deficit.saturating_sub(2),
-            // Boundary region: annex must be >= 253 bytes (3-byte compact_size),
+            // Boundary region: item must be >= 253 bytes (3-byte compact_size),
             // but deficit - 4 < 252. Use minimum padding for 3-byte encoding.
             254..=255 => 252,
-            // annex_len in 253..=65535, compact_size uses 3 bytes, overhead = 4
+            // item_len in 253..=65535, compact_size uses 3 bytes, overhead = 4
             256..=65538 => deficit - 4,
             // Boundary region for 5-byte compact_size encoding.
             65539..=65540 => 65535,
-            // annex_len >= 65536, compact_size uses 5 bytes, overhead = 6
+            // item_len >= 65536, compact_size uses 5 bytes, overhead = 6
             _ => deficit - 6,
             // Note: the 9-byte compact_size boundary (deficit > 4_294_967_300)
             // is unreachable because Cost uses u32 milliweight, limiting the
             // maximum deficit to ~4_294_968 weight units.
         };
-        let annex_bytes: Vec<u8> = std::iter::once(0x50)
-            .chain(std::iter::repeat(0x00).take(padding_len))
-            .collect();
 
-        Some(annex_bytes)
+        Some(padding_len + 1)
+    }
+
+    /// Return the bytes of the padding witness stack item required so the
+    /// transaction input has enough budget to cover the cost.
+    ///
+    /// This is the Bitcoin-specific form: the padding is a single all-zero
+    /// witness stack item. (Bitcoin has no annex, so the padding must be a
+    /// regular stack item; a leading `0x50` byte would be misread as an annex.)
+    #[cfg(all(feature = "bitcoin", not(feature = "elements")))]
+    pub fn get_padding_bytes(self, script_witness: &[Vec<u8>]) -> Option<Vec<u8>> {
+        self.get_padding_size(script_witness)
+            .map(|len| vec![0x00; len])
+    }
+
+    /// Return the bytes of the padding witness stack item required so the
+    /// transaction input has enough budget to cover the cost.
+    ///
+    /// This is the Elements-specific form: on Elements, padding is an annex,
+    /// which is a single witness stack item whose first byte is the `0x50`
+    /// annex tag (BIP 341) followed by zero bytes.
+    ///
+    /// To build an annex of total length `L` (as returned by
+    /// [`Self::get_padding_size`]) this returns `[0x50]` followed by `L - 1`
+    /// zero bytes. Callers targeting non-Liquid Elements (where annexes are
+    /// unavailable) should instead use the length and build their own all-zero
+    /// item, as Bitcoin does.
+    #[cfg(feature = "elements")]
+    pub fn get_padding_bytes(self, script_witness: &[Vec<u8>]) -> Option<Vec<u8>> {
+        self.get_padding_size(script_witness).map(|len| {
+            let mut annex = Vec::with_capacity(len);
+            annex.push(0x50);
+            annex.extend(std::iter::repeat(0x00).take(len.saturating_sub(1)));
+            annex
+        })
+    }
+
+    /// Return the annex bytes that are required as padding so the transaction
+    /// input has enough budget to cover the cost.
+    ///
+    /// The first annex byte is `0x50`, as defined in BIP 341.
+    /// The following padding bytes are `0x00`.
+    #[cfg(feature = "elements")]
+    #[deprecated(
+        since = "0.7.1",
+        note = "use `get_padding_size` (chain-agnostic item length) or `get_padding_bytes` (chain-specific bytes) instead"
+    )]
+    pub fn get_padding(self, script_witness: &[Vec<u8>]) -> Option<Vec<u8>> {
+        self.get_padding_bytes(script_witness)
+    }
+}
+
+/// The length, in bytes, of the CompactSize (VarInt) encoding of `value`.
+///
+/// CompactSize uses 1 byte for values <= 252, 3 bytes for <= 65535, 5 bytes
+/// for <= 2^32-1, and 9 bytes otherwise. `Cost` uses `u32` milliweight, so
+/// serialized lengths can never exceed the 5-byte encoding range.
+#[cfg(feature = "bitcoin")]
+fn compact_size_len(value: usize) -> usize {
+    match value {
+        0..=252 => 1,
+        253..=65_535 => 3,
+        65_536..=4_294_967_295 => 5,
+        _ => 9,
     }
 }
 
@@ -439,6 +516,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "elements")]
+    #[allow(deprecated)]
     fn test_get_padding() {
         // The budget of the empty witness stack is 51 WU:
         //
@@ -486,16 +564,31 @@ mod tests {
         ];
 
         for (cost, mut witness, maybe_padding) in test_vectors {
+            let size = cost.get_padding_size(&witness);
             match maybe_padding {
                 None => {
                     assert!(cost.is_budget_valid(&witness));
+                    assert_eq!(size, None);
+                    assert!(cost.get_padding_bytes(&witness).is_none());
+                    // deprecated alias still works and agrees
                     assert!(cost.get_padding(&witness).is_none());
                 }
                 Some(expected_annex_len) => {
                     assert!(!cost.is_budget_valid(&witness));
 
-                    let annex_bytes = cost.get_padding(&witness).expect("not enough budget");
-                    assert_eq!(expected_annex_len, annex_bytes.len());
+                    // The chain-agnostic size is the total item length, which for
+                    // the Elements annex equals 0x50 tag + zero padding bytes.
+                    let size = size.expect("not enough budget");
+                    assert_eq!(expected_annex_len, size);
+
+                    let annex_bytes = cost.get_padding_bytes(&witness).expect("not enough budget");
+                    assert_eq!(size, annex_bytes.len());
+                    assert_eq!(annex_bytes[0], 0x50);
+                    assert!(annex_bytes[1..].iter().all(|&b| b == 0x00));
+
+                    // The deprecated alias agrees with get_padding_bytes.
+                    assert_eq!(cost.get_padding(&witness).unwrap(), annex_bytes);
+
                     witness.extend(std::iter::once(annex_bytes));
                     assert!(cost.is_budget_valid(&witness));
 
@@ -503,6 +596,41 @@ mod tests {
                     assert!(!cost.is_budget_valid(&witness), "Padding must be minimal");
                 }
             }
+        }
+    }
+
+    #[test]
+    #[cfg(all(feature = "bitcoin", not(feature = "elements")))]
+    fn test_get_padding_bitcoin() {
+        // Empty witness stack budget is 51 WU: 50 free weight + 1 length byte.
+        let empty = 51_000;
+
+        let test_vectors = vec![
+            (Cost::from_milliweight(empty + 2_001), vec![], 2usize),
+            (
+                Cost::from_milliweight(8_045_103),
+                vec![vec![], vec![0; 497], vec![0; 32], vec![0; 33]],
+                7_424usize,
+            ),
+        ];
+
+        for (cost, mut witness, expected_len) in test_vectors {
+            assert!(!cost.is_budget_valid(&witness));
+
+            let size = cost.get_padding_size(&witness).expect("not enough budget");
+            assert_eq!(expected_len, size);
+
+            // Bitcoin padding is a plain all-zero witness stack item: no annex
+            // tag, and no 0x50-leading byte (which would be misread as an annex).
+            let padding = cost.get_padding_bytes(&witness).expect("not enough budget");
+            assert_eq!(size, padding.len());
+            assert!(padding.iter().all(|&b| b == 0x00));
+
+            witness.push(padding);
+            assert!(cost.is_budget_valid(&witness));
+
+            witness.pop();
+            assert!(!cost.is_budget_valid(&witness), "Padding must be minimal");
         }
     }
 }

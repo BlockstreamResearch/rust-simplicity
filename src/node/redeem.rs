@@ -1050,7 +1050,7 @@ mod tests {
     #[test]
     #[cfg(all(feature = "elements", feature = "human_encoding"))]
     fn prune() {
-        use crate::jet::ElementsTxEnv;
+        use crate::jet::elements::ElementsEnv;
 
         let env = crate::jet::elements::ElementsEnv::dummy();
 
@@ -1083,7 +1083,7 @@ main := comp input comp process jet_verify : 1 -> 1"#;
                 Value::product(Value::u64(0), Value::unit()),
             ),
         ]);
-        assert_correct_pruning::<ElementsTxEnv>(
+        assert_correct_pruning::<ElementsEnv<elements::Transaction>>(
             unpruned_prog,
             &unpruned_wit,
             pruned_prog,
@@ -1111,7 +1111,7 @@ main := comp input comp process jet_verify : 1 -> 1"#;
                 Value::product(Value::unit(), Value::u64(0)),
             ),
         ]);
-        assert_correct_pruning::<ElementsTxEnv>(
+        assert_correct_pruning::<ElementsEnv<elements::Transaction>>(
             unpruned_prog,
             &unpruned_wit,
             pruned_prog,
@@ -1136,7 +1136,7 @@ process := assertl (take jet_is_zero_64) #{take jet_is_zero_64} : (2^64 + 1) * 1
 main := comp input comp process jet_verify : 1 -> 1"#;
         let pruned_wit =
             HashMap::from([(Arc::from("wit1"), Value::left(Value::u64(0), Final::unit()))]);
-        assert_correct_pruning::<ElementsTxEnv>(
+        assert_correct_pruning::<ElementsEnv<elements::Transaction>>(
             prune_sum,
             &unpruned_wit,
             pruned_prog,
@@ -1157,7 +1157,7 @@ main := comp input comp process jet_verify : 1 -> 1"#;
             Arc::from("wit1"),
             Value::right(Final::unit(), Value::u64(0)),
         )]);
-        assert_correct_pruning::<ElementsTxEnv>(
+        assert_correct_pruning::<ElementsEnv<elements::Transaction>>(
             prune_sum,
             &unpruned_wit,
             pruned_prog,
