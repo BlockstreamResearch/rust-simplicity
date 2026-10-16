@@ -15,7 +15,7 @@ use simplicity_sys::CElementsTxEnv;
 /// Type alias for the Elements transaction environment.
 pub type ElementsTxEnv = ElementsEnv<std::sync::Arc<elements::Transaction>>;
 
-impl JetEnvironment for ElementsTxEnv {
+impl<T: core::borrow::Borrow<elements::Transaction>> JetEnvironment for ElementsEnv<T> {
     type Jet = Elements;
     type CJetEnvironment = CElementsTxEnv;
 

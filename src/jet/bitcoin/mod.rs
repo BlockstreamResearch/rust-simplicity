@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 
+mod c_env;
 mod environment;
 
 pub use environment::BitcoinEnv;
@@ -7,13 +8,14 @@ pub use environment::BitcoinEnv;
 use super::init::bitcoin::Bitcoin;
 use super::JetEnvironment;
 use simplicity_sys::c_jets::frame_ffi::CFrameItem;
+use simplicity_sys::CBitcoinTxEnv;
 
-impl JetEnvironment for BitcoinEnv {
+impl<T: core::borrow::Borrow<bitcoin::Transaction>> JetEnvironment for BitcoinEnv<T> {
     type Jet = Bitcoin;
-    type CJetEnvironment = ();
+    type CJetEnvironment = CBitcoinTxEnv;
 
     fn c_jet_env(&self) -> &Self::CJetEnvironment {
-        &()
+        self.c_tx_env()
     }
 
     fn c_jet_ptr(
