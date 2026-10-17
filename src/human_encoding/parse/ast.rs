@@ -679,8 +679,17 @@ fn parse_type(p: &mut Parser) -> Result<Option<Type>, ErrorSet> {
     Ok(lhs)
 }
 
-/// Parse a type atom
+/// Parse a type atom, including one or more `?`s.
 fn parse_type_atom(p: &mut Parser) -> Result<Option<Type>, ErrorSet> {
+    let mut atom = parse_type_atom_inner(p)?;
+    // Repeated `?` denotes nested optionals, e.g. `2??` is 1 + (1 + 2).
+    while atom.is_some() && p.eat(&Token::Question) {
+        atom = atom.map(|ty| Type::Sum(Box::new(Type::One), Box::new(ty)));
+    }
+    Ok(atom)
+}
+
+fn parse_type_atom_inner(p: &mut Parser) -> Result<Option<Type>, ErrorSet> {
     match p.peek().cloned() {
         Some(Token::One) => {
             p.advance();

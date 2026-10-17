@@ -87,11 +87,14 @@ Finally, TYPE is
 * a literal `1`, indicating the unit type;
 * a literal `2`, indicating the bit type;
 * `2^n`, where `n` is any power of two, in decimal with no spaces or punctuation;
+* another TYPE, followed by `?`, which is shorthand for `1 +` followed by that TYPE
+  (this matches how such types are displayed by the type `Display` implementations);
 * `(` followed by another TYPE followed by `)`;
 * another TYPE, followed by `+`, followed by another TYPE; or
 * another TYPE, followed by `*`, followed by another TYPE.
 
-Here `*` has higher precedence than `+`, and both `+` and `*` are left-associative.
+Here `?` binds more tightly than `+` and `*`; `*` has higher precedence than `+`,
+and both `+` and `*` are left-associative.
 
 ## Namespaces
 
