@@ -679,8 +679,17 @@ fn parse_type(p: &mut Parser) -> Result<Option<Type>, ErrorSet> {
     Ok(lhs)
 }
 
-/// Parse a type atom
+/// Parse a type atom, including one or more `?`s.
 fn parse_type_atom(p: &mut Parser) -> Result<Option<Type>, ErrorSet> {
+    let mut atom = parse_type_atom_inner(p)?;
+    // Repeated `?` denotes nested optionals, e.g. `2??` is 1 + (1 + 2).
+    while atom.is_some() && p.eat(&Token::Question) {
+        atom = atom.map(|ty| Type::Sum(Box::new(Type::One), Box::new(ty)));
+    }
+    Ok(atom)
+}
+
+fn parse_type_atom_inner(p: &mut Parser) -> Result<Option<Type>, ErrorSet> {
     match p.peek().cloned() {
         Some(Token::One) => {
             p.advance();
@@ -808,5 +817,44 @@ mod tests {
         ",
         )
         .unwrap();
+    }
+
+    #[test]
+    fn display_optional_type() {
+        // The `?` type shorthand (see the `Display` impls for `types::Final`
+        // and `types::Incomplete`) means `1 + <type>`.
+        let lines = parse_line_vector::<Core>("U : 2? -> 1").unwrap();
+        assert_eq!(lines.len(), 1);
+        assert_eq!(
+            lines[0].arrow,
+            (
+                Some(Type::Sum(Box::new(Type::One), Box::new(Type::Two))),
+                Some(Type::One),
+            ),
+        );
+
+        // `?` binds tighter than `*` and `+`, mirroring the type `Display`
+        // implementations; e.g. `2? * 2^2` is `(1 + 2) * 2^2`.
+        let lines = parse_line_vector::<Core>("U : 2? * 2^2 -> 1").unwrap();
+        assert_eq!(
+            lines[0].arrow.0,
+            Some(Type::Product(
+                Box::new(Type::Sum(Box::new(Type::One), Box::new(Type::Two))),
+                Box::new(Type::TwoTwoN(1)),
+            )),
+        );
+
+        // Repeated `?` denotes nested optionals: `2??` is `1 + (1 + 2)`.
+        let lines = parse_line_vector::<Core>("U : 2?? -> 1").unwrap();
+        assert_eq!(
+            lines[0].arrow.0,
+            Some(Type::Sum(
+                Box::new(Type::One),
+                Box::new(Type::Sum(Box::new(Type::One), Box::new(Type::Two))),
+            )),
+        );
+
+        // The shorthand may also appear inside expression type ascriptions.
+        parse_line_vector::<Core>("U := witness : v + 2? -> v").unwrap();
     }
 }
