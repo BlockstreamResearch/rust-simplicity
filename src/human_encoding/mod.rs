@@ -209,7 +209,7 @@ impl Forest {
 #[cfg(test)]
 mod tests {
     use crate::human_encoding::Forest;
-    use crate::jet::{CoreEnv, JetEnvironment};
+    use crate::jet::{Core, CoreEnv, JetEnvironment};
     use crate::types;
     use crate::{BitMachine, Value};
     use std::collections::HashMap;
@@ -359,6 +359,46 @@ mod tests {
             &CoreEnv::new(),
             "disconnect node had one child (redeem time); must have two",
         );
+    }
+
+    #[test]
+    fn string_serialize_round_trip() {
+        // Regression test for issue #394: the type `Display` shorthand `A?`
+        // (meaning `1 + A`) was not accepted by the parser, so re-parsing
+        // serialized programs failed whenever a free type variable was
+        // resolved to unit, making the source type `1 + 2`, displayed `2?`.
+        let program = Forest::parse::<Core>("- := ?\na: v+2 -> v\n").expect("parse");
+        let reserialize = program.string_serialize();
+        let round_trip = Forest::parse::<Core>(&reserialize).unwrap_or_else(|e| {
+            panic!("serialized program should re-parse: {}\n{}", e, reserialize)
+        });
+        assert_eq!(program, round_trip);
+
+        // Same shorthand in nested and compound positions.
+        for ty in ["(v + 2) * 2^2", "v + (1 + w)", "v + (1 + (1 + w))"] {
+            let s = format!("- := ?h : {} -> 1\n", ty);
+            let program = Forest::parse::<Core>(&s).expect("parse");
+            let reserialize = program.string_serialize();
+            let round_trip = Forest::parse::<Core>(&reserialize).unwrap_or_else(|e| {
+                panic!("serialized program should re-parse: {}\n{}", e, reserialize)
+            });
+            assert_eq!(program, round_trip);
+        }
+
+        // Fail nodes serialize their entropy with a `0x` prefix, which the
+        // lexer requires; previously they emitted bare hex and did not re-parse.
+        let s = "- := fail 0x000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\n";
+        let program = Forest::parse::<Core>(s).expect("parse");
+        let reserialize = program.string_serialize();
+        assert!(
+            reserialize.contains("fail 0x00010203"),
+            "serialized program should contain 0x-prefixed entropy:\n{}",
+            reserialize,
+        );
+        let round_trip = Forest::parse::<Core>(&reserialize).unwrap_or_else(|e| {
+            panic!("serialized program should re-parse: {}\n{}", e, reserialize)
+        });
+        assert_eq!(program, round_trip);
     }
 
     #[test]

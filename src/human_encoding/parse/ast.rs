@@ -818,4 +818,43 @@ mod tests {
         )
         .unwrap();
     }
+
+    #[test]
+    fn display_optional_type() {
+        // The `?` type shorthand (see the `Display` impls for `types::Final`
+        // and `types::Incomplete`) means `1 + <type>`.
+        let lines = parse_line_vector::<Core>("U : 2? -> 1").unwrap();
+        assert_eq!(lines.len(), 1);
+        assert_eq!(
+            lines[0].arrow,
+            (
+                Some(Type::Sum(Box::new(Type::One), Box::new(Type::Two))),
+                Some(Type::One),
+            ),
+        );
+
+        // `?` binds tighter than `*` and `+`, mirroring the type `Display`
+        // implementations; e.g. `2? * 2^2` is `(1 + 2) * 2^2`.
+        let lines = parse_line_vector::<Core>("U : 2? * 2^2 -> 1").unwrap();
+        assert_eq!(
+            lines[0].arrow.0,
+            Some(Type::Product(
+                Box::new(Type::Sum(Box::new(Type::One), Box::new(Type::Two))),
+                Box::new(Type::TwoTwoN(1)),
+            )),
+        );
+
+        // Repeated `?` denotes nested optionals: `2??` is `1 + (1 + 2)`.
+        let lines = parse_line_vector::<Core>("U : 2?? -> 1").unwrap();
+        assert_eq!(
+            lines[0].arrow.0,
+            Some(Type::Sum(
+                Box::new(Type::One),
+                Box::new(Type::Sum(Box::new(Type::One), Box::new(Type::Two))),
+            )),
+        );
+
+        // The shorthand may also appear inside expression type ascriptions.
+        parse_line_vector::<Core>("U := witness : v + 2? -> v").unwrap();
+    }
 }
