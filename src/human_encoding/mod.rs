@@ -133,7 +133,7 @@ impl Forest {
                 let name = node.name();
                 let mut expr_str = match node.inner() {
                     node::Inner::AssertR(cmr, _) => format!("{} := assertr #{}", name, cmr),
-                    node::Inner::Fail(entropy) => format!("{} := fail {}", name, entropy),
+                    node::Inner::Fail(entropy) => format!("{} := fail 0x{}", name, entropy),
                     node::Inner::Jet(ref j) => format!("{} := jet_{}", name, j),
                     node::Inner::Word(ref word) => {
                         format!("{} := const {}", name, word)
