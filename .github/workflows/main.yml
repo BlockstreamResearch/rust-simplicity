@@ -55,6 +55,8 @@ jobs:
     steps:
       - name: Checkout Crate
         uses: actions/checkout@v4
+      - name: Check generated jets come from the vendored revision
+        run: ./update_jets.sh --check
       - name: Read vendored libsimplicity revision
         id: libsimplicity
         run: |
