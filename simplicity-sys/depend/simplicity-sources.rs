@@ -4,6 +4,7 @@
 /// `CORE_OBJS` in libsimplicity's Makefile.
 const CORE_SOURCES: &[&str] = &[
     "bitstream.c",
+    "cmr.c",
     "dag.c",
     "deserialize.c",
     "eval.c",
@@ -19,9 +20,11 @@ const CORE_SOURCES: &[&str] = &[
 /// `BITCOIN_OBJS` in libsimplicity's Makefile.
 const BITCOIN_SOURCES: &[&str] = &[
     "bitcoin/env.c",
+    "bitcoin/exec.c",
     "bitcoin/ops.c",
     "bitcoin/bitcoinJets.c",
     "bitcoin/primitive.c",
+    "bitcoin/cmr.c",
     "bitcoin/txEnv.c",
 ];
 

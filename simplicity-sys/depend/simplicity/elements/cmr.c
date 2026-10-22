@@ -1,9 +1,6 @@
 #include <simplicity/elements/cmr.h>
 
-#include "../deserialize.h"
-#include "../limitations.h"
-#include "../simplicity_alloc.h"
-#include "../simplicity_assert.h"
+#include "../cmr.h"
 #include "primitive.h"
 
 /* Deserialize a Simplicity 'program' and compute its CMR.
@@ -21,23 +18,5 @@
  */
 bool rustsimplicity_0_8_elements_computeCmr( simplicity_err* error, unsigned char* cmr
                                    , const unsigned char* program, size_t program_len) {
-  rustsimplicity_0_8_assert(NULL != error);
-  rustsimplicity_0_8_assert(NULL != cmr);
-  rustsimplicity_0_8_assert(NULL != program || 0 == program_len);
-
-  bitstream stream = initializeBitstream(program, program_len);
-  dag_node* dag = NULL;
-  int_fast32_t dag_len = rustsimplicity_0_8_decodeMallocDag(&dag, rustsimplicity_0_8_elements_decodeJet, NULL, &stream);
-  if (dag_len <= 0) {
-    rustsimplicity_0_8_assert(dag_len < 0);
-    *error = (simplicity_err)dag_len;
-  } else {
-    rustsimplicity_0_8_assert(NULL != dag);
-    rustsimplicity_0_8_assert((uint_fast32_t)dag_len <= DAG_LEN_MAX);
-    *error = rustsimplicity_0_8_closeBitstream(&stream);
-    sha256_fromMidstate(cmr, dag[dag_len-1].cmr.s);
-  }
-
-  rustsimplicity_0_8_free(dag);
-  return IS_PERMANENT(*error);
+  return rustsimplicity_0_8_computeCmr(error, cmr, rustsimplicity_0_8_elements_decodeJet, program, program_len);
 }

@@ -6,10 +6,10 @@
 #
 # "update_jets.sh --check" (run in CI) fails unless the revision matches
 # simplicity-sys/depend/simplicity-HEAD-revision.txt and every hash still matches.
-libsimplicity ba967b1a0d57e069c37cd4041b8bae53f12fd456
-074e3ed8f731fe0fbb76973877baed8a154b69aa51ccc728067cdc72206184ff  simplicity-sys/src/c_jets/jets_ffi.rs
-4789b5e12ac7b2e2753f1ec6731c0ea100724626d1a2658f713be9b175634086  simplicity-sys/src/c_jets/jets_wrapper.rs
-a1cd77affeedcce927fcc5c6078a045a0f22dae2d02382531d2b95b151e58276  simplicity-sys/depend/jets_wrapper.c
-f6589ae19ab945ffe6855c255914c1d244d8c2be90e9116741c2f6702ea8f146  src/jet/init/core.rs
-4c374312cfe20ff0fba15d8b9cdd4e52d946b062e76d176c94b5eda881687bae  src/jet/init/bitcoin.rs
-02b26a2225ef1135ac4d69bd3f570f21d1acdd930b8d076a387113abe4c42c3f  src/jet/init/elements.rs
+libsimplicity 3f0bb69c4547bcf3483ca5ccbd06699464166650
+1ce6a0f903060ade42c4e30bd254fb9f3ff3ddd9cf0e6f0d46c3386d7c9dc8a3  simplicity-sys/src/c_jets/jets_ffi.rs
+f19ccd980ef3b34a2677ddedf0eba3a2b57620b27c6d04f0da2b3af71a6f120a  simplicity-sys/src/c_jets/jets_wrapper.rs
+de53fabadd15684b5cbfd9af50519a88dd2b15d8d990f1b0ec4a41f98c857587  simplicity-sys/depend/jets_wrapper.c
+6f1d6fb026b37b362b7f072c2cce39588f323a400afe65e20e52c786b2b166b3  src/jet/init/core.rs
+2e142cbe51830ccd9d0a598830c8eeb6d8dfa6f9d592ee6e3756ebe0dc8d61d2  src/jet/init/bitcoin.rs
+44a294d0e9b48aedd7a8e726bd7f24470d4bf29263eaee94a8914125626affea  src/jet/init/elements.rs

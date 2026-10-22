@@ -31,11 +31,8 @@ const TEST_UTILS_ONLY: &[&str] = &[
 /// Sources we never compile, and why.
 const EXCLUDED: &[(&str, &str)] = &[
     ("elements/cmr.c", "Rust computes CMRs itself"),
-    // #385: uncomment when vendoring a libsimplicity that has the Bitcoin application (#324).
-    // Otherwise these get compiled into the libraries, and MSRV links fail on their undefined
-    // decoder symbols.
-    // ("cmr.c", "Rust computes CMRs itself"),
-    // ("bitcoin/cmr.c", "Rust computes CMRs itself"),
+    ("cmr.c", "Rust computes CMRs itself"),
+    ("bitcoin/cmr.c", "Rust computes CMRs itself"),
     ("test.c", "libsimplicity's test runner; defines main()"),
     ("regression4.c", "only used by test.c"),
     ("typeSkipTest.c", "only used by test.c"),
@@ -132,12 +129,12 @@ fn main() {
         .file("depend/jets_wrapper.c")
         .compile("RustSimplicityCommon");
 
-    // #385: uncomment once the Bitcoin transaction environment lands.
-    // build
-    //     .clone()
-    //     .files(sources(Library::Bitcoin))
-    //     .file("depend/bitcoin_env.c")
-    //     .compile("BitcoinSimplicity");
+    // Build the Bitcoin transaction environment's library.
+    build
+        .clone()
+        .files(sources(Library::Bitcoin))
+        .file("depend/bitcoin_env.c")
+        .compile("BitcoinSimplicity");
 
     build
         .files(sources(Library::Elements))
