@@ -9,6 +9,20 @@ on:
   pull_request:
 
 jobs:
+  test:
+    name: Test Fuzz Library
+    if: ${{ !github.event.act }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Crate
+        uses: actions/checkout@v4
+
+      - name: Install Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run Tests
+        run: cargo test -p simplicity-fuzz --lib
+
   fuzz:
     name: Run Fuzz Target
     if: ${{ !github.event.act }}
@@ -23,6 +37,7 @@ c_rust_merkle,
 decode_natural,
 decode_program,
 parse_human,
+prune_generated,
 regression_286,
 regression_value,
         ]

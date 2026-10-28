@@ -109,7 +109,7 @@ where
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 impl ElementsEnv<elements::Transaction> {
     /// Return a dummy Elements environment
     pub fn dummy() -> Self {

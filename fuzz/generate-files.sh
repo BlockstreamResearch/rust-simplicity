@@ -24,6 +24,7 @@ cargo-fuzz = true
 path = "fuzz_lib/lib.rs"
 
 [dependencies]
+arbitrary = "1.4.2"
 libfuzzer-sys = "0.4"
 # We shouldn't need an explicit version on the next line, but Andrew's tools
 # choke on it otherwise. See https://github.com/nix-community/crate2nix/issues/373
@@ -63,6 +64,20 @@ on:
   pull_request:
 
 jobs:
+  test:
+    name: Test Fuzz Library
+    if: \${{ !github.event.act }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Crate
+        uses: actions/checkout@v4
+
+      - name: Install Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run Tests
+        run: cargo test -p simplicity-fuzz --lib
+
   fuzz:
     name: Run Fuzz Target
     if: \${{ !github.event.act }}

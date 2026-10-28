@@ -22,5 +22,11 @@ rustc --version
 # Run fuzz target
 for targetFile in $targetFiles; do
   targetName=$(targetFileToName "$targetFile")
-  cargo-fuzz run "$targetName" -- -max_total_time=30
+  # prune_generated builds a program from its input, and only long inputs give
+  # large programs, which libFuzzer otherwise tries only after a long time.
+  extraArgs=()
+  if [ "$targetName" == "prune_generated" ]; then
+    extraArgs=(-len_control=0 -max_len=4096)
+  fi
+  cargo-fuzz run "$targetName" -- -max_total_time=30 "${extraArgs[@]}"
 done
