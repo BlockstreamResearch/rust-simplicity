@@ -90,7 +90,7 @@ $(for name in $(listTargetNames); do echo "$name,"; done)
       - name: Install Toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly-2024-07-01
+          toolchain: nightly-2026-02-24
           components: "llvm-tools-preview"
 
       - name: Install Dependencies
