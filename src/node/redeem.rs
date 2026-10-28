@@ -270,7 +270,8 @@ impl RedeemNode {
     /// 1) Merge nodes with equal IHRs, as the encoding of the program does.
     /// 2) Run the redeem program on the Bit Machine.
     /// 3) Mark all (un)used case branches using the IHR of the case node.
-    /// 4) Rebuild the program and omit unused branches.
+    /// 4) Rebuild the program from the nodes reachable through used branches,
+    ///    and omit unused branches.
     ///
     /// The pruning result depends on the witness data (which is already part of the redeem program)
     /// and on the transaction environment. These two inputs determine which case branches are
@@ -901,6 +902,84 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "human_encoding")]
+    fn prune_drops_witness_read_only_by_hidden_branch() {
+        // Only the right branch of the case reads `wit2`. With `wit1` selecting the
+        // left branch, pruning hides the right branch, nothing else reads `wit2`, and
+        // a decoder expects no bits for it. Both branches contain `drop iden`, so the
+        // hidden branch must not constrain the types of the pruned program through it.
+        use crate::ffi::tests::{ffi::SimplicityErr, run_program, TestUpTo};
+        use crate::human_encoding::Forest;
+        use crate::jet::CoreEnv;
+        use std::collections::HashMap;
+
+        // `drop iden` is defined once, so both branches point at the same node.
+        let pointer_shared = r#"wit1 := witness : 1 -> 2
+wit2 := witness : 1 -> 2^8
+input := pair wit1 wit2 : 1 -> 2 * 2^8
+proj := drop iden
+skip_wit2 := comp proj unit
+read_wit2 := comp proj (comp (pair iden iden) (comp jet_eq_8 jet_verify))
+main := comp input (case skip_wit2 read_wit2) : 1 -> 1"#;
+        // `drop iden` is written out twice: two pointer-distinct nodes with one IHR.
+        let ihr_shared = r#"wit1 := witness : 1 -> 2
+wit2 := witness : 1 -> 2^8
+input := pair wit1 wit2 : 1 -> 2 * 2^8
+skip_wit2 := comp (drop iden) unit
+read_wit2 := comp (drop iden) (comp (pair iden iden) (comp jet_eq_8 jet_verify))
+main := comp input (case skip_wit2 read_wit2) : 1 -> 1"#;
+        let wit = HashMap::from([
+            (Arc::from("wit1"), Value::u1(0)),
+            (Arc::from("wit2"), Value::u8(7)),
+        ]);
+
+        for s in [pointer_shared, ihr_shared] {
+            let unpruned = types::Context::with_context(|ctx| {
+                Forest::parse::<Core>(s)
+                    .expect("program should parse")
+                    .to_witness_node(&ctx, &wit)
+                    .expect("program should have main")
+                    .finalize_unpruned()
+                    .expect("program should finalize")
+            });
+
+            let pruned = unpruned
+                .prune(&CoreEnv::new())
+                .expect("pruning should succeed");
+            assert_eq!(pruned.cmr(), unpruned.cmr());
+            let (_, witness_bits) = pruned
+                .encode_with_witness(&mut Vec::<u8>::new(), &mut Vec::<u8>::new())
+                .expect("Vec::write is infallible");
+            assert_eq!(witness_bits, 1, "only `wit1` should keep witness bits");
+
+            let (prog_bytes, witness_bytes) = pruned.to_vec_with_witness();
+            let decoded = RedeemNode::decode::<_, _, Core>(
+                BitIter::from(&prog_bytes[..]),
+                BitIter::from(&witness_bytes[..]),
+            )
+            .expect("pruned program should decode, so its witness holds no unread bits");
+            assert_eq!(
+                decoded.ihr(),
+                pruned.ihr(),
+                "a decoder should infer the same types as pruning did"
+            );
+
+            // libsimplicity is the consensus implementation; check that it accepts the
+            // pruned program. The jets are in the hidden branch, so it can decode the
+            // program although it expects Elements jet codes.
+            let c_result = run_program(
+                &prog_bytes,
+                &witness_bytes,
+                TestUpTo::Everything,
+                None,
+                None,
+            )
+            .expect("libsimplicity should decode the pruned program");
+            assert_eq!(c_result.eval_result, SimplicityErr::NoError);
+        }
+    }
+
+    #[test]
     #[cfg(all(feature = "elements", feature = "human_encoding"))]
     fn prune() {
         use crate::jet::elements::ElementsEnv;
@@ -1101,6 +1180,94 @@ main := comp input comp process jet_verify : 1 -> 1"#;
             .expect("program should finalize")
         });
         prune_and_check_encoding(&unpruned);
+    }
+
+    #[test]
+    fn prune_nodes_with_equal_ihrs_and_different_children() {
+        // `p1` and `p2` have one IHR, but their children differ in type, because `a1`
+        // is also used where its target type must be 1 + 2. Pruning must keep and
+        // build the same one of them.
+        use crate::node::CoreConstructible;
+
+        type ArcNode<'brand> = Arc<ConstructNode<'brand>>;
+
+        let unpruned = types::Context::with_context(|ctx| {
+            let unit = || ArcNode::unit(&ctx);
+            let iden = || ArcNode::iden(&ctx);
+            let a1 = ArcNode::injl(&unit());
+            let p1 = ArcNode::comp(&a1, &unit()).unwrap();
+            let a2 = ArcNode::injl(&unit());
+            let p2 = ArcNode::comp(&a2, &unit()).unwrap();
+            // A branch which never runs makes the target type of `a1` 1 + 2.
+            let verify = ArcNode::jet(&ctx, &Core::Verify);
+            let pins_a1 = ArcNode::comp(
+                &a1,
+                &ArcNode::comp(
+                    &ArcNode::pair(&iden(), &iden()).unwrap(),
+                    &ArcNode::case(&unit(), &ArcNode::take(&verify)).unwrap(),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+            ArcNode::comp(
+                &ArcNode::pair(&ArcNode::pair(&p1, &p2).unwrap(), &pins_a1).unwrap(),
+                &unit(),
+            )
+            .unwrap()
+            .finalize_unpruned()
+            .expect("program should finalize")
+        });
+        prune_and_check_encoding(&unpruned);
+    }
+
+    #[test]
+    fn prune_case_and_assertion_with_equal_ihrs() {
+        // A case node and an assertion with one IHR, in either order. Pruning must
+        // keep and build the same one of them.
+        use crate::node::CoreConstructible;
+
+        type ArcNode<'brand> = Arc<ConstructNode<'brand>>;
+
+        for case_first in [true, false] {
+            let unpruned = types::Context::with_context(|ctx| {
+                let unit = || ArcNode::unit(&ctx);
+                let input = ArcNode::pair(&ArcNode::injl(&unit()), &unit()).unwrap();
+                let take_unit = ArcNode::take(&unit());
+                let case =
+                    ArcNode::comp(&input, &ArcNode::case(&unit(), &take_unit).unwrap()).unwrap();
+                let assertl =
+                    ArcNode::comp(&input, &ArcNode::assertl(&unit(), take_unit.cmr()).unwrap())
+                        .unwrap();
+                let (first, second) = if case_first {
+                    (case, assertl)
+                } else {
+                    (assertl, case)
+                };
+                ArcNode::comp(&ArcNode::pair(&first, &second).unwrap(), &unit())
+                    .unwrap()
+                    .finalize_unpruned()
+                    .expect("program should finalize")
+            });
+            prune_and_check_encoding(&unpruned);
+        }
+    }
+
+    #[test]
+    fn prune_expression_which_is_not_a_program() {
+        // Pruning keeps the type of an expression which is not 1 -> 1.
+        use crate::jet::CoreEnv;
+        use crate::node::CoreConstructible;
+
+        let unpruned = types::Context::with_context(|ctx| {
+            Arc::<ConstructNode>::injl(&Arc::<ConstructNode>::unit(&ctx))
+                .finalize_unpruned()
+                .expect("expression should finalize")
+        });
+        let pruned = unpruned
+            .prune(&CoreEnv::new())
+            .expect("pruning should succeed");
+        assert_eq!(pruned.arrow().source, unpruned.arrow().source);
+        assert_eq!(pruned.arrow().target, unpruned.arrow().target);
     }
 }
 
