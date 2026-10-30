@@ -4,14 +4,14 @@
 //!
 //! See [`RedeemNode::prune`] for how a program is pruned.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use crate::bit_machine::{ExecutionError, PruneTracker};
+use crate::bit_machine::{ExecTracker, ExecutionError, FrameIter, NodeOutput, PruneTracker};
 use crate::dag::{DagLike, InternalSharing, MaxSharing, PostOrderIterItem};
 use crate::jet::JetEnvironment;
 use crate::types;
-use crate::{BitMachine, Ihr, Value};
+use crate::{BitIter, BitMachine, Ihr, Value};
 
 use super::{
     Construct, ConstructData, ConstructNode, Constructible, Converter, Hide, Inner, Node, Redeem,
@@ -42,7 +42,17 @@ pub(super) fn prune<JE: JetEnvironment, T: PruneTracker>(
     });
 
     // 4) Rebuild the program from the kept nodes and prune out unused case branches.
-    Ok(rebuild(&program, &kept))
+    let pruned = rebuild(&program, &kept);
+
+    // 5) Check the encoding of the pruned program as consensus does (Consensus does
+    // not allow any node to be unused).
+    let arrow = pruned.arrow();
+    // If the pruned program is not unit to unit, it is not a valid redeem program.
+    // This can happen through fuzzing or calling pruning on a non-valid program.
+    if arrow.source.is_unit() && arrow.target.is_unit() {
+        check_encoding(&pruned, env)?;
+    }
+    Ok(pruned)
 }
 
 fn reduce_to_max_sharing(program: &RedeemNode) -> Arc<RedeemNode> {
@@ -255,4 +265,56 @@ impl<'brand> Converter<Construct<'brand>, Redeem> for Finalizer {
             .map_witness(Value::shallow_clone);
         Ok(Arc::new(RedeemData::new(final_arrow, converted_inner)))
     }
+}
+
+/// Records which nodes ran, and which branches of each case node ran.
+#[derive(Default)]
+struct AntiDosTracker {
+    ran: HashSet<Ihr>,
+    left: HashSet<Ihr>,
+    right: HashSet<Ihr>,
+}
+
+impl ExecTracker for AntiDosTracker {
+    fn visit_node(&mut self, node: &RedeemNode, mut input: FrameIter, _: NodeOutput) {
+        self.ran.insert(node.ihr());
+        if let Inner::Case(..) = node.inner() {
+            match input.next() {
+                Some(false) => self.left.insert(node.ihr()),
+                Some(true) => self.right.insert(node.ihr()),
+                None => false,
+            };
+        }
+    }
+}
+
+/// Checks the encoding of a pruned program as consensus does: that it decodes,
+/// runs, and runs every node and both branches of every case node.
+fn check_encoding<JE: JetEnvironment>(pruned: &RedeemNode, env: &JE) -> Result<(), ExecutionError> {
+    let (program, witness) = pruned.to_vec_with_witness();
+    let decoded = RedeemNode::decode::<_, _, JE::Jet>(
+        BitIter::from(&program[..]),
+        BitIter::from(&witness[..]),
+    )
+    .map_err(|_| ExecutionError::PruningFailed)?;
+    // A decoder infers the types from the encoding, so different types
+    // would mean that the witness data is read differently.
+    if decoded.ihr() != pruned.ihr() {
+        return Err(ExecutionError::PruningFailed);
+    }
+    let mut tracker = AntiDosTracker::default();
+    BitMachine::for_program(&decoded)?
+        .exec_with_tracker(&decoded, env, &mut tracker)
+        .map_err(|_| ExecutionError::PruningFailed)?;
+    for data in decoded.as_ref().post_order_iter::<InternalSharing>() {
+        let ihr = data.node.ihr();
+        let ran = match data.node.inner() {
+            Inner::Case(..) => tracker.left.contains(&ihr) && tracker.right.contains(&ihr),
+            _ => tracker.ran.contains(&ihr),
+        };
+        if !ran {
+            return Err(ExecutionError::PruningFailed);
+        }
+    }
+    Ok(())
 }

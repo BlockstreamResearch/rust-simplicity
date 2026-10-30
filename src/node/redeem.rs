@@ -272,6 +272,9 @@ impl RedeemNode {
     /// 3) Mark all (un)used case branches using the IHR of the case node.
     /// 4) Rebuild the program from the nodes reachable through used branches,
     ///    and omit unused branches.
+    /// 5) Check the encoding of the pruned program as consensus does: that it decodes, runs,
+    ///    and runs every node and both branches of every case node. This runs the program
+    ///    again. Expressions which are not programs (1 → 1) are not checked.
     ///
     /// The pruning result depends on the witness data (which is already part of the redeem program)
     /// and on the transaction environment. These two inputs determine which case branches are
@@ -283,6 +286,8 @@ impl RedeemNode {
     /// Machine (step 2). In this case, the witness data needs to be revised, unless merging
     /// changed what the program does: nodes with equal IHRs may hide different branches, and
     /// no encoding can express such a program.
+    /// Pruning fails with [`ExecutionError::PruningFailed`] if the pruned program does not pass
+    /// the check in step 5.
     /// The other pruning steps never fail.
     pub fn prune<JE: JetEnvironment>(&self, env: &JE) -> Result<Arc<RedeemNode>, ExecutionError> {
         self.prune_with_tracker(env, &mut SetTracker::default())
@@ -1250,6 +1255,52 @@ main := comp input comp process jet_verify : 1 -> 1"#;
             });
             prune_and_check_encoding(&unpruned);
         }
+    }
+
+    #[test]
+    fn prune_fails_rather_than_return_a_rejected_program() {
+        // A tracker which says that no right branch was taken makes pruning hide the
+        // right branch of a case node which takes it. Pruning must fail rather than
+        // return a program which consensus rejects.
+        use crate::bit_machine::{ExecTracker, FrameIter, NodeOutput};
+        use crate::jet::CoreEnv;
+        use crate::node::CoreConstructible;
+
+        struct NoRightBranches(SetTracker);
+
+        impl ExecTracker for NoRightBranches {
+            fn visit_node(&mut self, node: &RedeemNode, input: FrameIter, output: NodeOutput) {
+                self.0.visit_node(node, input, output)
+            }
+        }
+
+        impl PruneTracker for NoRightBranches {
+            fn contains_left(&self, _: Ihr) -> bool {
+                true
+            }
+
+            fn contains_right(&self, _: Ihr) -> bool {
+                false
+            }
+        }
+
+        type ArcNode<'brand> = Arc<ConstructNode<'brand>>;
+
+        let unpruned = types::Context::with_context(|ctx| {
+            let unit = || ArcNode::unit(&ctx);
+            ArcNode::comp(
+                &ArcNode::pair(&ArcNode::injr(&unit()), &unit()).unwrap(),
+                &ArcNode::case(&unit(), &unit()).unwrap(),
+            )
+            .unwrap()
+            .finalize_unpruned()
+            .expect("program should finalize")
+        });
+        let mut tracker = NoRightBranches(SetTracker::default());
+        assert!(matches!(
+            unpruned.prune_with_tracker(&CoreEnv::new(), &mut tracker),
+            Err(ExecutionError::PruningFailed)
+        ));
     }
 
     #[test]

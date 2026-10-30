@@ -560,6 +560,8 @@ pub enum ExecutionError {
     JetFailed(JetFailed),
     /// Jet type mismatch between program and execution environment
     JetTypeMismatch,
+    /// Pruning could not produce a program which consensus accepts
+    PruningFailed,
 }
 
 impl fmt::Display for ExecutionError {
@@ -579,6 +581,9 @@ impl fmt::Display for ExecutionError {
             ExecutionError::JetTypeMismatch => {
                 f.write_str("Jet type mismatch between program and execution environment")
             }
+            ExecutionError::PruningFailed => {
+                f.write_str("Pruning could not produce a program which consensus accepts")
+            }
         }
     }
 }
@@ -589,7 +594,8 @@ impl error::Error for ExecutionError {
             Self::InputWrongType(..)
             | Self::ReachedFailNode(..)
             | Self::ReachedPrunedBranch(..)
-            | Self::JetTypeMismatch => None,
+            | Self::JetTypeMismatch
+            | Self::PruningFailed => None,
             Self::LimitExceeded(ref e) => Some(e),
             Self::JetFailed(ref e) => Some(e),
         }
