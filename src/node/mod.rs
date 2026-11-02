@@ -78,6 +78,7 @@ mod disconnect;
 mod display;
 mod hiding;
 mod inner;
+mod prune;
 mod redeem;
 
 use crate::value::Word;

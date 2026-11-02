@@ -1,5 +1,7 @@
 # Unreleased
 
+* Fix `RedeemNode::prune` producing programs that consensus rejects, and add `ExecutionError::PruningFailed` [#391](https://github.com/BlockstreamResearch/rust-simplicity/issues/391).
+
 # 0.9.0 - 2026-09-16
 
 * Update `elements` to `0.27.0`, `bitcoin_hashes` to `1.2.0`, and `hex-conservative` to `1.2.0` [#368](https://github.com/BlockstreamResearch/rust-simplicity/pull/368), [#373](https://github.com/BlockstreamResearch/rust-simplicity/pull/373), [#376](https://github.com/BlockstreamResearch/rust-simplicity/pull/376).

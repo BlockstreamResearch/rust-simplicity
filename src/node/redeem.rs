@@ -3,14 +3,14 @@
 use crate::analysis::NodeBounds;
 use crate::bit_machine::{ExecutionError, PruneTracker, SetTracker};
 use crate::dag::{DagLike, InternalSharing, MaxSharing, PostOrderIterItem};
+use crate::encode;
 use crate::jet::{Jet, JetEnvironment};
 use crate::types::{self, FinalArrow};
-use crate::{encode, BitMachine};
 use crate::{Amr, BitIter, BitWriter, Cmr, DecodeError, Ihr, Imr, Value};
 
 use super::{
     Commit, CommitData, CommitNode, Construct, ConstructData, ConstructNode, Constructible,
-    Converter, Hide, Inner, Marker, NoDisconnect, NoWitness, Node,
+    Converter, Inner, Marker, NoDisconnect, NoWitness, Node,
 };
 
 use std::collections::HashSet;
@@ -267,9 +267,14 @@ impl RedeemNode {
     /// Prune the redeem program for the given transaction environment.
     ///
     /// Pruning works as follows:
-    /// 1) Run the redeem program on the Bit Machine.
-    /// 2) Mark all (un)used case branches using the IHR of the case node.
-    /// 3) Rebuild the program and omit unused branches.
+    /// 1) Merge nodes with equal IHRs, as the encoding of the program does.
+    /// 2) Run the redeem program on the Bit Machine.
+    /// 3) Mark all (un)used case branches using the IHR of the case node.
+    /// 4) Rebuild the program from the nodes reachable through used branches,
+    ///    and omit unused branches.
+    /// 5) Check the encoding of the pruned program as consensus does: that it decodes, runs,
+    ///    and runs every node and both branches of every case node. This runs the program
+    ///    again. Expressions which are not programs (1 → 1) are not checked.
     ///
     /// The pruning result depends on the witness data (which is already part of the redeem program)
     /// and on the transaction environment. These two inputs determine which case branches are
@@ -277,9 +282,13 @@ impl RedeemNode {
     /// starting from the same original, unpruned program. Pruning is a lossy process, so pruning
     /// an already pruned program is not sound.
     ///
-    /// Pruning fails if the original, unpruned program fails to run on the Bit Machine (step 1).
-    /// In this case, the witness data needs to be revised.
-    /// The other pruning steps (2 & 3) never fail.
+    /// Pruning fails if the program, with its nodes merged in step 1, fails to run on the Bit
+    /// Machine (step 2). In this case, the witness data needs to be revised, unless merging
+    /// changed what the program does: nodes with equal IHRs may hide different branches, and
+    /// no encoding can express such a program.
+    /// Pruning fails with [`ExecutionError::PruningFailed`] if the pruned program does not pass
+    /// the check in step 5.
+    /// The other pruning steps never fail.
     pub fn prune<JE: JetEnvironment>(&self, env: &JE) -> Result<Arc<RedeemNode>, ExecutionError> {
         self.prune_with_tracker(env, &mut SetTracker::default())
     }
@@ -294,158 +303,7 @@ impl RedeemNode {
         env: &JE,
         tracker: &mut T,
     ) -> Result<Arc<RedeemNode>, ExecutionError> {
-        struct Pruner<'brand, 't, T> {
-            inference_context: types::Context<'brand>,
-            tracker: &'t mut T,
-        }
-
-        impl<'brand, 't, T> Converter<Redeem, Construct<'brand>> for Pruner<'brand, 't, T>
-        where
-            T: PruneTracker,
-        {
-            type Error = std::convert::Infallible;
-
-            fn convert_witness(
-                &mut self,
-                _: &PostOrderIterItem<&RedeemNode>,
-                witness: &Value,
-            ) -> Result<Option<Value>, Self::Error> {
-                // The pruned type is not finalized at this point,
-                // so we cannot prune the witness value.
-                Ok(Some(witness.shallow_clone()))
-            }
-
-            fn convert_disconnect(
-                &mut self,
-                _: &PostOrderIterItem<&RedeemNode>,
-                right: Option<&Arc<ConstructNode<'brand>>>,
-                _: &Arc<RedeemNode>,
-            ) -> Result<Option<Arc<ConstructNode<'brand>>>, Self::Error> {
-                debug_assert!(
-                    right.is_some(),
-                    "disconnected branch should exist in unpruned redeem program"
-                );
-                Ok(right.map(Arc::clone))
-            }
-
-            fn prune_case(
-                &mut self,
-                data: &PostOrderIterItem<&RedeemNode>,
-                _left: &Arc<ConstructNode>,
-                _right: &Arc<ConstructNode>,
-            ) -> Result<Hide, Self::Error> {
-                // The IHR of the pruned program may change,
-                // but the Converter trait gives us access to the unpruned node (`data`).
-                // The Bit Machine tracked (un)used case branches based on the unpruned IHR.
-                match (
-                    self.tracker.contains_left(data.node.ihr()),
-                    self.tracker.contains_right(data.node.ihr()),
-                ) {
-                    (true, true) => Ok(Hide::Neither),
-                    (false, true) => Ok(Hide::Left),
-                    (true, false) => Ok(Hide::Right),
-                    (false, false) => Ok(Hide::Neither), // case nodes that were never executed will be pruned out by their ancestors
-                }
-            }
-
-            fn convert_data(
-                &mut self,
-                _: &PostOrderIterItem<&RedeemNode>,
-                inner: Inner<
-                    &Arc<ConstructNode<'brand>>,
-                    &Option<Arc<ConstructNode<'brand>>>,
-                    &Option<Value>,
-                >,
-            ) -> Result<ConstructData<'brand>, Self::Error> {
-                let converted_inner = inner
-                    .map(|node| node.cached_data())
-                    .map_witness(Option::<Value>::clone);
-                let retyped = ConstructData::from_inner(&self.inference_context, converted_inner)
-                    .expect("pruned types should check out if unpruned types check out");
-                Ok(retyped)
-            }
-        }
-
-        struct Finalizer;
-
-        impl<'brand> Converter<Construct<'brand>, Redeem> for Finalizer {
-            type Error = std::convert::Infallible;
-
-            fn convert_witness(
-                &mut self,
-                data: &PostOrderIterItem<&ConstructNode>,
-                witness: &Option<Value>,
-            ) -> Result<Value, Self::Error> {
-                let pruned_target_ty = data
-                    .node
-                    .arrow()
-                    .target
-                    .finalize()
-                    .expect("pruned types should check out if unpruned types check out");
-                let pruned_witness = witness
-                    .as_ref()
-                    .expect("witness node that originally stems from redeem program should be populated")
-                    .prune(&pruned_target_ty)
-                    .expect("pruned type should be shrunken version of unpruned type");
-                Ok(pruned_witness)
-            }
-
-            fn convert_disconnect(
-                &mut self,
-                _: &PostOrderIterItem<&ConstructNode>,
-                right: Option<&Arc<RedeemNode>>,
-                _: &Option<Arc<ConstructNode>>,
-            ) -> Result<Arc<RedeemNode>, Self::Error> {
-                Ok(right
-                    .map(Arc::clone)
-                    .expect("disconnect node that originally stems from redeem program should have all branches"))
-            }
-
-            fn convert_data(
-                &mut self,
-                data: &PostOrderIterItem<&ConstructNode>,
-                inner: Inner<&Arc<RedeemNode>, &Arc<RedeemNode>, &Value>,
-            ) -> Result<Arc<RedeemData>, Self::Error> {
-                // Finalize target types of witness nodes in advance so we can prune their values.
-                let final_arrow = data
-                    .node
-                    .arrow()
-                    .finalize()
-                    .expect("pruned types should check out if unpruned types check out");
-                let converted_inner = inner
-                    .map(|node| node.cached_data())
-                    .map_disconnect(|node| node.cached_data())
-                    .map_witness(Value::shallow_clone);
-                Ok(Arc::new(RedeemData::new(final_arrow, converted_inner)))
-            }
-        }
-
-        // 1) Run the Bit Machine and mark (un)used branches.
-        // This is the only fallible step in the pruning process.
-        let mut mac = BitMachine::for_program(self)?;
-        mac.exec_with_tracker(self, env, tracker)?;
-
-        // 2) Prune out unused case branches.
-        // Because the types of the pruned program may change,
-        // we construct a temporary witness program with unfinalized types.
-        // Convert with `MaxSharing`: the tracker keys branch usage by IHR, so
-        // converting IHR-equal nodes separately makes each copy keep the branches
-        // that only its twins executed.
-        types::Context::with_context(|inference_context| {
-            let pruned_witness_program = self
-                .convert::<MaxSharing<Redeem>, _, _>(&mut Pruner {
-                    inference_context,
-                    tracker,
-                })
-                .expect("pruning unused branches is infallible");
-
-            // 3) Finalize the types of the witness program.
-            // We obtain the pruned redeem program.
-            // Once the pruned type is finalized, we can proceed to prune witness values.
-            Ok(pruned_witness_program
-                .convert::<InternalSharing, _, _>(&mut Finalizer)
-                .expect("finalization is infallible"))
-        })
+        super::prune::prune(self, env, tracker)
     }
 
     /// Decode a Simplicity program from bits, including the witness data.
@@ -592,6 +450,7 @@ mod tests {
     use crate::human_encoding::Forest;
     use crate::jet::Core;
     use crate::node::SimpleFinalizer;
+    use crate::BitMachine;
     use hex::DisplayHex;
     use std::fmt;
     #[cfg(all(feature = "elements", feature = "human_encoding"))]
@@ -1048,6 +907,84 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "human_encoding")]
+    fn prune_drops_witness_read_only_by_hidden_branch() {
+        // Only the right branch of the case reads `wit2`. With `wit1` selecting the
+        // left branch, pruning hides the right branch, nothing else reads `wit2`, and
+        // a decoder expects no bits for it. Both branches contain `drop iden`, so the
+        // hidden branch must not constrain the types of the pruned program through it.
+        use crate::ffi::tests::{ffi::SimplicityErr, run_program, TestUpTo};
+        use crate::human_encoding::Forest;
+        use crate::jet::CoreEnv;
+        use std::collections::HashMap;
+
+        // `drop iden` is defined once, so both branches point at the same node.
+        let pointer_shared = r#"wit1 := witness : 1 -> 2
+wit2 := witness : 1 -> 2^8
+input := pair wit1 wit2 : 1 -> 2 * 2^8
+proj := drop iden
+skip_wit2 := comp proj unit
+read_wit2 := comp proj (comp (pair iden iden) (comp jet_eq_8 jet_verify))
+main := comp input (case skip_wit2 read_wit2) : 1 -> 1"#;
+        // `drop iden` is written out twice: two pointer-distinct nodes with one IHR.
+        let ihr_shared = r#"wit1 := witness : 1 -> 2
+wit2 := witness : 1 -> 2^8
+input := pair wit1 wit2 : 1 -> 2 * 2^8
+skip_wit2 := comp (drop iden) unit
+read_wit2 := comp (drop iden) (comp (pair iden iden) (comp jet_eq_8 jet_verify))
+main := comp input (case skip_wit2 read_wit2) : 1 -> 1"#;
+        let wit = HashMap::from([
+            (Arc::from("wit1"), Value::u1(0)),
+            (Arc::from("wit2"), Value::u8(7)),
+        ]);
+
+        for s in [pointer_shared, ihr_shared] {
+            let unpruned = types::Context::with_context(|ctx| {
+                Forest::parse::<Core>(s)
+                    .expect("program should parse")
+                    .to_witness_node(&ctx, &wit)
+                    .expect("program should have main")
+                    .finalize_unpruned()
+                    .expect("program should finalize")
+            });
+
+            let pruned = unpruned
+                .prune(&CoreEnv::new())
+                .expect("pruning should succeed");
+            assert_eq!(pruned.cmr(), unpruned.cmr());
+            let (_, witness_bits) = pruned
+                .encode_with_witness(&mut Vec::<u8>::new(), &mut Vec::<u8>::new())
+                .expect("Vec::write is infallible");
+            assert_eq!(witness_bits, 1, "only `wit1` should keep witness bits");
+
+            let (prog_bytes, witness_bytes) = pruned.to_vec_with_witness();
+            let decoded = RedeemNode::decode::<_, _, Core>(
+                BitIter::from(&prog_bytes[..]),
+                BitIter::from(&witness_bytes[..]),
+            )
+            .expect("pruned program should decode, so its witness holds no unread bits");
+            assert_eq!(
+                decoded.ihr(),
+                pruned.ihr(),
+                "a decoder should infer the same types as pruning did"
+            );
+
+            // libsimplicity is the consensus implementation; check that it accepts the
+            // pruned program. The jets are in the hidden branch, so it can decode the
+            // program although it expects Elements jet codes.
+            let c_result = run_program(
+                &prog_bytes,
+                &witness_bytes,
+                TestUpTo::Everything,
+                None,
+                None,
+            )
+            .expect("libsimplicity should decode the pruned program");
+            assert_eq!(c_result.eval_result, SimplicityErr::NoError);
+        }
+    }
+
+    #[test]
     #[cfg(all(feature = "elements", feature = "human_encoding"))]
     fn prune() {
         use crate::jet::elements::ElementsEnv;
@@ -1164,6 +1101,224 @@ main := comp input comp process jet_verify : 1 -> 1"#;
             &pruned_wit,
             &env,
         );
+    }
+
+    /// Prunes `unpruned` and checks the encoding of the result as consensus does.
+    fn prune_and_check_encoding(unpruned: &RedeemNode) {
+        use crate::ffi::tests::{ffi::SimplicityErr, run_program, TestUpTo};
+        use crate::jet::CoreEnv;
+
+        let env = CoreEnv::new();
+        let pruned = unpruned.prune(&env).expect("pruning should succeed");
+        assert_eq!(pruned.cmr(), unpruned.cmr());
+        let (prog_bytes, witness_bytes) = pruned.to_vec_with_witness();
+        let decoded = RedeemNode::decode::<_, _, Core>(
+            BitIter::from(&prog_bytes[..]),
+            BitIter::from(&witness_bytes[..]),
+        )
+        .expect("pruned program should decode");
+        BitMachine::for_program(&decoded)
+            .expect("pruned program has reasonable bounds")
+            .exec(&decoded, &env)
+            .expect("decoded program should not reach a pruned branch");
+        let c_result = run_program(
+            &prog_bytes,
+            &witness_bytes,
+            TestUpTo::Everything,
+            None,
+            None,
+        )
+        .expect("libsimplicity should decode the pruned program");
+        assert_eq!(c_result.eval_result, SimplicityErr::NoError);
+    }
+
+    #[test]
+    fn prune_merges_nodes_with_equal_ihrs() {
+        // `p1` and `p2` have one IHR, which does not cover the types inside them. Their
+        // case nodes have different types, and so different IHRs, and one only takes its
+        // left branch and the other only its right. An encoding has a single node for
+        // `p1` and `p2`, so its case node must keep both branches.
+        use crate::node::CoreConstructible;
+
+        type ArcNode<'brand> = Arc<ConstructNode<'brand>>;
+
+        let unpruned = types::Context::with_context(|ctx| {
+            let unit = || ArcNode::unit(&ctx);
+            let iden = || ArcNode::iden(&ctx);
+            let g1 = ArcNode::injl(&unit());
+            let g2 = ArcNode::injl(&unit());
+            let p1 = ArcNode::comp(
+                &ArcNode::pair(&iden(), &g1).unwrap(),
+                &ArcNode::case(&unit(), &unit()).unwrap(),
+            )
+            .unwrap();
+            let p2 = ArcNode::comp(
+                &ArcNode::pair(&iden(), &g2).unwrap(),
+                &ArcNode::case(&unit(), &unit()).unwrap(),
+            )
+            .unwrap();
+            // A branch which never runs makes the type of `g1` 2 -> 1 + 2.
+            let verify = ArcNode::jet(&ctx, &Core::Verify);
+            let pins_g1 = ArcNode::comp(
+                &g1,
+                &ArcNode::comp(
+                    &ArcNode::pair(&iden(), &iden()).unwrap(),
+                    &ArcNode::case(&unit(), &ArcNode::take(&verify)).unwrap(),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+            ArcNode::comp(
+                &ArcNode::pair(
+                    &ArcNode::pair(
+                        &ArcNode::comp(&ArcNode::injl(&unit()), &p1).unwrap(),
+                        &ArcNode::comp(&ArcNode::injr(&unit()), &p2).unwrap(),
+                    )
+                    .unwrap(),
+                    &ArcNode::comp(&ArcNode::injl(&unit()), &pins_g1).unwrap(),
+                )
+                .unwrap(),
+                &unit(),
+            )
+            .unwrap()
+            .finalize_unpruned()
+            .expect("program should finalize")
+        });
+        prune_and_check_encoding(&unpruned);
+    }
+
+    #[test]
+    fn prune_nodes_with_equal_ihrs_and_different_children() {
+        // `p1` and `p2` have one IHR, but their children differ in type, because `a1`
+        // is also used where its target type must be 1 + 2. Pruning must keep and
+        // build the same one of them.
+        use crate::node::CoreConstructible;
+
+        type ArcNode<'brand> = Arc<ConstructNode<'brand>>;
+
+        let unpruned = types::Context::with_context(|ctx| {
+            let unit = || ArcNode::unit(&ctx);
+            let iden = || ArcNode::iden(&ctx);
+            let a1 = ArcNode::injl(&unit());
+            let p1 = ArcNode::comp(&a1, &unit()).unwrap();
+            let a2 = ArcNode::injl(&unit());
+            let p2 = ArcNode::comp(&a2, &unit()).unwrap();
+            // A branch which never runs makes the target type of `a1` 1 + 2.
+            let verify = ArcNode::jet(&ctx, &Core::Verify);
+            let pins_a1 = ArcNode::comp(
+                &a1,
+                &ArcNode::comp(
+                    &ArcNode::pair(&iden(), &iden()).unwrap(),
+                    &ArcNode::case(&unit(), &ArcNode::take(&verify)).unwrap(),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+            ArcNode::comp(
+                &ArcNode::pair(&ArcNode::pair(&p1, &p2).unwrap(), &pins_a1).unwrap(),
+                &unit(),
+            )
+            .unwrap()
+            .finalize_unpruned()
+            .expect("program should finalize")
+        });
+        prune_and_check_encoding(&unpruned);
+    }
+
+    #[test]
+    fn prune_case_and_assertion_with_equal_ihrs() {
+        // A case node and an assertion with one IHR, in either order. Pruning must
+        // keep and build the same one of them.
+        use crate::node::CoreConstructible;
+
+        type ArcNode<'brand> = Arc<ConstructNode<'brand>>;
+
+        for case_first in [true, false] {
+            let unpruned = types::Context::with_context(|ctx| {
+                let unit = || ArcNode::unit(&ctx);
+                let input = ArcNode::pair(&ArcNode::injl(&unit()), &unit()).unwrap();
+                let take_unit = ArcNode::take(&unit());
+                let case =
+                    ArcNode::comp(&input, &ArcNode::case(&unit(), &take_unit).unwrap()).unwrap();
+                let assertl =
+                    ArcNode::comp(&input, &ArcNode::assertl(&unit(), take_unit.cmr()).unwrap())
+                        .unwrap();
+                let (first, second) = if case_first {
+                    (case, assertl)
+                } else {
+                    (assertl, case)
+                };
+                ArcNode::comp(&ArcNode::pair(&first, &second).unwrap(), &unit())
+                    .unwrap()
+                    .finalize_unpruned()
+                    .expect("program should finalize")
+            });
+            prune_and_check_encoding(&unpruned);
+        }
+    }
+
+    #[test]
+    fn prune_fails_rather_than_return_a_rejected_program() {
+        // A tracker which says that no right branch was taken makes pruning hide the
+        // right branch of a case node which takes it. Pruning must fail rather than
+        // return a program which consensus rejects.
+        use crate::bit_machine::{ExecTracker, FrameIter, NodeOutput};
+        use crate::jet::CoreEnv;
+        use crate::node::CoreConstructible;
+
+        struct NoRightBranches(SetTracker);
+
+        impl ExecTracker for NoRightBranches {
+            fn visit_node(&mut self, node: &RedeemNode, input: FrameIter, output: NodeOutput) {
+                self.0.visit_node(node, input, output)
+            }
+        }
+
+        impl PruneTracker for NoRightBranches {
+            fn contains_left(&self, _: Ihr) -> bool {
+                true
+            }
+
+            fn contains_right(&self, _: Ihr) -> bool {
+                false
+            }
+        }
+
+        type ArcNode<'brand> = Arc<ConstructNode<'brand>>;
+
+        let unpruned = types::Context::with_context(|ctx| {
+            let unit = || ArcNode::unit(&ctx);
+            ArcNode::comp(
+                &ArcNode::pair(&ArcNode::injr(&unit()), &unit()).unwrap(),
+                &ArcNode::case(&unit(), &unit()).unwrap(),
+            )
+            .unwrap()
+            .finalize_unpruned()
+            .expect("program should finalize")
+        });
+        let mut tracker = NoRightBranches(SetTracker::default());
+        assert!(matches!(
+            unpruned.prune_with_tracker(&CoreEnv::new(), &mut tracker),
+            Err(ExecutionError::PruningFailed)
+        ));
+    }
+
+    #[test]
+    fn prune_expression_which_is_not_a_program() {
+        // Pruning keeps the type of an expression which is not 1 -> 1.
+        use crate::jet::CoreEnv;
+        use crate::node::CoreConstructible;
+
+        let unpruned = types::Context::with_context(|ctx| {
+            Arc::<ConstructNode>::injl(&Arc::<ConstructNode>::unit(&ctx))
+                .finalize_unpruned()
+                .expect("expression should finalize")
+        });
+        let pruned = unpruned
+            .prune(&CoreEnv::new())
+            .expect("pruning should succeed");
+        assert_eq!(pruned.arrow().source, unpruned.arrow().source);
+        assert_eq!(pruned.arrow().target, unpruned.arrow().target);
     }
 }
 
