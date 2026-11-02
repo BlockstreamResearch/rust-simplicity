@@ -1034,13 +1034,15 @@ impl Value {
         for _ in 0..ty.bit_width() / 8 {
             blob.push(bits.read_u8()?);
         }
-        let mut last = 0u8;
-        for i in 0..ty.bit_width() % 8 {
-            if bits.read_bit()? {
-                last |= 1 << (7 - i);
+        if ty.bit_width() % 8 != 0 {
+            let mut last = 0u8;
+            for i in 0..ty.bit_width() % 8 {
+                if bits.read_bit()? {
+                    last |= 1 << (7 - i);
+                }
             }
+            blob.push(last);
         }
-        blob.push(last);
 
         Ok(Value {
             inner: blob.into(),
@@ -1389,11 +1391,30 @@ mod tests {
 
     #[test]
     fn padded_round_trip() {
-        let v = Value::u64(0xff00_00ff_ff00_00ff);
-        let (bits, _) = v.iter_padded().collect_bits();
-        let mut iter = BitIter::new(bits.into_iter());
-        let new_v = Value::from_padded_bits(&mut iter, &v.ty).unwrap();
-        assert_eq!(v, new_v);
+        for value in [
+            Value::unit(),
+            Value::u1(1),
+            Value::u4(6),
+            Value::u8(0xa5),
+            Value::u64(0xff00_00ff_ff00_00ff),
+            Value::some(Value::u8(0xa5)),
+        ] {
+            let (bits, len) = value.iter_padded().collect_bits();
+            for offset in 0..8 {
+                let mut prefixed = vec![true; offset];
+                prefixed.extend(value.iter_padded());
+                let (bytes, _) = prefixed.into_iter().collect_bits();
+                let mut iter = BitIter::byte_slice_window(&bytes, offset, offset + len);
+                let decoded = Value::from_padded_bits(&mut iter, &value.ty).unwrap();
+                assert_eq!(decoded, value);
+                assert_eq!(decoded.inner.as_ref(), bits);
+                assert_eq!(iter.n_total_read(), len);
+            }
+            if !bits.is_empty() {
+                let mut truncated = BitIter::from(&bits[..bits.len() - 1]);
+                assert!(Value::from_padded_bits(&mut truncated, &value.ty).is_err());
+            }
+        }
     }
 
     // --- Bug regression tests for right_shift_1 when new_bit=false ---
