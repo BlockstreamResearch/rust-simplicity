@@ -13,7 +13,6 @@ use crate::{BitIter, Tmr};
 use hashes::sha256;
 
 use core::{cmp, fmt, iter};
-use std::collections::VecDeque;
 use std::hash::Hash;
 use std::sync::Arc;
 
@@ -698,19 +697,26 @@ impl Value {
     /// The array length is not a power of two.
     pub fn from_byte_array<const N: usize>(bytes: [u8; N]) -> Self {
         assert!(N.is_power_of_two(), "Array length must be a power of two");
-        let mut values: VecDeque<_> = bytes.into_iter().map(Value::u8).collect();
+        // Since N is a nonzero power of two, trailing_zeros() gives log2(N).
+        // A word of 8 * N bits needs exponent log2(N) + 3, since 8 = 2^3.
+        let ty = Self::byte_array_type(N.trailing_zeros() as usize + 3);
 
-        while values.len() > 1 {
-            let mut alt_values = VecDeque::with_capacity(values.len() / 2);
-
-            while let (Some(left), Some(right)) = (values.pop_front(), values.pop_front()) {
-                alt_values.push_back(Value::product(left, right));
-            }
-
-            values = alt_values;
+        Self {
+            inner: Arc::from(bytes),
+            bit_offset: 0,
+            ty,
         }
+    }
 
-        values.into_iter().next().unwrap()
+    // Construct a balanced word type, extending the cached types when necessary.
+    fn byte_array_type(n: usize) -> Arc<Final> {
+        match Final::two_two_n(n) {
+            Ok(ty) => ty,
+            Err(_) => {
+                let half = Self::byte_array_type(n - 1);
+                Final::product(Arc::clone(&half), half)
+            }
+        }
     }
 
     /// Yields an iterator over the "raw bytes" of the value.
@@ -1387,6 +1393,53 @@ mod tests {
         let mut iter = BitIter::new(bits.into_iter());
         let new_v = Value::from_compact_bits(&mut iter, &v.ty).unwrap();
         assert_eq!(v, new_v);
+    }
+
+    #[test]
+    fn from_byte_array_preserves_bytes_and_type() {
+        fn check<const N: usize>() {
+            let bytes = std::array::from_fn(|i| (i as u8).wrapping_mul(73).wrapping_add(19));
+            let value = Value::from_byte_array::<N>(bytes);
+            assert_eq!(value.raw_byte_iter().collect::<Vec<_>>(), bytes);
+            assert_eq!(value.iter_compact().collect_bits(), (bytes.to_vec(), 8 * N));
+            assert_eq!(value.ty().bit_width(), 8 * N);
+
+            if N > 1 {
+                let (left, right) = value.as_product().unwrap();
+                assert_eq!(left.raw_byte_iter().collect::<Vec<_>>(), bytes[..N / 2]);
+                assert_eq!(right.raw_byte_iter().collect::<Vec<_>>(), bytes[N / 2..]);
+            }
+        }
+
+        check::<1>();
+        check::<2>();
+        check::<32>();
+        check::<2048>();
+        assert_eq!(Value::from_byte_array([0xa5]), Value::u8(0xa5));
+        assert_eq!(Value::from_byte_array([0x12, 0x34]), Value::u16(0x1234));
+        assert_eq!(Value::from_byte_array([0xa5; 32]), Value::u256([0xa5; 32]));
+    }
+
+    #[test]
+    fn from_byte_array_rejects_invalid_lengths() {
+        assert!(std::panic::catch_unwind(|| Value::from_byte_array([])).is_err());
+        assert!(std::panic::catch_unwind(|| Value::from_byte_array([0; 3])).is_err());
+    }
+
+    #[test]
+    fn byte_array_type_cache_boundaries() {
+        let first_uncached = Tmr::TWO_TWO_N.len();
+        let mut expected = Final::two_two_n(first_uncached - 1).unwrap();
+        assert!(Final::two_two_n(first_uncached).is_err());
+
+        // Check the cache edge and two recursive extensions without large buffers.
+        for n in first_uncached - 1..=first_uncached + 1 {
+            let actual = Value::byte_array_type(n);
+            assert_eq!(actual, expected, "n={n}");
+            assert_eq!(actual.bit_width(), expected.bit_width(), "n={n}");
+            assert!(!actual.has_padding(), "n={n}");
+            expected = Final::product(Arc::clone(&expected), expected);
+        }
     }
 
     #[test]
