@@ -157,13 +157,13 @@ pub fn encode_program<N: node::Marker>(
     program: &node::Node<N>,
     w: &mut BitWriter<&mut dyn io::Write>,
 ) -> io::Result<usize> {
-    let iter = EncodeNode::Node(program).post_order_iter::<EncodeSharing<N>>();
-
-    let len = iter.clone().count();
+    let nodes: Vec<_> = EncodeNode::Node(program)
+        .post_order_iter::<EncodeSharing<N>>()
+        .collect();
     let n_start = w.n_total_written();
-    encode_natural(len, w)?;
+    encode_natural(nodes.len(), w)?;
 
-    for node in iter {
+    for node in nodes {
         encode_node(node, w)?;
     }
 
