@@ -589,6 +589,7 @@ dependencies = [
 name = "simplicity-fuzz"
 version = "0.0.1"
 dependencies = [
+ "arbitrary",
  "base64 0.22.1",
  "libfuzzer-sys",
  "simplicity-lang 0.3.1",
