@@ -317,7 +317,7 @@ pub fn run_program(
         }
 
         // 9. Run the program
-        let budget_ptr = budget.map(|b| b as *const _).unwrap_or(ptr::null());
+        let budget_ptr = budget.as_ref().map(|b| b as *const _).unwrap_or(ptr::null());
         let env_ptr = env.map(|e| e as *const _).unwrap_or(ptr::null());
         result.eval_result = simplicity_evalTCOProgram(dag, type_dag, len, budget_ptr, env_ptr);
     }
