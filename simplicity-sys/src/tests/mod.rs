@@ -31,6 +31,10 @@ pub struct TestOutput {
     pub ihr: CSha256Midstate,
     /// The cost bound of the program
     pub cost_bound: ubounded,
+    /// The bound on the cells needed to evaluate the program
+    pub cell_bound: ubounded,
+    /// The bound on the frames needed to evaluate the program
+    pub frame_bound: ubounded,
     /// Whether or not evaluation succeded
     pub eval_result: SimplicityErr,
 }
@@ -127,6 +131,8 @@ pub fn run_program(
         cmr: CSha256Midstate::default(),
         ihr: CSha256Midstate::default(),
         cost_bound: 0,
+        cell_bound: 0,
+        frame_bound: 0,
         eval_result: SimplicityErr::NoError,
     };
 
@@ -211,6 +217,8 @@ pub fn run_program(
         )
         .into_result()?;
         result.cost_bound = cost_bound;
+        result.cell_bound = cell_bound;
+        result.frame_bound = frame_bound;
         if test_up_to <= TestUpTo::ComputeCostUnbounded {
             return Ok(result);
         }

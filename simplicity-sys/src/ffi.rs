@@ -79,12 +79,23 @@ extern "C" {
 pub type ubounded = c_uint_least32_t;
 /// Used with `evalTCOProgram` to enforce consensus limits.
 pub const BUDGET_MAX: ubounded = 4000050;
+/// The maximum number of cells (bits) that consensus allows the Bit Machine
+/// to need when evaluating a program, as bounded by `analyseBounds`.
+pub const CELLS_MAX: ubounded = 0x500000;
+/// The maximum number of nodes in a program accepted by consensus.
+pub const DAG_LEN_MAX: c_size_t = 8000000;
 /// The max value of UBOUNDED_MAX
 pub const UBOUNDED_MAX: ubounded = ubounded::MAX;
 
 extern "C" {
     pub static c_sizeof_ubounded: c_size_t;
     pub static c_alignof_ubounded: c_size_t;
+}
+
+extern "C" {
+    pub static c_budget_max: ubounded;
+    pub static c_cells_max: ubounded;
+    pub static c_dag_len_max: c_size_t;
 }
 
 pub mod bounded {
@@ -164,6 +175,15 @@ mod tests {
             assert_eq!(size_of::<ubounded>(), c_sizeof_ubounded);
             assert_eq!(size_of::<UWORD>(), c_sizeof_UWORD);
             assert_eq!(size_of::<sha256::CSha256Midstate>(), sha256::c_sizeof_sha256_midstate);
+        }
+    }
+
+    #[test]
+    fn test_limits() {
+        unsafe {
+            assert_eq!(BUDGET_MAX, c_budget_max);
+            assert_eq!(CELLS_MAX, c_cells_max);
+            assert_eq!(DAG_LEN_MAX, c_dag_len_max);
         }
     }
 

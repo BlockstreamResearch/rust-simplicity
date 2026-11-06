@@ -12,24 +12,27 @@ use std::error;
 /// The maximum number of cells needed by the bit machine.
 ///
 /// This roughly corresponds to the maximum size of any type used by a
-/// program, in bits. In a blockchain context this should be limited by
-/// the transaction's weight budget.
+/// program, in bits.
 ///
-/// The limit here is an absolute limit enforced by the library to avoid
-/// unbounded allocations.
+/// This is libsimplicity's consensus limit. libsimplicity bounds the cells
+/// needed by a Bit Machine with tail call optimization, which this one lacks,
+/// so this bound on a program is never smaller than libsimplicity's and is
+/// sometimes larger. Every program which consensus rejects for needing too
+/// many cells is rejected here, and so are some which consensus accepts.
 // This value must be less than usize::MAX / 2 to avoid panics in this module.
-const MAX_CELLS: usize = 2 * 1024 * 1024 * 1024 - 1;
+const MAX_CELLS: usize = simplicity_sys::ffi::CELLS_MAX as usize;
 
 /// The maximum number of frames needed by the bit machine.
 ///
 /// This roughly corresponds to the maximum depth of nested `comp` and
-/// `disconnect` combinators. In a blockchain context this should be
-/// limited by the transaction's weight budget.
+/// `disconnect` combinators.
 ///
-/// The limit here is an absolute limit enforced by the library to avoid
-/// unbounded allocations.
+/// libsimplicity has no limit on frames of its own. Programs need at most
+/// two frames per node, here and in libsimplicity, and consensus limits
+/// programs to `DAG_LEN_MAX` nodes, so this only rejects programs which are
+/// too long for consensus anyway.
 // This value must be less than usize::MAX / 2 to avoid panics in this module.
-const MAX_FRAMES: usize = 1024 * 1024;
+const MAX_FRAMES: usize = 2 * simplicity_sys::ffi::DAG_LEN_MAX;
 
 #[non_exhaustive]
 #[derive(Clone, Debug)]
@@ -84,7 +87,7 @@ impl LimitError {
         if got > MAX_FRAMES {
             Err(Self::MaxFramesExceeded {
                 got,
-                max: MAX_CELLS,
+                max: MAX_FRAMES,
                 bound,
             })
         } else {
@@ -116,5 +119,21 @@ impl LimitError {
             "extra frames + fixed overhead",
         )?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn frame_error_reports_frame_limit() {
+        match LimitError::check_max_frames(MAX_FRAMES + 1, "test") {
+            Err(LimitError::MaxFramesExceeded { got, max, .. }) => {
+                assert_eq!(got, MAX_FRAMES + 1);
+                assert_eq!(max, MAX_FRAMES);
+            }
+            res => panic!("expected MaxFramesExceeded, got {:?}", res),
+        }
     }
 }

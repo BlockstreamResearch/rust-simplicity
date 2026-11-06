@@ -1,6 +1,7 @@
 # Unreleased
 
 * Fix `RedeemNode::prune` producing programs that consensus rejects, and add `ExecutionError::PruningFailed` [#391](https://github.com/BlockstreamResearch/rust-simplicity/issues/391).
+* Enforce libsimplicity's limits on cells and program length: `BitMachine::for_program` rejects programs needing more than `CELLS_MAX` cells, and decoding fails with the new `decode::Error::TooManyNodes` beyond `DAG_LEN_MAX` nodes. Export both constants from `simplicity-sys`.
 
 # 0.9.0 - 2026-09-16
 

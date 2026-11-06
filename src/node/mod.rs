@@ -837,7 +837,7 @@ impl<N: Marker> Drop for Node<N> {
 mod tests {
     use ffi::tests::TestData;
 
-    use crate::analysis::Cost;
+    use crate::analysis::{Cost, IO_EXTRA_FRAMES};
     use crate::ffi;
     use crate::jet::Elements;
     use crate::BitIter;
@@ -846,7 +846,7 @@ mod tests {
     fn check_merkle_roots(test: &TestData) {
         let prog = BitIter::from(test.prog.as_slice());
         let witness = BitIter::from(test.witness.as_slice());
-        ffi::tests::run_program(
+        let c_result = ffi::tests::run_program(
             &test.prog,
             &test.witness,
             ffi::tests::TestUpTo::CheckOneOne,
@@ -858,7 +858,15 @@ mod tests {
         assert_eq!(prog.cmr().to_byte_array(), test.cmr);
         assert_eq!(prog.amr().to_byte_array(), test.amr);
         assert_eq!(prog.ihr().to_byte_array(), test.ihr);
-        assert_eq!(prog.bounds().cost, Cost::from_milliweight(test.cost))
+        assert_eq!(prog.bounds().cost, Cost::from_milliweight(test.cost));
+
+        // Our Bit Machine lacks tail call optimization, so it needs at least as
+        // many cells and frames as libsimplicity's.
+        let io_cells = prog.arrow().source.bit_width() + prog.arrow().target.bit_width();
+        let cells = io_cells + prog.bounds().extra_cells;
+        let frames = prog.bounds().extra_frames + IO_EXTRA_FRAMES;
+        assert!(cells >= c_result.cell_bound as usize);
+        assert!(frames >= c_result.frame_bound as usize);
     }
 
     #[test]

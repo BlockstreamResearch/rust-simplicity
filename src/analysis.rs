@@ -306,7 +306,9 @@ impl NodeBounds {
     /// Node bounds for a `comp` node
     pub fn comp(left: Self, right: Self, mid_ty_bit_width: usize) -> NodeBounds {
         NodeBounds {
-            extra_cells: mid_ty_bit_width + cmp::max(left.extra_cells, right.extra_cells),
+            // Type widths saturate at usize::MAX, so the sums here must too.
+            extra_cells: mid_ty_bit_width
+                .saturating_add(cmp::max(left.extra_cells, right.extra_cells)),
             extra_frames: 1 + cmp::max(left.extra_frames, right.extra_frames),
             cost: Cost::OVERHEAD + Cost::of_type(mid_ty_bit_width) + left.cost + right.cost,
         }
@@ -351,8 +353,8 @@ impl NodeBounds {
     ) -> NodeBounds {
         NodeBounds {
             extra_cells: left_source_bit_width
-                + left_target_bit_width
-                + cmp::max(left.extra_cells, right.extra_cells),
+                .saturating_add(left_target_bit_width)
+                .saturating_add(cmp::max(left.extra_cells, right.extra_cells)),
             extra_frames: 2 + cmp::max(left.extra_frames, right.extra_frames),
             cost: Cost::OVERHEAD
                 + Cost::of_type(left_source_bit_width)

@@ -65,6 +65,19 @@ fn do_test(data: &[u8]) {
                 &Midstate::from(c_data.ihr).to_parts().0,
                 rust_data.ihr().as_ref(),
             );
+
+            // Our Bit Machine lacks tail call optimization, so it needs at least as
+            // many cells and frames as libsimplicity's. Both count two frames for
+            // the input and output.
+            let arrow = rust_data.arrow();
+            let bounds = rust_data.bounds();
+            let cells = arrow
+                .source
+                .bit_width()
+                .saturating_add(arrow.target.bit_width())
+                .saturating_add(bounds.extra_cells);
+            assert!(cells >= c_data.cell_bound as usize);
+            assert!(bounds.extra_frames + 2 >= c_data.frame_bound as usize);
         }
     }
 }

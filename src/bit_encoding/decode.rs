@@ -14,6 +14,7 @@ use crate::node::{
 use crate::types;
 use crate::value::Word;
 use crate::{BitIter, FailEntropy};
+use simplicity_sys::ffi::DAG_LEN_MAX;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::{cmp, error, fmt};
@@ -42,6 +43,13 @@ pub enum Error {
     NotInCanonicalOrder,
     /// Program does not have maximal sharing
     SharingNotMaximal,
+    /// Program has more nodes than consensus allows
+    TooManyNodes {
+        /// The number of nodes in the program.
+        got: usize,
+        /// The maximum allowed number of nodes.
+        max: usize,
+    },
     /// Type-checking error
     Type(crate::types::Error),
 }
@@ -81,6 +89,13 @@ impl fmt::Display for Error {
             Error::Natural(ref e) => e.fmt(f),
             Error::NotInCanonicalOrder => f.write_str("program not in canonical order"),
             Error::SharingNotMaximal => f.write_str("Decoded programs must have maximal sharing"),
+            Error::TooManyNodes { got, max } => {
+                write!(
+                    f,
+                    "program has {} nodes, more than the maximum {}",
+                    got, max
+                )
+            }
             Error::Type(ref e) => fmt::Display::fmt(e, f),
         }
     }
@@ -97,6 +112,7 @@ impl error::Error for Error {
             Error::Natural(ref e) => Some(e),
             Error::NotInCanonicalOrder => None,
             Error::SharingNotMaximal => None,
+            Error::TooManyNodes { .. } => None,
             Error::Type(ref e) => Some(e),
         }
     }
@@ -172,6 +188,12 @@ pub fn decode_expression<'brand, I: Iterator<Item = u8>, J: Jet>(
 
     let len = bits.read_natural::<usize>(None)?;
     assert_ne!(len, 0, "impossible to encode 0 in Simplicity");
+    if len > DAG_LEN_MAX {
+        return Err(Error::TooManyNodes {
+            got: len,
+            max: DAG_LEN_MAX,
+        });
+    }
 
     let mut nodes = Vec::with_capacity(cmp::min(len, 10_000));
     for _ in 0..len {
@@ -324,6 +346,31 @@ mod tests {
         // ...or as a RedeemNode
         let iter = BitIter::from(&justjet[..]);
         RedeemNode::decode::<_, _, Core>(iter, BitIter::from(&[][..])).unwrap_err();
+    }
+
+    #[test]
+    fn too_many_nodes() {
+        for (len, too_many) in [(DAG_LEN_MAX, false), (DAG_LEN_MAX + 1, true)] {
+            let mut prog = Vec::<u8>::new();
+            let mut w = BitWriter::new(&mut prog);
+            encode::encode_natural(len, &mut w).unwrap();
+            w.flush_all().unwrap();
+
+            types::Context::with_context(|ctx| {
+                let mut iter = BitIter::from(&prog[..]);
+                let err = decode_expression::<_, Core>(&ctx, &mut iter)
+                    .expect_err("there are no nodes after the length");
+                match err {
+                    Error::TooManyNodes { got, max } => {
+                        assert!(too_many, "{} nodes should be allowed", len);
+                        assert_eq!(got, len);
+                        assert_eq!(max, DAG_LEN_MAX);
+                    }
+                    // An allowed length fails later, when decoding the nodes.
+                    _ => assert!(!too_many, "{} nodes should be too many: {}", len, err),
+                }
+            });
+        }
     }
 
     #[test]
