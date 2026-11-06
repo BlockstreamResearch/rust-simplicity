@@ -7,10 +7,15 @@
 #include "simplicity/type.h"
 #include "simplicity/bounded.h"
 #include "simplicity/frame.h"
+#include "simplicity/limitations.h"
 
 #include <stdalign.h>
 
 const uint64_t c_overhead = overhead;
+
+const ubounded c_budget_max = BUDGET_MAX;
+const ubounded c_cells_max = CELLS_MAX;
+const size_t c_dag_len_max = DAG_LEN_MAX;
 
 const size_t c_sizeof_uchar = sizeof(unsigned char);
 const size_t c_sizeof_int = sizeof(int);
