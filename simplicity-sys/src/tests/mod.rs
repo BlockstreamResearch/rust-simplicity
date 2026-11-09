@@ -19,6 +19,10 @@ use crate::tests::ffi::{
 };
 use crate::CElementsTxEnv;
 
+/// The vendored C table of the Bitcoin jets
+pub const BITCOIN_PRIMITIVE_JET_NODE_INC: &str =
+    include_str!("../../depend/simplicity/bitcoin/primitiveJetNode.inc");
+
 /// The result of parsing, typechecking, and running a Simplicity program
 /// through the C FFI
 #[derive(Copy, Clone, Debug)]
