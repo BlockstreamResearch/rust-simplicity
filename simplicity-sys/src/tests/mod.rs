@@ -110,7 +110,7 @@ struct FreeOnDrop(*mut u8);
 impl Drop for FreeOnDrop {
     fn drop(&mut self) {
         unsafe {
-            crate::alloc::rust_0_8_free(self.0);
+            crate::alloc::rust_0_9_free(self.0);
         }
     }
 }

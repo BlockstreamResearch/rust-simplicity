@@ -24,7 +24,7 @@ struct JetSpec {
 /// ```text
 /// ,[ADD_32] =
 /// { .tag = JET
-/// , .jet = rustsimplicity_0_8_add_32
+/// , .jet = rustsimplicity_<major>_<minor>_add_32
 /// , .cmr = {{0x4668cd55u, ..., 0xd3cebf9fu}}
 /// , .sourceIx = ty_w64
 /// , .targetIx = ty_pbw32

@@ -11,21 +11,21 @@ typedef rawBitcoinInput rawInput;
 typedef rawBitcoinTransaction rawTransaction;
 typedef rawBitcoinTapEnv rawTapEnv;
  
-const size_t rustsimplicity_0_8_c_sizeof_rawBitcoinBuffer = sizeof(rawBitcoinBuffer);
-const size_t rustsimplicity_0_8_c_sizeof_rawBitcoinOutput = sizeof(rawBitcoinOutput);
-const size_t rustsimplicity_0_8_c_sizeof_rawBitcoinInput = sizeof(rawBitcoinInput);
-const size_t rustsimplicity_0_8_c_sizeof_rawBitcoinTransaction = sizeof(rawBitcoinTransaction);
-const size_t rustsimplicity_0_8_c_sizeof_rawBitcoinTapEnv = sizeof(rawBitcoinTapEnv);
-const size_t rustsimplicity_0_8_c_sizeof_bitcoinTxEnv = sizeof(txEnv);
+const size_t rustsimplicity_0_9_c_sizeof_rawBitcoinBuffer = sizeof(rawBitcoinBuffer);
+const size_t rustsimplicity_0_9_c_sizeof_rawBitcoinOutput = sizeof(rawBitcoinOutput);
+const size_t rustsimplicity_0_9_c_sizeof_rawBitcoinInput = sizeof(rawBitcoinInput);
+const size_t rustsimplicity_0_9_c_sizeof_rawBitcoinTransaction = sizeof(rawBitcoinTransaction);
+const size_t rustsimplicity_0_9_c_sizeof_rawBitcoinTapEnv = sizeof(rawBitcoinTapEnv);
+const size_t rustsimplicity_0_9_c_sizeof_bitcoinTxEnv = sizeof(txEnv);
 
-const size_t rustsimplicity_0_8_c_alignof_rawBitcoinBuffer = alignof(rawBitcoinBuffer);
-const size_t rustsimplicity_0_8_c_alignof_rawBitcoinOutput = alignof(rawBitcoinOutput);
-const size_t rustsimplicity_0_8_c_alignof_rawBitcoinInput = alignof(rawBitcoinInput);
-const size_t rustsimplicity_0_8_c_alignof_rawBitcoinTransaction = alignof(rawBitcoinTransaction);
-const size_t rustsimplicity_0_8_c_alignof_rawBitcoinTapEnv = alignof(rawBitcoinTapEnv);
-const size_t rustsimplicity_0_8_c_alignof_bitcoinTxEnv = alignof(txEnv);
+const size_t rustsimplicity_0_9_c_alignof_rawBitcoinBuffer = alignof(rawBitcoinBuffer);
+const size_t rustsimplicity_0_9_c_alignof_rawBitcoinOutput = alignof(rawBitcoinOutput);
+const size_t rustsimplicity_0_9_c_alignof_rawBitcoinInput = alignof(rawBitcoinInput);
+const size_t rustsimplicity_0_9_c_alignof_rawBitcoinTransaction = alignof(rawBitcoinTransaction);
+const size_t rustsimplicity_0_9_c_alignof_rawBitcoinTapEnv = alignof(rawBitcoinTapEnv);
+const size_t rustsimplicity_0_9_c_alignof_bitcoinTxEnv = alignof(txEnv);
 
-void rustsimplicity_0_8_c_bitcoin_set_txEnv(txEnv *result, const bitcoinTransaction *tx, const bitcoinTapEnv *taproot, unsigned int ix)
+void rustsimplicity_0_9_c_bitcoin_set_txEnv(txEnv *result, const bitcoinTransaction *tx, const bitcoinTapEnv *taproot, unsigned int ix)
 {
-    *result = rustsimplicity_0_8_bitcoin_build_txEnv(tx, taproot, ix);
+    *result = rustsimplicity_0_9_bitcoin_build_txEnv(tx, taproot, ix);
 }
