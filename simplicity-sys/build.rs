@@ -119,16 +119,6 @@ fn main() {
         build.include("wasm-sysroot");
     }
 
-    // Chain-independent code goes in its own library, which each chain's library links against.
-    // Compiling it into every chain's library instead breaks the MSRV build: Rust 1.74 links native
-    // libraries with --whole-archive, so the duplicate objects collide.
-    build
-        .clone()
-        .files(sources(Library::Common))
-        .file("depend/wrapper.c")
-        .file("depend/jets_wrapper.c")
-        .compile("RustSimplicityCommon");
-
     // Build the Bitcoin transaction environment's library.
     build
         .clone()
@@ -137,7 +127,18 @@ fn main() {
         .compile("BitcoinSimplicity");
 
     build
+        .clone()
         .files(sources(Library::Elements))
         .file("depend/env.c")
         .compile("ElementsSimplicity");
+
+    // Chain-independent code goes in its own library, which each chain's library links against.
+    // Emit it last so linkers that scan archives in order can resolve the chain libraries' symbols.
+    // Compiling it into every chain's library instead breaks the MSRV build: Rust 1.74 links native
+    // libraries with --whole-archive, so the duplicate objects collide.
+    build
+        .files(sources(Library::Common))
+        .file("depend/wrapper.c")
+        .file("depend/jets_wrapper.c")
+        .compile("RustSimplicityCommon");
 }
