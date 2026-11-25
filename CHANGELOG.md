@@ -1,6 +1,9 @@
 # Unreleased
 
 * Fix `RedeemNode::prune` producing programs that consensus rejects, and add `ExecutionError::PruningFailed` [#391](https://github.com/BlockstreamResearch/rust-simplicity/issues/391).
+* Update libsimplicity to `4e0beb5`, so that `Bitcoin::cmr()` and `Bitcoin::cost()` no longer panic [#405](https://github.com/BlockstreamResearch/rust-simplicity/pull/405).
+* Add `Cost::get_annex_padding_size`, and make `Cost::get_padding` return the shortest annex [#405](https://github.com/BlockstreamResearch/rust-simplicity/pull/405).
+* `Cost::get_padding` and `Cost::is_budget_valid` now take `&[Vec<u8>]` instead of `&Vec<Vec<u8>>`, and `Cost::is_budget_valid` is available with the `bitcoin` feature [#405](https://github.com/BlockstreamResearch/rust-simplicity/pull/405).
 
 # 0.9.0 - 2026-09-16
 
