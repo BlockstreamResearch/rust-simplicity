@@ -310,7 +310,10 @@ pub fn encode_natural<W: io::Write>(mut n: usize, w: &mut BitWriter<W>) -> io::R
         8 * mem::size_of::<usize>() - n.leading_zeros() as usize - 1
     }
 
-    let mut suffix = Vec::new();
+    // The u64 cast below already assumes usize is at most 64 bits.
+    // The largest suffix lengths are therefore 63, 5, 2, 1.
+    let mut suffix = [(0, 0); 4];
+    let mut suffix_len = 0;
 
     loop {
         debug_assert!(n > 0);
@@ -320,12 +323,13 @@ pub fn encode_natural<W: io::Write>(mut n: usize, w: &mut BitWriter<W>) -> io::R
             break;
         } else {
             w.write_bit(true)?;
-            suffix.push((n, len));
+            suffix[suffix_len] = (n, len);
+            suffix_len += 1;
             n = len;
         }
     }
 
-    while let Some((bits, len)) = suffix.pop() {
+    for &(bits, len) in suffix[..suffix_len].iter().rev() {
         let bits = bits as u64; // Case safety: assuming 64-bit machine or lower
         w.write_bits_be(bits, len)?;
     }
@@ -350,6 +354,41 @@ mod test {
                 .read_natural(None)
                 .expect("decoding from vector");
             assert_eq!(n, m);
+        }
+    }
+
+    #[test]
+    fn encode_natural_boundaries() {
+        let mut values = vec![1, usize::MAX];
+        for power in 1..usize::BITS {
+            let n = 1usize << power;
+            values.extend([n - 1, n, n + 1]);
+        }
+        for n in values {
+            // Construct the expected bit string recursively, independently of
+            // the encoder's suffix storage. The decoder only supports u32.
+            fn expected(n: usize) -> String {
+                if n == 1 {
+                    return "0".to_owned();
+                }
+                let bits = format!("{n:b}");
+                format!("1{}{}", expected(bits.len() - 1), &bits[1..])
+            }
+
+            let expected = expected(n);
+            for offset in 0..8 {
+                let mut bytes = Vec::new();
+                let mut w = BitWriter::new(&mut bytes);
+                w.write_bits_be(0xa5, offset).unwrap();
+                assert_eq!(encode_natural(n, &mut w).unwrap(), expected.len());
+                w.flush_all().unwrap();
+                let bits: String =
+                    BitIter::byte_slice_window(&bytes, offset, offset + expected.len())
+                        .take(expected.len())
+                        .map(|bit| if bit { '1' } else { '0' })
+                        .collect();
+                assert_eq!(bits, expected, "n={n}, offset={offset}");
+            }
         }
     }
 }
