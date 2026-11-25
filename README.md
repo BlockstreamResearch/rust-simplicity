@@ -50,7 +50,7 @@ To use rust-simplicity, add this to your Cargo.toml:
 
 ```toml
 [dependencies]
-simplicity-lang = "0.9"
+simplicity-lang = "0.10"
 ```
 
 ## Quick Start

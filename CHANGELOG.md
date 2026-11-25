@@ -1,9 +1,17 @@
-# Unreleased
+# 0.10.0 - 2026-11-25
 
+* Update `simplicity-sys` to `0.9.0`, which fixes the `test-utils` binding of `evalTCOExpression` [#411](https://github.com/BlockstreamResearch/rust-simplicity/pull/411), [#413](https://github.com/BlockstreamResearch/rust-simplicity/pull/413).
+* Add the Bitcoin transaction environment, so that Bitcoin jets that read the transaction can run. `BitcoinEnv::new` takes the transaction, the UTXOs it spends, the input index, the script CMR and the control block.
+  `BitcoinEnv` is now generic over how it holds the transaction, exposes it through `tx()` instead of a public field, and no longer implements `Default`.
+  `ElementsEnv::dummy` and `ElementsEnv::dummy_with` are available with the `test-utils` feature [#385](https://github.com/BlockstreamResearch/rust-simplicity/pull/385).
+* `ElementsEnv` takes any `T: Borrow<elements::Transaction>` instead of `T: Deref<Target = elements::Transaction>` [#385](https://github.com/BlockstreamResearch/rust-simplicity/pull/385).
+* Only treat the last witness item as the annex of an Elements input when there are at least two items [#384](https://github.com/BlockstreamResearch/rust-simplicity/pull/384).
 * Fix `RedeemNode::prune` producing programs that consensus rejects, and add `ExecutionError::PruningFailed` [#391](https://github.com/BlockstreamResearch/rust-simplicity/issues/391).
 * Update libsimplicity to `4e0beb5`, so that `Bitcoin::cmr()` and `Bitcoin::cost()` no longer panic [#405](https://github.com/BlockstreamResearch/rust-simplicity/pull/405).
 * Add `Cost::get_annex_padding_size`, and make `Cost::get_padding` return the shortest annex [#405](https://github.com/BlockstreamResearch/rust-simplicity/pull/405).
 * `Cost::get_padding` and `Cost::is_budget_valid` now take `&[Vec<u8>]` instead of `&Vec<Vec<u8>>`, and `Cost::is_budget_valid` is available with the `bitcoin` feature [#405](https://github.com/BlockstreamResearch/rust-simplicity/pull/405).
+* Fix two human encoding round-tripping bugs: `fail` entropy is printed with its `0x` prefix, and the `A?` notation for `1 + A` parses [#395](https://github.com/BlockstreamResearch/rust-simplicity/pull/395).
+* Speed up `Value::from_byte_array` [#398](https://github.com/BlockstreamResearch/rust-simplicity/pull/398), and stop `Value::from_padded_bits` from allocating an unused byte [#399](https://github.com/BlockstreamResearch/rust-simplicity/pull/399).
 
 # 0.9.0 - 2026-09-16
 
