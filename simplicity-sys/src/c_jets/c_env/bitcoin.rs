@@ -71,42 +71,42 @@ pub struct CTapEnv {
 // Will uncomment in a later commit; need to update libsimplicity first so these
 // symbols have something to link against.
 extern "C" {
-    #[link_name = "rustsimplicity_0_8_c_sizeof_rawBitcoinBuffer"]
+    #[link_name = "rustsimplicity_0_9_c_sizeof_rawBitcoinBuffer"]
     pub static c_sizeof_rawBuffer: c_size_t;
-    #[link_name = "rustsimplicity_0_8_c_sizeof_rawBitcoinOutput"]
+    #[link_name = "rustsimplicity_0_9_c_sizeof_rawBitcoinOutput"]
     pub static c_sizeof_rawOutput: c_size_t;
-    #[link_name = "rustsimplicity_0_8_c_sizeof_rawBitcoinInput"]
+    #[link_name = "rustsimplicity_0_9_c_sizeof_rawBitcoinInput"]
     pub static c_sizeof_rawInput: c_size_t;
-    #[link_name = "rustsimplicity_0_8_c_sizeof_rawBitcoinTransaction"]
+    #[link_name = "rustsimplicity_0_9_c_sizeof_rawBitcoinTransaction"]
     pub static c_sizeof_rawTransaction: c_size_t;
-    #[link_name = "rustsimplicity_0_8_c_sizeof_rawBitcoinTapEnv"]
+    #[link_name = "rustsimplicity_0_9_c_sizeof_rawBitcoinTapEnv"]
     pub static c_sizeof_rawTapEnv: c_size_t;
-    #[link_name = "rustsimplicity_0_8_c_sizeof_bitcoinTxEnv"]
+    #[link_name = "rustsimplicity_0_9_c_sizeof_bitcoinTxEnv"]
     pub static c_sizeof_txEnv: c_size_t;
 
-    #[link_name = "rustsimplicity_0_8_c_alignof_rawBitcoinBuffer"]
+    #[link_name = "rustsimplicity_0_9_c_alignof_rawBitcoinBuffer"]
     pub static c_alignof_rawBuffer: c_size_t;
-    #[link_name = "rustsimplicity_0_8_c_alignof_rawBitcoinOutput"]
+    #[link_name = "rustsimplicity_0_9_c_alignof_rawBitcoinOutput"]
     pub static c_alignof_rawOutput: c_size_t;
-    #[link_name = "rustsimplicity_0_8_c_alignof_rawBitcoinInput"]
+    #[link_name = "rustsimplicity_0_9_c_alignof_rawBitcoinInput"]
     pub static c_alignof_rawInput: c_size_t;
-    #[link_name = "rustsimplicity_0_8_c_alignof_rawBitcoinTransaction"]
+    #[link_name = "rustsimplicity_0_9_c_alignof_rawBitcoinTransaction"]
     pub static c_alignof_rawTransaction: c_size_t;
-    #[link_name = "rustsimplicity_0_8_c_alignof_rawBitcoinTapEnv"]
+    #[link_name = "rustsimplicity_0_9_c_alignof_rawBitcoinTapEnv"]
     pub static c_alignof_rawTapEnv: c_size_t;
-    #[link_name = "rustsimplicity_0_8_c_alignof_bitcoinTxEnv"]
+    #[link_name = "rustsimplicity_0_9_c_alignof_bitcoinTxEnv"]
     pub static c_alignof_txEnv: c_size_t;
 
-    #[link_name = "rustsimplicity_0_8_c_bitcoin_set_txEnv"]
+    #[link_name = "rustsimplicity_0_9_c_bitcoin_set_txEnv"]
     pub fn c_set_txEnv(
         result: *mut CTxEnv,
         tx: *const CTransaction,
         taproot: *const CTapEnv,
         ix: c_uint,
     );
-    #[link_name = "rustsimplicity_0_8_bitcoin_mallocTapEnv"]
+    #[link_name = "rustsimplicity_0_9_bitcoin_mallocTapEnv"]
     pub fn simplicity_mallocTapEnv(rawEnv: *const CRawTapEnv) -> *mut CTapEnv;
-    #[link_name = "rustsimplicity_0_8_bitcoin_mallocTransaction"]
+    #[link_name = "rustsimplicity_0_9_bitcoin_mallocTransaction"]
     pub fn simplicity_mallocTransaction(rawTx: *const CRawTransaction) -> *mut CTransaction;
 }
 
@@ -121,8 +121,8 @@ impl CTxEnv {
 impl Drop for CTxEnv {
     fn drop(&mut self) {
         unsafe {
-            crate::alloc::rust_0_8_free(self.tx as *mut u8);
-            crate::alloc::rust_0_8_free(self.taproot as *mut u8);
+            crate::alloc::rust_0_9_free(self.tx as *mut u8);
+            crate::alloc::rust_0_9_free(self.taproot as *mut u8);
         }
     }
 }

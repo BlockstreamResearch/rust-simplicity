@@ -19,6 +19,6 @@
  *               unsigned char cmr[32]
  *               unsigned char program[program_len]
  */
-extern bool rustsimplicity_0_8_computeCmr( simplicity_err* error, unsigned char* cmr, rustsimplicity_0_8_callback_decodeJet decodeJet
+extern bool rustsimplicity_0_9_computeCmr( simplicity_err* error, unsigned char* cmr, rustsimplicity_0_9_callback_decodeJet decodeJet
                                  , const unsigned char* program, size_t program_len);
 #endif

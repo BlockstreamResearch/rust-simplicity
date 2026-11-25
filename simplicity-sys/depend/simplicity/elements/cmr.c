@@ -16,7 +16,7 @@
  *               unsigned char cmr[32]
  *               unsigned char program[program_len]
  */
-bool rustsimplicity_0_8_elements_computeCmr( simplicity_err* error, unsigned char* cmr
+bool rustsimplicity_0_9_elements_computeCmr( simplicity_err* error, unsigned char* cmr
                                    , const unsigned char* program, size_t program_len) {
-  return rustsimplicity_0_8_computeCmr(error, cmr, rustsimplicity_0_8_elements_decodeJet, program, program_len);
+  return rustsimplicity_0_9_computeCmr(error, cmr, rustsimplicity_0_9_elements_decodeJet, program, program_len);
 }

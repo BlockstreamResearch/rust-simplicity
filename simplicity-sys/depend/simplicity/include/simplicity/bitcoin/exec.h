@@ -31,7 +31,7 @@
  *               unsigned char program[program_len]
  *               unsigned char witness[witness_len]
  */
-extern bool rustsimplicity_0_8_bitcoin_execSimplicity( simplicity_err* error, unsigned char* ihr
+extern bool rustsimplicity_0_9_bitcoin_execSimplicity( simplicity_err* error, unsigned char* ihr
                                              , const bitcoinTransaction* tx, uint_fast32_t ix, const bitcoinTapEnv* taproot
                                              , int64_t minCost, int64_t budget
                                              , const unsigned char* amr

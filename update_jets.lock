@@ -7,7 +7,7 @@
 # "update_jets.sh --check" (run in CI) fails unless the revision matches
 # simplicity-sys/depend/simplicity-HEAD-revision.txt and every hash still matches.
 libsimplicity 4e0beb5947b7e75ee7974d82a1447e89a0b4b5d6
-1ce6a0f903060ade42c4e30bd254fb9f3ff3ddd9cf0e6f0d46c3386d7c9dc8a3  simplicity-sys/src/c_jets/jets_ffi.rs
+014fa89684ce36fb3ea22c74add5c852a43974b54eee08e3c068fc57edb38652  simplicity-sys/src/c_jets/jets_ffi.rs
 f19ccd980ef3b34a2677ddedf0eba3a2b57620b27c6d04f0da2b3af71a6f120a  simplicity-sys/src/c_jets/jets_wrapper.rs
 de53fabadd15684b5cbfd9af50519a88dd2b15d8d990f1b0ec4a41f98c857587  simplicity-sys/depend/jets_wrapper.c
 6f1d6fb026b37b362b7f072c2cce39588f323a400afe65e20e52c786b2b166b3  src/jet/init/core.rs

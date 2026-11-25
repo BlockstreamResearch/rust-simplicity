@@ -17,25 +17,25 @@
  *               unsigned char cmr[32]
  *               unsigned char program[program_len]
  */
-bool rustsimplicity_0_8_computeCmr( simplicity_err* error, unsigned char* cmr, rustsimplicity_0_8_callback_decodeJet decodeJet
+bool rustsimplicity_0_9_computeCmr( simplicity_err* error, unsigned char* cmr, rustsimplicity_0_9_callback_decodeJet decodeJet
                           , const unsigned char* program, size_t program_len) {
-  rustsimplicity_0_8_assert(NULL != error);
-  rustsimplicity_0_8_assert(NULL != cmr);
-  rustsimplicity_0_8_assert(NULL != program || 0 == program_len);
+  rustsimplicity_0_9_assert(NULL != error);
+  rustsimplicity_0_9_assert(NULL != cmr);
+  rustsimplicity_0_9_assert(NULL != program || 0 == program_len);
 
   bitstream stream = initializeBitstream(program, program_len);
   dag_node* dag = NULL;
-  int_fast32_t dag_len = rustsimplicity_0_8_decodeMallocDag(&dag, decodeJet, NULL, &stream);
+  int_fast32_t dag_len = rustsimplicity_0_9_decodeMallocDag(&dag, decodeJet, NULL, &stream);
   if (dag_len <= 0) {
-    rustsimplicity_0_8_assert(dag_len < 0);
+    rustsimplicity_0_9_assert(dag_len < 0);
     *error = (simplicity_err)dag_len;
   } else {
-    rustsimplicity_0_8_assert(NULL != dag);
-    rustsimplicity_0_8_assert((uint_fast32_t)dag_len <= DAG_LEN_MAX);
-    *error = rustsimplicity_0_8_closeBitstream(&stream);
+    rustsimplicity_0_9_assert(NULL != dag);
+    rustsimplicity_0_9_assert((uint_fast32_t)dag_len <= DAG_LEN_MAX);
+    *error = rustsimplicity_0_9_closeBitstream(&stream);
     sha256_fromMidstate(cmr, dag[dag_len-1].cmr.s);
   }
 
-  rustsimplicity_0_8_free(dag);
+  rustsimplicity_0_9_free(dag);
   return IS_PERMANENT(*error);
 }
