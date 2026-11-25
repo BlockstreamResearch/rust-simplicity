@@ -6,11 +6,11 @@
 use std::sync::Arc;
 
 use bitcoin::absolute::LockTime;
-use bitcoin::hashes::Hash as _;
+use bitcoin::hashes::{sha256, Hash as _};
 use bitcoin::key::Parity;
 use bitcoin::taproot::{ControlBlock, LeafVersion, TapNodeHash};
 use bitcoin::transaction::Version;
-use bitcoin::{Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Txid};
+use bitcoin::{Amount, OutPoint, ScriptBuf, Sequence, Transaction, TxIn, TxOut, Txid, Witness};
 
 use crate::bit_machine::ExecutionError;
 use crate::jet::{Bitcoin, BitcoinEnv};
@@ -205,6 +205,46 @@ fn check_lock_height_and_time() {
             let case = (jet, lock_time, all_final);
             assert!(accepts(0) && accepts(limit), "{case:?}");
             assert!(!accepts(limit + 1), "{case:?}");
+        }
+    }
+}
+
+#[test]
+fn annex_jets_hash_the_annex_after_its_0x50() {
+    let annex_hash = |annex: Option<&[u8]>| match annex {
+        Some(annex) => Value::some(Value::u256(sha256::Hash::hash(annex).to_byte_array())),
+        None => Value::none(Final::u256()),
+    };
+
+    // (witness of the current input, its annex without the 0x50)
+    let cases: &[(&[&[u8]], Option<&[u8]>)] = &[
+        (&[], None),
+        // A single item is a key-path signature, even if it starts with 0x50
+        (&[&[0x50, 0xaa]], None),
+        (&[&[0x01], &[0x51, 0xaa]], None),
+        (&[&[0x01], &[]], None),
+        // Only the last item can be the annex
+        (&[&[0x50, 0xaa], &[0x01]], None),
+        // A key-path and a script-path spend with the same annex
+        (&[&[0x01], &[0x50, 0xaa]], Some(&[0xaa])),
+        (&[&[0x01], &[0x02], &[0x50, 0xaa]], Some(&[0xaa])),
+        // 0x50 alone is an empty annex, not a missing one
+        (&[&[0x01], &[0x50]], Some(&[])),
+    ];
+
+    for &(witness, annex) in cases {
+        let mut fixture = Fixture::new();
+        // Another input's annex, which must stay with that input
+        fixture.tx.input[0].witness = Witness::from_slice(&[vec![0x01], vec![0x50, 0xcc]]);
+        fixture.tx.input[1].witness = Witness::from_slice(witness);
+        let env = fixture.env();
+
+        let value = run_jet(Bitcoin::CurrentAnnexHash, &Value::unit(), &env).unwrap();
+        assert_eq!(value, annex_hash(annex), "{witness:?}");
+
+        for (i, annex) in [Some(&[0xcc][..]), annex, None].into_iter().enumerate() {
+            let value = run_jet(Bitcoin::InputAnnexHash, &Value::u32(i as u32), &env).unwrap();
+            assert_eq!(value, Value::some(annex_hash(annex)), "{witness:?} {i}");
         }
     }
 }

@@ -398,6 +398,7 @@ pub mod eval {
             dag: *const CDagNode,
             type_dag: *mut CType,
             len: c_size_t,
+            min_cost: ubounded,
             budget: *const ubounded,
             env: *const elements::CTxEnv,
         ) -> SimplicityErr;
@@ -434,6 +435,7 @@ pub mod eval {
         dag: *const CDagNode,
         type_dag: *mut CType,
         len: c_size_t,
+        min_cost: ubounded,
         budget: *const ubounded,
         env: *const elements::CTxEnv,
     ) -> SimplicityErr {
@@ -444,6 +446,7 @@ pub mod eval {
             dag,
             type_dag,
             len,
+            min_cost,
             budget,
             env,
         )

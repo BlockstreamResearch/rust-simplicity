@@ -117,9 +117,10 @@ find "$DEPEND_PATH/simplicity" \( -name "*.[ch]" -o -name '*.inc' \) -type f -pr
 # ...ok, actually we didn't want to replace simplicity_err
 find "$DEPEND_PATH/simplicity" \( -name "*.[ch]" -o -name '*.inc' \) -type f -print0 | xargs -0 \
     sed -i "s/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_err/simplicity_err/g"
-# Special-case calls in depend/env.c and depend/warpper.h
+# Special-case calls in depend/env.c, depend/bitcoin_env.c and depend/wrapper.h
 sed -i -r "s/rustsimplicity_[0-9]+_[0-9]+_/rustsimplicity_${SIMPLICITY_ALLOC_VERSION_CODE}_/" \
     "$DEPEND_PATH/env.c" \
+    "$DEPEND_PATH/bitcoin_env.c" \
     "$DEPEND_PATH/wrapper.h"
 
 # d. ...also update the corresponding link_name= entries in the Rust source code

@@ -102,14 +102,18 @@ pub(super) fn new_tx_env(
     }
 }
 
-/// Extracts the annex from a taproot witness stack per BIP341: if there are at
-/// least two witness elements and the last one starts with 0x50, it is the annex.
-/// (rust-bitcoin 0.32 removed `Witness::taproot_annex`.)
+/// If the witness stack has at least two items and the last one starts with 0x50,
+/// return the data following the 0x50 byte.
+///
+/// This is the BIP-341 annex rule.
+/// libsimplicity hashes the bytes it is given as they are,
+/// and the nodes that run Simplicity give it the annex without the 0x50.
+/// Passing anything else changes the annex hashes, and with them `TxHash` and `SigAllHash`.
+/// (BIP-341's own `sha_annex` does include the 0x50)
 fn get_annex(in_witness: &bitcoin::Witness) -> Option<&[u8]> {
-    let last_item = in_witness.last()?;
-    if *last_item.first()? == TAPROOT_ANNEX_PREFIX {
-        Some(last_item)
-    } else {
-        None
+    if in_witness.len() < 2 {
+        return None;
     }
+
+    in_witness.last()?.strip_prefix(&[TAPROOT_ANNEX_PREFIX])
 }
